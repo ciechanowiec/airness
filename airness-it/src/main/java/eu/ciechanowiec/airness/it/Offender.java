@@ -8,14 +8,13 @@ package eu.ciechanowiec.airness.it;
 public class Offender {
 
     /**
-     * Returns a null literal, which the rule set forbids in favour of an {@link java.util.Optional}. The
-     * magic number and the unbraced branch are here for the same reason.
+     * Carries a magic number and an unbraced branch, each forbidden by the rule set.
      *
-     * @return nothing usable; the violation is the point, not the value
+     * @return a value nobody reads, since the violation is the point rather than the result
      */
     public String offend() {
         int magic = 8788;
-        if (magic > 0) return null;
+        if (magic > 0) return "offended";
         return "unreachable";
     }
 }
