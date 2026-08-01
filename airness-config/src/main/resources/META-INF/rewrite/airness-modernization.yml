@@ -1,0 +1,42 @@
+#
+# The curated OpenRewrite recipe set the harness applies.
+#
+# It is discovered rather than configured. OpenRewrite reads META-INF/rewrite/*.yml off the plugin's own
+# classpath, so this file reaches a project the same way the analyzer rule sets do, and a project that
+# inherits the harness has no recipe file of its own to keep in step.
+#
+# The set is curated to be deterministic and non-conflicting. It carries no formatting or import
+# recipes, because those belong to the formatter and the import sorter, and two tools with an opinion
+# about layout produce a build whose output depends on which ran last.
+#
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: eu.ciechanowiec.airness.Modernization
+displayName: airness modernization
+description: >-
+  Curated, non-conflicting OpenRewrite recipes: broad static-analysis cleanups, modernization to
+  current Java idioms, JUnit 5 best practices, SLF4J best practices, and Maven pom hygiene.
+recipeList:
+  # Broad, auto-fixable static-analysis cleanups (idiomatic Java, dead code, simplifications).
+  - org.openrewrite.staticanalysis.CommonStaticAnalysis
+  # Modernize toward current Java language idioms (text blocks, enhanced instanceof, records).
+  - org.openrewrite.java.migrate.UpgradeToJava25
+  # JUnit 5 best practices (lifecycle and visibility, assertion idioms).
+  - org.openrewrite.java.testing.junit5.JUnit5BestPractices
+  # SLF4J best practices, expanded inline so specific sub-recipes can be left out. Excluded:
+  #   * CatchBlockLogLevel       -- a deliberate warn-versus-error choice in a catch block is a decision
+  #   * CompleteExceptionLogging -- appending the throwable to every catch-block log means a stack trace
+  #                                 everywhere, which is not always what the author chose
+  - org.openrewrite.java.logging.ArgumentArrayToVarargs
+  - org.openrewrite.java.logging.slf4j.LoggersNamedForEnclosingClass
+  - org.openrewrite.java.logging.slf4j.Slf4jLogShouldBeConstant
+  - org.openrewrite.java.logging.slf4j.StringFormatToParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.MessageFormatToParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.ParameterizedLogging
+  - org.openrewrite.java.logging.ChangeLoggersToPrivate
+  - org.openrewrite.java.logging.slf4j.MatchIsLogLevelEnabledWithLogStatements
+  - org.openrewrite.java.logging.slf4j.WrapExpensiveLogStatementsInConditionals
+  - org.openrewrite.java.logging.slf4j.StripToStringFromArguments
+  - org.openrewrite.java.logging.slf4j.RemoveUnnecessaryLogLevelGuards
+  # Maven pom hygiene (ordering, redundant version removal).
+  - org.openrewrite.maven.BestPractices

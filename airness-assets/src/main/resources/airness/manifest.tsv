@@ -14,12 +14,13 @@
 # A project that has a reason to differ names the path in airness.assets.unmanaged and says why in a
 # comment beside it. The saying-why part binds by whoever reads the pom, not by a gate.
 #
-# No file is FORBIDDEN yet. The policy exists and is enforced, but forbidding a file states that the
-# harness supplies it from elsewhere, and a line here that forbids a file while supplying nothing would
-# be a claim the harness cannot honour. Entries arrive as each replacement does: the OpenRewrite recipe
-# once the plugin that reads it is bound, the scripts and the inspection profile once they are unpacked
-# under the build directory.
+# A FORBIDDEN line is only ever added once the replacement exists. Forbidding a file states that the
+# harness supplies it from elsewhere, and a line that forbids while supplying nothing is a claim the
+# harness cannot honour. rewrite.yml earns its line because OpenRewrite reads the recipe set out of
+# META-INF/rewrite/ on its own plugin classpath, which is airness-config. The scripts and the inspection
+# profile join it once they are unpacked under the build directory.
 
 .editorconfig	PINNED
 .gitattributes	PINNED
 .gitignore	SEED
+rewrite.yml	FORBIDDEN
