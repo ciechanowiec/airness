@@ -51,6 +51,7 @@
             is itself reported, so this list cannot outlive the directories it points at.
         -->
         <airness.typography.excludes>.vale/,docinfo</airness.typography.excludes>
+        <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -72,4 +73,80 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <profile>
+            <!--
+                Adds the Error Prone fixture to the sources. A finding from it is a compile error rather
+                than a report, so a fixture kept under src/main/java would end every build in this module
+                before the case under test reached anything.
+
+                It gets a source root of its own rather than sharing one with the null-checker fixture,
+                because javac stops after the first file that fails and only that file's finding is
+                reported. Two fixtures in one root would mean one case passing and the other reporting
+                nothing, for a reason that has nothing to do with the check it is about.
+            -->
+            <id>errorprone-fixture</id>
+            <activation>
+                <property>
+                    <name>airness.it.errorprone</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>${build-helper-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>add-errorprone-fixture</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/compiler-checks/errorprone/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- The null-checker fixture, kept apart from the one above for the reason given there. -->
+            <id>nullaway-fixture</id>
+            <activation>
+                <property>
+                    <name>airness.it.nullaway</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>${build-helper-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>add-nullaway-fixture</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/compiler-checks/nullaway/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

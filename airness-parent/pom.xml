@@ -74,6 +74,17 @@
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <min.maven.version>3.9</min.maven.version>
+        <error-prone.version>2.50.0</error-prone.version>
+        <nullaway.version>0.13.7</nullaway.version>
+        <jspecify.version>1.0.0</jspecify.version>
+        <lombok.version>1.18.46</lombok.version>
+        <!--
+            The package NullAway treats as annotated. Everything outside it is assumed unannotated and
+            goes unchecked, so a value naming a package this project does not use turns the whole
+            null-checker into a no-op that still appears in the build log. check-parameters refuses to
+            let it stay unset, and cross-checks it against the group root.
+        -->
+        <airness.package.root>UNSET</airness.package.root>
         <!--
             Classes left out of the per-class coverage floor, comma-separated, each because of the role
             it plays rather than because covering it was inconvenient. Empty by default: a harness that
@@ -130,9 +141,61 @@
         </pluginManagement>
         <plugins>
             <plugin>
+                <!--
+                    Error Prone is a javac plugin rather than a Maven one: it hooks the compiler's typed
+                    AST while compiling. Since JDK 16 that compiler is strongly encapsulated, so reaching
+                    it needs a forked javac carrying the exports and opens below.
+
+                    NullAway rides along as an Error Prone check. It reads airness.package.root to decide
+                    what counts as annotated code, and everything outside that package is assumed
+                    unannotated and left alone, which is why a wrong value there disables the checker
+                    while leaving it in the log looking configured.
+
+                    The reflective-injection annotations are excluded from the field-initialization
+                    check, because a field a framework assigns is not a field the constructor forgot.
+                    The list is fixed rather than a property: a project that could extend it could also
+                    empty it, and an empty list reads in the log exactly like a correct one.
+                -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <fork>true</fork>
+                    <compilerArgs>
+                        <arg>-XDcompilePolicy=simple</arg>
+                        <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</arg>
+                        <arg>-Werror</arg>
+                        <arg>-Xlint:deprecation</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${error-prone.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.uber.nullaway</groupId>
+                            <artifactId>nullaway</artifactId>
+                            <version>${nullaway.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

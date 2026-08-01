@@ -236,6 +236,16 @@ expect 'coverage: an untested class is named by both counters of the per-class f
 expect 'coverage: a covered class is not reported' \
     'Rule violated for class eu.ciechanowiec.airness.it.Justified' 0 $no_analyzers $no_shaping $lenient
 
+# The compiler-side checks reach this consumer's sources. Both are compile errors rather than reports,
+# so their fixtures live outside the ordinary source roots and this case adds them back. NullAway is
+# the one worth naming twice over: it reads the package root to decide what counts as annotated code,
+# so a value naming a package the project does not use leaves it checking nothing while still appearing
+# in the build log. The preflight case above is what stands between that and a silent pass.
+expect 'error prone: the compiler-side checks reach consumer sources' \
+    '\[ReferenceEquality\]' 1 -Dairness.it.errorprone $no_shaping
+expect 'nullaway: the null checker reaches consumer sources' \
+    '\[NullAway\]' 2 -Dairness.it.nullaway $no_shaping
+
 if [ "$failures" -ne 0 ]; then
     printf '\n%s case(s) failed: the harness is not reaching a consumer the way it claims to.\n' "$failures" >&2
     exit 1
