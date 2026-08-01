@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>airness-maven-plugin</artifactId>
+    <packaging>maven-plugin</packaging>
+
+    <name>airness-maven-plugin</name>
+    <description>
+        The lifecycle binding for the governance checks. One goal per check, each of them read-only, and
+        each of them a named execution rather than a test.
+
+        A check that shipped as a test would be deselected by -Dtest=OneClass and skipped outright by
+        -DskipTests, and neither of those is a request to turn the harness off. Test selection is the
+        mechanism there rather than a switch on it, so it cannot be overridden from inside. As goals the
+        checks are bound to phases, their parameters are named and typed, and a failure names the gate in
+        the line that reports it.
+    </description>
+
+    <prerequisites>
+        <maven>${maven.api.version}</maven>
+    </prerequisites>
+
+    <properties>
+        <maven.api.version>3.9.11</maven.api.version>
+        <maven-plugin-tools.version>3.15.2</maven-plugin-tools.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-governance</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-plugin-api</artifactId>
+            <version>${maven.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>${maven.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugin-tools</groupId>
+            <artifactId>maven-plugin-annotations</artifactId>
+            <version>${maven-plugin-tools.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-plugin-plugin</artifactId>
+                <version>${maven-plugin-tools.version}</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>

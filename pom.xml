@@ -32,6 +32,7 @@
         <module>airness-annotations</module>
         <module>airness-config</module>
         <module>airness-governance</module>
+        <module>airness-maven-plugin</module>
         <module>airness-parent</module>
     </modules>
 
