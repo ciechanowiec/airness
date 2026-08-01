@@ -31,10 +31,69 @@
     <modules>
         <module>airness-annotations</module>
         <module>airness-config</module>
+        <module>airness-governance</module>
         <module>airness-parent</module>
     </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!--
+            The one Java version this build targets. A project that inherits the harness is on 25
+            already, so an artifact only such a project resolves gains nothing from a lower target.
+        -->
+        <maven.compiler.release>25</maven.compiler.release>
+        <lombok.version>1.18.46</lombok.version>
+        <junit.version>6.1.2</junit.version>
+        <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
     </properties>
+
+    <build>
+        <plugins>
+            <!--
+                Lombok is named as a processor path rather than left to be discovered on the classpath.
+                Since JDK 23 javac no longer runs a processor it merely finds there, and the failure is
+                silent: the annotations still compile, the transforms simply never happen. A @UtilityClass
+                that produced a public constructor and a @SneakyThrows that threw a compile error are the
+                two ways this was found, and only the second of them announces itself. Naming the path
+                makes the processor a declared input, so its absence is a build failure rather than a
+                quietly weaker build.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+        Pinned here rather than in each module, because these are what airness builds itself with. The
+        versions a consuming project builds with are airness-parent's business, and the two are
+        deliberately separate: raising one has no bearing on the other.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>

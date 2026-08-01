@@ -31,13 +31,4 @@
         It carries no dependencies and no runtime cost. Every type here has SOURCE retention, so nothing
         it ships survives compilation into the consumer's artifact.
     </description>
-
-    <properties>
-        <!--
-            The one Java version in this build. The harness targets 25 throughout, so an artifact used
-            only by projects that inherit the harness gains nothing from a lower target, and a second
-            release number would be one more value to keep in agreement with the first.
-        -->
-        <maven.compiler.release>25</maven.compiler.release>
-    </properties>
 </project>
