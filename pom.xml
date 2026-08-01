@@ -29,6 +29,7 @@
     </developers>
 
     <modules>
+        <module>airness-annotations</module>
         <module>airness-config</module>
         <module>airness-parent</module>
     </modules>

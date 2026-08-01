@@ -56,6 +56,7 @@
         <!-- Versions, pinned here so a consumer raises one parent version rather than a dozen properties -->
         <airness.version>${project.version}</airness.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+        <maven-dependency-plugin.version>3.9.1</maven-dependency-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
@@ -65,7 +66,47 @@
         <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
     </properties>
 
+    <dependencies>
+        <!--
+            Inherited by every consumer, so the annotation the rule set expects is on the compile
+            classpath without anyone declaring it. A rule that demands an annotation a project has to go
+            and write for itself is a rule that gets worked around rather than followed.
+
+            provided scope, because the annotation has SOURCE retention and is gone by the time the class
+            file exists. Nothing needs it later, so nothing downstream should resolve it.
+        -->
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-annotations</artifactId>
+            <version>${airness.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>${maven-dependency-plugin.version}</version>
+                    <configuration>
+                        <!--
+                            Dependency analysis reads class files, and a SOURCE-retention annotation
+                            leaves none behind. airness-annotations is therefore used by every project
+                            that suppresses a rule and reported as unused by all of them. The exemption is
+                            named for this one artifact rather than switched off wholesale, so a genuinely
+                            unused dependency is still reported.
+                        -->
+                        <ignoredUnusedDeclaredDependencies>
+                            <ignoredUnusedDeclaredDependency>
+                                eu.ciechanowiec:airness-annotations
+                            </ignoredUnusedDeclaredDependency>
+                        </ignoredUnusedDeclaredDependencies>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

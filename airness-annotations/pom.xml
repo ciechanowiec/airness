@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        This module inherits the aggregator rather than airness-parent, and it is the one module that
+        could not do otherwise. airness-parent declares a dependency on this artifact so every consumer
+        receives it without asking, and a module cannot both be depended on by its own parent and
+        inherit it: that is a cycle Maven has no way to order. The rest of the build inherits the
+        aggregator too, for the ordinary reason that a plugin cannot be used in the reactor that builds
+        it, but here it is a requirement rather than a convention.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>airness-annotations</artifactId>
+    <packaging>jar</packaging>
+
+    <name>airness-annotations</name>
+    <description>
+        The annotations the rule set expects to find in a consumer's source. This is the only airness
+        artifact that reaches a consuming project's compile classpath, which is why it is an artifact of
+        its own rather than a package inside airness-config: folding it in would put the analyzer
+        configurations on that classpath as well, to no purpose.
+
+        It carries no dependencies and no runtime cost. Every type here has SOURCE retention, so nothing
+        it ships survives compilation into the consumer's artifact.
+    </description>
+
+    <properties>
+        <!--
+            The one Java version in this build. The harness targets 25 throughout, so an artifact used
+            only by projects that inherit the harness gains nothing from a lower target, and a second
+            release number would be one more value to keep in agreement with the first.
+        -->
+        <maven.compiler.release>25</maven.compiler.release>
+    </properties>
+</project>
