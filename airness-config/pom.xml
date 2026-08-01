@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>airness-config</artifactId>
+    <packaging>jar</packaging>
+
+    <name>airness-config</name>
+    <description>
+        The analysis configurations, carried as classpath resources rather than as files a consumer
+        copies. A consumer names a resource path, so the rule set is updated by raising one version
+        rather than by re-copying three files into every repository that uses them.
+    </description>
+</project>

@@ -1,0 +1,285 @@
+[.text-justify]
+= _airness_ - Java Build Harness
+:reproducible:
+:doctype: article
+:author: Herman Ciechanowiec
+:email: herman@ciechanowiec.eu
+:chapter-signifier:
+:sectnums:
+:sectnumlevels: 5
+:sectanchors:
+:toc: left
+:toclevels: 5
+:icons: font
+:docinfo: shared,private
+:linkcss:
+:sourcedir: {docdir}
+:pdf-theme: {sourcedir}/.docs/themes/basic.yml
+:pdf-fontsdir: {sourcedir}/.docs/themes/fonts,GEM_FONTS_DIR
+:stylesdir: https://www.ciechanowiec.eu/linux_mantra/
+:stylesheet: adoc-css-style.css
+:!table-caption:
+:!figure-caption:
+:!example-caption:
+
+[cols=">.^1,<.^1"]
+|===
+| *Document last modified:* | {docdatetime}
+| *Document generated:* | {localdatetime}
+|===
+
+== _airness_ in Brief
+
+. _airness_ is a Maven parent that carries the quality gates for a Java project. A project inherits it and receives Checkstyle, PMD, and SpotBugs already configured against a shared rule set and already bound to the build lifecycle. The project declares its own coordinates, its own dependencies, and the parameters listed in xref:#required-parameters[]. Raising the parent version updates the rule set in every project that inherits it, so a rule lives in one place and no project holds a copy that can fall behind.
+
+. This document is written for a developer adopting _airness_ in a Java project. It assumes working knowledge of Maven and of the three analyzers named above. It covers adoption, the parameters a project must set, what the first build reports, and how to suppress a rule. It doesn't document the individual rules: those are enumerated in the configuration files named in xref:#rule-set[].
+
+. _airness_ currently ships static analysis. Test coverage, mutation analysis, and the governance checks are added to the parent as each is externalized, and a project picks them up by raising the parent version.
+
+== Adoption
+
+=== Inheriting the Parent
+
+. Declare _airness_ as the parent and set the one required parameter:
++
+[source,xml]
+----
+<parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</parent>
+
+<properties>
+    <!-- This project's own group root, escaped for a regular expression -->
+    <airness.group.root>com\.example</airness.group.root>
+</properties>
+----
+
+. `mvn clean package` then runs the three analyzers at the `package` phase. A project that already inherits a different parent can't take this one, because Maven allows a project one parent.
+
+[#required-parameters]
+=== Required Parameters
+
+. `airness.group.root` is the only parameter a project must set. It's the project's own group root, escaped for a regular expression, so `com.example` is written `com\.example`.
+
+. The build stops at the `validate` phase when the parameter is unset, before any analyzer runs:
++
+[source,text]
+----
+[ERROR] Rule 0: org.apache.maven.enforcer.rules.property.RequireProperty failed with message:
+[ERROR] airness.group.root is still UNSET; set it to this project's group root.
+----
+
+. The parameter has no default because a wrong value fails silently. The rule reading it forbids an inline fully qualified name, and it reads the group root alongside `java`, `javax`, and `jakarta`. Pointed at a group the project doesn't use, the rule matches nothing the project writes: it keeps reporting on Java Development Kit names while enforcing nothing about the project's own, which reads as a configured rule and isn't one.
+
+. A module without a `src/main/java` directory is exempt from this check, so an aggregator module needs no parameter.
+
+=== Optional Parameters
+
+[cols="2,1,3"]
+|===
+| Property | Default | Effect
+
+| `fail-build-on-static-code-analysis-errors`
+| `true`
+| Set to `false` to report findings without failing the build
+
+| `airness.checkstyle.config`
+| the shipped rule set
+| Points Checkstyle at a different configuration
+
+| `airness.pmd.config`
+| the shipped rule set
+| Points PMD at a different configuration
+
+| `airness.spotbugs.config`
+| the shipped filter
+| Points SpotBugs at a different filter
+|===
+
+The three configuration properties take a classpath resource path rather than a location on disk. A path that doesn't resolve fails the build in all three analyzers, so a typo can't quietly turn off a rule set.
+
+== The First Build
+
+=== Analyzer Findings
+
+. The rule set is strict, and a project adopting it should expect findings in existing code. A finding names the rule that produced it, which is the identifier to search for in the configuration files:
++
+[source,text]
+----
+[ERROR] src/main/java/com/example/Service.java:8:1: A concrete class must be final (or abstract).
+        Only test classes (*Test/*IT) are exempt. [RequireFinalClass]
+[ERROR] src/main/java/com/example/Service.java:17:21: '8788' is a magic number. [MagicNumber]
+----
+
+. Adopting the harness on an existing codebase is easier with `fail-build-on-static-code-analysis-errors` set to `false` for the first run. The findings are reported and the build completes, so the work can be sized before the gate is turned on.
+
+[#known-limitations]
+=== Known Limitations
+
+`SuppressionNeedsJustification` requires every `@SuppressWarnings` to be paired with an `@Justification` annotation, and _airness_ doesn't yet ship that annotation. A project that suppresses any rule meets this on its first build:
+
+[source,text]
+----
+[WARNING] PMD Failure: com.example.Service:13 Rule:SuppressionNeedsJustification
+          A @SuppressWarnings must be accompanied by @Justification stating why the
+          suppressed rule does not apply here.
+----
+
+Until a future version ships the annotation, a project declares it in a package of its own with `SOURCE` retention, so it costs the built artifact nothing:
+
+[source,java]
+----
+package com.example.governance;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+/**
+ * States why a paired @SuppressWarnings is warranted.
+ */
+@Retention(RetentionPolicy.SOURCE)
+public @interface Justification {
+
+    /**
+     * @return why the suppressed rule doesn't apply here
+     */
+    String value();
+}
+----
+
+== Suppressing a Rule
+
+. A suppression names the rule it sets aside and states why it doesn't apply:
++
+[source,java]
+----
+@SuppressWarnings("PMD.AvoidUsingHardCodedIP")
+@Justification("The loopback address is the binding contract, not a deployment detail to configure.")
+public String address() {
+    return "127.0.0.1";
+}
+----
+
+. PMD fails the build on a suppression that suppresses nothing. A suppression whose rule no longer fires, because the code it covered was changed, is reported rather than left to accumulate. Removing the literal above would turn its own suppression into a finding.
+
+[#rule-set]
+== The Rule Set
+
+. The rules are enumerated in three configuration files, which are the source of truth for what the harness enforces:
++
+[source,text]
+----
+eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml
+eu/ciechanowiec/airness/static_code_analysis/pmd.xml
+eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml
+----
+
+. The files ship inside the `airness-config` artifact and are read from the source tree of this repository at the matching path under `airness-config/src/main/resources/`. Each rule carries a comment stating what it enforces and why.
+
+. `airness-config` is declared as a dependency of the three analyzer plugins rather than of the consuming project. It reaches each plugin's isolated classpath and reaches neither the compile classpath nor the runtime classpath of the project being built, so it adds nothing to a project's dependency tree.
+
+== Repository Layout
+
+[cols="1,1,3"]
+|===
+| Module | Packaging | Role
+
+| `airness-parent`
+| `pom`
+| What a consuming project inherits: the plugin configuration and the lifecycle bindings
+
+| `airness-config`
+| `jar`
+| The analysis configurations, carried as classpath resources
+
+| `airness-it`
+| `jar`
+| The harness seen from a consuming project's side, used to verify it
+|===
+
+`airness-it` inherits `airness-parent` the way a consuming project does and carries no analysis configuration of its own, so a finding it reports came off the plugin classpath. Its sources violate rules deliberately, and `airness-it/verify.sh` asserts that each expected finding appears. An analyzer upgrade that renames a category path, or a rule that stops resolving, surfaces there rather than in a project that inherits the harness.
+
+== Building This Repository
+
+. Install the parent and the configuration jar:
++
+[source,bash]
+----
+mvn clean install
+----
+
+. Verify that the harness reaches a consuming project:
++
+[source,bash]
+----
+cd airness-it
+./verify.sh
+----
++
+[source,text]
+----
+ok       checkstyle: shipped rules reach consumer sources
+ok       pmd: shipped ruleset reaches consumer sources
+ok       spotbugs: unresolvable filter fails the build
+ok       group root: configured root makes the rule fire
+ok       group root: foreign root leaves the rule silent
+ok       group root: unset stops the build at validate
+
+All cases passed.
+----
+
+. `mvn clean package` inside `airness-it` is expected to fail, because that module's sources violate rules on purpose. `verify.sh` is what turns the resulting findings into a pass or a fail.
+
+== About the Document
+
+The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language. The guideline, export, and linting setup described below live in the repository that holds the source text, and an exported copy of the document carries none of them.
+
+=== Guideline
+
+The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
+
+=== Prerequisites
+
+To export and lint the source text, install the following tools:
+
+. https://asciidoctor.org/#installation[Asciidoctor^]
+. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
+. https://pandoc.org/installing.html[Pandoc^]
+. https://www.python.org/downloads/[Python 3^]
+. https://vale.sh/docs/install/[Vale^]
+. https://poppler.freedesktop.org[`pdftotext`^]
+. https://github.com/tesseract-ocr/tesseract[`tesseract`^]
+
+=== Export
+
+. To export the source text to HTML:
++
+[source,bash,subs="attributes+"]
+----
+asciidoctor --attribute allow-uri-read {docname}{docfilesuffix}
+----
+
+. To export the source text to PDF:
++
+[source,bash,subs="attributes+"]
+----
+asciidoctor-pdf --attribute allow-uri-read --require ./.docs/lib/common-style.rb {docname}{docfilesuffix}
+----
+
+. To export the source text to DOCX:
++
+[source,bash,subs="attributes+"]
+----
+prepared="$(python3 {sourcedir}/.docs/lib/export_prepare.py --docx-compat {docname}{docfilesuffix})" && asciidoctor --backend docbook --attribute allow-uri-read --out-file - "$prepared" | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx && rm "$prepared"
+----
+
+=== Linting
+
+Lint the source text:
+
+[source,bash,subs="attributes+"]
+----
+python3 .docs/lib/adoc_lint.py {docname}{docfilesuffix}
+----
