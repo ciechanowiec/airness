@@ -28,15 +28,6 @@
         <maven.compiler.release>25</maven.compiler.release>
 
         <!--
-            The configuration resources, named as classpath paths rather than as files. A consumer
-            overrides one of these only to point the analyzer at a configuration of its own, which is
-            the documented escape hatch rather than the expected case.
-        -->
-        <airness.checkstyle.config>eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml</airness.checkstyle.config>
-        <airness.pmd.config>eu/ciechanowiec/airness/static_code_analysis/pmd.xml</airness.pmd.config>
-        <airness.spotbugs.config>eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml</airness.spotbugs.config>
-
-        <!--
             The consumer's own group root, which the fully-qualified-name rule in checkstyle.xml reads
             alongside java/javax/jakarta. It is a property because the rule enforces less than it says
             when it names a group the project does not use: a consumer under another group would import
@@ -347,7 +338,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <configLocation>${airness.checkstyle.config}</configLocation>
+                    <configLocation>eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml</configLocation>
                     <!--
                         Threads the consumer's group root into the fully-qualified-name rule. Checkstyle
                         resolves a ${...} in the configuration against these values and fails on one it
@@ -391,7 +382,7 @@
                 </dependencies>
                 <configuration>
                     <rulesets>
-                        <ruleset>${airness.pmd.config}</ruleset>
+                        <ruleset>eu/ciechanowiec/airness/static_code_analysis/pmd.xml</ruleset>
                     </rulesets>
                     <failOnViolation>${fail-build-on-static-code-analysis-errors}</failOnViolation>
                     <printFailingErrors>true</printFailingErrors>
@@ -419,7 +410,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <excludeFilterFile>${airness.spotbugs.config}</excludeFilterFile>
+                    <excludeFilterFile>eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml</excludeFilterFile>
                     <failOnError>${fail-build-on-static-code-analysis-errors}</failOnError>
                     <includeTests>true</includeTests>
                     <effort>Max</effort>

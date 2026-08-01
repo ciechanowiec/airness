@@ -81,13 +81,14 @@ expect 'justification: the inherited annotation satisfies the rule' \
 expect 'justification: a suppression that suppresses nothing is reported' \
     '\.Useless:.*Rule:UnnecessaryWarningSuppression' 1 $only_pmd
 
-# A configuration path that does not resolve fails the build rather than disabling a rule set. SpotBugs
-# is the case that needs stating: with a filter it cannot find it would otherwise report zero bugs,
-# which is indistinguishable from a filter that loaded and matched nothing.
-expect 'spotbugs: unresolvable filter fails the build' \
-    "Could not find resource 'BOGUS" 1 \
-    -Dcheckstyle.skip=true -Dpmd.skip=true -Dairness.spotbugs.config=BOGUS.xml \
-    -Dairness.governance.enforce=false $no_shaping
+# SpotBugs is the analyzer whose silence says nothing: a filter it could not resolve leaves it
+# reporting zero bugs, and so does a clean project. No project can repoint that filter, so the way this
+# is watched is a fixture carrying a bug the shipped configuration is known to report. If the resource
+# ever moves, the plugin fails to resolve it and this finding stops appearing.
+# shellcheck disable=SC2086
+expect 'spotbugs: the shipped filter reaches consumer sources' \
+    'EI_EXPOSE_REP' 1 \
+    -Dcheckstyle.skip=true -Dpmd.skip=true -Dairness.governance.enforce=false $no_shaping
 
 # The group root reaches the fully-qualified-name rule. Pointed at this project's group the rule fires,
 # and pointed at another project's group it goes quiet: the second case is the one worth pinning,
