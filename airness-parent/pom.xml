@@ -59,7 +59,7 @@
         <!-- Versions, pinned here so a consumer raises one parent version rather than a dozen properties -->
         <airness.version>${project.version}</airness.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
-        <maven-dependency-plugin.version>3.9.1</maven-dependency-plugin.version>
+        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <rewrite-maven-plugin.version>6.44.0</rewrite-maven-plugin.version>
         <rewrite-static-analysis.version>2.39.0</rewrite-static-analysis.version>
@@ -68,6 +68,18 @@
         <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
         <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
         <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
+        <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
+        <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+        <min.maven.version>3.9</min.maven.version>
+        <!--
+            Classes left out of the per-class coverage floor, comma-separated, each because of the role
+            it plays rather than because covering it was inconvenient. Empty by default: a harness that
+            arrived with exclusions would be teaching a project that the list is where difficulty goes.
+        -->
+        <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <checkstyle.version>13.8.0</checkstyle.version>
         <qulice-maven-plugin.version>0.27.6</qulice-maven-plugin.version>
@@ -121,6 +133,262 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <!--
+                    Coverage measured per class rather than over the module. A module-wide floor lets one
+                    thoroughly covered class carry an untested one, and the arithmetic that makes that
+                    work gets easier the larger the module grows, so the number stops meaning what it
+                    says exactly when it matters most.
+
+                    Both counters are held to the same floor. Instructions alone say a line ran, which a
+                    single walk through a method achieves while leaving every branch in it untaken.
+                -->
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>airness-coverage-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>airness-coverage-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>airness-coverage-check</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <excludes>
+                                        <exclude>${airness.coverage.excluded.classes}</exclude>
+                                    </excludes>
+                                    <limits>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>airness-enforce-environment</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[${min.maven.version},)</version>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>${maven.compiler.release}</version>
+                                    <message>The harness targets JDK ${maven.compiler.release}</message>
+                                </requireJavaVersion>
+                                <!--
+                                    A transitive dependency that another path down-versions is the kind of
+                                    difference that shows up as a NoSuchMethodError in production and in
+                                    nothing before it. Pin it explicitly instead.
+                                -->
+                                <requireUpperBoundDeps>
+                                    <message>
+                                        A transitive dependency is down-versioned by another path. Pin it
+                                        explicitly rather than leaving the resolution order to decide.
+                                    </message>
+                                </requireUpperBoundDeps>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!--
+                    Reports newer releases of dependencies, plugins and the parent. It never fails the
+                    build: being behind is a decision to take rather than an error, and the freshness
+                    goal is what turns the far end of behind into a failure.
+                -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>${versions-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>airness-report-updates</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>display-parent-updates</goal>
+                            <goal>display-dependency-updates</goal>
+                            <goal>display-plugin-updates</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <ruleSet>
+                        <ignoreVersions>
+                            <ignoreVersion>
+                                <!-- Milestones, like 3.0.4-M5 and 1.0.0-m23 -->
+                                <type>regex</type>
+                                <version>(?i)[0-9].+-m[0-9]+</version>
+                            </ignoreVersion>
+                            <ignoreVersion>
+                                <!-- Alphas, like 5.0.0.Alpha2 -->
+                                <type>regex</type>
+                                <version>(?i).*ALPHA.*</version>
+                            </ignoreVersion>
+                            <ignoreVersion>
+                                <!-- Betas, like 5.0.0.Beta2 -->
+                                <type>regex</type>
+                                <version>(?i).*BETA.*</version>
+                            </ignoreVersion>
+                            <ignoreVersion>
+                                <!-- Previews, like 12.1.0.jre11-preview -->
+                                <type>regex</type>
+                                <version>(?i).*PREVIEW.*</version>
+                            </ignoreVersion>
+                            <ignoreVersion>
+                                <!-- Candidate releases, like 6.2.0.CR2 -->
+                                <type>regex</type>
+                                <version>(?i)[0-9].+\.CR[0-9]+</version>
+                            </ignoreVersion>
+                            <ignoreVersion>
+                                <!-- Release candidates, like 2.16.1-rc1 and 1.8.20-RC -->
+                                <type>regex</type>
+                                <version>(?i)[0-9].+-rc-?[0-9]*</version>
+                            </ignoreVersion>
+                        </ignoreVersions>
+                    </ruleSet>
+                </configuration>
+            </plugin>
+            <plugin>
+                <!--
+                    Fails on a declared dependency nothing uses, and on a used one nothing declares, so
+                    the declared set stays exactly what the code needs. Non-compile scopes are left out,
+                    because this reads class files and cannot see a dependency used only through
+                    annotations or reflection.
+                -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-analyze-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                        <configuration>
+                            <failOnWarning>true</failOnWarning>
+                            <ignoreNonCompile>true</ignoreNonCompile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!--
+                    Holds every committable file to the .editorconfig the harness owns. Binaries and
+                    vendored trees are exempt by role, and so is anything under the build directory,
+                    which is where the harness unpacks what it supplies: a style library it unpacked
+                    there contains by nature the characters it would then object to.
+                -->
+                <groupId>org.ec4j.maven</groupId>
+                <artifactId>editorconfig-maven-plugin</artifactId>
+                <version>${editorconfig-maven-plugin.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/target/**</exclude>
+                        <exclude>.git/**</exclude>
+                        <exclude>.vale/**</exclude>
+                        <exclude>.idea/**</exclude>
+                        <exclude>.docs/themes/**</exclude>
+                        <exclude>.docs/img/**</exclude>
+                        <exclude>**/*.png</exclude>
+                        <exclude>**/*.ttf</exclude>
+                        <exclude>**/*.docx</exclude>
+                        <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
+                        <exclude>**/*.tsv</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>airness-editorconfig-check</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!--
+                    An allowlist over the licenses of everything that resolves. A dependency whose
+                    license cannot be read fails alongside one whose license is not allowed, because
+                    unknown and disallowed are the same answer to the question being asked.
+                -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${license-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>airness-check-dependency-licenses</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>add-third-party</goal>
+                        </goals>
+                        <configuration>
+                            <includedScopes>compile,runtime,provided,test</includedScopes>
+                            <failOnBlacklist>true</failOnBlacklist>
+                            <failOnMissing>true</failOnMissing>
+                            <includedLicenses>
+                                <includedLicense>Apache-2.0</includedLicense>
+                                <includedLicense>MIT</includedLicense>
+                                <includedLicense>MIT-0</includedLicense>
+                                <includedLicense>BSD-2-Clause</includedLicense>
+                                <includedLicense>BSD-3-Clause</includedLicense>
+                                <includedLicense>EPL-2.0</includedLicense>
+                                <includedLicense>LGPL-2.1</includedLicense>
+                                <includedLicense>JSON</includedLicense>
+                                <includedLicense>Public Domain</includedLicense>
+                            </includedLicenses>
+                            <licenseMerges>
+                                <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License 2.0|Apache 2.0</licenseMerge>
+                                <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)</licenseMerge>
+                                <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License</licenseMerge>
+                                <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0</licenseMerge>
+                                <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1</licenseMerge>
+                                <licenseMerge>JSON|The JSON License</licenseMerge>
+                            </licenseMerges>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <!--
                 OpenRewrite, over a recipe set it discovers rather than one a project configures. The
@@ -429,6 +697,22 @@
     </build>
 
     <profiles>
+        <profile>
+            <!--
+                A module with no test sources has nothing for the coverage agent to measure. Skipping is
+                keyed to that structure rather than to a flag, so it cannot be reached by a project that
+                has tests and would rather not be held to them.
+            -->
+            <id>airness-no-tests</id>
+            <activation>
+                <file>
+                    <missing>src/test/java</missing>
+                </file>
+            </activation>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+        </profile>
         <profile>
             <!--
                 Applies what the ordinary build only reports. Each source-shaping tool applies its

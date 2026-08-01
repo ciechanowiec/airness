@@ -52,4 +52,24 @@
         -->
         <airness.typography.excludes>.vale/,docinfo</airness.typography.excludes>
     </properties>
+
+    <dependencies>
+        <!--
+            One test, so this module has test sources at all. Without them the coverage floor deactivates
+            on structure and would never be exercised from a consumer's side, which is the same gap the
+            floor itself exists to close.
+        -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>6.1.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>6.1.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

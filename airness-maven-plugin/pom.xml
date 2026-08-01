@@ -76,6 +76,22 @@
                 <artifactId>maven-plugin-plugin</artifactId>
                 <version>${maven-plugin-tools.version}</version>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <!--
+                        airness-assets is carried for the files inside it rather than for any class, so
+                        bytecode analysis reports it unused, exactly as it does a SOURCE-retention
+                        annotation. Named for this one artifact rather than switched off wholesale.
+                    -->
+                    <ignoredUnusedDeclaredDependencies>
+                        <ignoredUnusedDeclaredDependency>
+                            eu.ciechanowiec:airness-assets
+                        </ignoredUnusedDeclaredDependency>
+                    </ignoredUnusedDeclaredDependencies>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
