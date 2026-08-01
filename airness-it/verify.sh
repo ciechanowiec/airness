@@ -157,6 +157,40 @@ expect 'preflight: an empty entry-file list is not a declaration' \
 expect 'preflight: a group root and a package root that disagree are reported' \
     'describe different projects' 1 $no_analyzers -Dairness.group.root='com\.example'
 
+# The files the harness owns are checked against the bytes it ships. airness is its own first consumer
+# here: this module's repository is the airness working tree, so a drift between what airness ships and
+# what airness itself holds fails these cases rather than going unnoticed until some other project
+# inherits it.
+# shellcheck disable=SC2086
+expect 'assets: an opt-out that no longer differs is reported' \
+    'no longer differ' 1 $no_analyzers $lenient -Dairness.assets.unmanaged=.editorconfig
+# shellcheck disable=SC2086
+expect 'assets: an opt-out naming nothing is reported' \
+    'does not own' 1 $no_analyzers $lenient -Dairness.assets.unmanaged=no-such-file
+
+# There is no case here for a forbidden file. Nothing is forbidden yet, because forbidding a path means
+# the harness supplies it from elsewhere and no replacement is unpacked until the tools that read them
+# are bound. The policy itself is covered by AssetCheckTest and AssetSyncTest, and the case arrives here
+# with the first real entry.
+
+# The repair goal is the counterpart of the check, and the pair has to be shown working together: a
+# check that reports drift nobody can fix is advice, and a sync nothing verifies is a hope. The pinned
+# file is perturbed, seen to be reported, repaired by the goal, and seen to be clean again.
+cp ../.editorconfig ../.editorconfig.orig
+trap 'mv -f ../.editorconfig.orig ../.editorconfig 2>/dev/null || true' EXIT INT TERM
+printf '\n# a line this project added\n' >> ../.editorconfig
+# shellcheck disable=SC2086
+expect 'assets: a drifted pinned file is reported' \
+    'changed or is missing' 1 $no_analyzers $lenient
+mvn -q airness:assets-sync > /dev/null 2>&1
+# shellcheck disable=SC2086
+expect 'assets: the sync goal repairs what the check reported' \
+    'changed or is missing' 0 $no_analyzers $lenient
+# Restored from the backup rather than left as the sync goal put it. If that goal ever stops repairing,
+# the case above goes red and this line is what stops the drift being left in the tree as well.
+mv -f ../.editorconfig.orig ../.editorconfig
+trap - EXIT INT TERM
+
 if [ "$failures" -ne 0 ]; then
     printf '\n%s case(s) failed: the harness is not reaching a consumer the way it claims to.\n' "$failures" >&2
     exit 1
