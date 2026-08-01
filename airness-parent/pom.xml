@@ -47,11 +47,36 @@
 
         <fail-build-on-static-code-analysis-errors>true</fail-build-on-static-code-analysis-errors>
 
+        <!--
+            The phase at which each source-shaping tool APPLIES its changes. Only the applying half is a
+            property. The checking half is bound to a literal phase and cannot be moved by anyone.
+
+            That asymmetry is the point. A property naming the checking phase would be a switch a
+            consumer could set to "none" in its own pom, and the build would then pass while shaping
+            nothing, which is the failure this whole harness exists to make impossible. Setting one of
+            these can only add work: the tool applies its changes first and the check still runs
+            afterwards, so the check is what confirms the apply did its job rather than something the
+            apply replaces.
+
+            The format profile below is what sets them. Each applying execution is declared ahead of its
+            checking one, so within the shared phase the apply runs first.
+        -->
+        <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
+        <airness.formatter.apply.phase>none</airness.formatter.apply.phase>
+        <airness.impsort.apply.phase>none</airness.impsort.apply.phase>
+
         <!-- Versions, pinned here so a consumer raises one parent version rather than a dozen properties -->
         <airness.version>${project.version}</airness.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-dependency-plugin.version>3.9.1</maven-dependency-plugin.version>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+        <rewrite-maven-plugin.version>6.44.0</rewrite-maven-plugin.version>
+        <rewrite-static-analysis.version>2.39.0</rewrite-static-analysis.version>
+        <rewrite-migrate-java.version>3.40.0</rewrite-migrate-java.version>
+        <rewrite-testing-frameworks.version>3.42.1</rewrite-testing-frameworks.version>
+        <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
+        <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
+        <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <checkstyle.version>13.8.0</checkstyle.version>
         <qulice-maven-plugin.version>0.27.6</qulice-maven-plugin.version>
@@ -105,6 +130,146 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
+            </plugin>
+            <!--
+                OpenRewrite, over a recipe set it discovers rather than one a project configures. The
+                recipes live in META-INF/rewrite/ inside airness-config, which OpenRewrite reads off this
+                plugin's own classpath, so no project carries a rewrite.yml of its own.
+
+                Declared before the formatter and the import sorter. Under the format profile all three
+                apply rather than check, and OpenRewrite's semantic edits have to land before the other
+                two re-normalize layout and imports, or the formatter stops being the last word on style.
+            -->
+            <plugin>
+                <groupId>org.openrewrite.maven</groupId>
+                <artifactId>rewrite-maven-plugin</artifactId>
+                <version>${rewrite-maven-plugin.version}</version>
+                <configuration>
+                    <activeRecipes>
+                        <recipe>eu.ciechanowiec.airness.Modernization</recipe>
+                    </activeRecipes>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-config</artifactId>
+                        <version>${airness.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-logging-frameworks</artifactId>
+                        <version>${rewrite-logging-frameworks.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-migrate-java</artifactId>
+                        <version>${rewrite-migrate-java.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-static-analysis</artifactId>
+                        <version>${rewrite-static-analysis.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-testing-frameworks</artifactId>
+                        <version>${rewrite-testing-frameworks.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <!--
+                        dryRun rather than run. A recipe that would change a source file fails the build
+                        and writes the patch it would have applied under target, so a green build is a
+                        statement about the tree that was committed rather than about one the build
+                        reshaped on its way past.
+                    -->
+                    <execution>
+                        <id>airness-rewrite-apply</id>
+                        <phase>${airness.rewrite.apply.phase}</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>airness-rewrite-verify</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>dryRun</goal>
+                        </goals>
+                        <configuration>
+                            <failOnDryRunResults>true</failOnDryRunResults>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The formatter, against the Eclipse profile shipped in airness-config. validate rather
+                than format, for the reason given above.
+            -->
+            <plugin>
+                <groupId>net.revelc.code.formatter</groupId>
+                <artifactId>formatter-maven-plugin</artifactId>
+                <version>${formatter-maven-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-config</artifactId>
+                        <version>${airness.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configFile>eu/ciechanowiec/airness/formatting/EclipseCodeStyle.xml</configFile>
+                    <lineEnding>LF</lineEnding>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>airness-formatter-apply</id>
+                        <phase>${airness.formatter.apply.phase}</phase>
+                        <goals>
+                            <goal>format</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>airness-formatter-verify</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>validate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Import order, which the formatter does not touch. One alphabetical block for non-static
+                imports and a separate block of static ones placed first, which is the order the
+                Checkstyle import rule also states. Unused imports are stripped, and the stripping is
+                Javadoc-aware, so an import reached only from a link survives.
+            -->
+            <plugin>
+                <groupId>net.revelc.code</groupId>
+                <artifactId>impsort-maven-plugin</artifactId>
+                <version>${impsort-maven-plugin.version}</version>
+                <configuration>
+                    <groups>*</groups>
+                    <staticGroups>*</staticGroups>
+                    <staticAfter>false</staticAfter>
+                    <removeUnused>true</removeUnused>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>airness-impsort-apply</id>
+                        <phase>${airness.impsort.apply.phase}</phase>
+                        <goals>
+                            <goal>sort</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>airness-impsort-verify</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <!--
                 The governance checks, as goals rather than as tests. A check that shipped as a test
@@ -273,6 +438,23 @@
     </build>
 
     <profiles>
+        <profile>
+            <!--
+                Applies what the ordinary build only reports. Each source-shaping tool applies its
+                changes and is then checked, in that order and in the same phase, so this profile adds
+                work rather than removing any: the check still runs and now confirms the apply landed.
+
+                It is opt-in because the alternative is a build that edits the sources it is judging.
+                Once that happens, a green result says the tree was acceptable after the build changed
+                it, and no one afterwards can tell that from a tree that was acceptable as committed.
+            -->
+            <id>format</id>
+            <properties>
+                <airness.rewrite.apply.phase>process-resources</airness.rewrite.apply.phase>
+                <airness.formatter.apply.phase>process-resources</airness.formatter.apply.phase>
+                <airness.impsort.apply.phase>process-resources</airness.impsort.apply.phase>
+            </properties>
+        </profile>
         <profile>
             <!--
                 The slow half of the harness. What lands here is what reads more than this module: the

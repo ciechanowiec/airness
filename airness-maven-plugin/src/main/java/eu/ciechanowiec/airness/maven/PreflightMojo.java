@@ -36,9 +36,14 @@ public abstract class PreflightMojo extends AbstractMojo {
 
     @Override
     public final void execute() throws MojoFailureException {
-        if (this.session.getTopLevelProject().equals(this.project)) {
+        if (this.applies()) {
             this.decide(this.problems());
         }
+    }
+
+    private boolean applies() {
+        return this.session.getTopLevelProject().equals(this.project)
+            && OncePerSession.firstRun(this.session, this.getClass());
     }
 
     /**
