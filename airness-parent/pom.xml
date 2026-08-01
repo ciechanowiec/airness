@@ -126,6 +126,7 @@
                         <phase>validate</phase>
                         <goals>
                             <goal>check-parameters</goal>
+                            <goal>assets-check</goal>
                         </goals>
                     </execution>
                     <execution>

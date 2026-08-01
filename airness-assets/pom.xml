@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>airness-assets</artifactId>
+    <packaging>jar</packaging>
+
+    <name>airness-assets</name>
+    <description>
+        The files the harness owns but cannot supply from a classpath, and the manifest saying what a
+        project may do with each.
+
+        Most of the harness reaches a project as configuration an analyzer reads off its own plugin
+        classpath, which is why most of it needs no file in the project at all. What lands here is what
+        something outside Maven reads from disk: an editor reading .editorconfig, git reading
+        .gitattributes. Those have nowhere else to live, so they live in the project and are checked
+        against the bytes shipped here.
+
+        Each canonical file is stored under an added .asset suffix. A stored .gitignore under its own
+        name would be a working .gitignore over this directory and could stop its neighbours from being
+        tracked, and a stored .gitattributes would take effect over them. A file that changes the meaning
+        of the directory it sits in cannot be stored under its own name.
+    </description>
+</project>

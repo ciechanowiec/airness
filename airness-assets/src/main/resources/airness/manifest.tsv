@@ -1,0 +1,25 @@
+# The files the harness owns, and what a project may do with each.
+#
+# Two tab-separated columns: the repository-relative path, and the policy. There is deliberately no
+# checksum column. A checksum here would be a second spelling of what the shipped bytes already say, and
+# when two spellings of one fact disagree it is the written one that gets believed. The bytes under
+# airness/files/ are the only statement of what a file should contain, and they are hashed at the moment
+# of comparison.
+#
+# PINNED     the project holds this file with exactly these bytes, because something outside Maven reads
+#            it from disk and there is nowhere else for it to live
+# SEED       written once when absent, then owned by the project, because its body is per-project
+# FORBIDDEN  must not be in the project at all, because the harness already supplies it
+#
+# A project that has a reason to differ names the path in airness.assets.unmanaged and says why in a
+# comment beside it. The saying-why part binds by whoever reads the pom, not by a gate.
+#
+# No file is FORBIDDEN yet. The policy exists and is enforced, but forbidding a file states that the
+# harness supplies it from elsewhere, and a line here that forbids a file while supplying nothing would
+# be a claim the harness cannot honour. Entries arrive as each replacement does: the OpenRewrite recipe
+# once the plugin that reads it is bound, the scripts and the inspection profile once they are unpacked
+# under the build directory.
+
+.editorconfig	PINNED
+.gitattributes	PINNED
+.gitignore	SEED
