@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>airness-parent</artifactId>
+    <packaging>pom</packaging>
+
+    <name>airness-parent</name>
+    <description>
+        The parent a consuming project inherits. It carries the plugin configuration and the lifecycle
+        bindings, so a consumer states its coordinates and its dependencies and receives the harness.
+
+        It currently binds the three static analyzers. The rest of the harness (coverage, mutation
+        analysis, Error Prone, the governance drivers) is added here as each is externalized, and a
+        consumer picks it up by raising one parent version.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+
+        <!--
+            The configuration resources, named as classpath paths rather than as files. A consumer
+            overrides one of these only to point the analyzer at a configuration of its own, which is
+            the documented escape hatch rather than the expected case.
+        -->
+        <airness.checkstyle.config>eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml</airness.checkstyle.config>
+        <airness.pmd.config>eu/ciechanowiec/airness/static_code_analysis/pmd.xml</airness.pmd.config>
+        <airness.spotbugs.config>eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml</airness.spotbugs.config>
+
+        <!--
+            The consumer's own group root, which the fully-qualified-name rule in checkstyle.xml reads
+            alongside java/javax/jakarta. It is a property because the rule enforces less than it says
+            when it names a group the project does not use: a consumer under another group would import
+            nothing the rule matches, and the check would pass by never firing. Overriding this is the
+            one thing a consumer must not forget, so the parent gives it no usable default.
+        -->
+        <airness.group.root>UNSET</airness.group.root>
+        <!--
+            Overridden to true in the pom-packaging profile below. A property rather than a per-execution
+            override, because profiles merge in declaration order and an execution disabled by one profile
+            is re-enabled by a later one that names the same id.
+        -->
+        <airness.parameters.enforcement.skip>false</airness.parameters.enforcement.skip>
+
+        <fail-build-on-static-code-analysis-errors>true</fail-build-on-static-code-analysis-errors>
+
+        <!-- Versions, pinned here so a consumer raises one parent version rather than a dozen properties -->
+        <airness.version>${project.version}</airness.version>
+        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <checkstyle.version>13.8.0</checkstyle.version>
+        <qulice-maven-plugin.version>0.27.6</qulice-maven-plugin.version>
+        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
+        <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-airness-parameters</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <!--
+                                A POM-packaged module carries no sources, so the analyzers this parameter
+                                feeds have nothing to read there and the rule is vacuous rather than
+                                excused. This is also what lets the parent inherit itself: airness-parent
+                                is a pom, so it is not asked for a group root it has no code to enforce.
+                            -->
+                            <skip>${airness.parameters.enforcement.skip}</skip>
+                            <rules>
+                                <!--
+                                    A parameter the harness cannot default is checked before any analyzer
+                                    runs, because the failure it prevents is silent. Left at UNSET, the
+                                    group root reaches the fully-qualified-name rule as an alternative
+                                    that matches nothing, and the rule still fires on java/javax/jakarta:
+                                    it enforces less than it says while looking configured. The build
+                                    stops here instead, at validate, naming the property.
+                                -->
+                                <requireProperty>
+                                    <property>airness.group.root</property>
+                                    <message>
+                                        Set airness.group.root to this project's own group root, regex-escaped
+                                        (e.g. eu\.ciechanowiec). The fully-qualified-name rule reads it, and
+                                        left unset that rule silently enforces less than it states.
+                                    </message>
+                                    <regex>^(?!UNSET$).+$</regex>
+                                    <regexMessage>
+                                        airness.group.root is still UNSET; set it to this project's group root.
+                                    </regexMessage>
+                                </requireProperty>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                    <!--
+                    Supplies the custom com.qulice.checkstyle.* AST checks (paired-brackets notation and
+                    the other rules referenced in checkstyle.xml). The qulice plugin jar is a library of
+                    check classes on this plugin's isolated classpath, not a plugin this build runs: its
+                    goal is never invoked. Its bundled checkstyle is excluded so the plugin runs solely on
+                    the pinned ${checkstyle.version} declared above. The standalone qulice-checkstyle
+                    artifact is frozen at 0.25.2 and the checks now ship inside qulice-maven-plugin.
+                    -->
+                    <dependency>
+                        <groupId>com.qulice</groupId>
+                        <artifactId>qulice-maven-plugin</artifactId>
+                        <version>${qulice-maven-plugin.version}</version>
+                        <exclusions>
+                            <exclusion>
+                                <groupId>com.puppycrawl.tools</groupId>
+                                <artifactId>checkstyle</artifactId>
+                            </exclusion>
+                        </exclusions>
+                    </dependency>
+                    <!--
+                        The configuration itself, carried on this plugin's classpath so configLocation
+                        below resolves as a resource. This is what replaces the consumer-local file.
+                    -->
+                    <dependency>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-config</artifactId>
+                        <version>${airness.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>${airness.checkstyle.config}</configLocation>
+                    <!--
+                        Threads the consumer's group root into the fully-qualified-name rule. Checkstyle
+                        resolves a ${...} in the configuration against these values and fails on one it
+                        cannot resolve, so a consumer that never sets the property gets a build error
+                        rather than a rule that silently matches nothing.
+                    -->
+                    <propertyExpansion>airness.group.root=${airness.group.root}</propertyExpansion>
+                    <consoleOutput>true</consoleOutput>
+                    <!--
+                        failsOnError covers a Checkstyle processing error; failOnViolation covers a rule
+                        violation. Both read the switch, or turning it off would leave violations failing
+                        the build and the switch would be a half-truth.
+                    -->
+                    <failsOnError>${fail-build-on-static-code-analysis-errors}</failsOnError>
+                    <failOnViolation>${fail-build-on-static-code-analysis-errors}</failOnViolation>
+                    <violationSeverity>info</violationSeverity>
+                    <linkXRef>false</linkXRef>
+                    <includeResources>false</includeResources>
+                    <includeTestResources>false</includeTestResources>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-config</artifactId>
+                        <version>${airness.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <rulesets>
+                        <ruleset>${airness.pmd.config}</ruleset>
+                    </rulesets>
+                    <failOnViolation>${fail-build-on-static-code-analysis-errors}</failOnViolation>
+                    <printFailingErrors>true</printFailingErrors>
+                    <includeTests>true</includeTests>
+                    <linkXRef>false</linkXRef>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>${spotbugs-maven-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-config</artifactId>
+                        <version>${airness.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <excludeFilterFile>${airness.spotbugs.config}</excludeFilterFile>
+                    <failOnError>${fail-build-on-static-code-analysis-errors}</failOnError>
+                    <includeTests>true</includeTests>
+                    <effort>Max</effort>
+                    <threshold>Low</threshold>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <!--
+                A POM-packaged module (an aggregator, or this parent inheriting itself) has no sources for
+                the analyzers to read, so the parameters they need are not asked of it. Activation is on
+                the packaging itself rather than on a flag someone remembers to pass.
+            -->
+            <id>pom-packaging</id>
+            <activation>
+                <file>
+                    <missing>src/main/java</missing>
+                </file>
+            </activation>
+            <properties>
+                <airness.parameters.enforcement.skip>true</airness.parameters.enforcement.skip>
+            </properties>
+        </profile>
+    </profiles>
+</project>

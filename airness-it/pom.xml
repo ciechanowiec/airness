@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../airness-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>airness-it</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>airness-it</name>
+    <description>
+        The harness seen from a consumer's side of it. This module inherits airness-parent the way a real
+        project does and carries no analysis configuration of its own, so a finding it reports came off
+        the plugin classpath and nowhere else.
+
+        It is deliberately not a module of the airness build. A consumer inherits the parent rather than
+        being built by it, and building this on its own is what makes it a test of inheritance rather
+        than of aggregation. Run 'mvn clean package' here once the parent and the configuration jar are
+        installed. A build that fails is the expected outcome: the sources violate rules on purpose, and
+        the findings are the evidence the configuration resolved.
+    </description>
+
+    <properties>
+        <airness.group.root>eu\.ciechanowiec</airness.group.root>
+    </properties>
+</project>
