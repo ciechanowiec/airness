@@ -35,6 +35,7 @@ expect() {
 }
 
 only_checkstyle='-Dpmd.skip=true -Dspotbugs.skip=true'
+only_pmd='-Dcheckstyle.skip=true -Dspotbugs.skip=true'
 
 # Checkstyle resolves its configuration, including the custom AST checks that ship beside it. Naming
 # the rules rather than counting findings keeps the case honest when the rule set grows.
@@ -42,9 +43,31 @@ only_checkstyle='-Dpmd.skip=true -Dspotbugs.skip=true'
 expect 'checkstyle: shipped rules reach consumer sources' \
     '^\[ERROR\].*\[(RequireFinalClass|MagicNumber|NeedBraces)\]' 3 $only_checkstyle
 
-# PMD resolves its ruleset off the same classpath.
+# PMD resolves its ruleset off the same classpath. Named rather than counted, for the reason given
+# above: a case that counts every finding in the module has to be retuned each time a fixture is added
+# for some other case, and a number retuned that often stops being read as a claim about anything.
+# shellcheck disable=SC2086
 expect 'pmd: shipped ruleset reaches consumer sources' \
-    'PMD Failure' 3 -Dcheckstyle.skip=true -Dspotbugs.skip=true
+    'PMD Failure.*Rule:(ControlStatementBraces|UnnecessaryFullyQualifiedName)' 3 $only_pmd
+
+# The annotation the rule set demands is inherited from the parent, so a project that suppresses a rule
+# does not first have to write an annotation of its own. Both halves are needed. Without the first the
+# rule enforces nothing, and without the second it would be firing on the suppression rather than on the
+# missing reason, which is a rule no correct code could satisfy. The two fixtures differ in that one
+# annotation and in nothing else.
+# shellcheck disable=SC2086
+expect 'justification: an unexplained suppression fires the rule' \
+    '\.Unjustified:.*Rule:SuppressionNeedsJustification' 1 $only_pmd
+# shellcheck disable=SC2086
+expect 'justification: the inherited annotation satisfies the rule' \
+    '\.Justified:.*Rule:SuppressionNeedsJustification' 0 $only_pmd
+
+# A suppression that suppresses nothing is a finding of its own. Without this, a suppression would
+# outlive the code it covered and read as a rule deliberately set aside, which is the opposite of what
+# it would then mean.
+# shellcheck disable=SC2086
+expect 'justification: a suppression that suppresses nothing is reported' \
+    '\.Useless:.*Rule:UnnecessaryWarningSuppression' 1 $only_pmd
 
 # A configuration path that does not resolve fails the build rather than disabling a rule set. SpotBugs
 # is the case that needs stating: with a filter it cannot find it would otherwise report zero bugs,
