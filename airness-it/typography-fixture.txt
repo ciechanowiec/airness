@@ -1,0 +1,1 @@
+A tracked file that carries an em dash — where a plain ASCII hyphen was available.

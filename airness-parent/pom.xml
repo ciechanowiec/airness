@@ -44,12 +44,6 @@
             one thing a consumer must not forget, so the parent gives it no usable default.
         -->
         <airness.group.root>UNSET</airness.group.root>
-        <!--
-            Overridden to true in the pom-packaging profile below. A property rather than a per-execution
-            override, because profiles merge in declaration order and an execution disabled by one profile
-            is re-enabled by a later one that names the same id.
-        -->
-        <airness.parameters.enforcement.skip>false</airness.parameters.enforcement.skip>
 
         <fail-build-on-static-code-analysis-errors>true</fail-build-on-static-code-analysis-errors>
 
@@ -57,7 +51,6 @@
         <airness.version>${project.version}</airness.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-dependency-plugin.version>3.9.1</maven-dependency-plugin.version>
-        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <checkstyle.version>13.8.0</checkstyle.version>
@@ -113,48 +106,38 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
             </plugin>
+            <!--
+                The governance checks, as goals rather than as tests. A check that shipped as a test
+                would answer to -DskipTests and be deselected by -Dtest=OneClass, and neither of those is
+                a request to stop checking the repository. Test selection is the mechanism there rather
+                than a switch on it, so it could not be overridden from inside the check.
+
+                The repository-wide goals run only on the top-level project, so a reactor reports each
+                finding once. The per-module goals skip a module with no Java source directory, and
+                refuse a module that has one and read nothing out of it.
+            -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <version>${maven-enforcer-plugin.version}</version>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <version>${airness.version}</version>
                 <executions>
                     <execution>
-                        <id>enforce-airness-parameters</id>
+                        <id>airness-preflight</id>
                         <phase>validate</phase>
                         <goals>
-                            <goal>enforce</goal>
+                            <goal>check-parameters</goal>
                         </goals>
-                        <configuration>
-                            <!--
-                                A POM-packaged module carries no sources, so the analyzers this parameter
-                                feeds have nothing to read there and the rule is vacuous rather than
-                                excused. This is also what lets the parent inherit itself: airness-parent
-                                is a pom, so it is not asked for a group root it has no code to enforce.
-                            -->
-                            <skip>${airness.parameters.enforcement.skip}</skip>
-                            <rules>
-                                <!--
-                                    A parameter the harness cannot default is checked before any analyzer
-                                    runs, because the failure it prevents is silent. Left at UNSET, the
-                                    group root reaches the fully-qualified-name rule as an alternative
-                                    that matches nothing, and the rule still fires on java/javax/jakarta:
-                                    it enforces less than it says while looking configured. The build
-                                    stops here instead, at validate, naming the property.
-                                -->
-                                <requireProperty>
-                                    <property>airness.group.root</property>
-                                    <message>
-                                        Set airness.group.root to this project's own group root, regex-escaped
-                                        (e.g. eu\.ciechanowiec). The fully-qualified-name rule reads it, and
-                                        left unset that rule silently enforces less than it states.
-                                    </message>
-                                    <regex>^(?!UNSET$).+$</regex>
-                                    <regexMessage>
-                                        airness.group.root is still UNSET; set it to this project's group root.
-                                    </regexMessage>
-                                </requireProperty>
-                            </rules>
-                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>airness-governance</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>typography</goal>
+                            <goal>entry-files</goal>
+                            <goal>instruction-references</goal>
+                            <goal>comment-prose</goal>
+                            <goal>javadoc-links</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
@@ -291,19 +274,47 @@
     <profiles>
         <profile>
             <!--
-                A POM-packaged module (an aggregator, or this parent inheriting itself) has no sources for
-                the analyzers to read, so the parameters they need are not asked of it. Activation is on
-                the packaging itself rather than on a flag someone remembers to pass.
+                The slow half of the harness. What lands here is what reads more than this module: the
+                whole commit history, the network, and the mutation analysis. None of it belongs in the
+                loop a developer runs a dozen times an hour, and all of it runs on every push.
+
+                These are executions in a profile rather than tests carrying a tag. A tag is honoured
+                only for as long as nobody overrides the excluded groups, whereas an execution that is
+                not in the active profile does not exist to be re-enabled.
             -->
-            <id>pom-packaging</id>
-            <activation>
-                <file>
-                    <missing>src/main/java</missing>
-                </file>
-            </activation>
-            <properties>
-                <airness.parameters.enforcement.skip>true</airness.parameters.enforcement.skip>
-            </properties>
+            <id>full</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-maven-plugin</artifactId>
+                        <version>${airness.version}</version>
+                        <executions>
+                            <execution>
+                                <!--
+                                    Before anything else in this profile. A truncated clone disarms the
+                                    two history goals below at once, and disarms them quietly: the
+                                    commits that were never fetched pass by not existing.
+                                -->
+                                <id>airness-history-preflight</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>require-full-history</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>airness-governance-full</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>commit-history</goal>
+                                    <goal>commit-typography</goal>
+                                    <goal>dependency-freshness</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

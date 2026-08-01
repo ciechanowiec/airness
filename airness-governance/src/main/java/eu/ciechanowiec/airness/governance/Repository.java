@@ -57,6 +57,22 @@ public final class Repository {
     }
 
     /**
+     * Whether the working tree has any history at all.
+     *
+     * <p>A repository whose first commit is not yet written is a legitimate state, and the checks that
+     * read history have nothing to say about it. Telling that apart from a truncated clone matters,
+     * because the two look alike from inside a check and only one of them is a problem: an unborn HEAD
+     * is a repository with no commits, while a shallow clone is a repository whose commits were not
+     * fetched.
+     *
+     * @param root the working tree root
+     * @return whether at least one commit exists
+     */
+    public static boolean hasCommits(Path root) {
+        return !"0".equals(GitPlumbing.run(root, List.of("rev-list", "--all", "--count")).strip());
+    }
+
+    /**
      * Every file a commit from this working tree would carry: what git already tracks, plus what is
      * present and not ignored.
      *

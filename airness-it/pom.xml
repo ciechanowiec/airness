@@ -30,5 +30,26 @@
 
     <properties>
         <airness.group.root>eu\.ciechanowiec</airness.group.root>
+        <airness.package.root>eu.ciechanowiec.airness.it</airness.package.root>
+
+        <!--
+            This consumer sits inside the airness working tree, so the repository-wide goals read that
+            tree rather than a tree of its own. That is the honest arrangement: those goals are rooted at
+            the repository by design, and pretending otherwise would test something no consumer does.
+
+            airness ships no instruction file and no entry file, and NONE is how a project says so. An
+            empty value would be the same words in the build log as a project with three correct ones,
+            which is the reading these sentinels exist to prevent.
+        -->
+        <airness.instruction.file>NONE</airness.instruction.file>
+        <airness.entry.files>NONE</airness.entry.files>
+        <airness.docs>NONE</airness.docs>
+
+        <!--
+            A linter's own style library contains by nature the glyphs it detects, and a vendored theme
+            carries somebody else's typography. Both are named, and a name that stops excluding anything
+            is itself reported, so this list cannot outlive the directories it points at.
+        -->
+        <airness.typography.excludes>.vale/,docinfo</airness.typography.excludes>
     </properties>
 </project>
