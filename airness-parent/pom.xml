@@ -74,6 +74,13 @@
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <min.maven.version>3.9</min.maven.version>
+        <pitest-maven.version>1.25.8</pitest-maven.version>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
+        <!--
+            Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
+            Empty by default, for the same reason the coverage exclusions are.
+        -->
+        <airness.mutation.excluded.classes></airness.mutation.excluded.classes>
         <error-prone.version>2.50.0</error-prone.version>
         <nullaway.version>0.13.7</nullaway.version>
         <jspecify.version>1.0.0</jspecify.version>
@@ -806,6 +813,53 @@
             <id>full</id>
             <build>
                 <plugins>
+                    <!--
+                        The mutation analysis, declared ahead of the plugin whose mutation-baseline goal
+                        reads its report. Both bind to package and Maven runs same-phase executions in
+                        plugin declaration order, so declaring them the other way round would leave the
+                        goal reading a report from the previous build, or none at all.
+
+                        The parent owns this declaration so a project tunes it through properties rather
+                        than carrying its own copy. What a project does own is the baseline file, which
+                        describes that project's own surviving mutants and is meaningless copied.
+                    -->
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>${pitest-maven.version}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>${pitest-junit5-plugin.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>${airness.package.root}.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>${airness.package.root}.*</param>
+                            </targetTests>
+                            <excludedClasses>
+                                <param>${airness.mutation.excluded.classes}</param>
+                            </excludedClasses>
+                            <timestampedReports>false</timestampedReports>
+                            <outputFormats>
+                                <param>HTML</param>
+                                <param>XML</param>
+                            </outputFormats>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>airness-mutation-coverage</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>mutationCoverage</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>eu.ciechanowiec</groupId>
                         <artifactId>airness-maven-plugin</artifactId>
@@ -830,6 +884,7 @@
                                     <goal>commit-history</goal>
                                     <goal>commit-typography</goal>
                                     <goal>dependency-freshness</goal>
+                                    <goal>mutation-baseline</goal>
                                 </goals>
                             </execution>
                         </executions>

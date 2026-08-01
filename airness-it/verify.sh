@@ -49,6 +49,8 @@ no_shaping='-Drewrite.skip=true -Dformatter.skip=true -Dimpsort.skip=true'
 # collection of fixtures nobody tests. Left running it would end each build before the case under test
 # got anywhere, so it is off except in the one case that is about it.
 no_coverage='-Djacoco.skip=true'
+# The slow half of the harness: the whole commit history, the network, and the mutation analysis.
+full='-Pfull'
 only_checkstyle="-Dpmd.skip=true -Dspotbugs.skip=true $lenient $no_shaping $no_coverage"
 only_pmd="-Dcheckstyle.skip=true -Dspotbugs.skip=true $lenient $no_shaping $no_coverage"
 no_analyzers='-Dcheckstyle.skip=true -Dpmd.skip=true -Dspotbugs.skip=true'
@@ -245,6 +247,34 @@ expect 'error prone: the compiler-side checks reach consumer sources' \
     '\[ReferenceEquality\]' 1 -Dairness.it.errorprone $no_shaping
 expect 'nullaway: the null checker reaches consumer sources' \
     '\[NullAway\]' 2 -Dairness.it.nullaway $no_shaping
+
+# The slow profile. Each of these reads more than the module being built, which is why none of them is
+# in the loop a developer runs a dozen times an hour, and all of them run on every push.
+#
+# The mutation cases are a pair on purpose. A survivor nobody accepted is the finding everyone expects,
+# and an analysis that mutated nothing is the one that looks like success: it would report a perfect
+# kill rate, an empty survivor set, and a clean build, which is exactly what a correct run reports.
+#
+# Two things stand in the way of that, and the second case pins the one that fires first. The analysis
+# refuses to finish when its filters leave it nothing to mutate, so the build ends there and the report
+# is never written. Behind it, the baseline goal refuses a report describing no mutants at all, which
+# is what catches a report that exists and is empty. That half is pinned by MutationBaselineCheckTest,
+# since reaching it from here would mean defeating the first.
+# shellcheck disable=SC2086
+expect 'mutation: a survivor the baseline does not accept is reported' \
+    'Mutants survived that the baseline does not accept' 1 $full $no_analyzers $no_shaping $no_coverage $lenient
+# shellcheck disable=SC2086
+expect 'mutation: an analysis that mutated nothing is refused' \
+    'No mutations found' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
+    -Dairness.mutation.excluded.classes=eu.ciechanowiec.airness.it.*
+
+# A registry that cannot be read fails rather than passes. A dependency whose latest release is unknown
+# is not a dependency known to be current, so an outage that read as a green build would be the worst of
+# both outcomes.
+# shellcheck disable=SC2086
+expect 'freshness: an unreachable registry fails rather than passing' \
+    'Registry unreachable' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
+    -Dairness.registry=http://127.0.0.1:1/
 
 if [ "$failures" -ne 0 ]; then
     printf '\n%s case(s) failed: the harness is not reaching a consumer the way it claims to.\n' "$failures" >&2
