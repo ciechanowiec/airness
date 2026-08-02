@@ -15,6 +15,5 @@ useDefault = true
 [allowlist]
 description = "Fake credentials and sample patterns that exist only as fixtures or documentation"
 paths = [
-    '''src/test/.*''',
     '''target/.*''',
 ]

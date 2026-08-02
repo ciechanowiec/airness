@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
 @Target(
     {
         ElementType.TYPE, ElementType.METHOD, ElementType.FIELD,
-        ElementType.CONSTRUCTOR, ElementType.PARAMETER
+        ElementType.CONSTRUCTOR, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.MODULE
     }
 )
 public @interface Justification {

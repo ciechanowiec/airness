@@ -197,6 +197,24 @@
         </properties>
     </rule>
 
+    <rule name="JustificationNeedsText"
+        language="java"
+        message="A @Justification reason must contain non-whitespace text."
+        class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            A present but blank reason is indistinguishable from no reason and must not satisfy the
+            suppression policy.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//Annotation[@SimpleName = 'Justification'][not(.//StringLiteral[normalize-space(@ConstValue) != ''])]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
     <rule name="PairedConditionParentheses"
         language="java"
         message="A multiline if/while condition must start on the line after '(' and end on the line before ')'."

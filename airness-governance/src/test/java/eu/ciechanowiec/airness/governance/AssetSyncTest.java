@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -95,5 +96,19 @@ class AssetSyncTest {
         Path root = new GitFixture("sync-optout").write(".editorconfig", "root = false\n").root();
         assertEquals(List.of(".gitignore"), this.sync(root, ".editorconfig"), "the opted-out file was left alone");
         assertEquals("root = false\n", read(root, ".editorconfig"), "with the content the project chose");
+    }
+
+    @Test
+    @SneakyThrows
+    void refusesToWriteThroughASymbolicLink() {
+        Path root = new GitFixture("sync-symlink").root();
+        Path outside = this.shipped.resolve("outside");
+        Files.writeString(outside, "must stay untouched\n");
+        Files.createSymbolicLink(root.resolve(".editorconfig"), outside);
+        assertThrows(
+            IllegalStateException.class, () -> this.sync(root),
+            "asset repair must never follow a project path into a file outside the repository"
+        );
+        assertEquals("must stay untouched\n", Files.readString(outside), "the external target was not rewritten");
     }
 }

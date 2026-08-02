@@ -35,8 +35,18 @@ public final class DependencyFreshnessCheck {
      * @param registry the base URL of the registry to ask, such as {@link #CENTRAL}
      */
     public DependencyFreshnessCheck(Path pom, String registry) {
+        this(DeclaredDependencies.from(pom), registry);
+    }
+
+    /**
+     * Uses dependencies whose versions have already been resolved from Maven's effective model.
+     *
+     * @param dependencies directly declared, effective dependencies
+     * @param registry     registry base URL
+     */
+    public DependencyFreshnessCheck(List<DeclaredDependency> dependencies, String registry) {
         this.registry = registry;
-        this.dependencies = DeclaredDependencies.from(pom).stream()
+        this.dependencies = dependencies.stream()
             .filter(dependency -> DependencyFreshnessRules.hasComparableMajor(dependency.version()))
             .toList();
     }

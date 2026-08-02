@@ -9,7 +9,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 /**
  * The clone carries its whole history, so the checks that read it have something to read.
  *
- * <p>A truncated clone disarms the commit-message check, the commit-typography check, and any
+ * <p>A truncated clone disarms the commit-history check, the commit-typography check, and any
  * history-wide secret scan all at once, and it disarms them silently: the commits that were never
  * fetched pass by not existing, and three gates report clean over a few dozen commits. This runs at
  * {@code validate} so the build stops before any of them has the chance.

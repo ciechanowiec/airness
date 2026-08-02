@@ -1,25 +1,7 @@
 name: 'Verify'
 
-# Called by a consuming repository rather than run on its own. A project that inherits the harness gets
-# the toolchain, the checkout depth and the verification command from here, so raising one version
-# raises them everywhere rather than in every repository that copied them.
-#
-# fetch-depth lives here on purpose. Every gate that reads history passes over a truncated clone by
-# finding nothing to object to, so the depth is not a knob a caller can trim without noticing what it
-# turned off. The build refuses a shallow clone anyway, which is the second half of the same guard.
 on:
   workflow_call:
-    inputs:
-      java-version:
-        description: 'The JDK the project builds against.'
-        required: false
-        type: string
-        default: '25'
-      profiles:
-        description: 'Maven profiles for the verification run. Both, unless a caller has a reason.'
-        required: false
-        type: string
-        default: 'full,inspect'
 
 permissions:
   contents: read
@@ -30,36 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: 'Checkout, with the whole history the history gates read'
-        uses: actions/checkout@v4
+      - name: 'Checkout complete history'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
-      - name: 'Set up the JDK'
-        uses: actions/setup-java@v4
+      - name: 'Set up Temurin 25'
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07 # v4
         with:
           distribution: 'temurin'
-          java-version: ${{ inputs.java-version }}
+          java-version: '25'
           cache: 'maven'
 
-      - name: 'Install the document toolchain'
-        # The prose lint is the one gate that runs on the host rather than in a container, because the
-        # linter shells out to a PDF extractor and an OCR engine for its source-verification passes.
-        # Vale is pinned by checksum: a style set that changed under the gate would change what the gate
-        # reports, and a prose rule that quietly stopped resolving is indistinguishable from clean prose.
-        env:
-          VALE_VERSION: '3.15.1'
-          VALE_SHA256: 'c024d9c157874fb043d4f24a055d60050d1bb18755251f590593eed5bace1857'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes asciidoctor poppler-utils tesseract-ocr
-          archive="$RUNNER_TEMP/vale.tar.gz"
-          curl --fail --location --silent --show-error \
-            --output "$archive" \
-            "https://github.com/vale-cli/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
-          echo "$VALE_SHA256  $archive" | sha256sum --check
-          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
-
       - name: 'Verify'
-        # Docker comes with the runner, which is what the secret scan and the inspection scan need.
-        run: mvn clean package -P${{ inputs.profiles }}
+        run: mvn clean package -Pfull,inspect

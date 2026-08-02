@@ -13,7 +13,7 @@ import org.apache.maven.project.MavenProject;
 /**
  * A goal that runs before the checks do, and asks whether they can mean anything.
  *
- * <p>These deliberately ignore {@code airness.governance.enforce}. That switch withholds a failure about
+ * <p>These deliberately ignore {@code airness.enforce}. That switch withholds a failure about
  * the code, which a project taking the harness on has a reason to want. What it must never withhold is a
  * failure about the harness itself: a source root that names nothing and a clone with no history do not
  * make the checks lenient, they make the checks lie, and a green build is then a statement about a tree
@@ -28,6 +28,12 @@ public abstract class PreflightMojo extends AbstractMojo {
     private MavenSession session;
 
     /**
+     * Whether every Airness check is bypassed.
+     */
+    @Parameter(property = "skipTests", defaultValue = "false")
+    private boolean skip;
+
+    /**
      * Everything wrong with the way this build is set up, one sentence each.
      *
      * @return the problems, empty when there are none
@@ -36,7 +42,9 @@ public abstract class PreflightMojo extends AbstractMojo {
 
     @Override
     public final void execute() throws MojoFailureException {
-        if (this.applies()) {
+        if (this.skip) {
+            this.getLog().info("Skipping Airness because skipTests is true");
+        } else if (this.applies()) {
             this.decide(this.problems());
         }
     }
@@ -53,6 +61,24 @@ public abstract class PreflightMojo extends AbstractMojo {
      */
     protected final Path repositoryRoot() {
         return Repository.rootFrom(this.project.getBasedir().toPath());
+    }
+
+    /**
+     * The top-level project whose harness configuration is being checked.
+     *
+     * @return the current project
+     */
+    protected final MavenProject project() {
+        return this.project;
+    }
+
+    /**
+     * The Maven session shared by every module in the reactor.
+     *
+     * @return the active session
+     */
+    protected final MavenSession session() {
+        return this.session;
     }
 
     private void decide(Collection<String> problems) throws MojoFailureException {

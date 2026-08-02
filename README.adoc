@@ -51,14 +51,10 @@
 </parent>
 
 <properties>
-    <!-- This project's group root, escaped for a regular expression -->
-    <airness.group.root>com\.example</airness.group.root>
     <!-- The package every class of this project lives under -->
     <airness.package.root>com.example.myproject</airness.package.root>
     <!-- Files an agent tool reads, or NONE -->
     <airness.entry.files>CLAUDE.md</airness.entry.files>
-    <!-- Documents the prose lint reads, or NONE -->
-    <airness.docs>README.adoc</airness.docs>
 </properties>
 ----
 
@@ -74,14 +70,11 @@ mvn airness:assets-sync
 [#required-parameters]
 === Required Parameters
 
-. Four parameters have no default. Each one has the same failure mode: a wrong value leaves a gate reporting nothing while the build log still shows it running.
+. Two parameters have no default. Each one has the same failure mode: a wrong value leaves a gate reporting nothing while the build log still shows it running.
 
 [cols="1,2"]
 |===
 | Property | What It Names
-
-| `airness.group.root`
-| The project's group root, escaped for a regular expression
 
 | `airness.package.root`
 | The package every class lives under, with no escapes
@@ -89,8 +82,6 @@ mvn airness:assets-sync
 | `airness.entry.files`
 | Files an agent tool reads under a name of its own, or `NONE`
 
-| `airness.docs`
-| Documents the prose lint reads, or `NONE`
 |===
 
 . The build stops at the `validate` phase when one is unset, before any gate runs:
@@ -98,13 +89,9 @@ mvn airness:assets-sync
 [source,text]
 ----
 [ERROR] Set airness.package.root to the package every class lives under, which the harness cannot guess
-[ERROR] Set airness.docs, or the literal NONE to declare this project has none. An empty value would
-        pass by checking nothing, which reads the same as checking a clean tree
 ----
 
 . `NONE` is a declaration rather than a shortcut. An empty list passes by checking nothing, and the build log then reads exactly as it does for a project with three correct entries.
-
-. The first two are cross-checked against each other. The group root, with its escapes removed, must be a prefix of the package root, or the two describe different projects.
 
 . Every value is printed at `INFO` on each build, so the values in force sit in the log rather than in someone's memory.
 
@@ -114,13 +101,13 @@ mvn airness:assets-sync
 |===
 | Property | Default | Effect
 
-| `airness.governance.enforce`
+| `airness.enforce`
 | `true`
-| Set to `false` while adopting. Every check still runs and prints every finding, and only the failure is withheld
+| Set to `false` to run tests and every check, print all findings, and withhold only finding-based failures
 
-| `fail-build-on-static-code-analysis-errors`
-| `true`
-| The same ramp for the three analyzers
+| `skipTests`
+| `false`
+| Set with `-DskipTests` to skip ordinary tests and every Airness check without printing harness findings
 
 | `airness.typography.excludes`
 | empty
@@ -204,18 +191,15 @@ mvn airness:assets-sync
 | Secret scan
 | The whole history, in a container
 
-| Prose lint
-| The documents named by `airness.docs`, on the host toolchain
-
 | Inspection scan
 | The whole project, through the IntelliJ engine
 |===
 
 . The inspection scan sits in a profile of its own because it costs minutes where the rest cost seconds. `-Pfull` alone omits it.
 
-. The prose lint is the one gate that runs on the host. It shells out to a PDF extractor and an optical character reader, so it needs Asciidoctor, Vale, Python, `pdftotext` and `tesseract` installed. The build names each missing tool before the first gate starts.
-
 . A truncated clone stops the build at `validate`. Three of these gates pass over a shallow clone by finding nothing to object to, so the build refuses one rather than reporting green.
+
+. Project documentation is outside the harness contract. Airness packages, installs, and enforces no Vale configuration, document assets, README content, or documentation toolchain.
 
 == Files the Harness Owns
 
@@ -237,7 +221,7 @@ mvn airness:assets-sync
 | Must not be in the project, because the harness supplies it
 |===
 
-. `.editorconfig` and the Vale style library are pinned, because an editor and a linter read them from disk. `.gitignore` and `.gitleaks.toml` are seeds, because their bodies are per-project. The scripts, the git hooks and the inspection profile are forbidden, because the build unpacks them under `target/airness/`.
+. `.editorconfig`, `.gitattributes`, `lombok.config`, and `qodana.yaml` are pinned. `.gitignore` and `.gitleaks.toml` are seeds because their bodies are per-project. Analyzer configuration and the inspection profile stay inside Airness artifacts.
 
 . A copy of a forbidden file is worse than none. It looks authoritative, gets edited, and is then ignored.
 
@@ -251,18 +235,9 @@ mvn airness:assets-sync
 
 . A project with a reason to differ names the path in `airness.assets.unmanaged` and says why beside it. Nothing checks that the reason was written, which is worth stating rather than implying a gate that doesn't exist.
 
-== Git Hooks
+== Git Checks
 
-. The build unpacks the hooks. Point git at them once per clone:
-+
-[source,bash]
-----
-git config core.hooksPath target/airness/githooks
-----
-
-. They delegate rather than carry a copy. The message hook calls the same goal the whole-history gate uses, so a message that passes locally passes in the pipeline.
-
-. `pre-push` runs the verification, which is the command the pipeline runs. A hook that checked less would say a push is fine and then be contradicted, which teaches people to stop reading it.
+. Airness installs and uses no Git hooks. Commit policy, commit typography, shallow-clone protection, and full-history secret scanning are Maven lifecycle checks under the `full` profile.
 
 == The First Build
 
@@ -275,9 +250,9 @@ git config core.hooksPath target/airness/githooks
 [ERROR] src/main/java/com/example/Service.java:17:21: '8788' is a magic number. [MagicNumber]
 ----
 
-. Adoption on an existing codebase is easier with the two ramp properties set to `false` for the first run. Every finding is reported and the build completes, so the work can be sized before the gates are turned on.
+. Adoption on an existing codebase is easier with `-Dairness.enforce=false` for the first run. Every finding is reported and the build completes, so the work can be sized before enforcement is enabled.
 
-. Neither ramp skips anything. The checks run and print, and only the failure is withheld.
+. Report-only mode does not skip checks. Compilation errors, invalid configuration, missing tools, and tool failures remain fatal because they are not findings.
 
 == Suppressing a Rule
 
@@ -353,7 +328,7 @@ eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml
 | The harness seen from a project's side, used to verify it
 |===
 
-. The checks are goals rather than tests. A test would be dropped by `-DskipTests` and deselected by `-Dtest`, and neither of those is a request to stop reading the repository.
+. The checks are goals rather than tests so test selection cannot accidentally deselect repository checks. The shared mojo base deliberately honors `-DskipTests` as the explicit total harness bypass.
 
 . `airness-it` inherits the parent the way a project does and carries no configuration of its own, so a finding it reports came off the plugin classpath. Its sources break rules deliberately, and `verify.sh` asserts that each expected finding appears.
 
@@ -371,19 +346,24 @@ mvn clean install
 [source,bash]
 ----
 cd airness-it
-./verify.sh
+sh verify.sh
 ----
 +
 [source,text]
 ----
-ok       checkstyle: shipped rules reach consumer sources
-ok       governance: the gates still run under -DskipTests
-ok       coverage: an untested class is named by both counters of the per-class floor
-ok       assets: the sync goal repairs what the check reported
-ok       prose: an emptied style library fails rather than reporting a clean document
-ok       history: a truncated clone stops the build before the gates it would disarm
-
-All cases passed.
+ok       skip: independent child version packages
+ok       skip: no harness findings are shown
+ok       default: test finding fails
+ok       report-only: test finding is visible
+ok       report-only: later harness checks also run
+ok       default: blank justification fails
+ok       report-only: blank justification is visible
+ok       report-only: compilation remains fatal
+ok       report-only: unreachable registry remains fatal
+ok       coverage: no-test production module fails
+ok       coverage: no-test finding reports without failing
+ok       history: shallow clone is rejected by Maven
+ok       assets: published jar contains no documentation or hooks
 ----
 
 . Each case asserts that a finding appears. A gate that stops resolving surfaces there rather than as a quieter build in every project that inherits the harness.

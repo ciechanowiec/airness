@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
@@ -84,7 +85,7 @@ public final class AssetCheck {
 
     private List<String> present() {
         return this.managed(AssetPolicy.FORBIDDEN)
-            .filter(asset -> Files.exists(this.root.resolve(asset.path())))
+            .filter(asset -> Files.exists(this.root.resolve(asset.path()), LinkOption.NOFOLLOW_LINKS))
             .map(asset -> asset.path() + " (delete it, the harness supplies this file already)")
             .toList();
     }
@@ -112,7 +113,9 @@ public final class AssetCheck {
 
     private Optional<byte[]> held(String path) {
         Path file = this.root.resolve(path);
-        return Optional.of(file).filter(Files::isRegularFile).map(AssetCheck::bytes);
+        return Optional.of(file)
+            .filter(candidate -> Files.isRegularFile(candidate, LinkOption.NOFOLLOW_LINKS))
+            .map(AssetCheck::bytes);
     }
 
     private static byte[] bytes(Path file) {
