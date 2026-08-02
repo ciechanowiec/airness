@@ -81,6 +81,8 @@
             the build directory is already ignored by git and so is invisible to the tree-mutation net.
         -->
         <airness.unpacked>${project.build.directory}/airness</airness.unpacked>
+        <!-- Pinned, so the scan a build runs is the scan the next build runs. -->
+        <gitleaks.image>zricethezav/gitleaks:v8.30.0</gitleaks.image>
         <pitest-maven.version>1.25.8</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <!--
@@ -900,21 +902,45 @@
             <build>
                 <plugins>
                     <!--
-                        The prose gate. Three engines read one document, and the reason it needs a guard
-                        of its own is that two of them report success over nothing: Vale reports a clean
-                        document when its styles resolve to an empty directory, and a lint pointed at no
-                        document at all reports exactly what a lint over a clean document reports.
-                        airness.docs has no default for that reason, and NONE is what makes having no
-                        linted prose a declaration rather than an oversight.
+                        The two gates that read more than this build: the secret scan over the whole
+                        history, and the prose lint over the documents this project declares.
 
-                        The script requires its own toolchain and handles the sentinel, so a project that
-                        has declared it has no prose is not asked to install a document toolchain.
+                        A credential that reached a commit is published the moment the branch is, and
+                        deleting it in a later commit removes it from the tree and from nothing else, so
+                        the scan reads the history rather than the working tree. It runs in a pinned
+                        container, so the version scanning today is the version scanning tomorrow, and
+                        the repository is mounted read-only because a scan has no reason to write.
+
+                        The prose lint has two ways of reporting success over nothing: Vale calls every
+                        document clean when its styles resolve to an empty directory, and a lint pointed
+                        at no document reports what a lint over a clean document reports. airness.docs
+                        has no default for that reason, and NONE is what makes having no linted prose a
+                        declaration. The script requires its own toolchain and handles that sentinel, so
+                        a project which has declared it has no prose is not asked to install one.
+
+                        One plugin block rather than two. Maven merges same-artifact declarations within
+                        a build section and keeps one set of executions, so declaring this twice would
+                        quietly lose whichever half came second.
                     -->
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <version>${exec-maven-plugin.version}</version>
                         <executions>
+                            <execution>
+                                <id>airness-scan-secrets</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>sh</executable>
+                                    <arguments>
+                                        <argument>${airness.unpacked}/scripts/scan-secrets.sh</argument>
+                                        <argument>${gitleaks.image}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
                             <execution>
                                 <id>airness-lint-docs</id>
                                 <phase>package</phase>

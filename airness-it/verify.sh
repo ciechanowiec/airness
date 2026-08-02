@@ -305,6 +305,14 @@ expect 'prose: an emptied style library fails rather than reporting a clean docu
 mv -f ../.vale/styles.aside ../.vale/styles
 trap - EXIT INT TERM
 
+# The secret scan reads the history rather than the working tree, because a credential that reached a
+# commit is published the moment the branch is. There is no matching failure case here on purpose:
+# inducing one would mean committing something that looks like a credential, and a commit is exactly
+# what cannot be taken back.
+# shellcheck disable=SC2086
+expect 'secrets: the scan reads the whole history' \
+    'no leaks found' 1 $full $no_analyzers $no_shaping $no_coverage $lenient
+
 if [ "$failures" -ne 0 ]; then
     printf '\n%s case(s) failed: the harness is not reaching a consumer the way it claims to.\n' "$failures" >&2
     exit 1
