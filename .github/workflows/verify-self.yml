@@ -1,0 +1,17 @@
+name: 'Verify airness'
+
+# airness verifying itself, by calling the workflow it publishes. A reusable workflow nobody calls is a
+# workflow nobody has seen work, so the repository that ships it is also its first caller.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml

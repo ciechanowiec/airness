@@ -28,6 +28,13 @@
         </developer>
     </developers>
 
+    <!-- Required by Maven Central, alongside the name, description, url, licenses and developers above -->
+    <scm>
+        <connection>scm:git:https://github.com/ciechanowiec/airness.git</connection>
+        <developerConnection>scm:git:git@github.com:ciechanowiec/airness.git</developerConnection>
+        <url>https://github.com/ciechanowiec/airness</url>
+    </scm>
+
     <modules>
         <module>airness-annotations</module>
         <module>airness-assets</module>
@@ -47,6 +54,10 @@
         <lombok.version>1.18.46</lombok.version>
         <junit.version>6.1.2</junit.version>
         <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.2.9</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
     </properties>
 
     <build>
@@ -98,4 +109,83 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <profiles>
+        <profile>
+            <!--
+                Publication. Everything here is off in an ordinary build, because none of it verifies
+                anything: signing, the sources and javadoc jars, and the upload are what a release does
+                after the verification has already passed.
+
+                A release runs the verification first and separately. Folding the two together would
+                mean a signed artifact whose only evidence of being sound is that the same command that
+                signed it did not complain.
+            -->
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!--
+                            Signing. The key and its passphrase come from the environment rather than
+                            from anything committed, and a release without them fails rather than
+                            publishing unsigned.
+                        -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!--
+                                Uploaded and left for a person to release, rather than published the
+                                moment a build succeeds. Publication cannot be undone, and a version
+                                number that reached Central is spent whatever was wrong with it.
+                            -->
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

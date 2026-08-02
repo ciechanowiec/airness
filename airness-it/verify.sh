@@ -17,6 +17,10 @@ set -eu
 
 failures=0
 
+# Where expect runs its build. Every case uses this checkout except the one that needs a clone with a
+# truncated history, which cannot be simulated in place.
+workdir='.'
+
 # Runs one case and compares what the build reported against what the case expects. The build is
 # expected to fail in most cases (the sources violate rules on purpose), so its exit status is not the
 # signal and is deliberately discarded; the findings are.
@@ -25,7 +29,7 @@ expect() {
     pattern="$2"
     wanted="$3"
     shift 3
-    found="$(mvn clean package "$@" 2>&1 | grep -cE "$pattern" || true)"
+    found="$( (cd "$workdir" && mvn clean package "$@") 2>&1 | grep -cE "$pattern" || true)"
     if [ "$found" -eq "$wanted" ]; then
         printf 'ok       %s\n' "$label"
     else
@@ -138,6 +142,13 @@ expect 'governance: the gates still run under -DskipTests' \
 # shellcheck disable=SC2086
 expect 'governance: the gates still run under -Dmaven.test.skip' \
     'Banned typography found' 1 $no_analyzers $no_shaping $no_coverage $lenient -Dmaven.test.skip=true
+# shellcheck disable=SC2086
+# The deselection flag needs its companion, or the build ends at the test phase for want of a matching
+# test and never reaches the goals this case is about. That failure would have read as the goals
+# honouring -Dtest, which is the opposite of what it shows.
+expect 'governance: the gates still run when tests are deselected' \
+    'Banned typography found' 1 $no_analyzers $no_shaping $no_coverage $lenient \
+    -Dtest=Nothing -Dsurefire.failIfNoSpecifiedTests=false
 
 # The adoption ramp withholds the failure and nothing else. Both halves are needed: without the first,
 # a project taking the harness on could not build at all, and without the second the ramp would be a
@@ -287,6 +298,12 @@ expect 'prose: the shipped style library reports a bad document' \
 expect 'prose: a document that meets the rule passes' \
     'No problems found' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
     -Dairness.docs=airness-it/prose-clean.adoc
+# This repository's own README, which is real prose rather than a fixture written to pass. A fixture
+# says the engines run; a document somebody had to write says the rules are ones a person can meet.
+# shellcheck disable=SC2086
+expect 'prose: the harness holds its own documentation to the gate' \
+    'No problems found' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
+    -Dairness.docs=README.adoc
 # shellcheck disable=SC2086
 expect 'prose: NONE is accepted as a declaration rather than a lint of nothing' \
     'airness.docs is NONE' 1 $full $no_analyzers $no_shaping $no_coverage $lenient
@@ -321,7 +338,21 @@ expect 'secrets: the scan reads the whole history' \
 # scan reporting none would mean the profile stopped resolving.
 # shellcheck disable=SC2086
 expect 'inspection: the shipped profile reports problems in consumer sources' \
-    'problems detected' 1 -Pinspect $no_analyzers $no_shaping $no_coverage $lenient
+    'Analysis results:' 1 -Pinspect $no_analyzers $no_shaping $no_coverage $lenient
+
+# A truncated clone is the quietest way to disarm this harness: three gates that read history pass by
+# finding nothing to object to in the handful of commits they were given, and the build reports green.
+# It cannot be simulated in place, so the case clones this repository shallowly and builds there.
+shallow="$(mktemp -d)"
+trap 'rm -rf "$shallow"' EXIT INT TERM
+git clone --depth 1 --quiet "file://$(cd .. && pwd)" "$shallow/repo"
+workdir="$shallow/repo/airness-it"
+# shellcheck disable=SC2086
+expect 'history: a truncated clone stops the build before the gates it would disarm' \
+    'This is a shallow clone' 1 -Pfull $no_analyzers $no_shaping $no_coverage $lenient
+workdir='.'
+rm -rf "$shallow"
+trap - EXIT INT TERM
 
 if [ "$failures" -ne 0 ]; then
     printf '\n%s case(s) failed: the harness is not reaching a consumer the way it claims to.\n' "$failures" >&2
