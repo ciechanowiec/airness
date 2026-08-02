@@ -171,9 +171,9 @@ mvn airness:assets-sync
 
 . The source-shaping tools report rather than rewrite. `mvn process-resources -Pformat` applies them instead, and the check still runs behind the apply.
 
-=== The Slow Profiles
+=== The Full Build
 
-. `mvn clean package -Pfull,inspect` adds the gates that read more than this build. That command, not `-Pfull` alone, is the verification:
+. `mvn clean package -Pfull` adds every slow gate that reads more than the current build:
 +
 [cols="1,3"]
 |===
@@ -194,8 +194,6 @@ mvn airness:assets-sync
 | Inspection scan
 | The whole project, through the IntelliJ engine
 |===
-
-. The inspection scan sits in a profile of its own because it costs minutes where the rest cost seconds. `-Pfull` alone omits it.
 
 . A truncated clone stops the build at `validate`. Three of these gates pass over a shallow clone by finding nothing to object to, so the build refuses one rather than reporting green.
 

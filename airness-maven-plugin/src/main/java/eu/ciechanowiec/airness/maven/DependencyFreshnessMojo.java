@@ -5,12 +5,14 @@ import eu.ciechanowiec.airness.governance.DependencyFreshnessCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
 
 /**
  * No declared dependency trails the latest stable release by two major versions or more.
@@ -42,12 +44,16 @@ public class DependencyFreshnessMojo extends GovernanceMojo {
     }
 
     private List<DeclaredDependency> dependencies() {
+        Set<String> reactor = this.session().getAllProjects().stream()
+            .map(DependencyFreshnessMojo::versionedKey)
+            .collect(Collectors.toUnmodifiableSet());
         Map<String, Dependency> effective = this.project().getDependencies().stream().collect(
             Collectors.toMap(DependencyFreshnessMojo::key, Function.identity(), (first, second) -> first)
         );
         return this.project().getOriginalModel().getDependencies().stream()
             .map(declared -> effective.getOrDefault(key(declared), declared))
             .filter(dependency -> dependency.getVersion() != null)
+            .filter(dependency -> !reactor.contains(versionedKey(dependency)))
             .map(dependency -> new DeclaredDependency(
                 dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion()
             ))
@@ -57,5 +63,13 @@ public class DependencyFreshnessMojo extends GovernanceMojo {
     private static String key(Dependency dependency) {
         return dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getType()
             + ":" + dependency.getClassifier();
+    }
+
+    private static String versionedKey(Dependency dependency) {
+        return dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion();
+    }
+
+    private static String versionedKey(MavenProject project) {
+        return project.getGroupId() + ":" + project.getArtifactId() + ":" + project.getVersion();
     }
 }

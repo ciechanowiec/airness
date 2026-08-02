@@ -8,7 +8,7 @@ Airness is a Java 25 Maven multi-module build harness. The root `pom.xml` aggreg
 
 - `mvn clean install` builds, tests, and installs all reactor modules for consumer tests.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
-- `mvn clean package -Pfull,inspect` runs slow history, dependency, mutation, secret, and Qodana checks; it requires full Git history, network access, and Docker.
+- `mvn clean package -Pfull` runs slow history, dependency, mutation, secret, and Qodana checks; it requires full Git history, network access, and Docker.
 - `mvn process-resources -Pformat` applies the configured formatter, import ordering, and OpenRewrite recipes.
 - `sh scripts/lint-docs.sh README.adoc README-guideline-software-project.adoc README-guideline-writing.adoc` checks project documentation when its external tools are installed.
 

@@ -794,42 +794,10 @@
         </profile>
         <profile>
             <!--
-                The inspection scan, in a profile of its own rather than alongside the other slow gates.
-
-                It reads the whole project through the IntelliJ engine, which costs minutes where every
-                other gate costs seconds. Keeping it separate is what lets a suite that runs the build
-                dozens of times pay for it once, and the verification command names both profiles:
-
-                    mvn clean package -Pfull,inspect
-
-                That command, not -Pfull alone, is what CI runs. -Pfull by itself omits this scan, which
-                is worth knowing rather than assuming.
-            -->
-            <id>inspect</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>eu.ciechanowiec</groupId>
-                        <artifactId>airness-maven-plugin</artifactId>
-                        <version>${airness.version}</version>
-                        <executions>
-                            <execution>
-                                <id>airness-qodana</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>qodana</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <!--
                 The slow half of the harness. What lands here is what reads more than this module: the
-                whole commit history, the network, and the mutation analysis. None of it belongs in the
-                loop a developer runs a dozen times an hour, and all of it runs on every push.
+                whole commit history, the network, Docker, the mutation analysis, and the IntelliJ
+                inspection engine. None of it belongs in the loop a developer runs a dozen times an
+                hour, and all of it runs on every push.
 
                 These are executions in a profile rather than tests carrying a tag. A tag is honoured
                 only for as long as nobody overrides the excluded groups, whereas an execution that is
@@ -910,6 +878,13 @@
                                     <goal>dependency-freshness</goal>
                                     <goal>mutation-baseline</goal>
                                     <goal>scan-secrets</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>airness-qodana</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>qodana</goal>
                                 </goals>
                             </execution>
                         </executions>

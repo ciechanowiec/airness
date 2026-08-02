@@ -25,4 +25,4 @@ jobs:
           cache: 'maven'
 
       - name: 'Verify'
-        run: mvn clean package -Pfull,inspect
+        run: mvn clean package -Pfull
