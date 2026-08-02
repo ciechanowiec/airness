@@ -313,6 +313,16 @@ trap - EXIT INT TERM
 expect 'secrets: the scan reads the whole history' \
     'no leaks found' 1 $full $no_analyzers $no_shaping $no_coverage $lenient
 
+# The inspection scan, which is the one gate this suite pays for exactly once. It lives in a profile of
+# its own for that reason: it reads the whole project through the IntelliJ engine and costs minutes
+# where every other gate costs seconds, and this script runs the whole build once per case.
+#
+# The fixtures here are deliberately bad, so the scan reporting problems is the expected outcome and a
+# scan reporting none would mean the profile stopped resolving.
+# shellcheck disable=SC2086
+expect 'inspection: the shipped profile reports problems in consumer sources' \
+    'problems detected' 1 -Pinspect $no_analyzers $no_shaping $no_coverage $lenient
+
 if [ "$failures" -ne 0 ]; then
     printf '\n%s case(s) failed: the harness is not reaching a consumer the way it claims to.\n' "$failures" >&2
     exit 1

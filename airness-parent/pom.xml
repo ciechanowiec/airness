@@ -83,6 +83,7 @@
         <airness.unpacked>${project.build.directory}/airness</airness.unpacked>
         <!-- Pinned, so the scan a build runs is the scan the next build runs. -->
         <gitleaks.image>zricethezav/gitleaks:v8.30.0</gitleaks.image>
+        <qodana.image>jetbrains/qodana-jvm-community:2026.1</qodana.image>
         <pitest-maven.version>1.25.8</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <!--
@@ -887,6 +888,46 @@
                 <airness.formatter.apply.phase>process-resources</airness.formatter.apply.phase>
                 <airness.impsort.apply.phase>process-resources</airness.impsort.apply.phase>
             </properties>
+        </profile>
+        <profile>
+            <!--
+                The inspection scan, in a profile of its own rather than alongside the other slow gates.
+
+                It reads the whole project through the IntelliJ engine, which costs minutes where every
+                other gate costs seconds. Keeping it separate is what lets a suite that runs the build
+                dozens of times pay for it once, and the verification command names both profiles:
+
+                    mvn clean package -Pfull,inspect
+
+                That command, not -Pfull alone, is what CI and the pre-push hook run. -Pfull by itself
+                omits this scan, which is worth knowing rather than assuming.
+            -->
+            <id>inspect</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>airness-qodana</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>sh</executable>
+                                    <arguments>
+                                        <argument>${airness.unpacked}/scripts/qodana.sh</argument>
+                                        <argument>${qodana.image}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <profile>
             <!--

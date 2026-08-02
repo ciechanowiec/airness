@@ -23,6 +23,7 @@
 
 .editorconfig	PINNED
 .gitattributes	PINNED
+qodana.yaml	PINNED
 .gitignore	SEED
 .gitleaks.toml	SEED
 rewrite.yml	FORBIDDEN
@@ -30,6 +31,7 @@ scripts/tree-snapshot.sh	FORBIDDEN
 scripts/require-tools.sh	FORBIDDEN
 scripts/lint-docs.sh	FORBIDDEN
 scripts/scan-secrets.sh	FORBIDDEN
+scripts/qodana.sh	FORBIDDEN
 qodana/profile.xml	FORBIDDEN
 .githooks/commit-msg	FORBIDDEN
 .githooks/pre-commit	FORBIDDEN
