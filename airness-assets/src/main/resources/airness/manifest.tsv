@@ -17,10 +17,112 @@
 # A FORBIDDEN line is only ever added once the replacement exists. Forbidding a file states that the
 # harness supplies it from elsewhere, and a line that forbids while supplying nothing is a claim the
 # harness cannot honour. rewrite.yml earns its line because OpenRewrite reads the recipe set out of
-# META-INF/rewrite/ on its own plugin classpath, which is airness-config. The scripts and the inspection
-# profile join it once they are unpacked under the build directory.
+# META-INF/rewrite/ on its own plugin classpath. The scripts, the git hooks and the inspection profile
+# earn theirs because the build unpacks them under the build directory, where the tools that read them
+# are pointed and where nobody edits them by accident.
 
 .editorconfig	PINNED
 .gitattributes	PINNED
 .gitignore	SEED
 rewrite.yml	FORBIDDEN
+scripts/tree-snapshot.sh	FORBIDDEN
+scripts/require-tools.sh	FORBIDDEN
+scripts/lint-docs.sh	FORBIDDEN
+qodana/profile.xml	FORBIDDEN
+.githooks/commit-msg	FORBIDDEN
+.githooks/pre-commit	FORBIDDEN
+.githooks/pre-push	FORBIDDEN
+
+# The prose toolchain. Vale resolves its styles from disk under StylesPath, and the linter
+# resolves .vale.ini and .docs/lib from the working directory, so none of this can live in a jar.
+# The shared vocabularies are pinned so a term accepted in one project is accepted in all, and the
+# project's own vocabulary is a seed, which is what keeps the shared ones from filling with one
+# project's domain nouns.
+.vale/styles/English/AMPM.yml	PINNED
+.vale/styles/English/Abbreviations.yml	PINNED
+.vale/styles/English/Acronyms.yml	PINNED
+.vale/styles/English/AmericanSpelling.yml	PINNED
+.vale/styles/English/AnimalLabels.yml	PINNED
+.vale/styles/English/Annotations.yml	PINNED
+.vale/styles/English/Apologizing.yml	PINNED
+.vale/styles/English/Archaisms.yml	PINNED
+.vale/styles/English/Cliches.yml	PINNED
+.vale/styles/English/ConsistentSpelling.yml	PINNED
+.vale/styles/English/Contractions.yml	PINNED
+.vale/styles/English/Currency.yml	PINNED
+.vale/styles/English/Cursing.yml	PINNED
+.vale/styles/English/DateCase.yml	PINNED
+.vale/styles/English/DateFormat.yml	PINNED
+.vale/styles/English/DateMidnight.yml	PINNED
+.vale/styles/English/DateRedundancy.yml	PINNED
+.vale/styles/English/DateSpacing.yml	PINNED
+.vale/styles/English/DenizenLabels.yml	PINNED
+.vale/styles/English/Diacritical.yml	PINNED
+.vale/styles/English/Exclamation.yml	PINNED
+.vale/styles/English/FillerPhrases.yml	PINNED
+.vale/styles/English/FirstPerson.yml	PINNED
+.vale/styles/English/Formal.yml	PINNED
+.vale/styles/English/Gender.yml	PINNED
+.vale/styles/English/GenderBias.yml	PINNED
+.vale/styles/English/GroupTerms.yml	PINNED
+.vale/styles/English/HeadingPunctuation.yml	PINNED
+.vale/styles/English/Hedging.yml	PINNED
+.vale/styles/English/Hyperbole.yml	PINNED
+.vale/styles/English/Illusions.yml	PINNED
+.vale/styles/English/InterrogativeHeadings.yml	PINNED
+.vale/styles/English/Jargon.yml	PINNED
+.vale/styles/English/LGBTOffensive.yml	PINNED
+.vale/styles/English/LGBTTerms.yml	PINNED
+.vale/styles/English/LIX.yml	PINNED
+.vale/styles/English/LyHyphens.yml	PINNED
+.vale/styles/English/Malapropisms.yml	PINNED
+.vale/styles/English/Marketing.yml	PINNED
+.vale/styles/English/Needless.yml	PINNED
+.vale/styles/English/Nonwords.yml	PINNED
+.vale/styles/English/OptionalPlurals.yml	PINNED
+.vale/styles/English/Oxymorons.yml	PINNED
+.vale/styles/English/P-Value.yml	PINNED
+.vale/styles/English/Patronizing.yml	PINNED
+.vale/styles/English/Periods.yml	PINNED
+.vale/styles/English/Preamble.yml	PINNED
+.vale/styles/English/Quotes.yml	PINNED
+.vale/styles/English/RASSyndrome.yml	PINNED
+.vale/styles/English/Ranges.yml	PINNED
+.vale/styles/English/RedundantQualifiers.yml	PINNED
+.vale/styles/English/Skunked.yml	PINNED
+.vale/styles/English/Slang.yml	PINNED
+.vale/styles/English/So.yml	PINNED
+.vale/styles/English/Spacing.yml	PINNED
+.vale/styles/English/TitleCase.yml	PINNED
+.vale/styles/English/TooWordy.yml	PINNED
+.vale/styles/English/Uncomparables.yml	PINNED
+.vale/styles/English/Units.yml	PINNED
+.vale/styles/English/We.yml	PINNED
+.vale/styles/English/Weasel.yml	PINNED
+.vale/styles/English/WordList.yml	PINNED
+.vale/styles/LanguageNeutral/AvgParagraphLength.yml	PINNED
+.vale/styles/LanguageNeutral/HeadingLength.yml	PINNED
+.vale/styles/LanguageNeutral/NoCurlyQuotes.yml	PINNED
+.vale/styles/LanguageNeutral/NoDashes.yml	PINNED
+.vale/styles/LanguageNeutral/NoQuestionHeadings.yml	PINNED
+.vale/styles/LanguageNeutral/NoUnicodeEllipsis.yml	PINNED
+.vale/styles/config/vocabularies/Base/accept.txt	PINNED
+.vale/styles/config/vocabularies/Products/accept.txt	PINNED
+.docs/lib/abstractness_en.tsv	PINNED
+.docs/lib/abstractness_extra_en.tsv	PINNED
+.docs/lib/adoc_lint.py	PINNED
+.docs/lib/apply_docx_formatting.py	PINNED
+.docs/lib/common-style.rb	PINNED
+.docs/lib/export_prepare.py	PINNED
+.docs/themes/basic.yml	PINNED
+.docs/themes/fonts/NotoEmoji-Regular.ttf	PINNED
+.docs/themes/reference.docx	PINNED
+docinfo.html	PINNED
+docinfo-footer.html	PINNED
+README-guideline-writing.adoc	PINNED
+README-guideline-software-project.adoc	PINNED
+
+# Per-project by construction. .vale.ini names the vocabularies this project uses, and a project
+# that adds one would fail an exact-match check on a file whose only shared lines are two.
+.vale.ini	SEED
+.vale/styles/config/vocabularies/Project/accept.txt	SEED
