@@ -6,10 +6,8 @@ import lombok.experimental.UtilityClass;
 /**
  * Parses a raw commit message into a {@link CommitMessage}. Comment lines are dropped first, as git's
  * own cleanup does, then the header is the first line and the body is everything after it, stripped.
- * Both the whole-history reader and the commit-message hook entry parse through this one seam so they
- * agree on what a header and a body are: the hook sees the message before git has cleaned it, so
- * without dropping the comments here the template git appends would count as a body and the rule that
- * a non-trivial change carries one could never fire.
+ * Keeping that cleanup in the history reader also makes the parser deterministic for messages written
+ * through tools that preserve a commented template.
  */
 @UtilityClass
 final class CommitMessages {

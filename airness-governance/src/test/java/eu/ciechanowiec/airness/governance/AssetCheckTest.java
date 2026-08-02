@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -50,6 +51,15 @@ class AssetCheckTest {
             ),
             this.catalogue().assets(),
             "the manifest states a path and a policy, and the comment line is not one of them"
+        );
+    }
+
+    @Test
+    void rejectsAPathThatEscapesTheRepository() {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new ManagedAsset("../outside", AssetPolicy.PINNED),
+            "a lexical parent at the start remains unchanged by normalize(), so it needs an explicit guard"
         );
     }
 

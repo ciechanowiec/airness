@@ -20,7 +20,7 @@
         freshness, and the mutation baseline.
 
         Every check is plain Java over an explicit repository root and explicit paths. Nothing here knows
-        about Maven, which is what lets the same class run from a Mojo, from a git hook, or from a test.
+        about Maven, which is what lets the same class run from a Mojo or from a test.
         The Maven binding lives in airness-maven-plugin and is the only place that knows a build is
         happening at all.
     </description>

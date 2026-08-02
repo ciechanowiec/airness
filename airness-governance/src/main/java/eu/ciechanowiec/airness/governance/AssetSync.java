@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -35,7 +36,7 @@ public final class AssetSync {
      * @param unmanaged repository-relative paths this project has taken over
      */
     public AssetSync(Path root, AssetCatalogue catalogue, Collection<String> unmanaged) {
-        this.root = root;
+        this.root = real(root);
         this.catalogue = catalogue;
         this.unmanaged = Set.copyOf(unmanaged);
     }
@@ -59,7 +60,7 @@ public final class AssetSync {
     private boolean needsWriting(ManagedAsset asset) {
         return switch (asset.policy()) {
             case PINNED -> !new AssetCheck(this.root, this.catalogue, this.unmanaged).matches(asset);
-            case SEED -> !Files.exists(this.root.resolve(asset.path()));
+            case SEED -> !Files.exists(this.safe(asset.path()), LinkOption.NOFOLLOW_LINKS);
             case FORBIDDEN -> false;
         };
     }
@@ -68,8 +69,23 @@ public final class AssetSync {
         byte[] content = this.catalogue.canonical(asset.path()).orElseThrow(
             () -> new IllegalStateException("The harness ships no bytes for " + asset.path())
         );
-        write(this.root.resolve(asset.path()), content);
+        write(this.safe(asset.path()), content);
         return asset.path();
+    }
+
+    private Path safe(String relative) {
+        Path target = this.root.resolve(relative).normalize();
+        if (!target.startsWith(this.root)) {
+            throw new IllegalStateException("Managed asset escapes the repository root: " + relative);
+        }
+        Path current = this.root;
+        for (Path segment : this.root.relativize(target)) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IllegalStateException("Managed asset path crosses a symbolic link: " + current);
+            }
+        }
+        return target;
     }
 
     private static void write(Path file, byte[] content) {
@@ -86,6 +102,14 @@ public final class AssetSync {
             Files.createDirectories(parent);
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not create " + parent, exception);
+        }
+    }
+
+    private static Path real(Path root) {
+        try {
+            return root.toRealPath();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not resolve repository root " + root, exception);
         }
     }
 }

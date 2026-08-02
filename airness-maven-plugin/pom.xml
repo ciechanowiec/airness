@@ -18,11 +18,10 @@
         The lifecycle binding for the governance checks. One goal per check, each of them read-only, and
         each of them a named execution rather than a test.
 
-        A check that shipped as a test would be deselected by -Dtest=OneClass and skipped outright by
-        -DskipTests, and neither of those is a request to turn the harness off. Test selection is the
-        mechanism there rather than a switch on it, so it cannot be overridden from inside. As goals the
-        checks are bound to phases, their parameters are named and typed, and a failure names the gate in
-        the line that reports it.
+        A check that shipped as a test could be accidentally deselected by -Dtest=OneClass. As goals the
+        checks stay bound to their phases, their parameters are named and typed, and a failure names the
+        gate in the line that reports it. Every goal explicitly honors -DskipTests as the total harness
+        bypass.
     </description>
 
     <prerequisites>
@@ -32,6 +31,8 @@
     <properties>
         <maven.api.version>3.9.11</maven.api.version>
         <maven-plugin-tools.version>3.15.2</maven-plugin-tools.version>
+        <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
+        <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -48,6 +49,21 @@
             <groupId>eu.ciechanowiec</groupId>
             <artifactId>airness-assets</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-config</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.revelc.code.formatter</groupId>
+            <artifactId>formatter-maven-plugin</artifactId>
+            <version>${formatter-maven-plugin.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.revelc.code</groupId>
+            <artifactId>impsort-maven-plugin</artifactId>
+            <version>${impsort-maven-plugin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>

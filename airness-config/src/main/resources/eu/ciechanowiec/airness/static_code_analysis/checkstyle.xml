@@ -4,7 +4,6 @@
         "https://checkstyle.org/dtds/configuration_1_3.dtd">
 <module name="Checker">
     <module name="SuppressWarningsFilter"/>
-    <module name="SuppressWithPlainTextCommentFilter"/>
     <module name="SuppressionSingleFilter">
         <!-- Javadoc presence is required only on production code, not on tests/test fixtures. -->
         <property name="checks" value="MissingJavadocType|MissingJavadocMethod|JavadocVariable"/>
@@ -463,14 +462,13 @@
         <module name="RegexpSinglelineJava">
             <!--
             Unnecessary fully-qualified name in code; add an import instead (imports/Javadoc exempt). The
-            roots are the JDK, Jakarta EE, and this project's own group, which is the set a file can always
-            import from. A copied harness renames the group root along with the other coordinates;
-            leaving it pointing at another project's group makes the rule quietly enforce less than it says.
+            Match any qualified importable type. Limiting this to a configurable group root lets a
+            consumer accidentally make the rule enforce less while still looking enabled.
             -->
-            <property name="format" value="^(?!import )(?!package ).*\b(java|javax|jakarta|${airness.group.root})(\.[a-z][a-zA-Z0-9]*)+\.[A-Z]"/>
+            <property name="format" value="^(?!import )(?!package ).*\b[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+\.[A-Z][a-zA-Z0-9_$]*"/>
             <property name="ignoreComments" value="true"/>
             <property name="message"
-                      value="Unnecessary fully-qualified JDK, Jakarta or project name; import the type instead of qualifying it inline."/>
+                      value="Unnecessary fully-qualified type name; import the type instead of qualifying it inline."/>
         </module>
 
         <!--

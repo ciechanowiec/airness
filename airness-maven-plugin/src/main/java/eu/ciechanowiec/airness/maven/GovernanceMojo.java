@@ -19,15 +19,13 @@ import org.apache.maven.project.MavenProject;
  * any of them.
  *
  * <p>Printing before deciding is the whole of the adoption ramp. Setting
- * {@code airness.governance.enforce} to false withholds the failure and nothing else, so a project
+ * {@code airness.enforce} to false withholds the failure and nothing else, so a project
  * taking the harness on sees the same report it would have failed on and can work through it. A goal
  * that skipped the check instead would leave that project with no idea what it was in for, which is how
  * a ramp turns into a permanent exemption.
  *
- * <p>Nothing here reads the code being built. These goals read the repository, which is why none of them
- * honours {@code skipTests} and why a check that shipped as a test would have been wrong twice over: it
- * would answer to a flag about tests, and it would be deselected by a developer narrowing a run to one
- * test class.
+ * <p>{@code skipTests} is the public bypass for both tests and the harness. It returns before the check
+ * gathers findings, so a skipped build cannot accidentally present an old or partial report.
  */
 public abstract class GovernanceMojo extends AbstractMojo {
 
@@ -40,8 +38,14 @@ public abstract class GovernanceMojo extends AbstractMojo {
     /**
      * Whether a finding fails the build. Every check runs and prints either way.
      */
-    @Parameter(property = "airness.governance.enforce", defaultValue = "true")
+    @Parameter(property = "airness.enforce", defaultValue = "true")
     private boolean enforce;
+
+    /**
+     * Whether Maven tests and every Airness check are skipped.
+     */
+    @Parameter(property = "skipTests", defaultValue = "false")
+    private boolean skip;
 
     /**
      * The verdicts this goal reports, one per rule the check states.
@@ -61,7 +65,9 @@ public abstract class GovernanceMojo extends AbstractMojo {
 
     @Override
     public final void execute() throws MojoExecutionException, MojoFailureException {
-        if (this.applies()) {
+        if (this.skip) {
+            this.getLog().info("Skipping Airness because skipTests is true");
+        } else if (this.applies()) {
             this.report(this.gather());
         } else {
             this.getLog().debug("Nothing for this goal to read here");
@@ -84,6 +90,19 @@ public abstract class GovernanceMojo extends AbstractMojo {
      */
     protected final List<Path> moduleSourceRoots() {
         return sourceRoots(Stream.of(this.project));
+    }
+
+    /**
+     * Existing production Java source roots of the current module.
+     *
+     * @return production source roots
+     */
+    protected final List<Path> moduleProductionSourceRoots() {
+        return this.project.getCompileSourceRoots().stream()
+            .map(Path::of)
+            .filter(Files::isDirectory)
+            .distinct()
+            .toList();
     }
 
     /**
@@ -147,7 +166,7 @@ public abstract class GovernanceMojo extends AbstractMojo {
         }
         if (broken > 0) {
             this.getLog().warn(
-                "airness.governance.enforce is false, so the findings above do not fail this build"
+                "airness.enforce is false, so the findings above do not fail this build"
             );
         }
     }

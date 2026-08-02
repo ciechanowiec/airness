@@ -30,8 +30,8 @@ public final class Repository {
      * <p>The current directory is the wrong answer under a multi-module build, where it is the module
      * being built rather than the repository. A scan rooted there would run {@code git ls-files} inside
      * one module and report green over a subtree, having never read the sibling modules, the root
-     * documents, or the workflow files. Asking git makes the answer the same from every module, from a
-     * git hook, and from a test.
+     * documents, or the workflow files. Asking git makes the answer the same from every module and from
+     * a test.
      *
      * @param start a directory inside the working tree
      * @return the working tree root

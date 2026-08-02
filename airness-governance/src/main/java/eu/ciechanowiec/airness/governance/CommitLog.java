@@ -5,9 +5,8 @@ import java.util.List;
 import lombok.experimental.UtilityClass;
 
 /**
- * Reads the whole reachable history as {@link Commit} values. Merge commits are excluded because they
- * keep git's fixed merge header rather than the Conventional Commits shape. Each commit's message and
- * diff size are read with two small plumbing calls, which is ample for a repository of this size.
+ * Reads the whole reachable history as {@link Commit} values. Merge commits keep their fixed header
+ * form but remain in scope for typography and attribution checks.
  */
 @UtilityClass
 final class CommitLog {
@@ -19,7 +18,7 @@ final class CommitLog {
     }
 
     private static List<String> shas(Path root) {
-        String output = GitPlumbing.run(root, List.of("rev-list", "HEAD", "--no-merges"));
+        String output = GitPlumbing.run(root, List.of("rev-list", "HEAD"));
         return output.lines()
             .filter(line -> !line.isBlank())
             .toList();

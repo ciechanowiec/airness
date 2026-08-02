@@ -1,9 +1,7 @@
 package eu.ciechanowiec.airness.it;
 
 /**
- * Trips only the fully-qualified-name rule, and only when the group root that rule reads is the group
- * this class actually sits under. It tells a configured group root apart from one left pointing at
- * another project, which is the case that would otherwise pass by never firing.
+ * Trips the general fully-qualified-name rule without relying on a project-specific package prefix.
  */
 public final class Qualified {
 

@@ -1,8 +1,0 @@
-= Prose fixture
-
-A document that breaks a prose rule on purpose, so the lint is told apart from one that resolved no
-styles and reported every document clean.
-
-== Why is this heading a question?
-
-The heading above asks a question, which the shipped style library reports.
