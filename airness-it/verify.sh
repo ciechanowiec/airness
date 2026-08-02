@@ -178,6 +178,64 @@ rm "$consumer/src/main/java/com/example/Broken.java"
 run_case 'report-only: unreachable registry remains fatal' 1 'Registry unreachable|BUILD FAILURE' \
     "$consumer" airness:dependency-freshness -Dairness.enforce=false -Dairness.registry=http://127.0.0.1:1/
 
+# A dependency built in the same reactor has no reason to exist in an external registry yet. The
+# freshness goal must recognize its resolved coordinates while retaining the fail-closed external case
+# above.
+reactor="$scratch/reactor"
+mkdir -p "$reactor/library" "$reactor/application"
+cat > "$reactor/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>reactor</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <modules>
+    <module>library</module>
+    <module>application</module>
+  </modules>
+</project>
+POM
+cat > "$reactor/library/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>reactor</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>library</artifactId>
+</project>
+POM
+cat > "$reactor/application/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>reactor</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>application</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>library</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>
+POM
+run_case 'freshness: same-reactor dependency needs no registry metadata' 0 'BUILD SUCCESS' \
+    "$reactor" airness:dependency-freshness -Dairness.registry=http://127.0.0.1:1/
+
 # Production code without tests cannot deactivate coverage merely by omitting src/test/java.
 untested="$(new_consumer untested)"
 rm -rf "$untested/src/test"

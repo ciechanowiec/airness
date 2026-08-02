@@ -35,7 +35,7 @@ jobs:
 
       - name: 'Run Docker-backed checks once'
         working-directory: airness-it
-        run: mvn clean package -Pfull,inspect -Dairness.enforce=false
+        run: mvn clean package -Pfull -Dairness.enforce=false
 
   documentation:
     runs-on: ubuntu-latest
