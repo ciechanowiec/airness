@@ -276,6 +276,35 @@ expect 'freshness: an unreachable registry fails rather than passing' \
     'Registry unreachable' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
     -Dairness.registry=http://127.0.0.1:1/
 
+# The prose gate, which is the one with two ways of reporting success over nothing. Vale reports a clean
+# document when its styles resolve to an empty directory, and a lint pointed at no document reports what
+# a lint over a clean document reports. All four cases below exist because of those two.
+# shellcheck disable=SC2086
+expect 'prose: the shipped style library reports a bad document' \
+    'LanguageNeutral.NoQuestionHeadings' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
+    -Dairness.docs=airness-it/prose-fixture.adoc
+# shellcheck disable=SC2086
+expect 'prose: a document that meets the rule passes' \
+    'No problems found' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
+    -Dairness.docs=airness-it/prose-clean.adoc
+# shellcheck disable=SC2086
+expect 'prose: NONE is accepted as a declaration rather than a lint of nothing' \
+    'airness.docs is NONE' 1 $full $no_analyzers $no_shaping $no_coverage $lenient
+# shellcheck disable=SC2086
+expect 'prose: an unset airness.docs stops the build at validate' \
+    'Set airness\.docs' 1 $no_analyzers $no_shaping $no_coverage -Dairness.docs=
+
+# An emptied style library is the failure this gate would otherwise report as a clean document. The
+# library is moved aside and put back, because the only tree this consumer has is the one it lives in.
+mv ../.vale/styles ../.vale/styles.aside
+trap 'mv -f ../.vale/styles.aside ../.vale/styles 2>/dev/null || true' EXIT INT TERM
+# shellcheck disable=SC2086
+expect 'prose: an emptied style library fails rather than reporting a clean document' \
+    'would report every document clean' 1 $full $no_analyzers $no_shaping $no_coverage $lenient \
+    -Dairness.docs=airness-it/prose-clean.adoc
+mv -f ../.vale/styles.aside ../.vale/styles
+trap - EXIT INT TERM
+
 if [ "$failures" -ne 0 ]; then
     printf '\n%s case(s) failed: the harness is not reaching a consumer the way it claims to.\n' "$failures" >&2
     exit 1

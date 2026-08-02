@@ -47,10 +47,12 @@
 
         <!--
             A linter's own style library contains by nature the glyphs it detects, and a vendored theme
-            carries somebody else's typography. Both are named, and a name that stops excluding anything
-            is itself reported, so this list cannot outlive the directories it points at.
+            carries somebody else's typography. The third entry is the same library again, in the copy
+            this repository ships to other projects: a harness that vendors the files it bans has two of
+            each, and both have to be named. A name that stops excluding anything is itself reported, so
+            this list cannot outlive the directories it points at.
         -->
-        <airness.typography.excludes>.vale/,docinfo</airness.typography.excludes>
+        <airness.typography.excludes>.vale/,docinfo,airness-assets/src/main/resources/airness/files/</airness.typography.excludes>
         <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
     </properties>
 

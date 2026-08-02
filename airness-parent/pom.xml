@@ -74,6 +74,13 @@
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <min.maven.version>3.9</min.maven.version>
+        <exec-maven-plugin.version>3.6.1</exec-maven-plugin.version>
+        <!--
+            Where the harness unpacks what it supplies. Under the build directory rather than in the
+            tree, because a copy in the tree is a copy that gets edited and then ignored, and because
+            the build directory is already ignored by git and so is invisible to the tree-mutation net.
+        -->
+        <airness.unpacked>${project.build.directory}/airness</airness.unpacked>
         <pitest-maven.version>1.25.8</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <!--
@@ -369,6 +376,32 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
+                    <!--
+                        The files the harness runs rather than the ones it checks: the scripts, the git
+                        hooks, and the inspection profile. They are unpacked at validate, before anything
+                        that reads them, and they are forbidden from the project tree so there is exactly
+                        one copy of each and it is the one this version ships.
+                    -->
+                    <execution>
+                        <id>airness-unpack-assets</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>eu.ciechanowiec</groupId>
+                                    <artifactId>airness-assets</artifactId>
+                                    <version>${airness.version}</version>
+                                    <includes>scripts/**,githooks/**,qodana/**</includes>
+                                    <outputDirectory>${airness.unpacked}</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                            <overWriteReleases>true</overWriteReleases>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>airness-analyze-dependencies</id>
                         <phase>package</phase>
@@ -763,6 +796,59 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--
+                The net behind every check-only goal in this build, and the last thing declared so that
+                its comparison happens after the gates bound to package.
+
+                It knows nothing about who wrote to the tree, which is the point: the check-only goals
+                cover the three tools that have an opinion about layout, and this covers everything
+                else, including a script that strands a temporary file and any plugin added later that
+                edits sources without being asked. A fingerprint is taken at validate and compared at
+                package, so work already edited before the build sits in the first fingerprint and
+                cannot be blamed on it.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>airness-tree-snapshot</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>${airness.unpacked}/scripts/tree-snapshot.sh</argument>
+                                <argument>snapshot</argument>
+                                <!--
+                                    Constant within one Maven invocation and different between them. A
+                                    forked lifecycle re-runs validate, and the token lets that second
+                                    call recognize its own build and leave the first fingerprint alone
+                                    rather than retake it halfway through.
+                                -->
+                                <argument>${maven.build.timestamp}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>airness-tree-verify</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>${airness.unpacked}/scripts/tree-snapshot.sh</argument>
+                                <argument>verify</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -813,6 +899,38 @@
             <id>full</id>
             <build>
                 <plugins>
+                    <!--
+                        The prose gate. Three engines read one document, and the reason it needs a guard
+                        of its own is that two of them report success over nothing: Vale reports a clean
+                        document when its styles resolve to an empty directory, and a lint pointed at no
+                        document at all reports exactly what a lint over a clean document reports.
+                        airness.docs has no default for that reason, and NONE is what makes having no
+                        linted prose a declaration rather than an oversight.
+
+                        The script requires its own toolchain and handles the sentinel, so a project that
+                        has declared it has no prose is not asked to install a document toolchain.
+                    -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>airness-lint-docs</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>sh</executable>
+                                    <arguments>
+                                        <argument>${airness.unpacked}/scripts/lint-docs.sh</argument>
+                                        <argument>${airness.docs}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <!--
                         The mutation analysis, declared ahead of the plugin whose mutation-baseline goal
                         reads its report. Both bind to package and Maven runs same-phase executions in

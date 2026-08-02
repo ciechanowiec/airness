@@ -1,0 +1,9 @@
+= Prose Fixture, Corrected
+
+The same document with the heading rule met, so the gate is seen to pass and not only to fail. A gate
+that has only ever been seen to fail is a gate nobody can trust when it stays silent.
+
+== The Heading That Names Its Topic
+
+This heading names a topic. The one in the other fixture asks a question, and the shipped style library
+reports that.
