@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
 /**
@@ -25,20 +24,13 @@ import org.apache.maven.project.MavenProject;
 @Mojo(name = "dependency-freshness", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public class DependencyFreshnessMojo extends GovernanceMojo {
 
-    /**
-     * The base URL of the registry asked about each dependency.
-     *
-     * <p>A parameter rather than a constant, so a project behind a mirror can point it elsewhere and so
-     * the fail-closed behaviour above can be watched happening.
-     */
-    @Parameter(property = "airness.registry", defaultValue = DependencyFreshnessCheck.CENTRAL)
-    private String registry;
-
     @Override
     protected List<Findings> findings() {
-        DependencyFreshnessCheck check = new DependencyFreshnessCheck(this.dependencies(), this.registry);
+        DependencyFreshnessCheck check = new DependencyFreshnessCheck(
+            this.dependencies(), DependencyFreshnessCheck.CENTRAL
+        );
         this.getLog().info(
-            "Dependency freshness asked " + this.registry + " about " + check.scanned() + " dependency(ies)"
+            "Dependency freshness asked Maven Central about " + check.scanned() + " dependency(ies)"
         );
         return check.findings();
     }

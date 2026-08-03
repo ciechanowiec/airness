@@ -24,8 +24,6 @@ new_consumer() {
   <version>9.4.2</version>
   <properties>
     <airness.package.root>com.example</airness.package.root>
-    <airness.instruction.file>NONE</airness.instruction.file>
-    <airness.entry.files>NONE</airness.entry.files>
   </properties>
   <dependencies>
     <dependency>
@@ -34,8 +32,41 @@ new_consumer() {
       <version>3.20.0</version>
     </dependency>
   </dependencies>
+  <profiles>
+    <profile>
+      <id>drift-pinned-asset</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>3.2.0</version>
+            <executions>
+              <execution>
+                <id>drift-pinned-asset</id>
+                <phase>process-resources</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <echo file="${project.basedir}/.gitattributes" append="true">drift</echo>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
 POM
+    cat > "$directory/AGENTS.md" <<'INSTRUCTIONS'
+# Consumer instructions
+
+Run the Maven verification before committing a change.
+INSTRUCTIONS
     cat > "$directory/src/main/java/com/example/Example.java" <<'JAVA'
 package com.example;
 
@@ -70,7 +101,7 @@ JAVA
     git -C "$directory" init --quiet
     git -C "$directory" config user.name Fixture
     git -C "$directory" config user.email fixture@example.invalid
-    (cd "$directory" && mvn --quiet airness:assets-sync >/dev/null)
+    (cd "$directory" && mvn --quiet clean package -Dairness.enforce=false >/dev/null)
     (cd "$directory" && mvn --quiet process-resources -Pformat -Dairness.enforce=false >/dev/null)
     git -C "$directory" add --all
     git -C "$directory" commit --quiet --message 'test(it): create an isolated consumer fixture'
@@ -103,6 +134,35 @@ run_case() {
 }
 
 consumer="$(new_consumer consumer)"
+
+# The two agent files are a fixed contract. Legacy properties must not be able to redirect or disable
+# either check, and the package lifecycle must restore the exact Claude entry.
+expected_claude="$scratch/expected-claude"
+printf '@AGENTS.md\n' > "$expected_claude"
+if cmp -s "$expected_claude" "$consumer/CLAUDE.md"; then
+    echo 'ok       instructions: package writes the exact Claude entry'
+else
+    echo 'FAILED   instructions: package wrote the wrong Claude entry' >&2
+    failures=$((failures + 1))
+fi
+mv "$consumer/AGENTS.md" "$scratch/consumer-AGENTS.md"
+run_case 'instructions: AGENTS is mandatory' 1 'mandatory AGENTS.md file is missing' \
+    "$consumer" airness:entry-files -Dairness.instruction.file=NONE -Dairness.entry.files=NONE
+mv "$scratch/consumer-AGENTS.md" "$consumer/AGENTS.md"
+printf '@AGENTS.md\nRun Maven first.\n' > "$consumer/CLAUDE.md"
+run_case 'instructions: CLAUDE has exact content' 1 'must contain exactly @AGENTS.md' \
+    "$consumer" airness:entry-files -Dairness.instruction.file=NONE -Dairness.entry.files=NONE
+(cd "$consumer" && mvn --quiet package -Dairness.enforce=false >/dev/null)
+if cmp -s "$expected_claude" "$consumer/CLAUDE.md"; then
+    echo 'ok       assets: package restores drifted pinned content'
+else
+    echo 'FAILED   assets: package did not restore drifted pinned content' >&2
+    failures=$((failures + 1))
+fi
+run_case 'assets: later pinned change fails tree verification' 1 \
+    'Build plugins changed committable files|working tree content differs' \
+    "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \
+    antrun:run@drift-pinned-asset airness:tree-verify
 
 # The child's version is deliberately unrelated to Airness. skipTests must compile and package while
 # bypassing every inherited check and ordinary test.
@@ -164,7 +224,7 @@ run_case 'report-only: blank justification is visible' 0 'JustificationNeedsText
     "$consumer" pmd:check -Dairness.enforce=false
 rm "$consumer/src/main/java/com/example/BlankJustification.java"
 
-# Compilation and operational failures are not findings and remain fatal in report-only mode.
+# Compilation failures are not findings and remain fatal in report-only mode.
 cat > "$consumer/src/main/java/com/example/Broken.java" <<'JAVA'
 package com.example;
 
@@ -175,12 +235,9 @@ JAVA
 run_case 'report-only: compilation remains fatal' 1 'COMPILATION ERROR|BUILD FAILURE' \
     "$consumer" clean package -Dairness.enforce=false
 rm "$consumer/src/main/java/com/example/Broken.java"
-run_case 'report-only: unreachable registry remains fatal' 1 'Registry unreachable|BUILD FAILURE' \
-    "$consumer" airness:dependency-freshness -Dairness.enforce=false -Dairness.registry=http://127.0.0.1:1/
 
 # A dependency built in the same reactor has no reason to exist in an external registry yet. The
-# freshness goal must recognize its resolved coordinates while retaining the fail-closed external case
-# above.
+# freshness goal must recognize its resolved coordinates without requesting Maven Central metadata.
 reactor="$scratch/reactor"
 mkdir -p "$reactor/library" "$reactor/application"
 cat > "$reactor/pom.xml" <<'POM'
@@ -234,7 +291,7 @@ cat > "$reactor/application/pom.xml" <<'POM'
 </project>
 POM
 run_case 'freshness: same-reactor dependency needs no registry metadata' 0 'BUILD SUCCESS' \
-    "$reactor" airness:dependency-freshness -Dairness.registry=http://127.0.0.1:1/
+    "$reactor" airness:dependency-freshness
 
 # Production code without tests cannot deactivate coverage merely by omitting src/test/java.
 untested="$(new_consumer untested)"

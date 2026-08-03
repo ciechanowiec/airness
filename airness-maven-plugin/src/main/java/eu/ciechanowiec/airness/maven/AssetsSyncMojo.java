@@ -12,12 +12,12 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
 /**
- * Writes the files the harness owns into this project. The one goal here that writes anything.
+ * Writes the files the harness owns into this project before the lifecycle snapshots and checks the
+ * working tree.
  *
- * <p>It is bound to no phase, and that is the whole arrangement rather than an oversight. A build that
- * repaired the tree while verifying it would make a green result a statement about a tree the build had
- * reshaped, and no one afterwards could tell which of the two had been committed. So the repair is a
- * thing a person runs, by name, and the verifying build only ever reads.
+ * <p>The parent binds this goal first at {@code validate}. The snapshot therefore records the repaired
+ * tree, and the later tree check still detects any plugin that writes after validation. The goal remains
+ * callable by name when a project wants to sync without running a lifecycle.
  */
 @Mojo(name = "assets-sync", threadSafe = true)
 public class AssetsSyncMojo extends AbstractMojo {
@@ -28,6 +28,10 @@ public class AssetsSyncMojo extends AbstractMojo {
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
     private MavenSession session;
 
+    /** Whether tests and the complete Airness harness are bypassed. */
+    @Parameter(property = "skipTests", defaultValue = "false")
+    private boolean skip;
+
     /**
      * Repository-relative paths this project has taken over, comma-separated. These are left alone.
      */
@@ -36,7 +40,9 @@ public class AssetsSyncMojo extends AbstractMojo {
 
     @Override
     public void execute() {
-        if (this.session.getTopLevelProject().equals(this.project)) {
+        if (this.skip) {
+            this.getLog().info("Skipping Airness because skipTests is true");
+        } else if (this.session.getTopLevelProject().equals(this.project)) {
             this.write();
         }
     }

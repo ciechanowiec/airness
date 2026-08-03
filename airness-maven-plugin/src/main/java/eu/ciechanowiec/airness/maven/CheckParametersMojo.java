@@ -32,12 +32,6 @@ public class CheckParametersMojo extends PreflightMojo {
     private String packageRoot;
 
     /**
-     * The entry files this project ships, comma-separated, or {@code NONE}.
-     */
-    @Parameter(property = "airness.entry.files")
-    private String entryFiles;
-
-    /**
      * The release every inherited Airness artifact must use.
      */
     @Parameter(property = "airness.version", required = true)
@@ -48,14 +42,12 @@ public class CheckParametersMojo extends PreflightMojo {
         this.record();
         return Stream.of(
             set(this.packageRoot, "airness.package.root", "the package every class lives under"),
-            this.versionAgreement(),
-            declared(this.entryFiles, "airness.entry.files")
+            this.versionAgreement()
         ).flatMap(Optional::stream).toList();
     }
 
     private void record() {
         this.getLog().info("airness.package.root = " + this.packageRoot);
-        this.getLog().info("airness.entry.files = " + this.entryFiles);
         this.getLog().info("airness.version = " + this.airnessVersion);
     }
 
@@ -74,12 +66,5 @@ public class CheckParametersMojo extends PreflightMojo {
     private static Optional<String> set(String value, String property, String what) {
         return Optional.of("Set " + property + " to " + what + ", which the harness cannot guess")
             .filter(problem -> UNSET.equals(value));
-    }
-
-    private static Optional<String> declared(String value, String property) {
-        return Optional.of(
-            "Set " + property + ", or the literal " + Sentinel.NONE + " to declare this project has none. "
-                + "An empty value would pass by checking nothing, which reads the same as checking a clean tree"
-        ).filter(problem -> Optional.ofNullable(value).map(String::strip).orElse("").isEmpty());
     }
 }

@@ -1,9 +1,10 @@
 # Files that must exist in a consumer working tree because non-Maven tools read them there.
-# Documentation is intentionally absent: prose, document tooling, and document assets always belong
-# to the consuming project.
+# Project documentation is intentionally absent: prose, document tooling, and document assets always
+# belong to the consuming project. CLAUDE.md is a fixed tool entry point rather than project prose.
 
 .editorconfig	PINNED
 .gitattributes	PINNED
+CLAUDE.md	PINNED
 lombok.config	PINNED
 qodana.yaml	PINNED
 .gitignore	SEED
