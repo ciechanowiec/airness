@@ -53,6 +53,8 @@
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <rewrite-maven-plugin.version>6.45.0</rewrite-maven-plugin.version>
+        <rewrite-apache.version>2.29.0</rewrite-apache.version>
+        <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
         <rewrite-static-analysis.version>2.40.0</rewrite-static-analysis.version>
         <rewrite-migrate-java.version>3.41.0</rewrite-migrate-java.version>
         <rewrite-testing-frameworks.version>3.43.0</rewrite-testing-frameworks.version>
@@ -353,6 +355,18 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
+                    <!--
+                        Exposes each resolved dependency path as ${groupId:artifactId:type}. Java 25
+                        modernization uses that standard property form when Mockito is already present
+                        and must run as a test JVM agent instead of attaching itself dynamically.
+                    -->
+                    <execution>
+                        <id>airness-dependency-properties</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>airness-analyze-dependencies</id>
                         <phase>package</phase>
@@ -468,6 +482,16 @@
                         <groupId>eu.ciechanowiec</groupId>
                         <artifactId>airness-config</artifactId>
                         <version>${airness.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-apache</artifactId>
+                        <version>${rewrite-apache.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-logging-frameworks</artifactId>
+                        <version>${rewrite-logging-frameworks.version}</version>
                     </dependency>
                     <dependency>
                         <groupId>org.openrewrite.recipe</groupId>
