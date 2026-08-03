@@ -3,17 +3,15 @@ package eu.ciechanowiec.airness.maven;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import lombok.experimental.UtilityClass;
 
 /**
  * Reads an optional comma-separated parameter.
  */
+@UtilityClass
 final class Sentinel {
 
     private static final String SEPARATOR = ",";
-
-    private Sentinel() {
-        throw new UnsupportedOperationException("This class is not meant to be instantiated");
-    }
 
     /**
      * The entries of an optional list, which is empty when nothing is set.

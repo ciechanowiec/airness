@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
@@ -27,7 +26,7 @@ import org.apache.maven.project.MavenProject;
  * <p>{@code skipTests} is the public bypass for both tests and the harness. It returns before the check
  * gathers findings, so a skipped build cannot accidentally present an old or partial report.
  */
-public abstract class GovernanceMojo extends AbstractMojo {
+abstract class AbstractGovernanceMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
@@ -52,23 +51,23 @@ public abstract class GovernanceMojo extends AbstractMojo {
      *
      * @return the verdicts, clean or otherwise
      */
-    protected abstract List<Findings> findings();
+    abstract List<Findings> findings();
 
     /**
      * Whether this goal has anything to do in the module it was invoked on.
      *
      * @return whether to run, which is always unless a subclass narrows it
      */
-    protected boolean applies() {
+    boolean applies() {
         return true;
     }
 
     @Override
-    public final void execute() throws MojoExecutionException, MojoFailureException {
+    public final void execute() throws MojoFailureException {
         if (this.skip) {
             this.getLog().info("Skipping Airness because skipTests is true");
         } else if (this.applies()) {
-            this.report(this.gather());
+            this.report(this.findings());
         } else {
             this.getLog().debug("Nothing for this goal to read here");
         }
@@ -135,21 +134,15 @@ public abstract class GovernanceMojo extends AbstractMojo {
 
     private static List<Path> sourceRoots(Stream<MavenProject> projects) {
         return projects
-            .flatMap(project -> Stream.concat(
-                project.getCompileSourceRoots().stream(), project.getTestCompileSourceRoots().stream()
-            ))
+            .flatMap(
+                project -> Stream.concat(
+                    project.getCompileSourceRoots().stream(), project.getTestCompileSourceRoots().stream()
+                )
+            )
             .map(Path::of)
             .filter(Files::isDirectory)
             .distinct()
             .toList();
-    }
-
-    private List<Findings> gather() throws MojoExecutionException {
-        try {
-            return this.findings();
-        } catch (RuntimeException exception) {
-            throw new MojoExecutionException(exception.getMessage(), exception);
-        }
     }
 
     private void report(Collection<Findings> findings) throws MojoFailureException {

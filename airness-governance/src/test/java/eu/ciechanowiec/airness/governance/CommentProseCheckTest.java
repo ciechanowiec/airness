@@ -19,7 +19,9 @@ class CommentProseCheckTest {
     private static final String CLEAN = """
         package sample;
 
-        /** A type whose prose stays short. */
+        /**
+         * A type whose prose stays short.
+         */
         class Subject {
 
             /**
@@ -36,7 +38,9 @@ class CommentProseCheckTest {
     private static final String BROKEN = """
         package sample;
 
-        /** A type whose prose runs on; it takes two clauses to say so. */
+        /**
+         * A type whose prose runs on; it takes two clauses to say so.
+         */
         class Subject {
 
             /**

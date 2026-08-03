@@ -15,7 +15,7 @@ import org.apache.maven.plugins.annotations.Parameter;
  * name remains useful when a project wants a verdict without first repairing the files.
  */
 @Mojo(name = "assets-check", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
-public class AssetsCheckMojo extends RepositoryMojo {
+public final class AssetsCheckMojo extends AbstractRepositoryMojo {
 
     /**
      * Repository-relative paths this project has taken over, comma-separated.
@@ -27,7 +27,7 @@ public class AssetsCheckMojo extends RepositoryMojo {
     private String unmanaged;
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         List<String> exempt = Sentinel.optional(this.unmanaged);
         exempt.forEach(path -> this.getLog().info("This project owns " + path + " rather than the harness"));
         return new AssetCheck(

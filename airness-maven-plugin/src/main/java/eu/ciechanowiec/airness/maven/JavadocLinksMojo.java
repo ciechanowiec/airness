@@ -11,18 +11,18 @@ import org.apache.maven.plugins.annotations.Mojo;
  * for the things a link cannot reach.
  */
 @Mojo(name = "javadoc-links", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class JavadocLinksMojo extends GovernanceMojo {
+public final class JavadocLinksMojo extends AbstractGovernanceMojo {
 
     @Override
-    protected boolean applies() {
+    boolean applies() {
         return !this.moduleSourceRoots().isEmpty();
     }
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         JavadocLinkCheck check = new JavadocLinkCheck(this.repositoryRoot(), this.moduleSourceRoots());
         this.getLog().info("Javadoc links read " + check.scanned() + " Java source(s)");
-        Scope.requireNonEmpty(check.scanned(), "Java sources", this.moduleSourceRoots());
+        Scope.requireJavaSources(check.scanned(), this.moduleSourceRoots());
         return check.findings();
     }
 }

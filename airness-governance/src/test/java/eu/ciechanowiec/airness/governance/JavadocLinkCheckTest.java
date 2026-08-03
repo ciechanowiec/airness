@@ -27,7 +27,9 @@ class JavadocLinkCheckTest {
     private static final String NAMED_IN_PROSE = """
         package sample;
 
-        /** Hands its work to Neighbour. */
+        /**
+         * Hands its work to Neighbour.
+         */
         class Subject {
         }
         """;
@@ -35,7 +37,9 @@ class JavadocLinkCheckTest {
     private static final String LINKED = """
         package sample;
 
-        /** Hands its work to {@link Neighbour}. */
+        /**
+         * Hands its work to {@link Neighbour}.
+         */
         class Subject {
         }
         """;

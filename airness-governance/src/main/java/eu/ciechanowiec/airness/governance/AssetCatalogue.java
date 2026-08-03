@@ -41,11 +41,13 @@ public final class AssetCatalogue {
      */
     public AssetCatalogue(ClassLoader classes) {
         this.classes = classes;
-        this.assets = parse(this.text(MANIFEST).orElseThrow(
-            () -> new IllegalStateException(
-                "No " + MANIFEST + " on the classpath, so nothing states which files the harness owns"
+        this.assets = parse(
+            this.manifest().orElseThrow(
+                () -> new IllegalStateException(
+                    "No " + MANIFEST + " on the classpath, so nothing states which files the harness owns"
+                )
             )
-        ));
+        );
     }
 
     /**
@@ -63,12 +65,12 @@ public final class AssetCatalogue {
      * @param path the repository-relative path
      * @return the canonical bytes, or nothing when the harness ships none for it
      */
-    public Optional<byte[]> canonical(String path) {
+    Optional<byte[]> canonical(String path) {
         return this.read(FILES + path + SUFFIX);
     }
 
-    private Optional<String> text(String resource) {
-        return this.read(resource).map(bytes -> new String(bytes, StandardCharsets.UTF_8));
+    private Optional<String> manifest() {
+        return this.read(MANIFEST).map(bytes -> new String(bytes, StandardCharsets.UTF_8));
     }
 
     private Optional<byte[]> read(String resource) {

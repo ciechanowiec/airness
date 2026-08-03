@@ -19,7 +19,7 @@ import org.apache.maven.project.MavenProject;
  * make the checks lenient, they make the checks lie, and a green build is then a statement about a tree
  * nobody read.
  */
-public abstract class PreflightMojo extends AbstractMojo {
+abstract class AbstractPreflightMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
@@ -38,7 +38,7 @@ public abstract class PreflightMojo extends AbstractMojo {
      *
      * @return the problems, empty when there are none
      */
-    protected abstract List<String> problems();
+    abstract List<String> problems();
 
     @Override
     public final void execute() throws MojoFailureException {

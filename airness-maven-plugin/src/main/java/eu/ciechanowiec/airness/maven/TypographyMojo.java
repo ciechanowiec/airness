@@ -12,7 +12,7 @@ import org.apache.maven.plugins.annotations.Parameter;
  * rather than an ellipsis character, and straight quotation marks.
  */
 @Mojo(name = "typography", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class TypographyMojo extends RepositoryMojo {
+public final class TypographyMojo extends AbstractRepositoryMojo {
 
     /**
      * Repository-relative path prefixes to leave unread, comma-separated.
@@ -26,12 +26,14 @@ public class TypographyMojo extends RepositoryMojo {
     private String excludes;
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         TypographyScanCheck check = new TypographyScanCheck(
             this.repositoryRoot(), Sentinel.optional(this.excludes)
         );
         check.skipped().forEach(
-            (prefix, count) -> this.getLog().info("Typography exemption " + prefix + " left " + count + " file(s) unread")
+            (prefix, count) -> this.getLog().info(
+                "Typography exemption " + prefix + " left " + count + " file(s) unread"
+            )
         );
         return check.findings();
     }

@@ -13,7 +13,9 @@ import java.util.HexFormat;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 
-/** Computes a content fingerprint of every tracked or committable working-tree path. */
+/**
+ * Computes a content fingerprint of every tracked or committable working-tree path.
+ */
 @UtilityClass
 public final class TreeFingerprint {
 

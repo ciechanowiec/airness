@@ -5,6 +5,7 @@ import eu.ciechanowiec.airness.governance.DependencyFreshnessCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -22,12 +23,15 @@ import org.apache.maven.project.MavenProject;
  * known to be current, so an outage that read as a green build would be the worst of both.
  */
 @Mojo(name = "dependency-freshness", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class DependencyFreshnessMojo extends GovernanceMojo {
+public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
+
+    private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
+    private static final String SEPARATOR = ":";
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         DependencyFreshnessCheck check = new DependencyFreshnessCheck(
-            this.dependencies(), DependencyFreshnessCheck.CENTRAL
+            this.dependencies(), MAVEN_CENTRAL
         );
         this.getLog().info(
             "Dependency freshness asked Maven Central about " + check.scanned() + " dependency(ies)"
@@ -40,28 +44,35 @@ public class DependencyFreshnessMojo extends GovernanceMojo {
             .map(DependencyFreshnessMojo::versionedKey)
             .collect(Collectors.toUnmodifiableSet());
         Map<String, Dependency> effective = this.project().getDependencies().stream().collect(
-            Collectors.toMap(DependencyFreshnessMojo::key, Function.identity(), (first, second) -> first)
+            Collectors.toMap(
+                DependencyFreshnessMojo::key, Function.identity(), (first, second) -> first
+            )
         );
         return this.project().getOriginalModel().getDependencies().stream()
             .map(declared -> effective.getOrDefault(key(declared), declared))
-            .filter(dependency -> dependency.getVersion() != null)
             .filter(dependency -> !reactor.contains(versionedKey(dependency)))
-            .map(dependency -> new DeclaredDependency(
-                dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion()
-            ))
+            .map(
+                dependency -> Optional.ofNullable(dependency.getVersion()).map(
+                    version -> new DeclaredDependency(
+                        dependency.getGroupId(), dependency.getArtifactId(), version
+                    )
+                )
+            )
+            .flatMap(Optional::stream)
             .toList();
     }
 
     private static String key(Dependency dependency) {
-        return dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getType()
-            + ":" + dependency.getClassifier();
+        return dependency.getGroupId() + SEPARATOR + dependency.getArtifactId() + SEPARATOR
+            + dependency.getType() + SEPARATOR + dependency.getClassifier();
     }
 
     private static String versionedKey(Dependency dependency) {
-        return dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion();
+        return dependency.getGroupId() + SEPARATOR + dependency.getArtifactId() + SEPARATOR
+            + dependency.getVersion();
     }
 
     private static String versionedKey(MavenProject project) {
-        return project.getGroupId() + ":" + project.getArtifactId() + ":" + project.getVersion();
+        return project.getGroupId() + SEPARATOR + project.getArtifactId() + SEPARATOR + project.getVersion();
     }
 }

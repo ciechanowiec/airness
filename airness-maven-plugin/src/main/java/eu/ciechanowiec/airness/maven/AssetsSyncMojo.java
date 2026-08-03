@@ -20,7 +20,7 @@ import org.apache.maven.project.MavenProject;
  * callable by name when a project wants to sync without running a lifecycle.
  */
 @Mojo(name = "assets-sync", threadSafe = true)
-public class AssetsSyncMojo extends AbstractMojo {
+public final class AssetsSyncMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
@@ -28,7 +28,9 @@ public class AssetsSyncMojo extends AbstractMojo {
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
     private MavenSession session;
 
-    /** Whether tests and the complete Airness harness are bypassed. */
+    /**
+     * Whether tests and the complete Airness harness are bypassed.
+     */
     @Parameter(property = "skipTests", defaultValue = "false")
     private boolean skip;
 

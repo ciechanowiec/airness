@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
+import lombok.experimental.UtilityClass;
+
 /**
  * Refuses a check that read nothing.
  *
@@ -9,24 +11,20 @@ package eu.ciechanowiec.airness.maven;
  * nobody goes looking. So the count travels back out of the check, and the goal that asked for it
  * refuses a zero.
  */
+@UtilityClass
 final class Scope {
-
-    private Scope() {
-        throw new UnsupportedOperationException("This class is not meant to be instantiated");
-    }
 
     /**
      * Fails when the check read nothing, naming what it was looking for and where.
      *
      * @param read  how many units the check read
-     * @param what  what those units are, for the message
      * @param where the parameter or path that decided the scope
      * @throws IllegalStateException when nothing was read
      */
-    static void requireNonEmpty(long read, String what, Object where) {
+    static void requireJavaSources(long read, Object where) {
         if (read == 0) {
             throw new IllegalStateException(
-                "No " + what + " were read, so this check proved nothing. Its scope comes from " + where
+                "No Java sources were read, so this check proved nothing. Its scope comes from " + where
             );
         }
     }

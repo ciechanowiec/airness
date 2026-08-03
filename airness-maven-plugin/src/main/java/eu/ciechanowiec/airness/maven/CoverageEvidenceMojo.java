@@ -11,22 +11,25 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-/** Requires current-build coverage evidence whenever a module has production Java sources. */
+/**
+ * Requires current-build coverage evidence whenever a module has production Java sources.
+ */
 @Mojo(name = "coverage-evidence", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true)
-public class CoverageEvidenceMojo extends GovernanceMojo {
+public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
 
     @Parameter(property = "jacoco.dataFile", defaultValue = "${project.build.directory}/jacoco.exec")
     private String dataFile;
 
     @Override
-    protected boolean applies() {
+    boolean applies() {
         return this.moduleProductionSourceRoots().stream().anyMatch(CoverageEvidenceMojo::containsJava);
     }
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         Path evidence = Path.of(this.dataFile);
-        boolean current = Files.isRegularFile(evidence) && modified(evidence) >= this.session().getStartTime().getTime();
+        boolean current = Files.isRegularFile(evidence)
+            && modified(evidence) >= this.session().getStartTime().getTime();
         List<String> offences = current ? List.of() : List.of(
             evidence + " is missing or predates this build; production code requires tests from this run"
         );

@@ -649,6 +649,31 @@
                             <goal>check</goal>
                         </goals>
                     </execution>
+                    <!--
+                        This project is the last reactor module and is therefore the first place where
+                        the configuration artifact is available while a package build is still running.
+                        The ordinary inherited execution sees no Java here because this is a POM
+                        project. This non-inherited execution instead checks the implementation modules
+                        that produce the harness, without leaking their paths into consumers.
+                    -->
+                    <execution>
+                        <id>airness-self-checkstyle</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <inherited>false</inherited>
+                        <configuration>
+                            <sourceDirectories>
+                                <sourceDirectory>${project.basedir}/../airness-annotations/src/main/java</sourceDirectory>
+                                <sourceDirectory>${project.basedir}/../airness-governance/src/main/java</sourceDirectory>
+                                <sourceDirectory>${project.basedir}/../airness-maven-plugin/src/main/java</sourceDirectory>
+                            </sourceDirectories>
+                            <testSourceDirectories>
+                                <testSourceDirectory>${project.basedir}/../airness-governance/src/test/java</testSourceDirectory>
+                            </testSourceDirectories>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>

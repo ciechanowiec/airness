@@ -55,6 +55,15 @@ public final class AssetSync {
             .toList();
     }
 
+    private static void write(Path file, byte[] content) {
+        try {
+            Optional.ofNullable(file.getParent()).ifPresent(AssetSync::directory);
+            Files.write(file, content);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not write " + file, exception);
+        }
+    }
+
     private boolean needsWriting(ManagedAsset asset) {
         return switch (asset.policy()) {
             case PINNED -> !new AssetCheck(this.root, this.catalogue, this.unmanaged).matches(asset);
@@ -84,15 +93,6 @@ public final class AssetSync {
             }
         }
         return target;
-    }
-
-    private static void write(Path file, byte[] content) {
-        try {
-            Optional.ofNullable(file.getParent()).ifPresent(AssetSync::directory);
-            Files.write(file, content);
-        } catch (IOException exception) {
-            throw new UncheckedIOException("Could not write " + file, exception);
-        }
     }
 
     private static void directory(Path parent) {

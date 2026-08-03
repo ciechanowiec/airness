@@ -28,6 +28,8 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class DependencyFreshnessCheckTest {
 
+    private static final int HTTP_OK = 200;
+
     private static final String POM = """
         <project>
             <dependencies>
@@ -72,7 +74,7 @@ class DependencyFreshnessCheckTest {
     @SneakyThrows
     private static void respond(HttpExchange exchange, String body) {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        exchange.sendResponseHeaders(200, bytes.length);
+        exchange.sendResponseHeaders(HTTP_OK, bytes.length);
         try (exchange) {
             exchange.getResponseBody().write(bytes);
         }

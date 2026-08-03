@@ -13,11 +13,11 @@ final class EntryFileRules {
     static final String CLAUDE = "CLAUDE.md";
     static final String CLAUDE_CONTENT = "@AGENTS.md\n";
 
-    static boolean hasInstructions(String content) {
+    static boolean hasInstructions(CharSequence content) {
         return content.codePoints().anyMatch(Character::isLetterOrDigit);
     }
 
-    static boolean isClaudeEntry(String content) {
-        return CLAUDE_CONTENT.equals(content);
+    static boolean isClaudeEntry(CharSequence content) {
+        return CLAUDE_CONTENT.contentEquals(content);
     }
 }

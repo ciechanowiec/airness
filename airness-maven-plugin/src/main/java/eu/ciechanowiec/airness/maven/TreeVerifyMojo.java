@@ -5,12 +5,14 @@ import java.util.List;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
-/** Reports a plugin that changed committable files during a verifying build. */
+/**
+ * Reports a plugin that changed committable files during a verifying build.
+ */
 @Mojo(name = "tree-verify", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class TreeVerifyMojo extends RepositoryMojo {
+public final class TreeVerifyMojo extends AbstractRepositoryMojo {
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         if (this.formatProfile()) {
             this.getLog().info("The format profile intentionally edits sources; tree comparison is disabled");
             return List.of(new Findings("Build plugins changed committable files", List.of()));

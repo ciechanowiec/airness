@@ -10,10 +10,10 @@ import org.apache.maven.plugins.annotations.Mojo;
  * {@code AGENTS.md} holds instructions and {@code CLAUDE.md} contains only {@code @AGENTS.md}.
  */
 @Mojo(name = "entry-files", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class EntryFilesMojo extends RepositoryMojo {
+public final class EntryFilesMojo extends AbstractRepositoryMojo {
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         return new EntryFileCheck(this.repositoryRoot()).findings();
     }
 }
