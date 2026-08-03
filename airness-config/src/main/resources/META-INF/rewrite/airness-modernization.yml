@@ -14,14 +14,42 @@ type: specs.openrewrite.org/v1beta/recipe
 name: eu.ciechanowiec.airness.Modernization
 displayName: airness modernization
 description: >-
-  Curated, non-conflicting OpenRewrite recipes: broad static-analysis cleanups, modernization to
-  current Java idioms, JUnit 5 best practices, and Maven pom hygiene.
+  Curated, non-conflicting OpenRewrite recipes: broad static-analysis and Java API cleanups,
+  modernization to current Java idioms, test and logging best practices, replacement of Apache
+  Commons utilities with Java APIs, and Maven pom hygiene.
 recipeList:
   # Broad, auto-fixable static-analysis cleanups (idiomatic Java, dead code, simplifications).
   - org.openrewrite.staticanalysis.CommonStaticAnalysis
+  # Idiomatic use of stable Java APIs.
+  - org.openrewrite.staticanalysis.JavaApiBestPractices
   # Modernize toward current Java language idioms (text blocks, enhanced instanceof, records).
   - org.openrewrite.java.migrate.UpgradeToJava25
   # JUnit 5 best practices (lifecycle and visibility, assertion idioms).
   - org.openrewrite.java.testing.junit5.JUnit5BestPractices
+  # Cleanup within test frameworks already used by the project. These do not add, replace, or
+  # upgrade a test framework.
+  - org.openrewrite.java.testing.assertj.SimplifyChainedAssertJAssertions
+  - org.openrewrite.java.testing.assertj.SimplifyAssertJAssertions
+  - org.openrewrite.java.testing.mockito.RemoveTimesZeroAndOne
+  - org.openrewrite.java.testing.mockito.RemoveDoNothingForDefaultMocks
+  - org.openrewrite.java.testing.mockito.SimplifyMockitoVerifyWhenGiven
+  - org.openrewrite.java.testing.mockito.MockConstructionToTryWithResources
+  # SLF4J cleanup without the composite's opinionated catch-block severity and exception-detail
+  # rules. Each recipe is a no-op when SLF4J is absent.
+  - org.openrewrite.java.logging.ArgumentArrayToVarargs
+  - org.openrewrite.java.logging.slf4j.LoggersNamedForEnclosingClass
+  - org.openrewrite.java.logging.slf4j.Slf4jLogShouldBeConstant
+  - org.openrewrite.java.logging.slf4j.StringFormatToParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.MessageFormatToParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.ParameterizedLogging
+  - org.openrewrite.java.logging.ChangeLoggersToPrivate
+  - org.openrewrite.java.logging.slf4j.MatchIsLogLevelEnabledWithLogStatements
+  - org.openrewrite.java.logging.slf4j.WrapExpensiveLogStatementsInConditionals
+  - org.openrewrite.java.logging.slf4j.StripToStringFromArguments
+  - org.openrewrite.java.logging.slf4j.RemoveUnnecessaryLogLevelGuards
+  # JBoss Logging cleanup is likewise conditional on that API being present.
+  - org.openrewrite.java.logging.jboss.JBossLoggingBestPractices
+  # Prefer Java 25's standard APIs over equivalent Apache Commons utilities.
+  - org.openrewrite.apache.commons.PreferJavaStandardLibrary
   # Maven pom hygiene (ordering, redundant version removal).
   - org.openrewrite.maven.BestPractices

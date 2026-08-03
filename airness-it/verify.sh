@@ -31,6 +31,23 @@ new_consumer() {
       <artifactId>commons-lang3</artifactId>
       <version>3.20.0</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>2.0.17</version>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.27.7</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.23.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <profiles>
     <profile>
@@ -98,6 +115,74 @@ package com.example;
 public record Coordinate(int x, int y) {
 }
 JAVA
+    cat > "$directory/src/main/java/com/example/RewriteLogging.java" <<'JAVA'
+package com.example;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** Exercises logging modernization inherited from Airness. */
+final class RewriteLogging {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RewriteLogging.class);
+
+    private RewriteLogging() {
+    }
+
+    /**
+     * Logs a value.
+     *
+     * @param value value to log
+     */
+    static void log(String value) {
+        LOGGER.info("value " + value);
+    }
+}
+JAVA
+    cat > "$directory/src/main/java/com/example/RewriteApache.java" <<'JAVA'
+package com.example;
+
+import org.apache.commons.lang3.StringUtils;
+
+/** Exercises Apache Commons modernization inherited from Airness. */
+final class RewriteApache {
+
+    private RewriteApache() {
+    }
+
+    /**
+     * Checks whether text is blank.
+     *
+     * @param value text to check
+     * @return whether the text is blank
+     */
+    static boolean blank(String value) {
+        return StringUtils.isBlank(value);
+    }
+}
+JAVA
+    cat > "$directory/src/test/java/com/example/RewriteTestingTest.java" <<'JAVA'
+package com.example;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises test-framework cleanup inherited from Airness. */
+class RewriteTestingTest {
+
+    @Test
+    void cleansAssertionsAndVerification() {
+        assertThat("").hasSize(0);
+        Runnable dependency = mock(Runnable.class);
+        dependency.run();
+        verify(dependency, times(1)).run();
+    }
+}
+JAVA
     git -C "$directory" init --quiet
     git -C "$directory" config user.name Fixture
     git -C "$directory" config user.email fixture@example.invalid
@@ -134,6 +219,28 @@ run_case() {
 }
 
 consumer="$(new_consumer consumer)"
+
+if grep -Fq 'LOGGER.info("value {}", value);' "$consumer/src/main/java/com/example/RewriteLogging.java"; then
+    echo 'ok       rewrite: SLF4J best practices reach consumers'
+else
+    echo 'FAILED   rewrite: SLF4J best practices did not reach consumers' >&2
+    failures=$((failures + 1))
+fi
+
+if grep -Fq 'StringUtils.isBlank' "$consumer/src/main/java/com/example/RewriteApache.java"; then
+    echo 'FAILED   rewrite: Apache Commons cleanup did not reach consumers' >&2
+    failures=$((failures + 1))
+else
+    echo 'ok       rewrite: Apache Commons cleanup reaches consumers'
+fi
+
+if grep -Fq 'assertThat("").isEmpty();' "$consumer/src/test/java/com/example/RewriteTestingTest.java" \
+    && grep -Fq 'verify(dependency).run();' "$consumer/src/test/java/com/example/RewriteTestingTest.java"; then
+    echo 'ok       rewrite: AssertJ and Mockito cleanup reaches consumers'
+else
+    echo 'FAILED   rewrite: test-framework cleanup did not reach consumers' >&2
+    failures=$((failures + 1))
+fi
 
 # The two agent files are a fixed contract. Legacy properties must not be able to redirect or disable
 # either check, and the package lifecycle must restore the exact Claude entry.
