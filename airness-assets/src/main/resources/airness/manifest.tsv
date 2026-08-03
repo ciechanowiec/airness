@@ -4,6 +4,7 @@
 
 .editorconfig	PINNED
 .gitattributes	PINNED
+.java-version	PINNED
 CLAUDE.md	PINNED
 lombok.config	PINNED
 qodana.yaml	PINNED
