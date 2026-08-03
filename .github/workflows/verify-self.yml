@@ -20,11 +20,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 'Set up Temurin 25'
+      - name: 'Set up Temurin from .java-version'
         uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07 # v4
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version-file: '.java-version'
           cache: 'maven'
 
       - name: 'Build and install Airness artifacts'

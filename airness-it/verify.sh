@@ -246,10 +246,18 @@ fi
 # either check, and the package lifecycle must restore the exact Claude entry.
 expected_claude="$scratch/expected-claude"
 printf '@AGENTS.md\n' > "$expected_claude"
+expected_java_version="$scratch/expected-java-version"
+printf '25\n' > "$expected_java_version"
 if cmp -s "$expected_claude" "$consumer/CLAUDE.md"; then
     echo 'ok       instructions: package writes the exact Claude entry'
 else
     echo 'FAILED   instructions: package wrote the wrong Claude entry' >&2
+    failures=$((failures + 1))
+fi
+if cmp -s "$expected_java_version" "$consumer/.java-version"; then
+    echo 'ok       assets: package writes the pinned Java version'
+else
+    echo 'FAILED   assets: package wrote the wrong Java version' >&2
     failures=$((failures + 1))
 fi
 mv "$consumer/AGENTS.md" "$scratch/consumer-AGENTS.md"
@@ -259,8 +267,10 @@ mv "$scratch/consumer-AGENTS.md" "$consumer/AGENTS.md"
 printf '@AGENTS.md\nRun Maven first.\n' > "$consumer/CLAUDE.md"
 run_case 'instructions: CLAUDE has exact content' 1 'must contain exactly @AGENTS.md' \
     "$consumer" airness:entry-files -Dairness.instruction.file=NONE -Dairness.entry.files=NONE
+printf '24\n' > "$consumer/.java-version"
 (cd "$consumer" && mvn --quiet package -Dairness.enforce=false >/dev/null)
-if cmp -s "$expected_claude" "$consumer/CLAUDE.md"; then
+if cmp -s "$expected_claude" "$consumer/CLAUDE.md" \
+    && cmp -s "$expected_java_version" "$consumer/.java-version"; then
     echo 'ok       assets: package restores drifted pinned content'
 else
     echo 'FAILED   assets: package did not restore drifted pinned content' >&2

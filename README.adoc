@@ -216,7 +216,7 @@ List values use commas between entries. Put stable settings in the project file 
 | Policy | Files | Behavior
 
 | Pinned
-| `.editorconfig`, `.gitattributes`, `CLAUDE.md`, `lombok.config`, `qodana.yaml`
+| `.editorconfig`, `.gitattributes`, `.java-version`, `CLAUDE.md`, `lombok.config`, `qodana.yaml`
 | _airness_ supplies the entire file. The project copy must match the supplied bytes exactly.
 
 | Seed
