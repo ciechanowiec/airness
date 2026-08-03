@@ -13,10 +13,8 @@ import java.util.Set;
 /**
  * Writes the files the harness owns into a project, which is the only thing here that writes anything.
  *
- * <p>It is deliberately not what a verifying build runs. A build that repaired the tree on its way past
- * would make a green build a statement about a tree the build had reshaped rather than about the tree
- * that was committed, and the difference is invisible afterwards. So checking and repairing are two
- * goals, and only one of them is bound to a phase.
+ * <p>The lifecycle runs this repair before it records the tree snapshot. The later tree check therefore
+ * compares against the repaired state and still detects any plugin that writes after validation.
  *
  * <p>Nothing is ever deleted. A file the harness forbids is reported by the check with the reason and
  * the remedy, and removing it is left to whoever put it there: a build tool deleting a developer's file

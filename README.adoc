@@ -1,5 +1,5 @@
 [.text-justify]
-= _airness_ - Java Build Harness
+= _airness_ User Guide
 :reproducible:
 :doctype: article
 :author: Herman Ciechanowiec
@@ -14,6 +14,7 @@
 :docinfo: shared,private
 :linkcss:
 :sourcedir: {docdir}
+:airness-version: 1.0.0-SNAPSHOT
 :pdf-theme: {sourcedir}/.docs/themes/basic.yml
 :pdf-fontsdir: {sourcedir}/.docs/themes/fonts,GEM_FONTS_DIR
 :stylesdir: https://www.ciechanowiec.eu/linux_mantra/
@@ -28,347 +29,255 @@
 | *Document generated:* | {localdatetime}
 |===
 
-== _airness_ in Brief
+[[overview]]
+== Overview
 
-. _airness_ is a Maven parent that carries the quality gates for a Java project. A project inherits it and receives the gates already configured and already bound to the build. The project declares its own coordinates, its own dependencies, and the parameters listed in xref:#required-parameters[].
+This guide is for Java teams that use Maven to build an app or library. It assumes that readers know Maven project files, phases, profiles, and keys.
 
-. Raising the parent version updates every gate in every project that inherits it. A rule lives in one place, and no project holds a copy that can fall behind.
+_airness_ is a Maven parent for Java 25 projects. It moves shared build policy out of individual projects and applies that policy through the normal Maven lifecycle. A regular build produces the project artifact, synchronizes required repository files, and fails when the project doesn't conform.
 
-. This document is written for a developer adopting _airness_. It assumes working knowledge of Maven. It covers adoption, the parameters a project must set, what the build runs, and how to suppress a rule. It doesn't enumerate the individual rules, which are listed in the files named in xref:#rule-set[].
+This guide covers adoption and daily use of _airness_ version `{airness-version}`. It doesn't cover the source modules, release work, or internal code.
 
-== Adoption
+[[quick-start]]
+== Quick Start
 
-=== Inheriting the Parent
+The project needs Java Development Kit (JDK) 25, Maven 3.9.11 or later, and a Git working tree. Maven permits one parent, so a project that already inherits another parent can't inherit `airness-parent` as well.
 
-. Declare _airness_ as the parent and set the required parameters:
+[[parent-configuration]]
+=== Parent Configuration
+
+. The following complete Maven Project Object Model (POM) configures a project with classes under `com.example.orders`.
 +
-[source,xml]
+[source,xml,subs="attributes+"]
 ----
-<parent>
-    <groupId>eu.ciechanowiec</groupId>
-    <artifactId>airness-parent</artifactId>
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent</artifactId>
+        <version>{airness-version}</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.example</groupId>
+    <artifactId>order-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-</parent>
 
-<properties>
-    <!-- The package every class of this project lives under -->
-    <airness.package.root>com.example.myproject</airness.package.root>
-    <!-- Files an agent tool reads, or NONE -->
-    <airness.entry.files>CLAUDE.md</airness.entry.files>
-</properties>
+    <properties>
+        <airness.package.root>com.example.orders</airness.package.root>
+    </properties>
+</project>
+----
+. `airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`.
+. Every project contains a non-empty `AGENTS.md` with its instructions. The managed `CLAUDE.md` file contains only `@AGENTS.md`.
+
+[[first-build]]
+=== First Build
+
+. Run the default build. The lifecycle first creates or repairs the files managed by _airness_.
++
+[source,bash]
+----
+mvn clean package
+----
+. Review and commit any managed-file changes made by the build.
+. Existing projects can first collect all findings without failing on them:
++
+[source,bash]
+----
+mvn clean package -Dairness.enforce=false
+----
++
+Compilation errors, invalid setup, missing tools, and tool crashes still fail in report-only mode.
+
+[[build-commands]]
+== Build Commands
+
+A Maven profile adds a group of build steps to a base command. The `format` and `full` profiles have separate purposes and aren't combined in normal use.
+
+[cols="2,2,2,4"]
+|===
+| Purpose | Base command | Profile | Behavior
+
+| Default verification
+| `mvn clean package`
+| none
+| Syncs managed files, then runs tests and checks that need only the current Git tree. Findings fail the build.
+
+| Source formatting
+| `mvn process-resources`
+| `-Pformat`
+| Syncs managed files, rewrites Java sources to the required style, then verifies the result.
+
+| Full verification
+| `mvn clean package`
+| `-Pfull`
+| Runs default verification and adds work that needs full history, external services, or more time.
+|===
+
+A system-property flag changes how a verification command handles its work. These flags don't select additional checks.
+
+[cols="2,3,5"]
+|===
+| Flag | Use with | Behavior
+
+| `-Dairness.enforce=false`
+| Default or full verification
+| Runs tests and checks, prints findings, and withholds finding-based failures. Compilation, setup, and operational failures remain fatal.
+
+| `-DskipTests`
+| Default or full verification
+| Skips tests, compiler-side _airness_ analysis, and every _airness_ check. The build produces no _airness_ verdict.
+|===
+
+For example, `mvn clean package -Pfull -Dairness.enforce=false` runs full verification in report-only mode. Use `mvn package -DskipTests` only when the build needs to produce an artifact without an _airness_ verdict.
+
+[[full-verification]]
+== Full Verification
+
+The `full` profile is intended for continuous integration and release preparation. It extends the default build with verification that's too slow or environment-dependent for the regular development loop.
+
+The command requires complete Git history, network access, and a reachable Docker daemon. Run it with `clean` so every result belongs to the current Maven session.
+
+[source,bash]
+----
+mvn clean package -Pfull
 ----
 
-. `mvn clean package` then runs the gates. A project that already inherits a different parent can't take this one, because Maven allows a project one parent.
+[[configuration]]
+== Configuration
 
-. Write the files the harness owns into the project once:
+List values use commas between entries. Put stable settings in the project file and use command-line values for one-off runs.
+
+[[required-keys]]
+=== Required Keys
+
+`airness.package.root` is the only required project key. It names the common package prefix for all project classes, which lets _airness_ distinguish project-owned code from other code in the build.
+
+[[optional-keys]]
+=== Optional Keys
+
+[cols="2,2,4"]
+|===
+| Key | Default | Use
+
+| `airness.enforce`
+| `true`
+| Set to `false` to report findings without failing on them.
+
+| `skipTests`
+| `false`
+| Set to `true` to bypass tests and all _airness_ checks.
+
+| `airness.typography.excludes`
+| empty
+| Git-tree path prefixes left out of the typography scan.
+
+| `airness.assets.unmanaged`
+| empty
+| Managed paths owned by the project instead of _airness_.
+
+| `airness.coverage.excluded.classes`
+| empty
+| Class patterns left out of the per-class coverage floor.
+
+| `airness.mutation.excluded.classes`
+| empty
+| Class patterns left out of mutation analysis.
+
+| `airness.mutation.baseline`
+| `mutation-baseline.tsv`
+| Module-relative path to the accepted mutation baseline.
+
+|===
+
+[[agent-instructions]]
+=== Agent Instructions
+
+. `AGENTS.md` is mandatory and contains the project's actual agent instructions. A file with no letter or digit is a finding.
+. `CLAUDE.md` is mandatory and contains one line:
++
+[source,text]
+----
+@AGENTS.md
+----
+. The two file names and the content of `CLAUDE.md` aren't configurable. The Maven lifecycle creates or repairs `CLAUDE.md`. It never edits the project-owned instructions in `AGENTS.md`.
+
+[[managed-files]]
+== Managed Files
+
+[cols="1,2,3"]
+|===
+| Policy | Files | Behavior
+
+| Pinned
+| `.editorconfig`, `.gitattributes`, `CLAUDE.md`, `lombok.config`, `qodana.yaml`
+| _airness_ supplies the entire file. The project copy must match the supplied bytes exactly.
+
+| Seed
+| `.gitignore`, `.gitleaks.toml`
+| `assets-sync` creates a missing file once. The project then owns its contents.
+
+| Forbidden
+| `rewrite.yml`, `qodana/profile.xml`
+| Must be absent because _airness_ supplies this setup from its artifacts. The check reports these files but doesn't delete them.
+|===
+
+. A `package` build manages pinned files in three steps. During `validate`, `assets-sync` replaces each missing or changed pinned file with the exact content supplied by the active _airness_ version. The lifecycle then records a snapshot of every tracked or committable file. During `package`, `tree-verify` fails the build when the final tree differs from that snapshot.
+. A repair made by `assets-sync` doesn't fail the build because the snapshot follows the repair. A later build plugin that changes a pinned file does fail the build. Run the sync goal directly to restore managed files without continuing to later phases.
 +
 [source,bash]
 ----
 mvn airness:assets-sync
 ----
+. A project that must own one of these paths lists it in `airness.assets.unmanaged` and records the reason in a nearby project-file comment. A path listed there is exempt from the pinned-file contract, so the sync and check goals leave that path alone.
 
-[#required-parameters]
-=== Required Parameters
+[[mutation-baseline]]
+== Mutation Baseline
 
-. Two parameters have no default. Each one has the same failure mode: a wrong value leaves a gate reporting nothing while the build log still shows it running.
-
-[cols="1,2"]
-|===
-| Property | What It Names
-
-| `airness.package.root`
-| The package every class lives under, with no escapes
-
-| `airness.entry.files`
-| Files an agent tool reads under a name of its own, or `NONE`
-
-|===
-
-. The build stops at the `validate` phase when one is unset, before any gate runs:
+. Each module with production Java has a `mutation-baseline.tsv` file, even when the file is empty. `airness.mutation.baseline` can select another module-relative path.
+. Each non-empty line has three tab-separated identity fields copied from `target/pit-reports/mutations.xml`: the fully qualified class, method, and mutation description. A fourth field should state why the mutant is accepted.
 +
 [source,text]
 ----
-[ERROR] Set airness.package.root to the package every class lives under, which the harness cannot guess
+com.example.orders.ClockAdapter	now	removed call to java/time/Clock::instant	Covered by an external platform test
 ----
+. A survivor missing from the file is a new test gap. An entry whose mutant is now killed is stale and must be removed.
+. A reason that begins with `[intermittent]` marks a mutant that has been seen to alternate between killed and surviving. A run that produces no mutants still fails.
 
-. `NONE` is a declaration rather than a shortcut. An empty list passes by checking nothing, and the build log then reads exactly as it does for a project with three correct entries.
+[[suppressions]]
+== Suppressions
 
-. Every value is printed at `INFO` on each build, so the values in force sit in the log rather than in someone's memory.
-
-=== Optional Parameters
-
-[cols="2,1,3"]
-|===
-| Property | Default | Effect
-
-| `airness.enforce`
-| `true`
-| Set to `false` to run tests and every check, print all findings, and withhold only finding-based failures
-
-| `skipTests`
-| `false`
-| Set with `-DskipTests` to skip ordinary tests and every Airness check without printing harness findings
-
-| `airness.typography.excludes`
-| empty
-| Path prefixes to leave unread, for a vendored tree whose typography another project chose
-
-| `airness.assets.unmanaged`
-| empty
-| Paths this project owns rather than the harness
-
-| `airness.coverage.excluded.classes`
-| empty
-| Classes left out of the coverage floor, each by the role it plays
-
-| `airness.mutation.excluded.classes`
-| empty
-| Classes the mutation analysis leaves alone
-
-| `airness.instruction.file`
-| `AGENTS.md`
-| The one file every entry file points at, or `NONE`
-
-| `airness.registry`
-| Maven Central
-| The registry the freshness check reads, for a project behind a mirror
-|===
-
-. The exclusion lists ship empty. A harness arriving with exclusions would teach a project that the list is where difficulty goes.
-
-. An entry that stops mattering is reported. A typography prefix that excludes nothing, and an opted-out path that no longer differs, each fail the build, so neither list outlives what it points at.
-
-. Nothing else is a property. A path a project can move is a path it can aim at something that matches nothing, and the build then passes while checking less than it says.
-
-== The Gates
-
-=== The Default Build
-
-. `mvn clean package` runs everything that needs neither the network nor the whole history:
-+
-[cols="1,3"]
-|===
-| Gate | What It Reads
-
-| Checkstyle, PMD, SpotBugs
-| The sources and the class files, against the shipped rule set
-
-| Error Prone and NullAway
-| The compiler's typed tree, as the code compiles
-
-| OpenRewrite, formatter, import sorter
-| The sources, reporting rather than rewriting
-
-| Coverage
-| Each class on its own, against a floor of 0.80 on instructions and branches
-
-| Governance goals
-| The repository: typography, comment prose, Javadoc links, entry files, instruction references, managed files
-
-| Tree fingerprint
-| The working tree before and after, so a build that writes to it fails
-|===
-
-. The source-shaping tools report rather than rewrite. `mvn process-resources -Pformat` applies them instead, and the check still runs behind the apply.
-
-=== The Full Build
-
-. `mvn clean package -Pfull` adds every slow gate that reads more than the current build:
-+
-[cols="1,3"]
-|===
-| Gate | What It Reads
-
-| Commit history and typography
-| Every commit message reachable from `HEAD`
-
-| Dependency freshness
-| The registry, failing rather than passing when it can't be read
-
-| Mutation analysis
-| The tests, against a baseline of accepted survivors
-
-| Secret scan
-| The whole history, in a container
-
-| Inspection scan
-| The whole project, through the IntelliJ engine
-|===
-
-. A truncated clone stops the build at `validate`. Three of these gates pass over a shallow clone by finding nothing to object to, so the build refuses one rather than reporting green.
-
-. Project documentation is outside the harness contract. Airness packages, installs, and enforces no Vale configuration, document assets, README content, or documentation toolchain.
-
-== Files the Harness Owns
-
-=== The Three Policies
-
-. Most of the harness reaches a project as configuration read off a plugin classpath, and needs no file in the project. The rest is divided three ways, by who reads it:
-+
-[cols="1,3"]
-|===
-| Policy | Meaning
-
-| Pinned
-| The project holds this file with exactly the bytes the harness ships
-
-| Seed
-| Written once when absent, then owned by the project
-
-| Forbidden
-| Must not be in the project, because the harness supplies it
-|===
-
-. `.editorconfig`, `.gitattributes`, `lombok.config`, and `qodana.yaml` are pinned. `.gitignore` and `.gitleaks.toml` are seeds because their bodies are per-project. Analyzer configuration and the inspection profile stay inside Airness artifacts.
-
-. A copy of a forbidden file is worse than none. It looks authoritative, gets edited, and is then ignored.
-
-=== Repairing a File
-
-. `mvn airness:assets-sync` writes what's missing or has drifted. It's the only goal here that writes, and it's bound to no phase.
-
-. A verifying build never repairs. A build that reshaped the tree while judging it would make a green result a statement about a tree the build had changed, and nobody afterwards could tell the two apart.
-
-. Nothing is ever deleted. A forbidden file is reported with the remedy, because a build tool removing a developer's file is worse than the problem it fixes.
-
-. A project with a reason to differ names the path in `airness.assets.unmanaged` and says why beside it. Nothing checks that the reason was written, which is worth stating rather than implying a gate that doesn't exist.
-
-== Git Checks
-
-. Airness installs and uses no Git hooks. Commit policy, commit typography, shallow-clone protection, and full-history secret scanning are Maven lifecycle checks under the `full` profile.
-
-== The First Build
-
-. The rule set is strict, and a project adopting it should expect findings in existing code. A finding names the rule that produced it, which is the identifier to search for:
-+
-[source,text]
-----
-[ERROR] src/main/java/com/example/Service.java:8:1: A concrete class must be final (or abstract).
-        Only test classes (*Test/*IT) are exempt. [RequireFinalClass]
-[ERROR] src/main/java/com/example/Service.java:17:21: '8788' is a magic number. [MagicNumber]
-----
-
-. Adoption on an existing codebase is easier with `-Dairness.enforce=false` for the first run. Every finding is reported and the build completes, so the work can be sized before enforcement is enabled.
-
-. Report-only mode does not skip checks. Compilation errors, invalid configuration, missing tools, and tool failures remain fatal because they are not findings.
-
-== Suppressing a Rule
-
-. A suppression names the rule it sets aside and states why it doesn't apply. The two annotations sit on the same declaration, because the rule reads them as siblings: a justification on the enclosing class doesn't cover a suppression on a method inside it.
+. A suppression places `@Justification` and `@SuppressWarnings` on the same declaration. The text states why the rule doesn't apply to this code.
 +
 [source,java]
 ----
+package com.example.orders;
+
 import eu.ciechanowiec.airness.Justification;
 
-@Justification("The loopback address is the binding contract, not a deployment detail to configure.")
-@SuppressWarnings("PMD.AvoidUsingHardCodedIP")
-public String address() {
-    return "127.0.0.1";
+/** Supplies the fixed loopback endpoint required by the embedded health probe. */
+public final class LoopbackEndpoint {
+
+    /**
+     * Returns the endpoint required by the probe protocol.
+     *
+     * @return the fixed loopback endpoint
+     */
+    @Justification("The embedded probe protocol requires the IPv4 loopback literal.")
+    @SuppressWarnings("PMD.AvoidUsingHardCodedIP")
+    public String address() {
+        return "127.0.0.1";
+    }
 }
 ----
-
-. The annotation arrives with the parent, at `provided` scope, so no project writes one of its own to make the rule satisfiable.
-
-. It costs the built artifact nothing. The retention is `SOURCE`, so no trace reaches the class files, the packaged jar, or a consumer's dependency tree.
-
-. Dependency analysis is told to expect that. It reads class files, and a `SOURCE` annotation leaves none, so the parent exempts that one coordinate by name rather than relaxing the check.
-
-. A suppression that suppresses nothing is a finding. One whose rule no longer fires is reported rather than left to accumulate.
-
-[#rule-set]
-== The Rule Set
-
-. The rules are enumerated in three files, which are the source of truth for what the harness enforces:
-+
-[source,text]
-----
-eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml
-eu/ciechanowiec/airness/static_code_analysis/pmd.xml
-eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml
-----
-
-. The files ship inside `airness-config` and are read from this repository at the matching path under `airness-config/src/main/resources/`. Each rule carries a comment stating what it enforces and why.
-
-. `airness-config` is a dependency of the analyzer plugins rather than of the project. It reaches each plugin's isolated classpath and neither the compile nor the runtime classpath, so it adds nothing to a project's dependency tree.
-
-== Repository Layout
-
-[cols="1,1,3"]
-|===
-| Module | Packaging | Role
-
-| `airness-parent`
-| `pom`
-| What a project inherits: the plugin configuration and the lifecycle bindings
-
-| `airness-annotations`
-| `jar`
-| The `Justification` annotation, the one artifact reaching a project's compile classpath
-
-| `airness-config`
-| `jar`
-| The analysis configurations and the recipe set, carried as classpath resources
-
-| `airness-governance`
-| `jar`
-| The checks that read a repository rather than the code in it, as plain Java
-
-| `airness-maven-plugin`
-| `maven-plugin`
-| One goal per check, and the two goals that manage the owned files
-
-| `airness-assets`
-| `jar`
-| The owned files and the manifest saying what a project may do with each
-
-| `airness-it`
-| `jar`
-| The harness seen from a project's side, used to verify it
-|===
-
-. The checks are goals rather than tests so test selection cannot accidentally deselect repository checks. The shared mojo base deliberately honors `-DskipTests` as the explicit total harness bypass.
-
-. `airness-it` inherits the parent the way a project does and carries no configuration of its own, so a finding it reports came off the plugin classpath. Its sources break rules deliberately, and `verify.sh` asserts that each expected finding appears.
-
-== Building This Repository
-
-. Install the modules:
-+
-[source,bash]
-----
-mvn clean install
-----
-
-. Verify that the harness reaches a project:
-+
-[source,bash]
-----
-cd airness-it
-sh verify.sh
-----
-+
-[source,text]
-----
-ok       skip: independent child version packages
-ok       skip: no harness findings are shown
-ok       default: test finding fails
-ok       report-only: test finding is visible
-ok       report-only: later harness checks also run
-ok       default: blank justification fails
-ok       report-only: blank justification is visible
-ok       report-only: compilation remains fatal
-ok       report-only: unreachable registry remains fatal
-ok       coverage: no-test production module fails
-ok       coverage: no-test finding reports without failing
-ok       history: shallow clone is rejected by Maven
-ok       assets: published jar contains no documentation or hooks
-----
-
-. Each case asserts that a finding appears. A gate that stops resolving surfaces there rather than as a quieter build in every project that inherits the harness.
-
-. `mvn clean package` inside `airness-it` is expected to fail, because that module's sources break rules on purpose. `verify.sh` turns the resulting findings into a pass or a fail.
-
-. _airness_ builds against the previous released parent from version 1.0.1 onward. Version 1.0.0 can't, because Maven won't use a plugin built in the same reactor, so its own modules inherit the aggregator and `airness-it` is what verifies it.
+. Use the rule ID printed by the analyzer, including a prefix such as `PMD.` when required. A class-level justification doesn't cover a method-level suppression.
+. Empty justifications, unpaired suppressions, and suppressions for rules that no longer fire are findings. `@Justification` has source retention and doesn't enter the built artifact.
 
 == About the Document
 
@@ -378,6 +287,7 @@ The source text of this document is written in the https://asciidoc.org[AsciiDoc
 
 The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
 
+[#export]
 === Prerequisites
 
 To export and lint the source text, install the following tools:

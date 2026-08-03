@@ -536,6 +536,7 @@
                         <id>airness-preflight</id>
                         <phase>validate</phase>
                         <goals>
+                            <goal>assets-sync</goal>
                             <goal>tree-snapshot</goal>
                             <goal>check-parameters</goal>
                             <goal>assets-check</goal>
@@ -554,7 +555,6 @@
                         <goals>
                             <goal>typography</goal>
                             <goal>entry-files</goal>
-                            <goal>instruction-references</goal>
                             <goal>comment-prose</goal>
                             <goal>javadoc-links</goal>
                             <goal>tree-verify</goal>

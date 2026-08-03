@@ -7,72 +7,70 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/**
- * The entry-file check answers all four of its rules separately, and reports absence rather than
- * throwing on it. Asserting that a declared entry file is there is half of what the check is for, so an
- * absent one has to be a finding it can print alongside the others.
- */
+/** Verifies the fixed {@code AGENTS.md} and {@code CLAUDE.md} contract. */
 class EntryFileCheckTest {
 
-    private static final String INSTRUCTIONS = "AGENTS.md";
-    private static final String ENTRY = "CLAUDE.md";
-    private static final List<String> ENTRIES = List.of(ENTRY);
     private static final String INSTRUCTION_BODY = "# Rules\n\nEvery rule lives here.\n";
 
     @Test
-    void passesWhenTheEntryFileHoldsNothingButTheReference() {
+    void passesWhenBothFixedFilesSatisfyTheirContracts() {
         Path root = new GitFixture("entry-clean")
-            .write(INSTRUCTIONS, INSTRUCTION_BODY)
-            .write(ENTRY, "@AGENTS.md\n")
+            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY)
+            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertTrue(
-            Verdicts.clean(new EntryFileCheck(root, INSTRUCTIONS, ENTRIES).findings()),
-            "a bare reference is the whole of what an entry file may say"
+            Verdicts.clean(new EntryFileCheck(root).findings()),
+            "the root file has instructions and the Claude entry is the exact fixed reference"
         );
     }
 
     @Test
-    void reportsARuleStatedInTheEntryFile() {
-        Path root = new GitFixture("entry-says-more")
-            .write(INSTRUCTIONS, INSTRUCTION_BODY)
-            .write(ENTRY, "@AGENTS.md\nAlways run the verification command.\n")
+    void reportsAMissingInstructionFile() {
+        Path root = new GitFixture("entry-no-instructions")
+            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertEquals(
-            1, Verdicts.offences(new EntryFileCheck(root, INSTRUCTIONS, ENTRIES).findings(), "states what only").size(),
-            "a second home for the rules is what this rule exists to catch"
+            List.of(EntryFileRules.INSTRUCTIONS),
+            Verdicts.offences(new EntryFileCheck(root).findings(), "AGENTS.md file is missing"),
+            "the root instruction file is mandatory"
         );
     }
 
     @Test
-    void reportsAnEntryFileThatPointsNowhere() {
-        Path root = new GitFixture("entry-silent")
-            .write(INSTRUCTIONS, INSTRUCTION_BODY)
-            .write(ENTRY, "See the repository documentation.\n")
+    void reportsAnInstructionFileWithNoInstructions() {
+        Path root = new GitFixture("entry-empty-instructions")
+            .write(EntryFileRules.INSTRUCTIONS, " \n")
+            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
-        List<Findings> findings = new EntryFileCheck(root, INSTRUCTIONS, ENTRIES).findings();
         assertEquals(
-            List.of(ENTRY), Verdicts.offences(findings, "does not point"),
-            "an entry file naming no instruction file leaves the tool that opens it with nothing"
+            List.of(EntryFileRules.INSTRUCTIONS),
+            Verdicts.offences(new EntryFileCheck(root).findings(), "contains no instructions"),
+            "a file with no prose does not satisfy the mandatory instruction contract"
         );
     }
 
     @Test
-    void reportsADeclaredEntryFileThatIsNotThere() {
-        Path root = new GitFixture("entry-absent").write(INSTRUCTIONS, INSTRUCTION_BODY).root();
+    void reportsAMissingClaudeEntryFile() {
+        Path root = new GitFixture("entry-no-claude")
+            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY)
+            .root();
         assertEquals(
-            List.of(ENTRY),
-            Verdicts.offences(new EntryFileCheck(root, INSTRUCTIONS, ENTRIES).findings(), "entry file is missing"),
-            "a declared name that no file answers is a finding rather than a silently tolerated absence"
+            List.of(EntryFileRules.CLAUDE),
+            Verdicts.offences(new EntryFileCheck(root).findings(), "CLAUDE.md file is missing"),
+            "Claude must have its fixed entry point"
         );
     }
 
     @Test
-    void reportsTheMissingInstructionFileEveryEntryFilePointsAt() {
-        Path root = new GitFixture("entry-no-instructions").write(ENTRY, "@AGENTS.md\n").root();
+    void reportsAnyContentBeyondTheExactClaudeReference() {
+        Path root = new GitFixture("entry-claude-drift")
+            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY)
+            .write(EntryFileRules.CLAUDE, "@AGENTS.md\nRun Maven first.\n")
+            .root();
         assertEquals(
-            List.of(INSTRUCTIONS),
-            Verdicts.offences(new EntryFileCheck(root, INSTRUCTIONS, ENTRIES).findings(), "instruction file every"),
-            "an entry file pointing at nothing is worse than one that says too much"
+            List.of(EntryFileRules.CLAUDE),
+            Verdicts.offences(new EntryFileCheck(root).findings(), "must contain exactly"),
+            "the entry file has no project-owned instructions of its own"
         );
     }
 }
