@@ -1,7 +1,8 @@
 package eu.ciechanowiec.airness.maven;
 
-import java.util.Set;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.experimental.UtilityClass;
 import org.apache.maven.execution.MavenSession;
 import org.eclipse.aether.SessionData;
 
@@ -19,13 +20,10 @@ import org.eclipse.aether.SessionData;
  * lasts exactly as long as the session does. A static set would leak across sessions in an embedded
  * Maven and would then suppress the second build's checks entirely.
  */
+@UtilityClass
 final class OncePerSession {
 
     private static final Object KEY = new Object();
-
-    private OncePerSession() {
-        throw new UnsupportedOperationException("This class is not meant to be instantiated");
-    }
 
     /**
      * Whether this is the first time the given goal has been reached in this session.
@@ -37,7 +35,9 @@ final class OncePerSession {
     @SuppressWarnings("unchecked")
     static boolean firstRun(MavenSession session, Class<?> goal) {
         SessionData data = session.getRepositorySession().getData();
-        Set<String> reached = (Set<String>) data.computeIfAbsent(KEY, ConcurrentHashMap::newKeySet);
+        Collection<String> reached = (Collection<String>) data.computeIfAbsent(
+            KEY, ConcurrentHashMap::newKeySet
+        );
         return reached.add(goal.getName());
     }
 }

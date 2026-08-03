@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -95,15 +94,6 @@ public final class Repository {
             .filter(Files::isRegularFile)
             .distinct()
             .toList();
-    }
-
-    static Set<String> topLevelDirectories(Path root) {
-        List<String> names = trackedFiles(root).stream()
-            .map(root::relativize)
-            .filter(relative -> relative.getNameCount() > 1)
-            .map(relative -> relative.getName(0).toString())
-            .toList();
-        return Set.copyOf(names);
     }
 
     /**

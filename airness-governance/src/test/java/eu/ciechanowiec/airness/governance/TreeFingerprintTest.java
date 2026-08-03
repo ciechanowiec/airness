@@ -8,7 +8,9 @@ import java.nio.file.Path;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
-/** The tree fingerprint covers committable content and ignores build output. */
+/**
+ * The tree fingerprint covers committable content and ignores build output.
+ */
 class TreeFingerprintTest {
 
     @Test

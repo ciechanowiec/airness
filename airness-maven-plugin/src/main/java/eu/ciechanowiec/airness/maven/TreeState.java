@@ -3,17 +3,17 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.TreeFingerprint;
 import java.nio.file.Path;
 import java.util.Optional;
+import lombok.experimental.UtilityClass;
 import org.apache.maven.execution.MavenSession;
 import org.eclipse.aether.SessionData;
 
-/** Stores a tree fingerprint for exactly one Maven session. */
+/**
+ * Stores a tree fingerprint for exactly one Maven session.
+ */
+@UtilityClass
 final class TreeState {
 
     private static final Object KEY = new Object();
-
-    private TreeState() {
-        throw new UnsupportedOperationException("This class is not meant to be instantiated");
-    }
 
     static void snapshot(MavenSession session, Path root) {
         session.getRepositorySession().getData().set(KEY, TreeFingerprint.from(root));

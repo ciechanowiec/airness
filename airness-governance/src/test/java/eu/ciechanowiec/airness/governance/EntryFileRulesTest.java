@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-/** Verifies the content rules for the two fixed agent files. */
+/**
+ * Verifies the content rules for the two fixed agent files.
+ */
 class EntryFileRulesTest {
 
     @Test

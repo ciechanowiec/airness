@@ -21,7 +21,7 @@ import org.apache.maven.plugins.annotations.Parameter;
  * code that has since changed.
  */
 @Mojo(name = "mutation-baseline", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class MutationBaselineMojo extends GovernanceMojo {
+public final class MutationBaselineMojo extends AbstractGovernanceMojo {
 
     /**
      * The report the mutation analysis wrote.
@@ -49,12 +49,12 @@ public class MutationBaselineMojo extends GovernanceMojo {
      * @return whether the module has sources for the analysis to mutate
      */
     @Override
-    protected boolean applies() {
+    boolean applies() {
         return !this.moduleSourceRoots().isEmpty();
     }
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         Path analysis = Path.of(this.report);
         this.requireCurrent(analysis);
         MutationBaselineCheck check = new MutationBaselineCheck(

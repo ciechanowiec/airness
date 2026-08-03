@@ -16,10 +16,10 @@ import org.apache.maven.plugins.annotations.Mojo;
  * being folded into {@code typography}.
  */
 @Mojo(name = "commit-typography", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class CommitTypographyMojo extends RepositoryMojo {
+public final class CommitTypographyMojo extends AbstractRepositoryMojo {
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         Path root = this.repositoryRoot();
         return Repository.hasCommits(root) ? this.checked(root) : this.unborn();
     }

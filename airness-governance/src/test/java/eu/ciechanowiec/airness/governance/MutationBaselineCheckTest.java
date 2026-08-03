@@ -38,19 +38,21 @@ class MutationBaselineCheckTest {
         </mutations>
         """;
 
-    private static final String ACCEPTS_THE_SURVIVOR =
-        "# class\tmethod\tdescription\treason\n"
-            + "sample.Subject\tvalue\treplaced int return with 0\tThe value is not observable from outside\n";
+    private static final String ACCEPTS_THE_SURVIVOR = """
+        # class\tmethod\tdescription\treason
+        sample.Subject\tvalue\treplaced int return with 0\tThe value is not observable from outside
+        """;
 
-    private static final String ACCEPTS_A_KILLED_MUTANT =
-        "sample.Subject\tvalue\treplaced int return with 0\tThe value is not observable from outside\n"
-            + "sample.Subject\tother\tremoved call to sample.Subject::log\tNo test observes the log call\n";
+    private static final String ACCEPTS_A_KILLED_MUTANT = """
+        sample.Subject\tvalue\treplaced int return with 0\tThe value is not observable from outside
+        sample.Subject\tother\tremoved call to sample.Subject::log\tNo test observes the log call
+        """;
 
     @TempDir
     private Path directory;
 
     @SneakyThrows
-    private MutationBaselineCheck check(String report, String baseline) {
+    private MutationBaselineCheck check(CharSequence report, CharSequence baseline) {
         Path reportFile = Files.writeString(this.directory.resolve("mutations.xml"), report);
         Path baselineFile = Files.writeString(this.directory.resolve("mutation-baseline.tsv"), baseline);
         return new MutationBaselineCheck(reportFile, baselineFile);

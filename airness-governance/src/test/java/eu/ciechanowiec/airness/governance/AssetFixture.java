@@ -20,7 +20,7 @@ final class AssetFixture {
     private final Path directory;
 
     @SneakyThrows
-    AssetFixture(Path directory, String manifest) {
+    AssetFixture(Path directory, CharSequence manifest) {
         this.directory = directory;
         Files.createDirectories(directory.resolve("airness/files"));
         Files.writeString(directory.resolve("airness/manifest.tsv"), manifest);
@@ -32,7 +32,7 @@ final class AssetFixture {
      * @return this fixture, so calls chain
      */
     @SneakyThrows
-    AssetFixture ship(String path, String content) {
+    AssetFixture ship(String path, CharSequence content) {
         Path file = this.directory.resolve("airness/files").resolve(path + SUFFIX);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);

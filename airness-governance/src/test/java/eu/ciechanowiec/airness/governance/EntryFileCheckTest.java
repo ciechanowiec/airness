@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** Verifies the fixed {@code AGENTS.md} and {@code CLAUDE.md} contract. */
+/**
+ * Verifies the fixed {@code AGENTS.md} and {@code CLAUDE.md} contract.
+ */
 class EntryFileCheckTest {
 
     private static final String INSTRUCTION_BODY = "# Rules\n\nEvery rule lives here.\n";

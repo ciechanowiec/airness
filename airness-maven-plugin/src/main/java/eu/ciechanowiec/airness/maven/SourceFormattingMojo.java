@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
+import static net.revelc.code.formatter.LineEnding.LF;
+
 import com.github.javaparser.ParserConfiguration.LanguageLevel;
 import com.github.javaparser.Problem;
 import eu.ciechanowiec.airness.governance.Findings;
@@ -13,36 +15,41 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import net.revelc.code.formatter.ConfigurationSource;
 import net.revelc.code.formatter.java.JavaFormatter;
+import net.revelc.code.formatter.model.ConfigReadException;
 import net.revelc.code.formatter.model.ConfigReader;
 import net.revelc.code.impsort.Grouper;
 import net.revelc.code.impsort.ImpSort;
+import net.revelc.code.impsort.LineEnding;
 import net.revelc.code.impsort.Result;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.eclipse.jface.text.BadLocationException;
+import org.xml.sax.SAXException;
 
 /**
  * Checks Java formatting and import order without editing source files.
  *
  * <p>The third-party validation goals throw as soon as they find an offence and offer no report-only
  * mode. Calling their formatting engines directly preserves the exact formatting behaviour while
- * letting {@link GovernanceMojo} report every file and apply the single Airness enforcement switch.
+ * letting {@link AbstractGovernanceMojo} report every file and apply the single Airness enforcement switch.
  */
 @Mojo(name = "source-formatting", defaultPhase = LifecyclePhase.PROCESS_RESOURCES, threadSafe = true)
-public class SourceFormattingMojo extends GovernanceMojo {
+public final class SourceFormattingMojo extends AbstractGovernanceMojo {
 
     private static final String PROFILE = "eu/ciechanowiec/airness/formatting/EclipseCodeStyle.xml";
 
     @Override
-    protected boolean applies() {
+    boolean applies() {
         return !this.moduleSourceRoots().isEmpty();
     }
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         List<Path> sources = javaSources(this.moduleSourceRoots());
         JavaFormatter formatter = formatter(this.getLog(), this.project().getBuild().getDirectory());
         ImpSort sorter = sorter();
@@ -50,14 +57,18 @@ public class SourceFormattingMojo extends GovernanceMojo {
             sources.forEach(source -> apply(formatter, sorter, source));
         }
         return List.of(
-            new Findings("Java sources that do not match the Airness formatter", sources.stream()
-                .filter(source -> !formatted(formatter, source)).map(this::relative).toList()),
-            new Findings("Java sources whose imports are not normalized", sources.stream()
-                .filter(source -> !sorted(sorter, source)).map(this::relative).toList())
+            new Findings(
+                "Java sources that do not match the Airness formatter", sources.stream()
+                    .filter(source -> !formatted(formatter, source)).map(this::relative).toList()
+            ),
+            new Findings(
+                "Java sources whose imports are not normalized", sources.stream()
+                    .filter(source -> !sorted(sorter, source)).map(this::relative).toList()
+            )
         );
     }
 
-    static List<Path> javaSources(List<Path> roots) {
+    static List<Path> javaSources(Iterable<Path> roots) {
         List<Path> sources = new ArrayList<>();
         for (Path root : roots) {
             try (Stream<Path> paths = Files.walk(root)) {
@@ -72,17 +83,19 @@ public class SourceFormattingMojo extends GovernanceMojo {
     }
 
     static JavaFormatter formatter(Log log, String target) {
-        try (InputStream stream = SourceFormattingMojo.class.getClassLoader().getResourceAsStream(PROFILE)) {
-            if (stream == null) {
-                throw new IllegalStateException("Airness formatter profile is missing: " + PROFILE);
-            }
+        try (InputStream stream = profile()) {
             Map<String, String> options = new ConfigReader().read(stream);
             JavaFormatter formatter = new JavaFormatter();
             formatter.init(options, new SourceConfiguration(log, target));
             return formatter;
-        } catch (Exception exception) {
+        } catch (IOException | SAXException | ConfigReadException exception) {
             throw new IllegalStateException("Could not initialize the Airness formatter", exception);
         }
+    }
+
+    private static InputStream profile() {
+        return Optional.ofNullable(SourceFormattingMojo.class.getClassLoader().getResourceAsStream(PROFILE))
+            .orElseThrow(() -> new IllegalStateException("Airness formatter profile is missing: " + PROFILE));
     }
 
     private String relative(Path source) {
@@ -93,7 +106,7 @@ public class SourceFormattingMojo extends GovernanceMojo {
         try {
             String held = Files.readString(source);
             return held.equals(formattedSource(formatter, source));
-        } catch (Exception exception) {
+        } catch (IOException exception) {
             throw new IllegalStateException("Could not format " + source, exception);
         }
     }
@@ -101,9 +114,9 @@ public class SourceFormattingMojo extends GovernanceMojo {
     static String formattedSource(JavaFormatter formatter, Path source) {
         try {
             return formatter.doFormat(
-                Files.readString(source), net.revelc.code.formatter.LineEnding.LF
+                Files.readString(source), LF
             );
-        } catch (Exception exception) {
+        } catch (IOException | BadLocationException exception) {
             throw new IllegalStateException("Could not format " + source, exception);
         }
     }
@@ -111,7 +124,7 @@ public class SourceFormattingMojo extends GovernanceMojo {
     static ImpSort sorter() {
         return new ImpSort(
             StandardCharsets.UTF_8, new Grouper("*", "*", false, false, false), true, false,
-            net.revelc.code.impsort.LineEnding.LF, LanguageLevel.JAVA_25, false
+            LineEnding.LF, LanguageLevel.JAVA_25, false
         );
     }
 
@@ -145,7 +158,9 @@ public class SourceFormattingMojo extends GovernanceMojo {
         }
     }
 
-    /** Supplies the compiler and filesystem settings required by the formatter engine. */
+    /**
+     * Supplies the compiler and filesystem settings required by the formatter engine.
+     */
     private record SourceConfiguration(Log log, String target) implements ConfigurationSource {
 
         @Override

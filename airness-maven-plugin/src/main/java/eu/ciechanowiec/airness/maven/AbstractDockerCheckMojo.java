@@ -9,8 +9,10 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
-/** Runs one repository-wide Docker check while separating findings from operational failures. */
-abstract class DockerCheckMojo extends AbstractMojo {
+/**
+ * Runs one repository-wide Docker check while separating findings from operational failures.
+ */
+abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
@@ -24,32 +26,35 @@ abstract class DockerCheckMojo extends AbstractMojo {
     @Parameter(property = "skipTests", defaultValue = "false")
     private boolean skip;
 
-    protected abstract List<String> command() throws IOException;
+    abstract List<String> command() throws IOException;
 
-    protected abstract boolean findingsExit(int exit);
+    abstract boolean findingsExit(int exit);
 
     @Override
     public final void execute() throws MojoExecutionException, MojoFailureException {
         if (this.skip) {
             this.getLog().info("Skipping Airness because skipTests is true");
-            return;
+        } else if (OncePerSession.firstRun(this.session, this.getClass())) {
+            this.check();
         }
-        if (!this.project.equals(this.session.getTopLevelProject())
-            || !OncePerSession.firstRun(this.session, this.getClass())) {
-            return;
-        }
+    }
+
+    private void check() throws MojoExecutionException, MojoFailureException {
         this.requireDocker();
         int exit = this.runCheck();
-        if (exit == 0) {
-            return;
+        if (exit != 0) {
+            this.fail(exit);
         }
+    }
+
+    private void fail(int exit) throws MojoExecutionException, MojoFailureException {
         if (!this.findingsExit(exit)) {
             throw new MojoExecutionException("Docker check failed operationally with exit code " + exit);
-        }
-        if (this.enforce) {
+        } else if (this.enforce) {
             throw new MojoFailureException("Docker check reported findings (exit code " + exit + ")");
+        } else {
+            this.getLog().warn("airness.enforce is false, so the Docker findings above do not fail this build");
         }
-        this.getLog().warn("airness.enforce is false, so the Docker findings above do not fail this build");
     }
 
     protected final MavenProject project() {

@@ -9,10 +9,10 @@ package eu.ciechanowiec.airness.maven;
  * would double them again. The repetition is not merely noise: a reader who has seen a finding four
  * times stops reading the fifth, and the one that differs is the one they miss.
  */
-public abstract class RepositoryMojo extends GovernanceMojo {
+abstract class AbstractRepositoryMojo extends AbstractGovernanceMojo {
 
     @Override
-    protected final boolean applies() {
+    final boolean applies() {
         return this.session().getTopLevelProject().equals(this.project())
             && OncePerSession.firstRun(this.session(), this.getClass());
     }

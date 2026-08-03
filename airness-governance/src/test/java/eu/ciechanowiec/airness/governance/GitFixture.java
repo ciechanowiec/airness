@@ -21,15 +21,13 @@ import lombok.SneakyThrows;
  * than what the last one left. Hooks and signing are turned off, because a fixture commit must not
  * depend on how the machine running it is configured.
  */
-final class GitFixture {
+record GitFixture(Path root) {
 
     private static final Path SCRATCH = Path.of("target", "fixtures");
 
-    private final Path root;
-
     @SneakyThrows
     GitFixture(String name) {
-        this.root = SCRATCH.resolve(name).toAbsolutePath().normalize();
+        this(location(name));
         delete(this.root);
         Files.createDirectories(this.root);
         this.git("init", "--quiet");
@@ -39,17 +37,10 @@ final class GitFixture {
     }
 
     /**
-     * @return the working tree root, absolute and normalized
-     */
-    Path root() {
-        return this.root;
-    }
-
-    /**
      * @return this fixture, so writes chain
      */
     @SneakyThrows
-    GitFixture write(String relative, String content) {
+    GitFixture write(String relative, CharSequence content) {
         Path file = this.root.resolve(relative);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);
@@ -82,6 +73,10 @@ final class GitFixture {
 
     private void git(String... arguments) {
         GitPlumbing.run(this.root, List.of(arguments));
+    }
+
+    private static Path location(String name) {
+        return SCRATCH.resolve(name).toAbsolutePath().normalize();
     }
 
     private static void delete(Path directory) {

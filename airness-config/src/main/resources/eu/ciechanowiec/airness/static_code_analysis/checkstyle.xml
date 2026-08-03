@@ -46,7 +46,7 @@
         alternative. The allowlist carries those cases across the project types this configuration serves.
         -->
         <property name="format"
-                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract)\b)\w+[^{]*\{"/>
+                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo)\b)\w+[^{]*\{"/>
         <property name="message"
                   value="Inheritance is allowed only for explicitly specified cases."/>
     </module>
@@ -156,7 +156,7 @@
             <!-- Concrete classes must be final (or abstract). Test classes (*Test/*IT) are exempt below. -->
             <property name="id" value="RequireFinalClass"/>
             <property name="query"
-                      value="//CLASS_DEF[not(./MODIFIERS/FINAL) and not(./MODIFIERS/LITERAL_ABSTRACT) and not(parent::OBJBLOCK/parent::INTERFACE_DEF) and not(parent::OBJBLOCK/parent::ANNOTATION_DEF)]"/>
+                      value="//CLASS_DEF[not(./MODIFIERS/FINAL) and not(./MODIFIERS/ABSTRACT) and not(parent::OBJBLOCK/parent::INTERFACE_DEF) and not(parent::OBJBLOCK/parent::ANNOTATION_DEF)]"/>
             <message key="matchxpath.match"
                      value="A concrete class must be final (or abstract). Only test classes (*Test/*IT) are exempt."/>
         </module>

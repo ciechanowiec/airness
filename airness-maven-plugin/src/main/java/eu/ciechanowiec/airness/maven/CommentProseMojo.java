@@ -13,18 +13,18 @@ import org.apache.maven.plugins.annotations.Mojo;
  * module's own and a reactor build should report a module's findings against that module.
  */
 @Mojo(name = "comment-prose", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class CommentProseMojo extends GovernanceMojo {
+public final class CommentProseMojo extends AbstractGovernanceMojo {
 
     @Override
-    protected boolean applies() {
+    boolean applies() {
         return !this.moduleSourceRoots().isEmpty();
     }
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         CommentProseCheck check = new CommentProseCheck(this.repositoryRoot(), this.moduleSourceRoots());
         this.getLog().info("Comment prose read " + check.scanned() + " Java source(s)");
-        Scope.requireNonEmpty(check.scanned(), "Java sources", this.moduleSourceRoots());
+        Scope.requireJavaSources(check.scanned(), this.moduleSourceRoots());
         return check.findings();
     }
 }

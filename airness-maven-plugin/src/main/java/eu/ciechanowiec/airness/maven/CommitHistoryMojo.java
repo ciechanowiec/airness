@@ -16,10 +16,10 @@ import org.apache.maven.plugins.annotations.Mojo;
  * {@code validate}, before this one gets the chance to pass by reading a handful of commits.
  */
 @Mojo(name = "commit-history", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public class CommitHistoryMojo extends RepositoryMojo {
+public final class CommitHistoryMojo extends AbstractRepositoryMojo {
 
     @Override
-    protected List<Findings> findings() {
+    List<Findings> findings() {
         Path root = this.repositoryRoot();
         return Repository.hasCommits(root) ? this.checked(root) : this.unborn();
     }

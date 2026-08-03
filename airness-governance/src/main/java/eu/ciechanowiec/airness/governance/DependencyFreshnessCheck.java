@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -16,13 +17,6 @@ import java.util.stream.Stream;
  */
 public final class DependencyFreshnessCheck {
 
-    /**
-     * The registry every project reads unless it says otherwise. It is stated here rather than inside
-     * {@link MavenCentral}, so the one host this check reaches by default is a value a caller can see
-     * and replace rather than one compiled into the lookup.
-     */
-    public static final String CENTRAL = "https://repo1.maven.org/maven2/";
-
     private static final String HEADLINE = "Dependencies trailing by the major-version bound";
 
     private final String registry;
@@ -32,7 +26,7 @@ public final class DependencyFreshnessCheck {
      * Reads the declared dependencies, without yet asking the registry about any of them.
      *
      * @param pom      the POM whose declared dependencies are read
-     * @param registry the base URL of the registry to ask, such as {@link #CENTRAL}
+     * @param registry the base URL of the registry to ask
      */
     public DependencyFreshnessCheck(Path pom, String registry) {
         this(DeclaredDependencies.from(pom), registry);
@@ -44,7 +38,7 @@ public final class DependencyFreshnessCheck {
      * @param dependencies directly declared, effective dependencies
      * @param registry     registry base URL
      */
-    public DependencyFreshnessCheck(List<DeclaredDependency> dependencies, String registry) {
+    public DependencyFreshnessCheck(Collection<DeclaredDependency> dependencies, String registry) {
         this.registry = registry;
         this.dependencies = dependencies.stream()
             .filter(dependency -> DependencyFreshnessRules.hasComparableMajor(dependency.version()))

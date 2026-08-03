@@ -32,13 +32,15 @@ final class Verdicts {
      * @param fragment a distinguishing part of the headline of the rule asked about
      * @return that rule's offences
      */
-    static List<String> offences(Collection<Findings> findings, String fragment) {
+    static List<String> offences(Collection<Findings> findings, CharSequence fragment) {
         return findings.stream()
             .filter(verdict -> verdict.headline().contains(fragment))
             .map(Findings::offences)
-            .reduce((first, second) -> {
-                throw new IllegalStateException("More than one verdict matches " + fragment);
-            })
+            .reduce(
+                (first, second) -> {
+                    throw new IllegalStateException("More than one verdict matches " + fragment);
+                }
+            )
             .orElseThrow(() -> new IllegalStateException("No verdict matches " + fragment));
     }
 }

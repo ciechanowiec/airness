@@ -37,10 +37,10 @@ public final class MutationBaselineCheck {
      */
     public MutationBaselineCheck(Path report, Path baseline) {
         String analysis = read(report);
-        String accepting = read(baseline);
         this.report = report;
         this.mutants = MutationBaselineRules.count(analysis);
         this.survivors = MutationBaselineRules.survivors(analysis);
+        String accepting = read(baseline);
         this.accepted = MutationBaselineRules.accepted(accepting);
         this.intermittent = MutationBaselineRules.intermittent(accepting);
     }
