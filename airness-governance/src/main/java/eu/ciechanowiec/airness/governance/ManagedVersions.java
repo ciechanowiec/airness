@@ -47,7 +47,8 @@ public final class ManagedVersions {
         ),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-dependency-plugin", "maven-dependency-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-surefire-plugin", "maven-surefire-plugin.version"),
-        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-enforcer-plugin", "maven-enforcer-plugin.version"),
+        suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-enforcer-plugin", "maven-enforcer-plugin.version"),
+        suppliedPlugin("org.codehaus.mojo", "versions-maven-plugin", "versions-maven-plugin.version"),
         suppliedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco-maven-plugin.version"),
         suppliedPlugin("org.ec4j.maven", "editorconfig-maven-plugin", "editorconfig-maven-plugin.version"),
         suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),
@@ -104,7 +105,7 @@ public final class ManagedVersions {
 
     private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(
         COORDINATES.stream().map(Coordinate::property),
-        Stream.of("min.maven.version")
+        Stream.of("maven.compiler.release")
     ).collect(Collectors.toUnmodifiableSet());
 
     /**

@@ -37,7 +37,7 @@ final class Verdicts {
             .filter(verdict -> verdict.headline().contains(fragment))
             .map(Findings::offences)
             .reduce(
-                (first, second) -> {
+                (_, _) -> {
                     throw new IllegalStateException("More than one verdict matches " + fragment);
                 }
             )

@@ -41,9 +41,15 @@ class ManagedVersionsPolicyTest {
     void everyVersionPropertyIsOwnedOnceAtTheRoot() {
         Element root = parse(repository().resolve("pom.xml"));
         Element parent = parse(repository().resolve("airness-parent/pom.xml"));
-        Set<String> rootProperties = versionProperties(root);
+        Set<String> rootProperties = governedProperties(root);
         assertEquals(ManagedVersions.protectedProperties(), rootProperties);
-        assertTrue(versionProperties(parent).isEmpty());
+        assertTrue(governedProperties(parent).isEmpty());
+        Element mavenRule = elements(root, "requireMavenVersion").findFirst().orElseThrow();
+        Element javaRule = elements(root, "requireJavaVersion").findFirst().orElseThrow();
+        assertAll(
+            () -> assertEquals("[3.9.16,)", Xml.text(mavenRule, "version").orElse("")),
+            () -> assertEquals("[25,26)", Xml.text(javaRule, "version").orElse(""))
+        );
     }
 
     @Test
@@ -125,11 +131,14 @@ class ManagedVersionsPolicyTest {
         return kind + ":" + group + ':' + artifact;
     }
 
-    private static Set<String> versionProperties(Node root) {
+    private static Set<String> governedProperties(Node root) {
         return Xml.firstChild(root, "properties").stream()
             .flatMap(ManagedVersionsPolicyTest::directElements)
             .map(Element::getTagName)
-            .filter(property -> property.endsWith(".version"))
+            .filter(
+                property -> property.endsWith(".version")
+                    || property.equals("maven.compiler.release")
+            )
             .collect(Collectors.toUnmodifiableSet());
     }
 

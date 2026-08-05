@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
  */
 class DependencyFreshnessRulesTest {
 
-    private static final DeclaredDependency PICOCLI = new DeclaredDependency("info.picocli", "picocli", "4.7.7");
-    private static final DeclaredDependency JSON = new DeclaredDependency("org.json", "json", "20260719");
+    private static final DeclaredCoordinate PICOCLI = new DeclaredCoordinate("info.picocli", "picocli", "4.7.7");
+    private static final DeclaredCoordinate JSON = new DeclaredCoordinate("org.json", "json", "20260719");
     private static final int ONE_YEAR_AHEAD = 2027;
     private static final int TWO_YEARS_AHEAD = 2028;
 
@@ -45,7 +45,7 @@ class DependencyFreshnessRulesTest {
 
     @Test
     void skipsAVersionWithoutAMajorOrLeadingYear() {
-        DeclaredDependency named = new DeclaredDependency("example", "named", "release-2026");
+        DeclaredCoordinate named = new DeclaredCoordinate("example", "named", "release-2026");
         assertFalse(DependencyFreshnessRules.hasComparableMajor(named.version()));
     }
 

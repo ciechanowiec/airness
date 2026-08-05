@@ -281,6 +281,7 @@ cat > "$managed/pom.xml" <<'POM'
     <airness.package.root>com.example</airness.package.root>
     <exec-maven-plugin.version>1</exec-maven-plugin.version>
     <central-publishing-maven-plugin.version>1</central-publishing-maven-plugin.version>
+    <versions-maven-plugin.version>1</versions-maven-plugin.version>
   </properties>
   <dependencies>
     <dependency>
@@ -305,12 +306,18 @@ cat > "$managed/pom.xml" <<'POM'
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>versions-maven-plugin</artifactId>
+      </plugin>
     </plugins>
   </build>
 </project>
 POM
 run_case 'coordinates: child ownership is rejected' 1 'Airness (owns|supplies) this' \
     "$managed" airness:check-parameters
+run_case 'versions: inherited pin drives update reports' 0 'versions:2\.21\.0:display-dependency-updates' \
+    "$consumer" versions:display-dependency-updates
 
 if grep -Fq '    public static int value() {' "$consumer/src/main/java/com/example/FormatFixture.java"; then
     echo 'ok       format: inherited profile applies source formatting'
@@ -334,6 +341,31 @@ JAVA
 run_case 'checkstyle: qualified Java types are rejected' 1 'Unnecessary fully-qualified type name' \
     "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Qualified.java'
 rm "$consumer/src/main/java/com/example/Qualified.java"
+cat > "$consumer/src/main/java/com/example/UnusedLambda.java" <<'JAVA'
+package com.example;
+
+import java.util.Optional;
+
+/** Exercises the unnamed lambda parameter rule. */
+final class UnusedLambda {
+
+    private UnusedLambda() {
+    }
+
+    /**
+     * Supplies a stable value.
+     *
+     * @return the value
+     */
+    static String value() {
+        return Optional.of("input").map(content -> "value").orElseThrow();
+    }
+}
+JAVA
+run_case 'checkstyle: unused lambda parameters are rejected' 1 \
+    'Unused lambda parameter.*should be unnamed' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/UnusedLambda.java'
+rm "$consumer/src/main/java/com/example/UnusedLambda.java"
 
 if grep -Fq 'LOGGER.info("value {}", value);' "$consumer/src/main/java/com/example/RewriteLogging.java"; then
     echo 'ok       rewrite: SLF4J best practices reach consumers'

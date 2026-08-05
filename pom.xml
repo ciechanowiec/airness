@@ -55,14 +55,14 @@
         <airness.version>1.0.0-SNAPSHOT</airness.version>
         <lombok.version>1.18.46</lombok.version>
         <junit.version>6.1.2</junit.version>
-        <jspecify.version>1.0.0</jspecify.version>
-        <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
+        <jspecify.version>1.0.1</jspecify.version>
+        <spotbugs-annotations.version>4.10.3</spotbugs-annotations.version>
         <error-prone.version>2.50.0</error-prone.version>
-        <nullaway.version>0.13.7</nullaway.version>
+        <nullaway.version>0.13.8</nullaway.version>
         <checkstyle.version>13.9.0</checkstyle.version>
         <qulice-maven-plugin.version>0.30.1</qulice-maven-plugin.version>
         <rewrite-apache.version>2.29.0</rewrite-apache.version>
-        <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
+        <rewrite-logging-frameworks.version>3.31.0</rewrite-logging-frameworks.version>
         <rewrite-static-analysis.version>2.40.0</rewrite-static-analysis.version>
         <rewrite-migrate-java.version>3.41.0</rewrite-migrate-java.version>
         <rewrite-testing-frameworks.version>3.43.0</rewrite-testing-frameworks.version>
@@ -74,8 +74,8 @@
         <maven-gpg-plugin.version>3.2.9</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
-        <maven-resources-plugin.version>3.4.0</maven-resources-plugin.version>
-        <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
+        <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
+        <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
         <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
@@ -83,14 +83,14 @@
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <rewrite-maven-plugin.version>6.45.0</rewrite-maven-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
         <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-        <pitest-maven.version>1.25.8</pitest-maven.version>
+        <pitest-maven.version>1.25.9</pitest-maven.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
-        <min.maven.version>3.9.11</min.maven.version>
     </properties>
 
     <build>
@@ -177,6 +177,42 @@
                     <version>${maven-enforcer-plugin.version}</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>${versions-maven-plugin.version}</version>
+                    <configuration>
+                        <!-- Update reports show stable releases rather than adoption previews. -->
+                        <ruleSet>
+                            <ignoreVersions>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i)[0-9].+-m[0-9]+</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*ALPHA.*</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*BETA.*</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*PREVIEW.*</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i)[0-9].+\.CR[0-9]+</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i)[0-9].+-rc-?[0-9]*</version>
+                                </ignoreVersion>
+                            </ignoreVersions>
+                        </ruleSet>
+                    </configuration>
+                </plugin>
+                <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
@@ -224,6 +260,34 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <!--
+                Runtime compatibility is unconditional and inherited. It protects Airness itself and
+                every consumer even when tests or report enforcement are disabled. The closed Java
+                range means exactly JDK 25 rather than JDK 25 or newer.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-enforce-runtime</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[3.9.16,)</version>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>[25,26)</version>
+                                    <message>The harness requires exactly JDK 25</message>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!--
                 Lombok is named as a processor path rather than left to be discovered on the classpath.
                 Since JDK 23 javac no longer runs a processor it merely finds there, and the failure is
@@ -382,6 +446,29 @@
                                         <argument>README.adoc</argument>
                                     </arguments>
                                 </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!--
+                            The reactor's version catalogue lives here, so this non-inherited execution
+                            reports Airness's own managed properties once. The consumer execution lives
+                            in airness-parent because descendants inherit that pom rather than this
+                            aggregator build.
+                        -->
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>versions-maven-plugin</artifactId>
+                        <inherited>false</inherited>
+                        <executions>
+                            <execution>
+                                <id>report-airness-version-updates</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>display-parent-updates</goal>
+                                    <goal>display-dependency-updates</goal>
+                                    <goal>display-plugin-updates</goal>
+                                    <goal>display-property-updates</goal>
+                                </goals>
                             </execution>
                         </executions>
                     </plugin>

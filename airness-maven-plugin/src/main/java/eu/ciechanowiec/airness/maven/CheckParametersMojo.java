@@ -72,12 +72,12 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
             "airness.version (" + this.airnessVersion + ") does not match the inherited "
                 + "airness-parent version (" + parent + ")"
         )
-            .filter(problem -> !Objects.equals(this.airnessVersion, parent));
+            .filter(_ -> !Objects.equals(this.airnessVersion, parent));
     }
 
     private Optional<String> packageRootProblem() {
         return Optional.of(
             "Set airness.package.root to the package every class lives under, which the harness cannot guess"
-        ).filter(problem -> UNSET.equals(this.packageRoot));
+        ).filter(_ -> UNSET.equals(this.packageRoot));
     }
 }

@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The freshness check asks a registry about every dependency that carries a comparable major, skips the
- * ones that do not, and fails rather than passing when the registry cannot be read.
+ * The freshness check asks a registry about every dependency and plugin that carries a comparable
+ * major, skips the ones that do not, and fails rather than passing when the registry cannot be read.
  *
  * <p>The registry here is a real HTTP server on a loopback port, which is what makes the last of those
  * assertable: a check that could only ever reach one public host is a check nobody can watch fail, and
@@ -39,6 +39,29 @@ class DependencyFreshnessCheckTest {
                     <version>%s</version>
                 </dependency>
             </dependencies>
+        </project>
+        """;
+
+    private static final String PLUGIN_POM = """
+        <project>
+            <profiles>
+                <profile>
+                    <properties>
+                        <sample-plugin.version>%s</sample-plugin.version>
+                    </properties>
+                    <build>
+                        <pluginManagement>
+                            <plugins>
+                                <plugin>
+                                    <groupId>sample</groupId>
+                                    <artifactId>build-plugin</artifactId>
+                                    <version>${sample-plugin.version}</version>
+                                </plugin>
+                            </plugins>
+                        </pluginManagement>
+                    </build>
+                </profile>
+            </profiles>
         </project>
         """;
 
@@ -82,7 +105,12 @@ class DependencyFreshnessCheckTest {
 
     @SneakyThrows
     private DependencyFreshnessCheck check(String declared, String registry) {
-        Path pom = Files.writeString(this.directory.resolve("pom.xml"), POM.formatted(declared));
+        return this.checkPom(POM.formatted(declared), registry);
+    }
+
+    @SneakyThrows
+    private DependencyFreshnessCheck checkPom(CharSequence content, String registry) {
+        Path pom = Files.writeString(this.directory.resolve("pom.xml"), content);
         return new DependencyFreshnessCheck(pom, registry);
     }
 
@@ -100,6 +128,16 @@ class DependencyFreshnessCheckTest {
         );
         assertEquals(1, offences.size(), "trailing by two majors is what the bound fails on");
         assertTrue(offences.getFirst().contains("sample:library"), "and the offence names it: " + offences);
+    }
+
+    @Test
+    void reportsAPluginFromAnInactiveManagementProfile() {
+        List<String> offences = Verdicts.offences(
+            this.checkPom(PLUGIN_POM.formatted("1.0.0"), this.registry("3.0.0")).findings(),
+            "trailing"
+        );
+        assertEquals(1, offences.size(), "the managed plugin is part of the same freshness bound");
+        assertTrue(offences.getFirst().contains("sample:build-plugin"), "the offence names the plugin");
     }
 
     @Test

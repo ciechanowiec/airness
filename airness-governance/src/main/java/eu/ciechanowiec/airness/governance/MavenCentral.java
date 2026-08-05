@@ -36,22 +36,22 @@ final class MavenCentral {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int OK = 200;
 
-    static int latestMajor(String registry, DeclaredDependency dependency) {
-        String metadata = fetch(metadataUrl(registry, dependency));
+    static int latestMajor(String registry, DeclaredCoordinate coordinate) {
+        String metadata = fetch(metadataUrl(registry, coordinate));
         List<String> versions = MavenMetadata.versions(metadata);
         return versions.stream()
             .filter(version -> !PRERELEASE.matcher(version).matches())
-            .filter(version -> DependencyFreshnessRules.sameScheme(dependency.version(), version))
+            .filter(version -> DependencyFreshnessRules.sameScheme(coordinate.version(), version))
             .map(DependencyFreshnessRules::major)
             .flatMapToInt(OptionalInt::stream)
             .max()
-            .orElseThrow(() -> new IllegalStateException("No stable release found for " + dependency));
+            .orElseThrow(() -> new IllegalStateException("No stable release found for " + coordinate));
     }
 
-    private static String metadataUrl(String registry, DeclaredDependency dependency) {
+    private static String metadataUrl(String registry, DeclaredCoordinate coordinate) {
         String base = registry.endsWith(SLASH) ? registry : registry + SLASH;
-        String group = dependency.groupId().replace('.', '/');
-        return base + group + SLASH + dependency.artifactId() + "/maven-metadata.xml";
+        String group = coordinate.groupId().replace('.', '/');
+        return base + group + SLASH + coordinate.artifactId() + "/maven-metadata.xml";
     }
 
     private static String fetch(String url) {

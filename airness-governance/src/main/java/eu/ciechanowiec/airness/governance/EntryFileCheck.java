@@ -53,7 +53,7 @@ public final class EntryFileCheck {
     private List<String> emptyInstructions() {
         return this.read(EntryFileRules.INSTRUCTIONS)
             .filter(content -> !EntryFileRules.hasInstructions(content))
-            .map(content -> List.of(EntryFileRules.INSTRUCTIONS))
+            .map(_ -> List.of(EntryFileRules.INSTRUCTIONS))
             .orElseGet(List::of);
     }
 
@@ -66,7 +66,7 @@ public final class EntryFileCheck {
     private List<String> wrongClaude() {
         return this.read(EntryFileRules.CLAUDE)
             .filter(content -> !EntryFileRules.isClaudeEntry(content))
-            .map(content -> List.of(EntryFileRules.CLAUDE))
+            .map(_ -> List.of(EntryFileRules.CLAUDE))
             .orElseGet(List::of);
     }
 

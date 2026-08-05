@@ -2,13 +2,13 @@
 
 ## Project Structure & Module Organization
 
-Airness is a Java 25 Maven multi-module build harness. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, formatter, and OpenRewrite rules), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-parent` (the consumer-facing parent), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
+Airness is a Maven 3.9.16+ multi-module build harness that requires exactly Java 25. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, formatter, and OpenRewrite rules), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-parent` (the consumer-facing parent), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
 
 ## Build, Test, and Development Commands
 
 - `mvn clean install` builds, tests, and installs all reactor modules for consumer tests.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
-- `mvn clean package -Pfull` runs slow history, dependency, mutation, secret, Qodana, and Airness README checks; it requires full Git history, network access, Docker, Python 3, Asciidoctor, Vale, `pdftotext`, and Tesseract.
+- `mvn clean package -Pfull` runs slow history, dependency and plugin update, mutation, secret, Qodana, and Airness README checks; it requires full Git history, network access, Docker, Python 3, Asciidoctor, Vale, `pdftotext`, and Tesseract.
 - `mvn process-resources -Pformat` applies the configured formatter, import ordering, and OpenRewrite recipes.
 - `sh scripts/lint-docs.sh README.adoc README-guideline-software-project.adoc README-guideline-writing.adoc` checks project documentation when its external tools are installed.
 
