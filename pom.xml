@@ -51,11 +51,26 @@
             already, so an artifact only such a project resolves gains nothing from a lower target.
         -->
         <maven.compiler.release>25</maven.compiler.release>
+        <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
+        <airness.version>1.0.0-SNAPSHOT</airness.version>
         <lombok.version>1.18.46</lombok.version>
         <junit.version>6.1.2</junit.version>
-        <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
+        <jspecify.version>1.0.0</jspecify.version>
+        <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
+        <error-prone.version>2.50.0</error-prone.version>
+        <nullaway.version>0.13.7</nullaway.version>
+        <checkstyle.version>13.9.0</checkstyle.version>
+        <qulice-maven-plugin.version>0.30.1</qulice-maven-plugin.version>
+        <rewrite-apache.version>2.29.0</rewrite-apache.version>
+        <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
+        <rewrite-static-analysis.version>2.40.0</rewrite-static-analysis.version>
+        <rewrite-migrate-java.version>3.41.0</rewrite-migrate-java.version>
+        <rewrite-testing-frameworks.version>3.43.0</rewrite-testing-frameworks.version>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
+        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-gpg-plugin.version>3.2.9</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
@@ -64,9 +79,26 @@
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
         <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
+        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
+        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+        <rewrite-maven-plugin.version>6.45.0</rewrite-maven-plugin.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
+        <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+        <pitest-maven.version>1.25.8</pitest-maven.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
+        <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
+        <min.maven.version>3.9.11</min.maven.version>
     </properties>
 
     <build>
+        <!--
+            The single plugin-version table for both Airness and its consumers. A child can configure
+            the extension plugins named by ManagedVersions, but the inherited preflight rejects a
+            child-owned version. Harness plugins are declared by airness-parent and cannot be repeated.
+        -->
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -78,6 +110,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-resources-plugin</artifactId>
                     <version>${maven-resources-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -94,6 +131,96 @@
                     <artifactId>maven-deploy-plugin</artifactId>
                     <version>${maven-deploy-plugin.version}</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>${maven-shade-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${maven-source-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>${maven-javadoc-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>${exec-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${maven-gpg-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>${central-publishing-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>${maven-dependency-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.ec4j.maven</groupId>
+                    <artifactId>editorconfig-maven-plugin</artifactId>
+                    <version>${editorconfig-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>${license-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.openrewrite.maven</groupId>
+                    <artifactId>rewrite-maven-plugin</artifactId>
+                    <version>${rewrite-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>eu.ciechanowiec</groupId>
+                    <artifactId>airness-maven-plugin</artifactId>
+                    <version>${airness.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${maven-checkstyle-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-pmd-plugin</artifactId>
+                    <version>${maven-pmd-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>${spotbugs-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.pitest</groupId>
+                    <artifactId>pitest-maven</artifactId>
+                    <version>${pitest-maven.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -109,7 +236,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>
@@ -124,9 +250,8 @@
     </build>
 
     <!--
-        Pinned here rather than in each module, because these are what airness builds itself with. The
-        versions a consuming project builds with are airness-parent's business, and the two are
-        deliberately separate: raising one has no bearing on the other.
+        Pinned once at the root so Airness modules and projects inheriting airness-parent resolve the
+        same dependency versions. Child declarations are rejected by the inherited preflight.
     -->
     <dependencyManagement>
         <dependencies>
@@ -141,6 +266,91 @@
                 <artifactId>junit-jupiter</artifactId>
                 <version>${junit.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-params</artifactId>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-annotations</artifactId>
+                <version>${airness.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-config</artifactId>
+                <version>${airness.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${jspecify.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-annotations</artifactId>
+                <version>${spotbugs-annotations.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_core</artifactId>
+                <version>${error-prone.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.uber.nullaway</groupId>
+                <artifactId>nullaway</artifactId>
+                <version>${nullaway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.puppycrawl.tools</groupId>
+                <artifactId>checkstyle</artifactId>
+                <version>${checkstyle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.qulice</groupId>
+                <artifactId>qulice-maven-plugin</artifactId>
+                <version>${qulice-maven-plugin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-apache</artifactId>
+                <version>${rewrite-apache.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-logging-frameworks</artifactId>
+                <version>${rewrite-logging-frameworks.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-migrate-java</artifactId>
+                <version>${rewrite-migrate-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-static-analysis</artifactId>
+                <version>${rewrite-static-analysis.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-testing-frameworks</artifactId>
+                <version>${rewrite-testing-frameworks.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-junit5-plugin</artifactId>
+                <version>${pitest-junit5-plugin.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -157,7 +367,6 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>${exec-maven-plugin.version}</version>
                         <inherited>false</inherited>
                         <executions>
                             <execution>
@@ -195,7 +404,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>${maven-source-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
@@ -208,7 +416,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>${maven-javadoc-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -226,7 +433,6 @@
                         -->
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>${maven-gpg-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -240,7 +446,6 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>${central-publishing-maven-plugin.version}</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>

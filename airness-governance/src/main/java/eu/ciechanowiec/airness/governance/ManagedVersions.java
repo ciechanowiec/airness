@@ -1,0 +1,247 @@
+package eu.ciechanowiec.airness.governance;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import lombok.experimental.UtilityClass;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+/**
+ * Enforces the dependency and plugin ownership policy on a raw child pom.
+ *
+ * <p>The raw pom is read instead of Maven's effective model because the effective model preserves the
+ * value but not its owner. Direct declarations in inactive profiles count too: an inactive escape hatch
+ * is still a second source of truth waiting for a command to activate it.
+ */
+@UtilityClass
+public final class ManagedVersions {
+
+    private static final String MAVEN_PLUGIN_GROUP = "org.apache.maven.plugins";
+
+    private static final List<Coordinate> COORDINATES = List.of(
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-clean-plugin", "maven-clean-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-resources-plugin", "maven-resources-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-compiler-plugin", "maven-compiler-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-jar-plugin", "maven-jar-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-install-plugin", "maven-install-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-deploy-plugin", "maven-deploy-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-shade-plugin", "maven-shade-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-source-plugin", "maven-source-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-javadoc-plugin", "maven-javadoc-plugin.version"),
+        allowedPlugin("org.codehaus.mojo", "exec-maven-plugin", "exec-maven-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-gpg-plugin", "maven-gpg-plugin.version"),
+        allowedPlugin(
+            "org.sonatype.central",
+            "central-publishing-maven-plugin",
+            "central-publishing-maven-plugin.version"
+        ),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-dependency-plugin", "maven-dependency-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-surefire-plugin", "maven-surefire-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-enforcer-plugin", "maven-enforcer-plugin.version"),
+        suppliedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco-maven-plugin.version"),
+        suppliedPlugin("org.ec4j.maven", "editorconfig-maven-plugin", "editorconfig-maven-plugin.version"),
+        suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),
+        suppliedPlugin("org.openrewrite.maven", "rewrite-maven-plugin", "rewrite-maven-plugin.version"),
+        suppliedPlugin("eu.ciechanowiec", "airness-maven-plugin", "airness.version"),
+        suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-checkstyle-plugin", "maven-checkstyle-plugin.version"),
+        suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-pmd-plugin", "maven-pmd-plugin.version"),
+        suppliedPlugin(
+            "com.github.spotbugs",
+            "spotbugs-maven-plugin",
+            "spotbugs-maven-plugin.version"
+        ),
+        suppliedPlugin("org.pitest", "pitest-maven", "pitest-maven.version"),
+        suppliedDependency("org.projectlombok", "lombok", "lombok.version"),
+        suppliedDependency("org.junit.jupiter", "junit-jupiter", "junit.version"),
+        suppliedDependency("org.junit.jupiter", "junit-jupiter-api", "junit.version"),
+        suppliedDependency("org.junit.jupiter", "junit-jupiter-engine", "junit.version"),
+        suppliedDependency("org.junit.jupiter", "junit-jupiter-params", "junit.version"),
+        suppliedDependency("eu.ciechanowiec", "airness-annotations", "airness.version"),
+        suppliedDependency("eu.ciechanowiec", "airness-config", "airness.version"),
+        suppliedDependency("org.jspecify", "jspecify", "jspecify.version"),
+        suppliedDependency(
+            "com.github.spotbugs",
+            "spotbugs-annotations",
+            "spotbugs-annotations.version"
+        ),
+        suppliedDependency("com.google.errorprone", "error_prone_core", "error-prone.version"),
+        suppliedDependency("com.uber.nullaway", "nullaway", "nullaway.version"),
+        suppliedDependency("com.puppycrawl.tools", "checkstyle", "checkstyle.version"),
+        suppliedDependency("com.qulice", "qulice-maven-plugin", "qulice-maven-plugin.version"),
+        suppliedDependency("org.openrewrite.recipe", "rewrite-apache", "rewrite-apache.version"),
+        suppliedDependency(
+            "org.openrewrite.recipe",
+            "rewrite-logging-frameworks",
+            "rewrite-logging-frameworks.version"
+        ),
+        suppliedDependency(
+            "org.openrewrite.recipe",
+            "rewrite-migrate-java",
+            "rewrite-migrate-java.version"
+        ),
+        suppliedDependency(
+            "org.openrewrite.recipe",
+            "rewrite-static-analysis",
+            "rewrite-static-analysis.version"
+        ),
+        suppliedDependency(
+            "org.openrewrite.recipe",
+            "rewrite-testing-frameworks",
+            "rewrite-testing-frameworks.version"
+        ),
+        suppliedDependency("org.pitest", "pitest-junit5-plugin", "pitest-junit5-plugin.version")
+    );
+
+    private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(
+        COORDINATES.stream().map(Coordinate::property),
+        Stream.of("min.maven.version")
+    ).collect(Collectors.toUnmodifiableSet());
+
+    /**
+     * Every child declaration that tries to replace or redeclare an Airness-owned coordinate.
+     *
+     * @param pom raw child pom
+     * @return problems ordered by their message
+     */
+    public static List<String> problems(Path pom) {
+        Element root = Xml.parse(read(pom)).getDocumentElement();
+        return Stream.concat(coordinateProblems(root), propertyProblems(root)).sorted().toList();
+    }
+
+    static List<Coordinate> coordinates() {
+        return COORDINATES;
+    }
+
+    static Set<String> protectedProperties() {
+        return PROTECTED_PROPERTIES;
+    }
+
+    private static Stream<String> coordinateProblems(Element root) {
+        return COORDINATES.stream().flatMap(coordinate -> coordinateProblems(root, coordinate));
+    }
+
+    private static Stream<String> coordinateProblems(Element root, Coordinate coordinate) {
+        List<Node> declarations = declarations(root, coordinate).toList();
+        Stream<String> problems = Stream.empty();
+        if (!declarations.isEmpty()) {
+            problems = declarationProblems(coordinate, declarations);
+        }
+        return problems;
+    }
+
+    private static Stream<String> declarationProblems(Coordinate coordinate, Collection<Node> declarations) {
+        Stream<String> problems = Stream.empty();
+        if (coordinate.supplied()) {
+            problems = Stream.of(coordinate.declarationProblem());
+        } else if (declarations.stream().anyMatch(ManagedVersions::versioned)) {
+            problems = Stream.of(coordinate.versionProblem());
+        }
+        return problems;
+    }
+
+    private static Stream<Node> declarations(Element root, Coordinate coordinate) {
+        return coordinate.kind().tags().stream()
+            .flatMap(tag -> elements(root, tag))
+            .filter(coordinate::matches);
+    }
+
+    private static Stream<Node> elements(Element root, String tag) {
+        NodeList elements = root.getElementsByTagName(tag);
+        return IntStream.range(0, elements.getLength()).mapToObj(elements::item);
+    }
+
+    private static boolean versioned(Node declaration) {
+        return Xml.firstChild(declaration, "version").isPresent();
+    }
+
+    private static Stream<String> propertyProblems(Element root) {
+        return elements(root, "properties")
+            .flatMap(ManagedVersions::declaredProtectedProperties)
+            .distinct();
+    }
+
+    private static Stream<String> declaredProtectedProperties(Node properties) {
+        return PROTECTED_PROPERTIES.stream()
+            .filter(property -> Xml.firstChild(properties, property).isPresent())
+            .map(property -> "Remove child property " + property + "; Airness owns this value");
+    }
+
+    private static Coordinate allowedPlugin(String group, String artifact, String property) {
+        return new Coordinate(Kind.PLUGIN, group, artifact, property, false);
+    }
+
+    private static Coordinate suppliedPlugin(String group, String artifact, String property) {
+        return new Coordinate(Kind.PLUGIN, group, artifact, property, true);
+    }
+
+    private static Coordinate suppliedDependency(String group, String artifact, String property) {
+        return new Coordinate(Kind.DEPENDENCY, group, artifact, property, true);
+    }
+
+    private static String read(Path pom) {
+        try {
+            return Files.readString(pom);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not read " + pom, exception);
+        }
+    }
+
+    /**
+     * The two Maven declaration forms governed independently.
+     */
+    public enum Kind {
+
+        /**
+         * A project, plugin, or annotation-processor dependency.
+         */
+        DEPENDENCY,
+        /**
+         * A build or reporting plugin.
+         */
+        PLUGIN;
+
+        List<String> tags() {
+            return switch (this) {
+                case DEPENDENCY -> List.of("dependency", "path");
+                case PLUGIN -> List.of("plugin");
+            };
+        }
+    }
+
+    /**
+     * A coordinate, its root property, and whether the parent supplies its declaration.
+     */
+    public record Coordinate(Kind kind, String group, String artifact, String property, boolean supplied) {
+
+        boolean matches(Node declaration) {
+            String defaultGroup = this.kind == Kind.PLUGIN ? MAVEN_PLUGIN_GROUP : "";
+            String declaredGroup = Xml.text(declaration, "groupId").orElse(defaultGroup);
+            String declaredArtifact = Xml.text(declaration, "artifactId").orElse("");
+            return this.group.equals(declaredGroup) && this.artifact.equals(declaredArtifact);
+        }
+
+        String key() {
+            return this.kind + ":" + this.group + ':' + this.artifact;
+        }
+
+        String declarationProblem() {
+            return "Remove child declaration of " + this.group + ':' + this.artifact
+                + "; Airness supplies this " + this.kind.name().toLowerCase(Locale.ROOT);
+        }
+
+        String versionProblem() {
+            return "Remove child <version> from " + this.group + ':' + this.artifact
+                + "; Airness owns this version";
+        }
+    }
+}

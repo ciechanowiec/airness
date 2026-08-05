@@ -262,6 +262,55 @@ run_case() {
 
 consumer="$(new_consumer consumer)"
 
+managed="$scratch/managed-version"
+mkdir -p "$managed"
+cat > "$managed/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>managed-version</artifactId>
+  <version>1.0.0</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+    <exec-maven-plugin.version>1</exec-maven-plugin.version>
+    <central-publishing-maven-plugin.version>1</central-publishing-maven-plugin.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+POM
+run_case 'coordinates: child ownership is rejected' 1 'Airness (owns|supplies) this' \
+    "$managed" airness:check-parameters
+
 if grep -Fq '    public static int value() {' "$consumer/src/main/java/com/example/FormatFixture.java"; then
     echo 'ok       format: inherited profile applies source formatting'
 else
