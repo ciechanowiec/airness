@@ -459,16 +459,16 @@
             <property name="message"
                       value="Usage of org.apache.sling.models.annotations.DefaultInjectionStrategy.OPTIONAL is a bad practice and is not allowed"/>
         </module>
-        <module name="RegexpSinglelineJava">
+        <module name="MatchXpath">
             <!--
-            Unnecessary fully-qualified name in code; add an import instead (imports/Javadoc exempt). The
-            Match any qualified importable type. Limiting this to a configurable group root lets a
-            consumer accidentally make the rule enforce less while still looking enabled.
+            An importable type qualified inline has at least two lowercase package components before its
+            uppercase type. Reading the syntax tree keeps protocol paths and other string content out of
+            the rule, while the ancestor exclusions keep declarations and imports out.
             -->
-            <property name="format" value="^(?!import )(?!package ).*\b[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+\.[A-Z][a-zA-Z0-9_$]*"/>
-            <property name="ignoreComments" value="true"/>
-            <property name="message"
-                      value="Unnecessary fully-qualified type name; import the type instead of qualifying it inline."/>
+            <property name="query"
+                      value="//DOT[not(ancestor::IMPORT) and not(ancestor::STATIC_IMPORT) and not(ancestor::PACKAGE_DEF)][IDENT[matches(@text, '^[A-Z]')]][count(DOT//IDENT[matches(@text, '^[a-z]')]) ge 2]"/>
+            <message key="matchxpath.match"
+                     value="Unnecessary fully-qualified type name; import the type instead of qualifying it inline."/>
         </module>
 
         <!--

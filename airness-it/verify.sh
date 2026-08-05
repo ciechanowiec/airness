@@ -115,6 +115,48 @@ package com.example;
 public record Coordinate(int x, int y) {
 }
 JAVA
+    cat > "$directory/src/main/java/com/example/FormatFixture.java" <<'JAVA'
+package com.example;
+
+/** Exercises source application through the inherited format profile. */
+public final class FormatFixture {
+private FormatFixture() {}
+
+/**
+ * Supplies a stable value.
+ *
+ * @return the value
+ */
+public static int value() { return 1; }
+}
+JAVA
+    cat > "$directory/src/main/java/com/example/ProtocolPath.java" <<'JAVA'
+package com.example;
+
+/**
+ * Holds a protocol path that resembles a fully qualified Java type.
+ */
+public final class ProtocolPath {
+
+    private final String value;
+
+    /**
+     * Creates the protocol-path fixture.
+     */
+    public ProtocolPath() {
+        this.value = "/agent.v1.AgentService/Run";
+    }
+
+    /**
+     * Supplies the path.
+     *
+     * @return the protocol path
+     */
+    public String value() {
+        return this.value;
+    }
+}
+JAVA
     cat > "$directory/src/main/java/com/example/RewriteLogging.java" <<'JAVA'
 package com.example;
 
@@ -219,6 +261,29 @@ run_case() {
 }
 
 consumer="$(new_consumer consumer)"
+
+if grep -Fq '    public static int value() {' "$consumer/src/main/java/com/example/FormatFixture.java"; then
+    echo 'ok       format: inherited profile applies source formatting'
+else
+    echo 'FAILED   format: inherited profile did not apply source formatting' >&2
+    failures=$((failures + 1))
+fi
+run_case 'format: unchanged sources pass enforcement' 0 'BUILD SUCCESS' \
+    "$consumer" airness:source-formatting
+run_case 'checkstyle: protocol paths are not Java types' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/ProtocolPath.java'
+cat > "$consumer/src/main/java/com/example/Qualified.java" <<'JAVA'
+package com.example;
+
+/** Exercises the fully qualified type rule. */
+final class Qualified {
+
+    private final java.util.List<String> values = java.util.List.of();
+}
+JAVA
+run_case 'checkstyle: qualified Java types are rejected' 1 'Unnecessary fully-qualified type name' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Qualified.java'
+rm "$consumer/src/main/java/com/example/Qualified.java"
 
 if grep -Fq 'LOGGER.info("value {}", value);' "$consumer/src/main/java/com/example/RewriteLogging.java"; then
     echo 'ok       rewrite: SLF4J best practices reach consumers'
