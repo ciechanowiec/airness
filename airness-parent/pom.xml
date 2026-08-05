@@ -45,6 +45,7 @@
             checking one, so within the shared phase the apply runs first.
         -->
         <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
+        <airness.source.formatting.apply>false</airness.source.formatting.apply>
 
         <!-- Versions, pinned here so a consumer raises one parent version rather than a dozen properties -->
         <!-- Literal by design: ${project.version} would resolve to the consuming project's version. -->
@@ -73,6 +74,10 @@
         <qodana.image>jetbrains/qodana-jvm-community:2026.1</qodana.image>
         <pitest-maven.version>1.25.8</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
+        <!-- Stable family defaults. A child can override one without copying the PIT declaration. -->
+        <airness.mutation.threads>4</airness.mutation.threads>
+        <airness.mutation.timeout.constant>2000</airness.mutation.timeout.constant>
+        <airness.mutation.timeout.factor>1.25</airness.mutation.timeout.factor>
         <!--
             Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
             Empty by default, for the same reason the coverage exclusions are.
@@ -520,14 +525,14 @@
                         <id>airness-rewrite-apply</id>
                         <phase>${airness.rewrite.apply.phase}</phase>
                         <goals>
-                            <goal>run</goal>
+                            <goal>runNoFork</goal>
                         </goals>
                     </execution>
                     <execution>
                         <id>airness-rewrite-verify</id>
                         <phase>process-resources</phase>
                         <goals>
-                            <goal>dryRun</goal>
+                            <goal>dryRunNoFork</goal>
                         </goals>
                         <configuration>
                             <failOnDryRunResults>${airness.enforce}</failOnDryRunResults>
@@ -839,6 +844,7 @@
             <id>format</id>
             <properties>
                 <airness.rewrite.apply.phase>process-resources</airness.rewrite.apply.phase>
+                <airness.source.formatting.apply>true</airness.source.formatting.apply>
             </properties>
         </profile>
         <profile>
@@ -885,6 +891,9 @@
                                 <param>${airness.package.root}.*</param>
                             </targetTests>
                             <excludedClasses>${airness.mutation.excluded.classes}</excludedClasses>
+                            <threads>${airness.mutation.threads}</threads>
+                            <timeoutConstant>${airness.mutation.timeout.constant}</timeoutConstant>
+                            <timeoutFactor>${airness.mutation.timeout.factor}</timeoutFactor>
                             <timestampedReports>false</timestampedReports>
                             <outputFormats>
                                 <param>HTML</param>

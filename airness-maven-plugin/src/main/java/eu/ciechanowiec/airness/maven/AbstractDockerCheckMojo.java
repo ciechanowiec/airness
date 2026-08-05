@@ -61,6 +61,15 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
         return this.project;
     }
 
+    /**
+     * The Maven session whose resolved inputs a Docker-backed check may need.
+     *
+     * @return the active session
+     */
+    protected final MavenSession session() {
+        return this.session;
+    }
+
     private int runCheck() throws MojoExecutionException {
         try {
             return this.run(this.command());

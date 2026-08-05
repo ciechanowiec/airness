@@ -28,6 +28,7 @@ import net.revelc.code.impsort.Result;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.eclipse.jface.text.BadLocationException;
 import org.xml.sax.SAXException;
 
@@ -43,6 +44,9 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
 
     private static final String PROFILE = "eu/ciechanowiec/airness/formatting/EclipseCodeStyle.xml";
 
+    @Parameter(property = "airness.source.formatting.apply", defaultValue = "false")
+    private boolean apply;
+
     @Override
     boolean applies() {
         return !this.moduleSourceRoots().isEmpty();
@@ -53,7 +57,7 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
         List<Path> sources = javaSources(this.moduleSourceRoots());
         JavaFormatter formatter = formatter(this.getLog(), this.project().getBuild().getDirectory());
         ImpSort sorter = sorter();
-        if (this.formatProfile()) {
+        if (this.apply) {
             sources.forEach(source -> apply(formatter, sorter, source));
         }
         return List.of(
@@ -113,9 +117,8 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
 
     static String formattedSource(JavaFormatter formatter, Path source) {
         try {
-            return formatter.doFormat(
-                Files.readString(source), LF
-            );
+            String held = Files.readString(source);
+            return Optional.ofNullable(formatter.doFormat(held, LF)).orElse(held);
         } catch (IOException | BadLocationException exception) {
             throw new IllegalStateException("Could not format " + source, exception);
         }
@@ -139,10 +142,6 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
         } catch (IOException exception) {
             throw new IllegalStateException("Could not inspect imports in " + source, exception);
         }
-    }
-
-    private boolean formatProfile() {
-        return this.project().getActiveProfiles().stream().anyMatch(profile -> "format".equals(profile.getId()));
     }
 
     private static void apply(JavaFormatter formatter, ImpSort sorter, Path source) {
