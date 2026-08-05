@@ -1,5 +1,8 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.ManagedVersions;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,10 +44,14 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
     @Override
     List<String> problems() {
         this.logParameters();
-        return Stream.of(
-            this.packageRootProblem(),
-            this.versionAgreement()
-        ).flatMap(Optional::stream).toList();
+        Collection<String> problems = new ArrayList<>(
+            Stream.of(
+                this.packageRootProblem(),
+                this.versionAgreement()
+            ).flatMap(Optional::stream).toList()
+        );
+        problems.addAll(ManagedVersions.problems(this.project().getFile().toPath()));
+        return List.copyOf(problems);
     }
 
     private void logParameters() {

@@ -47,23 +47,6 @@
         <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
         <airness.source.formatting.apply>false</airness.source.formatting.apply>
 
-        <!-- Versions, pinned here so a consumer raises one parent version rather than a dozen properties -->
-        <!-- Literal by design: ${project.version} would resolve to the consuming project's version. -->
-        <airness.version>1.0.0-SNAPSHOT</airness.version>
-        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
-        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
-        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
-        <rewrite-maven-plugin.version>6.45.0</rewrite-maven-plugin.version>
-        <rewrite-apache.version>2.29.0</rewrite-apache.version>
-        <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
-        <rewrite-static-analysis.version>2.40.0</rewrite-static-analysis.version>
-        <rewrite-migrate-java.version>3.41.0</rewrite-migrate-java.version>
-        <rewrite-testing-frameworks.version>3.43.0</rewrite-testing-frameworks.version>
-        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
-        <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
-        <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
-        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-        <min.maven.version>3.9.11</min.maven.version>
         <!--
             Where the harness unpacks what it supplies. Under the build directory rather than in the
             tree, because a copy in the tree is a copy that gets edited and then ignored, and because
@@ -72,8 +55,6 @@
         <!-- Pinned, so the scan a build runs is the scan the next build runs. -->
         <gitleaks.image>zricethezav/gitleaks:v8.30.0</gitleaks.image>
         <qodana.image>jetbrains/qodana-jvm-community:2026.1</qodana.image>
-        <pitest-maven.version>1.25.8</pitest-maven.version>
-        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <!-- Stable family defaults. A child can override one without copying the PIT declaration. -->
         <airness.mutation.threads>4</airness.mutation.threads>
         <airness.mutation.timeout.constant>2000</airness.mutation.timeout.constant>
@@ -83,12 +64,6 @@
             Empty by default, for the same reason the coverage exclusions are.
         -->
         <airness.mutation.excluded.classes></airness.mutation.excluded.classes>
-        <error-prone.version>2.50.0</error-prone.version>
-        <nullaway.version>0.13.7</nullaway.version>
-        <jspecify.version>1.0.0</jspecify.version>
-        <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
-        <junit.version>6.1.2</junit.version>
-        <lombok.version>1.18.46</lombok.version>
         <!--
             The package NullAway treats as annotated. Everything outside it is assumed unannotated and
             goes unchecked, so a value naming a package this project does not use turns the whole
@@ -102,13 +77,9 @@
             arrived with exclusions would be teaching a project that the list is where difficulty goes.
         -->
         <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
-        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-        <checkstyle.version>13.9.0</checkstyle.version>
-        <qulice-maven-plugin.version>0.30.1</qulice-maven-plugin.version>
-        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
-        <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
     </properties>
 
+    <!-- Versions come from the root dependency management. These declarations supply the dependencies. -->
     <dependencies>
         <!--
             Inherited by every consumer, so the annotation the rule set expects is on the compile
@@ -121,45 +92,38 @@
         <dependency>
             <groupId>eu.ciechanowiec</groupId>
             <artifactId>airness-annotations</artifactId>
-            <version>${airness.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
-            <version>${jspecify.version}</version>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-            <version>${spotbugs-annotations.version}</version>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -170,7 +134,6 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>${maven-dependency-plugin.version}</version>
                     <configuration>
                         <!--
                             Dependency analysis reads class files, and a SOURCE-retention annotation
@@ -207,7 +170,6 @@
                 -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <fork>true</fork>
                     <compilerArgs>
@@ -249,7 +211,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${maven-surefire-plugin.version}</version>
             </plugin>
             <plugin>
                 <!--
@@ -263,7 +224,6 @@
                 -->
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>${jacoco-maven-plugin.version}</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                 </configuration>
@@ -314,7 +274,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>${maven-enforcer-plugin.version}</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                     <fail>${airness.enforce}</fail>
@@ -393,7 +352,6 @@
                 -->
                 <groupId>org.ec4j.maven</groupId>
                 <artifactId>editorconfig-maven-plugin</artifactId>
-                <version>${editorconfig-maven-plugin.version}</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                     <failOnFormatViolation>${airness.enforce}</failOnFormatViolation>
@@ -427,7 +385,6 @@
                 -->
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>${license-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>airness-check-dependency-licenses</id>
@@ -475,7 +432,6 @@
             <plugin>
                 <groupId>org.openrewrite.maven</groupId>
                 <artifactId>rewrite-maven-plugin</artifactId>
-                <version>${rewrite-maven-plugin.version}</version>
                 <configuration>
                     <rewriteSkip>${skipTests}</rewriteSkip>
                     <activeRecipes>
@@ -552,7 +508,6 @@
             <plugin>
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-maven-plugin</artifactId>
-                <version>${airness.version}</version>
                 <executions>
                     <execution>
                         <id>airness-source-formatting</id>
@@ -594,7 +549,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>${maven-checkstyle-plugin.version}</version>
                 <dependencies>
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
@@ -684,7 +638,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
-                <version>${maven-pmd-plugin.version}</version>
                 <dependencies>
                     <dependency>
                         <groupId>eu.ciechanowiec</groupId>
@@ -715,7 +668,6 @@
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>${spotbugs-maven-plugin.version}</version>
                 <dependencies>
                     <dependency>
                         <groupId>eu.ciechanowiec</groupId>
@@ -874,7 +826,6 @@
                     <plugin>
                         <groupId>org.pitest</groupId>
                         <artifactId>pitest-maven</artifactId>
-                        <version>${pitest-maven.version}</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.pitest</groupId>
@@ -913,7 +864,6 @@
                     <plugin>
                         <groupId>eu.ciechanowiec</groupId>
                         <artifactId>airness-maven-plugin</artifactId>
-                        <version>${airness.version}</version>
                         <executions>
                             <execution>
                                 <!--
