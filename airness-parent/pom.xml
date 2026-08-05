@@ -520,7 +520,6 @@
                         <id>airness-preflight</id>
                         <phase>validate</phase>
                         <goals>
-                            <goal>assets-sync</goal>
                             <goal>tree-snapshot</goal>
                             <goal>check-parameters</goal>
                             <goal>assets-check</goal>
