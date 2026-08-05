@@ -1,8 +1,0 @@
-package eu.ciechanowiec.airness.governance;
-
-/**
- * A dependency the pom names directly, with its version already resolved from any property reference.
- * The freshness check compares this declared version against the latest release on Maven Central.
- */
-public record DeclaredDependency(String groupId, String artifactId, String version) {
-}

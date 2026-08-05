@@ -5,7 +5,7 @@ import java.util.OptionalInt;
 import lombok.experimental.UtilityClass;
 
 /**
- * The dependency-freshness policy as a pure function: a declared dependency fails when its comparable
+ * The dependency-freshness policy as a pure function: a declared coordinate fails when its comparable
  * version trails the latest stable version by the declared bound or more. A conventional version uses
  * its numeric major. A version beginning with a year in the range {@code 20**} uses that year as its
  * major-equivalent, so calendar-versioned dependencies obey the same two-level bound.
@@ -18,7 +18,7 @@ final class DependencyFreshnessRules {
     private static final String YEAR_PREFIX = "20";
     private static final char SEPARATOR = '.';
 
-    static Optional<String> violation(DeclaredDependency declared, int latestMajor) {
+    static Optional<String> violation(DeclaredCoordinate declared, int latestMajor) {
         return major(declared.version())
             .stream()
             .boxed()
@@ -51,7 +51,7 @@ final class DependencyFreshnessRules {
             && version.substring(0, YEAR_LENGTH).chars().allMatch(Character::isDigit);
     }
 
-    private static String render(DeclaredDependency declared, int declaredMajor, int latestMajor) {
+    private static String render(DeclaredCoordinate declared, int declaredMajor, int latestMajor) {
         return "%s:%s is at major %d but the latest stable major is %d".formatted(
             declared.groupId(), declared.artifactId(), declaredMajor, latestMajor
         );

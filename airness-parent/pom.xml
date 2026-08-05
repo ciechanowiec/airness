@@ -24,7 +24,6 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>25</maven.compiler.release>
 
         <!-- One finding switch for the whole harness. skipTests is the separate total bypass. -->
         <airness.enforce>true</airness.enforce>
@@ -274,25 +273,16 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <configuration>
-                    <skip>${skipTests}</skip>
-                    <fail>${airness.enforce}</fail>
-                </configuration>
                 <executions>
                     <execution>
-                        <id>airness-enforce-environment</id>
+                        <id>airness-enforce-dependencies</id>
                         <goals>
                             <goal>enforce</goal>
                         </goals>
                         <configuration>
+                            <skip>${skipTests}</skip>
+                            <fail>${airness.enforce}</fail>
                             <rules>
-                                <requireMavenVersion>
-                                    <version>[${min.maven.version},)</version>
-                                </requireMavenVersion>
-                                <requireJavaVersion>
-                                    <version>${maven.compiler.release}</version>
-                                    <message>The harness targets JDK ${maven.compiler.release}</message>
-                                </requireJavaVersion>
                                 <!--
                                     A transitive dependency that another path down-versions is the kind of
                                     difference that shows up as a NoSuchMethodError in production and in
@@ -892,6 +882,26 @@
                                 <phase>package</phase>
                                 <goals>
                                     <goal>qodana</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!--
+                            Reports every stable update without making an update a finding. The custom
+                            freshness goal above remains the failing bound and now reads plugins too.
+                        -->
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>versions-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>airness-report-version-updates</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>display-parent-updates</goal>
+                                    <goal>display-dependency-updates</goal>
+                                    <goal>display-plugin-updates</goal>
+                                    <goal>display-property-updates</goal>
                                 </goals>
                             </execution>
                         </executions>

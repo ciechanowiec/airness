@@ -41,7 +41,7 @@ This guide covers adoption and daily use of _airness_ version `{airness-version}
 [[quick-start]]
 == Quick Start
 
-The project needs Java Development Kit (JDK) 25, Maven 3.9.11 or later, and a Git working tree. Maven permits one parent, so a project that already inherits another parent can't inherit `airness-parent` as well.
+The project needs exactly Java Development Kit (JDK) 25, Maven 3.9.16 or later, and a Git working tree. Maven permits one parent, so a project that already inherits another parent can't inherit `airness-parent` as well.
 
 [[parent-configuration]]
 === Parent Configuration
@@ -113,17 +113,17 @@ A Maven profile adds a group of build steps to a base command. The `format` and 
 | Default verification
 | `mvn clean package`
 | none
-| Syncs managed files, then runs tests and checks that need only the current Git tree. Findings fail the build.
+| Checks managed files without changing them, then runs tests and checks that need only the current Git tree. Findings fail the build.
 
 | Source formatting
 | `mvn process-resources`
 | `-Pformat`
-| Syncs managed files, rewrites Java sources to the required style, then verifies the result.
+| Rewrites Java sources to the required style, then verifies the result. Managed assets remain read-only.
 
 | Full verification
 | `mvn clean package`
 | `-Pfull`
-| Runs default verification and adds work that needs full history, external services, or more time.
+| Runs default verification, reports every stable dependency and plugin update, and adds work that needs full history, external services, or more time.
 |===
 
 A system-property flag changes how a verification command handles its work. These flags don't select additional checks.

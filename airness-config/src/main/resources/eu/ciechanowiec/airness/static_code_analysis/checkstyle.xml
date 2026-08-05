@@ -305,8 +305,9 @@
         <module name="UnnecessarySemicolonAfterTypeMemberDeclaration"/>
         <module name="UnnecessarySemicolonInEnumeration"/>
         <module name="UnnecessarySemicolonInTryWithResources"/>
-        <module name="UnusedLocalVariable"/>
         <module name="UnusedCatchParameterShouldBeUnnamed"/>
+        <module name="UnusedLambdaParameterShouldBeUnnamed"/>
+        <module name="UnusedLocalVariable"/>
         <module name="VariableDeclarationUsageDistance"/>
 
         <!--

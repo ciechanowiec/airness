@@ -1,26 +1,25 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.DeclaredDependency;
+import eu.ciechanowiec.airness.governance.DeclaredCoordinate;
+import eu.ciechanowiec.airness.governance.DeclaredCoordinates;
 import eu.ciechanowiec.airness.governance.DependencyFreshnessCheck;
 import eu.ciechanowiec.airness.governance.Findings;
+import java.io.File;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.apache.maven.model.Dependency;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.project.MavenProject;
 
 /**
- * No declared dependency trails the latest stable release by two major versions or more.
+ * No declared dependency or plugin trails the latest stable release by two major versions or more.
  *
- * <p>This runs per module, because a declared dependency belongs to the pom that declares it. It reaches
- * the network, which is why it belongs to the slow verification profile, and it fails rather than passes
- * when the registry cannot be read: a dependency whose latest release is unknown is not a dependency
- * known to be current, so an outage that read as a green build would be the worst of both.
+ * <p>This runs once over every pom in the reactor. Reading raw poms reaches management, reporting,
+ * plugin classpaths, annotation processors, and inactive profiles instead of limiting the verdict to
+ * coordinates active in the effective model. It reaches the network, which is why it belongs to the
+ * slow verification profile, and it fails rather than passes when the registry cannot be read.
  */
 @Mojo(name = "dependency-freshness", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
@@ -31,45 +30,37 @@ public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
     @Override
     List<Findings> findings() {
         DependencyFreshnessCheck check = new DependencyFreshnessCheck(
-            this.dependencies(), MAVEN_CENTRAL
+            this.coordinates(), MAVEN_CENTRAL
         );
         this.getLog().info(
-            "Dependency freshness asked Maven Central about " + check.scanned() + " dependency(ies)"
+            "Dependency freshness asked Maven Central about " + check.scanned() + " coordinate(s)"
         );
         return check.findings();
     }
 
-    private List<DeclaredDependency> dependencies() {
+    @Override
+    boolean applies() {
+        return OncePerSession.firstRun(this.session(), this.getClass());
+    }
+
+    private List<DeclaredCoordinate> coordinates() {
         Set<String> reactor = this.session().getAllProjects().stream()
             .map(DependencyFreshnessMojo::versionedKey)
             .collect(Collectors.toUnmodifiableSet());
-        Map<String, Dependency> effective = this.project().getDependencies().stream().collect(
-            Collectors.toMap(
-                DependencyFreshnessMojo::key, Function.identity(), (first, second) -> first
-            )
-        );
-        return this.project().getOriginalModel().getDependencies().stream()
-            .map(declared -> effective.getOrDefault(key(declared), declared))
-            .filter(dependency -> !reactor.contains(versionedKey(dependency)))
-            .map(
-                dependency -> Optional.ofNullable(dependency.getVersion()).map(
-                    version -> new DeclaredDependency(
-                        dependency.getGroupId(), dependency.getArtifactId(), version
-                    )
-                )
-            )
+        return this.session().getAllProjects().stream()
+            .map(MavenProject::getFile)
+            .map(Optional::ofNullable)
             .flatMap(Optional::stream)
+            .map(File::toPath)
+            .flatMap(pom -> DeclaredCoordinates.from(pom).stream())
+            .filter(coordinate -> !reactor.contains(versionedKey(coordinate)))
+            .distinct()
             .toList();
     }
 
-    private static String key(Dependency dependency) {
-        return dependency.getGroupId() + SEPARATOR + dependency.getArtifactId() + SEPARATOR
-            + dependency.getType() + SEPARATOR + dependency.getClassifier();
-    }
-
-    private static String versionedKey(Dependency dependency) {
-        return dependency.getGroupId() + SEPARATOR + dependency.getArtifactId() + SEPARATOR
-            + dependency.getVersion();
+    private static String versionedKey(DeclaredCoordinate coordinate) {
+        return coordinate.groupId() + SEPARATOR + coordinate.artifactId() + SEPARATOR
+            + coordinate.version();
     }
 
     private static String versionedKey(MavenProject project) {

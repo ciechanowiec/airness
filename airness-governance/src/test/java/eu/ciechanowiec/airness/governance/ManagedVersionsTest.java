@@ -26,8 +26,15 @@ class ManagedVersionsTest {
                         <artifactId>maven-enforcer-plugin</artifactId>
                     </plugin>
                     <plugin>
+                        <artifactId>maven-source-plugin</artifactId>
+                    </plugin>
+                    <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>versions-maven-plugin</artifactId>
                     </plugin>
                     <plugin>
                         <artifactId>unrelated-plugin</artifactId>
@@ -63,13 +70,15 @@ class ManagedVersionsTest {
     void rejectsDeclarationsOfHarnessSuppliedCoordinates() {
         List<String> problems = this.problems(CHILD_POM);
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("jacoco-maven-plugin")));
+        assertTrue(problems.stream().anyMatch(problem -> problem.contains("versions-maven-plugin")));
+        assertTrue(problems.stream().anyMatch(problem -> problem.contains("maven-enforcer-plugin")));
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("lombok")));
     }
 
     @Test
     void acceptsUnversionedExtensionPluginsAndUnrelatedCoordinates() {
         List<String> problems = this.problems(CHILD_POM);
-        assertFalse(problems.stream().anyMatch(problem -> problem.contains("maven-enforcer-plugin")));
+        assertFalse(problems.stream().anyMatch(problem -> problem.contains("maven-source-plugin")));
         assertFalse(problems.stream().anyMatch(problem -> problem.contains("unrelated-plugin")));
     }
 
