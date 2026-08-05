@@ -11,8 +11,9 @@ import org.apache.maven.plugins.annotations.Parameter;
 /**
  * The files the harness owns are where their policy says, with the bytes it ships.
  *
- * <p>The lifecycle runs {@code airness:assets-sync} before this read-only check. Calling this goal by
- * name remains useful when a project wants a verdict without first repairing the files.
+ * <p>The parent binds this read-only goal to {@code validate}. A disagreement therefore fails an
+ * ordinary build without repairing the file, while {@code airness:assets-sync} remains the explicit
+ * repair command.
  */
 @Mojo(name = "assets-check", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
 public final class AssetsCheckMojo extends AbstractRepositoryMojo {

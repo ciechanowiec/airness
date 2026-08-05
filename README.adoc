@@ -34,7 +34,7 @@
 
 This guide is for Java teams that use Maven to build an app or library. It assumes that readers know Maven project files, phases, profiles, and keys.
 
-_airness_ is a Maven parent for Java 25 projects. It moves shared build policy out of individual projects and applies that policy through the normal Maven lifecycle. A regular build produces the project artifact, synchronizes required repository files, and fails when the project doesn't conform.
+_airness_ is a Maven parent for Java 25 projects. It moves shared build policy out of individual projects and applies that policy through the normal Maven lifecycle. A regular build produces the project artifact, checks required repository files without changing them, and fails when the project doesn't conform.
 
 This guide covers adoption and daily use of _airness_ version `{airness-version}`. It doesn't cover the source modules, release work, or internal code.
 
@@ -79,13 +79,19 @@ The project needs Java Development Kit (JDK) 25, Maven 3.9.11 or later, and a Gi
 [[first-build]]
 === First Build
 
-. Run the default build. The lifecycle first creates or repairs the files managed by _airness_.
+. Materialize the files managed by _airness_. This is the only command in the adoption flow that writes them.
++
+[source,bash]
+----
+mvn airness:assets-sync
+----
+. Review and commit the managed-file changes.
+. Run the default build. It checks the resulting tree without rewriting it.
 +
 [source,bash]
 ----
 mvn clean package
 ----
-. Review and commit any managed-file changes made by the build.
 . Existing projects can first collect all findings without failing on them:
 +
 [source,bash]
@@ -218,7 +224,7 @@ List values use commas between entries. Put stable settings in the project file 
 ----
 @AGENTS.md
 ----
-. The two file names and the content of `CLAUDE.md` aren't configurable. The Maven lifecycle creates or repairs `CLAUDE.md`. It never edits the project-owned instructions in `AGENTS.md`.
+. The two file names and the content of `CLAUDE.md` aren't configurable. `airness:assets-sync` creates or repairs `CLAUDE.md`. The verification lifecycle only checks it. Neither path edits the project-owned instructions in `AGENTS.md`.
 
 [[managed-files]]
 == Managed Files
@@ -240,8 +246,8 @@ List values use commas between entries. Put stable settings in the project file 
 | Must be absent because _airness_ supplies this setup from its artifacts. The check reports these files but doesn't delete them.
 |===
 
-. A `package` build manages pinned files in three steps. During `validate`, `assets-sync` replaces each missing or changed pinned file with the exact content supplied by the active _airness_ version. The lifecycle then records a snapshot of every tracked or committable file. During `package`, `tree-verify` fails the build when the final tree differs from that snapshot.
-. A repair made by `assets-sync` doesn't fail the build because the snapshot follows the repair. A later build plugin that changes a pinned file does fail the build. Run the sync goal directly to restore managed files without continuing to later phases.
+. A `package` build is read-only. During `validate`, `tree-snapshot` records every tracked or committable file before `assets-check` compares each pinned file with the exact content supplied by the active _airness_ version. Missing or changed pinned files fail the build and remain untouched. During `package`, `tree-verify` fails when a later build plugin changes the recorded tree.
+. Run the sync goal directly to create missing managed files during adoption or to restore drift. This is an explicit source-tree write and doesn't continue through the verification lifecycle:
 +
 [source,bash]
 ----

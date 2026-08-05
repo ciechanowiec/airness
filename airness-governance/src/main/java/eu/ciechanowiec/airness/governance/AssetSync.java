@@ -13,8 +13,8 @@ import java.util.Set;
 /**
  * Writes the files the harness owns into a project, which is the only thing here that writes anything.
  *
- * <p>The lifecycle runs this repair before it records the tree snapshot. The later tree check therefore
- * compares against the repaired state and still detects any plugin that writes after validation.
+ * <p>The lifecycle deliberately does not run this repair. Its read-only asset check fails on drift, and
+ * this writer is a separate command so a successful verification describes the tree it was given.
  *
  * <p>Nothing is ever deleted. A file the harness forbids is reported by the check with the reason and
  * the remedy, and removing it is left to whoever put it there: a build tool deleting a developer's file

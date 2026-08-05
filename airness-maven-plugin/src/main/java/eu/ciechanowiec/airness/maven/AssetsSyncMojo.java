@@ -12,12 +12,11 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
 /**
- * Writes the files the harness owns into this project before the lifecycle snapshots and checks the
- * working tree.
+ * Writes the files the harness owns into this project when explicitly requested.
  *
- * <p>The parent binds this goal first at {@code validate}. The snapshot therefore records the repaired
- * tree, and the later tree check still detects any plugin that writes after validation. The goal remains
- * callable by name when a project wants to sync without running a lifecycle.
+ * <p>The parent does not bind this goal to the lifecycle. An ordinary build checks the files without
+ * changing them, so its verdict describes the tree that started the build. A project opts into repair
+ * by calling this goal directly.
  */
 @Mojo(name = "assets-sync", threadSafe = true)
 public final class AssetsSyncMojo extends AbstractMojo {
