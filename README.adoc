@@ -196,11 +196,11 @@ List values use commas between entries. Put stable settings in the project file 
 
 | `airness.mutation.timeout.constant`
 | `2000`
-| Milliseconds added to PIT's calculated test timeout.
+| Milliseconds added to mutation analysis's calculated test timeout.
 
 | `airness.mutation.timeout.factor`
 | `1.25`
-| Multiplier applied to PIT's normal test duration when calculating its timeout.
+| Multiplier applied to a test's normal duration when mutation analysis calculates its timeout.
 
 | `airness.mutation.baseline`
 | `mutation-baseline.tsv`
@@ -261,7 +261,7 @@ com.example.orders.ClockAdapter	now	removed call to java/time/Clock::instant	Cov
 ----
 . A survivor missing from the file is a new test gap. An entry whose mutant is now killed is stale and must be removed.
 . A reason that begins with `[intermittent]` marks a mutant that has been seen to alternate between killed and surviving. A run that produces no mutants still fails.
-. _airness_ gives PIT stable worker and timeout defaults. Override the three `airness.mutation.*` tuning keys only when a project's tests have measured needs that differ from the family defaults.
+. _airness_ gives mutation analysis stable worker and timeout defaults. Override the three mutation tuning keys only when a project's tests have measured needs that differ from the family defaults.
 
 [[suppressions]]
 == Suppressions

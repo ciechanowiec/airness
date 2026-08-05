@@ -63,6 +63,7 @@
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
+        <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
     </properties>
 
     <build>
@@ -145,6 +146,39 @@
     </dependencyManagement>
 
     <profiles>
+        <profile>
+            <!--
+                Airness's README is repository source, not a consumer asset. Keep this execution on the
+                aggregator while making the same full command verify the main document changed here.
+            -->
+            <id>full</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec-maven-plugin.version}</version>
+                        <inherited>false</inherited>
+                        <executions>
+                            <execution>
+                                <id>lint-airness-documentation</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>sh</executable>
+                                    <arguments>
+                                        <argument>scripts/lint-docs.sh</argument>
+                                        <argument>README.adoc</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <!--
                 Publication. Everything here is off in an ordinary build, because none of it verifies
