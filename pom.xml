@@ -57,6 +57,7 @@
         <junit.version>6.1.2</junit.version>
         <jspecify.version>1.0.1</jspecify.version>
         <spotbugs-annotations.version>4.10.3</spotbugs-annotations.version>
+        <maven-artifact.version>3.9.16</maven-artifact.version>
         <error-prone.version>2.50.0</error-prone.version>
         <nullaway.version>0.13.8</nullaway.version>
         <checkstyle.version>13.9.0</checkstyle.version>
@@ -357,6 +358,11 @@
                 <version>${airness.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.apache.maven</groupId>
+                <artifactId>maven-artifact</artifactId>
+                <version>${maven-artifact.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.jspecify</groupId>
                 <artifactId>jspecify</artifactId>
                 <version>${jspecify.version}</version>
@@ -446,29 +452,6 @@
                                         <argument>README.adoc</argument>
                                     </arguments>
                                 </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <!--
-                            The reactor's version catalogue lives here, so this non-inherited execution
-                            reports Airness's own managed properties once. The consumer execution lives
-                            in airness-parent because descendants inherit that pom rather than this
-                            aggregator build.
-                        -->
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>versions-maven-plugin</artifactId>
-                        <inherited>false</inherited>
-                        <executions>
-                            <execution>
-                                <id>report-airness-version-updates</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>display-parent-updates</goal>
-                                    <goal>display-dependency-updates</goal>
-                                    <goal>display-plugin-updates</goal>
-                                    <goal>display-property-updates</goal>
-                                </goals>
                             </execution>
                         </executions>
                     </plugin>

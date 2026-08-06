@@ -565,6 +565,70 @@ POM
 run_case 'freshness: same-reactor dependency needs no registry metadata' 0 'BUILD SUCCESS' \
     "$reactor" airness:dependency-freshness
 
+# A consumer inherits both update reporting and the freshness verdict through every parent level.
+stale_grandparent="$scratch/stale-grandparent"
+mkdir -p "$stale_grandparent"
+cat > "$stale_grandparent/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>stale-grandparent</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>2.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+POM
+(cd "$stale_grandparent" && mvn --quiet --non-recursive install -DskipTests)
+
+middle_parent="$scratch/middle-parent"
+mkdir -p "$middle_parent"
+cat > "$middle_parent/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>stale-grandparent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>middle-parent</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+</project>
+POM
+(cd "$middle_parent" && mvn --quiet --non-recursive install -DskipTests)
+
+ancestry_consumer="$scratch/ancestry-consumer"
+mkdir -p "$ancestry_consumer"
+cat > "$ancestry_consumer/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>middle-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>ancestry-consumer</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+</project>
+POM
+run_case 'freshness: indirect parent update fails the consumer' 1 \
+    '\[com.example:stale-grandparent\] info.picocli:picocli' \
+    "$ancestry_consumer" airness:dependency-freshness
+
 # Production code without tests cannot deactivate coverage merely by omitting src/test/java.
 untested="$(new_consumer untested)"
 rm -rf "$untested/src/test"

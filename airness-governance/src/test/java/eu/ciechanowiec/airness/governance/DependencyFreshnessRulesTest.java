@@ -19,28 +19,28 @@ class DependencyFreshnessRulesTest {
 
     @Test
     void failsADependencyTwoMajorsBehind() {
-        assertFalse(DependencyFreshnessRules.violation(PICOCLI, 6).isEmpty());
+        assertFalse(DependencyFreshnessRules.violation(update(PICOCLI, "6.0.0")).isEmpty());
     }
 
     @Test
     void passesADependencyOneMajorBehind() {
-        assertTrue(DependencyFreshnessRules.violation(PICOCLI, 5).isEmpty());
+        assertTrue(DependencyFreshnessRules.violation(update(PICOCLI, "5.0.0")).isEmpty());
     }
 
     @Test
     void passesACurrentDependency() {
-        assertTrue(DependencyFreshnessRules.violation(PICOCLI, 4).isEmpty());
+        assertTrue(DependencyFreshnessRules.violation(update(PICOCLI, "4.8.0")).isEmpty());
     }
 
     @Test
     void failsADateVersionedDependencyTwoYearsBehind() {
         assertTrue(DependencyFreshnessRules.hasComparableMajor(JSON.version()));
-        assertFalse(DependencyFreshnessRules.violation(JSON, TWO_YEARS_AHEAD).isEmpty());
+        assertFalse(DependencyFreshnessRules.violation(update(JSON, "%d0101".formatted(TWO_YEARS_AHEAD))).isEmpty());
     }
 
     @Test
     void passesADateVersionedDependencyOneYearBehind() {
-        assertTrue(DependencyFreshnessRules.violation(JSON, ONE_YEAR_AHEAD).isEmpty());
+        assertTrue(DependencyFreshnessRules.violation(update(JSON, "%d0101".formatted(ONE_YEAR_AHEAD))).isEmpty());
     }
 
     @Test
@@ -54,5 +54,9 @@ class DependencyFreshnessRulesTest {
         assertTrue(DependencyFreshnessRules.sameScheme("20260719", "20280719"));
         assertFalse(DependencyFreshnessRules.sameScheme("20260719", "3.0.0"));
         assertFalse(DependencyFreshnessRules.sameScheme("3.0.0", "20280719"));
+    }
+
+    private static VersionUpdate update(DeclaredCoordinate coordinate, String latest) {
+        return new VersionUpdate(new OwnedCoordinate("test:project", coordinate), latest);
     }
 }

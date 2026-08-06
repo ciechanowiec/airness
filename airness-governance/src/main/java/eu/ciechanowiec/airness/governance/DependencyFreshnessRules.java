@@ -18,12 +18,15 @@ final class DependencyFreshnessRules {
     private static final String YEAR_PREFIX = "20";
     private static final char SEPARATOR = '.';
 
-    static Optional<String> violation(DeclaredCoordinate declared, int latestMajor) {
+    static Optional<String> violation(VersionUpdate update) {
+        DeclaredCoordinate declared = update.declared().coordinate();
+        OptionalInt latest = major(update.latest());
         return major(declared.version())
             .stream()
             .boxed()
-            .filter(declaredMajor -> latestMajor - declaredMajor >= MAJOR_FAIL_THRESHOLD)
-            .map(declaredMajor -> render(declared, declaredMajor, latestMajor))
+            .filter(_ -> latest.isPresent())
+            .filter(declaredMajor -> latest.orElseThrow() - declaredMajor >= MAJOR_FAIL_THRESHOLD)
+            .map(declaredMajor -> render(update, declaredMajor, latest.orElseThrow()))
             .findFirst();
     }
 
@@ -51,9 +54,10 @@ final class DependencyFreshnessRules {
             && version.substring(0, YEAR_LENGTH).chars().allMatch(Character::isDigit);
     }
 
-    private static String render(DeclaredCoordinate declared, int declaredMajor, int latestMajor) {
-        return "%s:%s is at major %d but the latest stable major is %d".formatted(
-            declared.groupId(), declared.artifactId(), declaredMajor, latestMajor
+    private static String render(VersionUpdate update, int declaredMajor, int latestMajor) {
+        DeclaredCoordinate declared = update.declared().coordinate();
+        return "[%s] %s:%s is at major %d but the latest stable major is %d".formatted(
+            update.declared().owner(), declared.groupId(), declared.artifactId(), declaredMajor, latestMajor
         );
     }
 }

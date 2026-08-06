@@ -16,7 +16,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- * Reads every directly declared dependency and plugin out of a pom, resolving each exact
+ * Reads every directly declared dependency, plugin, and parent out of a pom, resolving each exact
  * {@code ${property}} version against properties in that pom.
  *
  * <p>The scan is deliberately independent of Maven's effective model. Management sections, plugin
@@ -45,7 +45,22 @@ public final class DeclaredCoordinates {
         Stream<DeclaredCoordinate> plugins = elements(root, "plugin")
             .map(node -> coordinate(node, properties, MAVEN_PLUGIN_GROUP))
             .flatMap(Optional::stream);
-        return Stream.concat(dependencies, plugins).distinct().toList();
+        Stream<DeclaredCoordinate> parents = Xml.firstChild(root, "parent").stream()
+            .map(node -> coordinate(node, properties, ""))
+            .flatMap(Optional::stream);
+        return Stream.of(dependencies, plugins, parents).flatMap(stream -> stream).distinct().toList();
+    }
+
+    /**
+     * The parent the pom declares, if it has one.
+     *
+     * @param pom pom to read
+     * @return the declared parent with its locally owned property resolved
+     */
+    public static Optional<DeclaredCoordinate> parent(Path pom) {
+        Node root = Xml.parse(read(pom)).getDocumentElement();
+        Map<String, String> properties = properties(root);
+        return Xml.firstChild(root, "parent").flatMap(node -> coordinate(node, properties, ""));
     }
 
     private static Optional<DeclaredCoordinate> coordinate(

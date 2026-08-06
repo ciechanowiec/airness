@@ -523,6 +523,13 @@
                         </goals>
                     </execution>
                     <execution>
+                        <id>airness-version-check</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>dependency-freshness</goal>
+                        </goals>
+                    </execution>
+                    <execution>
                         <id>airness-governance</id>
                         <phase>package</phase>
                         <goals>
@@ -872,7 +879,6 @@
                                 <goals>
                                     <goal>commit-history</goal>
                                     <goal>commit-typography</goal>
-                                    <goal>dependency-freshness</goal>
                                     <goal>mutation-baseline</goal>
                                     <goal>scan-secrets</goal>
                                 </goals>
@@ -882,26 +888,6 @@
                                 <phase>package</phase>
                                 <goals>
                                     <goal>qodana</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <!--
-                            Reports every stable update without making an update a finding. The custom
-                            freshness goal above remains the failing bound and now reads plugins too.
-                        -->
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>versions-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>airness-report-version-updates</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>display-parent-updates</goal>
-                                    <goal>display-dependency-updates</goal>
-                                    <goal>display-plugin-updates</goal>
-                                    <goal>display-property-updates</goal>
                                 </goals>
                             </execution>
                         </executions>

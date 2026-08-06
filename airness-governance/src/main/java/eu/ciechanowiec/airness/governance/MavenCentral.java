@@ -7,19 +7,18 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
-import java.util.OptionalInt;
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 
 /**
- * Reads the latest stable comparable version of a dependency from a registry's metadata: the
- * numeric major for conventional versions, or the leading year for versions beginning with
- * {@code 20**}. Pre-release versions are ignored: the six forms the versions report ignores (see its
- * ruleset in the pom), spelled here as the same anchored patterns so the two agree on what counts as
- * stable, plus snapshots, which the report never meets because it reads release metadata. Any
- * unreachable registry, non-200 response, or absence of a stable release throws, so the freshness
- * check fails closed rather than passing on missing data.
+ * Reads the latest stable version of a dependency from a registry's metadata. Pre-release versions
+ * are ignored: the six forms the versions report ignores, spelled here as the same anchored patterns
+ * so the two agree on what counts as stable, plus snapshots. Any unreachable registry, non-200
+ * response, or absence of a stable release throws, so the version check fails closed rather than
+ * passing on missing data.
  *
  * <p>The registry is a parameter rather than a constant, because a check that can only ever reach one
  * host is a check nobody can watch fail. Pointing it at a host that does not answer is how the caller
@@ -36,16 +35,25 @@ final class MavenCentral {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int OK = 200;
 
-    static int latestMajor(String registry, DeclaredCoordinate coordinate) {
+    static Optional<VersionUpdate> update(String registry, OwnedCoordinate declared) {
+        DeclaredCoordinate coordinate = declared.coordinate();
         String metadata = fetch(metadataUrl(registry, coordinate));
-        List<String> versions = MavenMetadata.versions(metadata);
-        return versions.stream()
+        String latest = MavenMetadata.versions(metadata).stream()
             .filter(version -> !PRERELEASE.matcher(version).matches())
             .filter(version -> DependencyFreshnessRules.sameScheme(coordinate.version(), version))
-            .map(DependencyFreshnessRules::major)
-            .flatMapToInt(OptionalInt::stream)
-            .max()
+            .max(Comparator.comparing(ComparableVersion::new))
             .orElseThrow(() -> new IllegalStateException("No stable release found for " + coordinate));
+        return Optional.of(new VersionUpdate(declared, latest)).filter(MavenCentral::isNewer);
+    }
+
+    static boolean checkable(OwnedCoordinate declared) {
+        String version = declared.coordinate().version();
+        return !version.startsWith("${") && !PRERELEASE.matcher(version).matches();
+    }
+
+    private static boolean isNewer(VersionUpdate update) {
+        ComparableVersion declared = new ComparableVersion(update.declared().coordinate().version());
+        return new ComparableVersion(update.latest()).compareTo(declared) > 0;
     }
 
     private static String metadataUrl(String registry, DeclaredCoordinate coordinate) {
