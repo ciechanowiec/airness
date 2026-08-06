@@ -8,6 +8,7 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -88,10 +89,10 @@ public final class Repository {
         String listing = GitPlumbing.run(
             root, List.of("ls-files", "-z", "--cached", "--others", "--exclude-standard")
         );
-        return Arrays.stream(listing.split("\0"))
+        return Arrays.stream(listing.split("\0", -1))
             .filter(name -> !name.isEmpty())
             .map(root::resolve)
-            .filter(Files::isRegularFile)
+            .filter(Repository::committableEntry)
             .distinct()
             .toList();
     }
@@ -108,7 +109,25 @@ public final class Repository {
      * @return the decoded text, or nothing when the path is absent, binary, or not valid UTF-8
      */
     static Optional<String> readText(Path file) {
-        return Optional.of(file).filter(Files::isRegularFile).flatMap(Repository::readDecodable);
+        if (Files.isSymbolicLink(file)) {
+            return Optional.of(readLink(file));
+        }
+        return Optional.of(file)
+            .filter(candidate -> Files.isRegularFile(candidate, LinkOption.NOFOLLOW_LINKS))
+            .flatMap(Repository::readDecodable);
+    }
+
+    private static boolean committableEntry(Path path) {
+        return Files.isSymbolicLink(path)
+            || Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
+    }
+
+    private static String readLink(Path link) {
+        try {
+            return Files.readSymbolicLink(link).toString();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not read symbolic link " + link, exception);
+        }
     }
 
     private static Optional<String> readDecodable(Path file) {

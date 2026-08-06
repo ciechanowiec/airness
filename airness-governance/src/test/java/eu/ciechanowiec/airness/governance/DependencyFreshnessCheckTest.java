@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -29,25 +30,12 @@ import org.junit.jupiter.api.io.TempDir;
 class DependencyFreshnessCheckTest {
 
     private static final int HTTP_OK = 200;
-
-    private static final String POM = """
-        <project>
-            <dependencies>
-                <dependency>
-                    <groupId>sample</groupId>
-                    <artifactId>library</artifactId>
-                    <version>%s</version>
-                </dependency>
-            </dependencies>
-        </project>
-        """;
-
     private static final String PLUGIN_POM = """
         <project>
             <profiles>
                 <profile>
                     <properties>
-                        <sample-plugin.version>%s</sample-plugin.version>
+                        <sample-plugin.version>1.0.0</sample-plugin.version>
                     </properties>
                     <build>
                         <pluginManagement>
@@ -65,33 +53,27 @@ class DependencyFreshnessCheckTest {
         </project>
         """;
 
-    private static final String METADATA = """
-        <metadata>
-            <versioning>
-                <versions>
-                    <version>1.0.0</version>
-                    <version>%s</version>
-                </versions>
-            </versioning>
-        </metadata>
-        """;
-
     @TempDir
     private Path directory;
 
-    private HttpServer server;
+    private Optional<HttpServer> server;
+
+    DependencyFreshnessCheckTest() {
+        this.server = Optional.empty();
+    }
 
     @AfterEach
     void stopTheRegistry() {
-        this.server.stop(0);
+        this.server.ifPresent(active -> active.stop(0));
     }
 
     @SneakyThrows
     private String registry(String latest) {
-        this.server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-        this.server.createContext("/", exchange -> respond(exchange, METADATA.formatted(latest)));
-        this.server.start();
-        return "http://127.0.0.1:" + this.server.getAddress().getPort() + "/";
+        HttpServer active = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        this.server = Optional.of(active);
+        active.createContext("/", exchange -> respond(exchange, metadata(latest)));
+        active.start();
+        return "http://127.0.0.1:" + active.getAddress().getPort() + "/";
     }
 
     @SneakyThrows
@@ -105,7 +87,7 @@ class DependencyFreshnessCheckTest {
 
     @SneakyThrows
     private DependencyFreshnessCheck check(String declared, String registry) {
-        return this.checkPom(POM.formatted(declared), registry);
+        return this.checkPom(pom(declared), registry);
     }
 
     @SneakyThrows
@@ -141,7 +123,7 @@ class DependencyFreshnessCheckTest {
     @Test
     void reportsAPluginFromAnInactiveManagementProfile() {
         List<String> offences = Verdicts.offences(
-            this.checkPom(PLUGIN_POM.formatted("1.0.0"), this.registry("3.0.0")).findings(),
+            this.checkPom(PLUGIN_POM, this.registry("3.0.0")).findings(),
             "trailing"
         );
         assertEquals(1, offences.size(), "the managed plugin is part of the same freshness bound");
@@ -158,13 +140,13 @@ class DependencyFreshnessCheckTest {
     @Test
     void failsRatherThanPassesWhenTheRegistryCannotBeRead() {
         String unreachable = this.registry("3.0.0");
-        this.server.stop(0);
+        this.server.orElseThrow().stop(0);
         UncheckedIOException thrown = assertThrows(
             UncheckedIOException.class, () -> this.check("1.0.0", unreachable),
             "a dependency whose latest release could not be read is not a dependency known to be current"
         );
         assertTrue(
-            thrown.getMessage().contains(unreachable),
+            thrown.toString().contains(unreachable),
             "and it names the registry it could not reach, so the failure is not mistaken for a stale dependency"
         );
     }
@@ -175,6 +157,33 @@ class DependencyFreshnessCheckTest {
         IllegalStateException thrown = assertThrows(
             IllegalStateException.class, () -> this.check("${inherited.version}", registry)
         );
-        assertTrue(thrown.getMessage().contains("Unresolved version"));
+        assertTrue(thrown.toString().contains("Unresolved version"));
+    }
+
+    private static String pom(String version) {
+        return """
+            <project>
+                <dependencies>
+                    <dependency>
+                        <groupId>sample</groupId>
+                        <artifactId>library</artifactId>
+                        <version>%s</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """.formatted(version);
+    }
+
+    private static String metadata(String version) {
+        return """
+            <metadata>
+                <versioning>
+                    <versions>
+                        <version>1.0.0</version>
+                        <version>%s</version>
+                    </versions>
+                </versioning>
+            </metadata>
+            """.formatted(version);
     }
 }

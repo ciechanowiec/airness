@@ -46,11 +46,11 @@ public final class MutationBaselineMojo extends AbstractGovernanceMojo {
      * configured to mutate nothing writes no report, and so does an analysis that never ran, and both
      * would then read as a module the gate had nothing to say about.
      *
-     * @return whether the module has sources for the analysis to mutate
+     * @return whether the module has production sources for the analysis to mutate
      */
     @Override
     boolean applies() {
-        return !this.moduleSourceRoots().isEmpty();
+        return this.hasProductionJava();
     }
 
     @Override
@@ -65,7 +65,7 @@ public final class MutationBaselineMojo extends AbstractGovernanceMojo {
     }
 
     private void requireCurrent(Path analysis) {
-        if (modified(analysis) < this.session().getStartTime().getTime()) {
+        if (modified(analysis) < this.session().getStartTime().toInstant().toEpochMilli()) {
             throw new IllegalStateException(
                 analysis + " predates this build, so it describes code that may since have changed. Run with clean"
             );

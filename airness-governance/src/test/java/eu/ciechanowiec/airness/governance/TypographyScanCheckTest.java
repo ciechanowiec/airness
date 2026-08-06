@@ -3,8 +3,10 @@ package eu.ciechanowiec.airness.governance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -65,6 +67,19 @@ class TypographyScanCheckTest {
             List.of("vendor/"),
             Verdicts.offences(new TypographyScanCheck(root, VENDORED).findings(), "exclusion prefix"),
             "a prefix that excludes nothing names a path that moved or went, and hides the next thing it does exclude"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void doesNotFollowASymbolicLinkOutsideTheRepository() {
+        Path outside = Files.createTempFile("airness-typography-outside-", ".txt");
+        Files.writeString(outside, OFFENDING);
+        Path root = new GitFixture("typography-symlink").write("README.md", PLAIN).root();
+        Files.createSymbolicLink(root.resolve("outside.txt"), outside);
+        assertTrue(
+            Verdicts.clean(new TypographyScanCheck(root, List.of()).findings()),
+            "a repository scan reads the link itself and never content outside its root"
         );
     }
 }

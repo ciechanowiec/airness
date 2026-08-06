@@ -21,12 +21,7 @@ public record Findings(String headline, List<String> offences) {
 
     private static final String INDENT = "  ";
 
-    /**
-     * Copies the offences, so a caller that keeps its own list cannot alter a verdict already reported.
-     *
-     * @param headline what the rule requires
-     * @param offences every place the rule was broken
-     */
+    // A defensive copy keeps a caller from altering a verdict after it has been reported.
     public Findings {
         offences = List.copyOf(offences);
     }

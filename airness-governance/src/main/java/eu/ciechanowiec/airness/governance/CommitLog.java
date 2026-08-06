@@ -26,7 +26,7 @@ final class CommitLog {
     }
 
     private static HistoryEntry entry(String line) {
-        String[] fields = line.strip().split("\\s+");
+        String[] fields = line.strip().split("\\s+", -1);
         return new HistoryEntry(fields[0], fields.length > 2);
     }
 

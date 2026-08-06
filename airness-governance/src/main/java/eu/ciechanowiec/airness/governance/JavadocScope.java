@@ -23,6 +23,9 @@ import java.util.stream.Stream;
 final class JavadocScope {
 
     private static final Pattern IMPORT = Pattern.compile("(?m)^import\\s+(?:static\\s+)?([\\w.]+);");
+    private static final Pattern DECLARED_TYPE = Pattern.compile(
+        "\\b(?:class|interface|enum|record|@interface)\\s+([A-Z][A-Za-z0-9]*)\\b"
+    );
     private static final String JAVA_LANG = "java.lang.";
     private static final String JAVA = ".java";
 
@@ -41,7 +44,7 @@ final class JavadocScope {
             sources.stream().collect(
                 Collectors.groupingBy(
                     Path::getParent,
-                    Collectors.mapping(JavadocScope::typeName, Collectors.toUnmodifiableSet())
+                    Collectors.flatMapping(JavadocScope::declaredBy, Collectors.toUnmodifiableSet())
                 )
             )
         );
@@ -53,7 +56,7 @@ final class JavadocScope {
     Predicate<String> of(Path source, CharSequence text) {
         Set<String> named = Stream.concat(
             this.neighbours.getOrDefault(source.getParent(), Set.of()).stream(),
-            imported(text)
+            Stream.concat(imported(text), declared(text))
         ).collect(Collectors.toUnmodifiableSet());
         return name -> named.contains(name) || inJavaLang(name);
     }
@@ -71,6 +74,17 @@ final class JavadocScope {
         return IMPORT.matcher(JavadocLinkRules.codeOnly(text)).results()
             .map(MatchResult::group)
             .map(JavadocScope::simpleName);
+    }
+
+    private static Stream<String> declared(CharSequence text) {
+        return DECLARED_TYPE.matcher(JavadocLinkRules.codeOnly(text)).results()
+            .map(match -> match.group(1));
+    }
+
+    private static Stream<String> declaredBy(Path source) {
+        return Stream.concat(
+            Stream.of(typeName(source)), Repository.readText(source).stream().flatMap(JavadocScope::declared)
+        );
     }
 
     private static String simpleName(String importLine) {

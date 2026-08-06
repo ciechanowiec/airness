@@ -56,7 +56,7 @@ public final class AssetCatalogue {
      * @return the managed assets, in the order the manifest lists them
      */
     public List<ManagedAsset> assets() {
-        return this.assets;
+        return List.copyOf(this.assets);
     }
 
     /**
@@ -98,7 +98,7 @@ public final class AssetCatalogue {
     }
 
     private static ManagedAsset entry(String line) {
-        String[] fields = line.split(SEPARATOR);
+        String[] fields = line.split(SEPARATOR, -1);
         if (fields.length != FIELDS) {
             throw new IllegalStateException("A manifest line needs a path and a policy: " + line);
         }

@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.Justification;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.experimental.UtilityClass;
@@ -44,6 +45,7 @@ final class OncePerSession {
      * @param scope   the stable scope the goal reads
      * @return whether the caller is the first for that goal and scope
      */
+    @Justification("Maven session data is untyped, and this private key is written only with this collection type")
     @SuppressWarnings("unchecked")
     static boolean firstRun(MavenSession session, Class<?> goal, String scope) {
         SessionData data = session.getRepositorySession().getData();

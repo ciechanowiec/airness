@@ -71,7 +71,7 @@ public final class DependencyFreshnessCheck {
      * @return available updates in declaration order
      */
     public List<VersionUpdate> updates() {
-        return this.updates;
+        return List.copyOf(this.updates);
     }
 
     /**

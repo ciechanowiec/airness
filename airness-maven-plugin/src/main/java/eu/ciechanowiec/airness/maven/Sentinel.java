@@ -29,7 +29,7 @@ final class Sentinel {
     }
 
     private static List<String> entries(String value) {
-        return Arrays.stream(value.split(SEPARATOR))
+        return Arrays.stream(value.split(SEPARATOR, -1))
             .map(String::strip)
             .filter(entry -> !entry.isEmpty())
             .toList();

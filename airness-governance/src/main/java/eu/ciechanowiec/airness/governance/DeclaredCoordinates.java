@@ -30,6 +30,7 @@ import org.w3c.dom.NodeList;
 public final class DeclaredCoordinates {
 
     private static final String MAVEN_PLUGIN_GROUP = "org.apache.maven.plugins";
+    private static final String DEPENDENCIES = "dependencies";
     private static final String PROPERTY_PREFIX = "${";
     private static final String PROPERTY_SUFFIX = "}";
 
@@ -88,7 +89,7 @@ public final class DeclaredCoordinates {
         return raw;
     }
 
-    private static Map<String, String> properties(Element root, Node declaration) {
+    private static Map<String, String> properties(Node root, Node declaration) {
         Stream<Node> project = Xml.firstChild(root, "properties").stream().map(Node.class::cast);
         Stream<Node> profile = ancestors(declaration)
             .filter(node -> named(node, "profile"))
@@ -117,7 +118,7 @@ public final class DeclaredCoordinates {
     }
 
     static Stream<Node> plugins(Element root) {
-        return elements(root, "plugin").filter(DeclaredCoordinates::isPlugin);
+        return elements(root, "plugin").filter(PluginDeclaration::matches);
     }
 
     static Stream<Node> paths(Element root) {
@@ -130,13 +131,13 @@ public final class DeclaredCoordinates {
     }
 
     private static Stream<Node> elements(Element root, String tag) {
-        NodeList nodes = ((Element) root).getElementsByTagName(tag);
+        NodeList nodes = root.getElementsByTagName(tag);
         return IntStream.range(0, nodes.getLength()).mapToObj(nodes::item);
     }
 
     private static boolean isDependency(Node node) {
         Node dependencies = node.getParentNode();
-        if (!named(dependencies, "dependencies")) {
+        if (!named(dependencies, DEPENDENCIES)) {
             return false;
         }
         Node owner = dependencies.getParentNode();
@@ -145,23 +146,12 @@ public final class DeclaredCoordinates {
             || isPluginDependency(owner);
     }
 
-    private static boolean isPlugin(Node node) {
-        Node plugins = node.getParentNode();
-        Node owner = plugins.getParentNode();
-        boolean direct = (named(owner, "build") || named(owner, "reporting"))
-            && projectOrProfile(owner.getParentNode());
-        boolean managed = named(owner, "pluginManagement")
-            && named(owner.getParentNode(), "build")
-            && projectOrProfile(owner.getParentNode().getParentNode());
-        return named(plugins, "plugins") && (direct || managed);
-    }
-
     private static boolean isManagedDependency(Node owner) {
         return named(owner, "dependencyManagement") && projectOrProfile(owner.getParentNode());
     }
 
     private static boolean isPluginDependency(Node owner) {
-        return named(owner, "plugin") && isPlugin(owner);
+        return named(owner, "plugin") && PluginDeclaration.matches(owner);
     }
 
     private static boolean isAnnotationProcessorPath(Node node) {
@@ -173,7 +163,7 @@ public final class DeclaredCoordinates {
             .findFirst();
         return named(paths, "annotationProcessorPaths")
             && configuration.filter(held -> named(held, "configuration")).isPresent()
-            && plugin.filter(DeclaredCoordinates::isPlugin).isPresent();
+            && plugin.filter(PluginDeclaration::matches).isPresent();
     }
 
     private static boolean projectOrProfile(Node node) {
@@ -197,6 +187,27 @@ public final class DeclaredCoordinates {
             return Files.readString(pom);
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read " + pom, exception);
+        }
+    }
+
+    @UtilityClass
+    private static final class PluginDeclaration {
+
+        static boolean matches(Node node) {
+            Node plugins = node.getParentNode();
+            Node owner = plugins.getParentNode();
+            return named(plugins, "plugins") && (direct(owner) || managed(owner));
+        }
+
+        private static boolean direct(Node owner) {
+            return (named(owner, "build") || named(owner, "reporting"))
+                && projectOrProfile(owner.getParentNode());
+        }
+
+        private static boolean managed(Node owner) {
+            return named(owner, "pluginManagement")
+                && named(owner.getParentNode(), "build")
+                && projectOrProfile(owner.getParentNode().getParentNode());
         }
     }
 }

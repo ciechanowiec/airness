@@ -56,6 +56,13 @@ class DependencyFreshnessRulesTest {
         assertFalse(DependencyFreshnessRules.sameScheme("3.0.0", "20280719"));
     }
 
+    @Test
+    void comparesSingleNumberMajorVersions() {
+        DeclaredCoordinate coordinate = new DeclaredCoordinate("example", "integer-version", "1");
+        assertTrue(DependencyFreshnessRules.hasComparableMajor(coordinate.version()));
+        assertFalse(DependencyFreshnessRules.violation(update(coordinate, "3")).isEmpty());
+    }
+
     private static VersionUpdate update(DeclaredCoordinate coordinate, String latest) {
         return new VersionUpdate(new OwnedCoordinate("test:project", coordinate), latest);
     }

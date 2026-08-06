@@ -37,6 +37,8 @@ record GitFixture(Path root) {
     }
 
     /**
+     * Writes one file into the fixture.
+     *
      * @return this fixture, so writes chain
      */
     @SneakyThrows

@@ -78,4 +78,23 @@ class JavadocLinkCheckTest {
             Verdicts.clean(check.findings()), "so the caller refuses a zero scope rather than trusting the verdict"
         );
     }
+
+    @Test
+    void reportsANestedTypeNamedInProse() {
+        String nested = """
+            package sample;
+
+            class Container {
+                static class NestedType {
+                }
+            }
+            """;
+        Path root = new GitFixture("javadoc-link-nested")
+            .write("src/main/java/sample/Container.java", nested)
+            .write(SUBJECT, NAMED_IN_PROSE.replace("Neighbour", "NestedType"))
+            .root();
+        List<String> offences = Verdicts.offences(new JavadocLinkCheck(root, MAIN).findings(), "Javadoc names");
+        assertEquals(1, offences.size(), "nested declarations are resolvable types too");
+        assertTrue(offences.getFirst().contains("NestedType"), "and the offence names it: " + offences);
+    }
 }

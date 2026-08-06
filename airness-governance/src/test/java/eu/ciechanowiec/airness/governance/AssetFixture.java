@@ -40,6 +40,8 @@ final class AssetFixture {
     }
 
     /**
+     * Builds a catalogue from the fixture.
+     *
      * @return a catalogue reading this fixture and nothing else
      */
     @SneakyThrows

@@ -122,6 +122,15 @@ class CommitMessageRulesTest {
     }
 
     @Test
+    void rejectsAnArbitraryHeaderMerelyBecauseTheCommitHasTwoParents() {
+        CommitMessage message = new CommitMessage("anything bypasses policy", "");
+        assertFalse(
+            CommitMessageRules.validate(message, NON_TRIVIAL, true).isEmpty(),
+            "merge topology exempts only Git's fixed merge-message forms"
+        );
+    }
+
+    @Test
     void rejectsAMergeLikeHeaderOnAnOrdinaryCommit() {
         CommitMessage message = new CommitMessage("Merge anything at all", "");
         assertFalse(CommitMessageRules.validate(message, TRIVIAL).isEmpty());

@@ -7,6 +7,7 @@ import eu.ciechanowiec.airness.governance.OwnedCoordinate;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import lombok.SneakyThrows;
 import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.Test;
@@ -23,15 +24,15 @@ class VersionCoordinatesTest {
 
     @Test
     void includesTheReactorAndEveryResolvedParent() {
-        MavenProject grandparent = this.project("grandparent", this.pom("grand-library", ""), null);
-        MavenProject parent = this.project("parent", this.pom("parent-library", ""), grandparent);
-        MavenProject child = this.project("child", this.pom("child-library", ""), parent);
+        MavenProject grandparent = this.project("grandparent", this.pom("grand-library", ""), Optional.empty());
+        MavenProject parent = this.project("parent", this.pom("parent-library", ""), Optional.of(grandparent));
+        MavenProject child = this.project("child", this.pom("child-library", ""), Optional.of(parent));
 
         List<OwnedCoordinate> coordinates = VersionCoordinates.from(
             List.of(child), this.directory.resolve("empty-repository")
         );
         List<OwnedCoordinate> dependencies = coordinates.stream()
-            .filter(coordinate -> coordinate.coordinate().groupId().equals("sample.dependencies"))
+            .filter(coordinate -> "sample.dependencies".equals(coordinate.coordinate().groupId()))
             .toList();
 
         assertEquals(3, dependencies.size(), "one declaration is read from each raw pom in the lineage");
@@ -44,11 +45,11 @@ class VersionCoordinatesTest {
 
     @Test
     void resolvesAVersionPropertyInheritedFromTheParentModel() {
-        MavenProject parent = this.project("parent", "<project/>", null);
+        MavenProject parent = this.project("parent", "<project/>", Optional.empty());
         MavenProject child = this.project(
             "child",
             this.pom("library", "${library.version}"),
-            parent
+            Optional.of(parent)
         );
         child.getProperties().setProperty("library.version", "3.4.5");
 
@@ -57,18 +58,18 @@ class VersionCoordinatesTest {
         );
 
         assertTrue(
-            coordinates.stream().anyMatch(coordinate -> coordinate.coordinate().version().equals("3.4.5")),
+            coordinates.stream().anyMatch(coordinate -> "3.4.5".equals(coordinate.coordinate().version())),
             "the raw declaration keeps its owner while Maven's effective property supplies its value"
         );
     }
 
     @Test
     void resolvesProjectVersionBeforeExcludingAReactorDependency() {
-        MavenProject library = this.project("library", "<project/>", null);
+        MavenProject library = this.project("library", "<project/>", Optional.empty());
         MavenProject application = this.project(
             "application",
             this.pom("sample", "library", "${project.version}"),
-            null
+            Optional.empty()
         );
 
         List<OwnedCoordinate> coordinates = VersionCoordinates.from(
@@ -76,19 +77,19 @@ class VersionCoordinatesTest {
         );
 
         assertTrue(
-            coordinates.stream().noneMatch(coordinate -> coordinate.coordinate().artifactId().equals("library")),
+            coordinates.stream().noneMatch(coordinate -> "library".equals(coordinate.coordinate().artifactId())),
             "a same-reactor dependency is excluded by its resolved versioned coordinate"
         );
     }
 
     @SneakyThrows
-    private MavenProject project(String artifact, CharSequence pom, MavenProject parent) {
+    private MavenProject project(String artifact, CharSequence pom, Optional<MavenProject> parent) {
         MavenProject project = new MavenProject();
         project.setGroupId("sample");
         project.setArtifactId(artifact);
         project.setVersion("1.0.0-SNAPSHOT");
         project.setFile(Files.writeString(this.directory.resolve(artifact + ".xml"), pom).toFile());
-        project.setParent(parent);
+        parent.ifPresent(project::setParent);
         return project;
     }
 

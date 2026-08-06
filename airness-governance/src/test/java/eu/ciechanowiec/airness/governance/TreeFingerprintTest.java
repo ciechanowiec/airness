@@ -49,4 +49,16 @@ class TreeFingerprintTest {
         Files.createSymbolicLink(link, Path.of("second"));
         assertNotEquals(initial, TreeFingerprint.from(root), "changing only a link target is still a tree change");
     }
+
+    @Test
+    @SneakyThrows
+    void distinguishesASymbolicLinkFromARegularFileWithTheSameBytes() {
+        Path root = new GitFixture("fingerprint-entry-type").root();
+        Path entry = root.resolve("entry");
+        Files.createSymbolicLink(entry, Path.of("payload"));
+        String linked = TreeFingerprint.from(root);
+        Files.delete(entry);
+        Files.writeString(entry, "payload");
+        assertNotEquals(linked, TreeFingerprint.from(root), "a file and a link are different repository entries");
+    }
 }
