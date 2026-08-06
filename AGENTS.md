@@ -6,9 +6,13 @@ Airness is a Maven 3.9.16+ multi-module build harness that requires exactly Java
 
 ## Build, Test, and Development Commands
 
-- `mvn clean install` builds, tests, and installs all reactor modules for consumer tests.
+- `mvn clean install` builds, tests, reports stable updates across the complete parent chain, enforces
+  the two-major freshness bound, and installs all reactor modules for consumer tests. Version checking
+  requires Maven Central.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
-- `mvn clean package -Pfull` runs slow history, dependency and plugin update, mutation, secret, Qodana, and Airness README checks; it requires full Git history, network access, Docker, Python 3, Asciidoctor, Vale, `pdftotext`, and Tesseract.
+- `mvn clean package -Pfull` runs slow history, mutation, secret, Qodana, and Airness README checks on
+  top of default verification; it requires full Git history, network access, Docker, Python 3,
+  Asciidoctor, Vale, `pdftotext`, and Tesseract.
 - `mvn process-resources -Pformat` applies the configured formatter, import ordering, and OpenRewrite recipes.
 - `sh scripts/lint-docs.sh README.adoc README-guideline-software-project.adoc README-guideline-writing.adoc` checks project documentation when its external tools are installed.
 

@@ -4,10 +4,9 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
- * No declared dependency or plugin trails the latest stable release by the failing bound that
+ * No declared dependency, plugin, or parent trails the latest stable release by the failing bound that
  * {@link DependencyFreshnessRules} states. Calendar versions beginning with {@code 20**} compare their
  * leading year, and other schemes with no comparable level are skipped.
  *
@@ -17,43 +16,62 @@ import java.util.stream.Stream;
  */
 public final class DependencyFreshnessCheck {
 
-    private static final String HEADLINE = "Dependencies and plugins trailing by the major-version bound";
+    private static final String HEADLINE = "Dependencies, plugins, and parents trailing by the major-version bound";
 
-    private final String registry;
-    private final List<DeclaredCoordinate> coordinates;
+    private final int scanned;
+    private final List<VersionUpdate> updates;
 
     /**
-     * Reads the declared dependencies, without yet asking the registry about any of them.
+     * Reads and evaluates the declared dependencies in one pom.
      *
      * @param pom      the POM whose declared dependencies are read
      * @param registry the base URL of the registry to ask
      */
     public DependencyFreshnessCheck(Path pom, String registry) {
-        this(DeclaredCoordinates.from(pom), registry);
+        this(
+            DeclaredCoordinates.from(pom).stream()
+                .map(coordinate -> new OwnedCoordinate(pom.getFileName().toString(), coordinate))
+                .toList(),
+            registry
+        );
     }
 
     /**
      * Uses coordinates whose versions have already been resolved.
      *
-     * @param coordinates directly declared dependencies and plugins
+     * @param coordinates directly declared dependencies, plugins, and parents with their owners
      * @param registry    registry base URL
      */
-    public DependencyFreshnessCheck(Collection<DeclaredCoordinate> coordinates, String registry) {
-        this.registry = registry;
-        this.coordinates = coordinates.stream()
-            .filter(coordinate -> DependencyFreshnessRules.hasComparableMajor(coordinate.version()))
+    public DependencyFreshnessCheck(Collection<OwnedCoordinate> coordinates, String registry) {
+        List<OwnedCoordinate> checkable = coordinates.stream()
+            .filter(MavenCentral::checkable)
             .distinct()
+            .toList();
+        this.scanned = checkable.size();
+        this.updates = checkable.stream()
+            .map(coordinate -> MavenCentral.update(registry, coordinate))
+            .flatMap(Optional::stream)
             .toList();
     }
 
     /**
-     * How many dependencies carry a comparable level and are therefore asked about, which a caller logs
-     * so the reach of a clean verdict is on the record.
+     * How many stable declarations are asked about, which a caller logs so the reach of a clean verdict
+     * is on the record.
      *
      * @return the number of dependencies in scope
      */
     public int scanned() {
-        return this.coordinates.size();
+        return this.scanned;
+    }
+
+    /**
+     * Every available stable update, including minor and patch releases that remain within the failing
+     * freshness bound.
+     *
+     * @return available updates in declaration order
+     */
+    public List<VersionUpdate> updates() {
+        return this.updates;
     }
 
     /**
@@ -63,14 +81,10 @@ public final class DependencyFreshnessCheck {
      */
     public List<Findings> findings() {
         return List.of(
-            new Findings(HEADLINE, this.coordinates.stream().flatMap(this::violation).toList())
+            new Findings(
+                HEADLINE,
+                this.updates.stream().map(DependencyFreshnessRules::violation).flatMap(Optional::stream).toList()
+            )
         );
-    }
-
-    private Stream<String> violation(DeclaredCoordinate coordinate) {
-        Optional<String> reported = DependencyFreshnessRules.violation(
-            coordinate, MavenCentral.latestMajor(this.registry, coordinate)
-        );
-        return reported.stream();
     }
 }

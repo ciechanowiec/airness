@@ -113,7 +113,9 @@ A Maven profile adds a group of build steps to a base command. The `format` and 
 | Default verification
 | `mvn clean package`
 | none
-| Checks managed files without changing them, then runs tests and checks that need only the current Git tree. Findings fail the build.
+| Checks managed files without changing them, reports every stable version update from the project and
+each parent, then runs tests and static checks. A version at least two major releases behind and
+every other finding fail the build.
 
 | Source formatting
 | `mvn process-resources`
@@ -123,7 +125,7 @@ A Maven profile adds a group of build steps to a base command. The `format` and 
 | Full verification
 | `mvn clean package`
 | `-Pfull`
-| Runs default verification, reports every stable dependency and plugin update, and adds work that needs full history, external services, or more time.
+| Runs default verification and adds work that needs full history, external services, or more time.
 |===
 
 A system-property flag changes how a verification command handles its work. These flags don't select additional checks.

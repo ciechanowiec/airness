@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The freshness check asks a registry about every dependency and plugin that carries a comparable
- * major, skips the ones that do not, and fails rather than passing when the registry cannot be read.
+ * The version check asks a registry about every stable dependency, plugin, and parent, reports every
+ * update, and fails rather than passing when the registry cannot be read.
  *
  * <p>The registry here is a real HTTP server on a loopback port, which is what makes the last of those
  * assertable: a check that could only ever reach one public host is a check nobody can watch fail, and
@@ -117,8 +117,16 @@ class DependencyFreshnessCheckTest {
     @Test
     void passesWhenTheDeclaredMajorIsWithinTheBound() {
         DependencyFreshnessCheck check = this.check("1.0.0", this.registry("2.4.0"));
-        assertEquals(1, check.scanned(), "the one dependency carries a comparable major");
+        assertEquals(1, check.scanned(), "the one stable dependency is checked");
+        assertEquals(1, check.updates().size(), "and its available major update is reported");
         assertTrue(Verdicts.clean(check.findings()), "and trailing by one major is within the bound");
+    }
+
+    @Test
+    void reportsAMinorUpdateWithoutFailingIt() {
+        DependencyFreshnessCheck check = this.check("1.0.0", this.registry("1.1.0"));
+        assertEquals(1, check.updates().size(), "every stable update belongs in the report");
+        assertTrue(Verdicts.clean(check.findings()), "while a minor update is not a freshness offence");
     }
 
     @Test
@@ -143,8 +151,8 @@ class DependencyFreshnessCheckTest {
     @Test
     void leavesAVersionWithNoComparableMajorOutOfScope() {
         DependencyFreshnessCheck check = this.check("RELEASE", this.registry("3.0.0"));
-        assertEquals(0, check.scanned(), "a version with no comparable level is not asked about");
-        assertTrue(Verdicts.clean(check.findings()), "so it cannot be reported either");
+        assertEquals(1, check.scanned(), "a stable named version still belongs in the update report");
+        assertTrue(Verdicts.clean(check.findings()), "but it has no comparable major for the failing bound");
     }
 
     @Test
@@ -152,7 +160,7 @@ class DependencyFreshnessCheckTest {
         String unreachable = this.registry("3.0.0");
         this.server.stop(0);
         UncheckedIOException thrown = assertThrows(
-            UncheckedIOException.class, () -> this.check("1.0.0", unreachable).findings(),
+            UncheckedIOException.class, () -> this.check("1.0.0", unreachable),
             "a dependency whose latest release could not be read is not a dependency known to be current"
         );
         assertTrue(
