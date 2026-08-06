@@ -26,6 +26,12 @@ final class CommitMessageRules {
         "^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\\([a-z0-9.-]+\\))?!?: .+$"
     );
     private static final Pattern REVERT = Pattern.compile("^Revert \".+\"$");
+    private static final Pattern MERGE = Pattern.compile(
+        "^Merge (?:branch '[^']+'(?: into (?:'[^']+'|\\S+))?"
+            + "|branches '[^']+'(?: and '[^']+')+"
+            + "|remote-tracking branch '[^']+'|tag '[^']+'"
+            + "|pull request #[0-9]+ from \\S+)$"
+    );
     private static final String SEPARATOR = ": ";
     private static final int MIN_SUBJECT = 15;
     private static final int MAX_SUBJECT = 72;
@@ -77,8 +83,9 @@ final class CommitMessageRules {
         );
     }
 
-    private static boolean isExempt(String header, boolean merge) {
-        return merge || REVERT.matcher(header).matches();
+    private static boolean isExempt(CharSequence header, boolean merge) {
+        boolean recognizedMerge = merge && MERGE.matcher(header).matches();
+        return recognizedMerge || REVERT.matcher(header).matches();
     }
 
     private static Optional<String> headerViolation(CharSequence header) {

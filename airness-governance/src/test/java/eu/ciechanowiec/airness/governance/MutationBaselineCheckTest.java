@@ -98,7 +98,7 @@ class MutationBaselineCheckTest {
             IllegalStateException.class, () -> new MutationBaselineCheck(absent, absent)
         );
         assertTrue(
-            thrown.getMessage().contains("absent.xml"),
+            thrown.toString().contains("absent.xml"),
             "an absent report means the two ran in the wrong order rather than that the code is clean"
         );
     }

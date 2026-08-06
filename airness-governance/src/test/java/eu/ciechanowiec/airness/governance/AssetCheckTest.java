@@ -66,6 +66,15 @@ class AssetCheckTest {
     }
 
     @Test
+    void acceptsANormalizedNestedAssetPath() {
+        assertEquals(
+            "qodana/profile.xml",
+            new ManagedAsset("qodana/profile.xml", AssetPolicy.PINNED).path(),
+            "portable path validation compares path components rather than platform-specific separators"
+        );
+    }
+
+    @Test
     void passesOverATreeThatMatchesWhatIsShipped() {
         Path root = new GitFixture("assets-clean").write(EDITORCONFIG, CANONICAL).root();
         assertTrue(

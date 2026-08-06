@@ -29,6 +29,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 final class MavenCentral {
 
     private static final String SLASH = "/";
+    private static final String PROPERTY_OPEN = "${";
     private static final Pattern PRERELEASE = Pattern.compile(
         "(?i).*alpha.*|.*beta.*|.*preview.*|.*snapshot.*|[0-9].+-m[0-9]+|[0-9].+\\.cr[0-9]+|[0-9].+-rc-?[0-9]*"
     );
@@ -48,7 +49,7 @@ final class MavenCentral {
 
     static boolean checkable(OwnedCoordinate declared) {
         String version = declared.coordinate().version();
-        if (version.contains("${")) {
+        if (version.contains(PROPERTY_OPEN)) {
             throw new IllegalStateException("Unresolved version for " + declared);
         }
         return !PRERELEASE.matcher(version).matches();

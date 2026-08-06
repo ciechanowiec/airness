@@ -19,6 +19,10 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public final class TreeFingerprint {
 
+    private static final byte SYMBOLIC_LINK = 1;
+    private static final byte REGULAR_FILE = 2;
+    private static final byte OTHER_ENTRY = 3;
+
     /**
      * Fingerprints path names, file contents, and symbolic-link targets in deterministic order.
      *
@@ -35,7 +39,7 @@ public final class TreeFingerprint {
         String listing = GitPlumbing.run(
             root, List.of("ls-files", "-z", "--cached", "--others", "--exclude-standard")
         );
-        return Arrays.stream(listing.split("\0"))
+        return Arrays.stream(listing.split("\0", -1))
             .filter(name -> !name.isEmpty())
             .map(root::resolve)
             .sorted(Comparator.comparing(path -> root.relativize(path).toString()))
@@ -47,11 +51,13 @@ public final class TreeFingerprint {
             digest.update(root.relativize(path).toString().getBytes(StandardCharsets.UTF_8));
             digest.update((byte) 0);
             if (Files.isSymbolicLink(path)) {
+                digest.update(SYMBOLIC_LINK);
                 digest.update(Files.readSymbolicLink(path).toString().getBytes(StandardCharsets.UTF_8));
             } else if (Files.isRegularFile(path)) {
+                digest.update(REGULAR_FILE);
                 digest.update(Files.readAllBytes(path));
             } else {
-                digest.update((byte) 1);
+                digest.update(OTHER_ENTRY);
             }
             digest.update((byte) 0);
         } catch (IOException exception) {

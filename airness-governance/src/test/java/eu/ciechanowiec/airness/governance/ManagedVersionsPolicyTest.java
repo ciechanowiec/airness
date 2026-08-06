@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -54,23 +55,24 @@ class ManagedVersionsPolicyTest {
 
     @Test
     void pluginDeclarationsOutsideManagementCarryNoVersion() {
-        sourcePoms()
+        List<String> versioned = sourcePoms()
             .flatMap(root -> elements(root, "plugin"))
             .filter(plugin -> !hasAncestor(plugin, "pluginManagement"))
-            .forEach(plugin -> assertTrue(Xml.firstChild(plugin, "version").isEmpty(), coordinate(plugin)));
+            .filter(plugin -> Xml.firstChild(plugin, "version").isPresent())
+            .map(ManagedVersionsPolicyTest::coordinate)
+            .toList();
+        assertEquals(List.of(), versioned);
     }
 
     @Test
     void projectDependenciesOutsideManagementCarryNoVersion() {
-        sourcePoms()
+        List<String> versioned = sourcePoms()
             .flatMap(root -> Xml.firstChild(root, "dependencies").stream())
             .flatMap(dependencies -> Xml.children(dependencies, "dependency").stream())
-            .forEach(
-                dependency -> assertTrue(
-                    Xml.firstChild(dependency, "version").isEmpty(),
-                    coordinate(dependency)
-                )
-            );
+            .filter(dependency -> Xml.firstChild(dependency, "version").isPresent())
+            .map(ManagedVersionsPolicyTest::coordinate)
+            .toList();
+        assertEquals(List.of(), versioned);
     }
 
     @Test
@@ -137,7 +139,7 @@ class ManagedVersionsPolicyTest {
             .map(Element::getTagName)
             .filter(
                 property -> property.endsWith(".version")
-                    || property.equals("maven.compiler.release")
+                    || "maven.compiler.release".equals(property)
             )
             .collect(Collectors.toUnmodifiableSet());
     }

@@ -28,6 +28,7 @@
         <!-- One finding switch for the whole harness. skipTests is the separate total bypass. -->
         <airness.enforce>true</airness.enforce>
         <skipTests>false</skipTests>
+        <airness.coverage.skip>${skipTests}</airness.coverage.skip>
 
         <!--
             The phase at which each source-shaping tool APPLIES its changes. Only the applying half is a
@@ -58,6 +59,7 @@
         <airness.mutation.threads>4</airness.mutation.threads>
         <airness.mutation.timeout.constant>2000</airness.mutation.timeout.constant>
         <airness.mutation.timeout.factor>1.25</airness.mutation.timeout.factor>
+        <airness.mutation.skip>${skipTests}</airness.mutation.skip>
         <!--
             Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
             Empty by default, for the same reason the coverage exclusions are.
@@ -224,7 +226,7 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <configuration>
-                    <skip>${skipTests}</skip>
+                    <skip>${airness.coverage.skip}</skip>
                 </configuration>
                 <executions>
                     <execution>
@@ -626,6 +628,7 @@
                             </sourceDirectories>
                             <testSourceDirectories>
                                 <testSourceDirectory>${project.basedir}/../airness-governance/src/test/java</testSourceDirectory>
+                                <testSourceDirectory>${project.basedir}/../airness-maven-plugin/src/test/java</testSourceDirectory>
                             </testSourceDirectories>
                         </configuration>
                     </execution>
@@ -776,7 +779,8 @@
                 </file>
             </activation>
             <properties>
-                <jacoco.skip>true</jacoco.skip>
+                <airness.coverage.skip>true</airness.coverage.skip>
+                <airness.mutation.skip>true</airness.mutation.skip>
             </properties>
         </profile>
         <profile>
@@ -830,7 +834,7 @@
                             </dependency>
                         </dependencies>
                         <configuration>
-                            <skip>${skipTests}</skip>
+                            <skip>${airness.mutation.skip}</skip>
                             <targetClasses>
                                 <param>${airness.package.root}.*</param>
                             </targetClasses>

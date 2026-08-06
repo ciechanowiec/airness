@@ -39,7 +39,7 @@ final class DependencyFreshnessRules {
             return OptionalInt.of(Integer.parseInt(version.substring(0, YEAR_LENGTH)));
         }
         int separator = version.indexOf(SEPARATOR);
-        String head = separator > 0 ? version.substring(0, separator) : "";
+        String head = separator > 0 ? version.substring(0, separator) : version;
         boolean numeric = !head.isEmpty() && head.chars().allMatch(Character::isDigit);
         return numeric ? OptionalInt.of(Integer.parseInt(head)) : OptionalInt.empty();
     }

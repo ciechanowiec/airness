@@ -49,8 +49,9 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
 
     @Override
     boolean applies() {
-        if (AIRNESS_GROUP.equals(this.project().getGroupId())
-            && AIRNESS_PARENT.equals(this.project().getArtifactId())) {
+        boolean airnessParent = AIRNESS_GROUP.equals(this.project().getGroupId())
+            && AIRNESS_PARENT.equals(this.project().getArtifactId());
+        if (airnessParent) {
             return false;
         }
         String pom = this.project().getFile().toPath().toAbsolutePath().normalize().toString();

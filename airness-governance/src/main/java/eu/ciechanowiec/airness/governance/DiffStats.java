@@ -17,7 +17,7 @@ final class DiffStats {
     static DiffStat parse(String numstat) {
         List<String[]> rows = numstat.lines()
             .filter(line -> !line.isBlank())
-            .map(line -> line.split(TAB))
+            .map(line -> line.split(TAB, -1))
             .filter(columns -> columns.length >= COLUMNS)
             .toList();
         int lines = rows.stream().mapToInt(DiffStats::changedLines).sum();

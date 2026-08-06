@@ -8,6 +8,7 @@ failures=0
 
 new_consumer() {
     name="$1"
+    packaging="${2-jar}"
     directory="$scratch/$name"
     mkdir -p "$directory/src/main/java/com/example" "$directory/src/test/java/com/example"
     cat > "$directory/pom.xml" <<'POM'
@@ -51,6 +52,12 @@ new_consumer() {
   </dependencies>
   <profiles>
     <profile>
+      <id>reactor-child</id>
+      <modules>
+        <module>child</module>
+      </modules>
+    </profile>
+    <profile>
       <id>drift-pinned-asset</id>
       <build>
         <plugins>
@@ -79,6 +86,11 @@ new_consumer() {
   </profiles>
 </project>
 POM
+    if [ "$packaging" = 'pom' ]; then
+        perl -0pi -e \
+            's{(<artifactId>consumer</artifactId>\n  <version>9[.]4[.]2</version>)}{$1\n  <packaging>pom</packaging>}' \
+            "$directory/pom.xml"
+    fi
     cat > "$directory/AGENTS.md" <<'INSTRUCTIONS'
 # Consumer instructions
 
@@ -435,6 +447,69 @@ run_case 'assets: later pinned change fails tree verification' 1 \
     'Build plugins changed committable files|working tree content differs' \
     "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \
     antrun:run@drift-pinned-asset airness:tree-verify
+
+# Maven finishes the root module before starting its child. The tree net therefore needs a fresh
+# snapshot and verification pair in every module, or a child plugin can edit the repository after the
+# root verification has already passed.
+multimodule="$(new_consumer multimodule pom)"
+git -C "$multimodule" rm -r --quiet -- src
+mkdir -p "$multimodule/child/src/test/java/com/example"
+cat > "$multimodule/child/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>test-only-child</artifactId>
+  <version>2.0.0</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>mutate-from-child</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo file="${project.basedir}/../.gitattributes" append="true">child drift</echo>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+POM
+cat > "$multimodule/child/src/test/java/com/example/OnlyTest.java" <<'JAVA'
+package com.example;
+
+/** A test-only module fixture. */
+final class OnlyTest {
+}
+JAVA
+(cd "$multimodule" && mvn --quiet editorconfig:format -Preactor-child >/dev/null)
+git -C "$multimodule" add --all
+git -C "$multimodule" commit --quiet --message 'test(it): add the reactor child fixture'
+run_case 'tree: a child-module mutation fails the reactor build' 1 \
+    'Build plugins changed committable files|working tree content differs' \
+    "$multimodule" clean package -Preactor-child
+git -C "$multimodule" restore .gitattributes
+run_case 'mutation: a test-only module needs no PIT report' 0 'BUILD SUCCESS' \
+    "$multimodule/child" airness:mutation-baseline
 
 # The child's version is deliberately unrelated to Airness. skipTests must compile and package while
 # bypassing every inherited check and ordinary test.

@@ -31,6 +31,13 @@ import java.lang.annotation.Target;
         ElementType.CONSTRUCTOR, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.MODULE
     }
 )
+@Justification(
+    "this public annotation is consumed from arbitrary project packages even though this repository's Maven "
+        + "reactor exposes only one such production package to static analysis"
+)
+@SuppressWarnings(
+    "ClassOnlyUsedInOnePackage"
+)
 public @interface Justification {
 
     /**

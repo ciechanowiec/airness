@@ -89,23 +89,20 @@ final class VersionCoordinates {
     }
 
     private static String resolve(String version, Map<String, String> properties, Set<String> seen) {
-        Matcher expressions = EXPRESSION.matcher(version);
-        StringBuilder resolved = new StringBuilder();
-        boolean changed = false;
-        while (expressions.find()) {
-            String property = expressions.group(1);
-            Optional<String> held = Optional.ofNullable(properties.get(property));
-            String replacement = held
-                .map(value -> resolvedProperty(property, value, properties, seen))
-                .orElseGet(expressions::group);
-            changed = changed || held.isPresent();
-            expressions.appendReplacement(resolved, Matcher.quoteReplacement(replacement));
-        }
-        if (resolved.isEmpty()) {
-            return version;
-        }
-        expressions.appendTail(resolved);
-        return changed ? resolve(resolved.toString(), properties, seen) : resolved.toString();
+        String resolved = EXPRESSION.matcher(version).replaceAll(
+            expression -> Matcher.quoteReplacement(
+                replacement(expression.group(1), expression.group(), properties, seen)
+            )
+        );
+        return version.equals(resolved) ? resolved : resolve(resolved, properties, seen);
+    }
+
+    private static String replacement(
+        String property, String expression, Map<String, String> properties, Set<String> seen
+    ) {
+        return Optional.ofNullable(properties.get(property))
+            .map(value -> resolvedProperty(property, value, properties, seen))
+            .orElse(expression);
     }
 
     private static String resolvedProperty(

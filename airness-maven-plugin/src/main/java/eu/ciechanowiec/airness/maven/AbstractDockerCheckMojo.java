@@ -14,6 +14,9 @@ import org.apache.maven.project.MavenProject;
  */
 abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
+    private static final int SUCCESS = 0;
+    private static final List<String> DOCKER_INFO = List.of("docker", "info");
+
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
 
@@ -48,13 +51,18 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     }
 
     private void fail(int exit) throws MojoExecutionException, MojoFailureException {
-        if (!this.findingsExit(exit)) {
-            throw new MojoExecutionException("Docker check failed operationally with exit code " + exit);
-        } else if (this.enforce) {
-            throw new MojoFailureException("Docker check reported findings (exit code " + exit + ")");
-        } else {
-            this.getLog().warn("airness.enforce is false, so the Docker findings above do not fail this build");
+        if (this.findingsExit(exit)) {
+            this.reportFindings(exit);
+            return;
         }
+        throw new MojoExecutionException("Docker check failed operationally with exit code " + exit);
+    }
+
+    private void reportFindings(int exit) throws MojoFailureException {
+        if (this.enforce) {
+            throw new MojoFailureException("Docker check reported findings (exit code " + exit + ")");
+        }
+        this.getLog().warn("airness.enforce is false, so the Docker findings above do not fail this build");
     }
 
     protected final MavenProject project() {
@@ -80,7 +88,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private void requireDocker() throws MojoExecutionException {
         try {
-            if (this.runSilently(List.of("docker", "info")) != 0) {
+            if (this.runSilently() != SUCCESS) {
                 throw new MojoExecutionException("Docker is installed but its daemon is not reachable");
             }
         } catch (IOException exception) {
@@ -97,16 +105,16 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
         }
     }
 
-    private int runSilently(List<String> command) throws IOException {
+    private int runSilently() throws IOException {
         try {
-            return new ProcessBuilder(command)
+            return new ProcessBuilder(DOCKER_INFO)
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
                 .start()
                 .waitFor();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for " + command.getFirst(), exception);
+            throw new IOException("Interrupted while waiting for " + DOCKER_INFO.getFirst(), exception);
         }
     }
 }

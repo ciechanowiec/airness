@@ -2,6 +2,8 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.Repository;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -105,6 +107,15 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
     }
 
     /**
+     * Whether the current module contains production Java code.
+     *
+     * @return whether at least one compile source root contains a Java source file
+     */
+    protected final boolean hasProductionJava() {
+        return this.moduleProductionSourceRoots().stream().anyMatch(AbstractGovernanceMojo::containsJava);
+    }
+
+    /**
      * The Java source directories of every module in the reactor, which is what a repository-wide check
      * over sources has to read.
      *
@@ -143,6 +154,14 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
             .filter(Files::isDirectory)
             .distinct()
             .toList();
+    }
+
+    private static boolean containsJava(Path root) {
+        try (Stream<Path> paths = Files.walk(root)) {
+            return paths.anyMatch(path -> Files.isRegularFile(path) && path.toString().endsWith(".java"));
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not inspect production sources under " + root, exception);
+        }
     }
 
     private void report(Collection<Findings> findings) throws MojoFailureException {
