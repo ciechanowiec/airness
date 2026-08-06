@@ -25,6 +25,7 @@ final class CommitMessageRules {
     private static final Pattern HEADER = Pattern.compile(
         "^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\\([a-z0-9.-]+\\))?!?: .+$"
     );
+    private static final Pattern REVERT = Pattern.compile("^Revert \".+\"$");
     private static final String SEPARATOR = ": ";
     private static final int MIN_SUBJECT = 15;
     private static final int MAX_SUBJECT = 72;
@@ -51,14 +52,20 @@ final class CommitMessageRules {
         Pattern.compile("(?i)" + PRODUCT_PAGES)
     );
 
-    static List<String> validate(CommitMessage message, DiffStat stat) {
-        return Stream.concat(shapeViolations(message, stat), Stream.of(attributionViolation(message)))
+    static List<String> validate(CommitMessage message, DiffStat stat, boolean merge) {
+        return Stream.concat(shapeViolations(message, stat, merge), Stream.of(attributionViolation(message)))
             .flatMap(Optional::stream)
             .toList();
     }
 
-    private static Stream<Optional<String>> shapeViolations(CommitMessage message, DiffStat stat) {
-        if (isExempt(message.header())) {
+    static List<String> validate(CommitMessage message, DiffStat stat) {
+        return validate(message, stat, false);
+    }
+
+    private static Stream<Optional<String>> shapeViolations(
+        CommitMessage message, DiffStat stat, boolean merge
+    ) {
+        if (isExempt(message.header(), merge)) {
             return Stream.of();
         }
         return Stream.of(
@@ -70,8 +77,8 @@ final class CommitMessageRules {
         );
     }
 
-    private static boolean isExempt(String header) {
-        return header.startsWith("Merge ") || header.startsWith("Revert \"");
+    private static boolean isExempt(String header, boolean merge) {
+        return merge || REVERT.matcher(header).matches();
     }
 
     private static Optional<String> headerViolation(CharSequence header) {

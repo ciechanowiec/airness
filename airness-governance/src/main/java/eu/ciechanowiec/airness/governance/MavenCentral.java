@@ -48,7 +48,10 @@ final class MavenCentral {
 
     static boolean checkable(OwnedCoordinate declared) {
         String version = declared.coordinate().version();
-        return !version.startsWith("${") && !PRERELEASE.matcher(version).matches();
+        if (version.contains("${")) {
+            throw new IllegalStateException("Unresolved version for " + declared);
+        }
+        return !PRERELEASE.matcher(version).matches();
     }
 
     private static boolean isNewer(VersionUpdate update) {

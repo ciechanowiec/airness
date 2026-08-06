@@ -525,6 +525,9 @@ cat > "$reactor/pom.xml" <<'POM'
   <artifactId>reactor</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
   <modules>
     <module>library</module>
     <module>application</module>
@@ -553,6 +556,9 @@ cat > "$reactor/application/pom.xml" <<'POM'
     <version>1.0.0-SNAPSHOT</version>
   </parent>
   <artifactId>application</artifactId>
+  <properties>
+    <lombok.version>1</lombok.version>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>com.example</groupId>
@@ -564,6 +570,8 @@ cat > "$reactor/application/pom.xml" <<'POM'
 POM
 run_case 'freshness: same-reactor dependency needs no registry metadata' 0 'BUILD SUCCESS' \
     "$reactor" airness:dependency-freshness
+run_case 'coordinates: module ownership is rejected' 1 'Remove child property lombok.version' \
+    "$reactor" airness:check-parameters
 
 # A consumer inherits both update reporting and the freshness verdict through every parent level.
 stale_grandparent="$scratch/stale-grandparent"
@@ -581,13 +589,9 @@ cat > "$stale_grandparent/pom.xml" <<'POM'
   <artifactId>stale-grandparent</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <dependencies>
-    <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>2.0.0</version>
-    </dependency>
-  </dependencies>
+  <properties>
+    <picocli.version>2.0.0</picocli.version>
+  </properties>
 </project>
 POM
 (cd "$stale_grandparent" && mvn --quiet --non-recursive install -DskipTests)
@@ -623,11 +627,63 @@ cat > "$ancestry_consumer/pom.xml" <<'POM'
   </parent>
   <artifactId>ancestry-consumer</artifactId>
   <version>1.0.0-SNAPSHOT</version>
+  <dependencies>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>${picocli.version}</version>
+    </dependency>
+  </dependencies>
 </project>
 POM
 run_case 'freshness: indirect parent update fails the consumer' 1 \
-    '\[com.example:stale-grandparent\] info.picocli:picocli' \
+    '\[com.example:ancestry-consumer\] info.picocli:picocli' \
     "$ancestry_consumer" airness:dependency-freshness
+
+# Maven can resolve a parent directly from the filesystem without installing it. Freshness discovery
+# must follow that resolved model rather than constructing a path under the local repository.
+relative_parent="$scratch/relative-parent"
+mkdir -p "$relative_parent/child"
+cat > "$relative_parent/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>relative-parent</artifactId>
+  <version>987.654-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>2.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+POM
+cat > "$relative_parent/child/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>relative-parent</artifactId>
+    <version>987.654-SNAPSHOT</version>
+  </parent>
+  <artifactId>relative-child</artifactId>
+</project>
+POM
+run_case 'freshness: uninstalled relative parent is scanned' 1 \
+    '\[com.example:relative-parent\] info.picocli:picocli' \
+    "$relative_parent/child" airness:dependency-freshness
 
 # Production code without tests cannot deactivate coverage merely by omitting src/test/java.
 untested="$(new_consumer untested)"

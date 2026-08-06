@@ -9,12 +9,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 /**
  * Enforces the dependency and plugin ownership policy on a raw child pom.
@@ -152,14 +150,13 @@ public final class ManagedVersions {
     }
 
     private static Stream<Node> declarations(Element root, Coordinate coordinate) {
-        return coordinate.kind().tags().stream()
-            .flatMap(tag -> elements(root, tag))
-            .filter(coordinate::matches);
-    }
-
-    private static Stream<Node> elements(Element root, String tag) {
-        NodeList elements = root.getElementsByTagName(tag);
-        return IntStream.range(0, elements.getLength()).mapToObj(elements::item);
+        Stream<Node> declarations = switch (coordinate.kind()) {
+            case DEPENDENCY -> Stream.concat(
+                DeclaredCoordinates.dependencies(root), DeclaredCoordinates.paths(root)
+            );
+            case PLUGIN -> DeclaredCoordinates.plugins(root);
+        };
+        return declarations.filter(coordinate::matches);
     }
 
     private static boolean versioned(Node declaration) {
@@ -167,7 +164,7 @@ public final class ManagedVersions {
     }
 
     private static Stream<String> propertyProblems(Element root) {
-        return elements(root, "properties")
+        return DeclaredCoordinates.propertyBlocks(root)
             .flatMap(ManagedVersions::declaredProtectedProperties)
             .distinct();
     }
@@ -210,14 +207,8 @@ public final class ManagedVersions {
         /**
          * A build or reporting plugin.
          */
-        PLUGIN;
+        PLUGIN
 
-        List<String> tags() {
-            return switch (this) {
-                case DEPENDENCY -> List.of("dependency", "path");
-                case PLUGIN -> List.of("plugin");
-            };
-        }
     }
 
     /**

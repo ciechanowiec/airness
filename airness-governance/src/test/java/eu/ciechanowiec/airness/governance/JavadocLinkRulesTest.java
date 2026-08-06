@@ -89,4 +89,31 @@ class JavadocLinkRulesTest {
             "one fix per name, not one per mention"
         );
     }
+
+    @Test
+    void ignoresJavadocMarkersInsideAStringLiteral() {
+        String marker = "/" + "** Vault */";
+        assertTrue(
+            unlinked(
+                "final class X { String value = \"" + marker + "\"; }"
+            ).isEmpty(),
+            "a string that resembles Javadoc is still program data"
+        );
+    }
+
+    @Test
+    void ignoresJavadocMarkersInsideATextBlock() {
+        String marker = "/" + "** Vault */";
+        String source = """
+            final class X {
+                String value = \"""
+                    %s
+                    \""";
+            }
+            """.formatted(marker);
+        assertTrue(
+            unlinked(source).isEmpty(),
+            "a fixture in a text block is not a source comment"
+        );
+    }
 }

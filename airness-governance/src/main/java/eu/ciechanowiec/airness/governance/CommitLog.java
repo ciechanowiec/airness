@@ -12,22 +12,28 @@ import lombok.experimental.UtilityClass;
 final class CommitLog {
 
     static List<Commit> commits(Path root) {
-        return shas(root).stream()
-            .map(sha -> commit(root, sha))
+        return entries(root).stream()
+            .map(entry -> commit(root, entry))
             .toList();
     }
 
-    private static List<String> shas(Path root) {
-        String output = GitPlumbing.run(root, List.of("rev-list", "HEAD"));
+    private static List<HistoryEntry> entries(Path root) {
+        String output = GitPlumbing.run(root, List.of("rev-list", "--parents", "HEAD"));
         return output.lines()
             .filter(line -> !line.isBlank())
+            .map(CommitLog::entry)
             .toList();
     }
 
-    private static Commit commit(Path root, String sha) {
-        CommitMessage message = CommitMessages.parse(rawMessage(root, sha));
-        DiffStat stat = DiffStats.parse(rawNumstat(root, sha));
-        return new Commit(sha, message, stat);
+    private static HistoryEntry entry(String line) {
+        String[] fields = line.strip().split("\\s+");
+        return new HistoryEntry(fields[0], fields.length > 2);
+    }
+
+    private static Commit commit(Path root, HistoryEntry entry) {
+        CommitMessage message = CommitMessages.parse(rawMessage(root, entry.sha()));
+        DiffStat stat = DiffStats.parse(rawNumstat(root, entry.sha()));
+        return new Commit(entry.sha(), message, stat, entry.merge());
     }
 
     private static String rawMessage(Path root, String sha) {
@@ -36,5 +42,8 @@ final class CommitLog {
 
     private static String rawNumstat(Path root, String sha) {
         return GitPlumbing.run(root, List.of("show", "--numstat", "--format=", sha));
+    }
+
+    private record HistoryEntry(String sha, boolean merge) {
     }
 }

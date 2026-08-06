@@ -32,12 +32,24 @@ final class OncePerSession {
      * @param goal    the goal class, which is what one run is counted per
      * @return whether the caller is the first, and so the one that should do the work
      */
-    @SuppressWarnings("unchecked")
     static boolean firstRun(MavenSession session, Class<?> goal) {
+        return firstRun(session, goal, "session");
+    }
+
+    /**
+     * Whether this is the first time the goal has reached one named scope in this session.
+     *
+     * @param session the session the goal runs in
+     * @param goal    the goal class
+     * @param scope   the stable scope the goal reads
+     * @return whether the caller is the first for that goal and scope
+     */
+    @SuppressWarnings("unchecked")
+    static boolean firstRun(MavenSession session, Class<?> goal, String scope) {
         SessionData data = session.getRepositorySession().getData();
         Collection<String> reached = (Collection<String>) data.computeIfAbsent(
             KEY, ConcurrentHashMap::newKeySet
         );
-        return reached.add(goal.getName());
+        return reached.add(goal.getName() + ':' + scope);
     }
 }
