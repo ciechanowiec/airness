@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -21,7 +22,9 @@ import org.w3c.dom.NodeList;
  *
  * <p>The scan is deliberately independent of Maven's effective model. Management sections, plugin
  * classpaths, annotation-processor paths, reporting, and inactive profiles are all sources of a pinned
- * coordinate, and model interpolation can erase which pom owned one.
+ * coordinate, and model interpolation can erase which pom owned one. Traversal still follows Maven's
+ * declaration structure, so coordinate-shaped XML belonging to a plugin's arbitrary configuration is
+ * not mistaken for a project dependency or plugin.
  */
 @UtilityClass
 public final class DeclaredCoordinates {
@@ -37,16 +40,15 @@ public final class DeclaredCoordinates {
      * @return distinct coordinates in document order
      */
     public static List<DeclaredCoordinate> from(Path pom) {
-        Node root = Xml.parse(read(pom)).getDocumentElement();
-        Map<String, String> properties = properties(root);
+        Element root = Xml.parse(read(pom)).getDocumentElement();
         Stream<DeclaredCoordinate> dependencies = Stream.concat(
-            elements(root, "dependency"), elements(root, "path")
-        ).map(node -> coordinate(node, properties, "")).flatMap(Optional::stream);
-        Stream<DeclaredCoordinate> plugins = elements(root, "plugin")
-            .map(node -> coordinate(node, properties, MAVEN_PLUGIN_GROUP))
+            dependencies(root), paths(root)
+        ).map(node -> coordinate(node, properties(root, node), "")).flatMap(Optional::stream);
+        Stream<DeclaredCoordinate> plugins = plugins(root)
+            .map(node -> coordinate(node, properties(root, node), MAVEN_PLUGIN_GROUP))
             .flatMap(Optional::stream);
         Stream<DeclaredCoordinate> parents = Xml.firstChild(root, "parent").stream()
-            .map(node -> coordinate(node, properties, ""))
+            .map(node -> coordinate(node, properties(root, node), ""))
             .flatMap(Optional::stream);
         return Stream.of(dependencies, plugins, parents).flatMap(stream -> stream).distinct().toList();
     }
@@ -58,9 +60,9 @@ public final class DeclaredCoordinates {
      * @return the declared parent with its locally owned property resolved
      */
     public static Optional<DeclaredCoordinate> parent(Path pom) {
-        Node root = Xml.parse(read(pom)).getDocumentElement();
-        Map<String, String> properties = properties(root);
-        return Xml.firstChild(root, "parent").flatMap(node -> coordinate(node, properties, ""));
+        Element root = Xml.parse(read(pom)).getDocumentElement();
+        return Xml.firstChild(root, "parent")
+            .flatMap(node -> coordinate(node, properties(root, node), ""));
     }
 
     private static Optional<DeclaredCoordinate> coordinate(
@@ -86,8 +88,15 @@ public final class DeclaredCoordinates {
         return raw;
     }
 
-    private static Map<String, String> properties(Node root) {
-        return elements(root, "properties")
+    private static Map<String, String> properties(Element root, Node declaration) {
+        Stream<Node> project = Xml.firstChild(root, "properties").stream().map(Node.class::cast);
+        Stream<Node> profile = ancestors(declaration)
+            .filter(node -> named(node, "profile"))
+            .findFirst()
+            .stream()
+            .flatMap(node -> Xml.firstChild(node, "properties").stream())
+            .map(Node.class::cast);
+        return Stream.concat(project, profile)
             .flatMap(DeclaredCoordinates::entries)
             .collect(
                 Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (_, second) -> second)
@@ -103,9 +112,84 @@ public final class DeclaredCoordinates {
             .map(element -> Map.entry(element.getTagName(), element.getTextContent().strip()));
     }
 
-    private static Stream<Node> elements(Node root, String tag) {
+    static Stream<Node> dependencies(Element root) {
+        return elements(root, "dependency").filter(DeclaredCoordinates::isDependency);
+    }
+
+    static Stream<Node> plugins(Element root) {
+        return elements(root, "plugin").filter(DeclaredCoordinates::isPlugin);
+    }
+
+    static Stream<Node> paths(Element root) {
+        return elements(root, "path").filter(DeclaredCoordinates::isAnnotationProcessorPath);
+    }
+
+    static Stream<Node> propertyBlocks(Element root) {
+        return elements(root, "properties")
+            .filter(node -> projectOrProfile(node.getParentNode()));
+    }
+
+    private static Stream<Node> elements(Element root, String tag) {
         NodeList nodes = ((Element) root).getElementsByTagName(tag);
         return IntStream.range(0, nodes.getLength()).mapToObj(nodes::item);
+    }
+
+    private static boolean isDependency(Node node) {
+        Node dependencies = node.getParentNode();
+        if (!named(dependencies, "dependencies")) {
+            return false;
+        }
+        Node owner = dependencies.getParentNode();
+        return projectOrProfile(owner)
+            || isManagedDependency(owner)
+            || isPluginDependency(owner);
+    }
+
+    private static boolean isPlugin(Node node) {
+        Node plugins = node.getParentNode();
+        Node owner = plugins.getParentNode();
+        boolean direct = (named(owner, "build") || named(owner, "reporting"))
+            && projectOrProfile(owner.getParentNode());
+        boolean managed = named(owner, "pluginManagement")
+            && named(owner.getParentNode(), "build")
+            && projectOrProfile(owner.getParentNode().getParentNode());
+        return named(plugins, "plugins") && (direct || managed);
+    }
+
+    private static boolean isManagedDependency(Node owner) {
+        return named(owner, "dependencyManagement") && projectOrProfile(owner.getParentNode());
+    }
+
+    private static boolean isPluginDependency(Node owner) {
+        return named(owner, "plugin") && isPlugin(owner);
+    }
+
+    private static boolean isAnnotationProcessorPath(Node node) {
+        Node paths = node.getParentNode();
+        Optional<Node> configuration = Optional.ofNullable(paths).map(Node::getParentNode);
+        Optional<Node> plugin = configuration.stream()
+            .flatMap(DeclaredCoordinates::ancestors)
+            .filter(ancestor -> named(ancestor, "plugin"))
+            .findFirst();
+        return named(paths, "annotationProcessorPaths")
+            && configuration.filter(held -> named(held, "configuration")).isPresent()
+            && plugin.filter(DeclaredCoordinates::isPlugin).isPresent();
+    }
+
+    private static boolean projectOrProfile(Node node) {
+        return named(node, "project") || named(node, "profile");
+    }
+
+    private static Stream<Node> ancestors(Node node) {
+        return Stream.iterate(node.getParentNode(), Objects::nonNull, Node::getParentNode);
+    }
+
+    private static boolean named(Node node, String name) {
+        return Optional.ofNullable(node)
+            .filter(held -> held.getNodeType() == Node.ELEMENT_NODE)
+            .map(Node::getNodeName)
+            .filter(name::equals)
+            .isPresent();
     }
 
     private static String read(Path pom) {

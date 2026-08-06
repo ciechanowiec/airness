@@ -23,10 +23,16 @@ import org.apache.maven.project.MavenProject;
  * <p>A derived default would be worse than none. Deriving the package root from the coordinates is right
  * for a project whose artifactId is one word and wrong for every hyphenated one, and a default that is
  * usually right is a default nobody checks.
+ *
+ * <p>This preflight runs once per reactor module, because every raw child pom can replace an inherited
+ * property or declaration independently. The harness's own parent module is the source of those
+ * declarations rather than a consumer and is therefore outside this child policy.
  */
 @Mojo(name = "check-parameters", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
 public final class CheckParametersMojo extends AbstractPreflightMojo {
 
+    private static final String AIRNESS_GROUP = "eu.ciechanowiec";
+    private static final String AIRNESS_PARENT = "airness-parent";
     private static final String UNSET = "UNSET";
 
     /**
@@ -40,6 +46,16 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
      */
     @Parameter(property = "airness.version", required = true)
     private String airnessVersion;
+
+    @Override
+    boolean applies() {
+        if (AIRNESS_GROUP.equals(this.project().getGroupId())
+            && AIRNESS_PARENT.equals(this.project().getArtifactId())) {
+            return false;
+        }
+        String pom = this.project().getFile().toPath().toAbsolutePath().normalize().toString();
+        return OncePerSession.firstRun(this.session(), this.getClass(), pom);
+    }
 
     @Override
     List<String> problems() {
@@ -65,14 +81,21 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
      * @return the problem, if the two disagree
      */
     private Optional<String> versionAgreement() {
-        String parent = Optional.ofNullable(this.project().getParent())
-            .map(MavenProject::getVersion)
-            .orElse("");
+        String parent = airnessParentVersion(this.project()).orElse("");
         return Optional.of(
             "airness.version (" + this.airnessVersion + ") does not match the inherited "
                 + "airness-parent version (" + parent + ")"
         )
             .filter(_ -> !Objects.equals(this.airnessVersion, parent));
+    }
+
+    static Optional<String> airnessParentVersion(MavenProject project) {
+        return Stream.iterate(project, Objects::nonNull, MavenProject::getParent)
+            .skip(1)
+            .filter(parent -> AIRNESS_GROUP.equals(parent.getGroupId()))
+            .filter(parent -> AIRNESS_PARENT.equals(parent.getArtifactId()))
+            .map(MavenProject::getVersion)
+            .findFirst();
     }
 
     private Optional<String> packageRootProblem() {

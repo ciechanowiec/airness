@@ -68,7 +68,7 @@ final class JavadocScope {
     }
 
     private static Stream<String> imported(CharSequence text) {
-        return IMPORT.matcher(text).results()
+        return IMPORT.matcher(JavadocLinkRules.codeOnly(text)).results()
             .map(MatchResult::group)
             .map(JavadocScope::simpleName);
     }

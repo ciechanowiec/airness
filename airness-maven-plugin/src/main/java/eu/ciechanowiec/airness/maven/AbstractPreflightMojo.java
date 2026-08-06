@@ -49,7 +49,7 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
         }
     }
 
-    private boolean applies() {
+    boolean applies() {
         return this.session.getTopLevelProject().equals(this.project)
             && OncePerSession.firstRun(this.session, this.getClass());
     }
@@ -64,7 +64,7 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
     }
 
     /**
-     * The top-level project whose harness configuration is being checked.
+     * The current project whose harness configuration is being checked.
      *
      * @return the current project
      */

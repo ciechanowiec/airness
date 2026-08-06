@@ -22,7 +22,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class JavadocLinkRules {
 
-    private static final Pattern JAVADOC = Pattern.compile("(?s)/\\*\\*.*?\\*/");
+    private static final Pattern TOKEN = Pattern.compile(
+        "(?s)\"\"\".*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'|/\\*.*?\\*/|//[^\\n]*"
+    );
     private static final Pattern LINK = Pattern.compile("\\{@(?:link|linkplain)\\s+[^}]*}");
     private static final Pattern SAMPLE = Pattern.compile("(?s)<pre>.*?</pre>");
     private static final Pattern TAG_TARGET = Pattern.compile("@(?:param|throws|exception|see)\\s+\\S+");
@@ -34,11 +36,16 @@ final class JavadocLinkRules {
      * without repeats.
      */
     static List<String> unlinked(CharSequence source, Predicate<String> resolves) {
-        return JAVADOC.matcher(source).results()
+        return TOKEN.matcher(source).results()
             .map(MatchResult::group)
+            .filter(token -> token.startsWith("/**"))
             .flatMap(comment -> namesIn(comment, resolves))
             .distinct()
             .toList();
+    }
+
+    static String codeOnly(CharSequence source) {
+        return TOKEN.matcher(source).replaceAll(SPACE);
     }
 
     private static Stream<String> namesIn(CharSequence comment, Predicate<String> resolves) {

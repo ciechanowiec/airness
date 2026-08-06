@@ -118,7 +118,13 @@ class CommitMessageRulesTest {
     @Test
     void exemptsAMergeHeader() {
         CommitMessage message = new CommitMessage("Merge branch 'release' into 'main'", "");
-        assertEquals(List.of(), CommitMessageRules.validate(message, NON_TRIVIAL));
+        assertEquals(List.of(), CommitMessageRules.validate(message, NON_TRIVIAL, true));
+    }
+
+    @Test
+    void rejectsAMergeLikeHeaderOnAnOrdinaryCommit() {
+        CommitMessage message = new CommitMessage("Merge anything at all", "");
+        assertFalse(CommitMessageRules.validate(message, TRIVIAL).isEmpty());
     }
 
     @Test
@@ -128,6 +134,12 @@ class CommitMessageRulesTest {
             "This reverts commit 0123456789abcdef0123456789abcdef01234567."
         );
         assertEquals(List.of(), CommitMessageRules.validate(message, NON_TRIVIAL));
+    }
+
+    @Test
+    void rejectsAnIncompleteRevertHeader() {
+        CommitMessage message = new CommitMessage("Revert \"unfinished", "");
+        assertFalse(CommitMessageRules.validate(message, TRIVIAL).isEmpty());
     }
 
     @Test

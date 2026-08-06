@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Version discovery follows the complete Maven parent chain while keeping the pom that owns every
- * declaration visible in the result.
+ * Version discovery follows Maven's resolved parent chain and effective properties while keeping the
+ * raw pom that owns every declaration visible in the result.
  */
 class VersionCoordinatesTest {
 
@@ -22,12 +22,14 @@ class VersionCoordinatesTest {
     private Path directory;
 
     @Test
-    void includesTheReactorAndEveryParent() {
-        this.install("grandparent", this.pom("grand-library", ""));
-        this.install("parent", this.pom("parent-library", this.parent("grandparent")));
-        MavenProject child = this.project(this.pom("child-library", this.parent("parent")));
+    void includesTheReactorAndEveryResolvedParent() {
+        MavenProject grandparent = this.project("grandparent", this.pom("grand-library", ""), null);
+        MavenProject parent = this.project("parent", this.pom("parent-library", ""), grandparent);
+        MavenProject child = this.project("child", this.pom("child-library", ""), parent);
 
-        List<OwnedCoordinate> coordinates = VersionCoordinates.from(List.of(child), this.directory);
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(
+            List.of(child), this.directory.resolve("empty-repository")
+        );
         List<OwnedCoordinate> dependencies = coordinates.stream()
             .filter(coordinate -> coordinate.coordinate().groupId().equals("sample.dependencies"))
             .toList();
@@ -40,45 +42,72 @@ class VersionCoordinatesTest {
         );
     }
 
+    @Test
+    void resolvesAVersionPropertyInheritedFromTheParentModel() {
+        MavenProject parent = this.project("parent", "<project/>", null);
+        MavenProject child = this.project(
+            "child",
+            this.pom("library", "${library.version}"),
+            parent
+        );
+        child.getProperties().setProperty("library.version", "3.4.5");
+
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(
+            List.of(child), this.directory.resolve("empty-repository")
+        );
+
+        assertTrue(
+            coordinates.stream().anyMatch(coordinate -> coordinate.coordinate().version().equals("3.4.5")),
+            "the raw declaration keeps its owner while Maven's effective property supplies its value"
+        );
+    }
+
+    @Test
+    void resolvesProjectVersionBeforeExcludingAReactorDependency() {
+        MavenProject library = this.project("library", "<project/>", null);
+        MavenProject application = this.project(
+            "application",
+            this.pom("sample", "library", "${project.version}"),
+            null
+        );
+
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(
+            List.of(library, application), this.directory.resolve("empty-repository")
+        );
+
+        assertTrue(
+            coordinates.stream().noneMatch(coordinate -> coordinate.coordinate().artifactId().equals("library")),
+            "a same-reactor dependency is excluded by its resolved versioned coordinate"
+        );
+    }
+
     @SneakyThrows
-    private MavenProject project(CharSequence pom) {
+    private MavenProject project(String artifact, CharSequence pom, MavenProject parent) {
         MavenProject project = new MavenProject();
         project.setGroupId("sample");
-        project.setArtifactId("child");
-        project.setVersion("1.0.0");
-        project.setFile(Files.writeString(this.directory.resolve("child.xml"), pom).toFile());
+        project.setArtifactId(artifact);
+        project.setVersion("1.0.0-SNAPSHOT");
+        project.setFile(Files.writeString(this.directory.resolve(artifact + ".xml"), pom).toFile());
+        project.setParent(parent);
         return project;
     }
 
-    @SneakyThrows
-    private void install(String artifact, CharSequence pom) {
-        Path version = this.directory.resolve("sample").resolve(artifact).resolve("1.0.0-SNAPSHOT");
-        Files.createDirectories(version);
-        Files.writeString(version.resolve(artifact + "-1.0.0-SNAPSHOT.pom"), pom);
+    private String pom(String artifact, String version) {
+        String held = version.isEmpty() ? "1.0.0" : version;
+        return this.pom("sample.dependencies", artifact, held);
     }
 
-    private String pom(String artifact, String parent) {
+    private String pom(String group, String artifact, String version) {
         return """
             <project>
-                %s
                 <dependencies>
                     <dependency>
-                        <groupId>sample.dependencies</groupId>
+                        <groupId>%s</groupId>
                         <artifactId>%s</artifactId>
-                        <version>1.0.0</version>
+                        <version>%s</version>
                     </dependency>
                 </dependencies>
             </project>
-            """.formatted(parent, artifact);
-    }
-
-    private String parent(String artifact) {
-        return """
-            <parent>
-                <groupId>sample</groupId>
-                <artifactId>%s</artifactId>
-                <version>1.0.0-SNAPSHOT</version>
-            </parent>
-            """.formatted(artifact);
+            """.formatted(group, artifact, version);
     }
 }

@@ -168,4 +168,13 @@ class DependencyFreshnessCheckTest {
             "and it names the registry it could not reach, so the failure is not mistaken for a stale dependency"
         );
     }
+
+    @Test
+    void failsRatherThanSkippingAnUnresolvedVersionProperty() {
+        String registry = this.registry("3.0.0");
+        IllegalStateException thrown = assertThrows(
+            IllegalStateException.class, () -> this.check("${inherited.version}", registry)
+        );
+        assertTrue(thrown.getMessage().contains("Unresolved version"));
+    }
 }

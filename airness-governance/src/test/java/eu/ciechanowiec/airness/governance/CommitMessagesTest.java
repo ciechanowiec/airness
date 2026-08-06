@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 /**
- * The history parser drops a commented message template before splitting the header from the body.
+ * The history parser preserves every line stored in the commit object.
  */
 class CommitMessagesTest {
 
@@ -28,19 +28,16 @@ class CommitMessagesTest {
     }
 
     @Test
-    void theCommentGitAppendsIsNotABody() {
+    void storedCommentLinesRemainPartOfTheBody() {
         CommitMessage message = CommitMessages.parse(HEADER + "\n\n" + TEMPLATE);
         assertEquals(HEADER, message.header(), "the header survives the comments");
-        assertTrue(
-            message.body().isBlank(),
-            "a message carrying only git's template declares no body, so the body rule can still fire"
-        );
+        assertEquals(TEMPLATE.strip(), message.body(), "stored lines are history, whatever prefix they use");
     }
 
     @Test
-    void aRealBodySurvivesAlongsideTheComments() {
+    void aRealBodyAndStoredCommentsBothSurvive() {
         CommitMessage message = CommitMessages.parse(HEADER + "\n\nThe merge grew past the cap.\n\n" + TEMPLATE);
-        assertEquals("The merge grew past the cap.", message.body(), "the prose is kept, the comments are not");
+        assertTrue(message.body().startsWith("The merge grew past the cap.\n\n# Please enter"));
     }
 
     @Test

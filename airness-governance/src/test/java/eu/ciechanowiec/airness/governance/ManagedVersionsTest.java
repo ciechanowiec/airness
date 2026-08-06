@@ -90,6 +90,30 @@ class ManagedVersionsTest {
         );
     }
 
+    @Test
+    void ignoresCoordinatesThatBelongToPluginConfiguration() {
+        String pom = """
+            <project>
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>sample</groupId>
+                            <artifactId>generator</artifactId>
+                            <configuration>
+                                <dependency>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                    <version>1</version>
+                                </dependency>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </build>
+            </project>
+            """;
+        assertTrue(this.problems(pom).isEmpty(), "plugin-specific XML is not a Maven dependency declaration");
+    }
+
     private void assertPropertyRejected(String property) {
         String pom = "<project><properties><%s>1</%s></properties></project>".formatted(property, property);
         assertEquals(1, this.problems(pom).size(), property);
