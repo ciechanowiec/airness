@@ -65,11 +65,16 @@ public final class Repository {
      * is a repository with no commits, while a shallow clone is a repository whose commits were not
      * fetched.
      *
+     * <p>The question is asked of HEAD rather than of every ref, because HEAD is what the checks that act
+     * on the answer go on to read. Counting every ref answers a question nobody asked: a fresh orphan
+     * branch beside an existing one is an unborn HEAD in a repository that has commits, and a guard
+     * counting those commits would wave the readers through to a HEAD that resolves to nothing.
+     *
      * @param root the working tree root
-     * @return whether at least one commit exists
+     * @return whether HEAD names a commit
      */
     public static boolean hasCommits(Path root) {
-        return !"0".equals(GitPlumbing.run(root, List.of("rev-list", "--all", "--count")).strip());
+        return GitPlumbing.attempt(root, List.of("rev-parse", "--verify", "HEAD")).isPresent();
     }
 
     /**
