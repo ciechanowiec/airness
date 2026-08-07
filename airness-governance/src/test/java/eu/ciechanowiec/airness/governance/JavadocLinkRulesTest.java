@@ -37,6 +37,17 @@ class JavadocLinkRulesTest {
         assertEquals(List.of("Vault"), unlinked(document("The Vault stores every token.")), "prose must link");
     }
 
+    // No Java type name carries a hyphen, so a name opening a compound is a word. Read as a type, it made
+    // the verdict turn on an unrelated import: one file was reported for a sentence that passed in the
+    // file beside it, the difference being that the first imported a type the sentence never meant.
+    @Test
+    void readsANameOpeningAHyphenatedCompoundAsAnOrdinaryWord() {
+        assertTrue(
+            unlinked(document("A Vault-relative path names where the entry sits.")).isEmpty(),
+            "a compound adjective is prose, and no link could ever be written for it"
+        );
+    }
+
     @Test
     void flagsAResolvableTypeWrittenAsCodeRatherThanLinked() {
         assertEquals(

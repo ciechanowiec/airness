@@ -22,13 +22,21 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class JavadocLinkRules {
 
+    // A text block consumes its escapes, so a block embedding its own delimiter is one token rather than
+    // two and a half. Ending the token early leaves the rest of the block to be read as code, which is
+    // what decides the imports and the declared types this rule resolves names against.
     private static final Pattern TOKEN = Pattern.compile(
-        "(?s)\"\"\".*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'|/\\*.*?\\*/|//[^\\n]*"
+        "(?s)\"\"\"(?:\\\\.|[^\\\\])*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
+            + "|/\\*.*?\\*/|//[^\\n]*"
     );
     private static final Pattern LINK = Pattern.compile("\\{@(?:link|linkplain)\\s+[^}]*}");
     private static final Pattern SAMPLE = Pattern.compile("(?s)<pre>.*?</pre>");
     private static final Pattern TAG_TARGET = Pattern.compile("@(?:param|throws|exception|see)\\s+\\S+");
-    private static final Pattern NAME = Pattern.compile("\\b[A-Z][A-Za-z0-9]*\\b");
+    // A name opening a hyphenated compound is an ordinary word, because no Java type name carries a
+    // hyphen. Reading one as a type made the verdict depend on an unrelated import: the same sentence
+    // about a repository-relative path was reported in the file that imports Repository and passed in the
+    // file beside it that does not.
+    private static final Pattern NAME = Pattern.compile("\\b[A-Z][A-Za-z0-9]*\\b(?!-[a-z])");
     private static final String SPACE = " ";
 
     /**
