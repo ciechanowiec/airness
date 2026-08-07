@@ -810,7 +810,7 @@
                 only for as long as nobody overrides the excluded groups, whereas an execution that is
                 not in the active profile does not exist to be re-enabled.
             -->
-            <id>full</id>
+            <id>extended</id>
             <build>
                 <plugins>
                     <!--
@@ -878,7 +878,7 @@
                                 </goals>
                             </execution>
                             <execution>
-                                <id>airness-governance-full</id>
+                                <id>airness-governance-extended</id>
                                 <phase>package</phase>
                                 <goals>
                                     <goal>commit-history</goal>

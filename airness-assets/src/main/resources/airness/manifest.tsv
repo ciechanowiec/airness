@@ -1,6 +1,6 @@
 # Files that must exist in a consumer working tree because non-Maven tools read them there.
-# Project documentation is intentionally absent: prose, document tooling, and document assets always
-# belong to the consuming project. CLAUDE.md is a fixed tool entry point rather than project prose.
+# Project documentation belongs to the consuming project. The software project guideline is the one
+# exception because it defines the agent contract. CLAUDE.md is a fixed tool entry point.
 
 .editorconfig	PINNED
 .gitattributes	PINNED
@@ -8,6 +8,8 @@
 CLAUDE.md	PINNED
 lombok.config	PINNED
 qodana.yaml	PINNED
+.airness/agent-guide.md	PINNED
+README-guideline-software-project.adoc	PINNED
 .gitignore	SEED
 .gitleaks.toml	SEED
 rewrite.yml	FORBIDDEN

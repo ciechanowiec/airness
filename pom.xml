@@ -489,9 +489,9 @@
         <profile>
             <!--
                 Airness's README is repository source, not a consumer asset. Keep this execution on the
-                aggregator while making the same full command verify the main document changed here.
+                aggregator while making the same extended command verify the main document changed here.
             -->
-            <id>full</id>
+            <id>extended</id>
             <build>
                 <plugins>
                     <plugin>

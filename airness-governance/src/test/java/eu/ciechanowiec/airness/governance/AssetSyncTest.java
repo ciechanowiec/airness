@@ -23,9 +23,11 @@ class AssetSyncTest {
 
     private static final String EDITORCONFIG = ".editorconfig";
     private static final String GITIGNORE = ".gitignore";
+    private static final String GUIDE = ".airness/agent-guide.md";
 
     private static final String MANIFEST = """
         .editorconfig\tPINNED
+        .airness/agent-guide.md\tPINNED
         .gitignore\tSEED
         rewrite.yml\tFORBIDDEN
         """;
@@ -39,6 +41,7 @@ class AssetSyncTest {
     private List<String> sync(Path root, String... unmanaged) {
         AssetCatalogue catalogue = new AssetFixture(this.shipped, MANIFEST)
             .ship(EDITORCONFIG, CANONICAL)
+            .ship(GUIDE, "guide\n")
             .ship(GITIGNORE, SEEDED)
             .catalogue();
         return new AssetSync(root, catalogue, List.of(unmanaged)).write();
@@ -52,7 +55,10 @@ class AssetSyncTest {
     @Test
     void writesWhatIsMissing() {
         Path root = new GitFixture("sync-missing").write("README.md", "content\n").root();
-        assertEquals(List.of(EDITORCONFIG, GITIGNORE), this.sync(root), "both were absent");
+        assertEquals(
+            List.of(EDITORCONFIG, GUIDE, GITIGNORE), this.sync(root),
+            "all managed files were absent"
+        );
         assertEquals(CANONICAL, read(root, EDITORCONFIG), "and both hold what the harness ships");
         assertEquals(SEEDED, read(root, GITIGNORE), "and both hold what the harness ships");
     }
@@ -63,7 +69,10 @@ class AssetSyncTest {
             .write(EDITORCONFIG, "root = false\n")
             .write(GITIGNORE, SEEDED)
             .root();
-        assertEquals(List.of(EDITORCONFIG), this.sync(root), "only the pinned file needed writing");
+        assertEquals(
+            List.of(EDITORCONFIG, GUIDE), this.sync(root),
+            "the pinned file drifted and the pinned guide was absent"
+        );
         assertEquals(CANONICAL, read(root, EDITORCONFIG), "and it now holds what the harness ships");
     }
 
@@ -73,7 +82,7 @@ class AssetSyncTest {
             .write(EDITORCONFIG, CANONICAL)
             .write(GITIGNORE, "target/\nnode_modules/\n")
             .root();
-        assertEquals(List.of(), this.sync(root), "there was nothing to write");
+        assertEquals(List.of(GUIDE), this.sync(root), "only the pinned guide was absent");
         assertEquals(
             "target/\nnode_modules/\n", read(root, GITIGNORE),
             "a seed's body belongs to the project the moment it exists"
@@ -87,7 +96,10 @@ class AssetSyncTest {
             .write(GITIGNORE, SEEDED)
             .write("rewrite.yml", "a file somebody put here\n")
             .root();
-        assertEquals(List.of(), this.sync(root), "a forbidden file is reported by the check, not removed here");
+        assertEquals(
+            List.of(GUIDE), this.sync(root),
+            "the guide was written and the forbidden file was not removed"
+        );
         assertTrue(
             Files.exists(root.resolve("rewrite.yml")),
             "a build tool deleting a developer's file on their behalf is worse than the problem it fixes"
@@ -97,7 +109,10 @@ class AssetSyncTest {
     @Test
     void skipsWhatTheProjectHasTakenOver() {
         Path root = new GitFixture("sync-optout").write(EDITORCONFIG, "root = false\n").root();
-        assertEquals(List.of(GITIGNORE), this.sync(root, EDITORCONFIG), "the opted-out file was left alone");
+        assertEquals(
+            List.of(GUIDE, GITIGNORE), this.sync(root, EDITORCONFIG),
+            "the opted-out file was left alone"
+        );
         assertEquals("root = false\n", read(root, EDITORCONFIG), "with the content the project chose");
     }
 
@@ -113,5 +128,16 @@ class AssetSyncTest {
             "asset repair must never follow a project path into a file outside the repository"
         );
         assertEquals("must stay untouched\n", Files.readString(outside), "the external target was not rewritten");
+    }
+
+    @Test
+    void skipsAnOptedOutAgentGuide() {
+        Path root = new GitFixture("sync-guide-optout")
+            .write(EDITORCONFIG, CANONICAL)
+            .write(GUIDE, "changed\n")
+            .write(GITIGNORE, SEEDED)
+            .root();
+        assertEquals(List.of(), this.sync(root, GUIDE), "the opted-out guide was left alone");
+        assertEquals("changed\n", read(root, GUIDE), "the project-owned content was preserved");
     }
 }

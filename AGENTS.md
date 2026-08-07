@@ -1,3 +1,18 @@
+<!-- BEGIN AIRNESS MANAGED INSTRUCTIONS -->
+## Airness harness
+
+Follow the repository contract from general to specific:
+
+1. Follow `README-guideline-software-project.adoc`.
+2. Follow the complete Airness contract in `.airness/agent-guide.md`.
+3. Follow the project-owned instructions below this managed block.
+
+Every layer is binding, and a later layer may strengthen but never weaken an earlier one. The inherited harness is
+the executable enforcement of this contract. Do not weaken, replace, duplicate, or version what Airness owns. Use
+only the write commands declared by the guide, review their edits, and complete its required verification before
+finishing.
+<!-- END AIRNESS MANAGED INSTRUCTIONS -->
+
 # Repository Guidelines
 
 ## Project Structure & Module Organization
@@ -10,7 +25,7 @@ Airness is a Maven 3.9.16+ multi-module build harness that requires exactly Java
   the two-major freshness bound, and installs all reactor modules for consumer tests. Version checking
   requires Maven Central.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
-- `mvn clean package -Pfull` runs slow history, mutation, secret, Qodana, and Airness README checks on
+- `mvn clean package -Pextended` runs slow history, mutation, secret, Qodana, and Airness README checks on
   top of default verification; it requires full Git history, network access, Docker, Python 3,
   Asciidoctor, Vale, `pdftotext`, and Tesseract.
 - `mvn process-resources -Pformat` applies the configured formatter, import ordering, and OpenRewrite recipes.
@@ -22,7 +37,7 @@ Use four spaces, no tabs, UTF-8, end-of-line braces, and the formatter shipped i
 
 ## Testing Guidelines
 
-Tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example `rejectsATrailingPeriod`. Add regression coverage beside the changed module. JaCoCo enforces at least 80% instruction and branch coverage per consumer class, across the governance bundle, and per directly tested Maven-plugin utility class. PIT mutation checks run in the full profile for the self-tested implementation and consumers. Do not treat `mvn clean package` inside `airness-it` as a normal test: its fixtures intentionally violate rules.
+Tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example `rejectsATrailingPeriod`. Add regression coverage beside the changed module. JaCoCo enforces at least 80% instruction and branch coverage per consumer class, across the governance bundle, and per directly tested Maven-plugin utility class. PIT mutation checks run in the extended profile for the self-tested implementation and consumers. Do not treat `mvn clean package` inside `airness-it` as a normal test: its fixtures intentionally violate rules.
 
 ## Commit & Pull Request Guidelines
 

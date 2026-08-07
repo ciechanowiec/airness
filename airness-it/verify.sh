@@ -232,8 +232,12 @@ class RewriteTestingTest {
     void cleansAssertionsAndVerification() {
         assertThat("").hasSize(0);
         Runnable dependency = mock(Runnable.class);
-        dependency.run();
+        invoke(dependency);
         verify(dependency, times(1)).run();
+    }
+
+    private static void invoke(Runnable dependency) {
+        dependency.run();
     }
 }
 JAVA
@@ -412,8 +416,8 @@ else
     failures=$((failures + 1))
 fi
 
-# The two agent files are a fixed contract. Legacy properties must not be able to redirect or disable
-# either check, and explicit synchronization must materialize the exact Claude entry.
+# The agent files connect coding tools to the shared project instructions. Explicit synchronization
+# must materialize the exact Claude entry and the detailed guide.
 expected_claude="$scratch/expected-claude"
 printf '@AGENTS.md\n' > "$expected_claude"
 expected_java_version="$scratch/expected-java-version"
@@ -422,6 +426,25 @@ if cmp -s "$expected_claude" "$consumer/CLAUDE.md"; then
     echo 'ok       instructions: sync writes the exact Claude entry'
 else
     echo 'FAILED   instructions: sync wrote the wrong Claude entry' >&2
+    failures=$((failures + 1))
+fi
+if sed -n '1p' "$consumer/AGENTS.md" | grep -Fq '<!-- BEGIN AIRNESS MANAGED INSTRUCTIONS -->' \
+    && grep -Fq '# Consumer instructions' "$consumer/AGENTS.md"; then
+    echo 'ok       instructions: sync prepends Airness and preserves project prose'
+else
+    echo 'FAILED   instructions: sync did not compose AGENTS.md safely' >&2
+    failures=$((failures + 1))
+fi
+if grep -Fq '# Airness Agent Guide' "$consumer/.airness/agent-guide.md"; then
+    echo 'ok       instructions: sync writes the detailed agent guide'
+else
+    echo 'FAILED   instructions: sync did not write the detailed agent guide' >&2
+    failures=$((failures + 1))
+fi
+if grep -Fq '= Software Project Guideline' "$consumer/README-guideline-software-project.adoc"; then
+    echo 'ok       instructions: sync writes the software project guideline'
+else
+    echo 'FAILED   instructions: sync did not write the software project guideline' >&2
     failures=$((failures + 1))
 fi
 if cmp -s "$expected_java_version" "$consumer/.java-version"; then
@@ -434,6 +457,17 @@ mv "$consumer/AGENTS.md" "$scratch/consumer-AGENTS.md"
 run_case 'instructions: AGENTS is mandatory' 1 'mandatory AGENTS.md file is missing' \
     "$consumer" airness:entry-files -Dairness.instruction.file=NONE -Dairness.entry.files=NONE
 mv "$scratch/consumer-AGENTS.md" "$consumer/AGENTS.md"
+perl -0pi -e 's/Follow the complete Airness contract/Ignore the complete Airness contract/' "$consumer/AGENTS.md"
+run_case 'instructions: stale Airness block is rejected' 1 'stale Airness instructions' \
+    "$consumer" airness:entry-files
+(cd "$consumer" && mvn --quiet airness:assets-sync >/dev/null)
+if grep -Fq 'Follow the complete Airness contract' "$consumer/AGENTS.md" \
+    && grep -Fq '# Consumer instructions' "$consumer/AGENTS.md"; then
+    echo 'ok       instructions: sync refreshes only the managed block'
+else
+    echo 'FAILED   instructions: sync did not preserve prose while refreshing the block' >&2
+    failures=$((failures + 1))
+fi
 printf '@AGENTS.md\nRun Maven first.\n' > "$consumer/CLAUDE.md"
 run_case 'instructions: CLAUDE has exact content' 1 'must contain exactly @AGENTS.md' \
     "$consumer" airness:entry-files -Dairness.instruction.file=NONE -Dairness.entry.files=NONE
@@ -804,7 +838,7 @@ git clone --quiet --depth 1 "file://$untested" "$shallow"
 run_case 'history: shallow clone is rejected by Maven' 1 'This is a shallow clone' \
     "$shallow" airness:require-full-history
 
-# The slow profile had never run against a consumer at all, only against Airness itself, so nothing said
+# The extended profile had never run against a consumer at all, only against Airness itself, so nothing said
 # whether a consumer reaches its goals or in what order. Both cases below stop the build inside the
 # governance execution, which runs its history goals and the mutation baseline ahead of the two goals that
 # want Docker, so the wiring is proved without pulling an image.
@@ -813,24 +847,28 @@ run_case 'history: shallow clone is rejected by Maven' 1 'This is a shallow clon
 # exists to exercise the rewrite recipes and carries the untidy code they rewrite, which the compiler
 # rejects under enforcement before any of this is reached. What these two assert survives that, because a
 # missing baseline stops the build whatever the switch says, and a reported finding is printed either way.
-full_profile="$(new_consumer full-profile)"
-run_case 'full: a consumer is told to create its own mutation baseline' 1 \
+extended_profile="$(new_consumer extended-profile)"
+run_case 'extended: a consumer is told to create its own mutation baseline' 1 \
     'mutation-baseline.tsv, so create it' \
-    "$full_profile" clean package -Pfull -Dairness.enforce=false
-git -C "$full_profile" commit --quiet --allow-empty --message 'wip'
-run_case 'full: a consumer commit message answers to the policy' 1 \
+    "$extended_profile" clean package -Pextended -Dairness.enforce=false
+git -C "$extended_profile" commit --quiet --allow-empty --message 'wip'
+run_case 'extended: a consumer commit message answers to the policy' 1 \
     'Commit messages that break the policy' \
-    "$full_profile" clean package -Pfull -Dairness.enforce=false
+    "$extended_profile" clean package -Pextended -Dairness.enforce=false
 
-# Published assets must contain neither documentation nor Git-hook material.
+# Published assets contain the pinned software guideline but no other documentation or Git-hook material.
 assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.0-SNAPSHOT/airness-assets-1.0.0-SNAPSHOT.jar"
 listing="$scratch/assets.txt"
 jar tf "$assets" > "$listing"
-if grep -Eq '(^|/)(\.vale|\.docs|docinfo|README|githooks|lint-docs)' "$listing"; then
+if ! grep -Fq 'airness/files/README-guideline-software-project.adoc.asset' "$listing"; then
+    echo 'FAILED   assets: published jar omitted the software project guideline' >&2
+    failures=$((failures + 1))
+elif grep -Ev 'airness/files/README-guideline-software-project[.]adoc[.]asset$' "$listing" \
+    | grep -Eq '(^|/)(\.vale|\.docs|docinfo|README|githooks|lint-docs)'; then
     echo 'FAILED   assets: documentation or hooks leaked into the published jar' >&2
     failures=$((failures + 1))
 else
-    echo 'ok       assets: published jar contains no documentation or hooks'
+    echo 'ok       assets: published jar contains only the pinned guideline'
 fi
 
 if [ "$failures" -ne 0 ]; then

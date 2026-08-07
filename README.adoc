@@ -32,21 +32,15 @@
 [[overview]]
 == Overview
 
-This guide is for Java teams that use Maven to build an app or library. It assumes that readers know Maven project files, phases, profiles, and keys.
-
-_airness_ is a Maven parent for Java 25 projects. It moves shared build policy out of individual projects and applies that policy through the normal Maven lifecycle. A regular build produces the project artifact, checks required repository files without changing them, and fails when the project doesn't conform.
-
-This guide covers adoption and daily use of _airness_ version `{airness-version}`. It doesn't cover the source modules, release work, or internal code.
+_airness_ is a Maven parent that keeps shared build rules in one place. This guide explains xref:#quick-start[how to add _airness_ version `{airness-version}`], how to xref:#build-commands[run its checks], and how to xref:#configuration[configure it for a project]. It doesn't cover the source modules, release work, or internal implementation.
 
 [[quick-start]]
 == Quick Start
 
-The project needs exactly Java Development Kit (JDK) 25, Maven 3.9.16 or later, and a Git working tree. Maven permits one parent, so a project that already inherits another parent can't inherit `airness-parent` as well.
-
 [[parent-configuration]]
 === Parent Configuration
 
-. The following complete Maven Project Object Model (POM) configures a project with classes under `com.example.orders`.
+. The following complete Maven project file configures a project with classes under `com.example.orders`.
 +
 [source,xml,subs="attributes+"]
 ----
@@ -73,97 +67,105 @@ The project needs exactly Java Development Kit (JDK) 25, Maven 3.9.16 or later, 
     </properties>
 </project>
 ----
-. `airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`.
-. Every project contains a non-empty `AGENTS.md` with its instructions. The managed `CLAUDE.md` file contains only `@AGENTS.md`.
+. [[package-root,airness.package.root]]`airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`.
 
-[[first-build]]
-=== First Build
+[[managed-file-setup]]
+=== Managed File Setup
 
-. Materialize the files managed by _airness_. This is the only command in the adoption flow that writes them.
+. Run the [[asset-sync-goal,sync goal]]sync goal to create or update the xref:#managed-files[managed files]. No other command in the adoption flow writes these files:
 +
 [source,bash]
 ----
 mvn airness:assets-sync
 ----
-. Review and commit the managed-file changes.
-. Run the default build. It checks the resulting tree without rewriting it.
-+
-[source,bash]
-----
-mvn clean package
-----
-. Existing projects can first collect all findings without failing on them:
-+
-[source,bash]
-----
-mvn clean package -Dairness.enforce=false
-----
-+
-Compilation errors, invalid setup, missing tools, and tool crashes still fail in report-only mode.
+. Review and commit the changes to the xref:#managed-files[managed files].
 
 [[build-commands]]
 == Build Commands
 
-A Maven profile adds a group of build steps to a base command. The `format` and `full` profiles have separate purposes and aren't combined in normal use.
-
-[cols="2,2,2,4"]
+. _airness_ provides [[verification-commands,verification commands]]verification commands and xref:#source-formatting[].
++
+[cols="2,3,5"]
 |===
-| Purpose | Base command | Profile | Behavior
+| Purpose | Command | Behavior
 
-| Default verification
+| [[source-formatting,source formatting]]Source formatting
+| `mvn process-resources -Pformat`
+| Formats and rewrites Java code.
+
+| [[default-verification,default verification]]Default verification
 | `mvn clean package`
-| none
-| Checks managed files without changing them, reports every stable version update from the project and each parent, then runs tests and static checks.
+| Runs the default verification suite.
 
-| Source formatting
-| `mvn process-resources`
-| `-Pformat`
-| Rewrites Java sources to the required style, then verifies the result. Managed assets remain read-only.
+| [[extended-verification,extended verification]]Extended verification
+| `mvn clean package -Pextended`
+| Runs the xref:#default-verification[] plus additional checks.
 
-| Full verification
-| `mvn clean package`
-| `-Pfull`
-| Runs default verification and adds work that needs full history, external services, or more time.
 |===
 
-A system-property flag changes how a verification command handles its work. These flags don't select additional checks.
-
+. System properties change the behavior of a xref:#verification-commands[verification command]. They don't enable more checks.
++
 [cols="2,3,5"]
 |===
 | Flag | Use with | Behavior
 
-| `-Dairness.enforce=false`
-| Default or full verification
-| Runs tests and checks, prints findings, and withholds finding-based failures. Compilation, setup, and operational failures remain fatal.
+| [[report-only-mode,report-only mode]]`-Dairness.enforce=false`
+| xref:#default-verification[] or xref:#extended-verification[]
+| Reports rule violations without failing the build.
 
-| `-DskipTests`
-| Default or full verification
-| Skips tests, compiler-side _airness_ analysis, and every _airness_ check. The build produces no _airness_ verdict.
+| [[skip-tests,skipTests]]`-DskipTests`
+| xref:#default-verification[] or xref:#extended-verification[]
+| Skips tests and all _airness_ checks.
+|===
++
+For example, `mvn clean package -Pextended -Dairness.enforce=false` runs xref:#extended-verification[] in xref:#report-only-mode[]. Use xref:#skip-tests[`mvn package -DskipTests`] only when the build needs to produce an artifact without running _airness_ checks.
+
+[[managed-files]]
+== Managed Files
+
+. Git, editors, and coding agents read some configuration from the working tree. _airness_ manages these files so that every project receives the same setup.
++
+[cols="1,2,3"]
+|===
+| Policy | Files | Behavior
+
+| [[managed-section,managed section]]Managed section
+| `AGENTS.md`
+| _airness_ owns the marked section at the top. The project owns the text below it.
+
+| [[pinned-file,pinned file]]Pinned
+| `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `CLAUDE.md`, `lombok.config`, `qodana.yaml`, `README-guideline-software-project.adoc`
+| The file must match the active _airness_ version.
+
+| [[seed-file,seed file]]Seed
+| `.gitignore`, `.gitleaks.toml`
+| The xref:#asset-sync-goal[`assets-sync` goal] creates a missing file once. The project then owns its contents.
+
+| [[forbidden-file,forbidden file]]Forbidden
+| `rewrite.yml`, `qodana/profile.xml`
+| _airness_ supplies these configurations elsewhere. The files must be absent. The xref:#default-verification[] reports but doesn't delete them.
 |===
 
-For example, `mvn clean package -Pfull -Dairness.enforce=false` runs full verification in report-only mode. Use `mvn package -DskipTests` only when the build needs to produce an artifact without an _airness_ verdict.
-
-[[full-verification]]
-== Full Verification
-
-The `full` profile is intended for continuous integration and release preparation. It extends the default build with verification that's too slow or environment-dependent for the regular development loop.
-
-The command requires complete Git history, network access, and a reachable Docker daemon. Run it with `clean` so every result belongs to the current Maven session.
-
+. The xref:#managed-section[] in `AGENTS.md` is enclosed by `BEGIN AIRNESS MANAGED INSTRUCTIONS` and `END AIRNESS MANAGED INSTRUCTIONS`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or updates this section while preserving the project text below it.
+. The xref:#default-verification[] fails when a xref:#pinned-file[] is missing or outdated. It also fails if a build plugin modifies a project file during the build.
+. Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a xref:#verification-commands[verification command]:
++
 [source,bash]
 ----
-mvn clean package -Pfull
+mvn airness:assets-sync
 ----
+. To let the project own a xref:#pinned-file[], xref:#seed-file[], or xref:#forbidden-file[], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path.
 
 [[configuration]]
 == Configuration
 
-List values use commas between entries. Put stable settings in the project file and use command-line values for one-off runs.
+. _airness_ configuration values that accept lists use commas between entries.
+. Put settings used by every build in the Maven project file. Use command-line values for a single run.
 
 [[required-keys]]
 === Required Keys
 
-`airness.package.root` is the only required project key. It names the common package prefix for all project classes, which lets _airness_ distinguish project-owned code from other code in the build.
+xref:#package-root[`airness.package.root`] is the only required project key.
 
 [[optional-keys]]
 === Optional Keys
@@ -174,23 +176,23 @@ List values use commas between entries. Put stable settings in the project file 
 
 | `airness.enforce`
 | `true`
-| Set to `false` to report findings without failing on them.
+| Set to `false` to use xref:#report-only-mode[].
 
-| `skipTests`
+| xref:#skip-tests[`skipTests`]
 | `false`
 | Set to `true` to bypass tests and all _airness_ checks.
 
 | `airness.typography.excludes`
 | empty
-| Git-tree path prefixes left out of the typography scan, matched one whole path segment at a time.
+| Path prefixes excluded from typography checks. For example, `docs` matches `docs/guide.adoc` but not `docs-old/guide.adoc`.
 
-| `airness.assets.unmanaged`
+| [[airness-assets-unmanaged,airness.assets.unmanaged]]`airness.assets.unmanaged`
 | empty
-| Managed paths owned by the project instead of _airness_.
+| Repository paths managed by the project itself. The section xref:#managed-files[] lists the paths that can use this setting.
 
 | `airness.coverage.excluded.classes`
 | empty
-| Class patterns left out of the per-class coverage floor.
+| Class patterns excluded from instruction and branch test coverage checks.
 
 | `airness.mutation.excluded.classes`
 | empty
@@ -202,101 +204,13 @@ List values use commas between entries. Put stable settings in the project file 
 
 | `airness.mutation.timeout.constant`
 | `2000`
-| Milliseconds added to mutation analysis's calculated test timeout.
+| Extra milliseconds added to the test timeout calculated by mutation analysis.
 
 | `airness.mutation.timeout.factor`
 | `1.25`
-| Multiplier applied to a test's normal duration when mutation analysis calculates its timeout.
-
-| `airness.mutation.baseline`
-| `mutation-baseline.tsv`
-| Module-relative path to the accepted mutation baseline.
+| Number multiplied by a test's normal duration when mutation analysis calculates its timeout.
 
 |===
-
-[[agent-instructions]]
-=== Agent Instructions
-
-. `AGENTS.md` is mandatory and contains the project's actual agent instructions. A file with no letter or digit is a finding.
-. `CLAUDE.md` is mandatory and contains one line:
-+
-[source,text]
-----
-@AGENTS.md
-----
-. The two file names and the content of `CLAUDE.md` aren't configurable. `airness:assets-sync` creates or repairs `CLAUDE.md`. The verification lifecycle only checks it. Neither path edits the project-owned instructions in `AGENTS.md`.
-
-[[managed-files]]
-== Managed Files
-
-[cols="1,2,3"]
-|===
-| Policy | Files | Behavior
-
-| Pinned
-| `.editorconfig`, `.gitattributes`, `.java-version`, `CLAUDE.md`, `lombok.config`, `qodana.yaml`
-| _airness_ supplies the entire file. The project copy must match the supplied bytes exactly.
-
-| Seed
-| `.gitignore`, `.gitleaks.toml`
-| `assets-sync` creates a missing file once. The project then owns its contents.
-
-| Forbidden
-| `rewrite.yml`, `qodana/profile.xml`
-| Must be absent because _airness_ supplies this setup from its artifacts. The check reports these files but doesn't delete them.
-|===
-
-. A `package` build is read-only. During `validate`, `tree-snapshot` records every tracked or committable file before `assets-check` compares each pinned file with the exact content supplied by the active _airness_ version. Missing or changed pinned files fail the build and remain untouched. During `package`, `tree-verify` fails when a later build plugin changes the recorded tree.
-. Run the sync goal directly to create missing managed files during adoption or to restore drift. This is an explicit source-tree write and doesn't continue through the verification lifecycle:
-+
-[source,bash]
-----
-mvn airness:assets-sync
-----
-. A project that must own one of these paths lists it in `airness.assets.unmanaged` and records the reason in a nearby project-file comment. A path listed there is exempt from the pinned-file contract, so the sync and check goals leave that path alone.
-
-[[mutation-baseline]]
-== Mutation Baseline
-
-. Each module with production Java has a `mutation-baseline.tsv` file, even when the file is empty. `airness.mutation.baseline` can select another module-relative path.
-. Each non-empty line has three tab-separated identity fields copied from `target/pit-reports/mutations.xml`: the fully qualified class, method, and mutation description. A fourth field should state why the mutant is accepted.
-+
-[source,text]
-----
-com.example.orders.ClockAdapter	now	removed call to java/time/Clock::instant	Covered by an external platform test
-----
-. A survivor missing from the file is a new test gap. An entry whose mutant is now killed is stale and must be removed.
-. A reason that begins with `[intermittent]` marks a mutant that has been seen to alternate between killed and surviving. A run that produces no mutants still fails.
-. _airness_ gives mutation analysis stable worker and timeout defaults. Override the three mutation tuning keys only when a project's tests have measured needs that differ from the family defaults.
-
-[[suppressions]]
-== Suppressions
-
-. A suppression places `@Justification` and `@SuppressWarnings` on the same declaration. The text states why the rule doesn't apply to this code.
-+
-[source,java]
-----
-package com.example.orders;
-
-import eu.ciechanowiec.airness.Justification;
-
-/** Supplies the fixed loopback endpoint required by the embedded health probe. */
-public final class LoopbackEndpoint {
-
-    /**
-     * Returns the endpoint required by the probe protocol.
-     *
-     * @return the fixed loopback endpoint
-     */
-    @Justification("The embedded probe protocol requires the IPv4 loopback literal.")
-    @SuppressWarnings("PMD.AvoidUsingHardCodedIP")
-    public String address() {
-        return "127.0.0.1";
-    }
-}
-----
-. Use the rule ID printed by the analyzer, including a prefix such as `PMD.` when required. A class-level justification doesn't cover a method-level suppression.
-. Empty justifications, unpaired suppressions, and suppressions for rules that no longer fire are findings. `@Justification` has source retention and doesn't enter the built artifact.
 
 == About the Document
 
@@ -306,7 +220,6 @@ The source text of this document is written in the https://asciidoc.org[AsciiDoc
 
 The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
 
-[#export]
 === Prerequisites
 
 To export and lint the source text, install the following tools:

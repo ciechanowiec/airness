@@ -41,7 +41,7 @@ jobs:
           sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
 
       - name: 'Build, fully verify, and install Airness artifacts'
-        run: mvn clean install -Pfull
+        run: mvn clean install -Pextended
 
       - name: 'Verify isolated consumers'
         run: sh airness-it/verify.sh
