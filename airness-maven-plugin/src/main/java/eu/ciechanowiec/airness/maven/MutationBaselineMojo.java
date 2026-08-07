@@ -23,6 +23,8 @@ import org.apache.maven.plugins.annotations.Parameter;
 @Mojo(name = "mutation-baseline", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class MutationBaselineMojo extends AbstractGovernanceMojo {
 
+    private static final String BASELINE = "mutation-baseline.tsv";
+
     /**
      * The report the mutation analysis wrote.
      */
@@ -31,12 +33,6 @@ public final class MutationBaselineMojo extends AbstractGovernanceMojo {
         defaultValue = "${project.build.directory}/pit-reports/mutations.xml"
     )
     private String report;
-
-    /**
-     * The file listing the survivors this project accepts, one per line with its reason.
-     */
-    @Parameter(property = "airness.mutation.baseline", defaultValue = "mutation-baseline.tsv")
-    private String baseline;
 
     /**
      * Whether this module is one the mutation analysis runs on.
@@ -57,7 +53,7 @@ public final class MutationBaselineMojo extends AbstractGovernanceMojo {
     List<Findings> findings() {
         Path analysis = Path.of(this.report);
         MutationBaselineCheck check = new MutationBaselineCheck(
-            analysis, this.project().getBasedir().toPath().resolve(this.baseline)
+            analysis, this.project().getBasedir().toPath().resolve(BASELINE)
         );
         this.requireCurrent(analysis);
         this.getLog().info("Mutation analysis produced " + check.mutants() + " mutant(s)");

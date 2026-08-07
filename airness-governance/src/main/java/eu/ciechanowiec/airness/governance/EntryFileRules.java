@@ -3,8 +3,9 @@ package eu.ciechanowiec.airness.governance;
 import lombok.experimental.UtilityClass;
 
 /**
- * States the fixed agent-instruction file contract. {@code AGENTS.md} is project-owned prose, while
- * {@code CLAUDE.md} is a tool entry point whose complete body is fixed by the harness.
+ * States the fixed agent-instruction file contract. {@code AGENTS.md} combines a harness-owned leading
+ * section with project-owned prose, while {@code CLAUDE.md} is a tool entry point whose complete body is
+ * fixed by the harness.
  */
 @UtilityClass
 final class EntryFileRules {

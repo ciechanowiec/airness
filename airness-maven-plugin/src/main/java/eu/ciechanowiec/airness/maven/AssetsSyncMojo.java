@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.AgentInstructions;
+import eu.ciechanowiec.airness.governance.AgentMaterials;
 import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetSync;
 import eu.ciechanowiec.airness.governance.Repository;
@@ -50,15 +52,21 @@ public final class AssetsSyncMojo extends AbstractMojo {
 
     private void write() {
         Path root = Repository.rootFrom(this.project.getBasedir().toPath());
+        boolean instructions = new AgentInstructions(
+            root, new AgentMaterials(AssetsSyncMojo.class.getClassLoader()).instructions()
+        ).write();
+        if (instructions) {
+            this.getLog().info("Wrote the Airness-managed section in AGENTS.md");
+        }
         List<String> written = new AssetSync(
             root, new AssetCatalogue(AssetsSyncMojo.class.getClassLoader()), Sentinel.optional(this.unmanaged)
         ).write();
         written.forEach(path -> this.getLog().info("Wrote " + path));
-        this.summarize(written.size());
+        this.summarize(written.size(), instructions);
     }
 
-    private void summarize(int written) {
-        if (written == 0) {
+    private void summarize(int written, boolean instructions) {
+        if (written == 0 && !instructions) {
             this.getLog().info("Every file the harness owns was already in place");
         }
     }

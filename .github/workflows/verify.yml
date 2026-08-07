@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   verify:
-    name: 'Full verification'
+    name: 'Extended verification'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -25,4 +25,4 @@ jobs:
           cache: 'maven'
 
       - name: 'Verify'
-        run: mvn clean package -Pfull
+        run: mvn clean package -Pextended

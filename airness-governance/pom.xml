@@ -118,7 +118,7 @@
 
     <profiles>
         <profile>
-            <id>full</id>
+            <id>extended</id>
             <build>
                 <plugins>
                     <plugin>

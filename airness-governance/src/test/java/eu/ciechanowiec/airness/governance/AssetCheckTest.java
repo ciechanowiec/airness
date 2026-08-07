@@ -19,10 +19,12 @@ import org.junit.jupiter.api.io.TempDir;
 class AssetCheckTest {
 
     private static final String EDITORCONFIG = ".editorconfig";
+    private static final String GUIDE = ".airness/agent-guide.md";
 
     private static final String MANIFEST = """
         # a comment the parser skips
         .editorconfig\tPINNED
+        .airness/agent-guide.md\tPINNED
         .gitignore\tSEED
         rewrite.yml\tFORBIDDEN
         """;
@@ -35,6 +37,7 @@ class AssetCheckTest {
     private AssetCatalogue catalogue() {
         return new AssetFixture(this.shipped, MANIFEST)
             .ship(EDITORCONFIG, CANONICAL)
+            .ship(GUIDE, "guide\n")
             .ship(".gitignore", "target/\n")
             .catalogue();
     }
@@ -48,6 +51,7 @@ class AssetCheckTest {
         assertEquals(
             List.of(
                 new ManagedAsset(EDITORCONFIG, AssetPolicy.PINNED),
+                new ManagedAsset(GUIDE, AssetPolicy.PINNED),
                 new ManagedAsset(".gitignore", AssetPolicy.SEED),
                 new ManagedAsset("rewrite.yml", AssetPolicy.FORBIDDEN)
             ),
@@ -76,7 +80,10 @@ class AssetCheckTest {
 
     @Test
     void passesOverATreeThatMatchesWhatIsShipped() {
-        Path root = new GitFixture("assets-clean").write(EDITORCONFIG, CANONICAL).root();
+        Path root = new GitFixture("assets-clean")
+            .write(EDITORCONFIG, CANONICAL)
+            .write(GUIDE, "guide\n")
+            .root();
         assertTrue(
             Verdicts.clean(this.findings(root)),
             "the pinned file matches, the seed is unchecked, and the forbidden one is not there"
@@ -85,7 +92,10 @@ class AssetCheckTest {
 
     @Test
     void reportsAPinnedFileThatDrifted() {
-        Path root = new GitFixture("assets-drifted").write(EDITORCONFIG, "root = false\n").root();
+        Path root = new GitFixture("assets-drifted")
+            .write(EDITORCONFIG, "root = false\n")
+            .write(GUIDE, "guide\n")
+            .root();
         assertEquals(
             1, Verdicts.offences(this.findings(root), "changed or is missing").size(),
             "a file the harness owns is the bytes it ships, and one byte is the whole difference"
@@ -94,7 +104,10 @@ class AssetCheckTest {
 
     @Test
     void reportsAPinnedFileThatIsNotThere() {
-        Path root = new GitFixture("assets-absent").write("README.md", "content\n").root();
+        Path root = new GitFixture("assets-absent")
+            .write("README.md", "content\n")
+            .write(GUIDE, "guide\n")
+            .root();
         assertEquals(
             1, Verdicts.offences(this.findings(root), "changed or is missing").size(),
             "absent and drifted are one finding, since the remedy for both is the same goal"
@@ -115,7 +128,10 @@ class AssetCheckTest {
 
     @Test
     void leavesAnOptedOutPathAlone() {
-        Path root = new GitFixture("assets-optout").write(EDITORCONFIG, "root = false\n").root();
+        Path root = new GitFixture("assets-optout")
+            .write(EDITORCONFIG, "root = false\n")
+            .write(GUIDE, "guide\n")
+            .root();
         assertTrue(
             Verdicts.clean(this.findings(root, EDITORCONFIG)),
             "a project with a reason to differ says so once, in the pom"
@@ -137,6 +153,18 @@ class AssetCheckTest {
         assertEquals(
             List.of("no-such-file"), Verdicts.offences(this.findings(root, "no-such-file"), "does not own"),
             "a typo in an exemption list reads exactly like an exemption that works"
+        );
+    }
+
+    @Test
+    void allowsAnOptOutForTheAgentGuide() {
+        Path root = new GitFixture("assets-guide-optout")
+            .write(EDITORCONFIG, CANONICAL)
+            .write(GUIDE, "changed\n")
+            .root();
+        assertTrue(
+            Verdicts.clean(this.findings(root, GUIDE)),
+            "the agent guide follows the same opt-out policy as every pinned file"
         );
     }
 }

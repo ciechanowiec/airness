@@ -13,15 +13,24 @@ import org.junit.jupiter.api.Test;
 class EntryFileCheckTest {
 
     private static final String INSTRUCTION_BODY = "# Rules\n\nEvery rule lives here.\n";
+    private static final String AIRNESS = """
+        <!-- BEGIN AIRNESS MANAGED INSTRUCTIONS -->
+        Airness rules.
+        <!-- END AIRNESS MANAGED INSTRUCTIONS -->
+        """;
+
+    private static EntryFileCheck check(Path root) {
+        return new EntryFileCheck(root, AIRNESS);
+    }
 
     @Test
     void passesWhenBothFixedFilesSatisfyTheirContracts() {
         Path root = new GitFixture("entry-clean")
-            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY)
+            .write(EntryFileRules.INSTRUCTIONS, AIRNESS + INSTRUCTION_BODY)
             .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertTrue(
-            Verdicts.clean(new EntryFileCheck(root).findings()),
+            Verdicts.clean(check(root).findings()),
             "the root file has instructions and the Claude entry is the exact fixed reference"
         );
     }
@@ -33,7 +42,7 @@ class EntryFileCheckTest {
             .root();
         assertEquals(
             List.of(EntryFileRules.INSTRUCTIONS),
-            Verdicts.offences(new EntryFileCheck(root).findings(), "AGENTS.md file is missing"),
+            Verdicts.offences(check(root).findings(), "AGENTS.md file is missing"),
             "the root instruction file is mandatory"
         );
     }
@@ -46,7 +55,7 @@ class EntryFileCheckTest {
             .root();
         assertEquals(
             List.of(EntryFileRules.INSTRUCTIONS),
-            Verdicts.offences(new EntryFileCheck(root).findings(), "contains no instructions"),
+            Verdicts.offences(check(root).findings(), "contains no instructions"),
             "a file with no prose does not satisfy the mandatory instruction contract"
         );
     }
@@ -54,11 +63,11 @@ class EntryFileCheckTest {
     @Test
     void reportsAMissingClaudeEntryFile() {
         Path root = new GitFixture("entry-no-claude")
-            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY)
+            .write(EntryFileRules.INSTRUCTIONS, AIRNESS + INSTRUCTION_BODY)
             .root();
         assertEquals(
             List.of(EntryFileRules.CLAUDE),
-            Verdicts.offences(new EntryFileCheck(root).findings(), "CLAUDE.md file is missing"),
+            Verdicts.offences(check(root).findings(), "CLAUDE.md file is missing"),
             "Claude must have its fixed entry point"
         );
     }
@@ -66,13 +75,39 @@ class EntryFileCheckTest {
     @Test
     void reportsAnyContentBeyondTheExactClaudeReference() {
         Path root = new GitFixture("entry-claude-drift")
-            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY)
+            .write(EntryFileRules.INSTRUCTIONS, AIRNESS + INSTRUCTION_BODY)
             .write(EntryFileRules.CLAUDE, "@AGENTS.md\nRun Maven first.\n")
             .root();
         assertEquals(
             List.of(EntryFileRules.CLAUDE),
-            Verdicts.offences(new EntryFileCheck(root).findings(), "must contain exactly"),
+            Verdicts.offences(check(root).findings(), "must contain exactly"),
             "the entry file has no project-owned instructions of its own"
+        );
+    }
+
+    @Test
+    void reportsStaleAirnessInstructions() {
+        Path root = new GitFixture("entry-stale-airness")
+            .write(EntryFileRules.INSTRUCTIONS, AIRNESS.replace("Airness rules.", "Old rules."))
+            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
+            .root();
+        assertEquals(
+            List.of(EntryFileRules.INSTRUCTIONS),
+            Verdicts.offences(check(root).findings(), "stale Airness instructions"),
+            "the active harness version defines the managed section"
+        );
+    }
+
+    @Test
+    void reportsNonLeadingAirnessInstructionsAsMalformed() {
+        Path root = new GitFixture("entry-misplaced-airness")
+            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY + AIRNESS)
+            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
+            .root();
+        assertEquals(
+            List.of(EntryFileRules.INSTRUCTIONS),
+            Verdicts.offences(check(root).findings(), "non-leading Airness instruction markers"),
+            "automatic synchronization cannot move an ambiguous project-owned prefix"
         );
     }
 }

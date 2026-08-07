@@ -20,8 +20,9 @@
 
         A check that shipped as a test could be accidentally deselected by -Dtest=OneClass. As goals the
         checks stay bound to their phases, their parameters are named and typed, and a failure names the
-        gate in the line that reports it. Every goal explicitly honors -DskipTests as the total harness
-        bypass.
+        gate in the line that reports it. Every check and writing goal explicitly honors -DskipTests as
+        the total harness bypass. The read-only rules goal remains available because it reports the
+        contract rather than judging the project.
     </description>
 
     <prerequisites>
@@ -220,7 +221,7 @@
 
     <profiles>
         <profile>
-            <id>full</id>
+            <id>extended</id>
             <build>
                 <plugins>
                     <plugin>
