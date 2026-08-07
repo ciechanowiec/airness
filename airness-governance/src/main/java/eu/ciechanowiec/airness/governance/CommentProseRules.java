@@ -58,8 +58,22 @@ final class CommentProseRules {
     private static final Pattern SAMPLE = Pattern.compile("(?s)<pre>.*?</pre>");
     private static final Pattern INLINE_TAG = Pattern.compile("(?s)\\{@(?:code|literal|link|linkplain)\\s[^}]*}");
     private static final Pattern ENTITY = Pattern.compile("&(?:#\\d+|#x[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);");
-    private static final Pattern LEADING_ASTERISK = Pattern.compile("(?m)^\\s*[*]\\s?");
-    private static final Pattern RETURN_TAG = Pattern.compile("(?s)@return\\b(.*?)(?=\\n\\s*@\\w|$)");
+    /*
+     * Horizontal space only, on both sides of the asterisk. Written with the whole of the space class, the
+     * one space this strips after an asterisk is a newline whenever the asterisk ends its line, so every
+     * blank line in a comment left the prose along with its own line break. That is why the boundary below
+     * can be a blank line at all, and why a paragraph could never have been told from the line above it.
+     */
+    private static final Pattern LEADING_ASTERISK = Pattern.compile("(?m)^[ \\t]*[*][ \\t]?");
+    /*
+     * A return tag ends where the next block tag begins, and also at the first blank line after it. The
+     * second boundary is what keeps the tag from reaching past its own sentence: a comment whose last tag
+     * is a return tag may still carry a paragraph below it, and a tag that swallowed the paragraph would
+     * take it out of the semicolon scan and report it as part of the tag body.
+     */
+    private static final Pattern RETURN_TAG = Pattern.compile(
+        "(?s)@return\\b(.*?)(?=\\n\\s*@\\w|\\n[ \\t]*\\n|$)"
+    );
     private static final Pattern BLOCK_OPEN = Pattern.compile("^/\\*+");
     private static final Pattern BLOCK_CLOSE = Pattern.compile("\\*/$");
     private static final Pattern LINE_OPEN = Pattern.compile("^//+");

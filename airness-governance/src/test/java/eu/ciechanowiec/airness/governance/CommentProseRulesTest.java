@@ -249,6 +249,48 @@ class CommentProseRulesTest {
         );
     }
 
+    // The two halves of one boundary. A return tag is the last tag here, so nothing below it can end it
+    // except the blank line, and a tag that ran on to the end of the comment would take the paragraph out
+    // of the semicolon scan while reporting it as the tag's own words.
+    @Test
+    void endsAReturnTagAtABlankLineWhenNoTagFollowsIt() {
+        assertTrue(
+            CommentProseRules.returnPeriods(
+                """
+                    /**
+                     * Reads a file.
+                     *
+                     * @return the parsed file
+                     *
+                     * <p>A trailing note. It belongs to the comment rather than to the tag.
+                     */
+                    String read();
+                    """
+            ).isEmpty(),
+            "a paragraph below the last tag is prose of its own rather than the tag's body"
+        );
+    }
+
+    @Test
+    void reportsASemicolonInAParagraphBelowAReturnTag() {
+        List<String> found = CommentProseRules.semicolons(
+            """
+                /**
+                 * Reads a file.
+                 *
+                 * @return the parsed file
+                 *
+                 * <p>Binds late; the port may move.
+                 */
+                String read();
+                """
+        );
+        assertEquals(
+            List.of("<p>Binds late; the port may move."), found,
+            "the return exemption covers the tag, not everything written after it"
+        );
+    }
+
     @Test
     void readsPastAnInlineTagInsideAReturnTag() {
         assertTrue(
