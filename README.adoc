@@ -113,9 +113,7 @@ A Maven profile adds a group of build steps to a base command. The `format` and 
 | Default verification
 | `mvn clean package`
 | none
-| Checks managed files without changing them, reports every stable version update from the project and
-each parent, then runs tests and static checks. A version at least two major releases behind and
-every other finding fail the build.
+| Checks managed files without changing them, reports every stable version update from the project and each parent, then runs tests and static checks.
 
 | Source formatting
 | `mvn process-resources`
