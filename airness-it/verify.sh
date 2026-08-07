@@ -244,7 +244,10 @@ JAVA
     (cd "$directory" && mvn --quiet clean package -Dairness.enforce=false >/dev/null)
     (cd "$directory" && mvn --quiet process-resources -Pformat -Dairness.enforce=false >/dev/null)
     git -C "$directory" add --all
-    git -C "$directory" commit --quiet --message 'test(it): create an isolated consumer fixture'
+    # A body, because the slow profile reads this history back and a non-trivial change needs one.
+    git -C "$directory" commit --quiet \
+        --message 'test(it): create an isolated consumer fixture' \
+        --message 'The fixture carries one source per rule the harness enforces, so a consumer build has something to report on.'
     printf '%s\n' "$directory"
 }
 
@@ -800,6 +803,24 @@ shallow="$scratch/shallow"
 git clone --quiet --depth 1 "file://$untested" "$shallow"
 run_case 'history: shallow clone is rejected by Maven' 1 'This is a shallow clone' \
     "$shallow" airness:require-full-history
+
+# The slow profile had never run against a consumer at all, only against Airness itself, so nothing said
+# whether a consumer reaches its goals or in what order. Both cases below stop the build inside the
+# governance execution, which runs its history goals and the mutation baseline ahead of the two goals that
+# want Docker, so the wiring is proved without pulling an image.
+#
+# Findings are reported rather than enforced, for the same reason the fixture is built that way above: it
+# exists to exercise the rewrite recipes and carries the untidy code they rewrite, which the compiler
+# rejects under enforcement before any of this is reached. What these two assert survives that, because a
+# missing baseline stops the build whatever the switch says, and a reported finding is printed either way.
+full_profile="$(new_consumer full-profile)"
+run_case 'full: a consumer is told to create its own mutation baseline' 1 \
+    'mutation-baseline.tsv, so create it' \
+    "$full_profile" clean package -Pfull -Dairness.enforce=false
+git -C "$full_profile" commit --quiet --allow-empty --message 'wip'
+run_case 'full: a consumer commit message answers to the policy' 1 \
+    'Commit messages that break the policy' \
+    "$full_profile" clean package -Pfull -Dairness.enforce=false
 
 # Published assets must contain neither documentation nor Git-hook material.
 assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.0-SNAPSHOT/airness-assets-1.0.0-SNAPSHOT.jar"
