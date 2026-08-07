@@ -13,7 +13,7 @@ abstract class AbstractRepositoryMojo extends AbstractGovernanceMojo {
 
     @Override
     final boolean applies() {
-        return this.session().getTopLevelProject().equals(this.project())
+        return RepositoryProjects.owns(this.session().getTopLevelProject(), this.project())
             && OncePerSession.firstRun(this.session(), this.getClass());
     }
 }

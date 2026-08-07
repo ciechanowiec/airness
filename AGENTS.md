@@ -22,7 +22,7 @@ Use four spaces, no tabs, UTF-8, end-of-line braces, and the formatter shipped i
 
 ## Testing Guidelines
 
-Tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example `rejectsATrailingPeriod`. Add regression coverage beside the changed module. JaCoCo enforces at least 80% instruction and branch coverage per class; PIT mutation checks run in the full profile. Do not treat `mvn clean package` inside `airness-it` as a normal test: its fixtures intentionally violate rules.
+Tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example `rejectsATrailingPeriod`. Add regression coverage beside the changed module. JaCoCo enforces at least 80% instruction and branch coverage per consumer class, across the governance bundle, and per directly tested Maven-plugin utility class. PIT mutation checks run in the full profile for the self-tested implementation and consumers. Do not treat `mvn clean package` inside `airness-it` as a normal test: its fixtures intentionally violate rules.
 
 ## Commit & Pull Request Guidelines
 

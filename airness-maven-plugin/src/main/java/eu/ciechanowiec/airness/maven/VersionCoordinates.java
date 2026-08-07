@@ -47,22 +47,27 @@ final class VersionCoordinates {
             .collect(Collectors.toUnmodifiableMap(VersionPom::key, Function.identity()));
         Set<String> reactorCoordinates = Set.copyOf(reactor.keySet());
         return projects.stream()
-            .flatMap(VersionCoordinates::lineage)
-            .map(project -> versionPom(project, repository))
-            .distinct()
-            .flatMap(VersionCoordinates::declared)
+            .flatMap(project -> declaredFor(project, repository))
             .filter(declared -> !reactorCoordinates.contains(versionedKey(declared.coordinate())))
             .distinct()
             .toList();
+    }
+
+    private static Stream<OwnedCoordinate> declaredFor(MavenProject project, Path repository) {
+        Map<String, String> effective = properties(project);
+        return lineage(project)
+            .map(owner -> versionPom(owner, repository))
+            .distinct()
+            .flatMap(pom -> declared(pom, effective));
     }
 
     private static Stream<MavenProject> lineage(MavenProject project) {
         return Stream.iterate(project, Objects::nonNull, MavenProject::getParent);
     }
 
-    private static Stream<OwnedCoordinate> declared(VersionPom pom) {
-        return DeclaredCoordinates.from(pom.file()).stream()
-            .map(coordinate -> resolved(coordinate, pom))
+    private static Stream<OwnedCoordinate> declared(VersionPom pom, Map<String, String> properties) {
+        return DeclaredCoordinates.from(pom.file(), properties).stream()
+            .map(coordinate -> resolved(coordinate, properties))
             .map(coordinate -> new OwnedCoordinate(pom.owner(), coordinate));
     }
 
@@ -71,7 +76,7 @@ final class VersionCoordinates {
         Path file = Optional.ofNullable(project.getFile())
             .map(File::toPath)
             .orElseGet(() -> localPom(project, repository));
-        return new VersionPom(owner, versionedKey(project), file, properties(project));
+        return new VersionPom(owner, versionedKey(project), file);
     }
 
     private static Path localPom(MavenProject project, Path repository) {
@@ -83,8 +88,10 @@ final class VersionCoordinates {
             .resolve(filename);
     }
 
-    private static DeclaredCoordinate resolved(DeclaredCoordinate coordinate, VersionPom pom) {
-        String version = resolve(coordinate.version(), pom.properties(), new HashSet<>());
+    private static DeclaredCoordinate resolved(
+        DeclaredCoordinate coordinate, Map<String, String> properties
+    ) {
+        String version = resolve(coordinate.version(), properties, new HashSet<>());
         return new DeclaredCoordinate(coordinate.groupId(), coordinate.artifactId(), version);
     }
 
@@ -142,6 +149,6 @@ final class VersionCoordinates {
             + project.getVersion();
     }
 
-    private record VersionPom(String owner, String key, Path file, Map<String, String> properties) {
+    private record VersionPom(String owner, String key, Path file) {
     }
 }

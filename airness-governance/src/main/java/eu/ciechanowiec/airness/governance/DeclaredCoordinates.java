@@ -17,8 +17,9 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- * Reads every directly declared dependency, plugin, and parent out of a pom, resolving each exact
- * {@code ${property}} version against properties in that pom.
+ * Reads every directly declared dependency, plugin, and parent out of a pom. Callers can resolve exact
+ * {@code ${property}} versions either against properties in that pom or against the effective
+ * properties of a project inheriting it.
  *
  * <p>The scan is deliberately independent of Maven's effective model. Management sections, plugin
  * classpaths, annotation-processor paths, reporting, and inactive profiles are all sources of a pinned
@@ -41,15 +42,37 @@ public final class DeclaredCoordinates {
      * @return distinct coordinates in document order
      */
     public static List<DeclaredCoordinate> from(Path pom) {
+        return from(pom, Map.of());
+    }
+
+    /**
+     * Every versioned declaration in a pom, resolved as inherited by one effective Maven project.
+     *
+     * <p>Effective properties replace project-level properties from the declaring pom. A property in
+     * the profile that owns a declaration remains last, because inactive profiles are deliberately
+     * scanned even though their properties are absent from Maven's effective model.
+     *
+     * @param pom                 pom to read
+     * @param effectiveProperties properties of the project inheriting the declarations
+     * @return distinct coordinates in document order
+     */
+    public static List<DeclaredCoordinate> from(
+        Path pom, Map<String, String> effectiveProperties
+    ) {
         Element root = Xml.parse(read(pom)).getDocumentElement();
         Stream<DeclaredCoordinate> dependencies = Stream.concat(
             dependencies(root), paths(root)
-        ).map(node -> coordinate(node, properties(root, node), "")).flatMap(Optional::stream);
+        ).map(node -> coordinate(node, properties(root, node, effectiveProperties), ""))
+            .flatMap(Optional::stream);
         Stream<DeclaredCoordinate> plugins = plugins(root)
-            .map(node -> coordinate(node, properties(root, node), MAVEN_PLUGIN_GROUP))
+            .map(
+                node -> coordinate(
+                    node, properties(root, node, effectiveProperties), MAVEN_PLUGIN_GROUP
+                )
+            )
             .flatMap(Optional::stream);
         Stream<DeclaredCoordinate> parents = Xml.firstChild(root, "parent").stream()
-            .map(node -> coordinate(node, properties(root, node), ""))
+            .map(node -> coordinate(node, properties(root, node, effectiveProperties), ""))
             .flatMap(Optional::stream);
         return Stream.of(dependencies, plugins, parents).flatMap(stream -> stream).distinct().toList();
     }
@@ -63,7 +86,7 @@ public final class DeclaredCoordinates {
     public static Optional<DeclaredCoordinate> parent(Path pom) {
         Element root = Xml.parse(read(pom)).getDocumentElement();
         return Xml.firstChild(root, "parent")
-            .flatMap(node -> coordinate(node, properties(root, node), ""));
+            .flatMap(node -> coordinate(node, properties(root, node, Map.of()), ""));
     }
 
     private static Optional<DeclaredCoordinate> coordinate(
@@ -89,16 +112,21 @@ public final class DeclaredCoordinates {
         return raw;
     }
 
-    private static Map<String, String> properties(Node root, Node declaration) {
+    private static Map<String, String> properties(
+        Node root, Node declaration, Map<String, String> effectiveProperties
+    ) {
         Stream<Node> project = Xml.firstChild(root, "properties").stream().map(Node.class::cast);
+        Stream<Map.Entry<String, String>> effective = effectiveProperties.entrySet().stream();
         Stream<Node> profile = ancestors(declaration)
             .filter(node -> named(node, "profile"))
             .findFirst()
             .stream()
             .flatMap(node -> Xml.firstChild(node, "properties").stream())
             .map(Node.class::cast);
-        return Stream.concat(project, profile)
-            .flatMap(DeclaredCoordinates::entries)
+        Stream<Map.Entry<String, String>> localProject = project.flatMap(DeclaredCoordinates::entries);
+        Stream<Map.Entry<String, String>> localProfile = profile.flatMap(DeclaredCoordinates::entries);
+        return Stream.of(localProject, effective, localProfile)
+            .flatMap(stream -> stream)
             .collect(
                 Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (_, second) -> second)
             );

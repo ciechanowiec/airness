@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.TypographyScanCheck;
 import java.util.List;
+import java.util.stream.Stream;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -13,6 +14,13 @@ import org.apache.maven.plugins.annotations.Parameter;
  */
 @Mojo(name = "typography", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class TypographyMojo extends AbstractRepositoryMojo {
+
+    private static final List<String> SELF_FIXTURES = List.of(
+        ".vale/styles/LanguageNeutral/NoCurlyQuotes.yml",
+        ".vale/styles/LanguageNeutral/NoDashes.yml",
+        ".vale/styles/LanguageNeutral/NoUnicodeEllipsis.yml",
+        "airness-it/typography-fixture.txt"
+    );
 
     /**
      * Repository-relative path prefixes to leave unread, comma-separated.
@@ -28,7 +36,7 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
     @Override
     List<Findings> findings() {
         TypographyScanCheck check = new TypographyScanCheck(
-            this.repositoryRoot(), Sentinel.optional(this.excludes)
+            this.repositoryRoot(), this.exclusions()
         );
         check.skipped().forEach(
             (prefix, count) -> this.getLog().info(
@@ -36,5 +44,13 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
             )
         );
         return check.findings();
+    }
+
+    private List<String> exclusions() {
+        Stream<String> configured = Sentinel.optional(this.excludes).stream();
+        Stream<String> fixtures = RepositoryProjects.selfBuild(
+            this.session().getTopLevelProject(), this.project()
+        ) ? SELF_FIXTURES.stream() : Stream.empty();
+        return Stream.concat(configured, fixtures).distinct().toList();
     }
 }

@@ -46,12 +46,12 @@ class CommitHistoryCheckTest {
     void includesMergeCommitsInTheHistory() {
         GitFixture fixture = new GitFixture("history-merge")
             .write(FILE, "Base.\n").commit("feat(core): add the base fixture file");
-        Path root = fixture.root();
-        GitPlumbing.run(root, List.of("checkout", "-b", "side"));
+        fixture.git("checkout", "-b", "side");
         fixture.write("side.txt", "Side.\n").commit("feat(core): add the side fixture file");
-        GitPlumbing.run(root, List.of("checkout", "-"));
+        fixture.git("checkout", "-");
         fixture.write("main.txt", "Main.\n").commit("feat(core): add the main fixture file");
-        GitPlumbing.run(root, List.of("merge", "--no-ff", "side", "--message", "Merge branch 'side'"));
+        fixture.git("merge", "--no-ff", "side", "--message", "Merge branch 'side'");
+        Path root = fixture.root();
         CommitHistoryCheck check = new CommitHistoryCheck(root);
         assertEquals(4, check.scanned(), "the base, both branch tips, and the merge itself were read");
         assertTrue(Verdicts.clean(check.findings()), "git's fixed merge header is accepted");
