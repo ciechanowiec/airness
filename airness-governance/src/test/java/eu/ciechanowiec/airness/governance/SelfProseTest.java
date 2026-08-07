@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -52,7 +53,7 @@ class SelfProseTest {
         );
     }
 
-    private static List<String> broken(List<Findings> findings) {
+    private static List<String> broken(Collection<Findings> findings) {
         return findings.stream().filter(verdict -> !verdict.clean()).map(Findings::report).toList();
     }
 
