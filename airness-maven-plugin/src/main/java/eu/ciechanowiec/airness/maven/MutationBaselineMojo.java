@@ -56,14 +56,17 @@ public final class MutationBaselineMojo extends AbstractGovernanceMojo {
     @Override
     List<Findings> findings() {
         Path analysis = Path.of(this.report);
-        this.requireCurrent(analysis);
         MutationBaselineCheck check = new MutationBaselineCheck(
             analysis, this.project().getBasedir().toPath().resolve(this.baseline)
         );
+        this.requireCurrent(analysis);
         this.getLog().info("Mutation analysis produced " + check.mutants() + " mutant(s)");
         return check.findings();
     }
 
+    // Reading comes before the age test so that an absent file is named by the check, which knows which of
+    // the two files it wanted and what to do about each. Asking a file's age first turns both cases into
+    // one sentence about a failed read, and the age of a file nobody has written is not the problem.
     private void requireCurrent(Path analysis) {
         if (modified(analysis) < this.session().getStartTime().toInstant().toEpochMilli()) {
             throw new IllegalStateException(

@@ -15,13 +15,17 @@ import java.util.Set;
  *
  * <p>A missing report throws rather than being reported, because there is no verdict to give: the
  * analysis this reads is produced later in the same phase, so an absent report means the two ran in the
- * wrong order rather than that the code is clean.
+ * wrong order rather than that the code is clean. A missing baseline throws for a different reason and
+ * says so in different words. It is the ordinary state of a project that has not written one yet, and the
+ * remedy is to create the file rather than to rerun anything.
  */
 public final class MutationBaselineCheck {
 
     private static final String UNACCEPTED = "Mutants survived that the baseline does not accept";
     private static final String STALE = "The baseline accepts mutants that are now killed, so delete these lines";
     private static final String EMPTY = "The mutation analysis produced no mutants, so it proved nothing";
+    private static final String NO_REPORT = "the mutation analysis must run before this check";
+    private static final String NO_BASELINE = "create it, empty when this project accepts no survivor";
 
     private final Path report;
     private final long mutants;
@@ -36,11 +40,11 @@ public final class MutationBaselineCheck {
      * @param baseline the path of the accepted-survivor file
      */
     public MutationBaselineCheck(Path report, Path baseline) {
-        String analysis = read(report);
+        String analysis = read(report, NO_REPORT);
         this.report = report;
         this.mutants = MutationBaselineRules.count(analysis);
         this.survivors = MutationBaselineRules.survivors(analysis);
-        String accepting = read(baseline);
+        String accepting = read(baseline, NO_BASELINE);
         this.accepted = MutationBaselineRules.accepted(accepting);
         this.intermittent = MutationBaselineRules.intermittent(accepting);
     }
@@ -72,11 +76,11 @@ public final class MutationBaselineCheck {
         return this.mutants == 0 ? List.of(this.report.toString()) : List.of();
     }
 
-    private static String read(Path file) {
+    // The remedy travels with the caller rather than with the reader, because the two files are absent for
+    // unrelated reasons and a message that covered both would have to name neither.
+    private static String read(Path file, String remedy) {
         return Repository.readText(file).orElseThrow(
-            () -> new IllegalStateException(
-                "Missing " + file + ", so the mutation analysis must run before this check"
-            )
+            () -> new IllegalStateException("Missing " + file + ", so " + remedy)
         );
     }
 }
