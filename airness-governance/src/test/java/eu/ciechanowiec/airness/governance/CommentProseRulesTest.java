@@ -187,6 +187,27 @@ class CommentProseRulesTest {
         assertEquals(List.of("; cannot be a record"), found);
     }
 
+    // A text block may embed its own delimiter by escaping it. Ending the token at the first three
+    // quotation marks stopped halfway through such a block, left the rest of it readable as code, and so
+    // reported a fixture quoted inside it as the prose of the file quoting it.
+    @Test
+    void masksATextBlockThatEmbedsItsOwnDelimiter() {
+        String source = String.join(
+            "\n",
+            "class A {",
+            "    String fixture = \"\"\"",
+            "        outer \\\"\"\"",
+            "            @Justification(\"one; two\")",
+            "        \\\"\"\"",
+            "        \"\"\";",
+            "}"
+        );
+        assertTrue(
+            CommentProseRules.semicolons(source).isEmpty(),
+            "a block embedding its delimiter is one token, so what it quotes is not this file's own prose"
+        );
+    }
+
     @Test
     void ignoresAJustificationFixtureInsideATextBlock() {
         String source = """

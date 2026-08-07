@@ -24,8 +24,12 @@ final class PackageRoots {
         "(?m)^\\s*package\\s+(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*"
             + "(?:\\.\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*)*)\\s*;"
     );
+    // A text block consumes its escapes, so a block embedding its own delimiter is masked whole. Ending
+    // the token at the first three quotation marks leaves the rest of the block readable as code, and a
+    // package declaration quoted in a fixture would then answer for the file quoting it.
     private static final Pattern NON_CODE = Pattern.compile(
-        "(?s)\"\"\".*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'|/\\*.*?\\*/|//[^\\n]*"
+        "(?s)\"\"\"(?:\\\\.|[^\\\\])*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
+            + "|/\\*.*?\\*/|//[^\\n]*"
     );
     private static final String JAVA = ".java";
     private static final String MODULE = "module-info.java";

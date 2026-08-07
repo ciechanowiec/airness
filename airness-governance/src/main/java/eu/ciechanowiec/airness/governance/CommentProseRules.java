@@ -50,9 +50,15 @@ final class CommentProseRules {
      * consumed by the string alternative before the comment alternative can see it, and a quotation
      * mark inside a comment is consumed by the comment. A pattern that looked for comments alone would
      * read the tail of every URL as one.
+     *
+     * A text block consumes its escapes rather than stopping at the first three quotation marks it meets.
+     * Stopping there ends the token in the middle of a block that embeds its own delimiter, and what
+     * follows is then read as live code: a fixture quoting an annotation inside a text block was reported
+     * as the prose of the file quoting it.
      */
     private static final Pattern TOKEN = Pattern.compile(
-        "(?s)\"\"\".*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'|/\\*.*?\\*/|//[^\\n]*"
+        "(?s)\"\"\"(?:\\\\.|[^\\\\])*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
+            + "|/\\*.*?\\*/|//[^\\n]*"
     );
     private static final Pattern JUSTIFICATION = Pattern.compile("@Justification\\s*\\(");
     private static final Pattern SAMPLE = Pattern.compile("(?s)<pre>.*?</pre>");
