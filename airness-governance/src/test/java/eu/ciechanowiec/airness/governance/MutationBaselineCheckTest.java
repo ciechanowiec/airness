@@ -98,8 +98,30 @@ class MutationBaselineCheckTest {
             IllegalStateException.class, () -> new MutationBaselineCheck(absent, absent)
         );
         assertTrue(
-            thrown.toString().contains("absent.xml"),
+            thrown.toString().contains("the mutation analysis must run before this check"),
             "an absent report means the two ran in the wrong order rather than that the code is clean"
+        );
+        assertTrue(thrown.toString().contains("absent.xml"), "and the message names the file it wanted");
+    }
+
+    // The two files go missing for unrelated reasons, and a project that has never written a baseline is
+    // the ordinary case rather than a build run out of order. One message for both sent that project off
+    // to rerun an analysis that had already produced the report sitting beside it.
+    @Test
+    @SneakyThrows
+    void tellsAnAbsentBaselineApartFromAnAbsentReport() {
+        Path reportFile = Files.writeString(this.directory.resolve("mutations.xml"), REPORT);
+        Path absent = this.directory.resolve("mutation-baseline.tsv");
+        IllegalStateException thrown = assertThrows(
+            IllegalStateException.class, () -> new MutationBaselineCheck(reportFile, absent)
+        );
+        assertTrue(
+            thrown.toString().contains("create it"),
+            "the remedy for a baseline nobody has written is to write one: " + thrown
+        );
+        assertTrue(
+            thrown.toString().contains("mutation-baseline.tsv"),
+            "and the message names the baseline rather than the report that is already there"
         );
     }
 }
