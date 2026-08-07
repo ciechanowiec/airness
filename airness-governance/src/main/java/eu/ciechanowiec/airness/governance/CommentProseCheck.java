@@ -18,8 +18,8 @@ import java.util.stream.Stream;
  */
 public final class CommentProseCheck {
 
-    private static final String SEMICOLONS =
-        "Comment prose uses a semicolon where a full stop or a comma reads shorter";
+    private static final String SEMICOLONS
+        = "Comment prose uses a semicolon where a full stop or a comma reads shorter";
     private static final String PERIODS = "A @return completes \"returns ...\", so it takes no full stop";
 
     private final Path root;
