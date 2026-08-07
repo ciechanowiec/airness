@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
@@ -24,6 +25,24 @@ final class GitPlumbing {
         String output = read(process);
         awaitSuccess(process, arguments);
         return output;
+    }
+
+    /**
+     * Runs a command whose failure is one of its answers rather than a fault.
+     *
+     * <p>Asking git whether something exists is the case this serves. Git answers no by exiting non-zero,
+     * which {@link #run} raises, so a caller that wants the answer rather than the exception has to be
+     * able to say so. Every other failure of such a command is indistinguishable from the no, which is why
+     * this stays for questions whose wrong answer costs a caller nothing.
+     *
+     * @param repository the working tree to run in
+     * @param arguments  the git arguments, without the command name
+     * @return the standard output, or nothing when git exited non-zero
+     */
+    static Optional<String> attempt(Path repository, List<String> arguments) {
+        Process process = start(repository, arguments);
+        String output = read(process);
+        return await(process) == 0 ? Optional.of(output) : Optional.empty();
     }
 
     private static Process start(Path repository, Collection<String> arguments) {

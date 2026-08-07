@@ -37,6 +37,20 @@ class RepositoryTest {
         assertTrue(Repository.hasCommits(root), "one commit is history enough for the checks that read it");
     }
 
+    // The guard and the readers have to name the same ref. A fresh orphan branch beside an existing one is
+    // a repository that has commits and an unborn HEAD at the same time, so a guard counting every ref
+    // answers yes and then sends the history checks on to read a HEAD that resolves to nothing.
+    @Test
+    void readsAnUnbornBranchAsUnbornThoughAnotherBranchCarriesCommits() {
+        GitFixture fixture = new GitFixture("repository-orphan")
+            .write("README.md", "content\n").commit("feat(core): add the first fixture file");
+        fixture.git("checkout", "--orphan", "unborn");
+        assertFalse(
+            Repository.hasCommits(fixture.root()),
+            "HEAD is what every check acting on this answer goes on to read"
+        );
+    }
+
     @Test
     void readsAnAbsentPathAsNoTextRatherThanFailing() {
         Path root = new GitFixture("repository-absent").write("README.md", "content\n").root();
