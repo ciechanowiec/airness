@@ -24,7 +24,8 @@ public final class TypographyScanCheck {
      * Reads the tree once, so the violations and the skipped counts come from one pass.
      *
      * @param root             the working tree root
-     * @param excludedPrefixes repository-relative path prefixes to leave unread
+     * @param excludedPrefixes repository-relative path prefixes to leave unread, matched whole segment by
+     *                         whole segment
      */
     public TypographyScanCheck(Path root, Collection<String> excludedPrefixes) {
         this.scan = TypographyScanner.scan(root, excludedPrefixes);
