@@ -20,6 +20,12 @@ import org.w3c.dom.Node;
  * <p>The raw pom is read instead of Maven's effective model because the effective model preserves the
  * value but not its owner. Direct declarations in inactive profiles count too: an inactive escape hatch
  * is still a second source of truth waiting for a command to activate it.
+ *
+ * <p>Which of the two policies a coordinate falls under is decided by whether {@code airness-parent}
+ * declares it, rather than by how central the plugin feels. A plugin the parent declares is supplied, and
+ * a child repeating it would be running the harness twice under two configurations. A plugin the parent
+ * only pins a version for is an extension: the child is the only one who can bind it to anything, so
+ * forbidding the declaration would leave a pinned version nobody is allowed to use.
  */
 @UtilityClass
 public final class ManagedVersions {
@@ -46,7 +52,7 @@ public final class ManagedVersions {
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-dependency-plugin", "maven-dependency-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-surefire-plugin", "maven-surefire-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-enforcer-plugin", "maven-enforcer-plugin.version"),
-        suppliedPlugin("org.codehaus.mojo", "versions-maven-plugin", "versions-maven-plugin.version"),
+        allowedPlugin("org.codehaus.mojo", "versions-maven-plugin", "versions-maven-plugin.version"),
         suppliedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco-maven-plugin.version"),
         suppliedPlugin("org.ec4j.maven", "editorconfig-maven-plugin", "editorconfig-maven-plugin.version"),
         suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),

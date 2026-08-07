@@ -70,7 +70,6 @@ class ManagedVersionsTest {
     void rejectsDeclarationsOfHarnessSuppliedCoordinates() {
         List<String> problems = this.problems(CHILD_POM);
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("jacoco-maven-plugin")));
-        assertTrue(problems.stream().anyMatch(problem -> problem.contains("versions-maven-plugin")));
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("lombok")));
     }
 
@@ -80,6 +79,18 @@ class ManagedVersionsTest {
         assertFalse(problems.stream().anyMatch(problem -> problem.contains("maven-enforcer-plugin")));
         assertFalse(problems.stream().anyMatch(problem -> problem.contains("maven-source-plugin")));
         assertFalse(problems.stream().anyMatch(problem -> problem.contains("unrelated-plugin")));
+    }
+
+    // The parent pins this version without binding the plugin to anything, so the child is the only one
+    // who can bind it. Forbidding the declaration left a pinned version nobody was allowed to use, while
+    // the message told the child that the harness supplied a plugin the harness never ran.
+    @Test
+    void acceptsAnExtensionPluginTheParentOnlyPinsAVersionFor() {
+        List<String> problems = this.problems(CHILD_POM);
+        assertFalse(
+            problems.stream().anyMatch(problem -> problem.contains("versions-maven-plugin")),
+            "a plugin airness-parent does not declare is the child's to bind: " + problems
+        );
     }
 
     @Test
