@@ -184,7 +184,7 @@ List values use commas between entries. Put stable settings in the project file 
 
 | `airness.typography.excludes`
 | empty
-| Git-tree path prefixes left out of the typography scan.
+| Git-tree path prefixes left out of the typography scan, matched one whole path segment at a time.
 
 | `airness.assets.unmanaged`
 | empty

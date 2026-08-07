@@ -25,7 +25,8 @@ final class TypographyScanner {
      * Reads every committable file under {@code root} that no prefix exempts.
      *
      * @param root             the working tree root
-     * @param excludedPrefixes repository-relative path prefixes to leave unread
+     * @param excludedPrefixes repository-relative path prefixes to leave unread, matched whole segment by
+     *                         whole segment
      * @return the violations found, and how many files each prefix kept out
      */
     static TypographyScan scan(Path root, Collection<String> excludedPrefixes) {
@@ -38,8 +39,15 @@ final class TypographyScanner {
     }
 
     private static boolean isIncluded(Path root, Path file, Collection<String> excludedPrefixes) {
-        String relative = relative(root, file);
-        return excludedPrefixes.stream().noneMatch(relative::startsWith);
+        return excludedPrefixes.stream().noneMatch(prefix -> excludes(prefix, root, file));
+    }
+
+    // A prefix names a directory or a file, so it is compared one whole segment at a time rather than one
+    // character at a time. Comparing the raw text would let "src" exempt "src-generated" as well, and the
+    // stale-exclusion rule cannot report that, because such a prefix did exclude something. It excluded
+    // more than it named, which is the reading nobody checks.
+    private static boolean excludes(String prefix, Path root, Path file) {
+        return root.relativize(file).startsWith(Path.of(prefix));
     }
 
     private static Map<String, Long> skipped(Path root, Collection<Path> tracked, Collection<String> prefixes) {
@@ -49,7 +57,7 @@ final class TypographyScanner {
     }
 
     private static long excludedBy(Path root, Collection<Path> tracked, String prefix) {
-        return tracked.stream().filter(file -> relative(root, file).startsWith(prefix)).count();
+        return tracked.stream().filter(file -> excludes(prefix, root, file)).count();
     }
 
     private static List<String> violationsFor(Path root, Path file) {

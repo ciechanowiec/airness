@@ -23,7 +23,8 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
     );
 
     /**
-     * Repository-relative path prefixes to leave unread, comma-separated.
+     * Repository-relative path prefixes to leave unread, comma-separated. A prefix is matched one whole
+     * path segment at a time, so {@code src} leaves {@code src-generated} in the scan.
      *
      * <p>This defaults to nothing on purpose. A default naming the vendored directories a project
      * usually has would fail in a project that has none of them, since a prefix excluding nothing is

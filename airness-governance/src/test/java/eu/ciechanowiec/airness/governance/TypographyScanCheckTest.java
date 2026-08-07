@@ -61,6 +61,34 @@ class TypographyScanCheckTest {
     }
 
     @Test
+    void doesNotLetAnExemptionReachAPathThatMerelySharesItsOpeningCharacters() {
+        Path root = new GitFixture("typography-sibling")
+            .write("vendor/theme.css", PLAIN)
+            .write("vendored-by-hand/theme.css", OFFENDING)
+            .root();
+        List<String> offences = Verdicts.offences(
+            new TypographyScanCheck(root, VENDORED).findings(), "Banned typography"
+        );
+        assertEquals(1, offences.size(), "a prefix names a directory rather than a run of characters");
+        assertTrue(
+            offences.getFirst().contains("vendored-by-hand"),
+            "and the sibling that only starts the same way stays in the scan: " + offences
+        );
+    }
+
+    @Test
+    void countsOnlyTheFilesAnExemptionActuallyNames() {
+        Path root = new GitFixture("typography-sibling-count")
+            .write("vendor/theme.css", PLAIN)
+            .write("vendored-by-hand/theme.css", PLAIN)
+            .root();
+        assertEquals(
+            1L, new TypographyScanCheck(root, VENDORED).skipped().get("vendor/"),
+            "the cost an exemption puts on the record has to be the cost it actually incurred"
+        );
+    }
+
+    @Test
     void reportsAnExemptionThatExcludedNothing() {
         Path root = new GitFixture("typography-stale").write("README.md", PLAIN).root();
         assertEquals(
