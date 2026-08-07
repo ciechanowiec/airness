@@ -22,9 +22,7 @@ import java.lang.annotation.Target;
  * neither in its own artifact nor in the dependency tree its own consumers resolve.
  */
 @Documented
-@Retention(
-    RetentionPolicy.SOURCE
-)
+@Retention(RetentionPolicy.SOURCE)
 @Target(
     {
         ElementType.TYPE, ElementType.METHOD, ElementType.FIELD,
@@ -35,9 +33,7 @@ import java.lang.annotation.Target;
     "this public annotation is consumed from arbitrary project packages even though this repository's Maven "
         + "reactor exposes only one such production package to static analysis"
 )
-@SuppressWarnings(
-    "ClassOnlyUsedInOnePackage"
-)
+@SuppressWarnings("ClassOnlyUsedInOnePackage")
 public @interface Justification {
 
     /**
@@ -45,11 +41,7 @@ public @interface Justification {
      *
      * @return the reason the suppressed rule does not apply here
      */
-    @Justification(
-        "an annotation attribute has no caller by design: this one is read by whoever changes the code"
-    )
-    @SuppressWarnings(
-        "UnusedReturnValue"
-    )
+    @Justification("an annotation attribute has no caller by design: this one is read by whoever changes the code")
+    @SuppressWarnings("UnusedReturnValue")
     String value();
 }
