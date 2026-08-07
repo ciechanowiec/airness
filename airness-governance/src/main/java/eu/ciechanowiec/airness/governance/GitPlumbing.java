@@ -39,7 +39,7 @@ final class GitPlumbing {
      * @param arguments  the git arguments, without the command name
      * @return the standard output, or nothing when git exited non-zero
      */
-    static Optional<String> attempt(Path repository, List<String> arguments) {
+    static Optional<String> attempt(Path repository, Collection<String> arguments) {
         Process process = start(repository, arguments);
         String output = read(process);
         return await(process) == 0 ? Optional.of(output) : Optional.empty();
