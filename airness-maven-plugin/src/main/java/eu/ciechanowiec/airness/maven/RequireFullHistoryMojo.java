@@ -21,8 +21,8 @@ import org.apache.maven.plugins.annotations.Mojo;
 @Mojo(name = "require-full-history", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
 public final class RequireFullHistoryMojo extends AbstractPreflightMojo {
 
-    private static final String TRUNCATED =
-        "This is a shallow clone, so every check that reads history would pass by reading almost none of "
+    private static final String TRUNCATED
+        = "This is a shallow clone, so every check that reads history would pass by reading almost none of "
             + "it. Fetch the whole history (fetch-depth: 0 on actions/checkout, or git fetch --unshallow)";
 
     @Override
