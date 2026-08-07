@@ -14,6 +14,10 @@ import java.util.List;
 public final class CommitTypographyCheck {
 
     private static final String HEADLINE = "Banned typography in commit messages";
+    // Git stores a commit message with this separator whatever platform wrote it, and the attribution scan
+    // rejoins the same two parts the same way. Asking the running platform instead would have one message
+    // read as two different texts depending on who ran the build.
+    private static final String NEWLINE = "\n";
 
     private final List<Commit> commits;
 
@@ -48,7 +52,7 @@ public final class CommitTypographyCheck {
     }
 
     private static List<String> violations(Commit commit) {
-        String text = commit.message().header() + System.lineSeparator() + commit.message().body();
+        String text = commit.message().header() + NEWLINE + commit.message().body();
         return TypographyRules.findViolations(text).stream()
             .map(violation -> "%s: U+%04X".formatted(commit.sha(), violation.codePoint()))
             .toList();
