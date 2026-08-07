@@ -1,10 +1,10 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 
@@ -17,9 +17,10 @@ import lombok.SneakyThrows;
  * than from anything this project wrote. So the fixture is a repository, and the only thing it stands in
  * for is the content.
  *
- * <p>Each fixture is deleted and rebuilt on construction, so a run reads what this test wrote rather
- * than what the last one left. Hooks and signing are turned off, because a fixture commit must not
- * depend on how the machine running it is configured.
+ * <p>Each fixture gets a unique directory, because mutation workers can execute the same test in
+ * parallel. Every command pins both the Git directory and working tree, so even a damaged fixture
+ * cannot discover and modify the repository containing the tests. Hooks and signing are turned off,
+ * because a fixture commit must not depend on how the machine running it is configured.
  */
 record GitFixture(Path root) {
 
@@ -28,9 +29,7 @@ record GitFixture(Path root) {
     @SneakyThrows
     GitFixture(String name) {
         this(location(name));
-        delete(this.root);
-        Files.createDirectories(this.root);
-        this.git("init", "--quiet");
+        run(List.of("git", "init", "--quiet", this.root.toString()));
         this.git("config", "user.name", "Fixture");
         this.git("config", "user.email", "fixture@example.invalid");
         this.git("config", "commit.gpgsign", "false");
@@ -73,27 +72,38 @@ record GitFixture(Path root) {
         return this;
     }
 
-    private void git(String... arguments) {
-        GitPlumbing.run(this.root, List.of(arguments));
+    void git(String... arguments) {
+        List<String> command = Stream.concat(
+            Stream.of(
+                "git",
+                "--git-dir=" + this.root.resolve(".git"),
+                "--work-tree=" + this.root
+            ),
+            Stream.of(arguments)
+        ).toList();
+        run(command);
     }
 
-    private static Path location(String name) {
-        return SCRATCH.resolve(name).toAbsolutePath().normalize();
-    }
-
-    private static void delete(Path directory) {
-        Optional.of(directory).filter(Files::exists).ifPresent(GitFixture::deleteTree);
-    }
-
-    @SneakyThrows
-    private static void deleteTree(Path directory) {
-        try (Stream<Path> paths = Files.walk(directory)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(GitFixture::deleteOne);
+    private static void run(List<String> command) {
+        ProcessBuilder builder = new ProcessBuilder(command)
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD);
+        try {
+            int code = builder.start().waitFor();
+            if (code != 0) {
+                throw new IllegalStateException("Fixture git command exited with code " + code);
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while running fixture git", exception);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not run fixture git", exception);
         }
     }
 
     @SneakyThrows
-    private static void deleteOne(Path path) {
-        Files.delete(path);
+    private static Path location(String name) {
+        Files.createDirectories(SCRATCH);
+        return Files.createTempDirectory(SCRATCH, name + '-').toAbsolutePath().normalize();
     }
 }

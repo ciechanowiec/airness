@@ -169,6 +169,37 @@ class CommentProseRulesTest {
         assertEquals(List.of("a value class; cannot be a record"), found);
     }
 
+    @Test
+    void readsANamedJustificationValueAsProse() {
+        List<String> found = CommentProseRules.semicolons(
+            "@Justification(value = \"a value class; cannot be a record\") class A {}"
+        );
+
+        assertEquals(List.of("a value class; cannot be a record"), found);
+    }
+
+    @Test
+    void readsEveryLiteralInAConcatenatedJustification() {
+        List<String> found = CommentProseRules.semicolons(
+            "@Justification(\"a value class\" + \"; cannot be a record\") class A {}"
+        );
+
+        assertEquals(List.of("; cannot be a record"), found);
+    }
+
+    @Test
+    void ignoresAJustificationFixtureInsideATextBlock() {
+        String source = """
+            class A {
+                String fixture = \"""
+                    @Justification("one; two")
+                    \""";
+            }
+            """;
+
+        assertTrue(CommentProseRules.semicolons(source).isEmpty());
+    }
+
     // Only the annotation's own value is prose. Every other literal in the file is data, and reading one
     // would report the tail of any URL a field happens to hold.
     @Test

@@ -331,6 +331,14 @@ run_case 'coordinates: child ownership is rejected' 1 'Airness (owns|supplies) t
 run_case 'versions: inherited pin drives update reports' 0 'versions:2\.21\.0:display-dependency-updates' \
     "$consumer" versions:display-dependency-updates
 
+perl -0pi -e 's{<airness[.]package[.]root>com[.]example</airness[.]package[.]root>}{<airness.package.root>wrong.base</airness.package.root>}' \
+    "$consumer/pom.xml"
+run_case 'parameters: wrong package root cannot disable NullAway' 1 \
+    'declares package com[.]example, which is outside wrong[.]base' \
+    "$consumer" airness:check-parameters
+perl -0pi -e 's{<airness[.]package[.]root>wrong[.]base</airness[.]package[.]root>}{<airness.package.root>com.example</airness.package.root>}' \
+    "$consumer/pom.xml"
+
 if grep -Fq '    public static int value() {' "$consumer/src/main/java/com/example/FormatFixture.java"; then
     echo 'ok       format: inherited profile applies source formatting'
 else
@@ -570,6 +578,20 @@ run_case 'default: blank justification fails' 1 'JustificationNeedsText' "$consu
 run_case 'report-only: blank justification is visible' 0 'JustificationNeedsText' \
     "$consumer" pmd:check -Dairness.enforce=false
 rm "$consumer/src/main/java/com/example/BlankJustification.java"
+cat > "$consumer/src/main/java/com/example/ProseJustification.java" <<'JAVA'
+package com.example;
+
+import eu.ciechanowiec.airness.Justification;
+
+/** Exercises annotation prose validation. */
+@Justification(value = "one clause" + "; another clause")
+@SuppressWarnings("PMD.AtLeastOneConstructor")
+final class ProseJustification {
+}
+JAVA
+run_case 'comments: named concatenated justifications are read' 1 'another clause' \
+    "$consumer" airness:comment-prose
+rm "$consumer/src/main/java/com/example/ProseJustification.java"
 
 # Compilation failures are not findings and remain fatal in report-only mode.
 cat > "$consumer/src/main/java/com/example/Broken.java" <<'JAVA'
@@ -734,12 +756,13 @@ cat > "$relative_parent/pom.xml" <<'POM'
   <packaging>pom</packaging>
   <properties>
     <airness.package.root>com.example</airness.package.root>
+    <picocli.version>4.7.7</picocli.version>
   </properties>
   <dependencies>
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
-      <version>2.0.0</version>
+      <version>${picocli.version}</version>
     </dependency>
   </dependencies>
 </project>
@@ -754,9 +777,12 @@ cat > "$relative_parent/child/pom.xml" <<'POM'
     <version>987.654-SNAPSHOT</version>
   </parent>
   <artifactId>relative-child</artifactId>
+  <properties>
+    <picocli.version>2.0.0</picocli.version>
+  </properties>
 </project>
 POM
-run_case 'freshness: uninstalled relative parent is scanned' 1 \
+run_case 'freshness: child override resolves an uninstalled parent declaration' 1 \
     '\[com.example:relative-parent\] info.picocli:picocli' \
     "$relative_parent/child" airness:dependency-freshness
 

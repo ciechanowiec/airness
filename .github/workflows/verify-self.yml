@@ -27,15 +27,11 @@ jobs:
           java-version-file: '.java-version'
           cache: 'maven'
 
-      - name: 'Build and install Airness artifacts'
-        run: mvn clean install
+      - name: 'Build, fully verify, and install Airness artifacts'
+        run: mvn clean install -Pfull
 
       - name: 'Verify isolated consumers'
         run: sh airness-it/verify.sh
-
-      - name: 'Run Docker-backed checks once'
-        working-directory: airness-it
-        run: mvn clean package -Pfull -Dairness.enforce=false
 
   documentation:
     runs-on: ubuntu-latest

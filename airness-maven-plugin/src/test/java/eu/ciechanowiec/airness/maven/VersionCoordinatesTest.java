@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.airness.governance.OwnedCoordinate;
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.io.TempDir;
  * raw pom that owns every declaration visible in the result.
  */
 class VersionCoordinatesTest {
+
+    private static final String LIBRARY = "library";
 
     @TempDir
     private Path directory;
@@ -48,7 +51,7 @@ class VersionCoordinatesTest {
         MavenProject parent = this.project("parent", "<project/>", Optional.empty());
         MavenProject child = this.project(
             "child",
-            this.pom("library", "${library.version}"),
+            this.pom(LIBRARY, "${library.version}"),
             Optional.of(parent)
         );
         child.getProperties().setProperty("library.version", "3.4.5");
@@ -65,10 +68,10 @@ class VersionCoordinatesTest {
 
     @Test
     void resolvesProjectVersionBeforeExcludingAReactorDependency() {
-        MavenProject library = this.project("library", "<project/>", Optional.empty());
+        MavenProject library = this.project(LIBRARY, "<project/>", Optional.empty());
         MavenProject application = this.project(
             "application",
-            this.pom("sample", "library", "${project.version}"),
+            this.pom("sample", LIBRARY, "${project.version}"),
             Optional.empty()
         );
 
@@ -77,8 +80,99 @@ class VersionCoordinatesTest {
         );
 
         assertTrue(
-            coordinates.stream().noneMatch(coordinate -> "library".equals(coordinate.coordinate().artifactId())),
+            coordinates.stream().noneMatch(coordinate -> LIBRARY.equals(coordinate.coordinate().artifactId())),
             "a same-reactor dependency is excluded by its resolved versioned coordinate"
+        );
+    }
+
+    @Test
+    void resolvesAnInheritedDeclarationWithTheChildsEffectiveProperty() {
+        MavenProject parent = this.project(
+            "parent",
+            """
+                <project>
+                    <properties>
+                        <library.version>4.7.7</library.version>
+                    </properties>
+                    <dependencies>
+                        <dependency>
+                            <groupId>sample.dependencies</groupId>
+                            <artifactId>library</artifactId>
+                            <version>${library.version}</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """,
+            Optional.empty()
+        );
+        parent.getProperties().setProperty("library.version", "4.7.7");
+        MavenProject child = this.project("child", "<project/>", Optional.of(parent));
+        child.getProperties().setProperty("library.version", "2.0.0");
+
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(
+            List.of(child), this.directory.resolve("empty-repository")
+        );
+
+        assertTrue(
+            coordinates.stream().anyMatch(
+                coordinate -> LIBRARY.equals(coordinate.coordinate().artifactId())
+                    && "2.0.0".equals(coordinate.coordinate().version())
+            ),
+            "an inherited declaration resolves as Maven resolves it for the consuming child"
+        );
+    }
+
+    @Test
+    void resolvesNestedAndEmbeddedEffectiveProperties() {
+        MavenProject project = this.project(
+            "nested",
+            this.pom(LIBRARY, "${major}.${minor}"),
+            Optional.empty()
+        );
+        project.getProperties().setProperty("major", "${base}");
+        project.getProperties().setProperty("base", "2");
+        project.getProperties().setProperty("minor", "3");
+
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(
+            List.of(project), this.directory.resolve("empty-repository")
+        );
+
+        assertTrue(
+            coordinates.stream().anyMatch(coordinate -> "2.3".equals(coordinate.coordinate().version()))
+        );
+    }
+
+    @Test
+    void rejectsCyclicEffectiveProperties() {
+        MavenProject project = this.project("cyclic", this.pom(LIBRARY, "${first}"), Optional.empty());
+        project.getProperties().setProperty("first", "${second}");
+        project.getProperties().setProperty("second", "${first}");
+
+        assertThrows(
+            IllegalStateException.class,
+            () -> VersionCoordinates.from(List.of(project), this.directory.resolve("empty-repository"))
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void readsAResolvedParentFromTheLocalRepositoryWhenItHasNoProjectFile() {
+        Path repository = this.directory.resolve("repository");
+        Path parentPom = repository.resolve("sample/remote-parent/1.0.0/remote-parent-1.0.0.pom");
+        Files.createDirectories(parentPom.getParent());
+        Files.writeString(parentPom, this.pom("remote-library", "1.2.3"));
+        MavenProject parent = new MavenProject();
+        parent.setGroupId("sample");
+        parent.setArtifactId("remote-parent");
+        parent.setVersion("1.0.0");
+        MavenProject child = this.project("local-child", "<project/>", Optional.of(parent));
+
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(List.of(child), repository);
+
+        assertTrue(
+            coordinates.stream().anyMatch(
+                coordinate -> "remote-library".equals(coordinate.coordinate().artifactId())
+            )
         );
     }
 
