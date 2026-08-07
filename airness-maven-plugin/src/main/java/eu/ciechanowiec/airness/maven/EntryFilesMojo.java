@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.AgentMaterials;
 import eu.ciechanowiec.airness.governance.EntryFileCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.util.List;

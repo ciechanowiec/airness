@@ -1,7 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.AgentInstructions;
-import eu.ciechanowiec.airness.governance.AgentMaterials;
 import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetSync;
 import eu.ciechanowiec.airness.governance.Repository;

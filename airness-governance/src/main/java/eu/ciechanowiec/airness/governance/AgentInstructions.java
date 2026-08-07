@@ -71,7 +71,7 @@ public final class AgentInstructions {
      * @return whether the file changed
      */
     public boolean write() {
-        Path file = this.safe(EntryFileRules.INSTRUCTIONS);
+        Path file = this.safe();
         String held = this.read(file);
         if (this.malformed(held)) {
             throw new IllegalStateException(
@@ -94,7 +94,7 @@ public final class AgentInstructions {
         return this.canonical + held.substring(after);
     }
 
-    private String prepend(String held) {
+    private String prepend(CharSequence held) {
         return held.isEmpty() ? this.canonical : this.canonical + LF + held;
     }
 
@@ -109,10 +109,12 @@ public final class AgentInstructions {
         }
     }
 
-    private Path safe(String relative) {
-        Path target = this.root.resolve(relative).normalize();
+    private Path safe() {
+        Path target = this.root.resolve(EntryFileRules.INSTRUCTIONS).normalize();
         if (!target.startsWith(this.root)) {
-            throw new IllegalStateException("Agent instruction path escapes the repository root: " + relative);
+            throw new IllegalStateException(
+                "Agent instruction path escapes the repository root: " + EntryFileRules.INSTRUCTIONS
+            );
         }
         Path current = this.root;
         for (Path segment : this.root.relativize(target)) {
@@ -134,11 +136,11 @@ public final class AgentInstructions {
         return found;
     }
 
-    private static boolean lineEnd(String content, int offset) {
+    private static boolean lineEnd(CharSequence content, int offset) {
         return offset == content.length() || content.charAt(offset) == LF_CHARACTER;
     }
 
-    private static void writeFile(Path file, String content) {
+    private static void writeFile(Path file, CharSequence content) {
         try {
             Files.writeString(file, content);
         } catch (IOException exception) {

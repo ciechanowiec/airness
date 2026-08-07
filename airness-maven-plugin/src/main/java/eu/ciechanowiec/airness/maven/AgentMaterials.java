@@ -1,4 +1,4 @@
-package eu.ciechanowiec.airness.governance;
+package eu.ciechanowiec.airness.maven;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * The agent-facing prose carried by the assets artifact on the Maven plugin's classpath.
  */
-public final class AgentMaterials {
+final class AgentMaterials {
 
     private static final String INSTRUCTIONS = "airness/agent/instructions.md";
 
@@ -20,7 +20,7 @@ public final class AgentMaterials {
      *
      * @param classes classloader carrying {@code airness-assets}
      */
-    public AgentMaterials(ClassLoader classes) {
+    AgentMaterials(ClassLoader classes) {
         this.classes = classes;
     }
 
@@ -29,18 +29,14 @@ public final class AgentMaterials {
      *
      * @return canonical section, including its final newline
      */
-    public String instructions() {
-        return this.read(INSTRUCTIONS);
-    }
-
-    private String read(String resource) {
+    String instructions() {
         try (
-            InputStream stream = Optional.ofNullable(this.classes.getResourceAsStream(resource))
-                .orElseThrow(() -> new IllegalStateException("Agent material is missing: " + resource))
+            InputStream stream = Optional.ofNullable(this.classes.getResourceAsStream(INSTRUCTIONS))
+                .orElseThrow(() -> new IllegalStateException("Agent material is missing: " + INSTRUCTIONS))
         ) {
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException exception) {
-            throw new UncheckedIOException("Could not read shipped agent material " + resource, exception);
+            throw new UncheckedIOException("Could not read shipped agent material " + INSTRUCTIONS, exception);
         }
     }
 }
