@@ -25,8 +25,12 @@ final class JavadocLinkRules {
     // A text block consumes its escapes, so a block embedding its own delimiter is one token rather than
     // two and a half. Ending the token early leaves the rest of the block to be read as code, which is
     // what decides the imports and the declared types this rule resolves names against.
+    //
+    // Ordinary text is consumed as a possessive run rather than one recursive regex frame per character.
+    // The quote branch excludes a closing delimiter, so the outer possessive repetition stops only at
+    // one it can leave for the delimiter itself.
     private static final Pattern TOKEN = Pattern.compile(
-        "(?s)\"\"\"(?:\\\\.|[^\\\\])*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
+        "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
             + "|/\\*.*?\\*/|//[^\\n]*"
     );
     private static final Pattern LINK = Pattern.compile("\\{@(?:link|linkplain)\\s+[^}]*}");

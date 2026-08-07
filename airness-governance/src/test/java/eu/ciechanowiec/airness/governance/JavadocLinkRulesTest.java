@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
  */
 class JavadocLinkRulesTest {
 
+    private static final int LONG_TEXT_BLOCK_LENGTH = 20_000;
     private static final Set<String> RESOLVE = Set.of("Vault", "Base64", "Settings", "IOException");
 
     private static List<String> unlinked(CharSequence source) {
@@ -113,18 +114,19 @@ class JavadocLinkRulesTest {
     }
 
     @Test
-    void ignoresJavadocMarkersInsideATextBlock() {
+    void ignoresJavadocMarkersPastALongTextBlockBody() {
         String marker = "/" + "** Vault */";
         String source = """
             final class X {
                 String value = \"""
                     %s
+                    %s
                     \""";
             }
-            """.formatted(marker);
+            """.formatted("x".repeat(LONG_TEXT_BLOCK_LENGTH), marker);
         assertTrue(
             unlinked(source).isEmpty(),
-            "a fixture in a text block is not a source comment"
+            "a long text block stays one token without consuming regex stack or exposing its fixture"
         );
     }
 }
