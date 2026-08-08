@@ -7,7 +7,7 @@
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>airness-config</artifactId>
@@ -19,4 +19,32 @@
         copies. A consumer names a resource path, so the rule set is updated by raising one version
         rather than by copying analyzer configuration into every repository that uses it.
     </description>
+
+    <profiles>
+        <profile>
+            <!-- The module has resources but no Java API, so its Central Javadoc artifact is explanatory. -->
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-placeholder-javadocs</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>javadoc</classifier>
+                                    <classesDirectory>${project.basedir}/src/main/javadoc</classesDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

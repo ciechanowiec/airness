@@ -1,20 +1,72 @@
-name: 'Stage Maven Central release'
+name: 'Publish Maven Central release'
 
 on:
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Version already declared in pom.xml'
+        required: true
+        default: '1.0.0'
+        type: string
+      publish:
+        description: 'Publish permanently after Extended verification'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: 'maven-central-release'
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     environment: maven-central
     steps:
       - name: 'Checkout complete history'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+
+      - name: 'Validate release request'
+        env:
+          CONFIRM_PUBLISH: ${{ inputs.publish }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          if [ "$GITHUB_REF" != 'refs/heads/main' ]; then
+            echo 'Run releases from the main branch.' >&2
+            exit 1
+          fi
+          if [ "$CONFIRM_PUBLISH" != 'true' ]; then
+            echo 'Permanent publication was not confirmed.' >&2
+            exit 1
+          fi
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]]; then
+            echo 'The release version must be a semantic version.' >&2
+            exit 1
+          fi
+          if [[ "$RELEASE_VERSION" == *-SNAPSHOT ]]; then
+            echo 'Maven Central releases cannot use a SNAPSHOT version.' >&2
+            exit 1
+          fi
+
+      - name: 'Validate release secrets'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -eu
+          test -n "$MAVEN_CENTRAL_USERNAME" || { echo 'MAVEN_CENTRAL_USERNAME is missing.' >&2; exit 1; }
+          test -n "$MAVEN_CENTRAL_PASSWORD" || { echo 'MAVEN_CENTRAL_PASSWORD is missing.' >&2; exit 1; }
+          test -n "$GPG_PRIVATE_KEY" || { echo 'GPG_PRIVATE_KEY is missing.' >&2; exit 1; }
+          test -n "$MAVEN_GPG_PASSPHRASE" || { echo 'GPG_PASSPHRASE is missing.' >&2; exit 1; }
 
       - name: 'Set up Temurin and Maven Central credentials from .java-version'
         uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07 # v4
@@ -25,18 +77,128 @@ jobs:
           server-id: central
           server-username: MAVEN_CENTRAL_USERNAME
           server-password: MAVEN_CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-      - name: 'Import signing key'
+      - name: 'Validate release version and availability'
+        id: release_state
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          declared_version="$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
+          if [ "$declared_version" != "$RELEASE_VERSION" ]; then
+            echo "pom.xml declares $declared_version, not $RELEASE_VERSION." >&2
+            exit 1
+          fi
+          artifact_url="https://repo.maven.apache.org/maven2/eu/ciechanowiec/airness/$RELEASE_VERSION/airness-$RELEASE_VERSION.pom"
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$artifact_url")"
+          if [ "$status" = '200' ]; then
+            if ! git show-ref --verify --quiet "refs/tags/$RELEASE_VERSION"; then
+              echo "The published version has no matching repository tag." >&2
+              exit 1
+            fi
+            tag_commit="$(git rev-list --max-count=1 "$RELEASE_VERSION")"
+            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+              echo "Tag $RELEASE_VERSION does not identify this commit." >&2
+              exit 1
+            fi
+            echo 'central_published=true' >> "$GITHUB_OUTPUT"
+            echo "Maven Central already contains $RELEASE_VERSION; recovering the GitHub Release only."
+            exit 0
+          fi
+          if [ "$status" != '404' ]; then
+            echo "Maven Central availability check returned HTTP $status." >&2
+            exit 1
+          fi
+          echo 'central_published=false' >> "$GITHUB_OUTPUT"
 
-      - name: 'Verify release sources'
-        run: mvn clean package
+      - name: 'Install Airness documentation tools'
+        if: steps.release_state.outputs.central_published != 'true'
+        env:
+          VALE_VERSION: '3.15.1'
+          VALE_SHA256: 'c024d9c157874fb043d4f24a055d60050d1bb18755251f590593eed5bace1857'
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install --yes asciidoctor poppler-utils tesseract-ocr
+          archive="$RUNNER_TEMP/vale.tar.gz"
+          curl --fail --location --silent --show-error --output "$archive" \
+            "https://github.com/vale-cli/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
+          echo "$VALE_SHA256  $archive" | sha256sum --check
+          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
 
-      - name: 'Upload signed staging deployment'
+      - name: 'Run Extended verification and install release artifacts'
+        if: steps.release_state.outputs.central_published != 'true'
+        run: mvn --batch-mode --no-transfer-progress clean install -Pextended
+
+      - name: 'Create and push release tag'
+        if: steps.release_state.outputs.central_published != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_VERSION"; then
+            tag_commit="$(git rev-list --max-count=1 "$RELEASE_VERSION")"
+            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+              echo "Tag $RELEASE_VERSION already identifies another commit." >&2
+              exit 1
+            fi
+            echo "Tag $RELEASE_VERSION already identifies this commit."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag --annotate "$RELEASE_VERSION" --message "Release $RELEASE_VERSION"
+          git push origin "refs/tags/$RELEASE_VERSION"
+
+      - name: 'Publish signed artifacts'
+        id: publish
+        if: steps.release_state.outputs.central_published != 'true'
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn deploy -Prelease -Dgpg.passphrase="$GPG_PASSPHRASE" -DskipTests
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn --batch-mode --no-transfer-progress clean deploy -Prelease -DskipTests
+
+      - name: 'Wait for Maven Central availability'
+        if: steps.publish.outcome == 'success'
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          artifact_url="https://repo.maven.apache.org/maven2/eu/ciechanowiec/airness/$RELEASE_VERSION/airness-$RELEASE_VERSION.pom"
+          metadata_url='https://repo1.maven.org/maven2/eu/ciechanowiec/airness-parent/maven-metadata.xml'
+          for attempt in {1..60}; do
+            artifact_status="$(curl --max-time 30 --silent --output /dev/null --write-out '%{http_code}' \
+              "$artifact_url" || true)"
+            metadata_status="$(curl --max-time 30 --silent --output /dev/null --write-out '%{http_code}' \
+              "$metadata_url" || true)"
+            if [ "$artifact_status" = '200' ] && [ "$metadata_status" = '200' ]; then
+              exit 0
+            fi
+            echo "Maven Central is still synchronizing (artifact $artifact_status, metadata $metadata_status; attempt $attempt/60)."
+            sleep 30
+          done
+          echo 'Maven Central did not become readable within 30 minutes.' >&2
+          exit 1
+
+      - name: 'Verify isolated consumers'
+        if: steps.publish.outcome == 'success'
+        run: sh airness-it/verify.sh
+
+      - name: 'Create GitHub Release'
+        if: >-
+          always() &&
+          (steps.release_state.outputs.central_published == 'true' || steps.publish.outcome == 'success')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "GitHub Release $RELEASE_VERSION already exists."
+            exit 0
+          fi
+          gh release create "$RELEASE_VERSION" --verify-tag --generate-notes \
+            --title "airness $RELEASE_VERSION"
