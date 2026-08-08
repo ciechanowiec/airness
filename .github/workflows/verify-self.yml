@@ -44,7 +44,26 @@ jobs:
         run: mvn clean install -Pextended
 
       - name: 'Verify isolated consumers'
-        run: sh airness-it/verify.sh
+        run: |
+          set -eu
+          version="$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
+          case "$version" in
+            *-SNAPSHOT)
+              sh airness-it/verify.sh
+              ;;
+            *)
+              artifact_url="https://repo.maven.apache.org/maven2/eu/ciechanowiec/airness/$version/airness-$version.pom"
+              status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$artifact_url")"
+              if [ "$status" = '200' ]; then
+                sh airness-it/verify.sh
+              elif [ "$status" = '404' ]; then
+                echo "Airness $version is not published yet; the release workflow verifies consumers after publication."
+              else
+                echo "Maven Central availability check returned HTTP $status." >&2
+                exit 1
+              fi
+              ;;
+          esac
 
   documentation:
     runs-on: ubuntu-latest
