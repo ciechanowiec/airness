@@ -6,7 +6,7 @@ on:
       release_version:
         description: 'Version already declared in pom.xml'
         required: true
-        default: '1.0.0'
+        default: '1.0.2'
         type: string
       publish:
         description: 'Publish permanently after Extended verification'
@@ -195,5 +195,5 @@ jobs:
             echo "GitHub Release $RELEASE_VERSION already exists."
             exit 0
           fi
-          gh release create "$RELEASE_VERSION" --verify-tag --generate-notes \
-            --title "airness $RELEASE_VERSION"
+          gh release create "$RELEASE_VERSION" --verify-tag \
+            --title "Airness // $RELEASE_VERSION" --notes ''

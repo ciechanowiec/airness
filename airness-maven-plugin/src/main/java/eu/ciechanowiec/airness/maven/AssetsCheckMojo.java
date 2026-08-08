@@ -3,7 +3,10 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetCheck;
 import eu.ciechanowiec.airness.governance.Findings;
+import eu.ciechanowiec.airness.governance.RootLicenseCheck;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -31,8 +34,11 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
     List<Findings> findings() {
         List<String> exempt = Sentinel.optional(this.unmanaged);
         exempt.forEach(path -> this.getLog().info("This project owns " + path + " rather than the harness"));
-        return new AssetCheck(
-            this.repositoryRoot(), new AssetCatalogue(AssetsCheckMojo.class.getClassLoader()), exempt
+        Path root = this.repositoryRoot();
+        List<Findings> assets = new AssetCheck(
+            root, new AssetCatalogue(AssetsCheckMojo.class.getClassLoader()), exempt
         ).findings();
+        List<Findings> licenses = new RootLicenseCheck(root).findings();
+        return Stream.concat(assets.stream(), licenses.stream()).toList();
     }
 }
