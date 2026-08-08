@@ -19,27 +19,25 @@
         bindings, so a consumer states its coordinates and its dependencies and receives the harness.
 
         It binds the analyzers, tests, coverage, mutation analysis, source normalization, and repository
-        governance. A consumer updates the complete harness by raising one parent version.
+        governance. A consumer updates the harness by raising the parent version and synchronizing the
+        managed files.
     </description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <!-- One finding switch for the whole harness. skipTests is the separate total bypass. -->
+        <!-- One switch controls whether findings fail the build. skipTests is the separate bypass. -->
         <airness.enforce>true</airness.enforce>
         <skipTests>false</skipTests>
         <airness.coverage.skip>${skipTests}</airness.coverage.skip>
 
         <!--
-            The phase at which each source-shaping tool APPLIES its changes. Only the applying half is a
+            The phase at which each source-shaping tool applies its changes. Only the applying half is a
             property. The checking half is bound to a literal phase and cannot be moved by anyone.
 
-            That asymmetry is the point. A property naming the checking phase would be a switch a
-            consumer could set to "none" in its own pom, and the build would then pass while shaping
-            nothing, which is the failure this whole harness exists to make impossible. Setting one of
-            these can only add work: the tool applies its changes first and the check still runs
-            afterwards, so the check is what confirms the apply did its job rather than something the
-            apply replaces.
+            The asymmetry prevents a consumer from moving a checking phase to "none" in its own pom.
+            Setting an applying phase can only add work: the tool applies its changes first and the
+            check still runs afterwards, so the check confirms that the apply did its job.
 
             The format profile below is what sets them. Each applying execution is declared ahead of its
             checking one, so within the shared phase the apply runs first.
@@ -490,8 +488,9 @@
             </plugin>
             <!--
                 The governance checks are goals rather than tests, so -Dtest=OneClass cannot accidentally
-                deselect them. The explicit -DskipTests contract is implemented inside every goal and is
-                the one supported way to bypass both ordinary tests and the complete harness.
+                deselect them. The explicit -DskipTests contract is implemented inside every goal and
+                bypasses ordinary tests and Airness quality and governance checks. Runtime compatibility
+                remains enforced.
 
                 The repository-wide goals run only on the top-level project, so a reactor reports each
                 finding once. The per-module goals skip a module with no Java source directory, and

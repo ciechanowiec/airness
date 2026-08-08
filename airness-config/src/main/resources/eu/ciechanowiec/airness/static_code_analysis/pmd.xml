@@ -10,7 +10,7 @@
     BEST PRACTICES
 
     Taken whole but for the exclusions below. Among the rules it brings in is
-    UnnecessaryWarningSuppression, which is what makes "a suppression is never useless" a gate rather
+    UnnecessaryWarningSuppression, which makes "a suppression is never useless" a check rather
     than a wish: a @SuppressWarnings that suppresses nothing fails the build.
     -->
     <rule ref="category/java/bestpractices.xml">

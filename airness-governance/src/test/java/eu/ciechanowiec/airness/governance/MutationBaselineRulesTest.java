@@ -73,7 +73,7 @@ class MutationBaselineRulesTest {
     }
 
     // The marker suspends only the stale half. A survivor nobody accepted is still a new gap, marked
-    // neighbours or not, which is what keeps the marker from becoming a way to switch the gate off.
+    // neighbours or not, which is what keeps the marker from becoming a way to switch the check off.
     @Test
     void stillReportsAnUnacceptedSurvivorBesideAnIntermittentEntry() {
         Set<MutationSurvivor> accepted = MutationBaselineRules.accepted(

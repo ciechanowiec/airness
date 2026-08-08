@@ -15,14 +15,12 @@
 
     <name>airness-governance</name>
     <description>
-        The governance checks: what a repository holds, rather than what its code does. Commit message
-        shape, typography, Javadoc links, comment prose, entry files, dependency
-        freshness, and the mutation baseline.
+        The governance checks over repository files, history, dependencies, documentation, managed
+        assets, and mutation evidence.
 
         Every check is plain Java over an explicit repository root and explicit paths. Nothing here knows
         about Maven, which is what lets the same class run from a Mojo or from a test.
-        The Maven binding lives in airness-maven-plugin and is the only place that knows a build is
-        happening at all.
+        The Maven binding lives in airness-maven-plugin and supplies the build context.
     </description>
 
     <dependencies>

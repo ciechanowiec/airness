@@ -45,7 +45,7 @@ public final class Repository {
     /**
      * Whether the clone carries a truncated history.
      *
-     * <p>Every gate that reads history reports green over a shallow clone, having found nothing to
+     * <p>Every check that reads history reports green over a shallow clone, having found nothing to
      * object to in the handful of commits it was given. The caller fails on this rather than scanning,
      * because a partial scan and a clean one are indistinguishable in the log.
      *
@@ -84,7 +84,7 @@ public final class Repository {
      * <p>A file only git tracks is the wrong set to scan. New work is untracked until it is staged, so
      * a scan of the tracked set alone would pass over a whole feature's worth of new sources and report
      * green on a tree it had not read, then fail on the next run once those files were committed. The
-     * gate is meant to answer whether this tree is fit to commit, so it reads the tree that would be
+     * check is meant to answer whether this tree is fit to commit, so it reads the tree that would be
      * committed. Ignored files stay out, being build output rather than content.
      *
      * @param root the working tree root

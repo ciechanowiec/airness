@@ -29,7 +29,7 @@ public final class AssetsSyncMojo extends AbstractMojo {
     private MavenSession session;
 
     /**
-     * Whether tests and the complete Airness harness are bypassed.
+     * Whether tests and Airness-managed operations are bypassed.
      */
     @Parameter(property = "skipTests", defaultValue = "false")
     private boolean skip;

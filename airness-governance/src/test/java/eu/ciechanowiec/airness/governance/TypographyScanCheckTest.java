@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
  * exemption that excluded nothing.
  *
  * <p>The banned glyph is built from its code point rather than typed, because this file is itself a
- * tracked file and the very scan under test would find it here. A fixture that fails the gate it tests
+ * tracked file and the very scan under test would find it here. A fixture that fails the check it tests
  * is a fixture that cannot be committed.
  */
 class TypographyScanCheckTest {

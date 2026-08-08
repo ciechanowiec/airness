@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <name>airness</name>
-    <description>The reusable Java build harness: one parent, one rule set, updated in one place</description>
+    <description>The reusable Java build and repository governance harness</description>
     <url>https://ciechanowiec.eu/</url>
     <inceptionYear>2026</inceptionYear>
 

@@ -23,12 +23,12 @@
 
     <name>airness-annotations</name>
     <description>
-        The annotations the rule set expects to find in a consumer's source. This is the only airness
+        The annotation the rule set expects to find in a consumer's source. This is the only Airness
         artifact that reaches a consuming project's compile classpath, which is why it is an artifact of
         its own rather than a package inside airness-config: folding it in would put the analyzer
         configurations on that classpath as well, to no purpose.
 
-        It carries no dependencies and no runtime cost. Every type here has SOURCE retention, so nothing
-        it ships survives compilation into the consumer's artifact.
+        It carries no dependencies and no runtime cost. The annotation has SOURCE retention, so it does
+        not survive compilation into the consumer's artifact.
     </description>
 </project>

@@ -16,14 +16,14 @@ import java.util.stream.Stream;
 /**
  * Every file the harness owns is where its policy says it should be, with the bytes it should have.
  *
- * <p>Three disagreements are reported rather than one, on the same argument the mutation baseline makes.
+ * <p>Four disagreements are reported separately, on the same argument the mutation baseline makes.
  * A file that drifted is a repair to run. An opt-out that no longer differs from canonical is a line to
  * delete, and without that half the opt-out list rots into a blanket exemption. An opt-out naming a path
  * the manifest does not hold is a typo, and a typo in an exemption list reads as an exemption that
  * works.
  *
  * <p>The reason for an opt-out is not checked and cannot be. It lives as a comment beside the property
- * and binds by whoever reads the pom, which is worth saying plainly rather than implying a gate that
+ * and binds by whoever reads the pom, which is worth saying plainly rather than implying a check that
  * does not exist.
  */
 public final class AssetCheck {

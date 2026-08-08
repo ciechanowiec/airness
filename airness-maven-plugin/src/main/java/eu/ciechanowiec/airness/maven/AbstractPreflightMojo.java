@@ -28,7 +28,7 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
     private MavenSession session;
 
     /**
-     * Whether every Airness check is bypassed.
+     * Whether Airness quality and governance checks are bypassed.
      */
     @Parameter(property = "skipTests", defaultValue = "false")
     private boolean skip;

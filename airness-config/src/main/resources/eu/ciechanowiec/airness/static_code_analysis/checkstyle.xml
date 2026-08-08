@@ -321,7 +321,7 @@
             Enforces (not just auto-fixes) the import order produced by impsort-maven-plugin: static
             imports first as their own block, then a single alphabetical block of all non-static imports,
             with a blank line between the two. impsort normalizes this at process-resources; this check
-            is the gate that verifies it.
+            verifies it.
         -->
         <module name="ImportOrder">
             <property name="option" value="top"/>
