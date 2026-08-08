@@ -18,7 +18,7 @@ new_consumer() {
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>consumer</artifactId>
@@ -291,7 +291,7 @@ cat > "$managed/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>managed-version</artifactId>
@@ -488,6 +488,11 @@ else
     echo 'FAILED   assets: explicit sync did not restore drifted pinned content' >&2
     failures=$((failures + 1))
 fi
+printf 'duplicate license declaration\n' > "$consumer/LiCeNsE.TxT"
+run_case 'assets: root license filename is rejected case-insensitively' 1 \
+    'License files named LICENSE or LICENSE[.]TXT must not sit beside the root pom[.]xml|LiCeNsE[.]TxT' \
+    "$consumer" airness:assets-check
+rm "$consumer/LiCeNsE.TxT"
 run_case 'assets: later pinned change fails tree verification' 1 \
     'Build plugins changed committable files|working tree content differs' \
     "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \
@@ -506,7 +511,7 @@ cat > "$multimodule/child/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>test-only-child</artifactId>
@@ -653,7 +658,7 @@ cat > "$reactor/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>reactor</artifactId>
@@ -717,7 +722,7 @@ cat > "$stale_grandparent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>stale-grandparent</artifactId>
@@ -785,7 +790,7 @@ cat > "$relative_parent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>relative-parent</artifactId>
@@ -857,7 +862,7 @@ run_case 'extended: a consumer commit message answers to the policy' 1 \
     "$extended_profile" clean package -Pextended -Dairness.enforce=false
 
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
-assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.0/airness-assets-1.0.0.jar"
+assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.2-SNAPSHOT/airness-assets-1.0.2-SNAPSHOT.jar"
 listing="$scratch/assets.txt"
 jar tf "$assets" > "$listing"
 if ! grep -Fq 'airness/files/README-guideline-software-project.adoc.asset' "$listing"; then
