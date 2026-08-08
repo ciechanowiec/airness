@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Writes the files the harness owns into a project, which is the only thing here that writes anything.
+ * Writes catalogue-managed files into a project.
  *
  * <p>The lifecycle deliberately does not run this repair. Its read-only asset check fails on drift, and
  * this writer is a separate command so a successful verification describes the tree it was given.

@@ -5,8 +5,8 @@ import java.util.List;
 /**
  * One rule's verdict: what it looked for, and every place that broke it.
  *
- * <p>Every check reports through this type so a failure reads the same whichever gate produced it. The
- * alternative, each check formatting its own message, is how one gate comes to print a bare list of
+ * <p>Every check reports through this type so a failure reads the same whichever check produced it. The
+ * alternative, each check formatting its own message, is how one check comes to print a bare list of
  * paths while another prints a sentence per offence, and a developer reading the second has to work out
  * what the first was even asserting.
  *

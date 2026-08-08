@@ -40,7 +40,7 @@ public final class MutationBaselineMojo extends AbstractGovernanceMojo {
      * <p>The condition is that the module has Java sources, not that a report is sitting there. Skipping
      * on a missing report would turn the one failure worth having into a silent pass: an analysis
      * configured to mutate nothing writes no report, and so does an analysis that never ran, and both
-     * would then read as a module the gate had nothing to say about.
+     * would then read as a module the check had nothing to say about.
      *
      * @return whether the module has production sources for the analysis to mutate
      */

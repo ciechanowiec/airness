@@ -43,7 +43,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
     private boolean enforce;
 
     /**
-     * Whether Maven tests and every Airness check are skipped.
+     * Whether Maven tests and Airness quality and governance checks are skipped.
      */
     @Parameter(property = "skipTests", defaultValue = "false")
     private boolean skip;

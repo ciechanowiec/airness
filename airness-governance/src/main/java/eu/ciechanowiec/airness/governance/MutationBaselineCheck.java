@@ -10,7 +10,7 @@ import java.util.Set;
  *
  * <p>The third of them is not a disagreement between the two files but a doubt about the run that
  * produced one of them. A run that mutated nothing reports the same empty survivor set as a run whose
- * every mutant died, and a mutation gate that can report perfection by mutating nothing is a gate that
+ * every mutant died, and a mutation check that can report perfection by mutating nothing is a check that
  * says nothing. A misaimed target pattern produces exactly that, and it looks like success.
  *
  * <p>A missing report throws rather than being reported, because there is no verdict to give: the

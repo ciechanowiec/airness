@@ -1,5 +1,5 @@
 <profile version="1.0">
-  <!-- Inspections disabled for this Qodana gate (reusable across projects):
+  <!-- Inspections disabled for this Qodana check (reusable across projects):
        - WeakerAccess: conflicts with ClassEscapesItsScope on public value-object APIs (mutually exclusive)
        - OptionalUsedAsFieldOrParameterType: Optional as a field or parameter type is an accepted pattern
        - ParametersPerConstructor: wide records (many components) are acceptable

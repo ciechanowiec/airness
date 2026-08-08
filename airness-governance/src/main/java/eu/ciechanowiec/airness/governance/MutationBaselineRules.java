@@ -83,7 +83,7 @@ final class MutationBaselineRules {
      * <p>A mutant in a teardown path is killed only if the scheduler happens to let a test observe the
      * missing call, and the same mutant has been seen killed on one run and surviving on the next. The
      * stale half of this check assumes an outcome that repeats, so without a way to say "this one does
-     * not", a flapping mutant fails the build whichever way it is recorded, and the gate stops meaning
+     * not", a flapping mutant fails the build whichever way it is recorded, and the check stops meaning
      * anything. Marking one is a cost: it can rot into a permanent exemption, which is the very thing
      * this file exists to prevent, so the marker belongs only on an entry seen to flap
      *

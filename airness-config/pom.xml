@@ -17,6 +17,6 @@
     <description>
         The analysis configurations, carried as classpath resources rather than as files a consumer
         copies. A consumer names a resource path, so the rule set is updated by raising one version
-        rather than by re-copying three files into every repository that uses them.
+        rather than by copying analyzer configuration into every repository that uses it.
     </description>
 </project>
