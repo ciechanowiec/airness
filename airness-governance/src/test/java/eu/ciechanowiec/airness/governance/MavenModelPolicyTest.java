@@ -121,6 +121,20 @@ class MavenModelPolicyTest {
     }
 
     @Test
+    void acceptsRulesInAnAdditionalEnforcerExecution() {
+        String pom = plugin(
+            "maven-enforcer-plugin",
+            """
+                <executions><execution>
+                    <id>enforce-project-dependencies</id>
+                    <configuration><rules><bannedDependencies/></rules></configuration>
+                </execution></executions>
+                """
+        );
+        assertTrue(this.problems(pom).isEmpty());
+    }
+
+    @Test
     void acceptsExtensionConfigurationThatDoesNotWeakenTheHarness() {
         String pom = plugin(
             "maven-surefire-plugin",

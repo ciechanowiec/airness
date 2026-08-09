@@ -106,7 +106,7 @@ public final class MavenModelPolicy {
     private static Stream<String> protectedConfigurationProblems(Node plugin) {
         String artifact = Xml.text(plugin, "artifactId").orElse("");
         Set<String> protectedNames = PROTECTED_PLUGIN_CONFIGURATION.getOrDefault(artifact, Set.of());
-        return configurations(plugin)
+        return Xml.firstChild(plugin, "configuration").stream()
             .flatMap(configuration -> descendants(configuration).map(Element::getTagName))
             .filter(protectedNames::contains)
             .map(
