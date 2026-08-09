@@ -37,9 +37,15 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     public final void execute() throws MojoExecutionException, MojoFailureException {
         if (this.skip) {
             this.getLog().info("Skipping Airness because skipTests is true");
-        } else if (OncePerSession.firstRun(this.session, this.getClass())) {
+        } else if (this.firstRun()) {
             this.check();
         }
+    }
+
+    private boolean firstRun() {
+        return OncePerSession.firstRun(
+            this.session.getRepositorySession().getData(), this.getClass()
+        );
     }
 
     private void check() throws MojoExecutionException, MojoFailureException {

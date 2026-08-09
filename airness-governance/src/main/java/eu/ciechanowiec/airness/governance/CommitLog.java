@@ -20,7 +20,6 @@ final class CommitLog {
     private static List<HistoryEntry> entries(Path root) {
         String output = GitPlumbing.run(root, List.of("rev-list", "--parents", "HEAD"));
         return output.lines()
-            .filter(line -> !line.isBlank())
             .map(CommitLog::entry)
             .toList();
     }

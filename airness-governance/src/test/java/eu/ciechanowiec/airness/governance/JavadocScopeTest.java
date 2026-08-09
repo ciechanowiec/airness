@@ -36,4 +36,13 @@ class JavadocScopeTest {
         );
         assertTrue(resolves.test("Vault"));
     }
+
+    @Test
+    void recognizesJavaLangAndRejectsAnUnknownSimpleName() {
+        Predicate<String> resolves = JavadocScope.over(List.of(SOURCE)).of(
+            SOURCE, "package example; final class Example {}"
+        );
+        assertTrue(resolves.test("String"));
+        assertFalse(resolves.test("Vault"));
+    }
 }

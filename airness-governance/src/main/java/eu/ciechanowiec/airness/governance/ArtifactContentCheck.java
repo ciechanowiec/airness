@@ -6,9 +6,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -18,6 +16,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -43,7 +42,7 @@ public final class ArtifactContentCheck {
     private final Path artifact;
     private final Path mainOutput;
     private final Path testOutput;
-    private final byte[] repositoryPath;
+    private final String repositoryPath;
 
     /**
      * Creates an inspection of one finished module artifact.
@@ -59,8 +58,9 @@ public final class ArtifactContentCheck {
         this.artifact = artifact;
         this.mainOutput = mainOutput;
         this.testOutput = testOutput;
-        this.repositoryPath = repositoryRoot.toAbsolutePath().normalize().toString()
+        byte[] encoded = repositoryRoot.toAbsolutePath().normalize().toString()
             .getBytes(StandardCharsets.UTF_8);
+        this.repositoryPath = new String(encoded, StandardCharsets.ISO_8859_1);
     }
 
     /**
@@ -69,64 +69,80 @@ public final class ArtifactContentCheck {
      * @return findings for the finished JAR
      */
     public List<Findings> findings() {
-        Sets offences = this.scan();
+        Map<Kind, List<String>> offences = this.scan();
         return List.of(
-            new Findings("Duplicate or unsafe JAR entries", offences.offences(Kind.UNSAFE)),
+            new Findings("Duplicate or unsafe JAR entries", entries(offences, Kind.UNSAFE)),
             new Findings(
                 "Source or development files packaged in the JAR",
-                offences.offences(Kind.DEVELOPMENT)
+                entries(offences, Kind.DEVELOPMENT)
             ),
-            new Findings("Test-only output packaged in the JAR", offences.offences(Kind.TEST)),
+            new Findings("Test-only output packaged in the JAR", entries(offences, Kind.TEST)),
             new Findings(
                 "Machine-local repository paths packaged in the JAR",
-                offences.offences(Kind.LOCAL_PATH)
+                entries(offences, Kind.LOCAL_PATH)
             ),
             new Findings(
                 "Recognizable secret material packaged in the JAR",
-                offences.offences(Kind.SECRET)
+                entries(offences, Kind.SECRET)
             )
         );
     }
 
-    private Sets scan() {
-        Sets sets = new Sets(relativeFiles(this.mainOutput), relativeFiles(this.testOutput));
+    private static List<String> entries(Map<Kind, List<String>> offences, Kind kind) {
+        return Objects.requireNonNull(offences.get(kind));
+    }
+
+    private Map<Kind, List<String>> scan() {
+        Set<String> main = relativeFiles(this.mainOutput);
+        Set<String> test = relativeFiles(this.testOutput);
         try (JarFile jar = new JarFile(this.artifact.toFile())) {
-            jar.entries().asIterator().forEachRemaining(entry -> this.inspect(jar, entry, sets));
+            List<Content> entries = jar.stream().map(entry -> content(jar, entry)).toList();
+            List<String> names = entries.stream().map(Content::name).toList();
+            Stream<Content> files = entries.stream().filter(entry -> !entry.directory());
+            return Map.of(
+                Kind.UNSAFE, IntStream.range(0, names.size())
+                    .filter(index -> unsafeEntry(names, index))
+                    .mapToObj(names::get)
+                    .toList(),
+                Kind.DEVELOPMENT, names.stream().filter(ArtifactContentCheck::development).toList(),
+                Kind.TEST, files.filter(entry -> testOnly(entry, main, test))
+                    .map(Content::name)
+                    .toList(),
+                Kind.LOCAL_PATH, entries.stream()
+                    .filter(Content::file)
+                    .filter(entry -> entry.content().contains(this.repositoryPath))
+                    .map(Content::name)
+                    .toList(),
+                Kind.SECRET, entries.stream()
+                    .filter(Content::file)
+                    .filter(ArtifactContentCheck::secret)
+                    .map(Content::name)
+                    .toList()
+            );
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect artifact " + this.artifact, exception);
         }
-        return sets;
     }
 
-    private void inspect(JarFile jar, JarEntry entry, Sets sets) {
-        String name = entry.getName();
-        inspectName(name, sets);
-        if (!entry.isDirectory()) {
-            this.inspectFile(jar, entry, sets);
-        }
+    private static Content content(JarFile jar, JarEntry entry) {
+        String held = entry.isDirectory()
+            ? ""
+            : new String(bytes(jar, entry), StandardCharsets.ISO_8859_1);
+        return new Content(entry.getName(), entry.isDirectory(), held);
     }
 
-    private static void inspectName(String name, Sets sets) {
-        if (sets.duplicate(name) || unsafe(name)) {
-            sets.add(Kind.UNSAFE, name);
-        }
-        if (development(name)) {
-            sets.add(Kind.DEVELOPMENT, name);
-        }
+    private static boolean unsafeEntry(List<String> names, int index) {
+        return names.indexOf(names.get(index)) != index || unsafe(names.get(index));
     }
 
-    private void inspectFile(JarFile jar, JarEntry entry, Sets sets) {
-        if (sets.testOnly(entry.getName())) {
-            sets.add(Kind.TEST, entry.getName());
-        }
-        byte[] bytes = bytes(jar, entry);
-        if (contains(bytes, this.repositoryPath)) {
-            sets.add(Kind.LOCAL_PATH, entry.getName());
-        }
-        CharSequence content = new String(bytes, StandardCharsets.ISO_8859_1);
-        if (SECRET_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(content).find())) {
-            sets.add(Kind.SECRET, entry.getName());
-        }
+    private static boolean testOnly(
+        Content entry, Collection<String> main, Collection<String> test
+    ) {
+        return test.contains(entry.name()) && !main.contains(entry.name());
+    }
+
+    private static boolean secret(Content entry) {
+        return SECRET_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(entry.content()).find());
     }
 
     private static boolean unsafe(String name) {
@@ -180,22 +196,6 @@ public final class ArtifactContentCheck {
         }
     }
 
-    private static boolean contains(byte[] content, byte[] sought) {
-        boolean present = false;
-        for (int offset = 0; offset <= content.length - sought.length && !present; offset += 1) {
-            present = matchesAt(content, sought, offset);
-        }
-        return present;
-    }
-
-    private static boolean matchesAt(byte[] content, byte[] sought, int offset) {
-        boolean matches = true;
-        for (int index = 0; index < sought.length && matches; index += 1) {
-            matches = content[offset + index] == sought[index];
-        }
-        return matches;
-    }
-
     private enum Kind {
 
         DEVELOPMENT,
@@ -205,39 +205,10 @@ public final class ArtifactContentCheck {
         UNSAFE
     }
 
-    private static final class Sets {
+    private record Content(String name, boolean directory, String content) {
 
-        private final Set<String> main;
-        private final Map<Kind, List<String>> offences;
-        private final Set<String> seen;
-        private final Set<String> test;
-
-        Sets(Set<String> main, Set<String> test) {
-            this.main = main;
-            this.test = test;
-            this.seen = new HashSet<>();
-            this.offences = new EnumMap<>(Kind.class);
-            this.offences.put(Kind.UNSAFE, new ArrayList<>());
-            this.offences.put(Kind.DEVELOPMENT, new ArrayList<>());
-            this.offences.put(Kind.TEST, new ArrayList<>());
-            this.offences.put(Kind.LOCAL_PATH, new ArrayList<>());
-            this.offences.put(Kind.SECRET, new ArrayList<>());
-        }
-
-        boolean testOnly(String name) {
-            return this.test.contains(name) && !this.main.contains(name);
-        }
-
-        boolean duplicate(String name) {
-            return !this.seen.add(name);
-        }
-
-        void add(Kind kind, String name) {
-            Objects.requireNonNull(this.offences.get(kind)).add(name);
-        }
-
-        List<String> offences(Kind kind) {
-            return List.copyOf(Objects.requireNonNull(this.offences.get(kind)));
+        boolean file() {
+            return !this.directory;
         }
     }
 }

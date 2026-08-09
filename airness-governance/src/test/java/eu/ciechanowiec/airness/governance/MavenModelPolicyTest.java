@@ -85,6 +85,20 @@ class MavenModelPolicyTest {
     }
 
     @Test
+    void rejectsASystemPathWithoutAnExplicitSystemScope() {
+        String pom = """
+            <project><dependencies><dependency>
+                <groupId>sample</groupId><artifactId>local</artifactId>
+                <systemPath>/tmp/local.jar</systemPath>
+            </dependency></dependencies></project>
+            """;
+        assertEquals(
+            List.of("Remove system-scoped dependency sample:local; use a repository coordinate"),
+            this.problems(pom)
+        );
+    }
+
+    @Test
     void rejectsAMergeOverrideThatErasesInheritedExecutions() {
         String pom = plugin(
             "maven-enforcer-plugin",
@@ -114,6 +128,20 @@ class MavenModelPolicyTest {
                 <configuration><argLine>-Duser.timezone=UTC</argLine></configuration>
                 """
         );
+        assertTrue(this.problems(pom).isEmpty());
+    }
+
+    @Test
+    void acceptsConfigurationOnAPluginOutsideMavensStandardGroup() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <groupId>sample</groupId><artifactId>maven-surefire-plugin</artifactId>
+                <configuration><includes><include>OneTest.java</include></includes></configuration>
+            </plugin><plugin>
+                <artifactId>sample-plugin</artifactId>
+                <configuration><skip>true</skip></configuration>
+            </plugin></plugins></build></project>
+            """;
         assertTrue(this.problems(pom).isEmpty());
     }
 

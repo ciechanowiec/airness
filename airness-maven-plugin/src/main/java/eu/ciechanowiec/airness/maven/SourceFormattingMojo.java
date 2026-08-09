@@ -12,11 +12,11 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import net.revelc.code.formatter.ConfigurationSource;
 import net.revelc.code.formatter.java.JavaFormatter;
 import net.revelc.code.formatter.model.ConfigReadException;
@@ -73,17 +73,19 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
     }
 
     static List<Path> javaSources(Iterable<Path> roots) {
-        List<Path> sources = new ArrayList<>();
-        for (Path root : roots) {
-            try (Stream<Path> paths = Files.walk(root)) {
-                paths.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().endsWith(".java"))
-                    .forEach(sources::add);
-            } catch (IOException exception) {
-                throw new IllegalStateException("Could not enumerate Java sources under " + root, exception);
-            }
+        return StreamSupport.stream(roots.spliterator(), false)
+            .flatMap(root -> javaSources(root).stream())
+            .toList();
+    }
+
+    private static List<Path> javaSources(Path root) {
+        try (Stream<Path> paths = Files.walk(root)) {
+            return paths.filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().endsWith(".java"))
+                .toList();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not enumerate Java sources under " + root, exception);
         }
-        return List.copyOf(sources);
     }
 
     static JavaFormatter formatter(Log log, String target) {

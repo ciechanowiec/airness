@@ -3,8 +3,10 @@ package eu.ciechanowiec.airness.governance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -35,6 +37,14 @@ class RootLicenseCheckTest {
             Verdicts.clean(new RootLicenseCheck(root).findings()),
             "only the two exact filenames beside the root pom are part of the rule"
         );
+    }
+
+    @Test
+    @SneakyThrows
+    void rejectsAForbiddenNameThatIsASymbolicLink() {
+        Path root = new GitFixture("root-license-link").root();
+        Files.createSymbolicLink(root.resolve("LICENSE"), Path.of("missing-target"));
+        assertEquals(List.of("LICENSE"), offences(root));
     }
 
     private static List<String> offences(Path root) {

@@ -1,7 +1,5 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -43,24 +41,20 @@ final class TypographyRules {
     }
 
     private static List<TypographyViolation> violationsInLine(String line, int lineNumber) {
-        Collection<TypographyViolation> found = new ArrayList<>();
-        int column = 1;
-        int index = 0;
-        int length = line.length();
-        while (index < length) {
-            int codePoint = line.codePointAt(index);
-            appendIfBanned(found, codePoint, lineNumber, column);
-            column++;
-            index += Character.charCount(codePoint);
-        }
-        return List.copyOf(found);
+        return IntStream.range(0, line.length())
+            .filter(index -> codePointStartsAt(line, index))
+            .filter(index -> isBanned(line.codePointAt(index)))
+            .mapToObj(
+                index -> new TypographyViolation(
+                    lineNumber, line.codePointCount(0, index) + 1, line.codePointAt(index)
+                )
+            )
+            .toList();
     }
 
-    private static void appendIfBanned(
-        Collection<TypographyViolation> found, int codePoint, int lineNumber, int column
-    ) {
-        if (isBanned(codePoint)) {
-            found.add(new TypographyViolation(lineNumber, column, codePoint));
-        }
+    private static boolean codePointStartsAt(CharSequence line, int index) {
+        return index == 0
+            || !Character.isLowSurrogate(line.charAt(index))
+            || !Character.isHighSurrogate(line.charAt(index - 1));
     }
 }

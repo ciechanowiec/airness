@@ -13,7 +13,9 @@ public final class TreeVerifyMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
-        return OncePerSession.firstRun(this.session(), this.getClass(), this.scope());
+        return OncePerSession.firstRun(
+            this.session().getRepositorySession().getData(), this.getClass(), this.scope()
+        );
     }
 
     @Override
@@ -22,7 +24,9 @@ public final class TreeVerifyMojo extends AbstractGovernanceMojo {
             this.getLog().info("The format profile intentionally edits sources; tree comparison is disabled");
             return List.of(new Findings("Build plugins changed committable files", List.of()));
         }
-        List<String> changed = TreeState.unchanged(this.session(), this.repositoryRoot(), this.scope())
+        List<String> changed = TreeState.unchanged(
+            this.session().getRepositorySession().getData(), this.repositoryRoot(), this.scope()
+        )
             ? List.of() : List.of("The working tree content differs from the validate-phase snapshot");
         return List.of(new Findings("Build plugins changed committable files", changed));
     }

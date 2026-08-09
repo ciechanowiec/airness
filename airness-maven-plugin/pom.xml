@@ -119,12 +119,10 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <configuration>
-                    <includes>
-                        <include>eu/ciechanowiec/airness/maven/PackageRoots*</include>
-                        <include>eu/ciechanowiec/airness/maven/RepositoryProjects*</include>
-                        <include>eu/ciechanowiec/airness/maven/Sentinel*</include>
-                        <include>eu/ciechanowiec/airness/maven/VersionCoordinates*</include>
-                    </includes>
+                    <excludes>
+                        <!-- Maven goal adapters are recognized by role; support classes remain measured. -->
+                        <exclude>eu/ciechanowiec/airness/maven/*Mojo*</exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
@@ -152,7 +150,7 @@
                                     <element>CLASS</element>
                                     <limits>
                                         <limit>
-                                            <counter>INSTRUCTION</counter>
+                                            <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
                                             <minimum>0.80</minimum>
                                         </limit>

@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
  */
 class TypographyRulesTest {
 
+    private static final int ROCKET = 0x1F680;
+
     @Test
     void flagsEmDashWithLineAndColumn() {
         String content = "alpha " + Character.toString(TypographyRules.EM_DASH) + " beta";
@@ -43,5 +45,14 @@ class TypographyRulesTest {
             TypographyRules.LOW_DOUBLE_QUOTE
         );
         assertTrue(banned.stream().allMatch(TypographyRules::isBanned));
+    }
+
+    @Test
+    void countsColumnsByCodePointRatherThanUtf16Unit() {
+        String supplementary = Character.toString(ROCKET);
+        assertEquals(
+            List.of(new TypographyViolation(1, 2, TypographyRules.EM_DASH)),
+            TypographyRules.findViolations(supplementary + Character.toString(TypographyRules.EM_DASH))
+        );
     }
 }

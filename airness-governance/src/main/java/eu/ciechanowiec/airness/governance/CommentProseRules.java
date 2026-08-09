@@ -1,11 +1,13 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.function.Function;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
@@ -159,37 +161,43 @@ final class CommentProseRules {
     }
 
     private static List<Region> justificationArguments(
-        CharSequence source, Iterable<MatchResult> tokens
+        CharSequence source, Collection<MatchResult> tokens
     ) {
         String masked = masked(source, tokens);
-        Collection<Region> regions = new ArrayList<>();
-        JUSTIFICATION.matcher(masked).results()
+        return JUSTIFICATION.matcher(masked).results()
             .mapToInt(match -> match.end() - 1)
-            .forEach(open -> closing(masked, open).ifPresent(close -> regions.add(new Region(open, close))));
-        return List.copyOf(regions);
+            .mapToObj(
+                open -> closing(masked, open).stream()
+                    .mapToObj(close -> new Region(open, close))
+            )
+            .flatMap(Function.identity())
+            .toList();
     }
 
-    private static String masked(CharSequence source, Iterable<MatchResult> tokens) {
-        StringBuilder masked = new StringBuilder(source);
-        tokens.forEach(
-            token -> {
-                for (int index = token.start(); index < token.end(); index++) {
-                    masked.setCharAt(index, ' ');
-                }
-            }
-        );
-        return masked.toString();
+    private static String masked(CharSequence source, Collection<MatchResult> tokens) {
+        return IntStream.range(0, source.length())
+            .mapToObj(
+                index -> tokens.stream().anyMatch(token -> inside(token, index))
+                    ? SPACE
+                    : String.valueOf(source.charAt(index))
+            )
+            .collect(Collectors.joining());
+    }
+
+    private static boolean inside(MatchResult token, int index) {
+        return index >= token.start() && index < token.end();
     }
 
     private static OptionalInt closing(CharSequence source, int open) {
-        int depth = 0;
-        for (int index = open; index < source.length(); index++) {
-            depth += parenthesisDepth(source.charAt(index));
-            if (depth == 0) {
-                return OptionalInt.of(index);
-            }
-        }
-        return OptionalInt.empty();
+        return IntStream.range(open, source.length())
+            .filter(index -> depth(source, open, index) == 0)
+            .findFirst();
+    }
+
+    private static int depth(CharSequence source, int open, int through) {
+        return IntStream.rangeClosed(open, through)
+            .map(index -> parenthesisDepth(source.charAt(index)))
+            .sum();
     }
 
     private static int parenthesisDepth(char character) {

@@ -141,21 +141,16 @@ public final class ManagedVersions {
 
     private static Stream<String> coordinateProblems(Element root, Coordinate coordinate) {
         List<Node> declarations = declarations(root, coordinate).toList();
-        Stream<String> problems = Stream.empty();
-        if (!declarations.isEmpty()) {
-            problems = declarationProblems(coordinate, declarations);
-        }
-        return problems;
+        return declarations.isEmpty() ? Stream.empty() : declarationProblems(coordinate, declarations);
     }
 
     private static Stream<String> declarationProblems(Coordinate coordinate, Collection<Node> declarations) {
-        Stream<String> problems = Stream.empty();
         if (coordinate.supplied()) {
-            problems = Stream.of(coordinate.declarationProblem());
-        } else if (declarations.stream().anyMatch(ManagedVersions::versioned)) {
-            problems = Stream.of(coordinate.versionProblem());
+            return Stream.of(coordinate.declarationProblem());
         }
-        return problems;
+        return declarations.stream().anyMatch(ManagedVersions::versioned)
+            ? Stream.of(coordinate.versionProblem())
+            : Stream.empty();
     }
 
     private static Stream<Node> declarations(Element root, Coordinate coordinate) {
@@ -185,15 +180,15 @@ public final class ManagedVersions {
     }
 
     private static Coordinate allowedPlugin(String group, String artifact, String property) {
-        return new Coordinate(Kind.PLUGIN, group, artifact, property, false);
+        return new Coordinate(Kind.PLUGIN, group, artifact, new Ownership(property, false));
     }
 
     private static Coordinate suppliedPlugin(String group, String artifact, String property) {
-        return new Coordinate(Kind.PLUGIN, group, artifact, property, true);
+        return new Coordinate(Kind.PLUGIN, group, artifact, new Ownership(property, true));
     }
 
     private static Coordinate suppliedDependency(String group, String artifact, String property) {
-        return new Coordinate(Kind.DEPENDENCY, group, artifact, property, true);
+        return new Coordinate(Kind.DEPENDENCY, group, artifact, new Ownership(property, true));
     }
 
     private static String read(Path pom) {
@@ -223,7 +218,15 @@ public final class ManagedVersions {
     /**
      * A coordinate, its root property, and whether the parent supplies its declaration.
      */
-    public record Coordinate(Kind kind, String group, String artifact, String property, boolean supplied) {
+    public record Coordinate(Kind kind, String group, String artifact, Ownership ownership) {
+
+        String property() {
+            return this.ownership.property();
+        }
+
+        boolean supplied() {
+            return this.ownership.supplied();
+        }
 
         boolean matches(Node declaration) {
             String defaultGroup = this.kind == Kind.PLUGIN ? MAVEN_PLUGIN_GROUP : "";
@@ -245,5 +248,14 @@ public final class ManagedVersions {
             return "Remove child <version> from " + this.group + ':' + this.artifact
                 + "; Airness owns this version";
         }
+    }
+
+    /**
+     * The property that owns a managed version and whether the parent supplies the declaration.
+     *
+     * @param property root version property
+     * @param supplied whether the parent supplies the declaration
+     */
+    public record Ownership(String property, boolean supplied) {
     }
 }

@@ -6,7 +6,6 @@ import eu.ciechanowiec.airness.governance.OwnedCoordinate;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -91,11 +90,11 @@ final class VersionCoordinates {
     private static DeclaredCoordinate resolved(
         DeclaredCoordinate coordinate, Map<String, String> properties
     ) {
-        String version = resolve(coordinate.version(), properties, new HashSet<>());
+        String version = resolve(coordinate.version(), properties, Set.of());
         return new DeclaredCoordinate(coordinate.groupId(), coordinate.artifactId(), version);
     }
 
-    private static String resolve(String version, Map<String, String> properties, Set<String> seen) {
+    private static String resolve(String version, Map<String, String> properties, Collection<String> seen) {
         String resolved = EXPRESSION.matcher(version).replaceAll(
             expression -> Matcher.quoteReplacement(
                 replacement(expression.group(1), expression.group(), properties, seen)
@@ -105,7 +104,7 @@ final class VersionCoordinates {
     }
 
     private static String replacement(
-        String property, String expression, Map<String, String> properties, Set<String> seen
+        String property, String expression, Map<String, String> properties, Collection<String> seen
     ) {
         return Optional.ofNullable(properties.get(property))
             .map(value -> resolvedProperty(property, value, properties, seen))
@@ -113,27 +112,31 @@ final class VersionCoordinates {
     }
 
     private static String resolvedProperty(
-        String property, String value, Map<String, String> properties, Set<String> seen
+        String property, String value, Map<String, String> properties, Collection<String> seen
     ) {
-        if (!seen.add(property)) {
+        if (seen.contains(property)) {
             throw new IllegalStateException("Cyclic Maven version property: " + property);
         }
-        String resolved = resolve(value, properties, seen);
-        seen.remove(property);
-        return resolved;
+        Set<String> lineage = Stream.concat(seen.stream(), Stream.of(property))
+            .collect(Collectors.toUnmodifiableSet());
+        return resolve(value, properties, lineage);
     }
 
     private static Map<String, String> properties(MavenProject project) {
         Properties held = project.getProperties();
-        Map<String, String> properties = held.stringPropertyNames().stream()
-            .collect(Collectors.toMap(Function.identity(), held::getProperty));
-        properties.put("project.groupId", project.getGroupId());
-        properties.put("pom.groupId", project.getGroupId());
-        properties.put("project.artifactId", project.getArtifactId());
-        properties.put("pom.artifactId", project.getArtifactId());
-        properties.put("project.version", project.getVersion());
-        properties.put("pom.version", project.getVersion());
-        return Map.copyOf(properties);
+        Stream<Map.Entry<String, String>> declared = held.stringPropertyNames().stream()
+            .map(name -> Map.entry(name, held.getProperty(name)));
+        Stream<Map.Entry<String, String>> standard = Map.of(
+            "project.groupId", project.getGroupId(),
+            "pom.groupId", project.getGroupId(),
+            "project.artifactId", project.getArtifactId(),
+            "pom.artifactId", project.getArtifactId(),
+            "project.version", project.getVersion(),
+            "pom.version", project.getVersion()
+        ).entrySet().stream();
+        return Stream.concat(declared, standard).collect(
+            Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (_, second) -> second)
+        );
     }
 
     private static String owner(DeclaredCoordinate coordinate) {
