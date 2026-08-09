@@ -19,8 +19,18 @@ class RepositoryProjectsTest {
     void selectsTheConsumerParentDuringTheAirnessSelfBuild() {
         MavenProject root = project("eu.ciechanowiec", "airness");
         MavenProject parent = project("eu.ciechanowiec", "airness-parent");
+        parent.setParent(root);
 
         assertTrue(RepositoryProjects.owns(root, parent));
+    }
+
+    @Test
+    void recognizesTheConsumerParentBuiltOutsideTheReactor() {
+        MavenProject root = project("eu.ciechanowiec", "airness");
+        MavenProject parent = project("eu.ciechanowiec", "airness-parent");
+        parent.setParent(root);
+
+        assertTrue(RepositoryProjects.selfBuild(parent, parent));
     }
 
     @Test
@@ -35,6 +45,7 @@ class RepositoryProjectsTest {
     void rejectsAnAirnessGroupBuildWithAnotherAggregator() {
         MavenProject root = project("eu.ciechanowiec", "another-aggregator");
         MavenProject parent = project("eu.ciechanowiec", "airness-parent");
+        parent.setParent(root);
 
         assertFalse(RepositoryProjects.owns(root, parent));
     }

@@ -24,7 +24,6 @@
     </description>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- One switch controls whether findings fail the build. skipTests is the separate bypass. -->
         <airness.enforce>true</airness.enforce>
@@ -59,13 +58,6 @@
         <airness.mutation.timeout.factor>1.25</airness.mutation.timeout.factor>
         <airness.mutation.skip>${skipTests}</airness.mutation.skip>
         <!--
-            The ceiling on one test, lifecycle method or template invocation. A wait nothing bounds turns
-            a defect into a build that never returns a verdict, and no verdict is the one outcome a
-            harness cannot report. Raise it only for work that genuinely takes longer, never to
-            accommodate a test that waits on something it should not be waiting on.
-        -->
-        <airness.test.timeout>30 s</airness.test.timeout>
-        <!--
             Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
             Empty by default, for the same reason the coverage exclusions are.
         -->
@@ -87,6 +79,12 @@
 
     <!-- Versions come from the root dependency management. These declarations supply the dependencies. -->
     <dependencies>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
         <!--
             Inherited by every consumer, so the annotation the rule set expects is on the compile
             classpath without anyone declaring it. A rule that demands an annotation a project has to go
@@ -101,21 +99,15 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>com.github.spotbugs</groupId>
-            <artifactId>spotbugs-annotations</artifactId>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
             <scope>provided</scope>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -818,6 +810,9 @@
                     <value>false</value>
                 </property>
             </activation>
+            <properties>
+                <airness.dependency-check.fail-build-on-cvss>11</airness.dependency-check.fail-build-on-cvss>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -929,6 +924,43 @@
             <build>
                 <plugins>
                     <!--
+                        Dependency-Check owns the local database format, while its public data feed is
+                        integration-neutral. Every Airness version therefore gets its own database
+                        directory and every consumer imports the same daily feed without an NVD API key.
+                        A version upgrade cannot accidentally open an incompatible H2 database.
+
+                        The scan includes test dependencies because they execute inside the governed
+                        build. Sonatype Guide is disabled because it requires separate credentials; the
+                        NVD feed, CISA data, RetireJS data, and hosted suppressions remain enabled.
+                    -->
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <configuration>
+                            <dataDirectory>
+                                ${user.home}/.cache/airness/dependency-check/${dependency-check-maven.version}
+                            </dataDirectory>
+                            <nvdDatafeedUrl>https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz</nvdDatafeedUrl>
+                            <nvdValidForHours>24</nvdValidForHours>
+                            <autoUpdate>true</autoUpdate>
+                            <failBuildOnCVSS>${airness.dependency-check.fail-build-on-cvss}</failBuildOnCVSS>
+                            <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
+                            <skip>${skipTests}</skip>
+                            <skipTestScope>false</skipTestScope>
+                            <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                            <versionCheckEnabled>false</versionCheckEnabled>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>airness-known-vulnerabilities</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!--
                         The mutation analysis, declared ahead of the plugin whose mutation-baseline goal
                         reads its report. Both bind to package and Maven runs same-phase executions in
                         plugin declaration order, so declaring them the other way round would leave the
@@ -1010,6 +1042,32 @@
                                 </goals>
                             </execution>
                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!--
+                A project may own one narrowly scoped Dependency-Check suppression document without
+                repeating the Airness-owned plugin. The plugin rejects stale rules; the document keeps
+                the justification beside each exception in its notes element.
+            -->
+            <id>airness-dependency-check-suppressions</id>
+            <activation>
+                <property>
+                    <name>airness.dependency-check.suppression.file</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <configuration>
+                            <suppressionFiles>
+                                <suppressionFile>${airness.dependency-check.suppression.file}</suppressionFile>
+                            </suppressionFiles>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>

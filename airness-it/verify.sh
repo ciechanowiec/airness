@@ -341,6 +341,7 @@ cat > "$managed/pom.xml" <<'POM'
     <airness.package.root>com.example</airness.package.root>
     <exec-maven-plugin.version>1</exec-maven-plugin.version>
     <central-publishing-maven-plugin.version>1</central-publishing-maven-plugin.version>
+    <dependency-check-maven.version>1</dependency-check-maven.version>
     <versions-maven-plugin.version>1</versions-maven-plugin.version>
   </properties>
   <dependencies>
@@ -367,6 +368,10 @@ cat > "$managed/pom.xml" <<'POM'
         <artifactId>jacoco-maven-plugin</artifactId>
       </plugin>
       <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
@@ -378,6 +383,9 @@ run_case 'coordinates: child ownership is rejected' 1 'Airness (owns|supplies) t
     "$managed" airness:check-parameters
 run_case 'versions: inherited pin drives update reports' 0 'versions:2\.21\.0:display-dependency-updates' \
     "$consumer" versions:display-dependency-updates
+run_case 'vulnerabilities: consumer inherits the public daily feed' 0 \
+    'DependencyCheck_Builder/nvd_cache/nvdcve-\{0\}[.]json[.]gz' \
+    "$consumer" help:effective-pom -Pextended
 
 # A declaration that does not name one exact version, and a pom that names one coordinate twice. Both
 # leave the build to decide what it resolves, and neither leaves a trace in the pom that says so.

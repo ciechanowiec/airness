@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import java.util.Optional;
 import lombok.experimental.UtilityClass;
 import org.apache.maven.project.MavenProject;
 
@@ -18,9 +19,22 @@ final class RepositoryProjects {
     }
 
     static boolean selfBuild(MavenProject topLevel, MavenProject current) {
-        return GROUP.equals(topLevel.getGroupId())
-            && AGGREGATOR.equals(topLevel.getArtifactId())
-            && GROUP.equals(current.getGroupId())
-            && CONSUMER_PARENT.equals(current.getArtifactId());
+        return coordinates(current, CONSUMER_PARENT)
+            && hasAirnessParent(current)
+            && isAirnessEntry(topLevel, current);
+    }
+
+    private static boolean coordinates(MavenProject project, String artifact) {
+        return GROUP.equals(project.getGroupId()) && artifact.equals(project.getArtifactId());
+    }
+
+    private static boolean hasAirnessParent(MavenProject project) {
+        return Optional.ofNullable(project.getParent())
+            .filter(parent -> coordinates(parent, AGGREGATOR))
+            .isPresent();
+    }
+
+    private static boolean isAirnessEntry(MavenProject topLevel, MavenProject current) {
+        return topLevel.equals(current) || coordinates(topLevel, AGGREGATOR);
     }
 }

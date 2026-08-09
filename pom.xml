@@ -55,6 +55,7 @@
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
         <airness.version>1.0.2-SNAPSHOT</airness.version>
         <airness.package.root>eu.ciechanowiec.airness</airness.package.root>
+        <airness.dependency-check.fail-build-on-cvss>0</airness.dependency-check.fail-build-on-cvss>
         <!-- Mirrors airness-parent. Declared here too, because this pom does not inherit that one. -->
         <airness.test.timeout>30 s</airness.test.timeout>
         <lombok.version>1.18.46</lombok.version>
@@ -92,6 +93,7 @@
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
         <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
+        <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <pitest-maven.version>1.25.9</pitest-maven.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
@@ -250,6 +252,11 @@
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>license-maven-plugin</artifactId>
                     <version>${license-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.owasp</groupId>
+                    <artifactId>dependency-check-maven</artifactId>
+                    <version>${dependency-check-maven.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.openrewrite.maven</groupId>
