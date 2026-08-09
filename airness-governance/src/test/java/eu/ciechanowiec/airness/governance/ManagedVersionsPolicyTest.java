@@ -137,10 +137,7 @@ class ManagedVersionsPolicyTest {
         return Xml.firstChild(root, "properties").stream()
             .flatMap(ManagedVersionsPolicyTest::directElements)
             .map(Element::getTagName)
-            .filter(
-                property -> property.endsWith(".version")
-                    || "maven.compiler.release".equals(property)
-            )
+            .filter(ManagedVersions.protectedProperties()::contains)
             .collect(Collectors.toUnmodifiableSet());
     }
 

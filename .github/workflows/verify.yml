@@ -24,5 +24,18 @@ jobs:
           java-version-file: '.java-version'
           cache: 'maven'
 
+      - name: 'Name today''s Dependency-Check cache'
+        id: dependency-check-date
+        shell: bash
+        run: echo "value=$(date --utc +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: 'Restore Dependency-Check data'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/airness/dependency-check
+          key: dependency-check-${{ runner.os }}-${{ hashFiles('pom.xml') }}-${{ steps.dependency-check-date.outputs.value }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-${{ hashFiles('pom.xml') }}-
+
       - name: 'Verify'
         run: mvn clean package -Pextended

@@ -37,6 +37,10 @@ class ManagedVersionsTest {
                         <artifactId>versions-maven-plugin</artifactId>
                     </plugin>
                     <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                    </plugin>
+                    <plugin>
                         <artifactId>unrelated-plugin</artifactId>
                         <version>1</version>
                     </plugin>
@@ -70,6 +74,7 @@ class ManagedVersionsTest {
     void rejectsDeclarationsOfHarnessSuppliedCoordinates() {
         List<String> problems = this.problems(CHILD_POM);
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("jacoco-maven-plugin")));
+        assertTrue(problems.stream().anyMatch(problem -> problem.contains("dependency-check-maven")));
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("lombok")));
     }
 

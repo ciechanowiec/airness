@@ -56,6 +56,7 @@ public final class ManagedVersions {
         suppliedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco-maven-plugin.version"),
         suppliedPlugin("org.ec4j.maven", "editorconfig-maven-plugin", "editorconfig-maven-plugin.version"),
         suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),
+        suppliedPlugin("org.owasp", "dependency-check-maven", "dependency-check-maven.version"),
         suppliedPlugin("org.openrewrite.maven", "rewrite-maven-plugin", "rewrite-maven-plugin.version"),
         suppliedPlugin("eu.ciechanowiec", "airness-maven-plugin", "airness.version"),
         suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-checkstyle-plugin", "maven-checkstyle-plugin.version"),
@@ -113,7 +114,7 @@ public final class ManagedVersions {
 
     private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(
         COORDINATES.stream().map(Coordinate::property),
-        Stream.of("maven.compiler.release")
+        Stream.of("maven.compiler.release", "airness.dependency-check.fail-build-on-cvss")
     ).collect(Collectors.toUnmodifiableSet());
 
     /**
