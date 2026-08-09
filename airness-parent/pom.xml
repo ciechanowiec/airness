@@ -59,6 +59,13 @@
         <airness.mutation.timeout.factor>1.25</airness.mutation.timeout.factor>
         <airness.mutation.skip>${skipTests}</airness.mutation.skip>
         <!--
+            The ceiling on one test, lifecycle method or template invocation. A wait nothing bounds turns
+            a defect into a build that never returns a verdict, and no verdict is the one outcome a
+            harness cannot report. Raise it only for work that genuinely takes longer, never to
+            accommodate a test that waits on something it should not be waiting on.
+        -->
+        <airness.test.timeout>30 s</airness.test.timeout>
+        <!--
             Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
             Empty by default, for the same reason the coverage exclusions are.
         -->
@@ -166,6 +173,15 @@
                     check, because a field a framework assigns is not a field the constructor forgot.
                     The list is fixed rather than a property: a project that could extend it could also
                     empty it, and an empty list reads in the log exactly like a correct one.
+
+                    doclint holds the Javadoc that Checkstyle only requires the presence of: a @param
+                    naming an argument the method does not take, or a {@link} to a type that does not
+                    resolve. The governance javadoc-links goal pushes every resolvable name into a link,
+                    and without doclint nothing afterwards confirms the link it asked for reaches
+                    anything. -missing is the one group left out, because Checkstyle's MissingJavadoc
+                    rules read the source AST and so ask only for Javadoc on declarations that were
+                    actually written, while doclint also demands it on the constructor Lombok's
+                    @UtilityClass synthesizes.
                 -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -177,6 +193,7 @@
                         <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</arg>
                         <arg>-Werror</arg>
                         <arg>-Xlint:deprecation</arg>
+                        <arg>-Xdoclint:all,-missing</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -208,8 +225,26 @@
                 </configuration>
             </plugin>
             <plugin>
+                <!--
+                    A timeout every test carries whether or not it declares one, so an unbounded wait
+                    ends in a finding rather than in a build that hangs. Declared here rather than in a
+                    junit-platform.properties in each project, because a file a project owns is a file a
+                    project can empty.
+
+                    JUnit's default thread mode is left in place: it reports a test that ran past the
+                    ceiling rather than interrupting one mid-flight. Interrupting would also unstick a
+                    true hang, at the cost of moving every test off the thread its fixtures were built
+                    on, which is a large change to impose on a consumer to catch a case CI already bounds.
+                -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <properties>
+                        <configurationParameters>
+                            junit.jupiter.execution.timeout.default = ${airness.test.timeout}
+                        </configurationParameters>
+                    </properties>
+                </configuration>
             </plugin>
             <plugin>
                 <!--
@@ -294,6 +329,85 @@
                                         explicitly rather than leaving the resolution order to decide.
                                     </message>
                                 </requireUpperBoundDeps>
+                                <!--
+                                    Upper-bound selection says Maven chose the newest candidate. It does
+                                    not say every path asked for that candidate. Convergence makes the
+                                    disagreement itself a failure, so the graph has one declared version
+                                    of each dependency rather than one winner hiding older requests.
+                                -->
+                                <dependencyConvergence/>
+                                <!--
+                                    A range, LATEST or RELEASE means "whatever is newest when you build",
+                                    so the same commit builds differently on different days and a verdict
+                                    stops describing the tree that earned it.
+
+                                    Snapshots are allowed here and refused by requireReleaseDeps below
+                                    instead. A project developing against an unreleased parent is an
+                                    ordinary state; a project publishing a release that depends on one is
+                                    not, and that is the narrower thing worth failing.
+
+                                    No message element: this rule and the next one build their own text
+                                    and never read a configured one, so setting it would leave the pom
+                                    describing an explanation nothing prints.
+                                -->
+                                <banDynamicVersions>
+                                    <allowSnapshots>true</allowSnapshots>
+                                </banDynamicVersions>
+                                <!--
+                                    Maven keeps the last of two declarations of the same coordinate and
+                                    says nothing, so the pom reads as one version while the build resolves
+                                    another. Nothing downstream can see the difference.
+                                -->
+                                <banDuplicatePomDependencyVersions/>
+                                <!--
+                                    A dependency without a scope silently means compile. Writing the
+                                    scope makes the production, runtime and test boundary visible in the
+                                    declaration that owns it.
+                                -->
+                                <requireExplicitDependencyScope/>
+                                <!--
+                                    Repository declarations in a project change where coordinates are
+                                    resolved and can make the same pom produce different bytes under a
+                                    different mirror setup. Repository policy belongs in Maven settings,
+                                    outside the source tree and under the operator's control.
+                                -->
+                                <requireNoRepositories>
+                                    <banRepositories>true</banRepositories>
+                                    <banPluginRepositories>true</banPluginRepositories>
+                                </requireNoRepositories>
+                                <!--
+                                    A snapshot is a moving target, so a release resolving one cannot be
+                                    rebuilt from its own coordinates. Only a release is held to this:
+                                    onlyWhenRelease leaves a snapshot project free to depend on snapshots,
+                                    which is what developing against an unreleased artifact requires.
+
+                                    The parent is exempt because the parent is the harness itself, whose
+                                    coordinates ManagedVersions already governs, and a release project
+                                    trialling an unreleased harness is a state the harness has to survive.
+                                    airness-annotations is exempt for the same reason: the parent supplies
+                                    it, it carries the parent's version, and no project chose it.
+                                -->
+                                <requireReleaseDeps>
+                                    <onlyWhenRelease>true</onlyWhenRelease>
+                                    <failWhenParentIsSnapshot>false</failWhenParentIsSnapshot>
+                                    <excludes>
+                                        <exclude>eu.ciechanowiec:airness-annotations</exclude>
+                                    </excludes>
+                                    <message>
+                                        A released project resolves a snapshot, which no later build can
+                                        reproduce. Depend on a released version instead.
+                                    </message>
+                                </requireReleaseDeps>
+                                <!--
+                                    Two artifacts carrying the same class leave classpath order deciding
+                                    which implementation runs. Identical bytecode is still rejected: two
+                                    owners for one class are two sources of truth even when they happen to
+                                    agree today.
+                                -->
+                                <banDuplicateClasses>
+                                    <findAllDuplicates>true</findAllDuplicates>
+                                    <ignoreWhenIdentical>false</ignoreWhenIdentical>
+                                </banDuplicateClasses>
                             </rules>
                         </configuration>
                     </execution>
@@ -538,6 +652,7 @@
                             <goal>entry-files</goal>
                             <goal>comment-prose</goal>
                             <goal>javadoc-links</goal>
+                            <goal>artifact-content</goal>
                             <goal>tree-verify</goal>
                         </goals>
                     </execution>
@@ -721,6 +836,7 @@
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <arg>-Xplugin:ErrorProne -XepAllErrorsAsWarnings -Xep:NullAway:WARN -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</arg>
                                 <arg>-Xlint:deprecation</arg>
+                                <arg>-Xdoclint:all,-missing</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

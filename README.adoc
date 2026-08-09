@@ -198,6 +198,10 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 | empty
 | Class patterns left out of mutation analysis.
 
+| `airness.test.timeout`
+| `30 s`
+| Ceiling on one test, lifecycle method, or template invocation. A test that runs longer fails. Raise it only for work that genuinely takes longer.
+
 | `airness.mutation.threads`
 | `4`
 | Worker threads used by mutation analysis.

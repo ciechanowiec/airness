@@ -555,5 +555,102 @@
                       value="Returning of nulls is prohibited"/>
             <property name="illegalPattern" value="true"/>
         </module>
+
+        <!--
+        Tests
+
+        These rules read test sources only, and each is paired with the filter that excludes everything
+        outside src/test below it. Checkstyle has no path property on a rule, so the scope is expressed
+        as a suppression of the rule everywhere else, which is the same shape RequireFinalClass uses.
+
+        What they defend is the meaning of a green test run. A suite reports two things at once: that the
+        assertions held, and that they were reached. Every construct banned here breaks the second half
+        while leaving the first half looking exactly the same in the log.
+        -->
+        <module name="Regexp">
+            <!--
+                @Disabled and @Ignore are unconditional. The conditional members of the family
+                (@DisabledOnOs, @DisabledIfSystemProperty and the rest) name the platform condition they
+                gate on, which is a stated rule rather than a test quietly switched off, so the negative
+                lookahead lets them through.
+            -->
+            <property name="id" value="AirnessTestNeverDisabled"/>
+            <property name="format" value="@(?:Disabled|Ignore)(?![A-Za-z])"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="A disabled test reports as absent rather than as failing. Fix it, delete it, or gate it on a platform condition such as @DisabledOnOs."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessTestNeverDisabled"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                An assumption that fails aborts the test and the run counts it as passed. That is the
+                worst available outcome: the coverage floor sees a test that ran, and nothing anywhere
+                records that its assertions were never reached.
+            -->
+            <property name="id" value="AirnessTestNeverAssumes"/>
+            <property name="format" value="\bassum(?:e(?:True|False|That)|ingThat)\s*\("/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="A failed assumption aborts a test and reports it as passed. Gate the test on a platform condition, or set up what it needs."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessTestNeverAssumes"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                Matched on a line holding nothing but the commented annotation, so prose naming @Test in
+                a sentence is left alone. ignoreComments is off here because the comment is the subject.
+            -->
+            <property name="id" value="AirnessTestNeverCommentedOut"/>
+            <property name="format" value="^[ \t]*(?://+|\*)[ \t]*@Test[ \t]*(?:\([^\n]*\))?[ \t]*$"/>
+            <property name="ignoreComments" value="false"/>
+            <property name="message"
+                      value="A commented-out test stopped running and stopped being visible at the same time. Restore it or delete it."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessTestNeverCommentedOut"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                A sleep encodes a guess about how long something takes, so the verdict becomes a fact
+                about the machine. Wait on the condition itself and let the inherited default timeout
+                bound the wait.
+            -->
+            <property name="id" value="AirnessTestNeverSleeps"/>
+            <property name="format" value="\bThread\s*\.\s*sleep\s*\("/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="A sleep makes the verdict depend on the speed of the machine. Wait on the condition itself instead."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessTestNeverSleeps"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                Only the unseeded forms. new Random(42) is deliberate and passes, which is the whole
+                point: the rule asks for the seed to be written down, not for randomness to be avoided.
+            -->
+            <property name="id" value="AirnessTestSeedsRandomness"/>
+            <property name="format"
+                      value="\bnew\s+(?:java\.util\.)?Random\s*\(\s*\)|\bMath\s*\.\s*random\s*\(|\bThreadLocalRandom\s*\.\s*current\s*\("/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Unseeded randomness makes a suite that passes today fail on some later run. Seed it with a fixed value, as in new Random(42)."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessTestSeedsRandomness"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
     </module>
 </module>

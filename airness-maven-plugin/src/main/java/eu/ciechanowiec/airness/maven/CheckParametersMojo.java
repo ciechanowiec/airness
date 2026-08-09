@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.ManagedVersions;
+import eu.ciechanowiec.airness.governance.MavenModelPolicy;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,6 +73,7 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
             problems.addAll(PackageRoots.problems(this.packageRoot, this.sourceRoots()));
         }
         problems.addAll(ManagedVersions.problems(this.project().getFile().toPath()));
+        problems.addAll(MavenModelPolicy.problems(this.project().getFile().toPath()));
         return List.copyOf(problems);
     }
 
