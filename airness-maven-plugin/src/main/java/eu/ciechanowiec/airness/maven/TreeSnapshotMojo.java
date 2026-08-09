@@ -12,12 +12,16 @@ public final class TreeSnapshotMojo extends AbstractPreflightMojo {
 
     @Override
     boolean applies() {
-        return OncePerSession.firstRun(this.session(), this.getClass(), this.scope());
+        return OncePerSession.firstRun(
+            this.session().getRepositorySession().getData(), this.getClass(), this.scope()
+        );
     }
 
     @Override
     List<String> problems() {
-        TreeState.snapshot(this.session(), this.repositoryRoot(), this.scope());
+        TreeState.snapshot(
+            this.session().getRepositorySession().getData(), this.repositoryRoot(), this.scope()
+        );
         return List.of();
     }
 

@@ -51,7 +51,9 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
 
     boolean applies() {
         return RepositoryProjects.owns(this.session.getTopLevelProject(), this.project)
-            && OncePerSession.firstRun(this.session, this.getClass());
+            && OncePerSession.firstRun(
+                this.session.getRepositorySession().getData(), this.getClass()
+            );
     }
 
     /**

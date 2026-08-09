@@ -104,6 +104,69 @@ class DeclaredCoordinatesTest {
     }
 
     @Test
+    void ignoresPluginAndPathShapesOutsideMavensDeclarationTree() {
+        List<DeclaredCoordinate> coordinates = this.coordinates(
+            """
+                <project><build><plugins><plugin>
+                    <artifactId>generator</artifactId><version>1.0.0</version>
+                    <configuration>
+                        <plugin><artifactId>nested</artifactId><version>2.0.0</version></plugin>
+                        <paths><path>
+                            <groupId>sample</groupId><artifactId>nested-path</artifactId><version>2.0.0</version>
+                        </path></paths>
+                    </configuration>
+                </plugin></plugins></build></project>
+                """
+        );
+        assertEquals(
+            List.of(new DeclaredCoordinate("org.apache.maven.plugins", "generator", "1.0.0")),
+            coordinates
+        );
+    }
+
+    @Test
+    void readsManagedPluginsAndRejectsPluginShapesOutsideBuildOrReporting() {
+        List<DeclaredCoordinate> coordinates = this.coordinates(
+            """
+                <project>
+                    <plugin><artifactId>detached</artifactId><version>1.0.0</version></plugin>
+                    <build><pluginManagement><plugins><plugin>
+                        <artifactId>managed</artifactId><version>2.0.0</version>
+                    </plugin></plugins></pluginManagement></build>
+                </project>
+                """
+        );
+        assertEquals(
+            List.of(new DeclaredCoordinate("org.apache.maven.plugins", "managed", "2.0.0")),
+            coordinates
+        );
+    }
+
+    @Test
+    void ignoresManagedAndDependencyShapesWhoseOwnersAreNotMavenModelNodes() {
+        List<DeclaredCoordinate> coordinates = this.coordinates(
+            """
+                <project><container>
+                    <pluginManagement><plugins><plugin>
+                        <artifactId>detached-management</artifactId><version>1.0.0</version>
+                    </plugin></plugins></pluginManagement>
+                    <build><pluginManagement><plugins><plugin>
+                        <artifactId>detached-build</artifactId><version>1.0.0</version>
+                    </plugin></plugins></pluginManagement></build>
+                    <plugins><plugin><dependencies><dependency>
+                        <groupId>sample</groupId><artifactId>detached-plugin-library</artifactId>
+                        <version>${broken</version>
+                    </dependency></dependencies></plugin></plugins>
+                    <dependencyManagement><dependencies><dependency>
+                        <groupId>sample</groupId><artifactId>detached-managed</artifactId><version>1.0.0</version>
+                    </dependency></dependencies></dependencyManagement>
+                </container></project>
+                """
+        );
+        assertTrue(coordinates.isEmpty());
+    }
+
+    @Test
     void resolvesPropertiesInTheProfileThatOwnsTheDeclaration() {
         List<DeclaredCoordinate> coordinates = this.coordinates(
             """

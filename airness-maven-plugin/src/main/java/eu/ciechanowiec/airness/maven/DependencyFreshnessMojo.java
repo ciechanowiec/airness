@@ -35,7 +35,9 @@ public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
-        return OncePerSession.firstRun(this.session(), this.getClass());
+        return OncePerSession.firstRun(
+            this.session().getRepositorySession().getData(), this.getClass()
+        );
     }
 
     private void reportUpdates(DependencyFreshnessCheck check) {

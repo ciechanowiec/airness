@@ -37,6 +37,7 @@ class ArtifactContentCheckTest {
         Path main = this.output(MAIN, "com/example/Example.class");
         Path jar = this.jar(
             Map.of(
+                "com/example/", "",
                 "com/example/Example.class", "bytecode",
                 "META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n"
             )

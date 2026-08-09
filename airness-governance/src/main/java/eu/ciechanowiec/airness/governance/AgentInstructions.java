@@ -5,6 +5,8 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
 /**
  * Checks and synchronizes the one Airness-owned section at the start of project-owned {@code AGENTS.md}.
@@ -88,10 +90,9 @@ public final class AgentInstructions {
 
     private String replace(String held) {
         int after = held.indexOf(END) + END.length();
-        if (after < held.length() && held.charAt(after) == LF_CHARACTER) {
-            after++;
-        }
-        return this.canonical + held.substring(after);
+        boolean newline = after < held.length() && held.charAt(after) == LF_CHARACTER;
+        int remainder = newline ? after + 1 : after;
+        return this.canonical + held.substring(remainder);
     }
 
     private String prepend(CharSequence held) {
@@ -116,24 +117,21 @@ public final class AgentInstructions {
                 "Agent instruction path escapes the repository root: " + EntryFileRules.INSTRUCTIONS
             );
         }
-        Path current = this.root;
-        for (Path segment : this.root.relativize(target)) {
-            current = current.resolve(segment);
-            if (Files.isSymbolicLink(current)) {
-                throw new IllegalStateException("Agent instruction path crosses a symbolic link: " + current);
-            }
-        }
+        Path relative = this.root.relativize(target);
+        IntStream.rangeClosed(1, relative.getNameCount())
+            .mapToObj(index -> this.root.resolve(relative.subpath(0, index)))
+            .filter(Files::isSymbolicLink)
+            .findFirst()
+            .ifPresent(AgentInstructions::rejectLink);
         return target;
     }
 
-    private static int occurrences(String content, String marker) {
-        int found = 0;
-        int offset = content.indexOf(marker);
-        while (offset >= 0) {
-            found++;
-            offset = content.indexOf(marker, offset + marker.length());
-        }
-        return found;
+    private static void rejectLink(Path link) {
+        throw new IllegalStateException("Agent instruction path crosses a symbolic link: " + link);
+    }
+
+    private static int occurrences(CharSequence content, String marker) {
+        return Math.toIntExact(Pattern.compile(Pattern.quote(marker)).matcher(content).results().count());
     }
 
     private static boolean lineEnd(CharSequence content, int offset) {

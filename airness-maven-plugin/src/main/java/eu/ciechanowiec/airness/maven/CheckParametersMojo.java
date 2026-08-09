@@ -3,11 +3,10 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.ManagedVersions;
 import eu.ciechanowiec.airness.governance.MavenModelPolicy;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -57,24 +56,24 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
             return false;
         }
         String pom = this.project().getFile().toPath().toAbsolutePath().normalize().toString();
-        return OncePerSession.firstRun(this.session(), this.getClass(), pom);
+        return OncePerSession.firstRun(
+            this.session().getRepositorySession().getData(), this.getClass(), pom
+        );
     }
 
     @Override
     List<String> problems() {
         this.logParameters();
-        Collection<String> problems = new ArrayList<>(
-            Stream.of(
-                this.packageRootProblem(),
-                this.versionAgreement()
-            ).flatMap(Optional::stream).toList()
-        );
-        if (!UNSET.equals(this.packageRoot)) {
-            problems.addAll(PackageRoots.problems(this.packageRoot, this.sourceRoots()));
-        }
-        problems.addAll(ManagedVersions.problems(this.project().getFile().toPath()));
-        problems.addAll(MavenModelPolicy.problems(this.project().getFile().toPath()));
-        return List.copyOf(problems);
+        Stream<String> parameters = Stream.of(
+            this.packageRootProblem(),
+            this.versionAgreement()
+        ).flatMap(Optional::stream);
+        Stream<String> packages = UNSET.equals(this.packageRoot)
+            ? Stream.empty()
+            : PackageRoots.problems(this.packageRoot, this.sourceRoots()).stream();
+        Stream<String> versions = ManagedVersions.problems(this.project().getFile().toPath()).stream();
+        Stream<String> model = MavenModelPolicy.problems(this.project().getFile().toPath()).stream();
+        return Stream.of(parameters, packages, versions, model).flatMap(Function.identity()).toList();
     }
 
     private List<Path> sourceRoots() {

@@ -17,8 +17,8 @@ class QodanaMojoTest {
         List<String> command = QodanaMojo.dockerCommand(
             new QodanaPaths(
                 directory.resolve("project"), directory.resolve("output"),
-                directory.resolve("profile.xml"), directory.resolve("roots.pem"),
-                localRepository
+                directory.resolve("profile.xml"),
+                new QodanaPaths.Environment(directory.resolve("roots.pem"), localRepository)
             ),
             "qodana:test"
         );

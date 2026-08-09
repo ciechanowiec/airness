@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 /**
  * Writes catalogue-managed files into a project.
@@ -80,19 +81,22 @@ public final class AssetSync {
         return asset.path();
     }
 
-    private Path safe(String relative) {
-        Path target = this.root.resolve(relative).normalize();
+    private Path safe(String path) {
+        Path target = this.root.resolve(path).normalize();
         if (!target.startsWith(this.root)) {
-            throw new IllegalStateException("Managed asset escapes the repository root: " + relative);
+            throw new IllegalStateException("Managed asset escapes the repository root: " + path);
         }
-        Path current = this.root;
-        for (Path segment : this.root.relativize(target)) {
-            current = current.resolve(segment);
-            if (Files.isSymbolicLink(current)) {
-                throw new IllegalStateException("Managed asset path crosses a symbolic link: " + current);
-            }
-        }
+        Path relative = this.root.relativize(target);
+        IntStream.rangeClosed(1, relative.getNameCount())
+            .mapToObj(index -> this.root.resolve(relative.subpath(0, index)))
+            .filter(Files::isSymbolicLink)
+            .findFirst()
+            .ifPresent(AssetSync::rejectLink);
         return target;
+    }
+
+    private static void rejectLink(Path link) {
+        throw new IllegalStateException("Managed asset path crosses a symbolic link: " + link);
     }
 
     private static void directory(Path parent) {

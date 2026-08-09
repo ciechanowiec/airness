@@ -23,6 +23,26 @@
 :!figure-caption:
 :!example-caption:
 
+ifdef::backend-html5[]
+++++
+<link href="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo.css" rel="stylesheet">
+<!-- Inlined so the IntelliJ AsciiDoc preview honors these rules: its webview blocks external CSS even in
+     UNSAFE mode, so the remote stylesheet above is dropped in the IDE preview. Mirrors rules already in
+     adoc-css-style.css for the published HTML - enforces [cols="..."] column widths and wraps long content. -->
+<style>
+    table.tableblock {
+        table-layout: fixed;
+    }
+
+    table.tableblock td,
+    table.tableblock th {
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+</style>
+++++
+endif::[]
+
 [cols=">.^1,<.^1"]
 |===
 | *Document last modified:* | {docdatetime}
@@ -224,17 +244,18 @@ The source text of this document is written in the https://asciidoc.org[AsciiDoc
 
 The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
 
+[#export]
 === Prerequisites
 
 To export and lint the source text, install the following tools:
 
-. https://asciidoctor.org/#installation[Asciidoctor^]
-. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
-. https://pandoc.org/installing.html[Pandoc^]
-. https://www.python.org/downloads/[Python 3^]
-. https://vale.sh/docs/install/[Vale^]
-. https://poppler.freedesktop.org[`pdftotext`^]
-. https://github.com/tesseract-ocr/tesseract[`tesseract`^]
+. https://asciidoctor.org/#installation[Asciidoctor^],
+. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^],
+. https://pandoc.org/installing.html[Pandoc^],
+. https://www.python.org/downloads/[Python 3^],
+. https://vale.sh/docs/install/[Vale^],
+. https://poppler.freedesktop.org[`pdftotext`^],
+. https://github.com/tesseract-ocr/tesseract[`tesseract`^].
 
 === Export
 
@@ -245,14 +266,14 @@ To export and lint the source text, install the following tools:
 asciidoctor --attribute allow-uri-read {docname}{docfilesuffix}
 ----
 
-. To export the source text to PDF:
+. Export the source text to PDF with this command:
 +
 [source,bash,subs="attributes+"]
 ----
 asciidoctor-pdf --attribute allow-uri-read --require ./.docs/lib/common-style.rb {docname}{docfilesuffix}
 ----
 
-. To export the source text to DOCX:
+. Export the source text to DOCX with this command:
 +
 [source,bash,subs="attributes+"]
 ----
@@ -267,3 +288,10 @@ Lint the source text:
 ----
 python3 .docs/lib/adoc_lint.py {docname}{docfilesuffix}
 ----
+
+ifdef::backend-html5[]
+++++
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.32.2/tocbot.min.js"></script>
+<script src="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo-footer.js"></script>
+++++
+endif::[]

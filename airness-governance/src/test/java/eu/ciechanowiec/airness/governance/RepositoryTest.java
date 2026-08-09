@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -12,6 +14,9 @@ import org.junit.jupiter.api.Test;
  * from a truncated one, and reads an absent path as no text rather than as a failure.
  */
 class RepositoryTest {
+
+    private static final byte MALFORMED_UTF8_LEAD = (byte) 0xC3;
+    private static final byte ASCII_LEFT_PARENTHESIS = 0x28;
 
     @Test
     void findsTheWorkingTreeRootFromADirectoryInsideIt() {
@@ -58,5 +63,36 @@ class RepositoryTest {
             Repository.readText(root.resolve("nothing-here.md")).isEmpty(),
             "a check that asserts a file is present has to be able to report the absence rather than crash on it"
         );
+    }
+
+    @Test
+    @SneakyThrows
+    void readsSymbolicLinksAsTheirDeclaredTarget() {
+        Path root = new GitFixture("repository-link").root();
+        Path link = root.resolve("linked");
+        Files.createSymbolicLink(link, Path.of("target.txt"));
+        assertEquals("target.txt", Repository.readText(link).orElseThrow());
+    }
+
+    @Test
+    @SneakyThrows
+    void excludesBinaryAndMalformedUtf8FromText() {
+        Path root = new GitFixture("repository-bytes").root();
+        Path binary = Files.write(root.resolve("binary"), new byte[]{1, 0, 2});
+        Path malformed = Files.write(
+            root.resolve("malformed"), new byte[]{MALFORMED_UTF8_LEAD, ASCII_LEFT_PARENTHESIS}
+        );
+        assertTrue(Repository.readText(binary).isEmpty());
+        assertTrue(Repository.readText(malformed).isEmpty());
+    }
+
+    @Test
+    @SneakyThrows
+    void includesACommittableSymbolicLinkButNotADirectory() {
+        Path root = new GitFixture("repository-entries").write("ordinary.txt", "text\n").root();
+        Files.createSymbolicLink(root.resolve("linked"), Path.of("ordinary.txt"));
+        Files.createDirectory(root.resolve("directory"));
+        assertTrue(Repository.trackedFiles(root).contains(root.resolve("linked")));
+        assertFalse(Repository.trackedFiles(root).contains(root.resolve("directory")));
     }
 }

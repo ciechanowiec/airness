@@ -46,6 +46,9 @@ final class GitPlumbing {
     }
 
     private static Process start(Path repository, Collection<String> arguments) {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new IllegalStateException("Interrupted before starting git");
+        }
         List<String> command = Stream.concat(Stream.of("git"), arguments.stream()).toList();
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(repository.toFile());

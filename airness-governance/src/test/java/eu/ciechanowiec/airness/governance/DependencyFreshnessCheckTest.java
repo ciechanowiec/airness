@@ -29,7 +29,9 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class DependencyFreshnessCheckTest {
 
+    private static final String INITIAL_VERSION = "1.0.0";
     private static final int HTTP_OK = 200;
+    private static final int HTTP_FAILURE = 503;
     private static final String PLUGIN_POM = """
         <project>
             <profiles>
@@ -69,17 +71,22 @@ class DependencyFreshnessCheckTest {
 
     @SneakyThrows
     private String registry(String latest) {
+        return this.registry(HTTP_OK, metadata(latest));
+    }
+
+    @SneakyThrows
+    private String registry(int status, String body) {
         HttpServer active = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         this.server = Optional.of(active);
-        active.createContext("/", exchange -> respond(exchange, metadata(latest)));
+        active.createContext("/", exchange -> respond(exchange, status, body));
         active.start();
         return "http://127.0.0.1:" + active.getAddress().getPort() + "/";
     }
 
     @SneakyThrows
-    private static void respond(HttpExchange exchange, String body) {
+    private static void respond(HttpExchange exchange, int status, String body) {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        exchange.sendResponseHeaders(HTTP_OK, bytes.length);
+        exchange.sendResponseHeaders(status, bytes.length);
         try (exchange) {
             exchange.getResponseBody().write(bytes);
         }
@@ -98,7 +105,7 @@ class DependencyFreshnessCheckTest {
 
     @Test
     void passesWhenTheDeclaredMajorIsWithinTheBound() {
-        DependencyFreshnessCheck check = this.check("1.0.0", this.registry("2.4.0"));
+        DependencyFreshnessCheck check = this.check(INITIAL_VERSION, this.registry("2.4.0"));
         assertEquals(1, check.scanned(), "the one stable dependency is checked");
         assertEquals(1, check.updates().size(), "and its available major update is reported");
         assertTrue(Verdicts.clean(check.findings()), "and trailing by one major is within the bound");
@@ -106,15 +113,50 @@ class DependencyFreshnessCheckTest {
 
     @Test
     void reportsAMinorUpdateWithoutFailingIt() {
-        DependencyFreshnessCheck check = this.check("1.0.0", this.registry("1.1.0"));
+        DependencyFreshnessCheck check = this.check(INITIAL_VERSION, this.registry("1.1.0"));
         assertEquals(1, check.updates().size(), "every stable update belongs in the report");
         assertTrue(Verdicts.clean(check.findings()), "while a minor update is not a freshness offence");
     }
 
     @Test
+    void reportsNoUpdateWhenTheDeclaredVersionIsLatest() {
+        DependencyFreshnessCheck check = this.check(INITIAL_VERSION, this.registry(INITIAL_VERSION));
+        assertTrue(check.updates().isEmpty());
+    }
+
+    @Test
+    void joinsARegistryBaseWithoutATrailingSlash() {
+        String registry = this.registry("2.0.0").replaceAll("/$", "");
+        assertEquals(1, this.check(INITIAL_VERSION, registry).updates().size());
+    }
+
+    @Test
+    void skipsAPrereleaseDeclaration() {
+        DependencyFreshnessCheck check = this.check("1.0.0-RC1", this.registry("2.0.0"));
+        assertEquals(0, check.scanned());
+    }
+
+    @Test
+    void rejectsARegistryErrorResponse() {
+        String registry = this.registry(HTTP_FAILURE, "unavailable");
+        IllegalStateException thrown = assertThrows(
+            IllegalStateException.class, () -> this.check(INITIAL_VERSION, registry)
+        );
+        assertTrue(thrown.toString().contains(Integer.toString(HTTP_FAILURE)));
+    }
+
+    @Test
+    void rejectsMetadataWithoutAStableRelease() {
+        String registry = this.registry(
+            HTTP_OK, metadata("2.0.0-RC1").replace(INITIAL_VERSION, "1.0.0-beta")
+        );
+        assertThrows(IllegalStateException.class, () -> this.check(INITIAL_VERSION, registry));
+    }
+
+    @Test
     void reportsADependencyTrailingByTheBound() {
         List<String> offences = Verdicts.offences(
-            this.check("1.0.0", this.registry("3.0.0")).findings(), "trailing"
+            this.check(INITIAL_VERSION, this.registry("3.0.0")).findings(), "trailing"
         );
         assertEquals(1, offences.size(), "trailing by two majors is what the bound fails on");
         assertTrue(offences.getFirst().contains("sample:library"), "and the offence names it: " + offences);
@@ -142,7 +184,7 @@ class DependencyFreshnessCheckTest {
         String unreachable = this.registry("3.0.0");
         this.server.orElseThrow().stop(0);
         UncheckedIOException thrown = assertThrows(
-            UncheckedIOException.class, () -> this.check("1.0.0", unreachable),
+            UncheckedIOException.class, () -> this.check(INITIAL_VERSION, unreachable),
             "a dependency whose latest release could not be read is not a dependency known to be current"
         );
         assertTrue(
@@ -179,11 +221,11 @@ class DependencyFreshnessCheckTest {
             <metadata>
                 <versioning>
                     <versions>
-                        <version>1.0.0</version>
+                        <version>%s</version>
                         <version>%s</version>
                     </versions>
                 </versioning>
             </metadata>
-            """.formatted(version);
+            """.formatted(INITIAL_VERSION, version);
     }
 }

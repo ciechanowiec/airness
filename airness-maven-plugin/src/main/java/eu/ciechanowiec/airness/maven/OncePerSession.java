@@ -1,10 +1,13 @@
 package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.Justification;
-import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
-import org.apache.maven.execution.MavenSession;
 import org.eclipse.aether.SessionData;
 
 /**
@@ -25,33 +28,49 @@ import org.eclipse.aether.SessionData;
 final class OncePerSession {
 
     private static final Object KEY = new Object();
+    private static final Lock LOCK = new ReentrantLock();
 
     /**
      * Whether this is the first time the given goal has been reached in this session.
      *
-     * @param session the session the goal runs in
-     * @param goal    the goal class, which is what one run is counted per
+     * @param data session-scoped resolver data
+     * @param goal the goal class, which is what one run is counted per
      * @return whether the caller is the first, and so the one that should do the work
      */
-    static boolean firstRun(MavenSession session, Class<?> goal) {
-        return firstRun(session, goal, "session");
+    static boolean firstRun(SessionData data, Class<?> goal) {
+        return firstRun(data, goal, "session");
     }
 
     /**
      * Whether this is the first time the goal has reached one named scope in this session.
      *
-     * @param session the session the goal runs in
-     * @param goal    the goal class
-     * @param scope   the stable scope the goal reads
+     * @param data  session-scoped resolver data
+     * @param goal  the goal class
+     * @param scope the stable scope the goal reads
      * @return whether the caller is the first for that goal and scope
      */
-    @Justification("Maven session data is untyped, and this private key is written only with this collection type")
+    static boolean firstRun(SessionData data, Class<?> goal, String scope) {
+        return claim(data, goal.getName() + ':' + scope);
+    }
+
+    @Justification("Maven session data is untyped, and this private key stores only this immutable set type")
     @SuppressWarnings("unchecked")
-    static boolean firstRun(MavenSession session, Class<?> goal, String scope) {
-        SessionData data = session.getRepositorySession().getData();
-        Collection<String> reached = (Collection<String>) data.computeIfAbsent(
-            KEY, ConcurrentHashMap::newKeySet
-        );
-        return reached.add(goal.getName() + ':' + scope);
+    private static boolean claim(SessionData data, String marker) {
+        LOCK.lock();
+        try {
+            Object current = data.get(KEY);
+            Set<String> reached = Optional.ofNullable(current)
+                .map(value -> (Set<String>) value)
+                .orElseGet(Set::of);
+            if (reached.contains(marker)) {
+                return false;
+            }
+            Set<String> update = Stream.concat(reached.stream(), Stream.of(marker))
+                .collect(Collectors.toUnmodifiableSet());
+            data.set(KEY, update);
+            return true;
+        } finally {
+            LOCK.unlock();
+        }
     }
 }

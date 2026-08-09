@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
+import eu.ciechanowiec.airness.Justification;
 import java.util.List;
 
 /**
@@ -21,9 +22,17 @@ public record Findings(String headline, List<String> offences) {
 
     private static final String INDENT = "  ";
 
-    // A defensive copy keeps a caller from altering a verdict after it has been reported.
-    public Findings {
-        offences = List.copyOf(offences);
+    /**
+     * Makes a defensive copy so a caller cannot alter a verdict after it has been reported.
+     *
+     * @param headline what the rule requires
+     * @param offences every place the rule was broken
+     */
+    @Justification("A record canonical constructor must use the record component's exact List type")
+    @SuppressWarnings("TypeMayBeWeakened")
+    public Findings(String headline, List<String> offences) {
+        this.headline = headline;
+        this.offences = List.copyOf(offences);
     }
 
     /**

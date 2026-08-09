@@ -36,7 +36,8 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
         Path roots = output.resolve("trusted-roots.pem");
         this.trustedRoots(roots);
         Path localRepository = this.session().getRequest().getLocalRepositoryPath().toPath().toRealPath();
-        return dockerCommand(new QodanaPaths(root, output, profile, roots, localRepository), this.image);
+        QodanaPaths.Environment environment = new QodanaPaths.Environment(roots, localRepository);
+        return dockerCommand(new QodanaPaths(root, output, profile, environment), this.image);
     }
 
     static List<String> dockerCommand(QodanaPaths paths, String image) {
