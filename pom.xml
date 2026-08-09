@@ -65,7 +65,8 @@
         <maven-artifact.version>3.9.16</maven-artifact.version>
         <error-prone.version>2.50.0</error-prone.version>
         <nullaway.version>0.13.8</nullaway.version>
-        <checkstyle.version>13.9.0</checkstyle.version>
+        <checkstyle.version>13.10.0</checkstyle.version>
+        <pmd.version>7.26.0</pmd.version>
         <qulice-maven-plugin.version>0.30.6</qulice-maven-plugin.version>
         <rewrite-apache.version>2.29.0</rewrite-apache.version>
         <rewrite-logging-frameworks.version>3.31.0</rewrite-logging-frameworks.version>
@@ -278,6 +279,31 @@
                     <artifactId>maven-pmd-plugin</artifactId>
                     <version>${maven-pmd-plugin.version}</version>
                     <dependencies>
+                        <!--
+                            The Maven plugin deliberately trails PMD releases. Override every PMD
+                            language artifact together so the isolated plugin classpath contains one
+                            coherent PMD version rather than a mixture of bundled and current modules.
+                        -->
+                        <dependency>
+                            <groupId>net.sourceforge.pmd</groupId>
+                            <artifactId>pmd-core</artifactId>
+                            <version>${pmd.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>net.sourceforge.pmd</groupId>
+                            <artifactId>pmd-java</artifactId>
+                            <version>${pmd.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>net.sourceforge.pmd</groupId>
+                            <artifactId>pmd-javascript</artifactId>
+                            <version>${pmd.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>net.sourceforge.pmd</groupId>
+                            <artifactId>pmd-jsp</artifactId>
+                            <version>${pmd.version}</version>
+                        </dependency>
                         <dependency>
                             <groupId>eu.ciechanowiec</groupId>
                             <artifactId>airness-config</artifactId>
@@ -477,6 +503,26 @@
                 <groupId>com.puppycrawl.tools</groupId>
                 <artifactId>checkstyle</artifactId>
                 <version>${checkstyle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sourceforge.pmd</groupId>
+                <artifactId>pmd-core</artifactId>
+                <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sourceforge.pmd</groupId>
+                <artifactId>pmd-java</artifactId>
+                <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sourceforge.pmd</groupId>
+                <artifactId>pmd-javascript</artifactId>
+                <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sourceforge.pmd</groupId>
+                <artifactId>pmd-jsp</artifactId>
+                <version>${pmd.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.qulice</groupId>

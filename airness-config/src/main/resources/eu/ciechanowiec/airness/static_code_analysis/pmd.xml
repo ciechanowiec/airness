@@ -86,7 +86,8 @@
     </rule>
     <rule ref="category/java/design.xml/ExcessiveParameterList">
         <properties>
-            <property name="minimum" value="4"/>
+            <!-- PMD reports at the threshold, so 5 permits the repository cap of 4 parameters. -->
+            <property name="minimum" value="5"/>
         </properties>
     </rule>
     <rule ref="category/java/design.xml/ExcessivePublicCount">

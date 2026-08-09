@@ -6,7 +6,8 @@
     <module name="SuppressWarningsFilter"/>
     <module name="SuppressionSingleFilter">
         <!-- Javadoc presence is required only on production code, not on tests/test fixtures. -->
-        <property name="checks" value="MissingJavadocType|MissingJavadocMethod|JavadocVariable"/>
+        <property name="checks"
+                  value="JavadocPackage|MissingJavadocPackage|MissingJavadocType|MissingJavadocMethod|JavadocVariable"/>
         <property name="files" value="[/\\]src[/\\]test[/\\]"/>
     </module>
     <property name="charset" value="UTF-8"/>
@@ -21,6 +22,14 @@
         <property name="lineSeparator" value="lf"/>
     </module>
     <module name="UniqueProperties"/>
+    <module name="OrderedProperties">
+        <property name="fileExtensions" value="properties"/>
+    </module>
+    <module name="LineEnding">
+        <property name="fileExtensions" value="java, properties, xml"/>
+        <property name="lineEnding" value="lf"/>
+    </module>
+    <module name="RegexpOnFilename"/>
     <module name="RegexpMultiline">
         <property name="format" value="(?s)\n\s*\n\s*$"/>
         <property name="message" value="Two or more consecutive empty lines aren't allowed."/>
@@ -69,6 +78,10 @@
     </module>
     <module name="FileTabCharacter">
         <property name="eachLine" value="true"/>
+    </module>
+    <module name="JavadocPackage">
+        <property name="allowLegacy" value="false"/>
+        <property name="fileExtensions" value="java"/>
     </module>
 
     <!--
@@ -132,11 +145,30 @@
         <!--
         Annotations
         -->
+        <module name="AnnotationLocation">
+            <property name="allowSamelineMultipleAnnotations" value="false"/>
+            <property name="allowSamelineParameterizedAnnotation" value="false"/>
+            <property name="allowSamelineSingleParameterlessAnnotation" value="false"/>
+        </module>
         <module name="AnnotationUseStyle"/>
+        <module name="MissingDeprecated">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="MissingOverride">
+            <property name="javaFiveCompatibility" value="false"/>
+        </module>
+        <module name="MissingOverrideOnRecordAccessor"/>
+        <module name="PackageAnnotation"/>
+        <module name="SuppressWarnings">
+            <property name="format" value="(?i)^(?:\s*|all)$"/>
+        </module>
 
         <!--
         Block Checks
         -->
+        <module name="AvoidNestedBlocks">
+            <property name="allowInSwitchCase" value="false"/>
+        </module>
         <module name="EmptyBlock"/>
         <module name="EmptyCatchBlock"/>
         <module name="LeftCurly"/>
@@ -187,17 +219,26 @@
         <module name="InterfaceIsType"/>
         <module name="MutableException"/>
         <module name="OneTopLevelClass"/>
+        <module name="SealedShouldHavePermitsList"/>
         <module name="ThrowsCount"/>
         <module name="VisibilityModifier"/>
 
         <!--
         Coding
         -->
+        <module name="AvoidDoubleBraceInitialization"/>
+        <module name="AvoidNoArgumentSuperConstructorCall"/>
+        <module name="ConstructorsDeclarationGrouping">
+            <property name="orderByIncreasingParameterCount" value="true"/>
+        </module>
         <module name="CovariantEquals"/>
         <module name="DeclarationOrder"/>
         <module name="DefaultComesLast"/>
         <module name="EmptyStatement"/>
         <module name="EqualsHashCode"/>
+        <module name="EqualsAvoidNull">
+            <property name="ignoreEqualsIgnoreCase" value="false"/>
+        </module>
         <module name="ExplicitInitialization"/>
         <module name="FallThrough"/>
         <module name="HiddenField">
@@ -205,6 +246,8 @@
                       value="VARIABLE_DEF, PATTERN_VARIABLE_DEF, LAMBDA, RECORD_COMPONENT_DEF"/>
         </module>
         <module name="IllegalCatch"/>
+        <module name="IllegalSymbol"/>
+        <module name="IllegalToken"/>
         <module name="IllegalThrows"/>
         <module name="IllegalType"/>
         <module name="InnerAssignment"/>
@@ -215,6 +258,7 @@
             <property name="ignoreNumbers"
                       value="-0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -50, -100, -1000, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 100, 1000"/>
         </module>
+        <module name="MissingNullCaseInSwitch"/>
         <module name="MatchXpath">
             <!-- Dependency-injection frameworks: inject through the constructor, so a built object is whole. -->
             <property name="query"
@@ -293,6 +337,7 @@
         <module name="OverloadMethodsDeclarationOrder"/>
         <module name="PackageDeclaration"/>
         <module name="ParameterAssignment"/>
+        <module name="PatternVariableAssignment"/>
         <module name="RequireThis"/>
         <module name="ReturnCount"/>
         <module name="SimplifyBooleanExpression"/>
@@ -301,14 +346,19 @@
         <module name="SuperClone"/>
         <module name="SuperFinalize"/>
         <module name="UnnecessaryParentheses"/>
+        <module name="UnnecessaryNullCheckWithInstanceOf"/>
         <module name="UnnecessarySemicolonAfterOuterTypeDeclaration"/>
         <module name="UnnecessarySemicolonAfterTypeMemberDeclaration"/>
         <module name="UnnecessarySemicolonInEnumeration"/>
         <module name="UnnecessarySemicolonInTryWithResources"/>
+        <module name="UnnecessaryTypeArgumentsWithRecordPattern"/>
         <module name="UnusedCatchParameterShouldBeUnnamed"/>
         <module name="UnusedLambdaParameterShouldBeUnnamed"/>
         <module name="UnusedLocalVariable"/>
+        <module name="UnusedTryResourceShouldBeUnnamed"/>
+        <module name="UseEnhancedSwitch"/>
         <module name="VariableDeclarationUsageDistance"/>
+        <module name="WhenShouldBeUsed"/>
 
         <!--
         Imports
@@ -364,9 +414,16 @@
         <module name="ArrayTypeStyle"/>
         <module name="AvoidEscapedUnicodeCharacters"/>
         <module name="CommentsIndentation"/>
+        <module name="HexLiteralCase"/>
+        <module name="MultilineCommentLeadingAsteriskPresence"/>
         <module name="NoCodeInFile"/>
+        <module name="NumericalPrefixesInfixesSuffixesCharacterCase"/>
         <module name="OuterTypeFilename"/>
         <module name="TodoComment"/>
+        <module name="TrailingComment"/>
+        <module name="UncommentedMain">
+            <property name="excludedClasses" value="^$"/>
+        </module>
         <module name="UpperEll"/>
 
         <!--
@@ -378,6 +435,10 @@
         <!--
         Naming Conventions
         -->
+        <module name="AbbreviationAsWordInName">
+            <property name="allowedAbbreviationLength" value="1"/>
+            <property name="allowedAbbreviations" value="ID, URL, URI, API, JDK, JVM, XML, JSON, HTTP"/>
+        </module>
         <module name="AbstractClassName"/>
         <!--
             Forbid single-character variable/parameter names everywhere, including lambda parameters
@@ -398,10 +459,12 @@
         </module>
         <module name="ClassTypeParameterName"/>
         <module name="ConstantName"/>
+        <module name="GoogleNonConstantFieldName"/>
         <module name="IllegalIdentifierName">
             <!-- Restricted identifiers (var, yield, record) must not be used as names (cf. SonarQube S6213). -->
             <property name="format" value="^(?!(var|yield|record)$).+$"/>
         </module>
+        <module name="InterfaceTypeParameterName"/>
         <module name="LambdaParameterName">
             <property name="format" value="^(_|[a-z][a-zA-Z0-9]+)$"/>
         </module>
@@ -443,6 +506,71 @@
                       value="^(?!.*Masker)(?!.*Provider)(?!.*Service)(?!.*Handler)(?!.*Manager)[A-Z][a-zA-Z0-9]*$"/>
             <message key="name.invalidPattern"
                      value="Type name names an action rather than a thing (Provider/Service/Handler/Manager/Masker)."/>
+        </module>
+
+        <!--
+        Javadoc
+        -->
+        <module name="AtclauseOrder">
+            <property name="tagOrder"
+                      value="@author, @version, @param, @return, @throws, @exception, @deprecated, @since, @see, @serial, @serialField, @serialData"/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="InvalidJavadocPosition"/>
+        <module name="JavadocBlockTagLocation">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="JavadocContentLocation">
+            <property name="location" value="second_line"/>
+        </module>
+        <module name="JavadocLeadingAsteriskAlign">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="JavadocType">
+            <property name="allowMissingParamTags" value="false"/>
+            <property name="allowUnknownTags" value="false"/>
+            <property name="allowedAnnotations" value="Generated"/>
+            <property name="scope" value="protected"/>
+            <property name="tokens" value="INTERFACE_DEF, CLASS_DEF, ENUM_DEF, ANNOTATION_DEF, RECORD_DEF"/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="JavadocMethod">
+            <property name="accessModifiers" value="public, protected"/>
+            <property name="allowInlineReturn" value="false"/>
+            <property name="allowMissingParamTags" value="false"/>
+            <property name="allowMissingReturnTag" value="false"/>
+            <property name="allowedAnnotations" value="Override"/>
+            <property name="tokens" value="METHOD_DEF, CTOR_DEF"/>
+            <property name="validateThrows" value="true"/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="JavadocMissingLeadingAsterisk">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="JavadocMissingWhitespaceAfterAsterisk">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="JavadocParagraph">
+            <property name="allowNewlineParagraph" value="false"/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="MissingJavadocPackage"/>
+        <module name="JavadocTagContinuationIndentation">
+            <property name="offset" value="4"/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="NonEmptyAtclauseDescription">
+            <property name="javadocTokens"
+                      value="PARAM_BLOCK_TAG, RETURN_BLOCK_TAG, THROWS_BLOCK_TAG, EXCEPTION_BLOCK_TAG, DEPRECATED_BLOCK_TAG"/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="RequireEmptyLineBeforeBlockTagGroup">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="SummaryJavadoc">
+            <property name="forbiddenSummaryFragments" value="^$"/>
+            <property name="period" value="."/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
 
         <!--
@@ -503,8 +631,22 @@
         </module>
 
         <!--
+        Indentation
+        -->
+        <module name="Indentation">
+            <property name="arrayInitIndent" value="4"/>
+            <property name="basicOffset" value="4"/>
+            <property name="braceAdjustment" value="0"/>
+            <property name="caseIndent" value="4"/>
+            <property name="forceStrictCondition" value="false"/>
+            <property name="lineWrappingIndentation" value="4"/>
+            <property name="throwsIndent" value="4"/>
+        </module>
+
+        <!--
         Whitespace
         -->
+        <module name="ArrayBracketNoWhitespace"/>
         <module name="EmptyForInitializerPad"/>
         <module name="EmptyForIteratorPad"/>
         <module name="EmptyLineSeparator">
@@ -527,9 +669,17 @@
             <property name="tokens" value="COMMA, SEMI"/>
         </module>
         <module name="SingleSpaceSeparator"/>
+        <module name="TypeBodyPadding">
+            <property name="allowEmpty" value="true"/>
+            <property name="atEndOfBody" value="false"/>
+            <property name="atStartOfBody" value="false"/>
+            <property name="skipInner" value="false"/>
+            <property name="skipLocal" value="false"/>
+        </module>
         <module name="TypecastParenPad"/>
         <module name="WhitespaceAfter"/>
         <module name="WhitespaceAround"/>
+        <module name="WhitespaceBeforeEmptyBody"/>
 
         <!--
         Custom

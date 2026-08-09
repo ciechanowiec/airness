@@ -84,6 +84,10 @@ public final class ManagedVersions {
         suppliedDependency("com.google.errorprone", "error_prone_core", "error-prone.version"),
         suppliedDependency("com.uber.nullaway", "nullaway", "nullaway.version"),
         suppliedDependency("com.puppycrawl.tools", "checkstyle", "checkstyle.version"),
+        suppliedDependency("net.sourceforge.pmd", "pmd-core", "pmd.version"),
+        suppliedDependency("net.sourceforge.pmd", "pmd-java", "pmd.version"),
+        suppliedDependency("net.sourceforge.pmd", "pmd-javascript", "pmd.version"),
+        suppliedDependency("net.sourceforge.pmd", "pmd-jsp", "pmd.version"),
         suppliedDependency("com.qulice", "qulice-maven-plugin", "qulice-maven-plugin.version"),
         suppliedDependency("org.openrewrite.recipe", "rewrite-apache", "rewrite-apache.version"),
         suppliedDependency(
@@ -218,6 +222,11 @@ public final class ManagedVersions {
 
     /**
      * A coordinate, its root property, and whether the parent supplies its declaration.
+     *
+     * @param kind coordinate kind
+     * @param group group identifier
+     * @param artifact artifact identifier
+     * @param ownership version ownership
      */
     public record Coordinate(Kind kind, String group, String artifact, Ownership ownership) {
 
