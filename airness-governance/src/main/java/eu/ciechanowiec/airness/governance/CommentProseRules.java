@@ -96,7 +96,7 @@ final class CommentProseRules {
     private static final char CLOSE_PARENTHESIS = ')';
 
     /**
-     * The comment lines of {@code source} that join clauses with a semicolon, in encounter order
+     * The comment lines of {@code source} that join clauses with a semicolon, in encounter order.
      *
      * @param source the text of one Java source file
      * @return the offending lines, trimmed, without repeats
@@ -109,7 +109,7 @@ final class CommentProseRules {
     }
 
     /**
-     * The {@code @return} tags of {@code source} that carry a full stop, in encounter order
+     * The {@code @return} tags of {@code source} that carry a full stop, in encounter order.
      *
      * @param source the text of one Java source file
      * @return the offending tag bodies, trimmed, without repeats

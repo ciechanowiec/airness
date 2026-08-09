@@ -26,6 +26,7 @@ public final class AgentInstructions {
      *
      * @param root      repository root
      * @param canonical complete managed section
+     * @throws IllegalArgumentException when the managed section does not have the required boundary markers
      */
     public AgentInstructions(Path root, String canonical) {
         this.root = real(root);
@@ -71,6 +72,7 @@ public final class AgentInstructions {
      * Creates, prepends, or refreshes the managed section while preserving project prose.
      *
      * @return whether the file changed
+     * @throws IllegalStateException when existing managed-section markers are malformed or ambiguous
      */
     public boolean write() {
         Path file = this.safe();

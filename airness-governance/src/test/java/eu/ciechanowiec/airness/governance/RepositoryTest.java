@@ -78,9 +78,9 @@ class RepositoryTest {
     @SneakyThrows
     void excludesBinaryAndMalformedUtf8FromText() {
         Path root = new GitFixture("repository-bytes").root();
-        Path binary = Files.write(root.resolve("binary"), new byte[]{1, 0, 2});
+        Path binary = Files.write(root.resolve("binary"), new byte[] {1, 0, 2});
         Path malformed = Files.write(
-            root.resolve("malformed"), new byte[]{MALFORMED_UTF8_LEAD, ASCII_LEFT_PARENTHESIS}
+            root.resolve("malformed"), new byte[] {MALFORMED_UTF8_LEAD, ASCII_LEFT_PARENTHESIS}
         );
         assertTrue(Repository.readText(binary).isEmpty());
         assertTrue(Repository.readText(malformed).isEmpty());
