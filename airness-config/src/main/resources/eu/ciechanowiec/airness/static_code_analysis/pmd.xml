@@ -215,6 +215,25 @@
         </properties>
     </rule>
 
+    <rule name="JustificationNeedsSuppression"
+        language="java"
+        message="A @Justification without @SuppressWarnings is stale; remove the explanation with the suppression it used to justify."
+        class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            A justification exists only to explain one suppression. Once that suppression is removed,
+            retaining the annotation leaves an explanation for an exception the code no longer takes
+            and makes the declaration look exceptional when it is not.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//Annotation[@SimpleName = 'Justification'][not(../Annotation[@SimpleName = 'SuppressWarnings'])]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
     <rule name="PairedConditionParentheses"
         language="java"
         message="A multiline if/while condition must start on the line after '(' and end on the line before ')'."

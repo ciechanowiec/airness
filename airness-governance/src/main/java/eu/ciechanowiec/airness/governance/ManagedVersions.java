@@ -105,7 +105,10 @@ public final class ManagedVersions {
             "rewrite-testing-frameworks",
             "rewrite-testing-frameworks.version"
         ),
-        suppliedDependency("org.pitest", "pitest-junit5-plugin", "pitest-junit5-plugin.version")
+        suppliedDependency("org.pitest", "pitest-junit5-plugin", "pitest-junit5-plugin.version"),
+        suppliedDependency(
+            "org.codehaus.mojo", "extra-enforcer-rules", "extra-enforcer-rules.version"
+        )
     );
 
     private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(

@@ -28,15 +28,19 @@ rule at the abstraction level of its layer; exact analyzer rules remain in the e
 Airness governs all of the following domains:
 
 - **Toolchain and Maven model:** runtime versions, project and parent coordinates, package ownership, inherited plugin
-  ownership, dependency convergence, and valid Airness parameters.
+  ownership, raw-model anti-bypass checks, effective dependency convergence, and valid Airness parameters.
 - **Repository files and instructions:** managed, seeded, and forbidden files; agent entry files; editor and Git
   configuration; and an unchanged committable tree during verification.
 - **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
   comments, source comments, and typography.
-- **Dependencies:** declaration hygiene, unused dependencies, licenses, available stable updates, and the maximum
-  permitted freshness gap.
-- **Tests and evidence:** test execution, production-to-test boundaries, instruction and branch coverage at the
-  declared scope, current-build coverage evidence, mutation analysis, and accepted mutation survivors.
+- **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
+  released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
+  licenses, available stable updates, and the maximum permitted freshness gap.
+- **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
+  machine-local repository paths, or recognizable secret material.
+- **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test,
+  production-to-test boundaries, instruction and branch coverage at the declared scope, current-build coverage
+  evidence, mutation analysis, and accepted mutation survivors.
 - **Repository assurance:** secret scanning, Qodana analysis, complete Git history, commit-message policy, commit
   typography, and history-wide compliance.
 
@@ -58,8 +62,9 @@ Airness goals together define the executable contract.
   `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
 - Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
-- Change typography exclusions, coverage exclusions, mutation exclusions, mutation threads, or mutation timeouts only
-  for an explicit project requirement. Never use an exclusion or a larger timeout merely to obtain a pass.
+- Change typography exclusions, coverage exclusions, mutation exclusions, mutation threads, mutation timeouts, or the
+  default test timeout only for an explicit project requirement. Never use an exclusion or a larger timeout merely to
+  obtain a pass.
 - Use a suppression only for a rule that genuinely does not apply. Put `@SuppressWarnings` and a non-empty
   `@Justification` on the same declaration, use the analyzer's exact rule ID, match the suppression scope to the
   justification scope, and remove the pair when the warning no longer occurs.

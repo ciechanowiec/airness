@@ -31,11 +31,13 @@ new_consumer() {
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>3.20.0</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>2.0.17</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.assertj</groupId>
@@ -280,6 +282,45 @@ run_case() {
     fi
 }
 
+install_graph_artifact() {
+    artifact="$1"
+    version="$2"
+    dependency_artifact="${3-}"
+    dependency_version="${4-}"
+    directory="$scratch/graph-$artifact-$version"
+    mkdir -p "$directory/src/main/resources/fixture"
+    printf '%s\n' "$artifact-$version" > "$directory/src/main/resources/fixture/$artifact.txt"
+    if [ "$artifact" = 'leaf' ] && [ "$version" = '1.0.0' ] \
+        || [ "$artifact" = 'bridge-one' ]; then
+        mkdir -p "$directory/src/main/resources/shared"
+        printf 'duplicate fixture\n' > "$directory/src/main/resources/shared/Duplicate.class"
+    fi
+    cat > "$directory/pom.xml" <<POM
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example.airnessit</groupId>
+  <artifactId>$artifact</artifactId>
+  <version>$version</version>
+POM
+    if [ -n "$dependency_artifact" ]; then
+        cat >> "$directory/pom.xml" <<POM
+  <dependencies>
+    <dependency>
+      <groupId>com.example.airnessit</groupId>
+      <artifactId>$dependency_artifact</artifactId>
+      <version>$dependency_version</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+POM
+    fi
+    cat >> "$directory/pom.xml" <<'POM'
+</project>
+POM
+    (cd "$directory" && mvn --quiet install -DskipTests)
+}
+
 consumer="$(new_consumer consumer)"
 
 managed="$scratch/managed-version"
@@ -338,6 +379,164 @@ run_case 'coordinates: child ownership is rejected' 1 'Airness (owns|supplies) t
 run_case 'versions: inherited pin drives update reports' 0 'versions:2\.21\.0:display-dependency-updates' \
     "$consumer" versions:display-dependency-updates
 
+# A declaration that does not name one exact version, and a pom that names one coordinate twice. Both
+# leave the build to decide what it resolves, and neither leaves a trace in the pom that says so.
+declarations="$scratch/declarations"
+mkdir -p "$declarations"
+cat > "$declarations/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.2-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>declarations</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>[3.0,4.0)</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
+POM
+run_case 'declarations: a version range is rejected' 1 'banned dynamic version' \
+    "$declarations" enforcer:enforce@airness-enforce-dependencies
+perl -0pi -e 's{<version>\[3[.]0,4[.]0\)</version>\n      <scope>compile</scope>}{<version>3.20.0</version>\n      <scope>compile</scope>\n    </dependency>\n    <dependency>\n      <groupId>org.apache.commons</groupId>\n      <artifactId>commons-lang3</artifactId>\n      <version>3.19.0</version>\n      <scope>compile</scope>}' \
+    "$declarations/pom.xml"
+run_case 'declarations: a coordinate declared twice is rejected' 1 'duplicate dependency declaration' \
+    "$declarations" enforcer:enforce@airness-enforce-dependencies
+
+# A snapshot is a moving target, so only a release is held to this. The harness's own artifacts travel
+# with the parent and are exempt; anything the project chose for itself is not.
+snapshot_dep="$scratch/snapshot-dep"
+mkdir -p "$snapshot_dep"
+cat > "$snapshot_dep/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.2-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>snapshot-dep</artifactId>
+  <version>1.0.0</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>eu.ciechanowiec</groupId>
+      <artifactId>airness-assets</artifactId>
+      <version>1.0.2-SNAPSHOT</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
+POM
+run_case 'declarations: a released project rejects a snapshot dependency' 1 \
+    'released project resolves a snapshot' \
+    "$snapshot_dep" enforcer:enforce@airness-enforce-dependencies
+perl -0pi -e 's{<version>1[.]0[.]0</version>}{<version>1.0.0-SNAPSHOT</version>}' "$snapshot_dep/pom.xml"
+run_case 'declarations: a snapshot project may resolve a snapshot' 0 'BUILD SUCCESS' \
+    "$snapshot_dep" enforcer:enforce@airness-enforce-dependencies
+
+# Resolution policy is tested against locally installed fixtures so the result does not depend on the
+# current transitive graph of an unrelated public library. The two bridges request different leaf
+# versions, and one bridge deliberately shares a class path with its leaf.
+install_graph_artifact leaf 1.0.0
+install_graph_artifact leaf 2.0.0
+install_graph_artifact bridge-one 1.0.0 leaf 1.0.0
+install_graph_artifact bridge-two 1.0.0 leaf 2.0.0
+convergence="$scratch/convergence"
+mkdir -p "$convergence"
+cat > "$convergence/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.2-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>convergence</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.example.airnessit</groupId>
+      <artifactId>bridge-one</artifactId>
+      <version>1.0.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.example.airnessit</groupId>
+      <artifactId>bridge-two</artifactId>
+      <version>1.0.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
+POM
+run_case 'resolution: disagreeing transitive versions are rejected' 1 'Dependency convergence error' \
+    "$convergence" enforcer:enforce@airness-enforce-dependencies
+perl -0pi -e \
+    's{\n    <dependency>\n      <groupId>com[.]example[.]airnessit</groupId>\n      <artifactId>bridge-two</artifactId>.*?</dependency>}{}s' \
+    "$convergence/pom.xml"
+run_case 'resolution: duplicate classes are rejected even when one dependency is transitive' 1 \
+    'Duplicate classes found|shared/Duplicate[.]class' \
+    "$convergence" enforcer:enforce@airness-enforce-dependencies
+
+resolution="$scratch/resolution-hygiene"
+mkdir -p "$resolution"
+cat > "$resolution/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.2-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>resolution-hygiene</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.20.0</version>
+    </dependency>
+  </dependencies>
+</project>
+POM
+run_case 'resolution: every dependency names its scope' 1 'does not have an explicit scope defined' \
+    "$resolution" enforcer:enforce@airness-enforce-dependencies
+perl -0pi -e \
+    's{<version>3[.]20[.]0</version>}{<version>3.20.0</version>\n      <scope>compile</scope>}' \
+    "$resolution/pom.xml"
+perl -0pi -e \
+    's{</project>}{  <repositories><repository><id>fixture</id><url>https://example.invalid/maven</url></repository></repositories>\n</project>}' \
+    "$resolution/pom.xml"
+run_case 'resolution: project repositories are rejected' 1 'poms have repositories defined' \
+    "$resolution" enforcer:enforce@airness-enforce-dependencies
+
 perl -0pi -e 's{<airness[.]package[.]root>com[.]example</airness[.]package[.]root>}{<airness.package.root>wrong.base</airness.package.root>}' \
     "$consumer/pom.xml"
 run_case 'parameters: wrong package root cannot disable NullAway' 1 \
@@ -345,6 +544,13 @@ run_case 'parameters: wrong package root cannot disable NullAway' 1 \
     "$consumer" airness:check-parameters
 perl -0pi -e 's{<airness[.]package[.]root>wrong[.]base</airness[.]package[.]root>}{<airness.package.root>com.example</airness.package.root>}' \
     "$consumer/pom.xml"
+perl -0pi -e \
+    's{<id>reactor-child</id>}{<id>reactor-child</id>\n      <properties><skipTests>true</skipTests></properties>}' \
+    "$consumer/pom.xml"
+run_case 'parameters: an inactive profile cannot retain a verdict bypass' 1 \
+    'Remove child property skipTests' "$consumer" airness:check-parameters
+perl -0pi -e \
+    's{\n      <properties><skipTests>true</skipTests></properties>}{}' "$consumer/pom.xml"
 
 if grep -Fq '    public static int value() {' "$consumer/src/main/java/com/example/FormatFixture.java"; then
     echo 'ok       format: inherited profile applies source formatting'
@@ -393,6 +599,207 @@ run_case 'checkstyle: unused lambda parameters are rejected' 1 \
     'Unused lambda parameter.*should be unnamed' \
     "$consumer" checkstyle:check '-Dcheckstyle.includes=**/UnusedLambda.java'
 rm "$consumer/src/main/java/com/example/UnusedLambda.java"
+
+# Checkstyle only asks that Javadoc exists. doclint is what reads it: a link the javadoc-links goal
+# asked for is worth nothing if nothing afterwards confirms the link reaches anything.
+cat > "$consumer/src/main/java/com/example/DanglingLink.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the inherited doclint settings.
+ *
+ * @see Example
+ */
+final class DanglingLink {
+
+    private DanglingLink() {
+    }
+
+    /**
+     * Supplies a value, as {@link NoSuchTypeAnywhere} does not.
+     *
+     * @return the value
+     */
+    static int value() {
+        return 1;
+    }
+}
+JAVA
+run_case 'doclint: a link that resolves to nothing fails compilation' 1 'reference not found' \
+    "$consumer" clean compile
+rm "$consumer/src/main/java/com/example/DanglingLink.java"
+
+# Test integrity and determinism. Each rule reads src/test only, so every case below is paired with
+# the production fixture at the end, which carries the same constructs and must pass.
+cat > "$consumer/src/test/java/com/example/DisabledFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against a switched-off test. */
+class DisabledFixtureTest {
+
+    @Disabled("intermittent on the build machine")
+    @Test
+    void neverRuns() {
+        assertEquals(1, Example.value());
+    }
+}
+JAVA
+run_case 'tests: a disabled test is rejected' 1 'disabled test reports as absent' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/DisabledFixtureTest.java'
+rm "$consumer/src/test/java/com/example/DisabledFixtureTest.java"
+
+cat > "$consumer/src/test/java/com/example/AssumingFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against a test that assumes its way out. */
+class AssumingFixtureTest {
+
+    @Test
+    void skipsItselfWhenInconvenient() {
+        assumeTrue(Example.value() > 1);
+        assertEquals(1, Example.value());
+    }
+}
+JAVA
+run_case 'tests: a runtime assumption is rejected' 1 'failed assumption aborts a test' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/AssumingFixtureTest.java'
+rm "$consumer/src/test/java/com/example/AssumingFixtureTest.java"
+
+cat > "$consumer/src/test/java/com/example/CommentedFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against a commented-out test. */
+class CommentedFixtureTest {
+
+    @Test
+    void stillRuns() {
+        assertEquals(1, Example.value());
+    }
+
+    // @Test
+    // void stoppedRunningWithoutAnyoneNoticing() {
+    //     assertEquals(2, Example.value());
+    // }
+}
+JAVA
+run_case 'tests: a commented-out test is rejected' 1 'commented-out test stopped running' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/CommentedFixtureTest.java'
+rm "$consumer/src/test/java/com/example/CommentedFixtureTest.java"
+
+cat > "$consumer/src/test/java/com/example/SleepingFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against a test that waits by guessing. */
+class SleepingFixtureTest {
+
+    @Test
+    void waitsOnTheClockRatherThanTheCondition() throws InterruptedException {
+        Thread.sleep(50);
+        assertEquals(1, Example.value());
+    }
+}
+JAVA
+run_case 'tests: a sleep is rejected' 1 'speed of the machine' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/SleepingFixtureTest.java'
+rm "$consumer/src/test/java/com/example/SleepingFixtureTest.java"
+
+cat > "$consumer/src/test/java/com/example/RandomFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.util.Random;
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against randomness nobody seeded. */
+class RandomFixtureTest {
+
+    @Test
+    void drawsFromAnUnseededSource() {
+        Random source = new Random();
+        assertEquals(1, Example.value() + source.nextInt(1));
+    }
+}
+JAVA
+run_case 'tests: unseeded randomness is rejected' 1 'Unseeded randomness' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/RandomFixtureTest.java'
+rm "$consumer/src/test/java/com/example/RandomFixtureTest.java"
+
+# The same constructs in production code. Nothing above may reach them, or the rules would be
+# banning a sleep from the code whose behavior a test is meant to observe.
+cat > "$consumer/src/main/java/com/example/Waiting.java" <<'JAVA'
+package com.example;
+
+import java.util.Random;
+import lombok.experimental.UtilityClass;
+
+/**
+ * Carries the constructs the test rules ban, in the place where they are not banned.
+ */
+@UtilityClass
+public final class Waiting {
+
+    /**
+     * Waits and then draws a value.
+     *
+     * @param millis how long to wait
+     * @return a drawn value
+     * @throws InterruptedException when the wait is interrupted
+     */
+    public int draw(long millis) throws InterruptedException {
+        Thread.sleep(millis);
+        return new Random().nextInt();
+    }
+}
+JAVA
+run_case 'tests: production code keeps the constructs the test rules ban' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Waiting.java'
+rm "$consumer/src/main/java/com/example/Waiting.java"
+
+# A wait nothing bounds is a build that never returns a verdict. The ceiling is inherited, so a
+# consumer that declares no timeout anywhere still gets one.
+cat > "$consumer/src/test/java/com/example/UnboundedTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+
+/** Exercises the inherited default test timeout. */
+class UnboundedTest {
+
+    @Test
+    void outlastsTheInheritedCeiling() throws Exception {
+        new CountDownLatch(1).await(3, TimeUnit.SECONDS);
+        assertEquals(1, Example.value());
+    }
+}
+JAVA
+# Report-only, so the run reaches the assertion that matters. The test would otherwise pass, so the
+# timeout message can only appear if the inherited ceiling is what ended it.
+run_case 'tests: the inherited timeout bounds a wait no test declared' 0 'timed out after' \
+    "$consumer" test -Dairness.enforce=false -Dairness.test.timeout=1s -Dtest=UnboundedTest
+rm "$consumer/src/test/java/com/example/UnboundedTest.java"
 
 if grep -Fq 'LOGGER.info("value {}", value);' "$consumer/src/main/java/com/example/RewriteLogging.java"; then
     echo 'ok       rewrite: SLF4J best practices reach consumers'
@@ -620,6 +1027,22 @@ run_case 'default: blank justification fails' 1 'JustificationNeedsText' "$consu
 run_case 'report-only: blank justification is visible' 0 'JustificationNeedsText' \
     "$consumer" pmd:check -Dairness.enforce=false
 rm "$consumer/src/main/java/com/example/BlankJustification.java"
+cat > "$consumer/src/main/java/com/example/StaleJustification.java" <<'JAVA'
+package com.example;
+
+import eu.ciechanowiec.airness.Justification;
+
+/** Exercises stale-justification detection. */
+@Justification("A suppression used to be here")
+final class StaleJustification {
+
+    private StaleJustification() {
+    }
+}
+JAVA
+run_case 'default: a justification without its suppression is stale' 1 \
+    'JustificationNeedsSuppression' "$consumer" pmd:check
+rm "$consumer/src/main/java/com/example/StaleJustification.java"
 cat > "$consumer/src/main/java/com/example/ProseJustification.java" <<'JAVA'
 package com.example;
 
@@ -634,6 +1057,18 @@ JAVA
 run_case 'comments: named concatenated justifications are read' 1 'another clause' \
     "$consumer" airness:comment-prose
 rm "$consumer/src/main/java/com/example/ProseJustification.java"
+
+# Build the archive through ordinary Maven goals, then inspect the bytes directly. Keeping this case
+# outside package proves that the content goal catches material introduced by packaging rather than by
+# a Java-source rule.
+mkdir -p "$consumer/src/main/resources/.idea"
+printf 'local workspace metadata\n' > "$consumer/src/main/resources/.idea/workspace.xml"
+(cd "$consumer" && mvn --quiet resources:resources jar:jar -DskipTests)
+run_case 'artifact: development metadata in the finished jar is rejected' 1 \
+    'Source or development files packaged in the JAR|[.]idea/workspace[.]xml' \
+    "$consumer" airness:artifact-content
+rm "$consumer/src/main/resources/.idea/workspace.xml"
+rmdir "$consumer/src/main/resources/.idea" "$consumer/src/main/resources"
 
 # Compilation failures are not findings and remain fatal in report-only mode.
 cat > "$consumer/src/main/java/com/example/Broken.java" <<'JAVA'
@@ -703,6 +1138,7 @@ cat > "$reactor/application/pom.xml" <<'POM'
       <groupId>com.example</groupId>
       <artifactId>library</artifactId>
       <version>${project.version}</version>
+      <scope>compile</scope>
     </dependency>
   </dependencies>
 </project>
@@ -771,6 +1207,7 @@ cat > "$ancestry_consumer/pom.xml" <<'POM'
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
       <version>${picocli.version}</version>
+      <scope>compile</scope>
     </dependency>
   </dependencies>
 </project>
@@ -805,6 +1242,7 @@ cat > "$relative_parent/pom.xml" <<'POM'
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
       <version>${picocli.version}</version>
+      <scope>compile</scope>
     </dependency>
   </dependencies>
 </project>
