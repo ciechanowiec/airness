@@ -18,7 +18,7 @@ new_consumer() {
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>consumer</artifactId>
@@ -333,8 +333,43 @@ consumer="$(new_consumer consumer)"
 
 # Publication safety is inherited separately from the ordinary test verdict. A release can skip an
 # already completed verification, but it cannot publish mutable coordinates or incomplete metadata.
+snapshot_parent="$scratch/snapshot-parent"
+snapshot_consumer="$scratch/snapshot-consumer"
+mkdir -p "$snapshot_parent" "$snapshot_consumer"
+cat > "$snapshot_parent/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.2</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>snapshot-parent</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+</project>
+POM
+cat > "$snapshot_consumer/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>snapshot-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <relativePath>../snapshot-parent/pom.xml</relativePath>
+  </parent>
+  <artifactId>snapshot-consumer</artifactId>
+  <version>1.0.0</version>
+</project>
+POM
 run_case 'release: a snapshot parent is rejected' 1 'SNAPSHOT' \
-    "$consumer" enforcer:enforce@airness-release-coordinates -Prelease
+    "$snapshot_consumer" enforcer:enforce@airness-release-coordinates -Prelease
 publication_metadata="$scratch/publication-metadata"
 mkdir -p "$publication_metadata"
 cat > "$publication_metadata/pom.xml" <<'POM'
@@ -348,7 +383,7 @@ cat > "$publication_metadata/pom.xml" <<'POM'
 POM
 run_case 'publication: required metadata is rejected' 1 'Maven publication project metadata' \
     "$publication_metadata" \
-    eu.ciechanowiec:airness-maven-plugin:1.0.2-SNAPSHOT:publication-metadata
+    eu.ciechanowiec:airness-maven-plugin:1.0.2:publication-metadata
 
 managed="$scratch/managed-version"
 mkdir -p "$managed"
@@ -359,7 +394,7 @@ cat > "$managed/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>managed-version</artifactId>
@@ -425,7 +460,7 @@ cat > "$declarations/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>declarations</artifactId>
@@ -452,6 +487,7 @@ run_case 'declarations: a coordinate declared twice is rejected' 1 'duplicate de
 
 # A snapshot is a moving target, so only a release is held to this. The harness's own artifacts travel
 # with the parent and are exempt; anything the project chose for itself is not.
+install_graph_artifact chosen-snapshot 1.0.0-SNAPSHOT
 snapshot_dep="$scratch/snapshot-dep"
 mkdir -p "$snapshot_dep"
 cat > "$snapshot_dep/pom.xml" <<'POM'
@@ -461,7 +497,7 @@ cat > "$snapshot_dep/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>snapshot-dep</artifactId>
@@ -471,9 +507,9 @@ cat > "$snapshot_dep/pom.xml" <<'POM'
   </properties>
   <dependencies>
     <dependency>
-      <groupId>eu.ciechanowiec</groupId>
-      <artifactId>airness-assets</artifactId>
-      <version>1.0.2-SNAPSHOT</version>
+      <groupId>com.example.airnessit</groupId>
+      <artifactId>chosen-snapshot</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>
@@ -502,7 +538,7 @@ cat > "$convergence/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>convergence</artifactId>
@@ -544,7 +580,7 @@ cat > "$resolution/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>resolution-hygiene</artifactId>
@@ -956,7 +992,7 @@ cat > "$multimodule/child/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>test-only-child</artifactId>
@@ -1131,7 +1167,7 @@ cat > "$reactor/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>reactor</artifactId>
@@ -1196,7 +1232,7 @@ cat > "$stale_grandparent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>stale-grandparent</artifactId>
@@ -1265,7 +1301,7 @@ cat > "$relative_parent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>relative-parent</artifactId>
@@ -1338,7 +1374,7 @@ run_case 'extended: a consumer commit message answers to the policy' 1 \
     "$extended_profile" clean package -Pextended -Dairness.enforce=false
 
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
-assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.2-SNAPSHOT/airness-assets-1.0.2-SNAPSHOT.jar"
+assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.2/airness-assets-1.0.2.jar"
 listing="$scratch/assets.txt"
 jar tf "$assets" > "$listing"
 if ! grep -Fq 'airness/files/README-guideline-software-project.adoc.asset' "$listing"; then
