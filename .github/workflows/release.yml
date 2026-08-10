@@ -123,6 +123,26 @@ jobs:
         if: steps.release_state.outputs.central_published != 'true'
         run: mvn --batch-mode --no-transfer-progress clean install -Pextended
 
+      - name: 'Build and inspect publication artifacts'
+        if: steps.release_state.outputs.central_published != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          mvn --batch-mode --no-transfer-progress package -Prelease -DskipTests
+          for project in \
+            pom.xml \
+            airness-annotations/pom.xml \
+            airness-assets/pom.xml \
+            airness-config/pom.xml \
+            airness-governance/pom.xml \
+            airness-maven-plugin/pom.xml \
+            airness-parent/pom.xml; do
+              mvn --batch-mode --no-transfer-progress --file "$project" \
+                "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-metadata" \
+                "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-content"
+          done
+
       - name: 'Publish signed artifacts'
         id: publish
         if: steps.release_state.outputs.central_published != 'true'
