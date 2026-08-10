@@ -10,6 +10,11 @@
                   value="JavadocPackage|MissingJavadocPackage|MissingJavadocType|MissingJavadocMethod|JavadocVariable"/>
         <property name="files" value="[/\\]src[/\\]test[/\\]"/>
     </module>
+    <module name="SuppressionSingleFilter">
+        <!-- OpenRewrite canonicalizes F and D suffixes to uppercase, while this check also guards prefixes/infixes. -->
+        <property name="checks" value="NumericalPrefixesInfixesSuffixesCharacterCase"/>
+        <property name="message" value="^Numerical suffix should be in lowercase[.]$"/>
+    </module>
     <property name="charset" value="UTF-8"/>
     <property name="severity" value="error"/>
     <property name="fileExtensions" value="java, properties, xml"/>
