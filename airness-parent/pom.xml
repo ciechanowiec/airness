@@ -24,12 +24,6 @@
     </description>
 
     <properties>
-
-        <!-- One switch controls whether findings fail the build. skipTests is the separate bypass. -->
-        <airness.enforce>true</airness.enforce>
-        <skipTests>false</skipTests>
-        <airness.coverage.skip>${skipTests}</airness.coverage.skip>
-
         <!--
             The phase at which each source-shaping tool applies its changes. Only the applying half is a
             property. The checking half is bound to a literal phase and cannot be moved by anyone.
@@ -41,9 +35,7 @@
             The format profile below is what sets them. Each applying execution is declared ahead of its
             checking one, so within the shared phase the apply runs first.
         -->
-        <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
         <airness.source.formatting.apply>false</airness.source.formatting.apply>
-
         <!--
             Where the harness unpacks what it supplies. Under the build directory rather than in the
             tree, because a copy in the tree is a copy that gets edited and then ignored, and because
@@ -52,16 +44,6 @@
         <!-- Pinned, so the scan a build runs is the scan the next build runs. -->
         <gitleaks.image>zricethezav/gitleaks:v8.30.0</gitleaks.image>
         <qodana.image>jetbrains/qodana-jvm-community:2026.1</qodana.image>
-        <!-- Stable family defaults. A child can override one without copying the PIT declaration. -->
-        <airness.mutation.threads>4</airness.mutation.threads>
-        <airness.mutation.timeout.constant>2000</airness.mutation.timeout.constant>
-        <airness.mutation.timeout.factor>1.25</airness.mutation.timeout.factor>
-        <airness.mutation.skip>${skipTests}</airness.mutation.skip>
-        <!--
-            Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
-            Empty by default, for the same reason the coverage exclusions are.
-        -->
-        <airness.mutation.excluded.classes></airness.mutation.excluded.classes>
         <!--
             The package NullAway treats as annotated. Everything outside it is assumed unannotated and
             goes unchecked, so a value naming a package this project does not use turns the whole
@@ -69,12 +51,27 @@
             let it stay unset.
         -->
         <airness.package.root>UNSET</airness.package.root>
+        <airness.coverage.skip>${skipTests}</airness.coverage.skip>
+        <!-- One switch controls whether findings fail the build. skipTests is the separate bypass. -->
+        <airness.enforce>true</airness.enforce>
         <!--
             Classes left out of the per-class coverage floor, comma-separated, each because of the role
             it plays rather than because covering it was inconvenient. Empty by default: a harness that
             arrived with exclusions would be teaching a project that the list is where difficulty goes.
         -->
         <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
+        <skipTests>false</skipTests>
+        <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
+        <airness.mutation.skip>${skipTests}</airness.mutation.skip>
+        <!--
+            Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
+            Empty by default, for the same reason the coverage exclusions are.
+        -->
+        <airness.mutation.excluded.classes></airness.mutation.excluded.classes>
+        <!-- Stable family defaults. A child can override one without copying the PIT declaration. -->
+        <airness.mutation.threads>4</airness.mutation.threads>
+        <airness.mutation.timeout.constant>2000</airness.mutation.timeout.constant>
+        <airness.mutation.timeout.factor>1.25</airness.mutation.timeout.factor>
     </properties>
 
     <!-- Versions come from the root dependency management. These declarations supply the dependencies. -->
@@ -905,8 +902,8 @@
             -->
             <id>format</id>
             <properties>
-                <airness.rewrite.apply.phase>process-resources</airness.rewrite.apply.phase>
                 <airness.source.formatting.apply>true</airness.source.formatting.apply>
+                <airness.rewrite.apply.phase>process-resources</airness.rewrite.apply.phase>
             </properties>
         </profile>
         <profile>

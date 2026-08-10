@@ -5,9 +5,9 @@ package eu.ciechanowiec.airness.governance;
  * any local property reference. The version check compares this version against the latest stable
  * release on Maven Central.
  *
- * @param groupId group identifier
+ * @param groupId    group identifier
  * @param artifactId artifact identifier
- * @param version resolved version
+ * @param version    resolved version
  */
 public record DeclaredCoordinate(String groupId, String artifactId, String version) {
 }

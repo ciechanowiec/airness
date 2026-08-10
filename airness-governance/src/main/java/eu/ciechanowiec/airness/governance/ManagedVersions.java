@@ -223,9 +223,9 @@ public final class ManagedVersions {
     /**
      * A coordinate, its root property, and whether the parent supplies its declaration.
      *
-     * @param kind coordinate kind
-     * @param group group identifier
-     * @param artifact artifact identifier
+     * @param kind      coordinate kind
+     * @param group     group identifier
+     * @param artifact  artifact identifier
      * @param ownership version ownership
      */
     public record Coordinate(Kind kind, String group, String artifact, Ownership ownership) {
