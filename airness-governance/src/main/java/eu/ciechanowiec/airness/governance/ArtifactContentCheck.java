@@ -14,7 +14,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -28,11 +27,6 @@ import java.util.stream.Stream;
  */
 public final class ArtifactContentCheck {
 
-    private static final List<Pattern> SECRET_PATTERNS = List.of(
-        Pattern.compile("-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-        Pattern.compile("AKIA[0-9A-Z]{16}"),
-        Pattern.compile("gh[pousr]_[A-Za-z0-9]{20,}")
-    );
     private static final Set<String> DEVELOPMENT_NAMES = Set.of(
         ".classpath", ".ds_store", ".project", "thumbs.db"
     );
@@ -115,7 +109,7 @@ public final class ArtifactContentCheck {
                     .toList(),
                 Kind.SECRET, entries.stream()
                     .filter(Content::file)
-                    .filter(ArtifactContentCheck::secret)
+                    .filter(entry -> SensitiveContent.secret(entry.content()))
                     .map(Content::name)
                     .toList()
             );
@@ -139,10 +133,6 @@ public final class ArtifactContentCheck {
         Content entry, Collection<String> main, Collection<String> test
     ) {
         return test.contains(entry.name()) && !main.contains(entry.name());
-    }
-
-    private static boolean secret(Content entry) {
-        return SECRET_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(entry.content()).find());
     }
 
     private static boolean unsafe(String name) {

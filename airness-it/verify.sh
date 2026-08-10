@@ -331,6 +331,25 @@ POM
 
 consumer="$(new_consumer consumer)"
 
+# Publication safety is inherited separately from the ordinary test verdict. A release can skip an
+# already completed verification, but it cannot publish mutable coordinates or incomplete metadata.
+run_case 'release: a snapshot parent is rejected' 1 'SNAPSHOT' \
+    "$consumer" enforcer:enforce@airness-release-coordinates -Prelease
+publication_metadata="$scratch/publication-metadata"
+mkdir -p "$publication_metadata"
+cat > "$publication_metadata/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>publication-metadata</artifactId>
+  <version>1.0.0</version>
+</project>
+POM
+run_case 'publication: required metadata is rejected' 1 'Maven publication project metadata' \
+    "$publication_metadata" \
+    eu.ciechanowiec:airness-maven-plugin:1.0.2-SNAPSHOT:publication-metadata
+
 managed="$scratch/managed-version"
 mkdir -p "$managed"
 cat > "$managed/pom.xml" <<'POM'
@@ -914,11 +933,11 @@ else
     echo 'FAILED   assets: explicit sync did not restore drifted pinned content' >&2
     failures=$((failures + 1))
 fi
-printf 'duplicate license declaration\n' > "$consumer/LiCeNsE.TxT"
+printf 'duplicate license declaration\n' > "$consumer/LiCeNsE.Md"
 run_case 'assets: root license filename is rejected case-insensitively' 1 \
-    'License files named LICENSE or LICENSE[.]TXT must not sit beside the root pom[.]xml|LiCeNsE[.]TxT' \
+    'License files named LICENSE, LICENSE[.]TXT, or LICENSE[.]MD must not sit beside the root pom[.]xml|LiCeNsE[.]Md' \
     "$consumer" airness:assets-check
-rm "$consumer/LiCeNsE.TxT"
+rm "$consumer/LiCeNsE.Md"
 run_case 'assets: later pinned change fails tree verification' 1 \
     'Build plugins changed committable files|working tree content differs' \
     "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \
