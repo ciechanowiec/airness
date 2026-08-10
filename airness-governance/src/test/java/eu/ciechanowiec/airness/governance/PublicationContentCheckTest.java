@@ -47,7 +47,7 @@ class PublicationContentCheckTest {
     @SneakyThrows
     void rejectsLocalPathsAndSecretsAcrossFormats() {
         Path pom = Files.writeString(this.directory.resolve("artifact.pom"), this.directory.toString());
-        Path jar = this.jar("secret.txt", "AKIA1234567890123456");
+        Path jar = this.jar("secret.txt", String.join("", "AKIA", "1234567890123456"));
         List<Findings> findings = new PublicationContentCheck(List.of(pom, jar), this.directory).findings();
         assertEquals(List.of(pom.toString()), offences(findings, LOCAL));
         assertEquals(List.of(jar + "!secret.txt"), offences(findings, SECRETS));
