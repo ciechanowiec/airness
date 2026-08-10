@@ -616,6 +616,27 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>airness-release-coordinates</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireReleaseVersion/>
+                                        <requireReleaseDeps>
+                                            <failWhenParentIsSnapshot>true</failWhenParentIsSnapshot>
+                                        </requireReleaseDeps>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
                         <executions>
                             <execution>
@@ -634,6 +655,20 @@
                                 <id>attach-javadocs</id>
                                 <goals>
                                     <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>airness-publication</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>publication-metadata</goal>
+                                    <goal>publication-content</goal>
                                 </goals>
                             </execution>
                         </executions>

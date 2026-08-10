@@ -53,7 +53,7 @@ endif::[]
 [[overview]]
 == Overview
 
-_airness_ is a Maven parent that keeps shared build rules in one place. This guide explains xref:#quick-start[how to add _airness_ version `{airness-version}`], how to xref:#build-commands[run its checks], and how to xref:#configuration[configure it for a project]. It doesn't cover the source modules, release work, or internal implementation.
+_airness_ is a Maven parent that keeps shared build rules in one place. This guide explains xref:#quick-start[how to add _airness_ version `{airness-version}`], how to xref:#build-commands[run its checks], how to xref:#release-publication[publish a release], and how to xref:#configuration[configure it for a project]. It doesn't cover the source modules or internal implementation.
 
 [[quick-start]]
 == Quick Start
@@ -121,6 +121,10 @@ mvn airness:assets-sync
 | [[extended-verification,extended verification]]Extended verification
 | `mvn clean package -Pextended`
 | Runs the xref:#default-verification[] plus additional checks.
+
+| [[release-publication,release publication]]Release publication
+| `mvn clean deploy -Prelease -DskipTests`
+| Checks the publication files, signs them, and sends them to the configured Maven Central server.
 
 |===
 

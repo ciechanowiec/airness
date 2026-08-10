@@ -10,32 +10,33 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
- * The root license rule rejects its two exact filenames under every casing without claiming similarly
+ * The root license rule rejects its three exact filenames under every casing without claiming similarly
  * named or nested files.
  */
 class RootLicenseCheckTest {
 
     @Test
-    void rejectsBothForbiddenNamesWithoutRegardToCase() {
+    void rejectsAllForbiddenNamesWithoutRegardToCase() {
         Path root = new GitFixture("root-license-forbidden")
             .write("LiCeNsE", "license\n")
             .write("license.Txt", "license\n")
+            .write("LICENSE.md", "license\n")
             .root();
         assertEquals(
-            List.of("LiCeNsE", "license.Txt"), offences(root),
-            "filesystem casing must not change whether either exact name is forbidden"
+            List.of("LICENSE.md", "LiCeNsE", "license.Txt"), offences(root),
+            "filesystem casing must not change whether an exact name is forbidden"
         );
     }
 
     @Test
-    void allowsOtherExtensionsAndNestedLicenseFiles() {
+    void allowsUnlistedExtensionsAndNestedLicenseFiles() {
         Path root = new GitFixture("root-license-allowed")
-            .write("LICENSE.md", "license\n")
+            .write("LICENSE.adoc", "license\n")
             .write("docs/LICENSE", "license\n")
             .root();
         assertTrue(
             Verdicts.clean(new RootLicenseCheck(root).findings()),
-            "only the two exact filenames beside the root pom are part of the rule"
+            "only the three exact filenames beside the root pom are part of the rule"
         );
     }
 
