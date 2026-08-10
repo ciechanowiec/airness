@@ -98,6 +98,12 @@ POM
 
 Run the Maven verification before committing a change.
 INSTRUCTIONS
+    cat > "$directory/src/main/java/com/example/package-info.java" <<'JAVA'
+/**
+ * Isolated consumer types used to exercise the inherited harness.
+ */
+package com.example;
+JAVA
     cat > "$directory/src/main/java/com/example/Example.java" <<'JAVA'
 package com.example;
 
@@ -134,6 +140,8 @@ package com.example;
 
 /** Exercises source application through the inherited format profile. */
 public final class FormatFixture {
+private static final float FRACTION = 0.75f;
+
 private FormatFixture() {}
 
 /**
@@ -141,7 +149,7 @@ private FormatFixture() {}
  *
  * @return the value
  */
-public static int value() { return 1; }
+public static float value() { return FRACTION; }
 }
 JAVA
     cat > "$directory/src/main/java/com/example/ProtocolPath.java" <<'JAVA'
@@ -560,7 +568,10 @@ run_case 'parameters: an inactive profile cannot retain a verdict bypass' 1 \
 perl -0pi -e \
     's{\n      <properties><skipTests>true</skipTests></properties>}{}' "$consumer/pom.xml"
 
-if grep -Fq '    public static int value() {' "$consumer/src/main/java/com/example/FormatFixture.java"; then
+if grep -Fq '    private static final float FRACTION = 0.75F;' \
+    "$consumer/src/main/java/com/example/FormatFixture.java" \
+    && grep -Fq '    public static float value() {' \
+        "$consumer/src/main/java/com/example/FormatFixture.java"; then
     echo 'ok       format: inherited profile applies source formatting'
 else
     echo 'FAILED   format: inherited profile did not apply source formatting' >&2
