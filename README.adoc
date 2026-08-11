@@ -14,7 +14,7 @@
 :docinfo: shared,private
 :linkcss:
 :sourcedir: {docdir}
-:airness-version: 1.0.3
+:airness-version: 1.0.4-SNAPSHOT
 :pdf-theme: {sourcedir}/.docs/themes/basic.yml
 :pdf-fontsdir: {sourcedir}/.docs/themes/fonts,GEM_FONTS_DIR
 :stylesdir: https://www.ciechanowiec.eu/linux_mantra/

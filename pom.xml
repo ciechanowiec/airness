@@ -6,7 +6,7 @@
 
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>airness</name>
@@ -79,7 +79,7 @@
         <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
         <rewrite-maven-plugin.version>6.45.0</rewrite-maven-plugin.version>
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
-        <airness.version>1.0.3</airness.version>
+        <airness.version>1.0.4-SNAPSHOT</airness.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <pmd.version>7.26.0</pmd.version>
