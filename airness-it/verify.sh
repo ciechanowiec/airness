@@ -18,7 +18,7 @@ new_consumer() {
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>consumer</artifactId>
@@ -343,7 +343,7 @@ cat > "$snapshot_parent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>snapshot-parent</artifactId>
@@ -383,7 +383,7 @@ cat > "$publication_metadata/pom.xml" <<'POM'
 POM
 run_case 'publication: required metadata is rejected' 1 'Maven publication project metadata' \
     "$publication_metadata" \
-    eu.ciechanowiec:airness-maven-plugin:1.0.3:publication-metadata
+    eu.ciechanowiec:airness-maven-plugin:1.0.4-SNAPSHOT:publication-metadata
 
 managed="$scratch/managed-version"
 mkdir -p "$managed"
@@ -394,7 +394,7 @@ cat > "$managed/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>managed-version</artifactId>
@@ -460,7 +460,7 @@ cat > "$declarations/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>declarations</artifactId>
@@ -497,7 +497,7 @@ cat > "$snapshot_dep/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>snapshot-dep</artifactId>
@@ -538,7 +538,7 @@ cat > "$convergence/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>convergence</artifactId>
@@ -580,7 +580,7 @@ cat > "$resolution/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>resolution-hygiene</artifactId>
@@ -992,7 +992,7 @@ cat > "$multimodule/child/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>test-only-child</artifactId>
@@ -1167,7 +1167,7 @@ cat > "$reactor/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>reactor</artifactId>
@@ -1232,7 +1232,7 @@ cat > "$stale_grandparent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>stale-grandparent</artifactId>
@@ -1301,7 +1301,7 @@ cat > "$relative_parent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>relative-parent</artifactId>
@@ -1374,7 +1374,7 @@ run_case 'extended: a consumer commit message answers to the policy' 1 \
     "$extended_profile" clean package -Pextended -Dairness.enforce=false
 
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
-assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.3/airness-assets-1.0.3.jar"
+assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.4-SNAPSHOT/airness-assets-1.0.4-SNAPSHOT.jar"
 listing="$scratch/assets.txt"
 jar tf "$assets" > "$listing"
 if ! grep -Fq 'airness/files/README-guideline-software-project.adoc.asset' "$listing"; then
