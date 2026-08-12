@@ -5,8 +5,9 @@ import java.util.List;
 import lombok.experimental.UtilityClass;
 
 /**
- * Reads the whole reachable history as {@link Commit} values. Merge commits keep their fixed header
- * form but remain in scope for typography and attribution checks.
+ * Reads the whole reachable history as {@link Commit} values. Each one carries whether git recorded it
+ * with more than one parent, which is how {@link LinearHistoryCheck} recognizes a merge and why the shape
+ * rules stay silent on one. Every commit stays in scope for the typography and attribution checks.
  */
 @UtilityClass
 final class CommitLog {

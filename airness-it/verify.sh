@@ -1355,6 +1355,18 @@ git clone --quiet --depth 1 "file://$untested" "$shallow"
 run_case 'history: shallow clone is rejected by Maven' 1 'This is a shallow clone' \
     "$shallow" airness:require-full-history
 
+# A merge commit is prohibited outright. The goal reads the parents git recorded, so the linear fixture above
+# passes it and no wording of a header can talk a second parent away.
+run_case 'history: a linear consumer passes' 0 'Linear history read' \
+    "$untested" airness:linear-history
+merged="$(new_consumer merged)"
+git -C "$merged" checkout --quiet -b side
+git -C "$merged" commit --quiet --allow-empty --message 'feat(core): record a side commit to merge back'
+git -C "$merged" checkout --quiet -
+git -C "$merged" merge --quiet --no-ff side --message "Merge branch 'side'"
+run_case 'history: a merge commit is rejected' 1 'Merge commits in the history' \
+    "$merged" airness:linear-history
+
 # The extended profile had never run against a consumer at all, only against Airness itself, so nothing said
 # whether a consumer reaches its goals or in what order. Both cases below stop the build inside the
 # governance execution, which runs its history goals and the mutation baseline ahead of the two goals that

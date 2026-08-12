@@ -11,9 +11,11 @@ import lombok.experimental.UtilityClass;
  * The commit-message policy, expressed as a pure function over an already-parsed {@link CommitMessage}
  * and its {@link DiffStat}. It enforces the Conventional Commits header with a closed type list, a
  * subject of the right length with no trailing period and no junk word, a body for a non-trivial
- * change, and the absence of any marker that attributes the change to an AI agent. Merge and revert
- * headers keep their fixed git forms, so they are exempt from the header shape alone. The attribution
- * ban holds for every commit, because a fixed header form is no licence to name an agent in the body.
+ * change, and the absence of any marker that attributes the change to an AI agent. A revert header keeps
+ * its fixed git form, so it is exempt from the header shape alone. A merge commit is prohibited outright
+ * and {@link LinearHistoryCheck} reports it, so the shape rules stay silent on one: a banned commit is
+ * worth one verdict, not that verdict buried under five header findings. The attribution ban holds for
+ * every commit, because neither exemption is a licence to name an agent in the body.
  *
  * <p>Every attribution pattern is written over the whole agent list rather than over one vendor, so
  * the ban covers each agent the project serves and several it does not. It remains best-effort: no
@@ -26,12 +28,6 @@ final class CommitMessageRules {
         "^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\\([a-z0-9.-]+\\))?!?: .+$"
     );
     private static final Pattern REVERT = Pattern.compile("^Revert \".+\"$");
-    private static final Pattern MERGE = Pattern.compile(
-        "^Merge (?:branch '[^']+'(?: into (?:'[^']+'|\\S+))?"
-            + "|branches '[^']+'(?: and '[^']+')+"
-            + "|remote-tracking branch '[^']+'|tag '[^']+'"
-            + "|pull request #[0-9]+ from \\S+)$"
-    );
     private static final String SEPARATOR = ": ";
     private static final int MIN_SUBJECT = 15;
     private static final int MAX_SUBJECT = 72;
@@ -84,8 +80,7 @@ final class CommitMessageRules {
     }
 
     private static boolean isExempt(CharSequence header, boolean merge) {
-        boolean recognizedMerge = merge && MERGE.matcher(header).matches();
-        return recognizedMerge || REVERT.matcher(header).matches();
+        return merge || REVERT.matcher(header).matches();
     }
 
     private static Optional<String> headerViolation(CharSequence header) {
