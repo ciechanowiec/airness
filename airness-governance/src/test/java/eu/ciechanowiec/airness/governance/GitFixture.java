@@ -72,6 +72,24 @@ record GitFixture(Path root) {
         return this;
     }
 
+    /**
+     * Records a merge commit: a side branch, a commit on each side, and a merge back under the header
+     * git writes itself.
+     *
+     * <p>Two checks need this topology and neither can be shown it any other way, because a merge is
+     * what git recorded as a second parent and not anything a message claims.
+     *
+     * @return this fixture, so calls chain
+     */
+    GitFixture mergeASideBranch() {
+        this.git("checkout", "-b", "side");
+        this.write("side.txt", "Side.\n").commit("feat(core): add the side fixture file");
+        this.git("checkout", "-");
+        this.write("main.txt", "Main.\n").commit("feat(core): add the main fixture file");
+        this.git("merge", "--no-ff", "side", "--message", "Merge branch 'side'");
+        return this;
+    }
+
     void git(String... arguments) {
         List<String> command = Stream.concat(
             Stream.of(

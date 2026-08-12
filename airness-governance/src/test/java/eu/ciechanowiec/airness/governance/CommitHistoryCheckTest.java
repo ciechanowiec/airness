@@ -43,17 +43,16 @@ class CommitHistoryCheckTest {
     }
 
     @Test
-    void includesMergeCommitsInTheHistory() {
-        GitFixture fixture = new GitFixture("history-merge")
-            .write(FILE, "Base.\n").commit("feat(core): add the base fixture file");
-        fixture.git("checkout", "-b", "side");
-        fixture.write("side.txt", "Side.\n").commit("feat(core): add the side fixture file");
-        fixture.git("checkout", "-");
-        fixture.write("main.txt", "Main.\n").commit("feat(core): add the main fixture file");
-        fixture.git("merge", "--no-ff", "side", "--message", "Merge branch 'side'");
-        Path root = fixture.root();
+    void staysQuietOnAMergeCommitThatTheLinearHistoryCheckOwns() {
+        Path root = new GitFixture("history-merge")
+            .write(FILE, "Base.\n").commit("feat(core): add the base fixture file")
+            .mergeASideBranch()
+            .root();
         CommitHistoryCheck check = new CommitHistoryCheck(root);
         assertEquals(4, check.scanned(), "the base, both branch tips, and the merge itself were read");
-        assertTrue(Verdicts.clean(check.findings()), "git's fixed merge header is accepted");
+        assertTrue(
+            Verdicts.clean(check.findings()),
+            "and the merge is banned outright elsewhere, so shape findings here would bury that verdict"
+        );
     }
 }

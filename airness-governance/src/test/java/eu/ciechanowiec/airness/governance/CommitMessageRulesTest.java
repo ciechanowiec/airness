@@ -10,8 +10,9 @@ import org.junit.jupiter.api.Test;
 /**
  * The commit-message policy accepts a well-formed Conventional Commit and rejects each way a message
  * can break the rules: a bad header, a too-short or period-ending subject, a junk word, a missing body
- * on a non-trivial change, and an AI-agent attribution marker. A merge or revert header is exempt from
- * the header shape alone, so the attribution ban still reaches it.
+ * on a non-trivial change, and an AI-agent attribution marker. A revert header, and a commit that git
+ * recorded with two parents, are exempt from the header shape alone, so the attribution ban still
+ * reaches both.
  */
 class CommitMessageRulesTest {
 
@@ -116,17 +117,16 @@ class CommitMessageRulesTest {
     }
 
     @Test
-    void exemptsAMergeHeader() {
-        CommitMessage message = new CommitMessage("Merge branch 'release' into 'main'", "");
-        assertEquals(List.of(), CommitMessageRules.validate(message, NON_TRIVIAL, true));
-    }
-
-    @Test
-    void rejectsAnArbitraryHeaderMerelyBecauseTheCommitHasTwoParents() {
-        CommitMessage message = new CommitMessage("anything bypasses policy", "");
-        assertFalse(
-            CommitMessageRules.validate(message, NON_TRIVIAL, true).isEmpty(),
-            "merge topology exempts only Git's fixed merge-message forms"
+    void exemptsACommitWithTwoParentsWhateverItsHeaderSays() {
+        CommitMessage gitForm = new CommitMessage("Merge branch 'release' into 'main'", "");
+        CommitMessage arbitrary = new CommitMessage("anything at all", "");
+        assertEquals(
+            List.of(), CommitMessageRules.validate(gitForm, NON_TRIVIAL, true),
+            "git's own merge header carries neither a type nor a scope nor a body"
+        );
+        assertEquals(
+            List.of(), CommitMessageRules.validate(arbitrary, NON_TRIVIAL, true),
+            "and topology alone decides it, since LinearHistoryCheck already bans the commit outright"
         );
     }
 
