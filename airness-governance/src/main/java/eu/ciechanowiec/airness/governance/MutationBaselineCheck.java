@@ -73,9 +73,11 @@ public final class MutationBaselineCheck {
     public List<Findings> findings() {
         return List.of(
             new Findings(UNACCEPTED, MutationBaselineRules.unaccepted(this.survivors, this.accepted)),
-            new Findings(STALE, MutationBaselineRules.stale(
-                this.survivors, this.accepted, this.intermittent, this.undecided
-            )),
+            new Findings(
+                STALE, MutationBaselineRules.stale(
+                    this.survivors, this.accepted, this.intermittent, this.undecided
+                )
+            ),
             new Findings(EMPTY, this.empty())
         );
     }
