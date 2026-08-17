@@ -20,6 +20,12 @@ import org.w3c.dom.Node;
  * an inactive profile is still a dormant bypass, and the effective model loses the information that a
  * value came from the child rather than from Airness. Ordinary extension-plugin configuration remains
  * available. Only fields that select, skip, or replace Airness checks are protected.
+ *
+ * <p>A banned group is the one rule here that rejects a tool rather than a bypass. Airness ran mutation
+ * analysis once and stopped, because the accepted-survivor baseline it needs costs per-mutant
+ * bookkeeping whose verdicts turn on how loaded the machine was. A project that reintroduces the tool
+ * reintroduces that cost into a harness with nothing to read its report, so the declaration is refused
+ * where it is written rather than left to fail later with a report nobody consumes.
  */
 @UtilityClass
 public final class MavenModelPolicy {
@@ -48,6 +54,7 @@ public final class MavenModelPolicy {
         "maven-enforcer-plugin",
         Set.of("fail", "failFast", "rules", "rulesToExecute", "rulesToSkip", "skip")
     );
+    private static final Set<String> BANNED_GROUPS = Set.of("org.pitest");
 
     /**
      * Every child declaration that can weaken or make dependency resolution machine-specific.
@@ -63,8 +70,25 @@ public final class MavenModelPolicy {
             executionProblems(root),
             pluginConfigurationProblems(root),
             mergeOverrideProblems(root),
-            systemDependencyProblems(root)
+            systemDependencyProblems(root),
+            bannedGroupProblems(root)
         ).flatMap(stream -> stream).sorted().toList();
+    }
+
+    private static Stream<String> bannedGroupProblems(Element root) {
+        return Stream.of(
+            DeclaredCoordinates.plugins(root),
+            DeclaredCoordinates.dependencies(root),
+            DeclaredCoordinates.paths(root)
+        ).flatMap(stream -> stream)
+            .filter(MavenModelPolicy::bannedGroup)
+            .map(MavenModelPolicy::coordinate)
+            .distinct()
+            .map(coordinate -> "Remove " + coordinate + "; Airness runs no mutation analysis");
+    }
+
+    private static boolean bannedGroup(Node declaration) {
+        return BANNED_GROUPS.contains(Xml.text(declaration, "groupId").orElse(""));
     }
 
     private static Stream<String> propertyProblems(Element root) {
