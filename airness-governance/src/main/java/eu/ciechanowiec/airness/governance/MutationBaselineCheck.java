@@ -13,6 +13,10 @@ import java.util.Set;
  * every mutant died, and a mutation check that can report perfection by mutating nothing is a check that
  * says nothing. A misaimed target pattern produces exactly that, and it looks like success.
  *
+ * <p>An accepted entry the run could not decide is left alone. PIT counts a timeout as a detection, so
+ * a mutant that merely slows a test down looks killed on a loaded machine and alive on a quiet one, and
+ * reporting it would ask for a line whose deletion the next run reverses.
+ *
  * <p>A missing report throws rather than being reported, because there is no verdict to give: the
  * analysis this reads is produced later in the same phase, so an absent report means the two ran in the
  * wrong order rather than that the code is clean. A missing baseline throws for a different reason and
@@ -32,6 +36,7 @@ public final class MutationBaselineCheck {
     private final Set<MutationSurvivor> survivors;
     private final Set<MutationSurvivor> accepted;
     private final Set<MutationSurvivor> intermittent;
+    private final Set<MutationSurvivor> undecided;
 
     /**
      * Reads the report and the baseline.
@@ -44,6 +49,7 @@ public final class MutationBaselineCheck {
         this.report = report;
         this.mutants = MutationBaselineRules.count(analysis);
         this.survivors = MutationBaselineRules.survivors(analysis);
+        this.undecided = MutationBaselineRules.undecided(analysis);
         String accepting = read(baseline, NO_BASELINE);
         this.accepted = MutationBaselineRules.accepted(accepting);
         this.intermittent = MutationBaselineRules.intermittent(accepting);
@@ -67,7 +73,9 @@ public final class MutationBaselineCheck {
     public List<Findings> findings() {
         return List.of(
             new Findings(UNACCEPTED, MutationBaselineRules.unaccepted(this.survivors, this.accepted)),
-            new Findings(STALE, MutationBaselineRules.stale(this.survivors, this.accepted, this.intermittent)),
+            new Findings(STALE, MutationBaselineRules.stale(
+                this.survivors, this.accepted, this.intermittent, this.undecided
+            )),
             new Findings(EMPTY, this.empty())
         );
     }

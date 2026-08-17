@@ -48,6 +48,21 @@ class MutationBaselineCheckTest {
         sample.Subject\tother\tremoved call to sample.Subject::log\tNo test observes the log call
         """;
 
+    private static final String UNDECIDED_REPORT = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <mutations>
+            <mutation detected='true' status='TIMED_OUT'>
+                <mutatedClass>sample.Subject</mutatedClass>
+                <mutatedMethod>spin</mutatedMethod>
+                <description>removed call to java/lang/Thread::sleep</description>
+            </mutation>
+        </mutations>
+        """;
+
+    private static final String ACCEPTS_THE_UNDECIDED_MUTANT = """
+        sample.Subject\tspin\tremoved call to java/lang/Thread::sleep\tThe pause only sets the cadence
+        """;
+
     @TempDir
     private Path directory;
 
@@ -78,6 +93,18 @@ class MutationBaselineCheckTest {
         assertEquals(
             1, Verdicts.offences(this.check(REPORT, ACCEPTS_A_KILLED_MUTANT).findings(), "now killed").size(),
             "a line for a mutant that now dies is what stops the list rotting into a blanket exemption"
+        );
+    }
+
+    // A timeout says the machine was busy rather than that a test caught anything, so the entry has to
+    // outlive the run that timed out. Otherwise the build is red whichever way the line is recorded.
+    @Test
+    void keepsAnAcceptedEntryThatTheRunFailedToDecide() {
+        MutationBaselineCheck check = this.check(UNDECIDED_REPORT, ACCEPTS_THE_UNDECIDED_MUTANT);
+        assertEquals(1, check.mutants(), "the mutant was produced, whatever became of it");
+        assertTrue(
+            Verdicts.offences(check.findings(), "now killed").isEmpty(),
+            "a mutant the run did not decide is not a line to delete"
         );
     }
 

@@ -25,6 +25,18 @@ class MutationBaselineRulesTest {
         </mutations>
         """;
 
+    private static final String UNDECIDED_REPORT = """
+        <mutations>
+        <mutation detected='true' status='TIMED_OUT'><mutatedClass>a.D</mutatedClass>\
+        <mutatedMethod>spin</mutatedMethod><description>removed call to java/lang/Thread::sleep</description>\
+        </mutation>
+        </mutations>
+        """;
+
+    private static final String ACCEPTS_THE_UNDECIDED = """
+        a.D\tspin\tremoved call to java/lang/Thread::sleep\tthe pause sets cadence rather than any answer
+        """;
+
     @Test
     void readsOnlyTheMutantsThatAreStillAlive() {
         Set<MutationSurvivor> survivors = MutationBaselineRules.survivors(REPORT);
@@ -52,7 +64,8 @@ class MutationBaselineRulesTest {
             MutationBaselineRules.stale(
                 MutationBaselineRules.survivors(REPORT),
                 MutationBaselineRules.accepted(baseline),
-                MutationBaselineRules.intermittent(baseline)
+                MutationBaselineRules.intermittent(baseline),
+                MutationBaselineRules.undecided(REPORT)
             )
         );
     }
@@ -66,7 +79,8 @@ class MutationBaselineRulesTest {
             MutationBaselineRules.stale(
                 MutationBaselineRules.survivors(REPORT),
                 MutationBaselineRules.accepted(baseline),
-                MutationBaselineRules.intermittent(baseline)
+                MutationBaselineRules.intermittent(baseline),
+                MutationBaselineRules.undecided(REPORT)
             ).isEmpty(),
             "a marked entry is not a line to delete"
         );
@@ -82,6 +96,56 @@ class MutationBaselineRulesTest {
         assertEquals(
             List.of("C.stop: removed call to a/C::close"),
             MutationBaselineRules.unaccepted(MutationBaselineRules.survivors(REPORT), accepted)
+        );
+    }
+
+    @Test
+    void readsTheMutantsTheRunFailedToDecide() {
+        Set<MutationSurvivor> undecided = MutationBaselineRules.undecided(UNDECIDED_REPORT);
+        assertEquals(1, undecided.size(), "the timed-out mutant reached no verdict");
+        assertTrue(
+            undecided.contains(
+                MutationSurvivor.of("a.D", "spin", "removed call to java/lang/Thread::sleep")
+            )
+        );
+    }
+
+    @Test
+    void doesNotCountAnUndecidedMutantAsAlive() {
+        assertTrue(
+            MutationBaselineRules.survivors(UNDECIDED_REPORT).isEmpty(),
+            "a mutant that timed out was not seen to survive either"
+        );
+    }
+
+    // PIT counts a timeout as a detection, so a mutant that merely slows a test down looks killed on a
+    // loaded machine and alive on a quiet one. Reporting the entry would ask for a line whose deletion
+    // the next run reverses, which is the same red-either-way trap the intermittent marker exists for.
+    @Test
+    void keepsAnAcceptedEntryThatThisRunFailedToDecide() {
+        assertTrue(
+            MutationBaselineRules.stale(
+                MutationBaselineRules.survivors(UNDECIDED_REPORT),
+                MutationBaselineRules.accepted(ACCEPTS_THE_UNDECIDED),
+                MutationBaselineRules.intermittent(ACCEPTS_THE_UNDECIDED),
+                MutationBaselineRules.undecided(UNDECIDED_REPORT)
+            ).isEmpty(),
+            "a mutant the run did not decide is not a line to delete"
+        );
+    }
+
+    // The exemption is only as wide as the doubt. An entry absent from a report that decided everything
+    // it produced is still a stale line, so a vanished mutant is still cleaned up.
+    @Test
+    void stillReportsAnAcceptedEntryTheRunDecidedAgainst() {
+        assertEquals(
+            List.of("D.spin: removed call to java/lang/Thread::sleep"),
+            MutationBaselineRules.stale(
+                MutationBaselineRules.survivors(REPORT),
+                MutationBaselineRules.accepted(ACCEPTS_THE_UNDECIDED),
+                MutationBaselineRules.intermittent(ACCEPTS_THE_UNDECIDED),
+                MutationBaselineRules.undecided(REPORT)
+            )
         );
     }
 

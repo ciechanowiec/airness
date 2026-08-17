@@ -115,6 +115,8 @@ it is published, only a fresh history satisfies the rule.
   qualified class, method, and mutation description. Add a fourth field that explains why the mutation is accepted.
 - Treat a survivor missing from the baseline as a test gap. Remove a baseline entry when the tests detect its
   mutation.
+- Keep an entry whose mutation the run reached no verdict on. A timeout, an out-of-memory, or a run error reports
+  how loaded the machine was rather than what the tests assert, so none of them is a detection.
 - Start the reason with `[intermittent]` only when tests sometimes detect the mutation and sometimes miss it.
 - Treat a mutation run that produces no mutations as a failure.
 
