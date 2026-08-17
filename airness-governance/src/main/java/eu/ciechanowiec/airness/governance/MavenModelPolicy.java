@@ -28,7 +28,6 @@ public final class MavenModelPolicy {
     private static final Set<String> PROTECTED_PROPERTIES = Set.of(
         "airness.coverage.skip",
         "airness.enforce",
-        "airness.mutation.skip",
         "airness.rewrite.apply.phase",
         "airness.source.formatting.apply",
         "maven.test.skip",

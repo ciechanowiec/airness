@@ -32,8 +32,7 @@ Airness governs all of the following domains:
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material.
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test,
-  production-to-test boundaries, per-class line and branch coverage, current-build coverage
-  evidence, mutation analysis, and accepted mutation survivors.
+  production-to-test boundaries, per-class line and branch coverage, and current-build coverage evidence.
 - **Repository assurance:** secret scanning, Qodana analysis, complete Git history, commit-message policy, commit
   typography, linear history, and history-wide compliance.
 
@@ -92,7 +91,7 @@ it is published, only a fresh history satisfies the rule.
 3. Run `mvn process-resources -Pformat` to apply formatting and rewrite recipes, then review the resulting source.
 4. Run `mvn clean package` for Default verification.
 5. Run `mvn clean package -Pextended` before finishing. Extended verification includes Default verification and adds
-   history, mutation, secret, and Qodana checks.
+   history, secret, and Qodana checks.
 
 ## Layer 5: Exceptions and Repairs
 
@@ -100,26 +99,9 @@ it is published, only a fresh history satisfies the rule.
   `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
 - Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
-- Change typography exclusions, coverage exclusions, mutation exclusions, mutation threads, mutation timeouts, or the
-  default test timeout only for an explicit project requirement. Never use an exclusion or a larger timeout merely to
-  obtain a pass.
+- Change typography exclusions, coverage exclusions, or the default test timeout only for an explicit project
+  requirement. Never use an exclusion or a larger timeout merely to obtain a pass.
 - For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
   the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
   baseline mechanism and keep the reason beside the entry.
 
-### Mutation Baseline
-
-- Keep `mutation-baseline.tsv` in every module to which the inherited mutation analysis applies, even when the file
-  is empty.
-- Copy each accepted survivor from `target/pit-reports/mutations.xml` as three tab-separated fields: the fully
-  qualified class, method, and mutation description. Add a fourth field that explains why the mutation is accepted.
-- Treat a survivor missing from the baseline as a test gap. Remove a baseline entry when the tests detect its
-  mutation.
-- Keep an entry whose mutation the run reached no verdict on. A timeout, an out-of-memory, or a run error reports
-  how loaded the machine was rather than what the tests assert, so none of them is a detection.
-- Start the reason with `[intermittent]` only when tests sometimes detect the mutation and sometimes miss it.
-- Treat a mutation run that produces no mutations as a failure.
-
-```text
-com.example.orders.ClockAdapter	now	removed call to java/time/Clock::instant	Covered by an external platform test
-```

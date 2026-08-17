@@ -1039,8 +1039,6 @@ run_case 'tree: a child-module mutation fails the reactor build' 1 \
     'Build plugins changed committable files|working tree content differs' \
     "$multimodule" clean package -Preactor-child
 git -C "$multimodule" restore .gitattributes
-run_case 'mutation: a test-only module needs no PIT report' 0 'BUILD SUCCESS' \
-    "$multimodule/child" airness:mutation-baseline
 
 # The child's version is deliberately unrelated to Airness. skipTests must compile and package while
 # bypassing every inherited check and ordinary test.
@@ -1368,18 +1366,15 @@ run_case 'history: a merge commit is rejected' 1 'Merge commits in the history' 
     "$merged" airness:linear-history
 
 # The extended profile had never run against a consumer at all, only against Airness itself, so nothing said
-# whether a consumer reaches its goals or in what order. Both cases below stop the build inside the
-# governance execution, which runs its history goals and the mutation baseline ahead of the two goals that
-# want Docker, so the wiring is proved without pulling an image.
+# whether a consumer reaches its goals or in what order. The case below stops the build inside the
+# governance execution, which runs its history goals ahead of the two goals that want Docker, so the
+# wiring is proved without pulling an image.
 #
 # Findings are reported rather than enforced, for the same reason the fixture is built that way above: it
 # exists to exercise the rewrite recipes and carries the untidy code they rewrite, which the compiler
-# rejects under enforcement before any of this is reached. What these two assert survives that, because a
-# missing baseline stops the build whatever the switch says, and a reported finding is printed either way.
+# rejects under enforcement before any of this is reached. What this asserts survives that, because a
+# commit the policy rejects stops the build whatever the switch says.
 extended_profile="$(new_consumer extended-profile)"
-run_case 'extended: a consumer is told to create its own mutation baseline' 1 \
-    'mutation-baseline.tsv, so create it' \
-    "$extended_profile" clean package -Pextended -Dairness.enforce=false
 git -C "$extended_profile" commit --quiet --allow-empty --message 'wip'
 run_case 'extended: a consumer commit message answers to the policy' 1 \
     'Commit messages that break the policy' \

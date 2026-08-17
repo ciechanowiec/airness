@@ -218,10 +218,6 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 | empty
 | Class patterns excluded from instruction and branch test coverage checks.
 
-| `airness.mutation.excluded.classes`
-| empty
-| Class patterns left out of mutation analysis.
-
 | [[airness-dependency-check-suppression-file,airness.dependency-check.suppression.file]]`airness.dependency-check.suppression.file`
 | empty
 | Local path or URL of an OWASP Dependency-Check XML suppression file. Create it from the HTML report and follow the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^]. Use a suppression only for a confirmed false positive, explain it in the rule's `notes` element, and remove it when it no longer matches.
@@ -229,18 +225,6 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 | `airness.test.timeout`
 | `30 s`
 | Ceiling on one test, lifecycle method, or template invocation. A test that runs longer fails. Raise it only for work that genuinely takes longer.
-
-| `airness.mutation.threads`
-| `4`
-| Worker threads used by mutation analysis.
-
-| `airness.mutation.timeout.constant`
-| `2000`
-| Extra milliseconds added to the test timeout calculated by mutation analysis.
-
-| `airness.mutation.timeout.factor`
-| `1.25`
-| Number multiplied by a test's normal duration when mutation analysis calculates its timeout.
 
 |===
 

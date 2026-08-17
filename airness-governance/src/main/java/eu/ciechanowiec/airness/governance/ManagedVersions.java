@@ -66,7 +66,6 @@ public final class ManagedVersions {
             "spotbugs-maven-plugin",
             "spotbugs-maven-plugin.version"
         ),
-        suppliedPlugin("org.pitest", "pitest-maven", "pitest-maven.version"),
         suppliedDependency("org.projectlombok", "lombok", "lombok.version"),
         suppliedDependency("org.junit.jupiter", "junit-jupiter", "junit.version"),
         suppliedDependency("org.junit.jupiter", "junit-jupiter-api", "junit.version"),
@@ -110,7 +109,6 @@ public final class ManagedVersions {
             "rewrite-testing-frameworks",
             "rewrite-testing-frameworks.version"
         ),
-        suppliedDependency("org.pitest", "pitest-junit5-plugin", "pitest-junit5-plugin.version"),
         suppliedDependency(
             "org.codehaus.mojo", "extra-enforcer-rules", "extra-enforcer-rules.version"
         )

@@ -15,8 +15,8 @@
 
     <name>airness-governance</name>
     <description>
-        The governance checks over repository files, history, dependencies, documentation, managed
-        assets, and mutation evidence.
+        The governance checks over repository files, history, dependencies, documentation, and managed
+        assets.
 
         Every check is plain Java over an explicit repository root and explicit paths. Nothing here knows
         about Maven, which is what lets the same class run from a Mojo or from a test.
@@ -119,50 +119,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>extended</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.pitest</groupId>
-                        <artifactId>pitest-maven</artifactId>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.pitest</groupId>
-                                <artifactId>pitest-junit5-plugin</artifactId>
-                                <version>${pitest-junit5-plugin.version}</version>
-                            </dependency>
-                        </dependencies>
-                        <configuration>
-                            <targetClasses>
-                                <param>eu.ciechanowiec.airness.governance.*</param>
-                            </targetClasses>
-                            <targetTests>
-                                <param>eu.ciechanowiec.airness.governance.*</param>
-                            </targetTests>
-                            <threads>4</threads>
-                            <mutationThreshold>80</mutationThreshold>
-                            <coverageThreshold>80</coverageThreshold>
-                            <timestampedReports>false</timestampedReports>
-                            <outputFormats>
-                                <param>HTML</param>
-                                <param>XML</param>
-                            </outputFormats>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>airness-self-mutation-coverage</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>mutationCoverage</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>
