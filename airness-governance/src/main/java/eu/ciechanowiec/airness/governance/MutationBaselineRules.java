@@ -19,12 +19,19 @@ import lombok.experimental.UtilityClass;
  * two failures distinct: a survivor nobody accepted is a new gap, and an accepted entry that no longer
  * survives is a stale line to delete, which is what stops the list from rotting into a blanket
  * exemption.
+ *
+ * <p>Both halves read what became of a mutant, so both need that outcome to mean something. A mutant
+ * the analysis could not decide means nothing either way, and is held apart from the two so that a
+ * loaded machine cannot turn an accepted entry into a line to delete and a quiet one ask for it back.
  */
 @UtilityClass
 final class MutationBaselineRules {
 
     private static final Pattern SURVIVOR = Pattern.compile(
         "(?s)<mutation detected='false' status='(?:SURVIVED|NO_COVERAGE)'.*?</mutation>"
+    );
+    private static final Pattern UNDECIDED = Pattern.compile(
+        "(?s)<mutation detected='(?:true|false)' status='(?:TIMED_OUT|MEMORY_ERROR|RUN_ERROR)'.*?</mutation>"
     );
     private static final Pattern MUTATION = Pattern.compile("<mutation ");
     private static final Pattern OWNER = Pattern.compile("<mutatedClass>([^<]*)</mutatedClass>");
@@ -57,7 +64,30 @@ final class MutationBaselineRules {
      * @return the surviving mutants
      */
     static Set<MutationSurvivor> survivors(CharSequence report) {
-        return SURVIVOR.matcher(report).results()
+        return matching(SURVIVOR, report);
+    }
+
+    /**
+     * The mutants a run reached no verdict on, so what became of them is evidence of nothing.
+     *
+     * <p>PIT reports a mutant as timed out, out of memory, or failed to run when the analysis could not
+     * decide it, and each of those turns on how loaded the machine was rather than on what a test
+     * asserts. A timeout is the common one, because PIT counts it as a detection and a mutant that
+     * merely slows a test down crosses the bound on a busy runner and clears it on a quiet one.
+     *
+     * <p>The stale half of this check infers a kill from absence from the survivor set, and an undecided
+     * mutant is absent from it. Without separating the two, such a mutant reads as reliably killed, its
+     * accepted entry is reported as a line to delete, and the next run asks for the same line back.
+     *
+     * @param report the contents of PIT's {@code mutations.xml}
+     * @return the mutants the run did not decide
+     */
+    static Set<MutationSurvivor> undecided(CharSequence report) {
+        return matching(UNDECIDED, report);
+    }
+
+    private static Set<MutationSurvivor> matching(Pattern pattern, CharSequence report) {
+        return pattern.matcher(report).results()
             .map(MatchResult::group)
             .map(MutationBaselineRules::survivor)
             .collect(Collectors.toUnmodifiableSet());
@@ -131,15 +161,17 @@ final class MutationBaselineRules {
      * @param survivors    what the run left alive
      * @param accepted     what this repository has accepted
      * @param intermittent the accepted entries whose outcome does not repeat
+     * @param undecided    the mutants this run reached no verdict on
      * @return the stale entries, most readable first
      */
     static List<String> stale(
         Collection<MutationSurvivor> survivors, Collection<MutationSurvivor> accepted,
-        Collection<MutationSurvivor> intermittent
+        Collection<MutationSurvivor> intermittent, Collection<MutationSurvivor> undecided
     ) {
         return accepted.stream()
             .filter(entry -> !survivors.contains(entry))
             .filter(entry -> !intermittent.contains(entry))
+            .filter(entry -> !undecided.contains(entry))
             .map(MutationSurvivor::readable)
             .sorted()
             .toList();
