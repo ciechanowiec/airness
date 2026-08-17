@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 /**
  * Every file the harness owns is where its policy says it should be, with the bytes it should have.
  *
- * <p>Four disagreements are reported separately, on the same argument the mutation baseline makes.
+ * <p>Four disagreements are reported separately, because each of them names a different repair.
  * A file that drifted is a repair to run. An opt-out that no longer differs from canonical is a line to
  * delete, and without that half the opt-out list rots into a blanket exemption. An opt-out naming a path
  * the manifest does not hold is a typo, and a typo in an exemption list reads as an exemption that

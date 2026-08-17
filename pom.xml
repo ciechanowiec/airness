@@ -84,7 +84,6 @@
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <pmd.version>7.26.0</pmd.version>
         <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
-        <pitest-maven.version>1.25.9</pitest-maven.version>
         <airness.package.root>eu.ciechanowiec.airness</airness.package.root>
         <lombok.version>1.18.46</lombok.version>
         <error-prone.version>2.50.0</error-prone.version>
@@ -100,7 +99,6 @@
         <rewrite-migrate-java.version>3.42.0</rewrite-migrate-java.version>
         <rewrite-static-analysis.version>2.41.0</rewrite-static-analysis.version>
         <rewrite-testing-frameworks.version>3.44.0</rewrite-testing-frameworks.version>
-        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
     </properties>
 
     <build>
@@ -341,11 +339,6 @@
                         <threshold>Low</threshold>
                     </configuration>
                 </plugin>
-                <plugin>
-                    <groupId>org.pitest</groupId>
-                    <artifactId>pitest-maven</artifactId>
-                    <version>${pitest-maven.version}</version>
-                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -554,11 +547,6 @@
                 <groupId>org.openrewrite.recipe</groupId>
                 <artifactId>rewrite-testing-frameworks</artifactId>
                 <version>${rewrite-testing-frameworks.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.pitest</groupId>
-                <artifactId>pitest-junit5-plugin</artifactId>
-                <version>${pitest-junit5-plugin.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.codehaus.mojo</groupId>

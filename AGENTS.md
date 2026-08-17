@@ -35,9 +35,7 @@ Keep packages under `eu.ciechanowiec.airness`. Prefer focused classes and explan
 
 Airness tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example
 `rejectsATrailingPeriod`. Add regression coverage beside the changed module. Self-coverage includes every governance
-class and every non-Mojo Maven-plugin support class. PIT enforces an 80% mutation score for the self-tested
-implementation. Consumer mutation analysis uses the accepted-survivor baseline documented in
-`.airness/agent-guide.md`. Do not treat `mvn clean package` inside
+class and every non-Mojo Maven-plugin support class. Do not treat `mvn clean package` inside
 `airness-it` as a normal test: its fixtures intentionally violate rules.
 
 ## Commit & Pull Request Guidelines

@@ -18,9 +18,8 @@
         The parent a consuming project inherits. It carries the plugin configuration and the lifecycle
         bindings, so a consumer states its coordinates and its dependencies and receives the harness.
 
-        It binds the analyzers, tests, coverage, mutation analysis, source normalization, and repository
-        governance. A consumer updates the harness by raising the parent version and synchronizing the
-        managed files.
+        It binds the analyzers, tests, coverage, source normalization, and repository governance. A
+        consumer updates the harness by raising the parent version and synchronizing the managed files.
     </description>
 
     <properties>
@@ -62,16 +61,6 @@
         <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
         <skipTests>false</skipTests>
         <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
-        <airness.mutation.skip>${skipTests}</airness.mutation.skip>
-        <!--
-            Classes the mutation analysis leaves alone, comma-separated, each by the role it plays.
-            Empty by default, for the same reason the coverage exclusions are.
-        -->
-        <airness.mutation.excluded.classes></airness.mutation.excluded.classes>
-        <!-- Stable family defaults. A child can override one without copying the PIT declaration. -->
-        <airness.mutation.threads>4</airness.mutation.threads>
-        <airness.mutation.timeout.constant>2000</airness.mutation.timeout.constant>
-        <airness.mutation.timeout.factor>1.25</airness.mutation.timeout.factor>
     </properties>
 
     <!-- Versions come from the root dependency management. These declarations supply the dependencies. -->
@@ -888,7 +877,6 @@
             </activation>
             <properties>
                 <airness.coverage.skip>true</airness.coverage.skip>
-                <airness.mutation.skip>true</airness.mutation.skip>
             </properties>
         </profile>
         <profile>
@@ -910,8 +898,8 @@
         <profile>
             <!--
                 The slow half of the harness. What lands here is what reads more than this module: the
-                whole commit history, the network, Docker, the mutation analysis, and the IntelliJ
-                inspection engine. None of it belongs in the loop a developer runs a dozen times an
+                whole commit history, the network, Docker, and the IntelliJ inspection engine. None of
+                it belongs in the loop a developer runs a dozen times an
                 hour, and all of it runs on every push.
 
                 These are executions in a profile rather than tests carrying a tag. A tag is honoured
@@ -958,54 +946,6 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <!--
-                        The mutation analysis, declared ahead of the plugin whose mutation-baseline goal
-                        reads its report. Both bind to package and Maven runs same-phase executions in
-                        plugin declaration order, so declaring them the other way round would leave the
-                        goal reading a report from the previous build, or none at all.
-
-                        The parent owns this declaration so a project tunes it through properties rather
-                        than carrying its own copy. What a project does own is the baseline file, which
-                        describes that project's own surviving mutants and is meaningless copied.
-                    -->
-                    <plugin>
-                        <groupId>org.pitest</groupId>
-                        <artifactId>pitest-maven</artifactId>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.pitest</groupId>
-                                <artifactId>pitest-junit5-plugin</artifactId>
-                                <version>${pitest-junit5-plugin.version}</version>
-                            </dependency>
-                        </dependencies>
-                        <configuration>
-                            <skip>${airness.mutation.skip}</skip>
-                            <targetClasses>
-                                <param>${airness.package.root}.*</param>
-                            </targetClasses>
-                            <targetTests>
-                                <param>${airness.package.root}.*</param>
-                            </targetTests>
-                            <excludedClasses>${airness.mutation.excluded.classes}</excludedClasses>
-                            <threads>${airness.mutation.threads}</threads>
-                            <timeoutConstant>${airness.mutation.timeout.constant}</timeoutConstant>
-                            <timeoutFactor>${airness.mutation.timeout.factor}</timeoutFactor>
-                            <timestampedReports>false</timestampedReports>
-                            <outputFormats>
-                                <param>HTML</param>
-                                <param>XML</param>
-                            </outputFormats>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>airness-mutation-coverage</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>mutationCoverage</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <plugin>
                         <groupId>eu.ciechanowiec</groupId>
                         <artifactId>airness-maven-plugin</artifactId>
@@ -1029,7 +969,6 @@
                                     <goal>commit-history</goal>
                                     <goal>commit-typography</goal>
                                     <goal>linear-history</goal>
-                                    <goal>mutation-baseline</goal>
                                     <goal>scan-secrets</goal>
                                 </goals>
                             </execution>

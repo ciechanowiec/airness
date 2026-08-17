@@ -18,8 +18,7 @@ import org.apache.maven.project.MavenProject;
  *
  * <p>Each of these has the same failure mode, which is why they are checked before any analyzer runs
  * rather than being left to fail where they are read. Left at {@code UNSET}, the package root makes the
- * null-checker treat every class as unannotated and makes the
- * mutation analysis find no mutants, which reports as a perfect kill rate.
+ * null-checker treat every class as unannotated, which reports as a project with nothing to answer for.
  *
  * <p>A derived default would be worse than none. Deriving the package root from the coordinates is right
  * for a project whose artifactId is one word and wrong for every hyphenated one, and a default that is

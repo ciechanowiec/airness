@@ -17,8 +17,8 @@ import lombok.SneakyThrows;
  * than from anything this project wrote. So the fixture is a repository, and the only thing it stands in
  * for is the content.
  *
- * <p>Each fixture gets a unique directory, because mutation workers can execute the same test in
- * parallel. Every command pins both the Git directory and working tree, so even a damaged fixture
+ * <p>Each fixture gets a unique directory, so that no test can observe or disturb the repository another
+ * one is using. Every command pins both the Git directory and working tree, so even a damaged fixture
  * cannot discover and modify the repository containing the tests. Hooks and signing are turned off,
  * because a fixture commit must not depend on how the machine running it is configured.
  */
