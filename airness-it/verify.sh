@@ -622,6 +622,16 @@ run_case 'parameters: an inactive profile cannot retain a verdict bypass' 1 \
     'Remove child property skipTests' "$consumer" airness:check-parameters
 perl -0pi -e \
     's{\n      <properties><skipTests>true</skipTests></properties>}{}' "$consumer/pom.xml"
+# The harness runs no mutation analysis, so a consumer cannot bring its own. The declaration is refused
+# where it is written, in a profile nobody activates, rather than left to produce a report nothing reads.
+perl -0pi -e \
+    's{<id>reactor-child</id>}{<id>reactor-child</id>\n      <build><plugins><plugin><groupId>org.pitest</groupId><artifactId>pitest-maven</artifactId></plugin></plugins></build>}' \
+    "$consumer/pom.xml"
+run_case 'parameters: a consumer cannot bring its own mutation analysis' 1 \
+    'Remove org[.]pitest:pitest-maven' "$consumer" airness:check-parameters
+perl -0pi -e \
+    's{\n      <build><plugins><plugin><groupId>org[.]pitest</groupId><artifactId>pitest-maven</artifactId></plugin></plugins></build>}{}' \
+    "$consumer/pom.xml"
 
 if grep -Fq '    private static final float FRACTION = 0.75F;' \
     "$consumer/src/main/java/com/example/FormatFixture.java" \

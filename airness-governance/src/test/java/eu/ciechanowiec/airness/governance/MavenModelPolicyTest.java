@@ -159,6 +159,89 @@ class MavenModelPolicyTest {
         assertTrue(this.problems(pom).isEmpty());
     }
 
+    @Test
+    void rejectsAMutationPluginTheHarnessNoLongerRuns() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <groupId>org.pitest</groupId><artifactId>pitest-maven</artifactId>
+            </plugin></plugins></build></project>
+            """;
+        assertEquals(
+            List.of("Remove org.pitest:pitest-maven; Airness runs no mutation analysis"),
+            this.problems(pom)
+        );
+    }
+
+    // The ban is by group rather than by artifact, so an engine or a report module nobody thought to
+    // name is refused on the same line as the plugin itself.
+    @Test
+    void rejectsAMutationArtifactThePolicyNeverNames() {
+        String pom = """
+            <project><dependencies><dependency>
+                <groupId>org.pitest</groupId><artifactId>pitest-command-line</artifactId>
+            </dependency></dependencies></project>
+            """;
+        assertEquals(
+            List.of("Remove org.pitest:pitest-command-line; Airness runs no mutation analysis"),
+            this.problems(pom)
+        );
+    }
+
+    @Test
+    void rejectsAMutationPluginHeldInManagementOrAnInactiveProfile() {
+        String managed = """
+            <project><build><pluginManagement><plugins><plugin>
+                <groupId>org.pitest</groupId><artifactId>pitest-maven</artifactId>
+            </plugin></plugins></pluginManagement></build></project>
+            """;
+        String dormant = """
+            <project><profiles><profile><build><plugins><plugin>
+                <groupId>org.pitest</groupId><artifactId>pitest-maven</artifactId>
+            </plugin></plugins></build></profile></profiles></project>
+            """;
+        assertEquals(
+            List.of("Remove org.pitest:pitest-maven; Airness runs no mutation analysis"),
+            this.problems(managed),
+            "a managed declaration supplies the version a child then inherits"
+        );
+        assertEquals(
+            List.of("Remove org.pitest:pitest-maven; Airness runs no mutation analysis"),
+            this.problems(dormant),
+            "a profile nobody activates today is a declaration waiting for the flag that does"
+        );
+    }
+
+    @Test
+    void rejectsAMutationEngineOnAnotherPluginsClasspath() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <dependencies><dependency>
+                    <groupId>org.pitest</groupId><artifactId>pitest-junit5-plugin</artifactId>
+                </dependency></dependencies>
+            </plugin></plugins></build></project>
+            """;
+        assertEquals(
+            List.of("Remove org.pitest:pitest-junit5-plugin; Airness runs no mutation analysis"),
+            this.problems(pom)
+        );
+    }
+
+    // Coordinate-shaped XML inside a configuration block is content the surrounding plugin reads, not a
+    // declaration Maven resolves, so the ban has to stop at the same boundary every other rule does.
+    @Test
+    void acceptsAMutationCoordinateNamedInsidePluginConfiguration() {
+        String pom = plugin(
+            "sample-plugin",
+            """
+                <configuration><artifacts><artifact>
+                    <groupId>org.pitest</groupId><artifactId>pitest-maven</artifactId>
+                </artifact></artifacts></configuration>
+                """
+        );
+        assertTrue(this.problems(pom).isEmpty());
+    }
+
     private static String plugin(String artifact, String body) {
         return """
             <project><build><plugins><plugin>
