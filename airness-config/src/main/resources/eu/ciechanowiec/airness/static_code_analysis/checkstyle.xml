@@ -569,6 +569,15 @@
                       value="PARAM_BLOCK_TAG, RETURN_BLOCK_TAG, THROWS_BLOCK_TAG, EXCEPTION_BLOCK_TAG, DEPRECATED_BLOCK_TAG"/>
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
+        <!--
+        An escaped entity such as &lt; is markup that a reader of the source has to decode, while the
+        rendered page shows the same character either way. The OpenJDK documentation style guide asks
+        for the inline tag instead. Verbatim regions ({@code}, {@literal}, {@snippet}, <pre>, <code>)
+        are exempt, so a code sample keeps whatever escaping it needs.
+        -->
+        <module name="PreferLiteralJavadocInlineTag">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
         <module name="RequireEmptyLineBeforeBlockTagGroup">
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
