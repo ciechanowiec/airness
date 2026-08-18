@@ -2,8 +2,16 @@
 # Verifies published inheritance from isolated consumer repositories. No Airness tracked file is edited.
 set -eu
 
-scratch="$(mktemp -d)"
-trap 'rm -rf "$scratch"' EXIT INT TERM
+# Fixtures live under the home directory because Docker mounts them. A bind mount only carries
+# content from a path the daemon shares, a macOS daemon shares the home directory and need not
+# share the system temporary directory, and an unshared source mounts as an empty directory
+# rather than as an error. The container then reads nothing, and the goals that drive one report
+# on the machine instead of on the fixture, which is the one thing this suite must never do.
+scratch="$(mktemp -d "$HOME/.airness-it-XXXXXX")"
+# The Qodana container writes its report as root, and a file whose directory root owns cannot be
+# unlinked by the user who started the run. Cleanup therefore passes over what it cannot remove
+# without a word, so a scratch directory the runner discards anyway never decides the verdict.
+trap 'rm -rf "$scratch" 2>/dev/null || true' EXIT INT TERM
 failures=0
 
 new_consumer() {
@@ -1375,20 +1383,28 @@ git -C "$merged" merge --quiet --no-ff side --message "Merge branch 'side'"
 run_case 'history: a merge commit is rejected' 1 'Merge commits in the history' \
     "$merged" airness:linear-history
 
-# The extended profile had never run against a consumer at all, only against Airness itself, so nothing said
-# whether a consumer reaches its goals or in what order. The case below stops the build inside the
-# governance execution, which runs its history goals ahead of the two goals that want Docker, so the
-# wiring is proved without pulling an image.
+# The extended profile had never run against a consumer at all, only against Airness itself, so nothing
+# said whether a consumer reaches its goals or in what order. The order is read from the log rather than
+# from an exit code, because the profile ends in two goals that drive Docker, and what a container does
+# on one machine it need not do on another. A verdict taken from the exit code would describe the
+# machine. Every goal this asserts has already reported by the time either container starts.
 #
-# Findings are reported rather than enforced, for the same reason the fixture is built that way above: it
-# exists to exercise the rewrite recipes and carries the untidy code they rewrite, which the compiler
-# rejects under enforcement before any of this is reached. What this asserts survives that, because a
-# commit the policy rejects stops the build whatever the switch says.
+# Findings are reported rather than enforced, because the fixture carries the untidy code the rewrite
+# recipes exist to fix, and enforcement stops the build at the coverage floor long before the profile
+# reaches any of these goals.
 extended_profile="$(new_consumer extended-profile)"
 git -C "$extended_profile" commit --quiet --allow-empty --message 'wip'
-run_case 'extended: a consumer commit message answers to the policy' 1 \
-    'Commit messages that break the policy' \
-    "$extended_profile" clean package -Pextended -Dairness.enforce=false
+extended_log="$scratch/extended-profile.log"
+(cd "$extended_profile" && mvn --batch-mode --no-transfer-progress clean package -Pextended \
+    -Dairness.enforce=false) > "$extended_log" 2>&1 || true
+reached="$(grep -cE '^\[INFO\] --- airness:[^ ]+:(commit-history|commit-typography|linear-history|scan-secrets) \(airness-governance-extended\)' "$extended_log" || true)"
+if [ "$reached" -eq 4 ] && grep -Fq 'Commit messages that break the policy' "$extended_log"; then
+    echo 'ok       extended: a consumer reaches the profile governance goals'
+else
+    echo "FAILED   extended: a consumer reached $reached of 4 profile governance goals" >&2
+    sed -n '1,220p' "$extended_log" >&2
+    failures=$((failures + 1))
+fi
 
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
 assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.5-SNAPSHOT/airness-assets-1.0.5-SNAPSHOT.jar"
