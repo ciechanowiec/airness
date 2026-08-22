@@ -233,6 +233,32 @@ final class RewriteApache {
     }
 }
 JAVA
+    cat > "$directory/src/main/java/com/example/RewriteMapIteration.java" <<'JAVA'
+package com.example;
+
+import java.util.Map;
+
+/** Exercises static-analysis modernization inherited from Airness. */
+final class RewriteMapIteration {
+
+    private RewriteMapIteration() {
+    }
+
+    /**
+     * Sums the values a map holds.
+     *
+     * @param map map whose values to sum
+     * @return the sum of the values
+     */
+    static int sum(Map<String, Integer> map) {
+        int sum = 0;
+        for (String key : map.keySet()) {
+            sum += map.get(key);
+        }
+        return sum;
+    }
+}
+JAVA
     cat > "$directory/src/test/java/com/example/RewriteTestingTest.java" <<'JAVA'
 package com.example;
 
@@ -905,6 +931,17 @@ if grep -Fq 'StringUtils.isBlank' "$consumer/src/main/java/com/example/RewriteAp
     failures=$((failures + 1))
 else
     echo 'ok       rewrite: Apache Commons cleanup reaches consumers'
+fi
+
+# The only static-analysis recipe named on its own, because it is absent from the composite that
+# carries the rest. A release that folds it into that composite, or that renames it, would otherwise
+# take it away without a word.
+if grep -Fq 'map.entrySet()' "$consumer/src/main/java/com/example/RewriteMapIteration.java" \
+    && ! grep -Fq 'map.keySet()' "$consumer/src/main/java/com/example/RewriteMapIteration.java"; then
+    echo 'ok       rewrite: the map iteration cleanup reaches consumers'
+else
+    echo 'FAILED   rewrite: the map iteration cleanup did not reach consumers' >&2
+    failures=$((failures + 1))
 fi
 
 if grep -Fq 'assertThat("").isEmpty();' "$consumer/src/test/java/com/example/RewriteTestingTest.java" \
