@@ -22,6 +22,15 @@ recipeList:
   - org.openrewrite.staticanalysis.CommonStaticAnalysis
   # Idiomatic use of stable Java APIs.
   - org.openrewrite.staticanalysis.JavaApiBestPractices
+  # A static-analysis recipe that ships in the same artifact as the composite above without being a
+  # member of it, so naming it is what runs it. It turns a keySet loop that calls get into an entrySet
+  # loop, which stops the map being probed a second time for every element, and it rewrites only when
+  # the body neither reassigns the map nor captures the loop variable, so the edit stays deterministic.
+  # RemoveDuplicateAnnotations arrived in the same release and is left out. It clears the duplicate a
+  # migration leaves behind when it collapses several annotations into one, this set carries no such
+  # migration, and a duplicate of a non-repeatable annotation does not compile on its own, so it has
+  # nothing to clear here. It becomes worth naming on the day a collapsing migration joins the list.
+  - org.openrewrite.staticanalysis.UseMapEntrySetIteration
   # Modernize toward current Java language idioms (text blocks, enhanced instanceof, records).
   - org.openrewrite.java.migrate.UpgradeToJava25
   # JUnit 5 best practices (lifecycle and visibility, assertion idioms).
