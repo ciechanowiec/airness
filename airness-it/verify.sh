@@ -997,6 +997,21 @@ run_case 'assets: later pinned change fails tree verification' 1 \
     "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \
     antrun:run@drift-pinned-asset airness:tree-verify
 
+# A typography exemption is a role rather than a convenience, so the goal reports a prefix that
+# excluded nothing as its own rule. Such a prefix names a path that moved or went, it protects
+# nothing, and it hides the next thing it would have excluded from whoever reads the list next.
+run_case 'typography: an exclusion prefix that excluded nothing is rejected' 1 \
+    'exclusion prefix excluded nothing' \
+    "$consumer" airness:typography -Dairness.typography.excludes=vendor/
+run_case 'report-only: a dead exclusion prefix is visible' 0 \
+    'exclusion prefix excluded nothing' \
+    "$consumer" airness:typography -Dairness.typography.excludes=vendor/ -Dairness.enforce=false
+# The counterpart, so the failure above is read as the dead prefix rather than as any prefix at all,
+# and so the cost a live exemption puts on the record stays part of the contract.
+run_case 'typography: a prefix that excluded files passes and records its cost' 0 \
+    'Typography exemption src left [1-9][0-9]* file' \
+    "$consumer" airness:typography -Dairness.typography.excludes=src
+
 # Maven finishes the root module before starting its child. The tree net therefore needs a fresh
 # snapshot and verification pair in every module, or a child plugin can edit the repository after the
 # root verification has already passed.
