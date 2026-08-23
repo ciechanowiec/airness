@@ -79,6 +79,28 @@ class ManagedVersionsTest {
     }
 
     @Test
+    void rejectsChildConfigurationOfTheLicensePlugin() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <configuration>
+                    <licenseMerges combine.children="append">
+                        <licenseMerge>Apache-2.0|Apache License Version 2.0</licenseMerge>
+                    </licenseMerges>
+                </configuration>
+            </plugin></plugins></build></project>
+            """;
+        assertEquals(
+            List.of(
+                "Remove child declaration of org.codehaus.mojo:license-maven-plugin; "
+                    + "Airness supplies this plugin"
+            ),
+            this.problems(pom)
+        );
+    }
+
+    @Test
     void acceptsUnversionedExtensionPluginsAndUnrelatedCoordinates() {
         List<String> problems = this.problems(CHILD_POM);
         assertFalse(problems.stream().anyMatch(problem -> problem.contains("maven-enforcer-plugin")));
