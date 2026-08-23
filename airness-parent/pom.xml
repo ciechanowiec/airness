@@ -220,6 +220,9 @@
                     <properties>
                         <configurationParameters>
                             junit.jupiter.execution.timeout.default = ${airness.test.timeout}
+                            junit.jupiter.testclass.order.default = org.junit.jupiter.api.ClassOrderer$Random
+                            junit.jupiter.testmethod.order.default = org.junit.jupiter.api.MethodOrderer$Random
+                            junit.jupiter.execution.order.random.seed = 42
                         </configurationParameters>
                     </properties>
                 </configuration>
@@ -386,6 +389,37 @@
                                     <findAllDuplicates>true</findAllDuplicates>
                                     <ignoreWhenIdentical>false</ignoreWhenIdentical>
                                 </banDuplicateClasses>
+                                <!--
+                                    Declaring a mocking library is the project stating that it means to
+                                    mock, which the substitute rules in the shipped Checkstyle
+                                    configuration refuse. Refusing the declaration says so at the
+                                    coordinate rather than at the first import.
+
+                                    searchTransitive is off deliberately. An in-memory implementation of
+                                    an ecosystem protocol is a real component under the standard, and
+                                    several of them - sling-mock and aem-mock are the ones that matter -
+                                    carry a mocking library of their own. Banning the graph would refuse
+                                    those implementations for what their dependencies contain rather
+                                    than for anything the project wrote, and would leave a Sling or AEM
+                                    project with no way to test at all. What the project writes is held
+                                    by the source rules instead, which is where the difference between
+                                    using a protocol implementation and dictating an answer is visible.
+                                -->
+                                <bannedDependencies>
+                                    <searchTransitive>false</searchTransitive>
+                                    <excludes>
+                                        <exclude>org.mockito:*</exclude>
+                                        <exclude>org.easymock:*</exclude>
+                                        <exclude>org.powermock:*</exclude>
+                                        <exclude>org.jmock:*</exclude>
+                                        <exclude>org.jmockit:*</exclude>
+                                    </excludes>
+                                    <message>
+                                        A mocking library is declared here. A test proves nothing about
+                                        code whose collaborators answer what the test dictated. Use the
+                                        real component, or a local implementation of the protocol.
+                                    </message>
+                                </bannedDependencies>
                             </rules>
                         </configuration>
                     </execution>
@@ -631,6 +665,9 @@
                             <goal>entry-files</goal>
                             <goal>comment-prose</goal>
                             <goal>javadoc-links</goal>
+                            <goal>test-assertions</goal>
+                            <goal>package-cycles</goal>
+                            <goal>suppression-budget</goal>
                             <goal>artifact-content</goal>
                             <goal>tree-verify</goal>
                         </goals>

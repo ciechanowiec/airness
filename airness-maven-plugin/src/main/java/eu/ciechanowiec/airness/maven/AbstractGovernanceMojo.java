@@ -94,6 +94,19 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
     }
 
     /**
+     * The Java test source directories of the module being built.
+     *
+     * @return the test source roots that exist on disk
+     */
+    protected final List<Path> moduleTestSourceRoots() {
+        return this.project.getTestCompileSourceRoots().stream()
+            .map(Path::of)
+            .filter(Files::isDirectory)
+            .distinct()
+            .toList();
+    }
+
+    /**
      * Existing production Java source roots of the current module.
      *
      * @return production source roots
@@ -104,6 +117,19 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
             .filter(Files::isDirectory)
             .distinct()
             .toList();
+    }
+
+    /**
+     * Whether the current module contains Java test code.
+     *
+     * <p>A test source root that exists while holding no Java at all is an ordinary state, and a goal
+     * over the tests of such a module has nothing to read. Asking for the sources rather than for the
+     * directory keeps that state out of the refusal that a mistyped root earns.
+     *
+     * @return whether at least one test compile source root contains a Java source file
+     */
+    protected final boolean hasTestJava() {
+        return this.moduleTestSourceRoots().stream().anyMatch(AbstractGovernanceMojo::containsJava);
     }
 
     /**

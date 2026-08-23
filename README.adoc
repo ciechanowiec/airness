@@ -220,7 +220,7 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 
 | [[airness-dependency-check-suppression-file,airness.dependency-check.suppression.file]]`airness.dependency-check.suppression.file`
 | empty
-| Local path or URL of an OWASP Dependency-Check XML suppression file. Create it from the HTML report and follow the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^]. Use a suppression only for a confirmed false positive, explain it in the rule's `notes` element, and remove it when it no longer matches.
+| Local path or URL of an OWASP Dependency-Check XML suppression file. Create it from the HTML report and follow the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^]. Use a suppression only when no upgrade answers the advisory. Name the advisory, state in the rule's `notes` element why this project can't reach the vulnerability, record the date the entry was made, and remove the entry once it no longer matches.
 
 | `airness.test.timeout`
 | `30 s`

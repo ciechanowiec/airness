@@ -186,6 +186,9 @@
                         <properties>
                             <configurationParameters>
                                 junit.jupiter.execution.timeout.default = ${airness.test.timeout}
+                                junit.jupiter.testclass.order.default = org.junit.jupiter.api.ClassOrderer$Random
+                                junit.jupiter.testmethod.order.default = org.junit.jupiter.api.MethodOrderer$Random
+                                junit.jupiter.execution.order.random.seed = 42
                             </configurationParameters>
                         </properties>
                     </configuration>

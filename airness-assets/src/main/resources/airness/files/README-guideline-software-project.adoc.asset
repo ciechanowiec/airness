@@ -48,7 +48,7 @@ endif::[]
 | *Document generated:* | {localdatetime}
 |===
 
-This guideline is written for the AI systems that perform any work in software project repositories, from setting up a new repository, through everyday coding tasks, to remaking an existing one, and for the IT architects and developers who direct them. It assumes familiarity with version control, automated builds, and static analysis. After reading, an AI system can hold every repository it works on in the state the rules describe, and an architect or a developer can verify any repository against them.
+This guideline is written for the AI systems that perform any work in software project repositories, from setting up a new repository, through everyday coding tasks, to remaking an existing one, and for the IT architects and developers who direct them. The guideline assumes familiarity with version control, automated builds, and static analysis. After reading, an AI system can hold every repository it works on in the state the rules describe, and an architect or a developer can verify any repository against them.
 
 [[goal]]
 == Goal
@@ -90,7 +90,7 @@ This section defines the terms the guideline uses and states the qualities that 
 === Check Qualities
 
 . The checks run at the strictest settings their tools offer, relaxed only where a rule of this guideline declares a cap, a floor, an allowlist, or a xref:#suppressions[suppression].
-. A check is deterministic: on the same state of the repository it reaches the same verdict on every run and on every machine. The one exception is the xref:#dependency-freshness[freshness check], which reads a package registry by design and states its own bound.
+. A check is deterministic: on the same state of the repository it reaches the same verdict on every run and on every machine. The exceptions are the two checks of the section xref:#dependencies[] that read a public registry by design: the xref:#dependency-freshness[freshness check] and the xref:#dependency-vulnerabilities[vulnerability check].
 . The toolchain the checks run - every analyzer, every build plugin, and every container image - is pinned to an exact version, so an upstream release can't change a verdict while the repository doesn't change.
 
 [[the-verification-command]]
@@ -98,10 +98,20 @@ This section defines the terms the guideline uses and states the qualities that 
 
 . The repository defines a xref:#verification-command[verification command] and may define partial commands that run declared subsets of the checks - for example, a fast command for everyday work.
 . The verification command runs to a verdict on a fresh clone of the repository. The only preparation a fresh clone needs is installing the toolchain.
-. A run of the verification command doesn't write to the tracked tree of the repository. A tool that reshapes a source file, such as a formatter or an import sorter, runs as a check that fails when it would change a file and applies the change only through a separate command the repository declares. A check compares the tree after a run against the tree before it and fails on any difference, so a pass describes the committed tree and not a tree the run reshaped.
+. A run of the verification command doesn't write to the tracked tree of the repository. A tool that reshapes a source file, such as a formatter or an import sorter, runs as a check that fails when the tool would change a file and applies the change only through a separate command the repository declares. A check compares the tree after a run against the tree before it and fails on any difference, so a pass describes the committed tree and not a tree the run reshaped.
 . The verification command itself starts every external service the tests use.
 . The head commit of the main branch passes the verification command.
-. A check the repository implements itself, rather than one it binds to a third-party tool, is source code of the repository. It meets every rule of the sections xref:#code-rules[] and xref:#testing[], and the harness checks it as it checks any other source code.
+. A check the repository implements itself, rather than one it binds to a third-party tool, is source code of the repository. The check meets every rule of the sections xref:#code-rules[] and xref:#testing[], and the harness treats it like any other source code.
+
+[[harness-integrity]]
+== Harness Integrity
+
+This section states how the harness stays beyond the repository's reach. A check the repository can turn off isn't a rule.
+
+. The harness decides which checks run, how strict they must be, and what they exempt. The harness configuration lives outside the repository, or in a xref:#generated-files[generated file] the regeneration check binds. The repository sets only what the harness leaves open.
+. The harness rejects any repository setting that skips a check, lowers its severity, narrows its scope, or swaps the configuration it reads. Exceptions come only from the harness: a xref:#suppressions[suppression], an exclusion by role, or a stricter cap.
+. The harness reads each setting as written, not as the build tool merges it. Merging hides which layer a value came from. A setting in an unused part of the configuration counts too, because using that part turns the setting into an override.
+. The xref:#verification-command[verification command] fails on any finding. A report-only mode helps a repository adopt the harness. No run in that mode is a pass.
 
 [[repository-organization]]
 == Repository Organization
@@ -163,7 +173,7 @@ This section describes the state of the source code: its size, its types, its na
 
 . Where the ecosystem of the programming language has a static type checker, the type checker is one of the checks.
 . A function doesn't return null and doesn't accept null where the programming language offers an optional or result type instead. A missing value is expressed as a typed value, such as an empty optional.
-. A function that can't do its job fails immediately with an error that says what went wrong. It doesn't fall back silently to a default.
+. A function that can't do its job fails immediately with an error that says what went wrong. The function doesn't fall back silently to a default.
 
 [[explicitness]]
 === Explicitness
@@ -177,6 +187,12 @@ This section describes the state of the source code: its size, its types, its na
 . Data is immutable. A field is assigned once, when its object is created, and a local variable is assigned once. Changed state is expressed as a new value, not as an overwrite of the old one. The only way to mutate is through a xref:#suppressions[suppression].
 . A concrete type is closed to inheritance where the programming language can express the closure. A type stays open only where a dependency must subclass it at run time.
 . New behavior is added by composing objects, not by inheriting. A type inherits only from a base that the programming language or a dependency requires - for example, the base error type.
+
+[[dependency-structure]]
+=== Dependency Structure
+
+. The dependencies among the units the repository declares form a directed acyclic graph. The rule binds at every level the programming language gives a unit a name of its own, such as the module and the package. A check builds the graph from the code and fails on a cycle, naming the units that lie on the cycle.
+. A cycle is broken by moving the shared concept into a unit that both sides depend on, or by inverting one direction behind an abstraction that the depended-on side declares. A cycle is never declared acceptable.
 
 [[naming]]
 === Naming
@@ -198,9 +214,12 @@ This section describes the state of the source code: its size, its types, its na
 [[suppressions]]
 === Suppressions
 
-. A _suppression_ is a machine-readable exception that turns one named rule off at the narrowest scope its tool supports. It's a source-level annotation where the tool supports one. A tool that has no stable source-level form may use a declared configuration entry or baseline record instead.
+. A _suppression_ is a machine-readable exception that turns one named rule off at the narrowest scope its tool supports. The suppression is a source-level annotation where the tool supports one. A tool that has no stable source-level form may use a declared configuration entry or baseline record instead.
 . Every suppression carries a concise justification in the source annotation, configuration, or baseline record that declares it.
 . A check fails on a suppression without a justification, on one broader than its tool requires, and on one that no longer suppresses anything.
+. A ceiling is declared on how many suppressions the repository holds, and a check fails when the count passes it. Whoever adds a suppression writes its justification, so the justification never stops one from being added. The ceiling stops one, because it makes the next suppression cost the removal of an existing one.
+. The ceiling is expressed against the size of the code rather than as a bare count, so it neither strangles a small repository nor loosens as a large one grows. A ceiling of zero states that nothing may be set aside at all.
+. Every run of the xref:#verification-command[verification command] reports the count in force and the distance left to the ceiling, so the trend is readable before the ceiling is reached.
 
 [[typography]]
 === Typography
@@ -221,15 +240,24 @@ This section describes the state of the third-party packages the repository depe
 . Every package in the xref:#resolved-set[resolved set] carries a license that appears on an allowlist the repository declares. A check reads the license of each such package and fails on a license outside the allowlist.
 . The allowlist names license identifiers, not individual packages. A package whose license the check can't resolve fails the check, like any package whose license lies outside the allowlist.
 
+[[dependency-vulnerabilities]]
+=== Known Vulnerabilities
+
+. A check reads every package in the xref:#resolved-set[resolved set] against a public vulnerability database and fails on a package that carries a known vulnerability at or above a severity the repository declares.
+. The check covers the packages that only the tests and the build use, as well as the packages the product ships. A build tool runs with the privileges of the build, so a vulnerability in that tool is reachable by whoever can change the repository.
+. A finding is answered by upgrading the package. Where no upgrade exists, the finding is recorded in a declared allowlist whose entry names the advisory, states why this repository can't reach the vulnerability, and carries the date the entry was made.
+. An allowlist entry that suppresses no finding fails the check, so an entry disappears once the advisory is answered.
+. The vulnerability check reads a public database, so its verdict can change while the repository doesn't. The section xref:#check-qualities[] exempts the vulnerability check from its determinism rule. When the database is unreachable, the vulnerability check fails.
+
 [[dependency-freshness]]
 === Freshness
 
-Trailing an upstream release by several major versions is a property of the version the repository declares, so it binds as a check. A newer version merely existing isn't a property of the declared version, so it's reported but never fails the build on its own.
+Trailing an upstream release by several major versions is a property of the version the repository declares, so it binds as a check. A newer version merely existing isn't a property of the declared version, so the update is reported but never fails the build on its own.
 
-. Every build reports each stable update available for a package the repository declares, in a manifest of its own or in a manifest that one inherits from. The report names the manifest that owns the declaration, so a manifest that inherits a declaration reports the update without becoming its version owner.
-. A xref:#declared-dependency[declared dependency] trails its latest published release by fewer major versions than a bound the repository declares - for example, two major versions. The check compares every declaration the update report covers against its latest release and fails when the gap reaches the bound. It counts declared dependencies, not the rest of the xref:#resolved-set[resolved set].
+. Every build reports each stable update available for a package the repository declares, in a manifest of its own or in a manifest that one inherits from. The report names the manifest that owns the declaration, so a manifest that inherits a declaration reports the update without becoming the version owner.
+. A xref:#declared-dependency[declared dependency] trails its latest published release by fewer major versions than a bound the repository declares - for example, two major versions. The check compares every declaration the update report covers against its latest release and fails when the gap reaches the bound. The comparison covers declared dependencies, not the rest of the xref:#resolved-set[resolved set].
 . A conventional version uses its numeric major for that comparison. A version beginning with a four-digit year in the range `20**` uses the year as its major-equivalent, so an available release two or more years ahead fails under a bound of two. A version scheme with neither a numeric major nor a leading year has no comparable level and is excluded from this check.
-. This check reads the package registry, so its verdict can change while the repository doesn't. It's the check that the section xref:#check-qualities[] exempts from its determinism rule. The exemption is bounded. A gap below the bound passes. The check fails only when the gap reaches the declared major-version bound. When the registry is unreachable, the check fails.
+. The freshness check reads the package registry, so its verdict can change while the repository doesn't. The section xref:#check-qualities[] exempts the freshness check from its determinism rule, and the exemption is bounded. A gap below the bound passes. A gap that reaches the declared major-version bound fails, and so does an unreachable registry.
 
 [[testing]]
 == Testing
@@ -241,6 +269,8 @@ This section describes the state of the test suite and what it proves.
 
 . A test uses no mocks, no stubs, and no spies. A test runs against real components: a real database, a real server on a local port, a real temporary file.
 . A service that exists only outside the machine is exercised through a local implementation of its protocol. Such an implementation counts as a real component, not as a substitute.
+. [[substitute-criterion,the substitute criterion]]A component is real when it implements the behavior of the protocol it stands for. A component is a _substitute_ when the test declares the answers the component gives back. What the component is named decides nothing: a library named for mocking that implements a protocol in memory supplies a real component, and a class written inside the test tree whose answers a test sets is a substitute.
+. A check fails on the construction of a substitute in test code. The check names the mocking libraries of the ecosystem and the framework declarations that install a substitute in place of a real component. The check binds the xref:#substitute-criterion[] and not a name, so a local implementation of a protocol stays available however its library is named.
 . Test code passes the same static analysis as production code.
 
 [[coverage]]
@@ -254,12 +284,17 @@ This section describes the state of the test suite and what it proves.
 
 . A test produces the same verdict on every run. Every source of randomness whose output a test observes is seeded with a fixed value that the repository declares, and a test asserts nothing about the output of a source that can't be seeded.
 . A test reaches no network beyond the machine it runs on. Every wait a test performs is bounded by a timeout sized so that its expiry signals a defect of the code, not the speed of the machine.
+. A test reaches its verdict whatever order the suite runs in. The harness shuffles that order from a declared fixed seed, so a test that passes only because another test ran first fails at once instead of on the day the discovery order changes. The seed is written down rather than taken from the clock, which keeps the shuffled order identical on every machine and leaves the rule above standing.
 
 [[test-integrity]]
 === Test Integrity
 
 . A check fails on a focused test and on a commented-out test. A test is skipped only by a declared rule that names a platform condition, never by an annotation in the test itself.
 . A test verifies one behavior and states that behavior in its name.
+. A test asserts an observable outcome. A check fails on a test that reaches no assertion, so a test that drives the code without judging what the code produced reports as missing rather than as passing.
+. An assertion whose verdict doesn't depend on the code under test is banned, because no change to that code can make the assertion fail. A check fails on an assertion whose operands are literals alone, such as an assertion that a constant is true.
+. Coverage counts the lines a test ran, not the behaviors a test judged. The floors of the section xref:#coverage[] and the rules above therefore bind together, and neither one stands in for the other.
+. A test fails when the behavior its name states is removed from the code under test. No machine checks this rule reliably, so an xref:#instruction-file[instruction file] states it, and an inspection against the wording of that rule decides compliance.
 
 [[version-control]]
 == Version Control
@@ -280,7 +315,7 @@ feat(obfuscation): mask bearer tokens in request headers
 Provider tokens leaked into the proxy logs through the header dump.
 Masking them in the header parser closes the leak for every consumer.
 ----
-. No commit message attributes the change to an AI agent or to an agent session. No co-authorship trailer, sign-off address, session identifier, or generated-by signature that names an automated agent or the session that produced the change appears in any commit message. A check scans each commit message for the known attribution markers and fails on a hit. Because no pattern can enumerate every agent, an xref:#instruction-file[instruction file] states the rule in prose as well, and an inspection against its wording decides a marker the check doesn't yet know.
+. No commit message attributes the change to an AI agent or to an agent session. No co-authorship trailer, sign-off address, session identifier, or generated-by signature that names an automated agent or the session that produced the change appears in any commit message. A check scans each commit message for the known attribution markers and fails on a hit. Because no pattern can enumerate every agent, an xref:#instruction-file[instruction file] states the rule in prose as well, and an inspection against the wording of that rule decides a marker the check doesn't yet know.
 . The commit checks above are deterministic per commit, so the xref:#verification-command[verification command] applies them not only to new commits but to every commit reachable from the head of the main branch, back to and including the first commit, and fails when any commit violates one. Every commit satisfied the checks when it was recorded, so the whole history stays compliant by construction, and a failure signals a commit that reached the branch without the required verification.
 
 [[linear-history]]
