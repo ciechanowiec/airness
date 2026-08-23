@@ -103,20 +103,27 @@
         parenthesis's line and ends before the closing parenthesis's line. The PairedConditionParentheses
         rule in pmd.xml extends that layout to multiline if/while conditions. See
         https://www.yegor256.com/2014/10/23/paired-brackets-notation.html
-        The remaining checks enforce constructor order, curly-bracket structure, the empty line before
-        a first member, Javadoc conventions, no extra semicolons, no nested switch, and no protected
-        methods in final classes. ConstantUsageCheck is intentionally NOT used: it scans only a single
-        file's text and so mis-fires on Lombok @Getter value objects, whose fields are read via generated
-        accessors from other files; PMD/SpotBugs already cover genuinely unused private fields.
+        The remaining checks enforce curly-bracket structure, the empty line before a first member,
+        Javadoc conventions, no extra semicolons, no nested switch, and no protected methods in final
+        classes. ConstantUsageCheck is intentionally NOT used: it scans only a single file's text and so
+        mis-fires on Lombok @Getter value objects, whose fields are read via generated accessors from other
+        files; PMD/SpotBugs already cover genuinely unused private fields.
         EmptyLinesCheck is intentionally NOT used either: it reads raw lines and so cannot tell a blank
         line between statements, which is what it means to forbid, from one inside a text block, which is
         content. A blank line is what terminates a Server-Sent Event, so any fixture holding one tripped
         it, while the formatter insisted the fixture be a text block and Qodana insisted its newline be
         real - three rules with no form that satisfied all of them. The check has no properties to narrow,
         so it is dropped rather than worked around.
+        ConstructorsOrderCheck is intentionally NOT used either: it reads a constructor as primary when the
+        constructor does not delegate with this(...), and reports every constructor declared after the first
+        primary one. Two constructors that each call super directly are therefore both primary, so the check
+        reports the second one whichever order they are written in. ConstructorsDeclarationGrouping under
+        Coding below is what orders constructors, by ascending parameter count, and a class such as an
+        exception with (String) and (String, Throwable) has no arrangement that satisfies both rules. The
+        check has no properties to narrow, so it is dropped rather than worked around, and constructor order
+        stays with ConstructorsDeclarationGrouping alone.
         -->
         <module name="com.qulice.checkstyle.BracketsStructureCheck"/>
-        <module name="com.qulice.checkstyle.ConstructorsOrderCheck"/>
         <module name="com.qulice.checkstyle.CurlyBracketsStructureCheck"/>
         <module name="com.qulice.checkstyle.EmptyLineBeforeFirstMemberCheck"/>
         <module name="com.qulice.checkstyle.ExtraSemicolonCheck"/>
