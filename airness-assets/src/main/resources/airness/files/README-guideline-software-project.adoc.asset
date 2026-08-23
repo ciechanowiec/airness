@@ -113,7 +113,6 @@ The xref:#harness[harness] stays beyond the xref:#governed-repository[governed r
 
 . The xref:#harness[harness] decides which xref:#check[checks] run, how strict they must be, and what they exclude. The harness configuration lives outside the xref:#governed-repository[governed repository], or in a xref:#generated-files[generated file] that the regeneration check binds. The governed repository sets only what the harness leaves open.
 . The xref:#harness[harness] rejects any setting of the xref:#governed-repository[governed repository] that skips a xref:#check[check], lowers its severity, narrows its scope, or swaps the configuration it reads. Exceptions come only from the harness: a xref:#suppressions[suppression], an exclusion by xref:#file-role[file role], or a stricter cap.
-. The xref:#harness[harness] reads each setting as written, not as the build tool merges it. Merging hides which layer a value came from. A setting in an unused part of the configuration counts too, because using that part turns the setting into an override.
 . The xref:#verification-command[verification command] fails on any finding. A report-only mode helps a software project repository adopt the harness. No run in that mode is a pass.
 
 [[governed-repository-organization]]
@@ -137,8 +136,8 @@ Production code imports neither test code nor development-only dependencies. A x
 === Generated Files
 
 . No generated file carries a direct hand edit: a generated file changes only as the output of its declared generator. The xref:#governed-repository[governed repository] denies AI agents write access to generated files where the runtime used by AI agents supports the denial.
-. A xref:#check[check] reruns the declared generator and fails when the generated file differs from the output. For a generator that resolves against state outside the xref:#governed-repository[governed repository], the check instead verifies that the generated file matches its declared inputs.
-. The xref:#governed-repository[governed repository] excludes generated files, identified by xref:#file-role[file role], from the xref:#check[checks] of the section xref:#code-rules[]. The regeneration check binds them instead.
+. A xref:#check[check] reruns the declared generator and fails when the generated file differs from the output.
+. The xref:#governed-repository[governed repository] excludes generated files, identified by xref:#file-role[file role], from the xref:#check[checks] of the section xref:#code-rules[].
 
 [[governed-repository-configuration]]
 === Governed Repository Configuration
@@ -212,7 +211,7 @@ This section describes the state of the source code: its size, its types, its na
 . Dead code is banned: a xref:#check[check] fails on an unused file, an unused xref:#callable[callable], an unused parameter, an unused dependency, and an unused export outside the declared public interface of the xref:#governed-repository[governed repository].
 . `TODO` and `FIXME` comments are banned.
 . A call to an API that its own supplier marks deprecated in the released artifact is banned.
-. A ban specific to one xref:#governed-repository[governed repository] becomes a xref:#check[check] when the check can verify it reliably, and it isn't restated in the xref:#instruction-file[instruction file]. When no automated check can verify the ban reliably, an instruction file states it like any other stated rule.
+. A ban specific to one xref:#governed-repository[governed repository] becomes a xref:#check[check] when the check can verify it reliably, and it isn't restated in the xref:#instruction-file[instruction file].
 
 [[suppressions]]
 === Suppressions
@@ -233,9 +232,9 @@ This section describes the state of the source code: its size, its types, its na
 [[dependencies]]
 == Dependencies
 
-. This section describes the state of the third-party packages the xref:#governed-repository[governed repository] depends on: the licenses they carry and how far declared dependencies trail the latest stable releases.
-. [[declared-dependency,a declared dependency]]A _declared dependency_ is a package that a manifest of the xref:#governed-repository[governed repository] names directly.
-. [[resolved-set,the resolved set]]The _resolved set_ is the xref:#declared-dependency[declared dependencies] together with every package they pull in.
+. This section governs the licenses and vulnerabilities of third-party packages used by the xref:#governed-repository[governed repository] and the freshness of dependency, plugin, and parent versions.
+. [[declared-coordinate,a declared coordinate]]A _declared coordinate_ is the identity and version of a dependency, plugin, or parent declared in a manifest of the xref:#governed-repository[governed repository] or an inherited manifest.
+. [[resolved-set,the resolved set]]The _resolved set_ contains the packages identified by xref:#declared-coordinate[declared coordinates] and all packages they pull in.
 
 [[dependency-licenses]]
 === Licenses
@@ -246,21 +245,20 @@ This section describes the state of the source code: its size, its types, its na
 [[dependency-vulnerabilities]]
 === Known Vulnerabilities
 
-. A xref:#check[check] reads every package in the xref:#resolved-set[resolved set] against a public vulnerability database and fails on a package that carries a known vulnerability at or above a severity the xref:#governed-repository[governed repository] declares.
-. The xref:#check[check] covers the packages that only the tests and the build use, as well as the packages the product ships. A build tool runs with the privileges of the build, so a vulnerability in that tool is reachable by whoever can change the xref:#governed-repository[governed repository].
-. A finding is answered by upgrading the package. Where no upgrade exists, the finding is recorded in a declared vulnerability allowlist. Each vulnerability-allowlist entry names the advisory, states why the xref:#governed-repository[governed repository] can't reach the vulnerability, and carries the date the entry was made.
-. A vulnerability-allowlist entry that suppresses no finding fails the xref:#check[check], so the entry disappears once the advisory is answered.
-. The vulnerability xref:#check[check] reads a public vulnerability database, so its verdict can change while the xref:#governed-repository[governed repository] doesn't change. The section xref:#check-qualities[] excludes the vulnerability check from its determinism rule. When the public vulnerability database is unreachable, the vulnerability check fails.
+. A xref:#check[check] reads every package in the xref:#resolved-set[resolved set] against a public vulnerability database. It fails on any known vulnerability at or above the severity the xref:#governed-repository[governed repository] declares.
+. The xref:#check[check] covers packages used by the product, tests, and build. Build tools run with build privileges, so their vulnerabilities are reachable by anyone who can change the xref:#governed-repository[governed repository].
+. A finding is resolved by upgrading the package. If no upgrade exists, a declared vulnerability allowlist records the advisory. Each entry explains why the xref:#governed-repository[governed repository] can't reach the vulnerability and records its addition date.
+. Every vulnerability-allowlist entry suppresses a finding. An entry that suppresses none fails the xref:#check[check].
+. The vulnerability xref:#check[check] reads a public database, so its verdict can change while the xref:#governed-repository[governed repository] stays unchanged. The section xref:#check-qualities[] excludes the vulnerability check from determinism. An unreachable database fails the vulnerability check.
 
 [[dependency-freshness]]
 === Freshness
 
-. A gap of several major versions between a xref:#declared-dependency[declared dependency] and its latest stable release is a property of the declared version, so the gap binds as a xref:#check[check]. The existence of a newer stable release alone isn't a property of the declared version, so it never fails the build on its own.
-
-. An [[update-report,an update report]]_update report_ is a build report that names each newer stable release available for a xref:#declared-dependency[declared dependency]. Every build produces an update report. The update report covers dependencies declared in the xref:#governed-repository[governed repository's] own manifests and in inherited manifests. The update report names the manifest that contains each dependency declaration. An inheriting manifest reports the stable release without containing that declaration.
-. A [[freshness-bound,a freshness bound]]_freshness bound_ is the major-version gap at which a xref:#declared-dependency[declared dependency] becomes noncompliant. A declared dependency trails its latest stable release by less than the freshness bound. For example, a xref:#governed-repository[governed repository] can declare a freshness bound of two major versions.
-. The freshness xref:#check[check] compares every dependency declaration in the xref:#update-report[update report] against its latest stable release. A conventional version uses its numeric major for that comparison. A version beginning with a four-digit year in the range `20**` uses the year as its major-equivalent, so an available stable release two or more years ahead fails under a xref:#freshness-bound[freshness bound] of two. The freshness check excludes a version scheme with neither a numeric major nor a leading year because the scheme has no comparable level. The comparison covers xref:#declared-dependency[declared dependencies], not the rest of the xref:#resolved-set[resolved set].
-. The freshness xref:#check[check] reads the public package registry, so its verdict can change while the xref:#governed-repository[governed repository] doesn't change. The section xref:#check-qualities[] excludes the freshness check from its determinism rule, and the exception is bounded. A gap below the xref:#freshness-bound[freshness bound] passes. A gap that reaches the freshness bound fails, and so does an unreachable public package registry.
+. The freshness xref:#check[check] measures the major-version gap between a xref:#declared-coordinate[declared coordinate] and its latest stable release. A newer stable release is reported but doesn't fail the build on its own.
+. An [[update-report,an update report]]_update report_ lists every newer stable release available for a xref:#declared-coordinate[declared coordinate]. Every build produces one for declared coordinates in the xref:#governed-repository[governed repository's] own and inherited manifests. For each coordinate, the report names the manifest that declares it.
+. The [[freshness-bound,the freshness bound]]_freshness bound_ is fixed at a gap of two major versions. A xref:#governed-repository[governed repository] doesn't configure it. A xref:#declared-coordinate[declared coordinate] becomes noncompliant when its latest stable release is at least two major versions ahead. For example, version 71 fails when version 73 is available.
+. The freshness xref:#check[check] compares every xref:#declared-coordinate[declared coordinate] in the xref:#update-report[update report] with its latest stable release. The check uses the numeric major version. For a version beginning with a four-digit year from 2000 through 2099, it treats the year as the major version. A stable release two or more years ahead therefore reaches the xref:#freshness-bound[freshness bound] and fails. The check excludes version schemes with neither a numeric major nor a leading year. It doesn't inspect transitive packages in the xref:#resolved-set[resolved set].
+. Because the freshness xref:#check[check] reads the public package registry, the section xref:#check-qualities[] excludes it from determinism. A gap below the xref:#freshness-bound[freshness bound] passes, and a gap that reaches it fails. An unreachable registry also fails the check.
 
 [[testing]]
 == Testing
@@ -285,14 +283,14 @@ This section describes the state of the test suite and what it proves.
 [[determinism]]
 === Determinism
 
-. A test produces the same verdict on every run. Every source of randomness whose output a test observes is seeded with a fixed value that the xref:#governed-repository[governed repository] declares, and a test asserts nothing about the output of a source that can't be seeded.
+. A test produces the same verdict on every run.
 . A test reaches no network beyond the machine it runs on. Every wait a test performs is bounded by a timeout sized so that its expiry signals a defect of the code, not the speed of the machine.
-. A test reaches its verdict whatever order the test suite runs in. The xref:#harness[harness] shuffles that order from a fixed seed declared by the xref:#governed-repository[governed repository], so a test that passes only because another test ran first fails at once instead of on the day the discovery order changes. The seed is written down rather than taken from the clock, which keeps the shuffled order identical on every machine and preserves test determinism.
+. A test reaches its verdict whatever order the test suite runs in.
 
 [[test-integrity]]
 === Test Integrity
 
-. A xref:#check[check] fails on a focused test and on a commented-out test. A test is skipped only by a declared rule that names a platform condition, never by an annotation in the test itself.
+. A xref:#check[check] fails when test code selects one test or test group to run instead of the complete suite. It also fails when a test is commented out. A test is skipped only by a declared rule that names a platform condition, never by an annotation in the test itself.
 . A test verifies one behavior and states that behavior in its name.
 . A test asserts an observable outcome. A xref:#check[check] fails on a test that reaches no assertion, so a test that drives the code without judging what the code produced reports as missing rather than as passing.
 . An assertion whose verdict doesn't depend on the code under test is banned, because no change to that code can make the assertion fail. A xref:#check[check] fails on an assertion whose operands are literals alone, such as an assertion that a constant is true.
@@ -307,10 +305,9 @@ This section describes the state of the commit history and of the continuous int
 [[commit-messages]]
 === Commit Messages
 
-. Every commit message passes a xref:#check[check] of one format: a commit header of the form `type(scope): subject`, with the commit type drawn from a closed list that the xref:#governed-repository[governed repository] declares.
-. Revert commits follow the fixed commit-header form that the xref:#governed-repository[governed repository] declares. The governed repository declares whether the commit scope may be omitted. The section xref:#linear-history[] governs merge commits.
-. The commit subject holds 15 to 72 characters, ends without a period, and contains no whole word from the closed junk-word list that the xref:#governed-repository[governed repository] declares - for example, `wip`, `tmp`, or `misc`.
-. A change that crosses the triviality threshold the xref:#governed-repository[governed repository] declares - for example, more than 2 files or more than 50 changed lines - carries a commit body that states why the change was made.
+. Every commit message passes a xref:#check[check]. Its commit header has the form `type: subject` or `type(scope): subject`. The commit type is one of `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, or `test`.
+. The commit subject holds 15 to 72 characters, ends without a period, and contains none of these words: `wip`, `tmp`, `temp`, `misc`, `stuff`, `asdf`, `fixup`.
+. A change that touches more than 2 files or changes more than 50 lines carries a commit body that states why the change was made.
 +
 [source,text]
 ----
@@ -327,12 +324,6 @@ Masking them in the header parser closes the leak for every consumer.
 
 . The history is linear: no commit has more than one parent. A branch takes the work of another by a rebase or a cherry-pick.
 . A xref:#check[check] walks the commit history, back to and including the first commit. A commit with more than one parent fails the check.
-
-[[continuous-integration]]
-=== Continuous Integration
-
-. The xref:#governed-repository[governed repository] configures continuous integration to rerun the xref:#verification-command[verification command] on every push and every merge request. Continuous integration blocks a merge whose rerun fails.
-. The commit history of the main branch is append-only: a published commit is corrected by a new commit, never by rewriting.
 
 == About the Document
 
