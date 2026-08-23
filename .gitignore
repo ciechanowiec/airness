@@ -1,4 +1,4 @@
-# IDE
+# IDE & editors
 *.iml
 .idea/*
 .vscode/
@@ -23,17 +23,31 @@ target/
 .gradle/
 hs_err_pid*
 
-# Node / TypeScript
+# Python
+__pycache__/
+
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Build output & caches
 dist/
+dist-tarballs/
 build/
-coverage/
+out/
 *.tsbuildinfo
+.type-coverage/
+packages/ploaness/biome.json
+packages/ploaness/tsconfig.json
 
 # Next.js / Payload CMS
 .next/
 .turbo/
-out/
+.vercel
+next-env.d.ts
+/media
 
 # Supabase
 .supabase/
@@ -46,12 +60,24 @@ supabase/.temp/
 *.tfstate.*
 *.tfplan
 
+# Testing
+coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Environment & secrets
+.env
+.env*.local
+*.pem
+
+# Database
+/.postgres-backup-*.sql
+
 # Drawio
 *.drawio.png.bkp
 *.drawio.png.dtmp
-
-# Python
-__pycache__/
 
 # Compiled documentation
 README*.pdf
