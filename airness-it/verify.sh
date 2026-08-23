@@ -745,6 +745,76 @@ run_case 'checkstyle: unused lambda parameters are rejected' 1 \
     "$consumer" checkstyle:check '-Dcheckstyle.includes=**/UnusedLambda.java'
 rm "$consumer/src/main/java/com/example/UnusedLambda.java"
 
+# Two constructors that each reach super directly are both primary to the Qulice ConstructorsOrderCheck,
+# which wanted the primary one declared last and so reported one of the pair whichever order they were
+# written in. ConstructorsDeclarationGrouping fixes that same order by ascending parameter count, so an
+# exception carrying (String) and (String, Throwable) had no arrangement that passed. The Qulice check is
+# gone. The pair below is what a consumer could not write before, and the reversed pair after it is the
+# rule that outlived the removal: dropping one of two contradicting checks must not drop both.
+cat > "$consumer/src/main/java/com/example/BrokenRunException.java" <<'JAVA'
+package com.example;
+
+/**
+ * Reports a run that could not finish.
+ */
+public final class BrokenRunException extends RuntimeException {
+
+    /**
+     * Reports the failure on its own.
+     *
+     * @param message what went wrong
+     */
+    public BrokenRunException(String message) {
+        super(message);
+    }
+
+    /**
+     * Reports the failure together with its cause.
+     *
+     * @param message what went wrong
+     * @param cause   the failure underneath
+     */
+    public BrokenRunException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+JAVA
+run_case 'checkstyle: constructors in ascending parameter order pass' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/BrokenRunException.java'
+rm "$consumer/src/main/java/com/example/BrokenRunException.java"
+cat > "$consumer/src/main/java/com/example/ReversedRunException.java" <<'JAVA'
+package com.example;
+
+/**
+ * Reports a run that could not finish, with its constructors written the other way round.
+ */
+public final class ReversedRunException extends RuntimeException {
+
+    /**
+     * Reports the failure together with its cause.
+     *
+     * @param message what went wrong
+     * @param cause   the failure underneath
+     */
+    public ReversedRunException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    /**
+     * Reports the failure on its own.
+     *
+     * @param message what went wrong
+     */
+    public ReversedRunException(String message) {
+        super(message);
+    }
+}
+JAVA
+run_case 'checkstyle: constructors out of parameter order are rejected' 1 \
+    'Constructors should be ordered by increasing parameter count' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/ReversedRunException.java'
+rm "$consumer/src/main/java/com/example/ReversedRunException.java"
+
 # Checkstyle only asks that Javadoc exists. doclint is what reads it: a link the javadoc-links goal
 # asked for is worth nothing if nothing afterwards confirms the link reaches anything.
 cat > "$consumer/src/main/java/com/example/DanglingLink.java" <<'JAVA'
@@ -1691,6 +1761,520 @@ else
     echo "FAILED   extended: a consumer reached $reached of 4 profile governance goals" >&2
     sed -n '1,220p' "$extended_log" >&2
     failures=$((failures + 1))
+fi
+
+# Two inspections of the Qodana profile are off, and the fixture below carries what a consumer could not
+# write while they were on. InnerClassOnInterface exempts a nested enum but not a nested record, so it
+# reported a sealed interface once per variant, nine times here. ClassWithTooManyDependencies held a class
+# to 10 where ClassCoupling declares 15, offered no option but that limit, and never counted the JDK, so
+# nothing about it could be narrowed and nothing in the profile said which of the two caps was in force.
+#
+# Three controls sit beside the regression, because dropping a rule and correcting one look alike from the
+# outside. CommandRouter names sixteen collaborators of its own project and must still be reported, by
+# ClassCoupling now. CommandRunner names twelve, which is over the cap that went and under the cap that
+# stayed, so it is the band the change actually moved. JdkHeavy names fourteen java.util and java.time
+# types beside one collaborator and must be reported by neither, which is the reading that showed the
+# dropped inspection was a second cap rather than a rule that counted the JDK.
+#
+# The verdict is read from the report rather than from the exit code, because a fixture that is meant to
+# carry one finding cannot say through an exit code which finding it carried. The case drives Docker, so
+# where no daemon answers it reports that it did not run instead of deciding the suite on a machine that
+# cannot start a container.
+if ! docker info >/dev/null 2>&1; then
+    echo 'skipped  qodana: no Docker daemon answered, so the profile cases did not run'
+else
+    qodana_consumer="$(new_consumer qodana-profile)"
+    cat > "$qodana_consumer/src/main/java/com/example/CommandRequest.java" <<'JAVA'
+package com.example;
+
+/**
+ * A closed set of requests, laid out with its permitted records inside the sealed parent.
+ */
+public sealed interface CommandRequest {
+
+    /**
+     * Describes the request.
+     *
+     * @return the description
+     */
+    String description();
+
+    /**
+     * Starts a project.
+     *
+     * @param root what the request names
+     */
+    record Init(String root) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "init";
+        }
+    }
+
+    /**
+     * Reads a source without changing it.
+     *
+     * @param source what the request names
+     */
+    record Lint(String source) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "lint";
+        }
+    }
+
+    /**
+     * Produces the artifact.
+     *
+     * @param target what the request names
+     */
+    record Build(String target) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "build";
+        }
+    }
+
+    /**
+     * Discards produced output.
+     *
+     * @param scope what the request names
+     */
+    record Clean(String scope) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "clean";
+        }
+    }
+
+    /**
+     * Rewrites a source into its canonical shape.
+     *
+     * @param style what the request names
+     */
+    record Format(String style) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "format";
+        }
+    }
+
+    /**
+     * Sends the artifact to a registry.
+     *
+     * @param registry what the request names
+     */
+    record Publish(String registry) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "publish";
+        }
+    }
+
+    /**
+     * Writes the findings of a run.
+     *
+     * @param findings what the request names
+     */
+    record Report(String findings) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "report";
+        }
+    }
+
+    /**
+     * Decides whether the project holds.
+     *
+     * @param rules what the request names
+     */
+    record Verify(String rules) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "verify";
+        }
+    }
+
+    /**
+     * Repeats a run whenever a source changes.
+     *
+     * @param trigger what the request names
+     */
+    record Watch(String trigger) implements CommandRequest {
+
+        @Override
+        public String description() {
+            return "watch";
+        }
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/OutputFormat.java" <<'JAVA'
+package com.example;
+
+/**
+ * The shapes a run can report in.
+ */
+public enum OutputFormat {
+
+    /**
+     * Plain text.
+     */
+    TEXT,
+
+    /**
+     * Structured JSON.
+     */
+    JSON;
+
+    /**
+     * Reads a format from its written name.
+     *
+     * @param name the written name
+     * @return the format the name stands for
+     */
+    public static OutputFormat of(String name) {
+        return "json".equals(name) ? JSON : TEXT;
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/ParseResult.java" <<'JAVA'
+package com.example;
+
+/**
+ * The outcome of reading one request.
+ *
+ * @param name the name the request parsed to
+ */
+public record ParseResult(String name) {
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/SafePath.java" <<'JAVA'
+package com.example;
+
+import java.nio.file.Path;
+
+/**
+ * A path the run is allowed to reach.
+ *
+ * @param value the permitted path
+ */
+public record SafePath(Path value) {
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/BrokenRunException.java" <<'JAVA'
+package com.example;
+
+/**
+ * Reports a run that could not finish.
+ */
+public final class BrokenRunException extends RuntimeException {
+
+    /**
+     * Reports the failure on its own.
+     *
+     * @param message what went wrong
+     */
+    public BrokenRunException(String message) {
+        super(message);
+    }
+
+    /**
+     * Reports the failure together with its cause.
+     *
+     * @param message what went wrong
+     * @param cause   the failure underneath
+     */
+    public BrokenRunException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    /**
+     * Sums the failure up in one line.
+     *
+     * @return the summary of the failure
+     */
+    public String summary() {
+        return "broken run: " + this.getMessage();
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/CommandGrammar.java" <<'JAVA'
+package com.example;
+
+/**
+ * Reads a request into the name the run works with.
+ */
+public final class CommandGrammar {
+
+    /**
+     * Reads one request.
+     *
+     * @param request the request to read
+     * @return what the request parsed to
+     */
+    public ParseResult parse(CommandRequest request) {
+        return new ParseResult(request.description());
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/ProjectRepository.java" <<'JAVA'
+package com.example;
+
+import java.nio.file.Path;
+import java.util.Optional;
+
+/**
+ * The project a run reads.
+ */
+public final class ProjectRepository {
+
+    private final Path root;
+
+    /**
+     * Creates the repository.
+     *
+     * @param root where the project sits
+     */
+    public ProjectRepository(Path root) {
+        this.root = root;
+    }
+
+    /**
+     * Locates what a parsed request names.
+     *
+     * @param result what the request parsed to
+     * @return the located path, empty when the name reaches nothing
+     */
+    public Optional<SafePath> locate(ParseResult result) {
+        return result.name().isEmpty()
+            ? Optional.empty()
+            : Optional.of(new SafePath(this.root.resolve(result.name())));
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/CommandRouter.java" <<'JAVA'
+package com.example;
+
+/**
+ * Reaches every request shape a project offers.
+ *
+ * <p>The class names sixteen collaborators of its own project and none of the JDK, so it is what a
+ * genuinely entangled class looks like once the JDK stops counting.
+ */
+public final class CommandRouter {
+
+    /**
+     * Routes the request shapes a project starts with.
+     *
+     * @param init  the start request
+     * @param lint  the read-only request
+     * @param build the producing request
+     * @param clean the discarding request
+     * @return what the four requests name
+     */
+    public String opening(
+        CommandRequest.Init init, CommandRequest.Lint lint,
+        CommandRequest.Build build, CommandRequest.Clean clean
+    ) {
+        return init.root() + lint.source() + build.target() + clean.scope();
+    }
+
+    /**
+     * Routes the request shapes a project finishes with.
+     *
+     * @param format  the rewriting request
+     * @param publish the sending request
+     * @param report  the writing request
+     * @param verify  the deciding request
+     * @return what the four requests name
+     */
+    public String closing(
+        CommandRequest.Format format, CommandRequest.Publish publish,
+        CommandRequest.Report report, CommandRequest.Verify verify
+    ) {
+        return format.style() + publish.registry() + report.findings() + verify.rules();
+    }
+
+    /**
+     * Routes a repeated run against what it locates.
+     *
+     * @param watch      the repeating request
+     * @param repository the project the run reads
+     * @param fallback   where the run reads when the name reaches nothing
+     * @param result     what the request parsed to
+     * @return what the repeated run reaches
+     */
+    public String repeated(
+        CommandRequest.Watch watch, ProjectRepository repository,
+        SafePath fallback, ParseResult result
+    ) {
+        return watch.trigger()
+            + repository.locate(result).orElse(fallback).value()
+            + result.name();
+    }
+
+    /**
+     * Routes a request that has not been read yet.
+     *
+     * @param grammar the grammar the request is read with
+     * @param output  the shape the run reports in
+     * @param failure the failure a broken run carries
+     * @param request the request to read
+     * @return what the unread request reaches
+     */
+    public String unread(
+        CommandGrammar grammar, OutputFormat output,
+        BrokenRunException failure, CommandRequest request
+    ) {
+        return grammar.parse(request).name() + output.name() + failure.summary();
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/CommandRunner.java" <<'JAVA'
+package com.example;
+
+/**
+ * Reads twelve request shapes of its own project.
+ *
+ * <p>Twelve is over the cap the dropped inspection held a class to and under the cap ClassCoupling
+ * declares, so the class is exactly what the change let a consumer write.
+ */
+public final class CommandRunner {
+
+    /**
+     * Reads the request shapes a project starts with.
+     *
+     * @return what those requests describe
+     */
+    public String opening() {
+        return new CommandRequest.Init("root").description()
+            + new CommandRequest.Lint("source").description()
+            + new CommandRequest.Build("target").description()
+            + new CommandRequest.Clean("scope").description();
+    }
+
+    /**
+     * Reads the request shapes a project finishes with.
+     *
+     * @return what those requests describe
+     */
+    public String closing() {
+        return new CommandRequest.Format("style").description()
+            + new CommandRequest.Publish("registry").description()
+            + new CommandRequest.Report("findings").description()
+            + new CommandRequest.Verify("rules").description();
+    }
+
+    /**
+     * Reads a repeated run.
+     *
+     * @return what the repeated run reports in
+     */
+    public String repeated() {
+        CommandRequest request = new CommandRequest.Watch("changes");
+        ParseResult result = new ParseResult(request.description());
+        OutputFormat output = OutputFormat.of(result.name());
+        return output.name();
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/JdkHeavy.java" <<'JAVA'
+package com.example;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+
+/**
+ * Names fourteen JDK types beside a single collaborator of its own project.
+ *
+ * <p>No coupling rule counts what this class reaches into java.util and java.time, so the class is
+ * held to a budget of one.
+ */
+public final class JdkHeavy {
+
+    /**
+     * Reads every JDK type this fixture is built from.
+     *
+     * @param format the one collaborator the class names
+     * @return a reading of the types above
+     */
+    public String reading(OutputFormat format) {
+        Deque<String> queue = new ArrayDeque<>(List.of(format.name()));
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        counts.put(queue.peek(), 1);
+        NavigableSet<String> sorted = new TreeSet<>(counts.keySet());
+        Set<OutputFormat> formats = EnumSet.of(format);
+        Optional<String> first = Optional.of(sorted.getFirst());
+        Duration span = Duration.between(Instant.EPOCH, Instant.EPOCH);
+        LocalDate day = LocalDate.EPOCH;
+        String read = sorted.stream().collect(Collectors.joining(", ", "[", "]"));
+        return first.orElse("none")
+            + " / " + formats.size()
+            + " / " + span.toMillis()
+            + " / " + day.getDayOfYear()
+            + " / " + read;
+    }
+}
+JAVA
+    git -C "$qodana_consumer" add --all
+    git -C "$qodana_consumer" commit --quiet \
+        --message 'test(it): carry the shapes the dropped inspections reported' \
+        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved and a JDK-heavy class, so the profile has something to be read against.'
+    qodana_log="$scratch/qodana-profile.log"
+    (cd "$qodana_consumer" && mvn --batch-mode --no-transfer-progress airness:qodana) \
+        > "$qodana_log" 2>&1 || true
+    qodana_sarif="$qodana_consumer/target/qodana/qodana.sarif.json"
+    if [ ! -f "$qodana_sarif" ]; then
+        echo 'FAILED   qodana: the run left no report to read' >&2
+        sed -n '1,220p' "$qodana_log" >&2
+        failures=$((failures + 1))
+    else
+        for dropped in InnerClassOnInterface ClassWithTooManyDependencies; do
+            reported="$(grep -c "\"ruleId\": \"$dropped\"" "$qodana_sarif" || true)"
+            if [ "$reported" -eq 0 ]; then
+                printf 'ok       qodana: %s reports nothing on the fixture\n' "$dropped"
+            else
+                printf 'FAILED   qodana: %s reported %s finding(s)\n' "$dropped" "$reported" >&2
+                failures=$((failures + 1))
+            fi
+        done
+        if grep -q "'CommandRouter' is overly coupled" "$qodana_sarif"; then
+            echo 'ok       qodana: ClassCoupling still reports an over-coupled class'
+        else
+            echo 'FAILED   qodana: ClassCoupling stopped reporting the over-coupled class' >&2
+            sed -n '1,220p' "$qodana_log" >&2
+            failures=$((failures + 1))
+        fi
+        for spared in CommandRunner JdkHeavy; do
+            if grep -q "'$spared' is overly coupled" "$qodana_sarif"; then
+                printf 'FAILED   qodana: ClassCoupling reported %s\n' "$spared" >&2
+                failures=$((failures + 1))
+            else
+                printf 'ok       qodana: ClassCoupling leaves %s alone\n' "$spared"
+            fi
+        done
+    fi
 fi
 
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
