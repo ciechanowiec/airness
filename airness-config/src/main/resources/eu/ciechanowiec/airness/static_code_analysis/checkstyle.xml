@@ -369,7 +369,21 @@
         Imports
         -->
         <module name="AvoidStarImport"/>
-        <module name="IllegalImport"/>
+        <module name="IllegalImport">
+            <!--
+                sun is the Checkstyle default and is kept. The rest are the mocking libraries: an import
+                is the only way to reach one, a static import included, so this is where the ban on
+                substitutes costs least to hold. A package prefix covers everything beneath it, so
+                org.mockito reaches org.mockito.junit.jupiter without naming it.
+
+                Nothing here matches sling-mock, aem-mock or org.springframework.test. Those implement a
+                protocol in memory rather than answering whatever a test dictated, and the standard
+                counts an implementation of a protocol as a real component whatever its library is
+                called.
+            -->
+            <property name="illegalPkgs"
+                      value="sun, org.mockito, org.easymock, org.powermock, org.jmock, mockit"/>
+        </module>
         <module name="RedundantImport"/>
         <module name="UnusedImports"/>
         <!--
@@ -395,11 +409,11 @@
         <module name="ClassFanOutComplexity">
             <!--
             Annotations, test-framework types and container-declaration types are not couplings a design
-            pays for. Listing a package here is not an endorsement of it: aroxy's own conventions ban
-            Mockito, and the enforcer, not this list, is what holds that line.
+            pays for. Listing a package here is not an endorsement of it, and no mocking package appears
+            in the list: the substitute rules above ban those outright rather than pricing them at zero.
             -->
             <property name="excludedPackages" value="edu.umd.cs.findbugs.annotations, org.jetbrains.annotations, lombok, lombok.extern.slf4j, com.google.common.annotations,
-            org.junit.jupiter.api, org.junit.jupiter.api.extension, org.junit.jupiter.params, org.mockito, org.mockito.junit.jupiter, org.hamcrest,
+            org.junit.jupiter.api, org.junit.jupiter.api.extension, org.junit.jupiter.params, org.hamcrest,
             org.osgi.service.component.annotations, org.osgi.service.metatype.annotations, org.osgi.service.component.propertytypes"/>
             <property name="max" value="25"/>
         </module>
@@ -717,6 +731,43 @@
             <property name="ignoreComments" value="true"/>
             <property name="message"
                       value="Returning of nulls is prohibited"/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+
+        <!--
+        Substitutes
+
+        A mock, a stub or a spy answers whatever the test told it to answer, so an assertion that reads
+        one proves that the test agrees with itself. These rules bind the substitute criterion of the
+        governing standard: a component is real when it implements the behaviour of the protocol it
+        stands for, and is a substitute when the test declares the answers it gives back.
+
+        What is banned is the criterion and not a name. IllegalImport above already refuses every import
+        path into a mocking library, so the two rules here cover only what an import cannot show: a call
+        written out in full, and an annotation that installs a substitute into a container.
+        -->
+        <module name="Regexp">
+            <property name="id" value="AirnessNeverBuildsSubstitutes"/>
+            <property name="format"
+                      value="\b(?:Mockito|EasyMock|PowerMockito)\s*\.|\bmockStatic\s*\(|\bmockConstruction\s*\("/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="A substitute answers what the test told it to, so an assertion over it proves only that the test agrees with itself. Use the real component, or a local implementation of the protocol it speaks."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                The container-injection forms: the Spring bean annotations and Mockito's own field
+                annotations. Each one replaces a collaborator with one the test dictates, which is the
+                case the criterion rules out most plainly, because what gets replaced is the project's
+                own code rather than a service that exists only outside the machine.
+            -->
+            <property name="id" value="AirnessNeverInjectsSubstitutes"/>
+            <property name="format"
+                      value="@(?:MockitoSpyBean|MockitoBean|MockBean|SpyBean|InjectMocks|Mock|Spy)(?![A-Za-z0-9_])"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="This annotation installs a substitute in place of a real collaborator. Wire the real component, or a local implementation of the protocol it speaks."/>
             <property name="illegalPattern" value="true"/>
         </module>
 

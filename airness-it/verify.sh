@@ -53,12 +53,6 @@ new_consumer() {
       <version>3.27.7</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <version>5.23.0</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
   <profiles>
     <profile>
@@ -263,9 +257,6 @@ JAVA
 package com.example;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 import org.junit.jupiter.api.Test;
 
@@ -273,15 +264,8 @@ import org.junit.jupiter.api.Test;
 class RewriteTestingTest {
 
     @Test
-    void cleansAssertionsAndVerification() {
+    void cleansAssertions() {
         assertThat("").hasSize(0);
-        Runnable dependency = mock(Runnable.class);
-        invoke(dependency);
-        verify(dependency, times(1)).run();
-    }
-
-    private static void invoke(Runnable dependency) {
-        dependency.run();
     }
 }
 JAVA
@@ -699,6 +683,17 @@ perl -0pi -e \
     's{\n      <build><plugins><plugin><groupId>org[.]pitest</groupId><artifactId>pitest-maven</artifactId></plugin></plugins></build>}{}' \
     "$consumer/pom.xml"
 
+# Declaring a mocking library is the project stating that it means to mock. The graph is not searched,
+# so an in-memory implementation of an ecosystem protocol may still carry one of its own.
+perl -0pi -e \
+    's{  </dependencies>}{    <dependency>\n      <groupId>org.mockito</groupId>\n      <artifactId>mockito-core</artifactId>\n      <version>5.23.0</version>\n      <scope>test</scope>\n    </dependency>\n  </dependencies>}' \
+    "$consumer/pom.xml"
+run_case 'declarations: a mocking library cannot be declared' 1 'A mocking library is declared here' \
+    "$consumer" validate
+perl -0pi -e \
+    's{    <dependency>\n      <groupId>org[.]mockito</groupId>\n      <artifactId>mockito-core</artifactId>\n      <version>5[.]23[.]0</version>\n      <scope>test</scope>\n    </dependency>\n}{}' \
+    "$consumer/pom.xml"
+
 if grep -Fq '    private static final float FRACTION = 0.75F;' \
     "$consumer/src/main/java/com/example/FormatFixture.java" \
     && grep -Fq '    public static float value() {' \
@@ -893,6 +888,215 @@ run_case 'tests: unseeded randomness is rejected' 1 'Unseeded randomness' \
     "$consumer" checkstyle:check '-Dcheckstyle.includes=**/RandomFixtureTest.java'
 rm "$consumer/src/test/java/com/example/RandomFixtureTest.java"
 
+# Substitutes. The criterion is what is banned rather than a name, so each case below reaches for a
+# mocking library by one of the three routes an agent has: the import, the qualified call, and the
+# annotation that installs one into a container.
+cat > "$consumer/src/test/java/com/example/ImportingFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+/** Exercises the rule against a test that imports a mocking library. */
+class ImportingFixtureTest {
+
+    @Test
+    void readsWhateverItWasTold() {
+        Runnable dependency = Mockito.mock(Runnable.class);
+        dependency.run();
+        assertEquals(1, Example.value());
+    }
+}
+JAVA
+run_case 'substitutes: an import of a mocking library is rejected' 1 'Illegal import - org[.]mockito' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/ImportingFixtureTest.java'
+rm "$consumer/src/test/java/com/example/ImportingFixtureTest.java"
+
+cat > "$consumer/src/test/java/com/example/QualifyingFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against a substitute built without importing one. */
+class QualifyingFixtureTest {
+
+    @Test
+    void readsWhateverItWasTold() {
+        Runnable dependency = org.mockito.Mockito.mock(Runnable.class);
+        dependency.run();
+        assertEquals(1, Example.value());
+    }
+}
+JAVA
+run_case 'substitutes: a qualified mocking call is rejected' 1 'agrees with itself' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/QualifyingFixtureTest.java'
+rm "$consumer/src/test/java/com/example/QualifyingFixtureTest.java"
+
+cat > "$consumer/src/test/java/com/example/InjectingFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against a substitute installed into a container. */
+class InjectingFixtureTest {
+
+    @MockBean
+    private Runnable dependency;
+
+    @Test
+    void readsWhateverItWasTold() {
+        assertEquals(1, Example.value());
+    }
+}
+JAVA
+run_case 'substitutes: a container substitute annotation is rejected' 1 'installs a substitute' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/InjectingFixtureTest.java'
+rm "$consumer/src/test/java/com/example/InjectingFixtureTest.java"
+
+# Assertions. Coverage counts a line that ran, so neither case below is visible to it: the first
+# reaches no assertion at all, and the second reaches one that no change to the code can move.
+cat > "$consumer/src/test/java/com/example/UnprovenFixtureTest.java" <<'JAVA'
+package com.example;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against a test that judges nothing. */
+class UnprovenFixtureTest {
+
+    @Test
+    void reachesTheValueAndStopsThere() {
+        Example.value();
+    }
+}
+JAVA
+run_case 'assertions: a test that judges nothing is rejected' 1 'reaches no assertion' \
+    "$consumer" airness:test-assertions
+rm "$consumer/src/test/java/com/example/UnprovenFixtureTest.java"
+
+cat > "$consumer/src/test/java/com/example/SettledFixtureTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+/** Exercises the rule against an assertion settled before the code runs. */
+class SettledFixtureTest {
+
+    @Test
+    void comparesOneConstantWithAnother() {
+        assertEquals(1, 1);
+    }
+}
+JAVA
+run_case 'assertions: an assertion over literals alone is rejected' 1 'literals alone cannot fail' \
+    "$consumer" airness:test-assertions
+rm "$consumer/src/test/java/com/example/SettledFixtureTest.java"
+
+run_case 'assertions: a suite that judges what it produced passes' 0 'BUILD SUCCESS' \
+    "$consumer" airness:test-assertions
+
+# Dependency structure. The two packages below depend on each other, which no file on the loop shows.
+mkdir -p "$consumer/src/main/java/com/example/alpha" "$consumer/src/main/java/com/example/beta"
+cat > "$consumer/src/main/java/com/example/alpha/Alpha.java" <<'JAVA'
+package com.example.alpha;
+
+import com.example.beta.Beta;
+
+/** One half of a dependency loop. */
+public final class Alpha {
+
+    /**
+     * Reaches the other half.
+     *
+     * @return the other half
+     */
+    public Beta beta() {
+        return new Beta();
+    }
+}
+JAVA
+cat > "$consumer/src/main/java/com/example/beta/Beta.java" <<'JAVA'
+package com.example.beta;
+
+import com.example.alpha.Alpha;
+
+/** The other half of a dependency loop. */
+public final class Beta {
+
+    /**
+     * Reaches back.
+     *
+     * @return the first half
+     */
+    public Alpha alpha() {
+        return new Alpha();
+    }
+}
+JAVA
+run_case 'design: a package cycle is rejected' 1 'com[.]example[.]alpha -> com[.]example[.]beta' \
+    "$consumer" airness:package-cycles
+rm -r "$consumer/src/main/java/com/example/alpha" "$consumer/src/main/java/com/example/beta"
+run_case 'design: packages that depend in one direction pass' 0 'BUILD SUCCESS' \
+    "$consumer" airness:package-cycles
+
+# The suppression ceiling. One annotation naming two rules sets aside two rules, and the smallest
+# ceiling underneath the rate is what keeps a small project from being left a budget of none.
+cat > "$consumer/src/main/java/com/example/SuppressingFixture.java" <<'JAVA'
+package com.example;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Exercises the ceiling on how many rules a project sets aside.
+ */
+final class SuppressingFixture {
+
+    private SuppressingFixture() {
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "the caller owns the array it is given")
+    static int value() {
+        return 1;
+    }
+}
+JAVA
+# Three rules over two annotations of two kinds. The SpotBugs annotation counts like the other, or it
+# would be the one analyzer a project could silence for free, and its reason counts as none.
+run_case 'suppressions: both annotation kinds count, and a reason does not' 0 \
+    'Suppressions in force: 3 of 5 allowed' \
+    "$consumer" airness:suppression-budget
+# Four more rules take the total past the smallest ceiling. The ceiling takes no project setting, so
+# the only way to reach it is to hold more suppressions than it allows, which is the point of it.
+cat > "$consumer/src/main/java/com/example/ExcessFixture.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the ceiling once a project holds more than it allows.
+ */
+final class ExcessFixture {
+
+    private ExcessFixture() {
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes", "deprecation", "serial"})
+    static int value() {
+        return 1;
+    }
+}
+JAVA
+run_case 'suppressions: passing the declared ceiling is rejected' 1 'passed the declared ceiling' \
+    "$consumer" airness:suppression-budget
+rm "$consumer/src/main/java/com/example/SuppressingFixture.java" \
+    "$consumer/src/main/java/com/example/ExcessFixture.java"
+
 # The same constructs in production code. Nothing above may reach them, or the rules would be
 # banning a sleep from the code whose behavior a test is meant to observe.
 cat > "$consumer/src/main/java/com/example/Waiting.java" <<'JAVA'
@@ -976,9 +1180,8 @@ else
     failures=$((failures + 1))
 fi
 
-if grep -Fq 'assertThat("").isEmpty();' "$consumer/src/test/java/com/example/RewriteTestingTest.java" \
-    && grep -Fq 'verify(dependency).run();' "$consumer/src/test/java/com/example/RewriteTestingTest.java"; then
-    echo 'ok       rewrite: AssertJ and Mockito cleanup reaches consumers'
+if grep -Fq 'assertThat("").isEmpty();' "$consumer/src/test/java/com/example/RewriteTestingTest.java"; then
+    echo 'ok       rewrite: AssertJ cleanup reaches consumers'
 else
     echo 'FAILED   rewrite: test-framework cleanup did not reach consumers' >&2
     failures=$((failures + 1))
