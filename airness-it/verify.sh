@@ -477,6 +477,38 @@ cat > "$managed/pom.xml" <<'POM'
 POM
 run_case 'coordinates: child ownership is rejected' 1 'Airness (owns|supplies) this' \
     "$managed" airness:check-parameters
+
+# Networknt publishes a valid Apache-2.0 license under a non-SPDX spelling. The inherited merge
+# normalizes it centrally, so a consumer neither configures nor redeclares the owned license plugin.
+networknt_license="$scratch/networknt-license"
+mkdir -p "$networknt_license"
+cat > "$networknt_license/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.5-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>networknt-license</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>3.0.7</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
+POM
+run_case 'licenses: Networknt Apache spelling is normalized centrally' 0 'BUILD SUCCESS' \
+    "$networknt_license" license:add-third-party@airness-check-dependency-licenses
 run_case 'versions: inherited pin drives update reports' 0 'versions:2\.21\.0:display-dependency-updates' \
     "$consumer" versions:display-dependency-updates
 run_case 'vulnerabilities: consumer inherits the public daily feed' 0 \
