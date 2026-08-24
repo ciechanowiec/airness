@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.CoverageReport;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -11,13 +12,30 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
 /**
- * Requires current-build coverage evidence whenever a module has production Java sources.
+ * Requires current-build coverage evidence whenever a module has production Java sources, and requires
+ * every declared coverage exclusion to name something that evidence measured.
  */
 @Mojo(name = "coverage-evidence", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true)
 public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
 
     @Parameter(property = "jacoco.dataFile", defaultValue = "${project.build.directory}/jacoco.exec")
     private String dataFile;
+
+    /**
+     * The report the coverage tool wrote, which names every class it measured before any exclusion is
+     * applied. That is what makes it the place to ask whether an exclusion reached anything.
+     */
+    @Parameter(
+        property = "jacoco.reportFile",
+        defaultValue = "${project.reporting.outputDirectory}/jacoco/jacoco.xml"
+    )
+    private String reportFile;
+
+    /**
+     * The exclusions this project declared, read here to check that each one still names a class.
+     */
+    @Parameter(property = "airness.coverage.excluded.classes")
+    private String excluded;
 
     @Override
     boolean applies() {
@@ -32,7 +50,24 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
         List<String> offences = current ? List.of() : List.of(
             evidence + " is missing or predates this build; production code requires tests from this run"
         );
-        return List.of(new Findings("Missing current-build JaCoCo evidence", offences));
+        return List.of(
+            new Findings("Missing current-build JaCoCo evidence", offences),
+            new Findings("Coverage exclusions that name no class the report measured", this.unreached())
+        );
+    }
+
+    /**
+     * Read only when the evidence and the report are both present. An absent report is already the
+     * finding above, and reporting it twice would say one thing in two places.
+     */
+    private List<String> unreached() {
+        List<String> declared = Sentinel.optional(this.excluded);
+        Path report = Path.of(this.reportFile);
+        return declared.isEmpty() || !Files.isRegularFile(report)
+            ? List.of()
+            : new CoverageReport(report).unreached(declared).stream()
+                .map(pattern -> pattern + " excludes nothing, so it names a class that moved or went")
+                .toList();
     }
 
     private static long modified(Path file) {
