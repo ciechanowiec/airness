@@ -118,16 +118,11 @@ class CommitMessageRulesTest {
     }
 
     @Test
-    void exemptsACommitWithTwoParentsWhateverItsHeaderSays() {
-        CommitMessage gitForm = new CommitMessage("Merge branch 'release' into 'main'", "");
-        CommitMessage arbitrary = new CommitMessage("anything at all", "");
-        assertEquals(
-            List.of(), CommitMessageRules.validate(gitForm, NON_TRIVIAL, true),
-            "git's own merge header carries neither a type nor a scope nor a body"
-        );
-        assertEquals(
-            List.of(), CommitMessageRules.validate(arbitrary, NON_TRIVIAL, true),
-            "and topology alone decides it, since LinearHistoryCheck already bans the commit outright"
+    void refusesTheHeaderGitWritesForAMerge() {
+        CommitMessage message = new CommitMessage("Merge branch 'release' into 'main'", "");
+        assertFalse(
+            CommitMessageRules.validate(message, NON_TRIVIAL).isEmpty(),
+            "every tool that makes a merge offers to edit its message, so this form is a choice"
         );
     }
 
@@ -138,29 +133,26 @@ class CommitMessageRulesTest {
     }
 
     @Test
-    void exemptsARevertHeaderFromTheHeaderShape() {
+    void refusesTheHeaderGitWritesForARevert() {
         CommitMessage message = new CommitMessage(
             "Revert \"feat(cli): add the reload subcommand to the root\"",
             "This reverts commit 0123456789abcdef0123456789abcdef01234567."
         );
-        assertEquals(List.of(), CommitMessageRules.validate(message, NON_TRIVIAL));
-    }
-
-    @Test
-    void rejectsAnIncompleteRevertHeader() {
-        CommitMessage message = new CommitMessage("Revert \"unfinished", "");
-        assertFalse(CommitMessageRules.validate(message, TRIVIAL).isEmpty());
-    }
-
-    @Test
-    void stillRejectsAnAgentAttributionUnderAnExemptHeader() {
-        CommitMessage message = new CommitMessage(
-            "Revert \"feat(cli): add the reload subcommand to the root\"",
-            "This reverts commit 0123456789abcdef0123456789abcdef01234567.\n\nGenerated with Claude Code"
-        );
         assertFalse(
-            CommitMessageRules.validate(message, TRIVIAL).isEmpty(),
-            "a fixed header form is no licence to name an agent in the body"
+            CommitMessageRules.validate(message, NON_TRIVIAL).isEmpty(),
+            "git revert --edit reaches a conforming message, so its default is a choice like any other"
+        );
+    }
+
+    @Test
+    void acceptsARevertWrittenTheWayEveryOtherCommitIs() {
+        CommitMessage message = new CommitMessage(
+            "fix(cli): undo the reload subcommand that broke startup",
+            "The subcommand claimed a flag the root parser already owned, so every start failed."
+        );
+        assertEquals(
+            List.of(), CommitMessageRules.validate(message, NON_TRIVIAL),
+            "undoing a change is a change, and it says what it did like any other"
         );
     }
 

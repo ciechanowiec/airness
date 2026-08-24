@@ -61,12 +61,12 @@ while writing the message, so the policy is declared here in full.
 | Typography | plain ASCII only: no em dash, en dash, one-character ellipsis, or curly quotation mark |
 | Attribution | no marker naming an AI agent or an agent session, in any commit |
 
-A revert keeps the `Revert "..."` form Git writes for it and is exempt from the header shape alone, so it
-needs no type of its own. A breaking change is described in the body rather than marked in the header,
-because a marker a reader has to notice says less than a sentence saying what breaks. A merge
-commit is exempt too, but only because it is prohibited outright and the History Shape rules below report it once
-rather than burying that verdict under header findings. The attribution ban holds for every commit whatever its
-header, and it binds in prose as well as by pattern: a marker that no pattern yet knows is still a violation.
+No commit shape is exempt from the table above, including the headers Git writes by default for a merge
+and for a revert. Every tool that makes one of those offers to edit the message, so a conforming message
+is always reachable: a revert says what it undid and why, like any other change. A breaking change is
+described in the body rather than marked in the header, because a marker a reader has to notice says less
+than a sentence saying what breaks. The attribution ban binds in prose as well as by pattern: a marker
+that no pattern yet knows is still a violation.
 
 Four traps account for most failures:
 
@@ -88,30 +88,6 @@ from the code under test. Write each test so that it would, and read it back tha
 
 The search for an assertion stops at the file boundary, so a test that reaches one only through a helper in another
 type reports as unproven. Move the assertion into the test's own source rather than suppressing the finding.
-
-### Inspection Only
-
-Five rules of the standard have no check here and bind by inspection instead. Each says what the harness
-does see, so the distance between the two is readable rather than assumed.
-
-- **A test reaches no network beyond the machine it runs on.** The harness bans an unseeded random and a
-  sleep, and it puts a timeout on every test, but nothing stops a socket. A test that needs a service
-  starts one on a loopback port. The timeout bounds a wait so that its expiry names a defect in the code;
-  a test that needs a longer one is a test measuring the machine.
-- **A service that exists only elsewhere is exercised through a local component that speaks its
-  protocol.** The substitute rules bind a criterion rather than a list of names, so a library that
-  implements the protocol in memory is already a real component and already allowed. Reach for that, not
-  for a class in the test tree whose answers the test writes.
-- **A callable that cannot do its job fails immediately.** The nullness checker settles what a callable
-  returns, not what it does when it cannot. Throw, and say what went wrong. A silent fallback to a default
-  turns a defect into a value that travels, and the place it surfaces is not the place it started.
-- **One concept has one name everywhere.** The naming checks read one declaration at a time and cannot
-  compare two, so a second name for a concept that already has one passes every check here. Search for the
-  concept before adding a name for it.
-- **A cycle is broken, never declared acceptable.** `mvn airness:package-cycles` names the packages on a
-  cycle and stops there. Break it by moving the shared concept into a package both sides depend on, or by
-  inverting one direction behind an abstraction that the depended-on package declares. No setting accepts
-  one.
 
 ### History Shape
 
