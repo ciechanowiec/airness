@@ -19,7 +19,8 @@ class CoverageExclusionsTest {
                 "Rewrite child coverage exclusion \"com/example/Example\"; exclude by file role such as "
                     + "**/*Mojo*, never by naming a class"
             ),
-            CoverageExclusions.problems("com/example/Example").toList()
+            CoverageExclusions.problems("com/example/Example").toList(),
+            "the separator is right here, so naming a class is the only thing left to report"
         );
     }
 
@@ -51,5 +52,43 @@ class CoverageExclusionsTest {
             "a role reads across the tree, which is what the harness excludes by"
         );
         assertTrue(CoverageExclusions.roleShaped("**/*Generated*"), "and it needs no directory at all");
+    }
+
+    @Test
+    void refusesAPatternWrittenTheWayTheSourceWritesIt() {
+        assertTrue(
+            CoverageExclusions.problems("com.example.generated.*Dto")
+                .anyMatch(problem -> problem.contains("separate packages with / rather than .")),
+            "the coverage tool reads the VM name, so a dotted pattern excludes nothing and says nothing"
+        );
+    }
+
+    @Test
+    void refusesADottedPatternEvenWhenItIsShapedLikeARole() {
+        assertFalse(
+            CoverageExclusions.matchable("com.example.cli.*Command"),
+            "a role that cannot match is a setting that reads as though it worked"
+        );
+        assertTrue(
+            CoverageExclusions.roleShaped("com.example.cli.*Command"),
+            "and its shape is why nothing else would have reported it"
+        );
+    }
+
+    @Test
+    void reportsBothDefectsWhenAnEntryCarriesBoth() {
+        assertEquals(
+            2, CoverageExclusions.problems("com.example.Example").count(),
+            "naming a class and writing it with dots are two defects, and one edit answers both"
+        );
+    }
+
+    @Test
+    void acceptsTheSeparatorTheCoverageToolReads() {
+        assertTrue(CoverageExclusions.matchable("**/*Mojo*"), "a role pattern carries no package at all");
+        assertTrue(
+            CoverageExclusions.matchable("com/example/generated/*Dto"),
+            "and a rooted one separates its packages the way the VM name does"
+        );
     }
 }
