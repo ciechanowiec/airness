@@ -96,6 +96,21 @@ class SecretScanConfigurationTest {
     }
 
     @Test
+    void acceptsAnExactValueThatCarriesOrdinaryCharacters() {
+        String content = SHARED + """
+
+            [[allowlists]]
+            description = "a fixture"
+            targetRules = ["private-key"]
+            regexes = ["-----BEGIN PRIVATE KEY-----MIIEvQIBADANBgkqh-----END PRIVATE KEY-----"]
+            """;
+        assertEquals(
+            List.of(), broken(content),
+            "a credential is entitled to a space and a dash, and this one matches only itself"
+        );
+    }
+
+    @Test
     void rejectsAnExceptionThatExcusesAWholeFile() {
         String content = SHARED + """
 

@@ -34,7 +34,15 @@ public final class SecretScanConfiguration {
     private static final Pattern TABLE = Pattern.compile("^\\[\\[?([A-Za-z_][A-Za-z0-9_.-]*)]]?$");
     private static final Pattern ENTRY = Pattern.compile("^([A-Za-z_][A-Za-z0-9_-]*)\\s*=\\s*(.+)$");
     private static final Pattern STRING = Pattern.compile("'''(.*?)'''|\"([^\"]*)\"|'([^']*)'", Pattern.DOTALL);
-    private static final Pattern LITERAL = Pattern.compile("^[A-Za-z0-9_./:+=-]{12,}$");
+    /**
+     * What makes a value a pattern rather than one value: a metacharacter that lets it match more than
+     * the string it is written as. Tested by what widens a match rather than by an alphabet a value is
+     * allowed to draw from, because an exact credential is entitled to contain a space, a dash or any
+     * other ordinary character. A private key fixture opens with BEGIN PRIVATE KEY and is as exact as a
+     * value gets, and an alphabet would have refused it for the space in the middle.
+     */
+    private static final Pattern WIDENING = Pattern.compile("[.*+?|()\\[\\]{}^$\\\\]");
+    private static final int SHORTEST_EXACT_VALUE = 12;
     private static final String EXTEND = "extend";
     private static final String ALLOWLISTS = "allowlists";
     private static final String TARGET_RULES = "targetRules";
@@ -118,7 +126,7 @@ public final class SecretScanConfiguration {
             .filter(statement -> statement.is(ALLOWLISTS, "regexes"))
             .flatMap(
                 statement -> strings(statement.value()).stream()
-                    .filter(value -> !LITERAL.matcher(value).matches())
+                    .filter(value -> !exact(value))
                     .map(value -> statement.at('"' + value + "\" is a pattern rather than an exact value"))
             )
             .forEach(problems::add);
@@ -168,6 +176,10 @@ public final class SecretScanConfiguration {
             .map(Statement::table)
             .findFirst()
             .orElse("");
+    }
+
+    private static boolean exact(CharSequence value) {
+        return value.length() >= SHORTEST_EXACT_VALUE && !WIDENING.matcher(value).find();
     }
 
     private static List<String> strings(CharSequence value) {

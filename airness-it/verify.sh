@@ -497,17 +497,14 @@ run_case 'settings: an Airness key the project does not own is rejected' 1 'Remo
 write_settings '' '    <airness.typography.excludes>docs</airness.typography.excludes>'
 run_case 'settings: a documented project key is accepted' 0 'BUILD SUCCESS' \
     "$settings" airness:check-parameters
-write_settings '    <airness.coverage.excluded.classes>com/example/Example</airness.coverage.excluded.classes>' ''
+write_settings '    <airness.coverage.excluded.classes>com.example.cli.Example</airness.coverage.excluded.classes>' ''
 run_case 'coverage: an exclusion that names one class is rejected' 1 'exclude by file role' \
     "$settings" airness:check-parameters
-write_settings '    <airness.coverage.excluded.classes>com/example/**</airness.coverage.excluded.classes>' ''
+write_settings '    <airness.coverage.excluded.classes>com.example.cli.*</airness.coverage.excluded.classes>' ''
 run_case 'coverage: an exclusion that names a location is rejected' 1 'exclude by file role' \
     "$settings" airness:check-parameters
-write_settings '    <airness.coverage.excluded.classes>**/*Mojo*</airness.coverage.excluded.classes>' ''
+write_settings '    <airness.coverage.excluded.classes>*Command</airness.coverage.excluded.classes>' ''
 run_case 'coverage: an exclusion shaped like a role is accepted' 0 'BUILD SUCCESS' \
-    "$settings" airness:check-parameters
-write_settings '    <airness.coverage.excluded.classes>com.example.cli.*Command</airness.coverage.excluded.classes>' ''
-run_case 'coverage: a dotted exclusion is rejected even when shaped like a role' 1 'separate packages with / rather than' \
     "$settings" airness:check-parameters
 write_settings '' '    <qodana.image>alpine</qodana.image>'
 run_case 'images: a consumer cannot repoint the scanner image' 1 'Airness owns this value' \

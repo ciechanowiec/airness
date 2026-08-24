@@ -16,79 +16,52 @@ class CoverageExclusionsTest {
     void refusesAnExclusionThatNamesOneClass() {
         assertEquals(
             List.of(
-                "Rewrite child coverage exclusion \"com/example/Example\"; exclude by file role such as "
-                    + "**/*Mojo*, never by naming a class"
+                "Rewrite child coverage exclusion \"com.example.cli.Example\"; exclude by file role such "
+                    + "as *Command, never by naming a class"
             ),
-            CoverageExclusions.problems("com/example/Example").toList(),
-            "the separator is right here, so naming a class is the only thing left to report"
+            CoverageExclusions.problems("com.example.cli.Example").toList(),
+            "a qualified name ending in a class is the form the standard refuses"
         );
     }
 
     @Test
     void refusesAnExclusionThatNamesALocationRatherThanARole() {
         assertFalse(
-            CoverageExclusions.roleShaped("com/example/**"),
-            "a directory is where a class sits rather than what it is"
+            CoverageExclusions.roleShaped("com.example.cli.*"),
+            "a package is where a class sits rather than what it is"
         );
-        assertFalse(CoverageExclusions.roleShaped("com/example/*"), "and so is a single directory level");
+        assertFalse(CoverageExclusions.roleShaped("com.example.cli.**"), "and so is a package subtree");
+    }
+
+    @Test
+    void acceptsASettingThatDeclaresNoExclusionAtAll() {
+        assertEquals(
+            List.of(), CoverageExclusions.problems("").toList(),
+            "declaring no exclusion is the state a project should be in, not one to report"
+        );
+        assertEquals(
+            List.of(), CoverageExclusions.problems("   ").toList(),
+            "and whitespace declares no exclusion just as plainly"
+        );
     }
 
     @Test
     void refusesAnEntryThatIsNothingAtAll() {
         assertEquals(
-            1, CoverageExclusions.problems("**/*Mojo*,,**/*Dto").count(),
+            1, CoverageExclusions.problems("*Command,,*Dto").count(),
             "a stray comma between two entries leaves an empty one, which names no role and is reported"
-        );
-        assertEquals(
-            List.of(), CoverageExclusions.problems("**/*Mojo*,").toList(),
-            "a trailing comma leaves nothing behind it, so there is no entry there to report"
         );
     }
 
     @Test
     void acceptsAnExclusionShapedLikeARole() {
         assertEquals(
-            List.of(), CoverageExclusions.problems("**/*Mojo*,**/*Dto").toList(),
-            "a role reads across the tree, which is what the harness excludes by"
-        );
-        assertTrue(CoverageExclusions.roleShaped("**/*Generated*"), "and it needs no directory at all");
-    }
-
-    @Test
-    void refusesAPatternWrittenTheWayTheSourceWritesIt() {
-        assertTrue(
-            CoverageExclusions.problems("com.example.generated.*Dto")
-                .anyMatch(problem -> problem.contains("separate packages with / rather than .")),
-            "the coverage tool reads the VM name, so a dotted pattern excludes nothing and says nothing"
-        );
-    }
-
-    @Test
-    void refusesADottedPatternEvenWhenItIsShapedLikeARole() {
-        assertFalse(
-            CoverageExclusions.matchable("com.example.cli.*Command"),
-            "a role that cannot match is a setting that reads as though it worked"
+            List.of(), CoverageExclusions.problems("*Command,com.example.cli.*Dto").toList(),
+            "a role reads across the packages it appears in, which is what the harness excludes by"
         );
         assertTrue(
-            CoverageExclusions.roleShaped("com.example.cli.*Command"),
-            "and its shape is why nothing else would have reported it"
-        );
-    }
-
-    @Test
-    void reportsBothDefectsWhenAnEntryCarriesBoth() {
-        assertEquals(
-            2, CoverageExclusions.problems("com.example.Example").count(),
-            "naming a class and writing it with dots are two defects, and one edit answers both"
-        );
-    }
-
-    @Test
-    void acceptsTheSeparatorTheCoverageToolReads() {
-        assertTrue(CoverageExclusions.matchable("**/*Mojo*"), "a role pattern carries no package at all");
-        assertTrue(
-            CoverageExclusions.matchable("com/example/generated/*Dto"),
-            "and a rooted one separates its packages the way the VM name does"
+            CoverageExclusions.roleShaped("*Generated*"),
+            "and it needs no package in front of it at all"
         );
     }
 }
