@@ -96,14 +96,27 @@ final class AssertionRules {
      * subject, and with its text blocks blanked, because a fixture quoting a source is not code of the
      * file that quotes it.
      *
+     * <p>Keeping one-line literals is what lets the operands be read, and it is also what would let a
+     * one-line literal that quotes an assertion be read as one. A test that asserts something about the
+     * text "assertEquals(1, 1)" is not a test that asserts 1 equals 1. Each hit is therefore confirmed
+     * against the fully blanked form of the same source, where every literal is blank and only code
+     * survives. Both forms keep the width and the line breaks of the original, so one offset addresses
+     * both, and a hit that lands on blank there was quoted rather than written.
+     *
      * @param source the decoded text of a Java source
      * @return one entry per assertion that cannot fail, naming its line and the call
      */
     static List<String> settled(CharSequence source) {
         String readable = JavaCode.withoutComments(source);
+        String code = JavaCode.blanked(source);
         return SETTLED.matcher(readable).results()
+            .filter(hit -> isCode(code, hit.start()))
             .map(hit -> "line %d: %s".formatted(JavaCode.lineOf(readable, hit.start()), hit.group().strip()))
             .toList();
+    }
+
+    private static boolean isCode(CharSequence blanked, int start) {
+        return start < blanked.length() && !Character.isWhitespace(blanked.charAt(start));
     }
 
     private static boolean reaches(CharSequence body, Map<String, String> bodies, Set<String> visited) {

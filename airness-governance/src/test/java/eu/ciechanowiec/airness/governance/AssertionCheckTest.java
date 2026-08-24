@@ -34,6 +34,22 @@ class AssertionCheckTest {
         }
         """;
 
+    private static final String QUOTING_AN_ASSERTION = """
+        package sample;
+
+        import static org.junit.jupiter.api.Assertions.assertTrue;
+
+        import org.junit.jupiter.api.Test;
+
+        class SubjectTest {
+
+            @Test
+            void namesAnAssertionWithoutMakingOne() {
+                assertTrue(new Subject().render().contains("assertEquals(1, 1)"), "the text is the subject");
+            }
+        }
+        """;
+
     private static final String DRIVEN_ONLY = """
         package sample;
 
@@ -161,6 +177,15 @@ class AssertionCheckTest {
         assertTrue(
             Verdicts.clean(check.findings()),
             "and so reports the same verdict as a clean tree, which is why the caller refuses a zero scope"
+        );
+    }
+
+    @Test
+    void readsAQuotedAssertionAsTextRatherThanAsOneItCouldReport() {
+        Path root = new GitFixture("assertion-quoted").write(SOURCE, QUOTING_AN_ASSERTION).root();
+        assertTrue(
+            Verdicts.clean(new AssertionCheck(root, TESTS).findings()),
+            "an assertion quoted inside a one-line literal is text, not an assertion this file makes"
         );
     }
 }
