@@ -506,6 +506,18 @@ run_case 'coverage: an exclusion that names a location is rejected' 1 'exclude b
 write_settings '    <airness.coverage.excluded.classes>*Command</airness.coverage.excluded.classes>' ''
 run_case 'coverage: an exclusion shaped like a role is accepted' 0 'BUILD SUCCESS' \
     "$settings" airness:check-parameters
+
+# A role that names nothing is the quietest way a project can be wrong about its own floor: the setting
+# is accepted, the report is unchanged, and the coverage tool has nothing to say because the pattern
+# simply never matched. Read after the report is written, which is where the measured classes are known.
+# Driven goal by goal rather than through package, because the coverage floor of this fixture is not met
+# and the tool's own check would end the build before the harness read the report.
+run_case 'coverage: an exclusion that reaches no class is rejected' 1 'excludes nothing' \
+    "$consumer" test jacoco:report airness:coverage-evidence \
+    -Dairness.coverage.excluded.classes='*NoSuchRole'
+run_case 'coverage: an exclusion that reaches a class is accepted' 0 'BUILD SUCCESS' \
+    "$consumer" test jacoco:report airness:coverage-evidence \
+    -Dairness.coverage.excluded.classes='*Fixture'
 write_settings '' '    <qodana.image>alpine</qodana.image>'
 run_case 'images: a consumer cannot repoint the scanner image' 1 'Airness owns this value' \
     "$settings" airness:check-parameters
