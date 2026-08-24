@@ -11,11 +11,14 @@ import lombok.experimental.UtilityClass;
  * The commit-message policy, expressed as a pure function over an already-parsed {@link CommitMessage}
  * and its {@link DiffStat}. It enforces the Conventional Commits header with a closed type list, a
  * subject of the right length with no trailing period and no junk word, a body for a non-trivial
- * change, and the absence of any marker that attributes the change to an AI agent. A revert header keeps
- * its fixed git form, so it is exempt from the header shape alone. A merge commit is prohibited outright
- * and {@link LinearHistoryCheck} reports it, so the shape rules stay silent on one: a banned commit is
- * worth one verdict, not that verdict buried under five header findings. The attribution ban holds for
- * every commit, because neither exemption is a licence to name an agent in the body.
+ * change, and the absence of any marker that attributes the change to an AI agent.
+ *
+ * <p>Every commit answers to this, with no shape exempted from it. A revert and a merge each have a form
+ * that git writes by default, and neither is a form anybody is obliged to keep: every tool that makes one
+ * offers to edit the message, so a conforming message is always reachable. Exempting them would have been
+ * the harness inventing an exception the standard does not state, and it would have let a header through
+ * unread. A merge is refused by {@link LinearHistoryCheck} as well, so it now carries two findings rather
+ * than one, which is a stronger signal about a commit that should not exist rather than a muddier one.
  *
  * <p>Every attribution pattern is written over the whole agent list rather than over one vendor, so
  * the ban covers each agent the project serves and several it does not. It remains best-effort: no
@@ -25,15 +28,13 @@ import lombok.experimental.UtilityClass;
 final class CommitMessageRules {
 
     /**
-     * The nine types the standard names, and nothing beside them. A revert keeps the {@code Revert "..."}
-     * form Git writes for it and is exempt from this shape rather than given a type of its own, and a
-     * breaking change is described in the body rather than marked in the header: a marker a reader has to
-     * notice is a worse place for that than a sentence saying what breaks.
+     * The nine types the standard names, and nothing beside them. A breaking change is described in the
+     * body rather than marked in the header, because a marker a reader has to notice says less than a
+     * sentence saying what breaks.
      */
     private static final Pattern HEADER = Pattern.compile(
         "^(build|chore|ci|docs|feat|fix|perf|refactor|test)(\\([a-z0-9.-]+\\))?: .+$"
     );
-    private static final Pattern REVERT = Pattern.compile("^Revert \".+\"$");
     private static final String SEPARATOR = ": ";
     private static final int MIN_SUBJECT = 15;
     private static final int MAX_SUBJECT = 72;
@@ -60,22 +61,13 @@ final class CommitMessageRules {
         Pattern.compile("(?i)" + PRODUCT_PAGES)
     );
 
-    static List<String> validate(CommitMessage message, DiffStat stat, boolean merge) {
-        return Stream.concat(shapeViolations(message, stat, merge), Stream.of(attributionViolation(message)))
+    static List<String> validate(CommitMessage message, DiffStat stat) {
+        return Stream.concat(shapeViolations(message, stat), Stream.of(attributionViolation(message)))
             .flatMap(Optional::stream)
             .toList();
     }
 
-    static List<String> validate(CommitMessage message, DiffStat stat) {
-        return validate(message, stat, false);
-    }
-
-    private static Stream<Optional<String>> shapeViolations(
-        CommitMessage message, DiffStat stat, boolean merge
-    ) {
-        if (isExempt(message.header(), merge)) {
-            return Stream.of();
-        }
+    private static Stream<Optional<String>> shapeViolations(CommitMessage message, DiffStat stat) {
         return Stream.of(
             headerViolation(message.header()),
             subjectLengthViolation(message.header()),
@@ -83,10 +75,6 @@ final class CommitMessageRules {
             junkWordViolation(message.header()),
             bodyViolation(message, stat)
         );
-    }
-
-    private static boolean isExempt(CharSequence header, boolean merge) {
-        return merge || REVERT.matcher(header).matches();
     }
 
     private static Optional<String> headerViolation(CharSequence header) {

@@ -43,16 +43,16 @@ class CommitHistoryCheckTest {
     }
 
     @Test
-    void staysQuietOnAMergeCommitThatTheLinearHistoryCheckOwns() {
+    void readsAMergeCommitLikeEveryOtherCommit() {
         Path root = new GitFixture("history-merge")
             .write(FILE, "Base.\n").commit("feat(core): add the base fixture file")
             .mergeASideBranch()
             .root();
         CommitHistoryCheck check = new CommitHistoryCheck(root);
         assertEquals(4, check.scanned(), "the base, both branch tips, and the merge itself were read");
-        assertTrue(
+        assertFalse(
             Verdicts.clean(check.findings()),
-            "and the merge is banned outright elsewhere, so shape findings here would bury that verdict"
+            "the header git writes for a merge is a header, and this check reads every one of them"
         );
     }
 }

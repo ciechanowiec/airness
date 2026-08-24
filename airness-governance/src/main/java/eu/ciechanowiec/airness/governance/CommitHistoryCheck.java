@@ -49,7 +49,7 @@ public final class CommitHistoryCheck {
     }
 
     private static List<String> annotate(Commit commit) {
-        return CommitMessageRules.validate(commit.message(), commit.stat(), commit.merge()).stream()
+        return CommitMessageRules.validate(commit.message(), commit.stat()).stream()
             .map(violation -> commit.sha() + ": " + violation)
             .toList();
     }

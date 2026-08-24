@@ -2141,6 +2141,10 @@ git -C "$merged" checkout --quiet -
 git -C "$merged" merge --quiet --no-ff side --message "Merge branch 'side'"
 run_case 'history: a merge commit is rejected' 1 'Merge commits in the history' \
     "$merged" airness:linear-history
+# The header git writes for a merge is a header like any other, and no shape is exempt from the message
+# policy. Two findings on one commit is the stronger signal about a commit that should not exist.
+run_case 'history: a merge header is read like every other header' 1 'Commit messages that break the policy' \
+    "$merged" airness:commit-history
 
 # The extended profile had never run against a consumer at all, only against Airness itself, so nothing
 # said whether a consumer reaches its goals or in what order. The order is read from the log rather than
