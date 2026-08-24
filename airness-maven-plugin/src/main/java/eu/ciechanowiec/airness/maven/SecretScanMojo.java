@@ -35,4 +35,9 @@ public final class SecretScanMojo extends AbstractDockerCheckMojo {
     boolean findingsExit(int exit) {
         return exit == 1;
     }
+
+    @Override
+    String image() {
+        return this.image;
+    }
 }

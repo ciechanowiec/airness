@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -161,5 +162,36 @@ class CommitMessageRulesTest {
             CommitMessageRules.validate(message, TRIVIAL).isEmpty(),
             "a fixed header form is no licence to name an agent in the body"
         );
+    }
+
+    @Test
+    void acceptsOnlyTheNineTypesTheStandardNames() {
+        assertEquals(
+            List.of(),
+            Stream.of("build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "test")
+                .flatMap(type -> header(type + ": mask bearer tokens in headers").stream())
+                .toList(),
+            "the nine types of the standard are the nine this harness takes"
+        );
+    }
+
+    @Test
+    void rejectsATypeTheStandardDoesNotName() {
+        assertFalse(
+            header("revert: mask bearer tokens in headers").isEmpty(),
+            "git writes its own revert header, so a revert needs no type beside the nine"
+        );
+    }
+
+    @Test
+    void rejectsABreakingChangeMarkedInTheHeader() {
+        assertFalse(
+            header("feat!: mask bearer tokens in headers").isEmpty(),
+            "what breaks belongs in the body, where it can be said rather than marked"
+        );
+    }
+
+    private static List<String> header(String text) {
+        return CommitMessageRules.validate(new CommitMessage(text, ""), TRIVIAL);
     }
 }

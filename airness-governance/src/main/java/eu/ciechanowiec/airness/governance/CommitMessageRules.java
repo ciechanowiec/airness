@@ -24,8 +24,14 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class CommitMessageRules {
 
+    /**
+     * The nine types the standard names, and nothing beside them. A revert keeps the {@code Revert "..."}
+     * form Git writes for it and is exempt from this shape rather than given a type of its own, and a
+     * breaking change is described in the body rather than marked in the header: a marker a reader has to
+     * notice is a worse place for that than a sentence saying what breaks.
+     */
     private static final Pattern HEADER = Pattern.compile(
-        "^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\\([a-z0-9.-]+\\))?!?: .+$"
+        "^(build|chore|ci|docs|feat|fix|perf|refactor|test)(\\([a-z0-9.-]+\\))?: .+$"
     );
     private static final Pattern REVERT = Pattern.compile("^Revert \".+\"$");
     private static final String SEPARATOR = ": ";

@@ -40,9 +40,6 @@
             tree, because a copy in the tree is a copy that gets edited and then ignored, and because
             the build directory is already ignored by git and so is invisible to the tree-mutation net.
         -->
-        <!-- Pinned, so the scan a build runs is the scan the next build runs. -->
-        <gitleaks.image>zricethezav/gitleaks:v8.30.0</gitleaks.image>
-        <qodana.image>jetbrains/qodana-jvm-community:2026.1</qodana.image>
         <!--
             The package NullAway treats as annotated. Everything outside it is assumed unannotated and
             goes unchecked, so a value naming a package this project does not use turns the whole
@@ -298,7 +295,12 @@
                         <configuration>
                             <skip>${skipTests}</skip>
                             <fail>${airness.enforce}</fail>
-                            <rules>
+                            <!--
+                                combine.self=override, because the root pluginManagement mirrors this same
+                                list for Airness's own modules. Without it a consumer would inherit both
+                                copies and see every finding twice.
+                            -->
+                            <rules combine.self="override">
                                 <!--
                                     A transitive dependency that another path down-versions is the kind of
                                     difference that shows up as a NoSuchMethodError in production and in
@@ -481,6 +483,13 @@
                         <exclude>**/*.docx</exclude>
                         <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
                         <exclude>**/*.tsv</exclude>
+                        <!--
+                            Exported copies of the documentation. The managed .gitignore asset already
+                            keeps them out of every consumer's tree, and the exporter writes them without
+                            a final newline, so they are excluded by role rather than repaired by hand.
+                        -->
+                        <exclude>**/README*.html</exclude>
+                        <exclude>**/README*.pdf</exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -757,6 +766,7 @@
                                 <sourceDirectory>${project.basedir}/../airness-maven-plugin/src/main/java</sourceDirectory>
                             </sourceDirectories>
                             <testSourceDirectories>
+                                <testSourceDirectory>${project.basedir}/../airness-annotations/src/test/java</testSourceDirectory>
                                 <testSourceDirectory>${project.basedir}/../airness-governance/src/test/java</testSourceDirectory>
                                 <testSourceDirectory>${project.basedir}/../airness-maven-plugin/src/test/java</testSourceDirectory>
                             </testSourceDirectories>
@@ -970,6 +980,20 @@
                             <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
                             <skip>${skipTests}</skip>
                             <skipTestScope>false</skipTestScope>
+                            <!--
+                                The .NET assembly analyzer is off because this harness governs Java and Maven,
+                                and because leaving it on makes the verdict depend on the machine. The archive
+                                analyzer unpacks every jar, and JNA ships its Windows JNI dispatch libraries as
+                                .dll files inside jna.jar, which the Eclipse JDT formatter reaches through
+                                org.eclipse.core.filesystem. Those are JNI natives rather than .NET assemblies,
+                                but the extension is what routes them, and reading one needs a dotnet runtime.
+                                A machine that has one initializes the analyzer and a machine that does not
+                                fails to, so the same tree would be scanned two ways: a GitHub runner ships a
+                                .NET SDK and an ordinary workstation does not. The determinism the standard
+                                gives up for this check covers the public database it reads, not the tooling
+                                that happens to be installed beside it.
+                            -->
+                            <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
                             <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
                             <versionCheckEnabled>false</versionCheckEnabled>
                         </configuration>

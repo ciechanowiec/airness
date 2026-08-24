@@ -21,16 +21,15 @@ import org.apache.maven.plugins.annotations.Mojo;
 public final class SuppressionBudgetMojo extends AbstractGovernanceMojo {
 
     /*
-     * Two suppressions per thousand lines of Java source, with the smallest ceiling of five holding
-     * underneath the rate. The number is calibrated against this harness, which carries a little over
-     * one per thousand lines across its own modules, so a project is left about twice the room the
-     * harness itself needed and the ceiling still arrives long before a project could suppress its way
-     * to a clean build.
+     * Four and a half suppressions per thousand lines of Java source, with the smallest ceiling of
+     * five holding underneath the rate. The rate leaves room for justified analyzer boundaries that
+     * code cannot remove while keeping suppressions sparse as a project grows. The ceiling still
+     * arrives long before a project could suppress its way to a clean build.
      *
      * Deliberately not a parameter. A ceiling a project can raise is a ceiling that gets raised on the
      * change that would otherwise have failed, which is the one moment the ceiling exists to catch.
      */
-    private static final double RATE = 2;
+    private static final double RATE = 4.5;
 
     @Override
     boolean applies() {

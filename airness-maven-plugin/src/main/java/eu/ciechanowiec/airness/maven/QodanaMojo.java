@@ -111,4 +111,9 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
     boolean findingsExit(int exit) {
         return exit == FINDINGS;
     }
+
+    @Override
+    String image() {
+        return this.image;
+    }
 }
