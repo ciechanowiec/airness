@@ -255,4 +255,35 @@ class MavenModelPolicyTest {
         Path path = Files.writeString(this.directory.resolve("pom.xml"), pom);
         return MavenModelPolicy.problems(path);
     }
+
+    @Test
+    void rejectsAnAirnessSettingTheProjectDoesNotOwn() {
+        String pom = """
+            <project>
+                <properties><airness.suppression.rate>9</airness.suppression.rate></properties>
+            </project>
+            """;
+        assertEquals(
+            List.of(
+                "Remove child property airness.suppression.rate; it can bypass the Airness verdict"
+            ),
+            this.problems(pom),
+            "the namespace is refused by default, so a setting invented later is refused the day it is written"
+        );
+    }
+
+    @Test
+    void acceptsTheAirnessSettingsTheProjectDoesOwn() {
+        String pom = """
+            <project>
+                <properties>
+                    <airness.assets.unmanaged>.gitignore</airness.assets.unmanaged>
+                    <airness.package.root>com.example</airness.package.root>
+                    <airness.test.timeout>45 s</airness.test.timeout>
+                    <airness.typography.excludes>docs</airness.typography.excludes>
+                </properties>
+            </project>
+            """;
+        assertEquals(List.of(), this.problems(pom), "these four are documented as the project's own");
+    }
 }

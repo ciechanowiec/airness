@@ -4,9 +4,12 @@ import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.RootLicenseCheck;
+import eu.ciechanowiec.airness.governance.SecretScanConfiguration;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
+import lombok.SneakyThrows;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -39,6 +42,19 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
             root, new AssetCatalogue(AssetsCheckMojo.class.getClassLoader()), exempt
         ).findings();
         List<Findings> licenses = new RootLicenseCheck(root).findings();
-        return Stream.concat(assets.stream(), licenses.stream()).toList();
+        return Stream.of(assets, licenses, this.secretScan(root)).flatMap(List::stream).toList();
+    }
+
+    /**
+     * Read here rather than beside the scan itself, because the scan runs only under Extended
+     * verification while this goal runs on every build. A configuration that switches the scan off
+     * should fail the command that a change is checked with, not the one it is released with.
+     */
+    @SneakyThrows
+    private List<Findings> secretScan(Path root) {
+        Path configuration = root.resolve(".gitleaks.toml");
+        return Files.isRegularFile(configuration)
+            ? new SecretScanConfiguration(Files.readString(configuration)).findings()
+            : List.of();
     }
 }

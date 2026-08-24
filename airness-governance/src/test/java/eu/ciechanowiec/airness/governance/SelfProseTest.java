@@ -3,11 +3,9 @@ package eu.ciechanowiec.airness.governance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -27,11 +25,6 @@ import org.junit.jupiter.api.Test;
  * outside the reactor, and every one of them breaks a rule on purpose.
  */
 class SelfProseTest {
-
-    private static final List<String> MODULES = List.of(
-        "airness-annotations", "airness-governance", "airness-maven-plugin"
-    );
-    private static final List<String> SOURCES = List.of("src/main/java", "src/test/java");
 
     @Test
     void keepsItsOwnCommentProseWithinTheRulesItShips() {
@@ -58,18 +51,12 @@ class SelfProseTest {
     }
 
     private static List<Path> roots() {
-        Path repository = repository();
-        return MODULES.stream()
-            .flatMap(module -> SOURCES.stream().map(source -> repository.resolve(module).resolve(source)))
-            .filter(Files::isDirectory)
+        return SelfModules.withProductionJava().stream()
+            .flatMap(module -> SelfModules.sourceRoots(module).stream())
             .toList();
     }
 
     private static Path repository() {
-        Path current = Path.of("").toAbsolutePath();
-        return Stream.of(current, current.getParent())
-            .filter(path -> Files.exists(path.resolve("airness-parent/pom.xml")))
-            .findFirst()
-            .orElseThrow();
+        return SelfModules.repository();
     }
 }

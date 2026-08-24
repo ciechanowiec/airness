@@ -30,12 +30,134 @@
 
     <properties>
         <maven.api.version>3.9.16</maven.api.version>
+        <jackson.version>2.22.2</jackson.version>
+        <javaparser.version>3.28.2</javaparser.version>
+        <guava.version>33.7.1-jre</guava.version>
+        <commons-beanutils.version>1.11.0</commons-beanutils.version>
+        <commons-logging.version>1.4.0</commons-logging.version>
+        <plexus-utils.version>4.1.0</plexus-utils.version>
+        <eclipse-equinox-common.version>3.20.200</eclipse-equinox-common.version>
+        <eclipse-text.version>3.14.400</eclipse-text.version>
         <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
         <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
         <maven-plugin-tools.version>3.15.2</maven-plugin-tools.version>
+        <!--
+            Held at what the Maven baseline supplies rather than at the newest release, because this is a
+            provided dependency: the resolver on the classpath at run time is the one Maven brought, and
+            Maven 3.9.16 brings 1.9.27. The 2.x line belongs to Maven 4. Compiling against it would leave
+            the plugin calling an API that is not there in any build a consumer runs today, and nothing
+            here would notice until one did.
+
+            The update report names 2.0.21 every build and is right to: it reports rather than fails, and
+            the two-major bound is what would fail. This value moves when the Maven baseline moves.
+        -->
+        <maven-resolver.version>1.9.27</maven-resolver.version>
     </properties>
 
+    <!--
+        Versions this build states rather than leaves to resolution order, for two reasons that the
+        entries below are ordered by tool rather than by reason.
+
+        Convergence is the first. The formatter and the import sorter are libraries here and they
+        disagree with each other about guava, which each pins to a different patch line, and about
+        equinox.common, which two branches of the Eclipse JDT tree reach at different versions.
+        Convergence makes the disagreement itself the failure.
+
+        The Eclipse bundles are the exception to reading the update report as a to-do list. They are a
+        coherent set whose versions org.eclipse.jdt.core chooses, and the pins here exist to settle a
+        disagreement inside that set rather than to lead it: each names the highest version some path in
+        the set actually asks for, not the newest one published. Raising equinox.common or text on their
+        own past the set drags a newer core.runtime and osgi behind them and leaves this build resolving
+        an Eclipse runtime that no path asked for, so the update report names them every build and is
+        answered by upgrading org.eclipse.jdt.core rather than by following it.
+
+        A published advisory is the second, and the guideline answers one by upgrading before it answers
+        one by recording an exception. commons-beanutils, plexus-utils and the Jackson line each resolved
+        at a version carrying one. commons-logging follows commons-beanutils, which no longer agrees with
+        digester3 about it. SelfFormattingTest drives the real formatter over this repository's own
+        sources, so a raise the formatter cannot take fails this build rather than a consumer's.
+
+        Pinned in this module rather than in the root, deliberately. A root pin would put these
+        coordinates under ManagedVersions as harness-supplied and forbid a consuming project from ever
+        declaring guava of its own, which is a restriction this problem does not justify.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <!--
+                A bill of materials rather than three pins: jackson-annotations moves on a version line of
+                its own, so naming the three by hand states a version that does not exist.
+            -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.javaparser</groupId>
+                <artifactId>javaparser-core</artifactId>
+                <version>${javaparser.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>${commons-beanutils.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-logging</groupId>
+                <artifactId>commons-logging</artifactId>
+                <version>${commons-logging.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codehaus.plexus</groupId>
+                <artifactId>plexus-utils</artifactId>
+                <version>${plexus-utils.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.platform</groupId>
+                <artifactId>org.eclipse.equinox.common</artifactId>
+                <version>${eclipse-equinox-common.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.platform</groupId>
+                <artifactId>org.eclipse.text</artifactId>
+                <version>${eclipse-text.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
+        <dependency>
+            <groupId>com.github.javaparser</groupId>
+            <artifactId>javaparser-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!--
+            The files the harness owns travel with the plugin that checks them, so the two can never be
+            at different versions in one build. A consumer declares nothing to get them.
+        -->
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-assets</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-config</artifactId>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>eu.ciechanowiec</groupId>
             <artifactId>airness-governance</artifactId>
@@ -46,46 +168,104 @@
                     <artifactId>maven-artifact</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <!--
-            The files the harness owns travel with the plugin that checks them, so the two can never be
-            at different versions in one build. A consumer declares nothing to get them.
-        -->
-        <dependency>
-            <groupId>eu.ciechanowiec</groupId>
-            <artifactId>airness-assets</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>eu.ciechanowiec</groupId>
-            <artifactId>airness-config</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>eu.ciechanowiec</groupId>
-            <artifactId>airness-annotations</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>net.revelc.code.formatter</groupId>
             <artifactId>formatter-maven-plugin</artifactId>
             <version>${formatter-maven-plugin.version}</version>
+            <scope>compile</scope>
+            <!--
+                SourceFormattingMojo drives one class of this artifact, JavaFormatter, and reaches the
+                Eclipse JDT formatter through it. The plugin also carries formatters for JavaScript, CSS,
+                XML and HTML, and a configuration reader built on commons-digester3. None of that is on
+                the path Airness takes, and all of it is cost: jsdt-core alone brings the OSGi, JNA and
+                ICU trees, and cssparser brings a W3C licence that the dependency allowlist does not
+                carry.
+
+                Excluded rather than allowlisted, because the answer to a dependency this project does
+                not use is to stop resolving it, not to widen the rule that reported it. SelfFormattingTest
+                drives the real formatter over this repository's own sources, so a class removed here that
+                the Java path actually needed fails the build rather than a consumer's. That is not
+                hypothetical: commons-digester3 reads the formatter's own configuration and belongs to the
+                Java path, so it is resolved rather than excluded even though it is the oldest thing here.
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>net.revelc.code.formatter</groupId>
+                    <artifactId>jsdt-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.revelc.code.formatter</groupId>
+                    <artifactId>xml-formatter</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.sourceforge.cssparser</groupId>
+                    <artifactId>cssparser</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.w3c.css</groupId>
+                    <artifactId>sac</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.jsoup</groupId>
+                    <artifactId>jsoup</artifactId>
+                </exclusion>
+                <exclusion>
+                    <!--
+                        commons-digester3 reaches cglib only for the annotation binder, which the
+                        formatter never calls, and cglib 2.2.2 carries asm 3.3.1 from 2011. Those bytes
+                        answer to org/objectweb/asm the same names as the asm 9 that maven-core puts on
+                        this classpath, so classpath order would decide which bytecode reader the plugin
+                        actually got. Two owners for one class is what banDuplicateClasses reports, and
+                        it is right to.
+                    -->
+                    <groupId>cglib</groupId>
+                    <artifactId>cglib</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>net.revelc.code</groupId>
             <artifactId>impsort-maven-plugin</artifactId>
             <version>${impsort-maven-plugin.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugin-tools</groupId>
+            <artifactId>maven-plugin-annotations</artifactId>
+            <version>${maven-plugin-tools.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.resolver</groupId>
+            <artifactId>maven-resolver-api</artifactId>
+            <version>${maven-resolver.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <!-- Maven supplies its version comparator to the plugin at runtime. -->
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-artifact</artifactId>
-            <version>${maven-artifact.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>${maven.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!--
+            Reached directly by this module's own source rather than through the artifact that happens to
+            bring it: the publication checks read the Maven model types, the goals read the resolver's
+            session data, the formatter's document type comes from Eclipse text, and the import sorter
+            parses with JavaParser. A type a module compiles against is a dependency it has, whoever else
+            also depends on it, and analyze-only reports the difference.
+        -->
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-model</artifactId>
+            <version>${maven.api.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -95,26 +275,116 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.maven</groupId>
-            <artifactId>maven-core</artifactId>
-            <version>${maven.api.version}</version>
-            <scope>provided</scope>
+            <groupId>org.eclipse.platform</groupId>
+            <artifactId>org.eclipse.text</artifactId>
+            <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.maven.plugin-tools</groupId>
-            <artifactId>maven-plugin-annotations</artifactId>
-            <version>${maven-plugin-tools.version}</version>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <!--
+            The API is what the tests compile against and the engine is what runs them, so both are named.
+            The junit-jupiter aggregator would bring them and hide which of the two this module actually
+            uses, which is the difference the dependency analysis is there to report.
+        -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!--
+                Airness answers to the dependency rules it ships. The rules themselves live in the root
+                pluginManagement, so this execution names only the goal and the phase.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-enforce-dependencies</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The modernization recipes Airness ships, run against Airness's own sources. dryRun only:
+                the apply half is the format command's job and never a verification's.
+            -->
+            <plugin>
+                <groupId>org.openrewrite.maven</groupId>
+                <artifactId>rewrite-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-rewrite-verify</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>dryRunNoFork</goal>
+                        </goals>
+                        <configuration>
+                            <failOnDryRunResults>${airness.enforce}</failOnDryRunResults>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The unused and undeclared dependency report, and the licence allowlist, both read the
+                module's own resolved graph, so each module runs them for itself. The configuration is in
+                the root pluginManagement, mirroring what airness-parent binds for a consumer.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-check-dependency-licenses</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>add-third-party</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Extended verification for Airness, exactly as it is for a consumer: the phase property is
+                'none' by default and 'package' under the extended profile.
+            -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-known-vulnerabilities</id>
+                        <phase>${airness.self.vulnerabilities.phase}</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <!--
+                            Only this module names the suppression document, because only this module's
+                            graph carries the packages it is about. The plugin fails on a rule that matches
+                            nothing, so naming the document in a module without those packages would fail
+                            the build for the absence of a finding.
+                        -->
+                        <configuration>
+                            <suppressionFiles>
+                                <suppressionFile>${airness.self.suppression.file}</suppressionFile>
+                            </suppressionFiles>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -176,16 +446,37 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <configuration>
                     <!--
-                        airness-assets is carried for the files inside it rather than for any class, so
-                        bytecode analysis reports it unused, exactly as it does a SOURCE-retention
-                        annotation. Named for this one artifact rather than switched off wholesale.
+                        Three artifacts this module resolves for something other than a class. airness-assets
+                        and airness-config carry files that are read off the plugin classloader, and
+                        airness-annotations has SOURCE retention and leaves no bytecode at all. Analysis
+                        reads bytecode, so all three report as unused and none of them is.
+
+                        This list replaces the one the root pluginManagement declares rather than adding to
+                        it, so airness-annotations is repeated here on purpose. Each artifact is named
+                        rather than the report being switched off, so a dependency that is genuinely unused
+                        is still reported.
                     -->
                     <ignoredUnusedDeclaredDependencies>
                         <ignoredUnusedDeclaredDependency>
+                            eu.ciechanowiec:airness-annotations
+                        </ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>
                             eu.ciechanowiec:airness-assets
+                        </ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>
+                            eu.ciechanowiec:airness-config
                         </ignoredUnusedDeclaredDependency>
                     </ignoredUnusedDeclaredDependencies>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>airness-self-analyze-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

@@ -185,6 +185,7 @@ mvn airness:assets-sync
 
 . _airness_ configuration values that accept lists use commas between entries.
 . Put settings used by every build in the Maven project file. Use command-line values for a single run.
+. The keys below are the only `airness.` settings a project declares. Every other name in that namespace belongs to the harness, and a project file that declares one is rejected, so a setting added to _airness_ later is protected from the day it exists.
 
 [[required-keys]]
 === Required Keys
@@ -216,11 +217,11 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 
 | `airness.coverage.excluded.classes`
 | empty
-| Class patterns excluded from instruction and branch test coverage checks.
+| Class patterns excluded from instruction and branch test coverage checks. A pattern names a file role and never one class, so its last path segment carries a wildcard and is neither `++*++` nor `++**++`. For example, `++**/*Mojo*++` is accepted and `com/example/Example` isn't.
 
 | [[airness-dependency-check-suppression-file,airness.dependency-check.suppression.file]]`airness.dependency-check.suppression.file`
 | empty
-| Local path or URL of an OWASP Dependency-Check XML suppression file. Create it from the HTML report and follow the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^]. Use a suppression only when no upgrade answers the advisory. Name the advisory, state in the rule's `notes` element why this project can't reach the vulnerability, record the date the entry was made, and remove the entry once it no longer matches.
+| Local path of an OWASP Dependency-Check XML suppression file. A path rather than a URL, because a document read over the network would make a verdict depend on a host rather than on the repository. Create it from the HTML report and follow the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^]. Use a suppression only when no upgrade answers the advisory. Name the advisory, state in the rule's `notes` element why this project can't reach the vulnerability, record the date the entry was made, and remove the entry once it no longer matches. Each of those is checked: an entry needs a non-empty `notes` element carrying a `YYYY-MM-DD` date, and it names an advisory rather than only the package it sits in.
 
 | `airness.test.timeout`
 | `30 s`

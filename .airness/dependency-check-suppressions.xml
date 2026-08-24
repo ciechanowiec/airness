@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Advisories that Dependency-Check reports against this repository and that no upgrade answers, because
+    the report is a name collision rather than a finding. Every entry names its advisory, says why this
+    repository cannot reach it, and records the date it was added.
+
+    The plugin runs with failBuildOnUnusedSuppressionRule, so a rule that stops matching fails the build
+    rather than outliving what it was written for. Nothing here raises the CVSS threshold: the threshold
+    stays at zero and each exception is written out one advisory at a time.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-08-23. CVE-2020-27225 is a privilege issue in the Eclipse IDE's p2 provisioning
+            UI, which is reached by installing software into a running Eclipse workbench. The packages it
+            is reported against here are OSGi runtime bundles that the Eclipse JDT formatter resolves,
+            and this repository loads exactly one type out of that tree, the Java code formatter. No p2
+            code is on the classpath and no workbench exists to install into, so the vulnerable path
+            cannot be entered from here.
+
+            The report is a CPE collision: Dependency-Check maps every org.eclipse.platform coordinate to
+            cpe:2.3:a:eclipse:platform, which is the identifier of the Eclipse Platform product rather
+            than of any one bundle, so the advisory matches whatever version each bundle happens to carry.
+            There is no fixed version to move to, because none of these bundles is what the advisory is
+            about.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.eclipse\.platform/.*$</packageUrl>
+        <cve>CVE-2020-27225</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-08-23. CVE-2014-125035 is a cross-site request forgery in a web application plugin
+            named "jobs-plugin". It is matched here against org.eclipse.platform:org.eclipse.core.jobs,
+            which is the Eclipse background-job scheduler and shares nothing with it but the word "jobs".
+            The two are unrelated products, so no version of this package is affected and no upgrade
+            applies.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.eclipse\.platform/org\.eclipse\.core\.jobs@.*$</packageUrl>
+        <cve>CVE-2014-125035</cve>
+    </suppress>
+</suppressions>

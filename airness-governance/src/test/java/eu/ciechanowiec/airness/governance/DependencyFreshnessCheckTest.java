@@ -12,8 +12,8 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -58,15 +58,20 @@ class DependencyFreshnessCheckTest {
     @TempDir
     private Path directory;
 
-    private Optional<HttpServer> server;
+    /**
+     * The registries this test started, so that each one is stopped whether or not a later one replaced it.
+     * A field holding the current registry would have to be assigned again every time one is started, and
+     * the one it replaced would then be a listening socket nothing could reach to close.
+     */
+    private final List<HttpServer> started;
 
     DependencyFreshnessCheckTest() {
-        this.server = Optional.empty();
+        this.started = new ArrayList<>();
     }
 
     @AfterEach
     void stopTheRegistry() {
-        this.server.ifPresent(active -> active.stop(0));
+        this.started.forEach(active -> active.stop(0));
     }
 
     @SneakyThrows
@@ -77,7 +82,7 @@ class DependencyFreshnessCheckTest {
     @SneakyThrows
     private String registry(int status, String body) {
         HttpServer active = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-        this.server = Optional.of(active);
+        this.started.add(active);
         active.createContext("/", exchange -> respond(exchange, status, body));
         active.start();
         return "http://127.0.0.1:" + active.getAddress().getPort() + "/";
@@ -182,7 +187,7 @@ class DependencyFreshnessCheckTest {
     @Test
     void failsRatherThanPassesWhenTheRegistryCannotBeRead() {
         String unreachable = this.registry("3.0.0");
-        this.server.orElseThrow().stop(0);
+        this.started.getLast().stop(0);
         UncheckedIOException thrown = assertThrows(
             UncheckedIOException.class, () -> this.check(INITIAL_VERSION, unreachable),
             "a dependency whose latest release could not be read is not a dependency known to be current"

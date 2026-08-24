@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -16,6 +17,14 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private static final int SUCCESS = 0;
     private static final List<String> DOCKER_INFO = List.of("docker", "info");
+    /**
+     * A repository, an optional tag, and a digest. The digest is what makes this a pin: a tag can be
+     * republished against different bytes, so an image named by tag alone lets an upstream release change
+     * a verdict here while nothing in the repository changed.
+     */
+    private static final Pattern PINNED = Pattern.compile(
+        "^[a-z0-9][a-z0-9._/-]*(:[A-Za-z0-9][A-Za-z0-9._-]*)?@sha256:[0-9a-f]{64}$"
+    );
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
@@ -30,6 +39,13 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     private boolean skip;
 
     abstract List<String> command() throws IOException;
+
+    /**
+     * The image this check runs, so that the pin can be read before the daemon is asked for anything.
+     *
+     * @return the configured image reference
+     */
+    abstract String image();
 
     abstract boolean findingsExit(int exit);
 
@@ -49,6 +65,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     }
 
     private void check() throws MojoExecutionException, MojoFailureException {
+        this.requirePinnedImage();
         this.requireDocker();
         int exit = this.runCheck();
         if (exit != 0) {
@@ -89,6 +106,20 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
             return this.run(this.command());
         } catch (IOException exception) {
             throw new MojoExecutionException("Could not start the Docker check", exception);
+        }
+    }
+
+    /**
+     * Read before the daemon is, deliberately. The pin is a property of the configuration rather than of
+     * the machine, so a tag-only image is the same finding on a machine that has no Docker at all.
+     */
+    private void requirePinnedImage() throws MojoExecutionException {
+        String reference = this.image();
+        if (!PINNED.matcher(reference).matches()) {
+            throw new MojoExecutionException(
+                "Pin the image by digest (repository:tag@sha256:...) rather than by tag, because a tag is "
+                    + "republishable and a verdict would change while this repository did not: " + reference
+            );
         }
     }
 

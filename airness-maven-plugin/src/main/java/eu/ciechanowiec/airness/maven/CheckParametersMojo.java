@@ -2,6 +2,8 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.ManagedVersions;
 import eu.ciechanowiec.airness.governance.MavenModelPolicy;
+import eu.ciechanowiec.airness.governance.SuppressionDocument;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -47,6 +49,16 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
     @Parameter(property = "airness.version", required = true)
     private String airnessVersion;
 
+    /**
+     * The Dependency-Check suppression document this project declared, if it declared one.
+     *
+     * <p>Read here rather than where the scan runs, because this is where a parameter is validated and
+     * because the scan runs only under Extended verification. A local path only: a document fetched over
+     * the network at validate time would make a verdict depend on a host rather than on the tree.
+     */
+    @Parameter(property = "airness.dependency-check.suppression.file")
+    private String suppressionFile;
+
     @Override
     boolean applies() {
         boolean airnessParent = AIRNESS_GROUP.equals(this.project().getGroupId())
@@ -72,7 +84,16 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
             : PackageRoots.problems(this.packageRoot, this.sourceRoots()).stream();
         Stream<String> versions = ManagedVersions.problems(this.project().getFile().toPath()).stream();
         Stream<String> model = MavenModelPolicy.problems(this.project().getFile().toPath()).stream();
-        return Stream.of(parameters, packages, versions, model).flatMap(Function.identity()).toList();
+        return Stream.of(parameters, packages, versions, model, this.suppressions())
+            .flatMap(Function.identity())
+            .toList();
+    }
+
+    private Stream<String> suppressions() {
+        return Sentinel.optional(this.suppressionFile).stream()
+            .map(Path::of)
+            .filter(Files::isRegularFile)
+            .flatMap(document -> new SuppressionDocument(document).problems().stream());
     }
 
     private List<Path> sourceRoots() {

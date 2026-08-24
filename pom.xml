@@ -36,23 +36,52 @@
         <url>https://github.com/ciechanowiec/airness</url>
     </scm>
 
+    <!--
+        airness-config is first so that every module after it can carry the analyzer configurations on an
+        isolated plugin classpath. A module built before it cannot resolve the artifact from the reactor,
+        which is why airness-annotations once bound no analyzer at all. None of the first three modules
+        depends on another, so declaration order alone decides, and SelfHarnessMirrorTest holds it here.
+    -->
     <modules>
-        <module>airness-annotations</module>
-        <module>airness-assets</module>
         <module>airness-config</module>
+        <module>airness-assets</module>
+        <module>airness-annotations</module>
         <module>airness-governance</module>
         <module>airness-maven-plugin</module>
         <module>airness-parent</module>
     </modules>
 
     <properties>
-        <airness.dependency-check.fail-build-on-cvss>0</airness.dependency-check.fail-build-on-cvss>
+        <!--
+            Airness's own Dependency-Check exceptions. Named on each self-execution rather than in the
+            pluginManagement above, because this pom is an ancestor of every consumer and a suppression
+            path resolved against a consumer's tree would name a file that is not there.
+        -->
+        <airness.self.suppression.file>${maven.multiModuleProjectDirectory}/.airness/dependency-check-suppressions.xml</airness.self.suppression.file>
+        <!--
+            The vulnerability scan is Extended verification for Airness exactly as it is for a consumer.
+            A phase property rather than five profile blocks, the same shape airness.rewrite.apply.phase
+            already uses: 'none' binds the execution to no phase at all.
+        -->
+        <airness.self.vulnerabilities.phase>none</airness.self.vulnerabilities.phase>
+        <!--
+            Pinned by digest, so the scan a build runs is the scan the next build runs. A tag is not a pin:
+            it is republishable, and an upstream republish would change a verdict here while nothing in the
+            repository changed. The tag is kept in front of the digest so the version stays readable, the
+            way the workflows keep a version comment beside an action SHA, and the digest is the
+            manifest-list one so that arm64 and amd64 both resolve it.
+
+            Resolve a new one with docker buildx imagetools inspect, naming the repository and the tag.
+            AbstractDockerCheckMojo refuses a value that carries no digest.
+        -->
+        <gitleaks.image>zricethezav/gitleaks:v8.30.0@sha256:691af3c7c5a48b16f187ce3446d5f194838f91238f27270ed36eef6359a574d9</gitleaks.image>
         <!--
             The one Java version this build targets. A project that inherits the harness is on 25
             already, so an artifact only such a project resolves gains nothing from a lower target.
         -->
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <qodana.image>jetbrains/qodana-jvm-community:2026.1@sha256:f1c5d3efe2f550409c4d95d266c5dc2025a8069d82c9516781eae72e7383b55d</qodana.image>
 
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
@@ -67,6 +96,12 @@
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
+        <!--
+            Mirrors airness-parent. Declared here too, because this pom does not inherit that one, and the
+            self-executions below read the same two switches that every consumer check reads.
+        -->
+        <skipTests>false</skipTests>
+        <airness.enforce>true</airness.enforce>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <!-- Mirrors airness-parent. Declared here too, because this pom does not inherit that one. -->
         <airness.test.timeout>30 s</airness.test.timeout>
@@ -77,9 +112,15 @@
         <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
         <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
+        <airness.dependency-check.fail-build-on-cvss>0</airness.dependency-check.fail-build-on-cvss>
         <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
         <airness.version>1.0.5-SNAPSHOT</airness.version>
+        <rewrite-apache.version>2.30.0</rewrite-apache.version>
+        <rewrite-logging-frameworks.version>3.32.0</rewrite-logging-frameworks.version>
+        <rewrite-migrate-java.version>3.42.1</rewrite-migrate-java.version>
+        <rewrite-static-analysis.version>2.41.1</rewrite-static-analysis.version>
+        <rewrite-testing-frameworks.version>3.44.0</rewrite-testing-frameworks.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <pmd.version>7.26.0</pmd.version>
@@ -94,11 +135,6 @@
         <spotbugs-annotations.version>4.10.4</spotbugs-annotations.version>
         <checkstyle.version>14.0.0</checkstyle.version>
         <qulice-maven-plugin.version>0.31.2</qulice-maven-plugin.version>
-        <rewrite-apache.version>2.30.0</rewrite-apache.version>
-        <rewrite-logging-frameworks.version>3.32.0</rewrite-logging-frameworks.version>
-        <rewrite-migrate-java.version>3.42.1</rewrite-migrate-java.version>
-        <rewrite-static-analysis.version>2.41.1</rewrite-static-analysis.version>
-        <rewrite-testing-frameworks.version>3.44.0</rewrite-testing-frameworks.version>
     </properties>
 
     <build>
@@ -173,6 +209,22 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
                     <version>${maven-dependency-plugin.version}</version>
+                    <!--
+                        Mirrors what airness-parent binds as airness-analyze-dependencies, for the modules
+                        that build the harness. Dependency analysis reads class files, and a
+                        SOURCE-retention annotation leaves none behind, so airness-annotations is named as
+                        used-but-invisible rather than the report being switched off wholesale.
+                    -->
+                    <configuration>
+                        <skip>${skipTests}</skip>
+                        <failOnWarning>${airness.enforce}</failOnWarning>
+                        <ignoreNonCompile>true</ignoreNonCompile>
+                        <ignoredUnusedDeclaredDependencies>
+                            <ignoredUnusedDeclaredDependency>
+                                eu.ciechanowiec:airness-annotations
+                            </ignoredUnusedDeclaredDependency>
+                        </ignoredUnusedDeclaredDependencies>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -204,6 +256,142 @@
                             <version>${extra-enforcer-rules.version}</version>
                         </dependency>
                     </dependencies>
+                    <!--
+                        Mirrors the rules airness-parent binds as airness-enforce-dependencies, so the
+                        modules that build the harness answer to them too. It sits in pluginManagement
+                        rather than in build/plugins because this pom is an ancestor of every consumer:
+                        an execution here would attach to consumer modules and enforce twice. Plugin-level
+                        rules are safe, since every execution that matters declares its own rules element,
+                        which replaces this list rather than adding to it. SelfHarnessMirrorTest holds the
+                        two copies equal.
+                    -->
+                    <configuration>
+                        <skip>${skipTests}</skip>
+                        <fail>${airness.enforce}</fail>
+                        <rules>
+                            <!--
+                                A transitive dependency that another path down-versions is the kind of
+                                difference that shows up as a NoSuchMethodError in production and in
+                                nothing before it. Pin it explicitly instead.
+                            -->
+                            <requireUpperBoundDeps>
+                                <message>
+                                    A transitive dependency is down-versioned by another path. Pin it
+                                    explicitly rather than leaving the resolution order to decide.
+                                </message>
+                            </requireUpperBoundDeps>
+                            <!--
+                                Upper-bound selection says Maven chose the newest candidate. It does
+                                not say every path asked for that candidate. Convergence makes the
+                                disagreement itself a failure, so the graph has one declared version
+                                of each dependency rather than one winner hiding older requests.
+                            -->
+                            <dependencyConvergence/>
+                            <!--
+                                A range, LATEST or RELEASE means "whatever is newest when you build",
+                                so the same commit builds differently on different days and a verdict
+                                stops describing the tree that earned it.
+
+                                Snapshots are allowed here and refused by requireReleaseDeps below
+                                instead. A project developing against an unreleased parent is an
+                                ordinary state; a project publishing a release that depends on one is
+                                not, and that is the narrower thing worth failing.
+
+                                No message element: this rule and the next one build their own text
+                                and never read a configured one, so setting it would leave the pom
+                                describing an explanation nothing prints.
+                            -->
+                            <banDynamicVersions>
+                                <allowSnapshots>true</allowSnapshots>
+                            </banDynamicVersions>
+                            <!--
+                                Maven keeps the last of two declarations of the same coordinate and
+                                says nothing, so the pom reads as one version while the build resolves
+                                another. Nothing downstream can see the difference.
+                            -->
+                            <banDuplicatePomDependencyVersions/>
+                            <!--
+                                A dependency without a scope silently means compile. Writing the
+                                scope makes the production, runtime and test boundary visible in the
+                                declaration that owns it.
+                            -->
+                            <requireExplicitDependencyScope/>
+                            <!--
+                                Repository declarations in a project change where coordinates are
+                                resolved and can make the same pom produce different bytes under a
+                                different mirror setup. Repository policy belongs in Maven settings,
+                                outside the source tree and under the operator's control.
+                            -->
+                            <requireNoRepositories>
+                                <banRepositories>true</banRepositories>
+                                <banPluginRepositories>true</banPluginRepositories>
+                            </requireNoRepositories>
+                            <!--
+                                A snapshot is a moving target, so a release resolving one cannot be
+                                rebuilt from its own coordinates. Only a release is held to this:
+                                onlyWhenRelease leaves a snapshot project free to depend on snapshots,
+                                which is what developing against an unreleased artifact requires.
+
+                                The parent is exempt because the parent is the harness itself, whose
+                                coordinates ManagedVersions already governs, and a release project
+                                trialling an unreleased harness is a state the harness has to survive.
+                                airness-annotations is exempt for the same reason: the parent supplies
+                                it, it carries the parent's version, and no project chose it.
+                            -->
+                            <requireReleaseDeps>
+                                <onlyWhenRelease>true</onlyWhenRelease>
+                                <failWhenParentIsSnapshot>false</failWhenParentIsSnapshot>
+                                <excludes>
+                                    <exclude>eu.ciechanowiec:airness-annotations</exclude>
+                                </excludes>
+                                <message>
+                                    A released project resolves a snapshot, which no later build can
+                                    reproduce. Depend on a released version instead.
+                                </message>
+                            </requireReleaseDeps>
+                            <!--
+                                Two artifacts carrying the same class leave classpath order deciding
+                                which implementation runs. Identical bytecode is still rejected: two
+                                owners for one class are two sources of truth even when they happen to
+                                agree today.
+                            -->
+                            <banDuplicateClasses>
+                                <findAllDuplicates>true</findAllDuplicates>
+                                <ignoreWhenIdentical>false</ignoreWhenIdentical>
+                            </banDuplicateClasses>
+                            <!--
+                                Declaring a mocking library is the project stating that it means to
+                                mock, which the substitute rules in the shipped Checkstyle
+                                configuration refuse. Refusing the declaration says so at the
+                                coordinate rather than at the first import.
+
+                                searchTransitive is off deliberately. An in-memory implementation of
+                                an ecosystem protocol is a real component under the standard, and
+                                several of them - sling-mock and aem-mock are the ones that matter -
+                                carry a mocking library of their own. Banning the graph would refuse
+                                those implementations for what their dependencies contain rather
+                                than for anything the project wrote, and would leave a Sling or AEM
+                                project with no way to test at all. What the project writes is held
+                                by the source rules instead, which is where the difference between
+                                using a protocol implementation and dictating an answer is visible.
+                            -->
+                            <bannedDependencies>
+                                <searchTransitive>false</searchTransitive>
+                                <excludes>
+                                    <exclude>org.mockito:*</exclude>
+                                    <exclude>org.easymock:*</exclude>
+                                    <exclude>org.powermock:*</exclude>
+                                    <exclude>org.jmock:*</exclude>
+                                    <exclude>org.jmockit:*</exclude>
+                                </excludes>
+                                <message>
+                                    A mocking library is declared here. A test proves nothing about
+                                    code whose collaborators answer what the test dictated. Use the
+                                    real component, or a local implementation of the protocol.
+                                </message>
+                            </bannedDependencies>
+                        </rules>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
@@ -255,16 +443,133 @@
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>license-maven-plugin</artifactId>
                     <version>${license-maven-plugin.version}</version>
+                    <!--
+                        Mirrors the allowlist airness-parent binds as airness-check-dependency-licenses.
+                        A licence this project cannot read fails beside one it can read and refuses,
+                        because unknown and disallowed are the same answer to the question being asked.
+                        SelfHarnessMirrorTest holds this list equal to the parent's.
+                    -->
+                    <configuration>
+                        <includedScopes>compile,runtime,provided,test</includedScopes>
+                        <skipAddThirdParty>${skipTests}</skipAddThirdParty>
+                        <failOnBlacklist>${airness.enforce}</failOnBlacklist>
+                        <failOnMissing>${airness.enforce}</failOnMissing>
+                        <includedLicenses>
+                            <includedLicense>Apache-2.0</includedLicense>
+                            <includedLicense>MIT</includedLicense>
+                            <includedLicense>MIT-0</includedLicense>
+                            <includedLicense>BSD-2-Clause</includedLicense>
+                            <includedLicense>BSD-3-Clause</includedLicense>
+                            <includedLicense>EPL-2.0</includedLicense>
+                            <includedLicense>LGPL-2.1</includedLicense>
+                            <includedLicense>JSON</includedLicense>
+                            <includedLicense>Public Domain</includedLicense>
+                            <includedLicense>Bouncy Castle Licence</includedLicense>
+                        </includedLicenses>
+                        <licenseMerges>
+                            <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License Version 2.0|Apache License 2.0|Apache 2.0</licenseMerge>
+                            <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)</licenseMerge>
+                            <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License</licenseMerge>
+                            <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0</licenseMerge>
+                            <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1</licenseMerge>
+                            <licenseMerge>JSON|The JSON License</licenseMerge>
+                        </licenseMerges>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.owasp</groupId>
                     <artifactId>dependency-check-maven</artifactId>
                     <version>${dependency-check-maven.version}</version>
+                    <!--
+                        Mirrors what airness-parent binds as airness-known-vulnerabilities. Airness reads
+                        its own resolved packages against the public database exactly as a consumer does,
+                        and at the same threshold: failBuildOnCVSS is 0, so any advisory at all is a
+                        finding. Build tools run with build privileges, so an advisory in the formatter
+                        this plugin embeds is reachable by anyone who can change this repository.
+
+                        skipTestScope is false because a test dependency is resolved by the same build.
+                        The OSS Index analyser is off because it needs a credential and rate-limits
+                        anonymous callers, which would make the verdict depend on the caller rather than
+                        on the tree.
+                    -->
+                    <configuration>
+                        <dataDirectory>
+                            ${user.home}/.cache/airness/dependency-check/${dependency-check-maven.version}
+                        </dataDirectory>
+                        <nvdDatafeedUrl>https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz</nvdDatafeedUrl>
+                        <nvdValidForHours>24</nvdValidForHours>
+                        <autoUpdate>true</autoUpdate>
+                        <failBuildOnCVSS>${airness.dependency-check.fail-build-on-cvss}</failBuildOnCVSS>
+                        <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
+                        <skip>${skipTests}</skip>
+                        <skipTestScope>false</skipTestScope>
+                        <!--
+                            The .NET assembly analyzer is off because this harness governs Java and Maven,
+                            and because leaving it on makes the verdict depend on the machine. The archive
+                            analyzer unpacks every jar, and JNA ships its Windows JNI dispatch libraries as
+                            .dll files inside jna.jar, which the Eclipse JDT formatter reaches through
+                            org.eclipse.core.filesystem. Those are JNI natives rather than .NET assemblies,
+                            but the extension is what routes them, and reading one needs a dotnet runtime.
+                            A machine that has one initializes the analyzer and a machine that does not
+                            fails to, so the same tree would be scanned two ways: a GitHub runner ships a
+                            .NET SDK and an ordinary workstation does not. The determinism the standard
+                            gives up for this check covers the public database it reads, not the tooling
+                            that happens to be installed beside it.
+                        -->
+                        <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                        <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                        <versionCheckEnabled>false</versionCheckEnabled>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.openrewrite.maven</groupId>
                     <artifactId>rewrite-maven-plugin</artifactId>
                     <version>${rewrite-maven-plugin.version}</version>
+                    <!--
+                        Mirrors what airness-parent binds as airness-rewrite-verify. The recipes come from
+                        airness-config, which is why that module is first in the reactor: a module built
+                        before it cannot put it on an isolated plugin classpath. Only dryRun is bound for
+                        Airness's own modules, so a recipe that would change a source fails the build and
+                        writes its patch under target rather than reshaping the committed tree.
+                    -->
+                    <configuration>
+                        <rewriteSkip>${skipTests}</rewriteSkip>
+                        <activeRecipes>
+                            <recipe>eu.ciechanowiec.airness.Modernization</recipe>
+                        </activeRecipes>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>eu.ciechanowiec</groupId>
+                            <artifactId>airness-config</artifactId>
+                            <version>${airness.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite.recipe</groupId>
+                            <artifactId>rewrite-apache</artifactId>
+                            <version>${rewrite-apache.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite.recipe</groupId>
+                            <artifactId>rewrite-logging-frameworks</artifactId>
+                            <version>${rewrite-logging-frameworks.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite.recipe</groupId>
+                            <artifactId>rewrite-migrate-java</artifactId>
+                            <version>${rewrite-migrate-java.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite.recipe</groupId>
+                            <artifactId>rewrite-static-analysis</artifactId>
+                            <version>${rewrite-static-analysis.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.openrewrite.recipe</groupId>
+                            <artifactId>rewrite-testing-frameworks</artifactId>
+                            <version>${rewrite-testing-frameworks.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>eu.ciechanowiec</groupId>
@@ -360,7 +665,12 @@
                             <goal>enforce</goal>
                         </goals>
                         <configuration>
-                            <rules>
+                            <!--
+                                combine.self=override, because the pluginManagement above now carries the
+                                dependency rules for the self-executions. Without it Maven appends them
+                                here and this execution reports findings that belong to another one.
+                            -->
+                            <rules combine.self="override">
                                 <requireMavenVersion>
                                     <version>[3.9.16,)</version>
                                 </requireMavenVersion>
@@ -382,6 +692,50 @@
                 makes the processor a declared input, so its absence is a build failure rather than a
                 quietly weaker build.
             -->
+            <!--
+                Line endings, encoding, indentation and trailing whitespace over the whole repository, in
+                one pass from the aggregator. inherited=false because this pom is an ancestor of every
+                consumer and a second execution would check a consumer's tree twice; excludeSubmodules
+                =false because the plugin otherwise stops at the aggregator's own directory and would
+                leave every module, the workflows, the scripts and the documentation unread.
+            -->
+            <plugin>
+                <groupId>org.ec4j.maven</groupId>
+                <artifactId>editorconfig-maven-plugin</artifactId>
+                <inherited>false</inherited>
+                <configuration>
+                    <skip>${skipTests}</skip>
+                    <failOnFormatViolation>${airness.enforce}</failOnFormatViolation>
+                    <failOnNoMatchingProperties>true</failOnNoMatchingProperties>
+                    <excludeSubmodules>false</excludeSubmodules>
+                    <excludes>
+                        <exclude>**/target/**</exclude>
+                        <exclude>.git/**</exclude>
+                        <exclude>.idea/**</exclude>
+                        <exclude>**/*.png</exclude>
+                        <exclude>**/*.ttf</exclude>
+                        <exclude>**/*.docx</exclude>
+                        <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
+                        <exclude>**/*.tsv</exclude>
+                        <!--
+                            Exported copies of the documentation. The managed .gitignore asset already
+                            keeps them out of every consumer's tree, and the exporter writes them without
+                            a final newline, so they are excluded by role rather than repaired by hand.
+                        -->
+                        <exclude>**/README*.html</exclude>
+                        <exclude>**/README*.pdf</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>airness-self-editorconfig-check</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -566,6 +920,10 @@
                 aggregator while making the same extended command verify the main document changed here.
             -->
             <id>extended</id>
+            <properties>
+                <!-- Binds airness-self-known-vulnerabilities, which is unbound in Default verification. -->
+                <airness.self.vulnerabilities.phase>package</airness.self.vulnerabilities.phase>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -616,7 +974,8 @@
                                     <goal>enforce</goal>
                                 </goals>
                                 <configuration>
-                                    <rules>
+                                    <!-- combine.self=override, for the reason given at airness-enforce-runtime. -->
+                                    <rules combine.self="override">
                                         <requireReleaseVersion/>
                                         <requireReleaseDeps>
                                             <failWhenParentIsSnapshot>true</failWhenParentIsSnapshot>

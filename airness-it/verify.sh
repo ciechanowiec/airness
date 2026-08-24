@@ -462,6 +462,85 @@ POM
 run_case 'coordinates: child ownership is rejected' 1 'Airness (owns|supplies) this' \
     "$managed" airness:check-parameters
 
+# Settings live in the Airness namespace, and the namespace is refused by default. A project declares
+# only the keys the user guide documents as its own, so a harness setting invented later is refused the
+# day a project first writes it rather than the day somebody notices it was never protected.
+settings="$scratch/settings"
+mkdir -p "$settings"
+write_settings() {
+    cat > "$settings/pom.xml" <<POM
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent</artifactId>
+    <version>1.0.5-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>settings</artifactId>
+  <version>1.0.0</version>
+  <properties>
+$1
+    <airness.package.root>com.example</airness.package.root>
+$2
+  </properties>
+</project>
+POM
+}
+# The two slots are before and after airness.package.root, because the inherited property-ordering rule
+# wants an unreferenced property in alphabetical position and a fixture that ignored it would fail for a
+# reason that has nothing to do with the rule under test.
+write_settings '' '    <airness.suppression.rate>99</airness.suppression.rate>'
+run_case 'settings: an Airness key the project does not own is rejected' 1 'Remove child property airness.suppression.rate' \
+    "$settings" airness:check-parameters
+write_settings '' '    <airness.typography.excludes>docs</airness.typography.excludes>'
+run_case 'settings: a documented project key is accepted' 0 'BUILD SUCCESS' \
+    "$settings" airness:check-parameters
+write_settings '    <airness.coverage.excluded.classes>com/example/Example</airness.coverage.excluded.classes>' ''
+run_case 'coverage: an exclusion that names one class is rejected' 1 'exclude by file role' \
+    "$settings" airness:check-parameters
+write_settings '    <airness.coverage.excluded.classes>com/example/**</airness.coverage.excluded.classes>' ''
+run_case 'coverage: an exclusion that names a location is rejected' 1 'exclude by file role' \
+    "$settings" airness:check-parameters
+write_settings '    <airness.coverage.excluded.classes>**/*Mojo*</airness.coverage.excluded.classes>' ''
+run_case 'coverage: an exclusion shaped like a role is accepted' 0 'BUILD SUCCESS' \
+    "$settings" airness:check-parameters
+write_settings '' '    <qodana.image>alpine</qodana.image>'
+run_case 'images: a consumer cannot repoint the scanner image' 1 'Airness owns this value' \
+    "$settings" airness:check-parameters
+run_case 'images: an image named by tag alone is rejected' 1 'Pin the image by digest' \
+    "$consumer" airness:scan-secrets -Dgitleaks.image=zricethezav/gitleaks:v8.30.0
+
+# An advisory a project cannot reach is recorded rather than waved through, and the record says why, when
+# and which. The scanner already refuses a rule that matches nothing; what it cannot ask is the reason.
+suppressions="$scratch/suppressions.xml"
+write_suppression() {
+    cat > "$suppressions" <<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions>
+    <suppress>
+$1
+    </suppress>
+</suppressions>
+XML
+}
+write_suppression '        <notes>The vulnerable path is a servlet this project never deploys. Added 2026-08-23.</notes>
+        <cve>CVE-2020-27225</cve>'
+run_case 'suppressions: a dated and explained entry is accepted' 0 'BUILD SUCCESS' \
+    "$consumer" airness:check-parameters "-Dairness.dependency-check.suppression.file=$suppressions"
+write_suppression '        <cve>CVE-2020-27225</cve>'
+run_case 'suppressions: an entry that explains nothing is rejected' 1 'say why this project cannot reach' \
+    "$consumer" airness:check-parameters "-Dairness.dependency-check.suppression.file=$suppressions"
+write_suppression '        <notes>The vulnerable path is a servlet this project never deploys.</notes>
+        <cve>CVE-2020-27225</cve>'
+run_case 'suppressions: an entry with no date is rejected' 1 'record the date' \
+    "$consumer" airness:check-parameters "-Dairness.dependency-check.suppression.file=$suppressions"
+write_suppression '        <notes>Never reached here. Added 2026-08-23.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.example/.*$</packageUrl>'
+run_case 'suppressions: an entry naming only a package is rejected' 1 'name the advisory it excuses' \
+    "$consumer" airness:check-parameters "-Dairness.dependency-check.suppression.file=$suppressions"
+
 # Networknt publishes a valid Apache-2.0 license under a non-SPDX spelling. The inherited merge
 # normalizes it centrally, so a consumer neither configures nor redeclares the owned license plugin.
 networknt_license="$scratch/networknt-license"
@@ -719,6 +798,278 @@ JAVA
 run_case 'checkstyle: qualified Java types are rejected' 1 'Unnecessary fully-qualified type name' \
     "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Qualified.java'
 rm "$consumer/src/main/java/com/example/Qualified.java"
+cat > "$consumer/src/main/java/com/example/WrittenTypes.java" <<'JAVA'
+package com.example;
+
+import java.util.List;
+
+/**
+ * Written-out types and an implicitly typed lambda, none of which the explicitness rule reaches.
+ */
+public final class WrittenTypes {
+
+    private final List<String> values;
+
+    /**
+     * Creates the written-type fixture.
+     */
+    public WrittenTypes() {
+        this.values = List.of("one", "");
+    }
+
+    /**
+     * Counts the entries that carry text.
+     *
+     * @return how many entries are not empty
+     */
+    public int populated() {
+        List<String> present = this.values.stream().filter(value -> !value.isEmpty()).toList();
+        return present.size();
+    }
+}
+JAVA
+run_case 'checkstyle: written types pass the explicitness rule' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/WrittenTypes.java'
+rm "$consumer/src/main/java/com/example/WrittenTypes.java"
+cat > "$consumer/src/main/java/com/example/InferredLocal.java" <<'JAVA'
+package com.example;
+
+import java.util.List;
+
+/** Exercises the written-type rule against an inferred local. */
+final class InferredLocal {
+
+    private InferredLocal() {
+        throw new IllegalStateException("no instances");
+    }
+
+    static int size() {
+        var values = List.of("one");
+        return values.size();
+    }
+}
+JAVA
+run_case 'checkstyle: an inferred local is rejected' 1 "Write the type" \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/InferredLocal.java'
+rm "$consumer/src/main/java/com/example/InferredLocal.java"
+cat > "$consumer/src/main/java/com/example/InferredLoop.java" <<'JAVA'
+package com.example;
+
+import java.util.List;
+
+/** Exercises the written-type rule against an inferred enhanced-for variable. */
+final class InferredLoop {
+
+    private InferredLoop() {
+        throw new IllegalStateException("no instances");
+    }
+
+    static int total(List<String> values) {
+        int length = 0;
+        for (var value : values) {
+            length += value.length();
+        }
+        return length;
+    }
+}
+JAVA
+run_case 'checkstyle: an inferred loop variable is rejected' 1 "Write the type" \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/InferredLoop.java'
+rm "$consumer/src/main/java/com/example/InferredLoop.java"
+cat > "$consumer/src/main/java/com/example/InferredResource.java" <<'JAVA'
+package com.example;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+/** Exercises the written-type rule against an inferred try-with-resources binding. */
+final class InferredResource {
+
+    private InferredResource() {
+        throw new IllegalStateException("no instances");
+    }
+
+    static int read() throws IOException {
+        try (var stream = (InputStream) new ByteArrayInputStream(new byte[0])) {
+            return stream.read();
+        }
+    }
+}
+JAVA
+run_case 'checkstyle: an inferred resource is rejected' 1 "Write the type" \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/InferredResource.java'
+rm "$consumer/src/main/java/com/example/InferredResource.java"
+cat > "$consumer/src/main/java/com/example/InferredLambda.java" <<'JAVA'
+package com.example;
+
+import java.util.function.BinaryOperator;
+
+/** Exercises the written-type rule against explicitly inferred lambda parameters. */
+final class InferredLambda {
+
+    private InferredLambda() {
+        throw new IllegalStateException("no instances");
+    }
+
+    static BinaryOperator<String> joining() {
+        return (var first, var second) -> first + second;
+    }
+}
+JAVA
+run_case 'checkstyle: inferred lambda parameters are rejected' 1 "Write the type" \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/InferredLambda.java'
+rm "$consumer/src/main/java/com/example/InferredLambda.java"
+cat > "$consumer/src/main/java/com/example/PathUtils.java" <<'JAVA'
+package com.example;
+
+/** Exercises the banned type-name suffix. */
+final class PathUtils {
+
+    private PathUtils() {
+        throw new IllegalStateException("no instances");
+    }
+}
+JAVA
+run_case 'checkstyle: a Util suffix is rejected' 1 'Type name names an action rather than a thing' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/PathUtils.java'
+rm "$consumer/src/main/java/com/example/PathUtils.java"
+cat > "$consumer/src/main/java/com/example/Utilization.java" <<'JAVA'
+package com.example;
+
+/**
+ * A subject whose name merely contains the banned suffix, which the anchor must leave alone.
+ *
+ * @param percentage how much of the capacity is in use
+ */
+public record Utilization(int percentage) {
+}
+JAVA
+run_case 'checkstyle: a name that only contains Util passes' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Utilization.java'
+rm "$consumer/src/main/java/com/example/Utilization.java"
+cat > "$consumer/src/main/java/com/example/Quantity.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the narrowed structural-value allowlist.
+ */
+public final class Quantity {
+
+    private final int value;
+
+    /**
+     * Creates the quantity fixture.
+     */
+    public Quantity() {
+        this.value = 3;
+    }
+
+    /**
+     * Scales the value by a quantity that is not structural.
+     *
+     * @return the scaled value
+     */
+    public int scaled() {
+        return this.value * 100;
+    }
+}
+JAVA
+run_case 'checkstyle: a quantity outside the structural allowlist is rejected' 1 'is a magic number' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Quantity.java'
+rm "$consumer/src/main/java/com/example/Quantity.java"
+cat > "$consumer/src/main/java/com/example/NamedQuantity.java" <<'JAVA'
+package com.example;
+
+/**
+ * The same value, named, which is the form the rule asks for.
+ */
+public final class NamedQuantity {
+
+    private static final int PERCENT = 100;
+
+    private final int value;
+
+    /**
+     * Creates the named-quantity fixture.
+     */
+    public NamedQuantity() {
+        this.value = 3;
+    }
+
+    /**
+     * Scales the value by a named constant.
+     *
+     * @return the scaled value
+     */
+    public int scaled() {
+        return this.value * PERCENT;
+    }
+}
+JAVA
+run_case 'checkstyle: the same quantity named passes' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/NamedQuantity.java'
+rm "$consumer/src/main/java/com/example/NamedQuantity.java"
+cat > "$consumer/src/main/java/com/example/Mutable.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the rule that a field is assigned once.
+ */
+public final class Mutable {
+
+    private String name;
+
+    /**
+     * Creates the mutable fixture.
+     */
+    public Mutable() {
+        this.name = "first";
+    }
+
+    /**
+     * Supplies the name.
+     *
+     * @return the name this object currently holds
+     */
+    public String name() {
+        return this.name;
+    }
+}
+JAVA
+run_case 'checkstyle: a field that can be assigned twice is rejected' 1 'assigned once' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Mutable.java'
+rm "$consumer/src/main/java/com/example/Mutable.java"
+cat > "$consumer/src/main/java/com/example/Settled.java" <<'JAVA'
+package com.example;
+
+/**
+ * The same object with its field settled at construction, which is the form the rule asks for.
+ */
+public final class Settled {
+
+    private final String name;
+
+    /**
+     * Creates the settled fixture.
+     */
+    public Settled() {
+        this.name = "first";
+    }
+
+    /**
+     * Supplies the name.
+     *
+     * @return the name this object was created with
+     */
+    public String name() {
+        return this.name;
+    }
+}
+JAVA
+run_case 'checkstyle: a field settled at construction passes' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Settled.java'
+rm "$consumer/src/main/java/com/example/Settled.java"
 cat > "$consumer/src/main/java/com/example/UnusedLambda.java" <<'JAVA'
 package com.example;
 
@@ -1334,6 +1685,45 @@ run_case 'assets: root license filename is rejected case-insensitively' 1 \
     'License files named LICENSE, LICENSE[.]TXT, or LICENSE[.]MD must not sit beside the root pom[.]xml|LiCeNsE[.]Md' \
     "$consumer" airness:assets-check
 rm "$consumer/LiCeNsE.Md"
+
+# The secret scan configuration is seeded and then owned by the project, which is right for the one
+# exception a project needs and wrong for everything else in the file. Its shape is checked at validate
+# rather than beside the scan, so a configuration that switches the scan off fails the fast command.
+write_gitleaks() {
+    cat > "$consumer/.gitleaks.toml" <<TOML
+title = "Secret scan configuration"
+
+[extend]
+useDefault = $1
+
+[[allowlists]]
+$2
+TOML
+}
+scoped='description = "Known invalid AWS value"
+targetRules = ["generic-api-key"]
+regexes = ["AKIA1234567890123456"]'
+write_gitleaks true "$scoped"
+run_case 'secrets: a rule-scoped exact exception is accepted' 0 'BUILD SUCCESS' \
+    "$consumer" airness:assets-check
+write_gitleaks false "$scoped"
+run_case 'secrets: dropping the shared rule set is rejected' 1 'useDefault must be declared true' \
+    "$consumer" airness:assets-check
+write_gitleaks true 'description = "a fixture"
+regexes = ["AKIA1234567890123456"]'
+run_case 'secrets: an exception that names no rule is rejected' 1 'needs both targetRules' \
+    "$consumer" airness:assets-check
+write_gitleaks true 'description = "a fixture"
+targetRules = ["generic-api-key"]
+regexes = [".*"]'
+run_case 'secrets: the pattern form of an exception is rejected' 1 'is a pattern rather than an exact value' \
+    "$consumer" airness:assets-check
+write_gitleaks true 'description = "a fixture"
+targetRules = ["generic-api-key"]
+paths = ["src/test/resources/fixture.txt"]'
+run_case 'secrets: an exception that excuses a whole file is rejected' 1 'excuses a whole file' \
+    "$consumer" airness:assets-check
+write_gitleaks true "$scoped"
 run_case 'assets: later pinned change fails tree verification' 1 \
     'Build plugins changed committable files|working tree content differs' \
     "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \

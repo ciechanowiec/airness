@@ -31,14 +31,6 @@ import org.w3c.dom.Node;
 public final class MavenModelPolicy {
 
     private static final String MAVEN_PLUGINS = "org.apache.maven.plugins";
-    private static final Set<String> PROTECTED_PROPERTIES = Set.of(
-        "airness.coverage.skip",
-        "airness.enforce",
-        "airness.rewrite.apply.phase",
-        "airness.source.formatting.apply",
-        "maven.test.skip",
-        "skipTests"
-    );
     private static final Map<String, Set<String>> PROTECTED_PLUGIN_CONFIGURATION = Map.of(
         "maven-compiler-plugin",
         Set.of(
@@ -65,7 +57,7 @@ public final class MavenModelPolicy {
     public static List<String> problems(Path pom) {
         Element root = Xml.parse(read(pom)).getDocumentElement();
         return Stream.of(
-            propertyProblems(root),
+            ProjectProperties.problems(root),
             PomPropertyOrder.problems(root).stream(),
             executionProblems(root),
             pluginConfigurationProblems(root),
@@ -89,14 +81,6 @@ public final class MavenModelPolicy {
 
     private static boolean bannedGroup(Node declaration) {
         return BANNED_GROUPS.contains(Xml.text(declaration, "groupId").orElse(""));
-    }
-
-    private static Stream<String> propertyProblems(Element root) {
-        return DeclaredCoordinates.propertyBlocks(root)
-            .flatMap(MavenModelPolicy::properties)
-            .filter(PROTECTED_PROPERTIES::contains)
-            .distinct()
-            .map(property -> "Remove child property " + property + "; it can bypass the Airness verdict");
     }
 
     private static Stream<String> executionProblems(Element root) {
@@ -181,14 +165,6 @@ public final class MavenModelPolicy {
         return IntStream.range(0, root.getElementsByTagName("*").getLength())
             .mapToObj(index -> root.getElementsByTagName("*").item(index))
             .map(Element.class::cast);
-    }
-
-    private static Stream<String> properties(Node block) {
-        return IntStream.range(0, block.getChildNodes().getLength())
-            .mapToObj(index -> block.getChildNodes().item(index))
-            .filter(node -> node.getNodeType() == Node.ELEMENT_NODE)
-            .map(Element.class::cast)
-            .map(Element::getTagName);
     }
 
     private static String coordinate(Node dependency) {

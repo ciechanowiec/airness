@@ -20,6 +20,75 @@
         rather than by copying analyzer configuration into every repository that uses it.
     </description>
 
+    <build>
+        <plugins>
+            <!--
+                Airness answers to the dependency rules it ships. The rules themselves live in the root
+                pluginManagement, so this execution names only the goal and the phase.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-enforce-dependencies</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The unused and undeclared dependency report, and the licence allowlist, both read the
+                module's own resolved graph, so each module runs them for itself. The configuration is in
+                the root pluginManagement, mirroring what airness-parent binds for a consumer.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-analyze-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-check-dependency-licenses</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>add-third-party</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Extended verification for Airness, exactly as it is for a consumer: the phase property is
+                'none' by default and 'package' under the extended profile.
+            -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-known-vulnerabilities</id>
+                        <phase>${airness.self.vulnerabilities.phase}</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
     <profiles>
         <profile>
             <!-- The module has resources but no Java API, so its Central Javadoc artifact is explanatory. -->

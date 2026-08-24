@@ -3,10 +3,8 @@ package eu.ciechanowiec.airness.maven;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.stream.Stream;
 import net.revelc.code.formatter.java.JavaFormatter;
 import net.revelc.code.impsort.ImpSort;
 import org.apache.maven.plugin.logging.SystemStreamLog;
@@ -25,11 +23,6 @@ import org.junit.jupiter.api.Test;
  * the harness does not look like what it enforces.
  */
 class SelfFormattingTest {
-
-    private static final List<String> MODULES = List.of(
-        "airness-annotations", "airness-governance", "airness-maven-plugin"
-    );
-    private static final List<String> SOURCES = List.of("src/main/java", "src/test/java");
 
     @Test
     void formatsItsOwnSourcesWithTheFormatterItShips() {
@@ -62,7 +55,7 @@ class SelfFormattingTest {
     }
 
     private static String relative(Path source) {
-        return repository().relativize(source).toString();
+        return SelfModules.repository().relativize(source).toString();
     }
 
     private static String target() {
@@ -70,18 +63,6 @@ class SelfFormattingTest {
     }
 
     private static List<Path> roots() {
-        Path repository = repository();
-        return MODULES.stream()
-            .flatMap(module -> SOURCES.stream().map(source -> repository.resolve(module).resolve(source)))
-            .filter(Files::isDirectory)
-            .toList();
-    }
-
-    private static Path repository() {
-        Path current = Path.of("").toAbsolutePath();
-        return Stream.of(current, current.getParent())
-            .filter(path -> Files.exists(path.resolve("airness-parent/pom.xml")))
-            .findFirst()
-            .orElseThrow();
+        return SelfModules.sourceRoots();
     }
 }

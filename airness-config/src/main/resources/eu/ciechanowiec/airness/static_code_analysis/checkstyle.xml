@@ -263,12 +263,59 @@
         <module name="IllegalThrows"/>
         <module name="IllegalType"/>
         <module name="InnerAssignment"/>
+        <module name="MatchXpath">
+            <!--
+                A field is assigned once, when its object is created. Declaring it final is what says so,
+                and what stops the second assignment that would make the object two things over its life.
+
+                The exemptions are the annotations a framework writes through. A Maven parameter, an
+                injected component and a JUnit temporary directory are all assigned after construction by
+                something outside this code, so a final field there would not work. The list mirrors the
+                NullAway ExcludedFieldAnnotations list in airness-parent and is kept in step with it, and
+                Checkstyle reads the simple name only, which is what keeps it short.
+
+                Interface and annotation members are implicitly final and are not read here. Enum constants
+                and record components are different tokens and are not reached at all.
+            -->
+            <property name="id" value="RequireFinalField"/>
+            <property name="query"
+                      value="//OBJBLOCK[not(parent::INTERFACE_DEF) and not(parent::ANNOTATION_DEF)]/VARIABLE_DEF[
+                            not(./MODIFIERS/FINAL)
+                            and not(
+                                ./MODIFIERS/ANNOTATION/IDENT[
+                                    @text='Parameter' or @text='Component' or @text='TempDir'
+                                    or @text='Option' or @text='Parameters' or @text='Inject'
+                                ]
+                            )
+                         ]"/>
+            <message key="matchxpath.match"
+                     value="A field is assigned once, when its object is created, so declare it final."/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Types are written even where the compiler infers them. One query covers every form javac
+                accepts 'var' in, because Checkstyle builds a TYPE child under each of them: a local, an
+                enhanced-for variable, a try-with-resources binding, and an explicitly typed lambda
+                parameter. A narrower query over VARIABLE_DEF alone would miss the last two.
+
+                No legal type can be named 'var': it has been a reserved type name since Java 10, so this
+                matches the inferred form and nothing else.
+            -->
+            <property name="id" value="RequireWrittenType"/>
+            <property name="query" value="//TYPE/IDENT[@text='var']"/>
+            <message key="matchxpath.match"
+                     value="Write the type. 'var' is the implicit shortcut the explicitness rule forbids."/>
+        </module>
         <module name="MagicNumber">
             <property name="ignoreAnnotation" value="true"/>
             <property name="ignoreFieldDeclaration" value="true"/>
             <property name="ignoreHashCodeMethod" value="true"/>
+            <!--
+                A short allowlist of structural values. 50, 100 and 1000 and their negatives are gone: they
+                are quantities rather than structure, and a quantity is what a named constant is for.
+            -->
             <property name="ignoreNumbers"
-                      value="-0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -50, -100, -1000, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 100, 1000"/>
+                      value="-0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10"/>
         </module>
         <module name="MissingNullCaseInSwitch"/>
         <module name="MatchXpath">
@@ -527,11 +574,17 @@
             A type named for a vague action is a type without a subject: 'Provider', 'Service', 'Handler',
             'Manager' and 'Masker' say that something provides, services, handles, manages or masks, but not
             what it is. Name the thing instead (MaskedSecret, not SecretMasker).
+
+            'Util' and 'Utils' are anchored to the end where the others are not, because they are banned as
+            suffixes rather than as words: a type called Utilization or Utility is named for a subject and
+            keeps its name. A class of static helpers is still allowed and still has to be a Lombok
+            @UtilityClass; what it may not do is take a name that says only that it is a place to put
+            things.
             -->
             <property name="format"
-                      value="^(?!.*Masker)(?!.*Provider)(?!.*Service)(?!.*Handler)(?!.*Manager)[A-Z][a-zA-Z0-9]*$"/>
+                      value="^(?!.*Masker)(?!.*Provider)(?!.*Service)(?!.*Handler)(?!.*Manager)(?!.*Utils?$)[A-Z][a-zA-Z0-9]*$"/>
             <message key="name.invalidPattern"
-                     value="Type name names an action rather than a thing (Provider/Service/Handler/Manager/Masker)."/>
+                     value="Type name names an action rather than a thing (Provider/Service/Handler/Manager/Masker/Util)."/>
         </module>
 
         <!--
