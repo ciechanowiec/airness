@@ -506,6 +506,9 @@ run_case 'coverage: an exclusion that names a location is rejected' 1 'exclude b
 write_settings '    <airness.coverage.excluded.classes>**/*Mojo*</airness.coverage.excluded.classes>' ''
 run_case 'coverage: an exclusion shaped like a role is accepted' 0 'BUILD SUCCESS' \
     "$settings" airness:check-parameters
+write_settings '    <airness.coverage.excluded.classes>com.example.cli.*Command</airness.coverage.excluded.classes>' ''
+run_case 'coverage: a dotted exclusion is rejected even when shaped like a role' 1 'separate packages with / rather than' \
+    "$settings" airness:check-parameters
 write_settings '' '    <qodana.image>alpine</qodana.image>'
 run_case 'images: a consumer cannot repoint the scanner image' 1 'Airness owns this value' \
     "$settings" airness:check-parameters

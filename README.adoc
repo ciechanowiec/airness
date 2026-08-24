@@ -217,7 +217,7 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 
 | `airness.coverage.excluded.classes`
 | empty
-| Class patterns excluded from instruction and branch test coverage checks. A pattern names a file role and never one class, so its last path segment carries a wildcard and is neither `++*++` nor `++**++`. For example, `++**/*Mojo*++` is accepted and `com/example/Example` isn't.
+| Class patterns excluded from instruction and branch test coverage checks. A pattern names a file role and never one class, so its last path segment carries a wildcard and is neither `++*++` nor `++**++`. Packages are separated the way the coverage tool reads a class name, with `/` rather than `.`, since a pattern written with dots matches nothing and would exclude nothing. For example, `++**/*Mojo*++` is accepted, and `com/example/Example` and `++com.example.cli.*Command++` aren't.
 
 | [[airness-dependency-check-suppression-file,airness.dependency-check.suppression.file]]`airness.dependency-check.suppression.file`
 | empty
