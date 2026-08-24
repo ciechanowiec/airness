@@ -1,7 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -54,10 +53,9 @@ public final class ProjectProperties {
      * @return one problem per declared setting the project does not own
      */
     public static Stream<String> problems(Element root) {
-        List<Element> declared = DeclaredCoordinates.propertyBlocks(root)
-            .flatMap(ProjectProperties::elements)
-            .toList();
-        return Stream.concat(refusals(declared), exclusions(declared));
+        return refusals(
+            DeclaredCoordinates.propertyBlocks(root).flatMap(ProjectProperties::elements).toList()
+        );
     }
 
     private static Stream<String> refusals(Collection<Element> declared) {
@@ -66,13 +64,6 @@ public final class ProjectProperties {
             .filter(ProjectProperties::refused)
             .distinct()
             .map(property -> "Remove child property " + property + "; it can bypass the Airness verdict");
-    }
-
-    private static Stream<String> exclusions(Collection<Element> declared) {
-        return declared.stream()
-            .filter(property -> COVERAGE_EXCLUDES.equals(property.getTagName()))
-            .flatMap(property -> CoverageExclusions.problems(property.getTextContent()))
-            .distinct();
     }
 
     private static boolean refused(String property) {

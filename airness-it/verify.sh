@@ -497,27 +497,16 @@ run_case 'settings: an Airness key the project does not own is rejected' 1 'Remo
 write_settings '' '    <airness.typography.excludes>docs</airness.typography.excludes>'
 run_case 'settings: a documented project key is accepted' 0 'BUILD SUCCESS' \
     "$settings" airness:check-parameters
-write_settings '    <airness.coverage.excluded.classes>com.example.cli.Example</airness.coverage.excluded.classes>' ''
-run_case 'coverage: an exclusion that names one class is rejected' 1 'exclude by file role' \
-    "$settings" airness:check-parameters
-write_settings '    <airness.coverage.excluded.classes>com.example.cli.*</airness.coverage.excluded.classes>' ''
-run_case 'coverage: an exclusion that names a location is rejected' 1 'exclude by file role' \
-    "$settings" airness:check-parameters
-write_settings '    <airness.coverage.excluded.classes>*Command</airness.coverage.excluded.classes>' ''
-run_case 'coverage: an exclusion shaped like a role is accepted' 0 'BUILD SUCCESS' \
-    "$settings" airness:check-parameters
-
-# A role that names nothing is the quietest way a project can be wrong about its own floor: the setting
-# is accepted, the report is unchanged, and the coverage tool has nothing to say because the pattern
-# simply never matched. Read after the report is written, which is where the measured classes are known.
-# Driven goal by goal rather than through package, because the coverage floor of this fixture is not met
-# and the tool's own check would end the build before the harness read the report.
+# An exclusion names something the report measured, and naming a class outright is allowed. What is not
+# allowed is naming nothing: the setting would be accepted, the report unchanged, and the coverage tool
+# would have nothing to say because the pattern simply never matched. Driven goal by goal, because the
+# coverage floor of this fixture is not met and the tool's own check would end the build first.
 run_case 'coverage: an exclusion that reaches no class is rejected' 1 'excludes nothing' \
     "$consumer" test jacoco:report airness:coverage-evidence \
-    -Dairness.coverage.excluded.classes='*NoSuchRole'
-run_case 'coverage: an exclusion that reaches a class is accepted' 0 'BUILD SUCCESS' \
+    -Dairness.coverage.excluded.classes='com.example.NoSuchClass'
+run_case 'coverage: an exclusion naming one class is accepted' 0 'BUILD SUCCESS' \
     "$consumer" test jacoco:report airness:coverage-evidence \
-    -Dairness.coverage.excluded.classes='*Fixture'
+    -Dairness.coverage.excluded.classes='com.example.FormatFixture'
 write_settings '' '    <qodana.image>alpine</qodana.image>'
 run_case 'images: a consumer cannot repoint the scanner image' 1 'Airness owns this value' \
     "$settings" airness:check-parameters
