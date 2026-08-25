@@ -517,6 +517,11 @@
         <option name="useParameterizedTypeForCollectionMethods" value="true" />
         <option name="doNotWeakenToJavaLangObject" value="true" />
         <option name="onlyWeakentoInterface" value="true" />
+        <!-- A stop class exempts a declared type from this inspection entirely, so no site needs a
+             suppression. Jackson's JsonNode is here because TreeNode, the only interface above it,
+             declares the traversal methods but returns TreeNode from them and declares no value
+             reader, so every weakening this inspection proposes for a JsonNode fails to compile. -->
+        <stopClasses>com.fasterxml.jackson.databind.JsonNode,tools.jackson.databind.JsonNode</stopClasses>
     </inspection_tool>
     <inspection_tool class="UnnecessaryBlockStatement" enabled="true" level="WARNING" enabled_by_default="true" editorAttributes="WARNING_ATTRIBUTES">
         <option name="ignoreSwitchBranches" value="false" />
