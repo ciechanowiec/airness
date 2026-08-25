@@ -6,7 +6,7 @@
 
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness</artifactId>
-    <version>1.0.5-SNAPSHOT</version>
+    <version>1.0.5</version>
     <packaging>pom</packaging>
 
     <name>airness</name>
@@ -118,7 +118,7 @@
         <airness.dependency-check.fail-build-on-cvss>0</airness.dependency-check.fail-build-on-cvss>
         <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
-        <airness.version>1.0.5-SNAPSHOT</airness.version>
+        <airness.version>1.0.5</airness.version>
         <rewrite-apache.version>2.30.0</rewrite-apache.version>
         <rewrite-logging-frameworks.version>3.32.0</rewrite-logging-frameworks.version>
         <rewrite-migrate-java.version>3.42.1</rewrite-migrate-java.version>
