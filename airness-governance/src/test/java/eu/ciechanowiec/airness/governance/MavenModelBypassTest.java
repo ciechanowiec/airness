@@ -41,8 +41,7 @@ class MavenModelBypassTest {
 
     @Test
     void rejectsATestBypassInsideALifecycleExecution() {
-        String pom = plugin(
-            "maven-surefire-plugin",
+        String pom = surefire(
             """
                 <executions><execution>
                     <id>default-test</id>
@@ -58,8 +57,7 @@ class MavenModelBypassTest {
 
     @Test
     void acceptsAnExecutionTheProjectAddsUnderANameOfItsOwn() {
-        String pom = plugin(
-            "maven-surefire-plugin",
+        String pom = surefire(
             """
                 <executions><execution>
                     <id>project-smoke-tests</id>
@@ -86,12 +84,14 @@ class MavenModelBypassTest {
         );
     }
 
-    private static String plugin(String artifact, String body) {
+    // Both cases above are about the test runner, so the artifact is named here rather than passed in
+    // at each call with the one value it ever takes.
+    private static String surefire(String body) {
         return """
             <project><build><plugins><plugin>
-                <artifactId>%s</artifactId>%s
+                <artifactId>maven-surefire-plugin</artifactId>%s
             </plugin></plugins></build></project>
-            """.formatted(artifact, body);
+            """.formatted(body);
     }
 
     @SneakyThrows
