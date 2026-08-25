@@ -1092,12 +1092,17 @@
                 A project may own one narrowly scoped Dependency-Check suppression document without
                 repeating the Airness-owned plugin. The plugin rejects stale rules; the document keeps
                 the justification beside each exception in its notes element.
+
+                The document activates this profile, rather than the property naming it. Maven decides
+                which profiles are active before it interpolates the properties a pom declares, so a
+                property activation reads a project file's setting as absent and would leave the
+                document unread on every build that did not repeat it on the command line.
             -->
             <id>airness-dependency-check-suppressions</id>
             <activation>
-                <property>
-                    <name>airness.dependency-check.suppression.file</name>
-                </property>
+                <file>
+                    <exists>${basedir}/.airness/dependency-check-suppressions.xml</exists>
+                </file>
             </activation>
             <build>
                 <plugins>
