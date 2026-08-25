@@ -205,7 +205,7 @@ public final class SecretScanConfiguration {
      * @param value the allowlist value as written
      * @return the reason the value is not exact, or nothing when it is
      */
-    private static Optional<String> inexactness(String value) {
+    private static Optional<String> inexactness(CharSequence value) {
         if (WIDENING.matcher(value).find()) {
             return Optional.of("is a pattern rather than an exact value");
         }

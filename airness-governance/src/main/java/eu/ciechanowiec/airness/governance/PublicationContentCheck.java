@@ -104,7 +104,7 @@ public final class PublicationContentCheck {
      */
     private static Content plain(Path path) {
         try {
-            return new Content(path.toString(), new String(Files.readAllBytes(path), StandardCharsets.ISO_8859_1));
+            return new Content(path.toString(), Files.readString(path, StandardCharsets.ISO_8859_1));
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect publication file " + path, exception);
         }
