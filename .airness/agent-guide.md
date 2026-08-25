@@ -123,11 +123,15 @@ it is published, only a fresh history satisfies the rule.
   before the missing-resource check, or checked inside the resource specifier, is unclosed on the throwing edge,
   which is the `OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE` finding. A `URL` carries no close obligation, so
   resolving it first puts the check where nothing is open yet.
-- Weaken a parameter when `TypeMayBeWeakened` asks, and suppress that rule where the weaker type does not compile.
-  A Jackson `JsonNode` reads as weakenable to `TreeNode`, because the calls the body makes on the parameter are
-  declared there, but `TreeNode` returns `TreeNode` and declares no value reader, so the body that reads a value
-  through it no longer compiles. The suppression answers this rather than a profile change, because the same run
-  reports weakenings that are real.
+- Weaken a parameter when `TypeMayBeWeakened` asks. Where the weaker type does not compile, answer it without a
+  suppression. Give a record its defensive copy through a compact constructor, which declares no parameter list at
+  all, rather than through a canonical constructor whose parameters are pinned to the component types. For a
+  library type whose every proposed weakening fails to compile, add it to the `stopClasses` of that inspection in
+  the Airness Qodana profile, which exempts the declared type wherever it appears and so replaces one suppression
+  per site. Jackson's `JsonNode` is listed there already: the calls a body makes on it are declared on `TreeNode`,
+  but `TreeNode` returns `TreeNode` and declares no value reader, so reading a value through it stops compiling.
+  A stop class gives up the check for that one type, so add a type only once every weakening it is offered is
+  uncompilable; every other type keeps full coverage, and the same run still reports weakenings that are real.
 - Change an exclusion or the default test timeout only for an explicit project requirement. Never use one merely to
   obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a

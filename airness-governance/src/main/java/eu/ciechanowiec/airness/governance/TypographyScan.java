@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.governance;
 
-import eu.ciechanowiec.airness.Justification;
 import java.util.List;
 import java.util.Map;
 
@@ -23,10 +22,8 @@ record TypographyScan(List<String> violations, Map<String, Long> skipped) {
      * @param violations every banned code point
      * @param skipped    how many files each exclusion prefix kept out
      */
-    @Justification("A record canonical constructor must use the record component's exact List type")
-    @SuppressWarnings("TypeMayBeWeakened")
-    TypographyScan(List<String> violations, Map<String, Long> skipped) {
-        this.violations = List.copyOf(violations);
-        this.skipped = Map.copyOf(skipped);
+    TypographyScan {
+        violations = List.copyOf(violations);
+        skipped = Map.copyOf(skipped);
     }
 }

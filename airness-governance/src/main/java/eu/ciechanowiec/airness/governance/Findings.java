@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.governance;
 
-import eu.ciechanowiec.airness.Justification;
 import java.util.List;
 
 /**
@@ -28,11 +27,8 @@ public record Findings(String headline, List<String> offences) {
      * @param headline what the rule requires
      * @param offences every place the rule was broken
      */
-    @Justification("A record canonical constructor must use the record component's exact List type")
-    @SuppressWarnings("TypeMayBeWeakened")
-    public Findings(String headline, List<String> offences) {
-        this.headline = headline;
-        this.offences = List.copyOf(offences);
+    public Findings {
+        offences = List.copyOf(offences);
     }
 
     /**

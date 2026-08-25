@@ -2,7 +2,6 @@ package eu.ciechanowiec.airness.maven;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import eu.ciechanowiec.airness.Justification;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,11 +64,6 @@ record SarifFindings(Path report) {
         );
     }
 
-    @Justification(
-        "TreeNode, the weaker type proposed, returns TreeNode from path, and TreeNode declares neither "
-            + "asText nor asInt, so the weakened signature does not compile"
-    )
-    @SuppressWarnings("TypeMayBeWeakened")
     private static String located(JsonNode result) {
         JsonNode physical = result.path("locations").path(0).path("physicalLocation");
         String file = physical.path("artifactLocation").path("uri").asText("unknown file");
