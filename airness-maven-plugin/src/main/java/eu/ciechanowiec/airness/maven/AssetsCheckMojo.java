@@ -5,11 +5,12 @@ import eu.ciechanowiec.airness.governance.AssetCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.RootLicenseCheck;
 import eu.ciechanowiec.airness.governance.SecretScanConfiguration;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
-import lombok.SneakyThrows;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -42,19 +43,47 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
             root, new AssetCatalogue(AssetsCheckMojo.class.getClassLoader()), exempt
         ).findings();
         List<Findings> licenses = new RootLicenseCheck(root).findings();
-        return Stream.of(assets, licenses, this.secretScan(root)).flatMap(List::stream).toList();
+        return Stream.of(assets, licenses, secretScan(root)).flatMap(List::stream).toList();
     }
 
     /**
      * Read here rather than beside the scan itself, because the scan runs only under Extended
      * verification while this goal runs on every build. A configuration that switches the scan off
      * should fail the command that a change is checked with, not the one it is released with.
+     *
+     * <p>Deleting the file is the plainest way to switch the scan off, so its absence is a finding
+     * rather than a clean answer. Nothing else reports it on this path: the file is seeded rather than
+     * pinned, so {@link AssetCheck} does not require it, and the goal that does refuse it runs only
+     * under the profile this method stands in for.
+     *
+     * @param root the working tree root
+     * @return the configuration verdicts, or the one finding that says there is no configuration
      */
-    @SneakyThrows
-    private List<Findings> secretScan(Path root) {
+    private static List<Findings> secretScan(Path root) {
         Path configuration = root.resolve(".gitleaks.toml");
-        return Files.isRegularFile(configuration)
-            ? new SecretScanConfiguration(Files.readString(configuration)).findings()
-            : List.of();
+        if (!Files.isRegularFile(configuration)) {
+            return List.of(
+                new Findings(
+                    "Missing secret scan configuration",
+                    List.of(configuration + " does not exist, so the secret scan has nothing to run")
+                )
+            );
+        }
+        return new SecretScanConfiguration(read(configuration)).findings();
+    }
+
+    /**
+     * Reads a file that was a regular file a moment ago, so a failure here is a fault rather than an
+     * answer and carries the name of what could not be read.
+     *
+     * @param file the file to read
+     * @return its text
+     */
+    private static String read(Path file) {
+        try {
+            return Files.readString(file);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not read " + file, exception);
+        }
     }
 }

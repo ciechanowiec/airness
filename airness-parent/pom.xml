@@ -41,12 +41,25 @@
             the build directory is already ignored by git and so is invisible to the tree-mutation net.
         -->
         <!--
+            The field annotations NullAway treats as initializing a field it would otherwise call
+            uninitialized: a value Maven, JUnit, picocli, or an injector writes rather than a
+            constructor. Named once because the report-only profile below has to restate the whole
+            compiler argument to relax it, so the list would otherwise be hand-copied three times.
+        -->
+        <airness.nullaway.excluded-field-annotations>org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</airness.nullaway.excluded-field-annotations>
+        <!--
             The package NullAway treats as annotated. Everything outside it is assumed unannotated and
             goes unchecked, so a value naming a package this project does not use turns the whole
             null-checker into a no-op that still appears in the build log. check-parameters refuses to
             let it stay unset.
         -->
         <airness.package.root>UNSET</airness.package.root>
+        <!--
+            The ceiling on one test, one lifecycle method, or one template invocation. Declared here
+            rather than left to the aggregator this parent inherits, because this is the file a consumer
+            inherits, and every other default the user guide documents is stated in it.
+        -->
+        <airness.test.timeout>30 s</airness.test.timeout>
         <airness.coverage.skip>${skipTests}</airness.coverage.skip>
         <!-- One switch controls whether findings fail the build. skipTests is the separate bypass. -->
         <airness.enforce>true</airness.enforce>
@@ -165,7 +178,7 @@
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</arg>
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=${airness.nullaway.excluded-field-annotations}</arg>
                         <arg>-Werror</arg>
                         <arg>-Xlint:deprecation</arg>
                         <arg>-Xdoclint:all,-missing</arg>
@@ -863,7 +876,7 @@
                             <compilerArgs combine.self="override">
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
-                                <arg>-Xplugin:ErrorProne -XepAllErrorsAsWarnings -Xep:NullAway:WARN -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</arg>
+                                <arg>-Xplugin:ErrorProne -XepAllErrorsAsWarnings -Xep:NullAway:WARN -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=${airness.nullaway.excluded-field-annotations}</arg>
                                 <arg>-Xlint:deprecation</arg>
                                 <arg>-Xdoclint:all,-missing</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>

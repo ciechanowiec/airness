@@ -53,6 +53,18 @@ class PublicationContentCheckTest {
         assertEquals(List.of(jar + "!secret.txt"), offences(findings, SECRETS));
     }
 
+    @Test
+    @SneakyThrows
+    void findsALocalPathInAPomWhenTheRootCarriesNonAsciiCharacters() {
+        Path root = Files.createDirectory(this.directory.resolve("prosjektmappe-æøå"));
+        Path pom = Files.writeString(root.resolve("artifact.pom"), root.toString());
+        assertEquals(
+            List.of(pom.toString()),
+            offences(new PublicationContentCheck(List.of(pom), root).findings(), LOCAL),
+            "the path this searches for is held as bytes, so the file it searches has to be read as bytes too"
+        );
+    }
+
     @SneakyThrows
     private Path jar(String name, String content) {
         Path jar = this.directory.resolve("artifact.jar");

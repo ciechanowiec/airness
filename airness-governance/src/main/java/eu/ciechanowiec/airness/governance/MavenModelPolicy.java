@@ -47,6 +47,9 @@ public final class MavenModelPolicy {
         Set.of("fail", "failFast", "rules", "rulesToExecute", "rulesToSkip", "skip")
     );
     private static final Set<String> BANNED_GROUPS = Set.of("org.pitest");
+    // Maven names every execution it binds from a lifecycle mapping "default-" followed by the goal, so
+    // an execution written under one of those names edits the inherited run rather than adding to it.
+    private static final String LIFECYCLE_EXECUTION = "default-";
 
     /**
      * Every child declaration that can weaken or make dependency resolution machine-specific.
@@ -114,13 +117,36 @@ public final class MavenModelPolicy {
     private static Stream<String> protectedConfigurationProblems(Node plugin) {
         String artifact = Xml.text(plugin, "artifactId").orElse("");
         Set<String> protectedNames = PROTECTED_PLUGIN_CONFIGURATION.getOrDefault(artifact, Set.of());
-        return Xml.firstChild(plugin, "configuration").stream()
+        return inheritedConfigurations(plugin)
             .flatMap(configuration -> descendants(configuration).map(Element::getTagName))
             .filter(protectedNames::contains)
             .map(
                 name -> "Remove child " + artifact + " configuration " + name
                     + "; it changes an Airness-owned check input"
             );
+    }
+
+    /**
+     * The configurations that reach a binding the project inherited rather than one it added.
+     *
+     * <p>The plugin-level configuration is one of them. So is the configuration of an execution named
+     * after a default lifecycle id, because Maven merges executions by id and such an execution edits
+     * the binding the lifecycle already made. Reading only the plugin level left
+     * {@code default-test} free to carry {@code skip} and turn the suite off unreported.
+     *
+     * <p>An execution the project adds under a name of its own is left alone, since it binds work
+     * beside the inherited run rather than replacing it. An {@code airness-*} name is refused whole by
+     * {@link #executionProblems} before this is reached.
+     *
+     * @param plugin the declared plugin element
+     * @return every configuration element that can change an inherited binding
+     */
+    private static Stream<Element> inheritedConfigurations(Node plugin) {
+        Stream<Element> pluginConfiguration = Xml.firstChild(plugin, "configuration").stream();
+        Stream<Element> lifecycleConfiguration = executions(plugin)
+            .filter(execution -> Xml.text(execution, "id").orElse("").startsWith(LIFECYCLE_EXECUTION))
+            .flatMap(execution -> Xml.firstChild(execution, "configuration").stream());
+        return Stream.concat(pluginConfiguration, lifecycleConfiguration);
     }
 
     private static Stream<String> systemDependencyProblems(Element root) {

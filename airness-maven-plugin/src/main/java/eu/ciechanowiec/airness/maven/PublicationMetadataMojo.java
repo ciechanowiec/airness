@@ -29,19 +29,27 @@ public final class PublicationMetadataMojo extends AbstractPublicationMojo {
         );
     }
 
+    /**
+     * Every snapshot coordinate a release would carry, the project's own and its parent's alike.
+     *
+     * <p>Both are reported together rather than one instead of the other. A releaser told only about
+     * the project version fixes it, runs again, and meets a second refusal that was already known at
+     * the first, which spends a release cycle on something one report could have said.
+     *
+     * @return one entry per snapshot coordinate, empty when the release is fully released
+     */
     private List<String> snapshotCoordinates() {
-        List<String> coordinates = Optional.ofNullable(this.project().getParent())
-            .filter(parent -> snapshot(parent.getVersion()))
+        Stream<String> parent = Optional.ofNullable(this.project().getParent())
+            .filter(declared -> snapshot(declared.getVersion()))
             .map(
-                parent -> List.of(
-                    "parent " + parent.getGroupId() + ':' + parent.getArtifactId()
-                        + ':' + parent.getVersion()
-                )
+                declared -> "parent " + declared.getGroupId() + ':' + declared.getArtifactId()
+                    + ':' + declared.getVersion()
             )
-            .orElseGet(List::of);
-        return snapshot(this.project().getVersion())
-            ? List.of("project " + this.project().getVersion())
-            : coordinates;
+            .stream();
+        Stream<String> project = Stream.of(this.project().getVersion())
+            .filter(PublicationMetadataMojo::snapshot)
+            .map(version -> "project " + version);
+        return Stream.concat(project, parent).toList();
     }
 
     private List<String> projectMetadata() {

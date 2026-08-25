@@ -10,12 +10,14 @@ import java.nio.file.Path;
  */
 public record ManagedAsset(String path, AssetPolicy policy) {
 
-    // Reject paths that could escape or ambiguously address the repository root.
+    // Reject paths that could escape or ambiguously address the repository root. The unsafe test runs
+    // first and on its own, because a root path has no name at index zero and asking for one throws an
+    // exception carrying none of the explanation below.
     public ManagedAsset {
         Path parsed = Path.of(path);
         boolean unsafe = path.isBlank() || path.contains("\\") || parsed.isAbsolute();
-        boolean ambiguous = "..".equals(parsed.getName(0).toString())
-            || !parsed.normalize().equals(parsed);
+        boolean ambiguous = !unsafe
+            && ("..".equals(parsed.getName(0).toString()) || !parsed.normalize().equals(parsed));
         if (unsafe || ambiguous) {
             throw new IllegalArgumentException("Managed asset path must be canonical and repository-relative: " + path);
         }

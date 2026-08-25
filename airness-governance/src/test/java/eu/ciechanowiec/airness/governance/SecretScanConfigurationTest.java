@@ -96,6 +96,34 @@ class SecretScanConfigurationTest {
     }
 
     @Test
+    void saysThatAShortExceptionIsShortRatherThanThatItIsAPattern() {
+        String content = SHARED + """
+
+            [[allowlists]]
+            description = "a fixture"
+            targetRules = ["generic-api-key"]
+            regexes = ['''hunter2xyz''']
+            """;
+        assertTrue(
+            reported(content, "is too short to be an exact value"),
+            "a literal carrying no metacharacter fails on its length, and saying otherwise sends the reader hunting"
+        );
+    }
+
+    @Test
+    void rejectsATableHeaderWhoseBracketsDoNotBalance() {
+        String content = SHARED + """
+
+            [[allowlists]
+            description = "a fixture"
+            """;
+        assertTrue(
+            reported(content, "[[allowlists]"),
+            "a header nobody can read is the line this reader refuses rather than waves through"
+        );
+    }
+
+    @Test
     void acceptsAnExactValueThatCarriesOrdinaryCharacters() {
         String content = SHARED + """
 

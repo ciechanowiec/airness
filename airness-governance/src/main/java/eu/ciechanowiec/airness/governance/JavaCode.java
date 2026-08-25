@@ -37,7 +37,7 @@ final class JavaCode {
      * a delimiter, so a block embedding its own delimiter stays a single token. Ending it early leaves
      * the rest of the block to be read as live code, which is the failure this class exists to prevent.
      */
-    private static final Pattern TOKEN = Pattern.compile(
+    static final Pattern TOKEN = Pattern.compile(
         "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
             + "|/\\*.*?\\*/|//[^\\n]*"
     );

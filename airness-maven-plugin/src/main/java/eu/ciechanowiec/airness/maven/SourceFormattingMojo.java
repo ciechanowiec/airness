@@ -33,11 +33,15 @@ import org.eclipse.jface.text.BadLocationException;
 import org.xml.sax.SAXException;
 
 /**
- * Checks Java formatting and import order without editing source files.
+ * Checks Java formatting and import order, and rewrites the sources when asked to.
  *
  * <p>The third-party validation goals throw as soon as they find an offence and offer no report-only
  * mode. Calling their formatting engines directly preserves the exact formatting behaviour while
  * letting {@link AbstractGovernanceMojo} report every file and apply the single Airness enforcement switch.
+ *
+ * <p>Reporting is what an ordinary build gets. Writing happens only when
+ * {@code airness.source.formatting.apply} is set, which the parent does under its {@code format}
+ * profile and nowhere else, so the repair stays a command somebody ran on purpose.
  */
 @Mojo(name = "source-formatting", defaultPhase = LifecyclePhase.PROCESS_RESOURCES, threadSafe = true)
 public final class SourceFormattingMojo extends AbstractGovernanceMojo {
@@ -49,7 +53,7 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
-        return !this.moduleSourceRoots().isEmpty();
+        return this.hasModuleJava();
     }
 
     @Override

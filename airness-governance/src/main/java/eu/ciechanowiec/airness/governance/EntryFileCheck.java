@@ -16,8 +16,10 @@ public final class EntryFileCheck {
 
     private static final String MISSING_INSTRUCTIONS = "The mandatory AGENTS.md file is missing";
     private static final String EMPTY_INSTRUCTIONS = "AGENTS.md contains no instructions";
+    // An absent file leaves the Optional this rule reads empty, so the absence is MISSING_INSTRUCTIONS
+    // above and never this. Naming it here as well would promise a condition this rule cannot report.
     private static final String MISSING_AIRNESS
-        = "AGENTS.md is missing or has stale Airness instructions (run mvn airness:assets-sync)";
+        = "AGENTS.md has stale Airness instructions (run mvn airness:assets-sync)";
     private static final String MALFORMED_AIRNESS
         = "AGENTS.md has malformed, duplicate, or non-leading Airness instruction markers";
     private static final String MISSING_CLAUDE = "The mandatory CLAUDE.md file is missing";

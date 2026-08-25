@@ -89,9 +89,22 @@ public final class PublicationContentCheck {
         }
     }
 
+    /**
+     * Reads a file the same way {@link #content(JarFile, Path, JarEntry)} reads an archive entry, so
+     * both sides of this check compare like with like.
+     *
+     * <p>The repository path this class searches for is held as its UTF-8 bytes mapped one to one onto
+     * ISO-8859-1 characters, which is what makes a byte-level search work whatever a file's real
+     * encoding is. Decoding a file as UTF-8 instead would leave a root path carrying any non-ASCII
+     * character unmatchable in the POM, which is the publication file most likely to spell one out, and
+     * would fail outright on any byte UTF-8 cannot decode
+     *
+     * @param path the publication file to read
+     * @return its bytes, decoded so that every byte survives as one character
+     */
     private static Content plain(Path path) {
         try {
-            return new Content(path.toString(), Files.readString(path));
+            return new Content(path.toString(), new String(Files.readAllBytes(path), StandardCharsets.ISO_8859_1));
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect publication file " + path, exception);
         }

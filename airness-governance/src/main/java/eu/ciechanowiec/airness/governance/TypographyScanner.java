@@ -50,9 +50,14 @@ final class TypographyScanner {
         return root.relativize(file).startsWith(Path.of(prefix));
     }
 
+    // The prefixes arrive from a hand-written comma-separated setting, so the same one can be named
+    // twice. A repeated prefix costs exactly what a single one costs, and the merge keeps that reading
+    // rather than letting an ordinary typo end the scan with a duplicate-key error and no verdict.
     private static Map<String, Long> skipped(Path root, Collection<Path> tracked, Collection<String> prefixes) {
         return prefixes.stream().collect(
-            Collectors.toUnmodifiableMap(Function.identity(), prefix -> excludedBy(root, tracked, prefix))
+            Collectors.toUnmodifiableMap(
+                Function.identity(), prefix -> excludedBy(root, tracked, prefix), (first, _) -> first
+            )
         );
     }
 

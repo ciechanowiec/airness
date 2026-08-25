@@ -5,7 +5,6 @@ import eu.ciechanowiec.airness.governance.Findings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Set;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -15,8 +14,6 @@ import org.apache.maven.plugins.annotations.Parameter;
  */
 @Mojo(name = "artifact-content", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class ArtifactContentMojo extends AbstractGovernanceMojo {
-
-    private static final Set<String> JAR_PACKAGING = Set.of("jar", "maven-plugin", "bundle");
 
     @Parameter(defaultValue = "${project.build.directory}/${project.build.finalName}.jar", readonly = true)
     private String artifact;
@@ -29,7 +26,7 @@ public final class ArtifactContentMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
-        return JAR_PACKAGING.contains(this.project().getPackaging());
+        return JarPackaging.produced(this.project().getPackaging());
     }
 
     @Override
