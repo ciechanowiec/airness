@@ -3,6 +3,8 @@ package eu.ciechanowiec.airness.maven;
 import java.io.IOException;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -49,6 +51,18 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     abstract boolean findingsExit(int exit);
 
+    /**
+     * The findings this check can name from the report it leaves behind.
+     *
+     * <p>A check that writes no machine-readable report names none, and its failure message says only that
+     * the run found something. The container writes its own output to this build's console either way.
+     *
+     * @return one line per finding, in the order the report holds them
+     */
+    List<String> findings() {
+        return List.of();
+    }
+
     @Override
     public final void execute() throws MojoExecutionException, MojoFailureException {
         if (this.skip) {
@@ -83,9 +97,16 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private void reportFindings(int exit) throws MojoFailureException {
         if (this.enforce) {
-            throw new MojoFailureException("Docker check reported findings (exit code " + exit + ")");
+            throw new MojoFailureException(this.findingsMessage(exit));
         }
         this.getLog().warn("airness.enforce is false, so the Docker findings above do not fail this build");
+    }
+
+    private String findingsMessage(int exit) {
+        return Stream.concat(
+            Stream.of("Docker check reported findings (exit code " + exit + ")"),
+            this.findings().stream().map(finding -> "  " + finding)
+        ).collect(Collectors.joining(System.lineSeparator()));
     }
 
     protected final MavenProject project() {

@@ -137,6 +137,12 @@
 
     <dependencies>
         <dependency>
+            <!-- The Qodana check reads the SARIF report the container writes, so its failure names findings. -->
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>com.github.javaparser</groupId>
             <artifactId>javaparser-core</artifactId>
             <scope>compile</scope>
