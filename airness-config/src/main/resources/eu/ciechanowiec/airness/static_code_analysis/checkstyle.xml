@@ -270,9 +270,13 @@
 
                 The exemptions are the annotations a framework writes through. A Maven parameter, an
                 injected component and a JUnit temporary directory are all assigned after construction by
-                something outside this code, so a final field there would not work. The list mirrors the
-                NullAway ExcludedFieldAnnotations list in airness-parent and is kept in step with it, and
-                Checkstyle reads the simple name only, which is what keeps it short.
+                something outside this code, so a final field there would not work. Checkstyle reads the
+                simple name only, which is what keeps the list short.
+
+                A command-line parser injects through more than one annotation, and the group and the
+                mixin are as much an injection point as the option is. Naming only some of them would
+                leave a project marking a field final that its parser then fails to populate, and the
+                failure would arrive at run time rather than here.
 
                 Interface and annotation members are implicitly final and are not read here. Enum constants
                 and record components are different tokens and are not reached at all.
@@ -284,7 +288,9 @@
                             and not(
                                 ./MODIFIERS/ANNOTATION/IDENT[
                                     @text='Parameter' or @text='Component' or @text='TempDir'
-                                    or @text='Option' or @text='Parameters' or @text='Inject'
+                                    or @text='Option' or @text='Parameters' or @text='ArgGroup'
+                                    or @text='Mixin' or @text='Spec' or @text='ParentCommand'
+                                    or @text='Unmatched' or @text='Inject'
                                 ]
                             )
                          ]"/>
