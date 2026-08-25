@@ -158,7 +158,9 @@ Those six are the whole of what a project file may declare. Every other name und
 reads the file as written, so a name inside a profile that is never activated is refused too. Both
 `-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
 
-Reach for the suppression file only when no upgrade answers an advisory. Every rule in it names the advisory it
-excuses, says in its `notes` why this project cannot reach the vulnerability, and carries a `YYYY-MM-DD` date. A rule
-that suppresses nothing fails the build, like every other exclusion that reaches nothing.
+Reach for the suppression file only when no upgrade answers an advisory. Keep it at
+`.airness/dependency-check-suppressions.xml`, which is the path the scan reads: the document's presence there is what
+puts it in front of the scan, so one kept elsewhere is never read. Every rule in it names the advisory it excuses,
+says in its `notes` why this project cannot reach the vulnerability, and carries a `YYYY-MM-DD` date. A rule that
+suppresses nothing fails the build, like every other exclusion that reaches nothing.
 
