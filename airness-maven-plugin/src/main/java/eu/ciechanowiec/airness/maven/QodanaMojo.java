@@ -19,6 +19,8 @@ import org.apache.maven.plugins.annotations.Parameter;
 public final class QodanaMojo extends AbstractDockerCheckMojo {
 
     private static final String PROFILE = "qodana/profile.xml";
+    private static final String OUTPUT = "target/qodana";
+    private static final String REPORT = "qodana.sarif.json";
     private static final int FINDINGS = 255;
 
     @Parameter(property = "qodana.image", required = true)
@@ -27,7 +29,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
     @Override
     List<String> command() throws IOException {
         Path root = Repository.rootFrom(this.project().getBasedir().toPath());
-        Path output = root.resolve("target/qodana");
+        Path output = root.resolve(OUTPUT);
         Files.createDirectories(output);
         Path profile = output.resolve("inspection-profile.xml");
         try (InputStream resource = profile()) {
@@ -105,6 +107,12 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while exporting trusted roots", exception);
         }
+    }
+
+    @Override
+    List<String> findings() {
+        Path root = Repository.rootFrom(this.project().getBasedir().toPath());
+        return new SarifFindings(root.resolve(OUTPUT).resolve(REPORT)).listed();
     }
 
     @Override
