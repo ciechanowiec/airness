@@ -186,6 +186,7 @@ mvn airness:assets-sync
 . _airness_ configuration values that accept lists use commas between entries.
 . Put settings used by every build in the Maven project file. Use command-line values for a single run.
 . The keys below are the only `airness.` settings a project declares. Every other name in that namespace belongs to the harness, and a project file that declares one is rejected, so a setting added to _airness_ later is protected from the day it exists.
+. xref:#report-only-mode[`airness.enforce`] and xref:#skip-tests[`skipTests`] decide a verdict, so they're command-line flags rather than project keys. A project file that declares either one is rejected, including inside a profile that never activates.
 
 [[required-keys]]
 === Required Keys
@@ -198,14 +199,6 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 [cols="2,2,4"]
 |===
 | Key | Default | Use
-
-| `airness.enforce`
-| `true`
-| Set to `false` to use xref:#report-only-mode[].
-
-| xref:#skip-tests[`skipTests`]
-| `false`
-| Set to `true` to bypass tests and all _airness_ checks.
 
 | `airness.typography.excludes`
 | empty

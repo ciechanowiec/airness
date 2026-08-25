@@ -105,6 +105,34 @@ final class ProjectFiles {
     }
 
     /**
+     * The bound declaration of one plugin, read from the build rather than from a profile.
+     *
+     * @param pom      a project file
+     * @param artifact the plugin artifact identifier
+     * @return the plugin element under build/plugins
+     */
+    static Element bound(Path pom, String artifact) {
+        Element plugins = child(document(pom), "build", "plugins");
+        return Xml.children(plugins, "plugin").stream()
+            .filter(plugin -> artifact.equals(Xml.text(plugin, "artifactId").orElse("")))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException(pom + " binds no " + artifact));
+    }
+
+    /**
+     * The declared value of one property of a project file.
+     *
+     * @param pom  a project file
+     * @param name the property name
+     * @return the value as written, stripped
+     */
+    static String property(Path pom, String name) {
+        return Xml.text(child(document(pom), "properties"), name)
+            .map(String::strip)
+            .orElseThrow(() -> new IllegalStateException(pom + " declares no " + name));
+    }
+
+    /**
      * One bound execution, wherever in the file it is written.
      *
      * @param pom a project file

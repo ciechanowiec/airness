@@ -17,7 +17,7 @@ public final class CommentProseMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
-        return !this.moduleSourceRoots().isEmpty();
+        return this.hasModuleJava();
     }
 
     @Override

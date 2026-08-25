@@ -14,6 +14,24 @@ scratch="$(mktemp -d "$HOME/.airness-it-XXXXXX")"
 trap 'rm -rf "$scratch" 2>/dev/null || true' EXIT INT TERM
 failures=0
 
+# The consumer fixtures below are written by quoted heredocs, and quoted is what they have to stay: the
+# project files they carry hold Maven ${...} properties that an interpolating heredoc would hand to the
+# shell instead. So the harness version is spelled out in each of them, and this is what keeps that
+# spelling honest. A release that raises the version in the project file and forgets this one is told so
+# here, in one sentence, rather than through an unresolvable parent somewhere in the middle of the suite.
+harness_version='1.0.5-SNAPSHOT'
+repository="$(cd "$(dirname "$0")/.." && pwd)"
+declared="$(sed -n 's|^ *<version>\(.*\)</version> *$|\1|p' "$repository/pom.xml" | head -n 1)"
+if [ "$declared" != "$harness_version" ]; then
+    printf 'FAILED   version: %s declares %s, and this suite is written for %s\n' \
+        "$repository/pom.xml" "$declared" "$harness_version" >&2
+    exit 1
+fi
+
+# Where the reactor installed what this suite consumes. A settings.xml that moves the local repository
+# is not read here, so a run using one names it through this variable rather than being quietly wrong.
+local_repository="${MAVEN_REPO_LOCAL:-$HOME/.m2/repository}"
+
 new_consumer() {
     name="$1"
     packaging="${2-jar}"
@@ -2673,7 +2691,7 @@ JAVA
 fi
 
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
-assets="$HOME/.m2/repository/eu/ciechanowiec/airness-assets/1.0.5-SNAPSHOT/airness-assets-1.0.5-SNAPSHOT.jar"
+assets="$local_repository/eu/ciechanowiec/airness-assets/$harness_version/airness-assets-$harness_version.jar"
 listing="$scratch/assets.txt"
 jar tf "$assets" > "$listing"
 if ! grep -Fq 'airness/files/README-guideline-software-project.adoc.asset' "$listing"; then

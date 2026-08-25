@@ -40,12 +40,29 @@ public final class AssetsSyncMojo extends AbstractMojo {
     @Parameter(property = "airness.assets.unmanaged")
     private String unmanaged;
 
+    /**
+     * Writes the managed files once, from the project that owns the repository.
+     *
+     * <p>Ownership is decided by {@link RepositoryProjects}, the same answer {@code assets-check}
+     * uses. Asking only whether this is the top-level project left the two goals disagreeing about
+     * which project owns the assets, so the harness could check its own files and never sync them.
+     *
+     * <p>Every branch says something. A goal a project is told to run and then review has to
+     * distinguish "nothing needed writing" from "this project was not the one to write it", and a
+     * silent exit with an empty diff reads identically to both.
+     */
     @Override
     public void execute() {
         if (this.skip) {
             this.getLog().info("Skipping Airness because skipTests is true");
-        } else if (this.session.getTopLevelProject().equals(this.project)) {
+        } else if (RepositoryProjects.owns(this.session.getTopLevelProject(), this.project)) {
             this.write();
+        } else {
+            this.getLog().info(
+                "Skipping Airness because " + this.project.getArtifactId()
+                    + " does not own the repository files; run this goal from "
+                    + this.session.getTopLevelProject().getArtifactId()
+            );
         }
     }
 

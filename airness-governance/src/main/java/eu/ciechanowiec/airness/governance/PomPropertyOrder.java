@@ -63,7 +63,13 @@ final class PomPropertyOrder {
                     .stream()
                     .mapToObj(index -> Map.entry(name, index))
             )
-            .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+            .collect(
+                // A property block may declare one name twice, which is well-formed XML that Maven
+                // accepts by taking the last value. Keeping the first use of such a name reports the
+                // ordering the reader sees, where refusing the duplicate key would end every model rule
+                // at once over a fault none of them is about.
+                Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (first, _) -> first)
+            );
     }
 
     private static boolean references(Node site, String name) {

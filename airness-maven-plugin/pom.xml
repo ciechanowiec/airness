@@ -15,13 +15,16 @@
 
     <name>airness-maven-plugin</name>
     <description>
-        The Maven goals that bind governance checks and explicit repair operations to the build. Checks
-        are read-only. Repair goals run only when called directly.
+        The Maven goals that bind governance checks and explicit repair operations to the build. A check
+        reads the tree without changing it unless a repair switch is set for it, and no switch is set by
+        an ordinary build. The assets-sync goal writes only when called directly, and source-formatting
+        writes only under the format profile.
 
         A check that shipped as a test could be accidentally deselected by -Dtest=OneClass. As goals the
         checks stay bound to their phases, their parameters are named and typed, and a failure names the
-        check in the line that reports it. Every check and writing goal explicitly honors -DskipTests as
-        the quality and governance bypass.
+        check in the line that reports it. Every goal honors -DskipTests as the quality and governance
+        bypass, except the publication checks, which a release must answer even though it skips the tests
+        it already ran.
     </description>
 
     <prerequisites>

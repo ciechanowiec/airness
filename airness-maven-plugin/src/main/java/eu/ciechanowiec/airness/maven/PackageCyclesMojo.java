@@ -18,7 +18,7 @@ public final class PackageCyclesMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
-        return !this.moduleSourceRoots().isEmpty();
+        return this.hasModuleJava();
     }
 
     @Override

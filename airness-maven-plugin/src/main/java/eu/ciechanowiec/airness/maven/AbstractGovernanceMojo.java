@@ -142,6 +142,25 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
     }
 
     /**
+     * Whether the current module contains Java at all, production or test.
+     *
+     * <p>This is the question a goal over {@link #moduleSourceRoots()} has to ask, for the reason
+     * {@link #hasTestJava()} gives: a source root that exists while holding no Java is an ordinary
+     * state rather than the mistyped root a refusal is meant for. A goal that gated on the directory
+     * instead went on to read nothing and then refused the empty scope, which reaches Maven as an
+     * internal plugin error rather than as a verdict, and passes the enforcement switch by.
+     *
+     * <p>Asking only about production Java would be the same mistake in the other direction, since
+     * these roots are the main and test ones together, and a module holding only tests would stop
+     * being read without anything saying so.
+     *
+     * @return whether at least one compile or test compile source root contains a Java source file
+     */
+    protected final boolean hasModuleJava() {
+        return this.moduleSourceRoots().stream().anyMatch(AbstractGovernanceMojo::containsJava);
+    }
+
+    /**
      * The Java source directories of every module in the reactor, which is what a repository-wide check
      * over sources has to read.
      *
@@ -186,7 +205,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
         try (Stream<Path> paths = Files.walk(root)) {
             return paths.anyMatch(path -> Files.isRegularFile(path) && path.toString().endsWith(".java"));
         } catch (IOException exception) {
-            throw new UncheckedIOException("Could not inspect production sources under " + root, exception);
+            throw new UncheckedIOException("Could not inspect sources under " + root, exception);
         }
     }
 

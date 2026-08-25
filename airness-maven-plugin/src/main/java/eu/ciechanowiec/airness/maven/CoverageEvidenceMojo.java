@@ -57,8 +57,14 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
     }
 
     /**
-     * Read only when the evidence and the report are both present. An absent report is already the
-     * finding above, and reporting it twice would say one thing in two places.
+     * Read only when an exclusion was declared and the report is there to read it against.
+     *
+     * <p>The report is a different file from the evidence the rule above requires, so its absence is
+     * not that finding restated. Nothing reports it, which is why {@code jacoco.reportFile} is a name
+     * a project file may not declare: pointing it somewhere empty would leave every exclusion
+     * unexamined and the rule reading clean.
+     *
+     * @return one entry per declared pattern that names no class the report measured
      */
     private List<String> unreached() {
         List<String> declared = Sentinel.optional(this.excluded);

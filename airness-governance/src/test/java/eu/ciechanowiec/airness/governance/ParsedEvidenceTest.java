@@ -29,12 +29,19 @@ class ParsedEvidenceTest {
 
     @Test
     void rejectsEveryNonCanonicalManagedAssetShape() {
-        List<String> paths = List.of("", "nested\\file", "/absolute", "nested/../file");
+        // The bare root is here because it has no name at index zero. The canonical test used to ask for
+        // one before the unsafe test had ruled the path out, so the refusal arrived as a bare exception
+        // carrying none of the explanation. The message is asserted for the same reason: the type alone
+        // cannot tell the intended refusal from an accident on the way to it.
+        List<String> paths = List.of("", "nested\\file", "/absolute", "nested/../file", "/");
         assertAll(
             paths.stream().map(
-                path -> () -> assertThrows(
-                    IllegalArgumentException.class,
-                    () -> new ManagedAsset(path, AssetPolicy.PINNED)
+                path -> () -> assertEquals(
+                    "Managed asset path must be canonical and repository-relative: " + path,
+                    assertThrows(
+                        IllegalArgumentException.class,
+                        () -> new ManagedAsset(path, AssetPolicy.PINNED)
+                    ).getMessage()
                 )
             )
         );

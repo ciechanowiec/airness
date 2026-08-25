@@ -22,17 +22,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class JavadocLinkRules {
 
-    // A text block consumes its escapes, so a block embedding its own delimiter is one token rather than
-    // two and a half. Ending the token early leaves the rest of the block to be read as code, which is
-    // what decides the imports and the declared types this rule resolves names against.
-    //
-    // Ordinary text is consumed as a possessive run rather than one recursive regex frame per character.
-    // The quote branch excludes a closing delimiter, so the outer possessive repetition stops only at
-    // one it can leave for the delimiter itself.
-    private static final Pattern TOKEN = Pattern.compile(
-        "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
-            + "|/\\*.*?\\*/|//[^\\n]*"
-    );
+    // The lexer is JavaCode's. Two copies of a Java tokenizer maintained side by side is how the fourth
+    // edit to one of them leaves the other reading a text block as live code.
+    private static final Pattern TOKEN = JavaCode.TOKEN;
     private static final Pattern LINK = Pattern.compile("\\{@(?:link|linkplain)\\s+[^}]*}");
     private static final Pattern SAMPLE = Pattern.compile("(?s)<pre>.*?</pre>");
     private static final Pattern TAG_TARGET = Pattern.compile("@(?:param|throws|exception|see)\\s+\\S+");

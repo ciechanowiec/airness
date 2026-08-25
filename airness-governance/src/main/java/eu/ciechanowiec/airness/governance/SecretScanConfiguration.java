@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.SequencedCollection;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -31,7 +32,16 @@ import java.util.stream.Stream;
  */
 public final class SecretScanConfiguration {
 
-    private static final Pattern TABLE = Pattern.compile("^\\[\\[?([A-Za-z_][A-Za-z0-9_.-]*)]]?$");
+    private static final String TABLE_NAME = "[A-Za-z_][A-Za-z0-9_.-]*";
+    /*
+     * A table header or an array-of-tables header, spelled as two alternatives so that the brackets
+     * have to balance. One alternative with an optional bracket at each end accepts [[name] and
+     * [name]] as well, because the two are independent, and a header nobody can read is exactly the
+     * line this class exists to refuse rather than wave through.
+     */
+    private static final Pattern TABLE = Pattern.compile(
+        "^(?:\\[(" + TABLE_NAME + ")]|\\[\\[(" + TABLE_NAME + ")]])$"
+    );
     private static final Pattern ENTRY = Pattern.compile("^([A-Za-z_][A-Za-z0-9_-]*)\\s*=\\s*(.+)$");
     private static final Pattern STRING = Pattern.compile("'''(.*?)'''|\"([^\"]*)\"|'([^']*)'", Pattern.DOTALL);
     /**
@@ -126,8 +136,10 @@ public final class SecretScanConfiguration {
             .filter(statement -> statement.is(ALLOWLISTS, "regexes"))
             .flatMap(
                 statement -> strings(statement.value()).stream()
-                    .filter(value -> !exact(value))
-                    .map(value -> statement.at('"' + value + "\" is a pattern rather than an exact value"))
+                    .flatMap(
+                        value -> inexactness(value).stream()
+                            .map(reason -> statement.at('"' + value + "\" " + reason))
+                    )
             )
             .forEach(problems::add);
         return List.copyOf(problems);
@@ -159,8 +171,13 @@ public final class SecretScanConfiguration {
     private static Optional<Statement> statementOf(Line line, SequencedCollection<Statement> read) {
         Matcher table = TABLE.matcher(line.text());
         return table.matches()
-            ? Optional.of(new Statement(line.number(), table.group(1), "", ""))
+            ? Optional.of(new Statement(line.number(), tableName(table), "", ""))
             : entryOf(line, read);
+    }
+
+    // Whichever of the two header forms matched carries the name, and the other group is null.
+    private static String tableName(MatchResult table) {
+        return Optional.ofNullable(table.group(1)).orElseGet(() -> table.group(2));
     }
 
     private static Optional<Statement> entryOf(Line line, SequencedCollection<Statement> read) {
@@ -178,8 +195,26 @@ public final class SecretScanConfiguration {
             .orElse("");
     }
 
-    private static boolean exact(CharSequence value) {
-        return value.length() >= SHORTEST_EXACT_VALUE && !WIDENING.matcher(value).find();
+    /**
+     * Why an allowlist value is not one exact value, or nothing when it is.
+     *
+     * <p>A value fails this for either of two unrelated reasons, and each asks for a different repair.
+     * Reporting both as the same sentence sent the reader of a short literal looking for a
+     * metacharacter that was never there, so the two now say what they mean.
+     *
+     * @param value the allowlist value as written
+     * @return the reason the value is not exact, or nothing when it is
+     */
+    private static Optional<String> inexactness(String value) {
+        if (WIDENING.matcher(value).find()) {
+            return Optional.of("is a pattern rather than an exact value");
+        }
+        return value.length() < SHORTEST_EXACT_VALUE
+            ? Optional.of(
+                "is too short to be an exact value, which needs at least "
+                    + SHORTEST_EXACT_VALUE + " characters"
+            )
+            : Optional.empty();
     }
 
     private static List<String> strings(CharSequence value) {

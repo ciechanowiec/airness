@@ -15,7 +15,7 @@ public final class JavadocLinksMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
-        return !this.moduleSourceRoots().isEmpty();
+        return this.hasModuleJava();
     }
 
     @Override

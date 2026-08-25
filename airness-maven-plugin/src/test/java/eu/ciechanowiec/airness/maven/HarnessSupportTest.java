@@ -49,6 +49,17 @@ class HarnessSupportTest {
     }
 
     @Test
+    void namesEveryPackagingWhoseBuildLeavesAJar() {
+        assertTrue(JarPackaging.produced("jar"), "the ordinary case");
+        assertTrue(JarPackaging.produced("maven-plugin"), "a plugin is a jar with a descriptor in it");
+        assertTrue(JarPackaging.produced("bundle"), "and so is an OSGi bundle");
+        assertFalse(
+            JarPackaging.produced("pom"),
+            "an aggregator packages nothing, so a goal that reads a jar has nothing to read here"
+        );
+    }
+
+    @Test
     void admitsEachGoalAndScopeOnlyOncePerSession() {
         SessionData data = new DefaultSessionData();
         assertTrue(OncePerSession.firstRun(data, HarnessSupportTest.class, "first"));

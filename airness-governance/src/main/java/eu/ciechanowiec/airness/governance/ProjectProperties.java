@@ -42,6 +42,7 @@ public final class ProjectProperties {
      */
     private static final Set<String> RESERVED = Set.of(
         "jacoco.dataFile",
+        "jacoco.reportFile",
         "maven.test.skip",
         "skipTests"
     );

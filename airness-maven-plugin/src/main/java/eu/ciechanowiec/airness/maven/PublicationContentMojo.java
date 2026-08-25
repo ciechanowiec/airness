@@ -4,7 +4,6 @@ import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.PublicationContentCheck;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Set;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -14,8 +13,6 @@ import org.apache.maven.plugins.annotations.Parameter;
  */
 @Mojo(name = "publication-content", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public final class PublicationContentMojo extends AbstractPublicationMojo {
-
-    private static final Set<String> JAR_PACKAGING = Set.of("jar", "maven-plugin", "bundle");
 
     @Parameter(defaultValue = "${project.build.directory}/${project.build.finalName}.jar", readonly = true)
     private String artifact;
@@ -28,7 +25,7 @@ public final class PublicationContentMojo extends AbstractPublicationMojo {
 
     @Override
     boolean applies() {
-        return JAR_PACKAGING.contains(this.project().getPackaging());
+        return JarPackaging.produced(this.project().getPackaging());
     }
 
     @Override
