@@ -64,8 +64,16 @@ record SarifFindings(Path report) {
         );
     }
 
+    /*
+     * The first navigation off the parameter is named rather than chained. A JsonNode read only as the
+     * qualifier of a further call reads as weakenable to TreeNode, which declares the traversal methods
+     * but returns TreeNode from them and declares no value reader, so the weakening does not compile.
+     * Naming the first hop gives the call a declared expected type, which is what lets TypeMayBeWeakened
+     * reach that conclusion itself, so the inspection keeps its say over every other type here.
+     */
     private static String located(JsonNode result) {
-        JsonNode physical = result.path("locations").path(0).path("physicalLocation");
+        JsonNode locations = result.path("locations");
+        JsonNode physical = locations.path(0).path("physicalLocation");
         String file = physical.path("artifactLocation").path("uri").asText("unknown file");
         int line = physical.path("region").path("startLine").asInt(NO_LINE);
         return line == NO_LINE ? file : "%s:%d".formatted(file, line);
