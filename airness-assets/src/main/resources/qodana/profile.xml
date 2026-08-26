@@ -39,6 +39,14 @@
          - MethodCallInLoopCondition: fires on while (matcher.find()) and every other loop whose condition is
            loop-variant by construction, which is the idiomatic form rather than a smell; the call it asks to hoist
            is the one that advances the loop, so taking the advice would hang the loop
+         - RegExpUnnecessaryNonCapturingGroup: reads a format template as though it were a finished
+           expression. The regex injection reaches a literal only where it is compiled on the spot, so
+           "\b(?:%s)\b" handed to Pattern.compile is analysed with the placeholder standing for a single
+           atom and the group is called redundant, while the group is exactly what holds the alternation
+           the placeholder carries inside the boundaries. Measured against jetbrains/qodana-jvm-community
+           the finding names the group as '(?:missingValue)', which is the placeholder it never filled.
+           The same template read through a helper is not analysed at all, so the check does not ask for
+           a better expression, it asks for the literal to be written out of its reach
     -->
 
     <option name="myName" value="HC" />
@@ -441,6 +449,7 @@
     </inspection_tool>
     <inspection_tool class="RedundantFieldInitialization" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="RedundantLambdaParameterType" enabled="true" level="WARNING" enabled_by_default="true" editorAttributes="WARNING_ATTRIBUTES" />
+    <inspection_tool class="RegExpUnnecessaryNonCapturingGroup" enabled="false" level="INFORMATION" enabled_by_default="false" />
     <inspection_tool class="ReplaceAssignmentWithOperatorAssignment" enabled="true" level="WARNING" enabled_by_default="true" editorAttributes="WARNING_ATTRIBUTES">
         <option name="ignoreLazyOperators" value="true" />
         <option name="ignoreObscureOperators" value="false" />
