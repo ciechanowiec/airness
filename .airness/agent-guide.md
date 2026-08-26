@@ -12,8 +12,8 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
 - The project inherits `airness-parent`. Do not weaken, replace, duplicate, or version the plugins, dependencies,
   analyzers, rules, thresholds, or managed files that the parent owns.
 - Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Default verification reads Maven Central and
-  fails when it cannot, and Extended verification also needs a reachable Docker daemon. Keep every production and test
-  package under the `airness.package.root` declared in the root `pom.xml`.
+  Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon.
+  Keep every production and test package under the `airness.package.root` declared in the root `pom.xml`.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.
 
@@ -30,8 +30,8 @@ Airness governs all of the following domains:
   comments, source comments, typography, banned substitutes, and cycles among the packages of a module.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
-  declared mocking libraries, licenses, known vulnerabilities, available stable updates, and the maximum permitted
-  freshness gap.
+  declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
+  container tag-digest drift, and the maximum permitted coordinate freshness gap.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material.
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a
@@ -163,4 +163,3 @@ Reach for the suppression file only when no upgrade answers an advisory. Keep it
 puts it in front of the scan, so one kept elsewhere is never read. Every rule in it names the advisory it excuses,
 says in its `notes` why this project cannot reach the vulnerability, and carries a `YYYY-MM-DD` date. A rule that
 suppresses nothing fails the build, like every other exclusion that reaches nothing.
-

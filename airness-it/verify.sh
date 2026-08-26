@@ -1899,6 +1899,53 @@ JAVA
 run_case 'default: a justification without its suppression is stale' 1 \
     'JustificationNeedsSuppression' "$consumer" pmd:check
 rm "$consumer/src/main/java/com/example/StaleJustification.java"
+
+# Copy-paste detection. The consumer is clone-free before the pair below is written, so the rejection
+# that follows is the pair being reported rather than the fixture carrying duplication of its own.
+run_case 'default: a consumer without duplication passes' 0 'BUILD SUCCESS' "$consumer" pmd:cpd-check
+cat > "$consumer/src/main/java/com/example/FirstScorer.java" <<'JAVA'
+package com.example;
+
+import java.util.List;
+import java.util.Locale;
+
+/** Carries a block long enough to cross the duplication bound. */
+final class FirstScorer {
+
+    private FirstScorer() {
+    }
+
+    static int score(List<String> values) {
+        int total = 0;
+        for (int index = 0; index < values.size(); index++) {
+            String entry = values.get(index);
+            if (entry.isEmpty()) {
+                continue;
+            }
+            String trimmed = entry.trim().toLowerCase(Locale.ROOT);
+            if (trimmed.startsWith("a") || trimmed.startsWith("b")) {
+                total = total + trimmed.length() * 2;
+            } else if (trimmed.endsWith("z")) {
+                total = total - trimmed.length();
+            } else {
+                total = total + 1;
+            }
+            if (total > 1000) {
+                total = 1000;
+            }
+        }
+        return total;
+    }
+}
+JAVA
+sed 's/FirstScorer/SecondScorer/g' "$consumer/src/main/java/com/example/FirstScorer.java" \
+    > "$consumer/src/main/java/com/example/SecondScorer.java"
+run_case 'default: a duplicated block is rejected' 1 'has found [0-9]+ duplication' \
+    "$consumer" pmd:cpd-check
+run_case 'report-only: duplication is visible' 0 'has found [0-9]+ duplication' \
+    "$consumer" pmd:cpd-check -Dairness.enforce=false
+rm "$consumer/src/main/java/com/example/FirstScorer.java" \
+   "$consumer/src/main/java/com/example/SecondScorer.java"
 cat > "$consumer/src/main/java/com/example/ProseJustification.java" <<'JAVA'
 package com.example;
 

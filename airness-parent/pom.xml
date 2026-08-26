@@ -668,12 +668,23 @@
                     <suppressMarker>__AIRNESS_INLINE_SUPPRESSION_DISABLED__</suppressMarker>
                     <includeTests>true</includeTests>
                     <linkXRef>false</linkXRef>
+                    <!--
+                        The duplication bound. CPD counts tokens rather than lines, so a token
+                        count is what the policy has to name: 100 of them is roughly twenty lines
+                        of Java. That sits below the fifty-line method ceiling, so a method copied
+                        and edited is still caught, and above the incidental repetition that a
+                        shared signature or a chained builder produces without anyone copying
+                        anything. Literals and identifiers are left significant, so only text that
+                        genuinely repeats is reported rather than text that merely rhymes.
+                    -->
+                    <minimumTokens>100</minimumTokens>
                 </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
                             <goal>check</goal>
+                            <goal>cpd-check</goal>
                         </goals>
                     </execution>
                 </executions>

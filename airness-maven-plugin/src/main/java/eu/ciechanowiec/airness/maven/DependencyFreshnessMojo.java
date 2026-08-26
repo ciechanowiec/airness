@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.ContainerFreshnessCheck;
 import eu.ciechanowiec.airness.governance.DependencyFreshnessCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.util.List;
@@ -8,13 +9,13 @@ import org.apache.maven.plugins.annotations.Mojo;
 
 /**
  * No declared dependency, plugin, or parent trails the latest stable release by two major versions or
- * more.
+ * more, and every Airness-owned container image is checked for available stable tags and digest drift.
  *
  * <p>This runs once over every pom in the reactor and its complete parent chain. Reading raw poms
  * reaches management, reporting, plugin classpaths, annotation processors, and inactive profiles
  * instead of limiting the verdict to coordinates active in the effective model. It reports every
- * stable update, fails only at the major-version bound, and fails rather than passes when the registry
- * cannot be read.
+ * stable update, fails only Maven coordinates at the major-version bound, and reports container updates
+ * without a failure threshold. It fails rather than passes when a registry cannot be read.
  */
 @Mojo(name = "dependency-freshness", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
@@ -23,14 +24,18 @@ public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
 
     @Override
     List<Findings> findings() {
-        DependencyFreshnessCheck check = new DependencyFreshnessCheck(
+        DependencyFreshnessCheck dependencies = new DependencyFreshnessCheck(
             VersionCoordinates.from(this.session()), MAVEN_CENTRAL
         );
         this.getLog().info(
-            "Version checking asked Maven Central about " + check.scanned() + " coordinate(s)"
+            "Version checking asked Maven Central about " + dependencies.scanned() + " coordinate(s)"
         );
-        this.reportUpdates(check);
-        return check.findings();
+        this.reportUpdates(dependencies);
+        ContainerFreshnessCheck containers = new ContainerFreshnessCheck(
+            VersionImages.from(this.session())
+        );
+        this.reportContainers(containers);
+        return dependencies.findings();
     }
 
     @Override
@@ -46,6 +51,22 @@ public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
         } else {
             this.getLog().info("The following stable version updates are available:");
             check.updates().forEach(update -> this.getLog().info("  " + update.report()));
+        }
+    }
+
+    private void reportContainers(ContainerFreshnessCheck check) {
+        this.getLog().info(
+            "Version checking asked Docker Hub about " + check.scanned() + " container image(s)"
+        );
+        if (check.updates().isEmpty()) {
+            this.getLog().info("Every checked container image tag is current");
+        } else {
+            this.getLog().info("The following stable container image updates are available:");
+            check.updates().forEach(update -> this.getLog().info("  " + update));
+        }
+        if (!check.drifts().isEmpty()) {
+            this.getLog().info("The following pinned container tags now resolve to different digests:");
+            check.drifts().forEach(drift -> this.getLog().info("  " + drift));
         }
     }
 }
