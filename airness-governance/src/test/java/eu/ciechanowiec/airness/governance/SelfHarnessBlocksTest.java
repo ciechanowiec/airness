@@ -13,7 +13,9 @@ import org.w3c.dom.Node;
  * The configuration blocks the root project file copies from {@code airness-parent} still say the same
  * thing, and the analyzer that reaches Airness's own sources by naming them still names all of them.
  *
- * <p>{@link SelfHarnessMirrorTest} makes the same argument about the rules and the licences. This is a
+ * <p>{@link SelfHarnessMirrorTest} answers the same question about the rules and the licences by
+ * removing it: those are written once and copied nowhere. The blocks below cannot be written once,
+ * because each names sources by a path that differs between the two files. This is a
  * second class rather than six more methods in that one, for the reason {@link ProjectFiles} is a class
  * of its own: the rule set caps how many methods one class carries.
  *

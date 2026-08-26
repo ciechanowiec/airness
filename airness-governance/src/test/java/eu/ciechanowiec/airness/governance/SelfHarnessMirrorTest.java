@@ -6,26 +6,32 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 /**
- * The two project files that carry the harness say the same thing.
+ * The harness holds itself to what it publishes, and writes each shared list once.
  *
  * <p>Airness cannot inherit the parent it publishes: {@code airness-parent} depends on
  * {@code airness-annotations}, and a module cannot both be depended on by its own parent and inherit it.
- * So the rules a consumer receives from {@code airness-parent} are mirrored in the root project file for
- * the modules that build the harness, and a mirror is a thing that drifts. When it drifts the failure is
- * silent and one-sided: a consumer goes on being held to a rule that the repository publishing it has
- * quietly stopped answering to, and every report on both sides stays green.
+ * The root project file therefore binds the harness to its own modules directly, and what a consumer
+ * receives it receives through {@code airness-parent}. Two audiences, one repository.
  *
- * <p>What is compared is what the two say rather than how they are written. Two copies of a rule list
- * can differ in whitespace and in comments and still be one contract.
+ * <p>A list serving both audiences is written in the pluginManagement of the root project file and
+ * nowhere else. Writing it a second time below that file is what this class forbids. Two copies drift,
+ * and the drift is silent and one-sided: a consumer goes on being held to a rule the repository
+ * publishing it has quietly stopped answering to, and every report on both sides stays green. Holding
+ * the copies equal instead, which is what stood here before, catches the drift but leaves the reader
+ * two answers to one question and leaves each new entry to be written twice.
+ *
+ * <p>How a second copy combines with the first is a further reason not to write one. Whether it
+ * replaces the list above it or adds to it depends on a {@code combine.self} attribute, so a copy that
+ * is correct and a copy that doubles every entry differ by an attribute that is invisible when absent.
  */
 class SelfHarnessMirrorTest {
 
-    private static final String CONFIGURATION = "configuration";
     private static final String ENFORCER = "maven-enforcer-plugin";
     private static final String LICENCES = "license-maven-plugin";
     private static final List<String> EVERY_MODULE = List.of(
@@ -33,6 +39,10 @@ class SelfHarnessMirrorTest {
         "airness-self-analyze-dependencies",
         "airness-self-check-dependency-licenses",
         "airness-self-known-vulnerabilities"
+    );
+    private static final List<Map.Entry<String, List<String>>> ROOT_ONLY = List.of(
+        Map.entry(ENFORCER, List.of("rules")),
+        Map.entry(LICENCES, List.of("includedLicenses", "licenseMerges"))
     );
     private static final List<String> WITH_PRODUCTION_JAVA = List.of(
         "airness-self-rewrite-verify",
@@ -79,33 +89,19 @@ class SelfHarnessMirrorTest {
         );
     }
 
+    /*
+     * Scoped to the plugin, because rules is a tag several plugins use: the coverage floors of every
+     * module that holds production Java are written in one, under jacoco-maven-plugin, and are the
+     * module's own business rather than a copy of anything.
+     */
     @Test
-    void mirrorsTheDependencyRulesTheParentBinds() {
-        Element parent = ProjectFiles.child(
-            ProjectFiles.execution(ProjectFiles.parentPom(), "airness-enforce-dependencies"),
-            CONFIGURATION, "rules"
-        );
-        Element root = ProjectFiles.child(
-            ProjectFiles.managed(ProjectFiles.rootPom(), ENFORCER), CONFIGURATION, "rules"
+    void leavesTheSharedListsToTheOneFileThatWritesThem() {
+        Stream<Path> below = Stream.concat(
+            Stream.of(ProjectFiles.parentPom()), ProjectFiles.moduleFiles().stream()
         );
         assertEquals(
-            tagsOf(parent), tagsOf(root),
-            "the rules a consumer is held to and the rules this repository is held to are one list"
-        );
-    }
-
-    @Test
-    void mirrorsTheLicenceAllowlistTheParentBinds() {
-        Element parent = ProjectFiles.child(
-            ProjectFiles.execution(ProjectFiles.parentPom(), "airness-check-dependency-licenses"),
-            CONFIGURATION, "includedLicenses"
-        );
-        Element root = ProjectFiles.child(
-            ProjectFiles.managed(ProjectFiles.rootPom(), LICENCES), CONFIGURATION, "includedLicenses"
-        );
-        assertEquals(
-            allowedIn(parent), allowedIn(root),
-            "a licence this repository accepts for itself is one it accepts for a consumer, and no more"
+            List.of(), below.flatMap(SelfHarnessMirrorTest::rewritten).toList(),
+            "a list written twice is a list that drifts from the one above it, and reads as two answers"
         );
     }
 
@@ -125,15 +121,23 @@ class SelfHarnessMirrorTest {
             .toList();
     }
 
-    private static List<String> tagsOf(Node rules) {
-        return ProjectFiles.elementChildren(rules).map(Element::getTagName).sorted().toList();
+    private static Stream<String> rewritten(Path pom) {
+        return ROOT_ONLY.stream().flatMap(
+            shared -> ProjectFiles.descendants(ProjectFiles.document(pom), "plugin")
+                .filter(plugin -> shared.getKey().equals(Xml.text(plugin, "artifactId").orElse("")))
+                .flatMap(
+                    plugin -> shared.getValue().stream()
+                        .filter(parameter -> written(plugin, parameter))
+                        .map(
+                            parameter -> "%s writes %s of %s".formatted(
+                                ProjectFiles.moduleName(pom), parameter, shared.getKey()
+                            )
+                        )
+                )
+        );
     }
 
-    private static List<String> allowedIn(Node licences) {
-        return Xml.children(licences, "includedLicense").stream()
-            .map(Element::getTextContent)
-            .map(String::strip)
-            .sorted()
-            .toList();
+    private static boolean written(Element plugin, String parameter) {
+        return ProjectFiles.descendants(plugin, parameter).findAny().isPresent();
     }
 }

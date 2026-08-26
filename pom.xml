@@ -267,13 +267,14 @@
                         </dependency>
                     </dependencies>
                     <!--
-                        Mirrors the rules airness-parent binds as airness-enforce-dependencies, so the
-                        modules that build the harness answer to them too. It sits in pluginManagement
-                        rather than in build/plugins because this pom is an ancestor of every consumer:
-                        an execution here would attach to consumer modules and enforce twice. Plugin-level
-                        rules are safe, since every execution that matters declares its own rules element,
-                        which replaces this list rather than adding to it. SelfHarnessMirrorTest holds the
-                        two copies equal.
+                        The dependency rules, written once. They sit in pluginManagement rather than in
+                        build/plugins because this pom is an ancestor of every consumer: an execution here
+                        would attach to consumer modules and enforce twice. Plugin level is what lets one
+                        declaration serve both audiences, since it reaches every enforce execution that
+                        does not replace it, in this repository and in a consumer alike. An execution
+                        asking a different question, as airness-enforce-runtime does, says so by declaring
+                        rules of its own with combine.self=override. SelfHarnessMirrorTest holds every
+                        file below this one to declaring none.
                     -->
                     <configuration>
                         <skip>${skipTests}</skip>
@@ -454,10 +455,22 @@
                     <artifactId>license-maven-plugin</artifactId>
                     <version>${license-maven-plugin.version}</version>
                     <!--
-                        Mirrors the allowlist airness-parent binds as airness-check-dependency-licenses.
-                        A licence this project cannot read fails beside one it can read and refuses,
-                        because unknown and disallowed are the same answer to the question being asked.
-                        SelfHarnessMirrorTest holds this list equal to the parent's.
+                        An allowlist over the licenses of everything that resolves, written once, at
+                        plugin level, so that one list answers for the modules building the harness and
+                        for every consumer of airness-parent. A dependency whose license cannot be read
+                        fails alongside one whose license is not allowed, because unknown and disallowed
+                        are the same answer to the question being asked.
+
+                        The weak copyleft entries are allowed for linking and redistribution and for
+                        nothing further. LGPL-3.0, CDDL-1.1 and the classpath exception to GPL-2.0 each
+                        reach only the artifact they are declared on, so a build that depends on one
+                        states nothing about the license of what depends on it. A strong copyleft
+                        license, which would, is absent from this list and is meant to stay absent.
+
+                        A merge names a spelling, not a license. A dependency whose POM writes a license
+                        by a name this list does not carry fails as unreadable, so the fix for such a
+                        failure is to add the spelling once its license has been read, rather than to
+                        admit the license itself.
                     -->
                     <configuration>
                         <includedScopes>compile,runtime,provided,test</includedScopes>
