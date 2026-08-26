@@ -309,133 +309,10 @@
                             <skip>${skipTests}</skip>
                             <fail>${airness.enforce}</fail>
                             <!--
-                                combine.self=override, because the root pluginManagement mirrors this same
-                                list for Airness's own modules. Without it a consumer would inherit both
-                                copies and see every finding twice.
+                                The rules are not written here. They reach this execution from the
+                                pluginManagement of the pom this one inherits, which is where they are
+                                written once for a consumer and for the harness alike.
                             -->
-                            <rules combine.self="override">
-                                <!--
-                                    A transitive dependency that another path down-versions is the kind of
-                                    difference that shows up as a NoSuchMethodError in production and in
-                                    nothing before it. Pin it explicitly instead.
-                                -->
-                                <requireUpperBoundDeps>
-                                    <message>
-                                        A transitive dependency is down-versioned by another path. Pin it
-                                        explicitly rather than leaving the resolution order to decide.
-                                    </message>
-                                </requireUpperBoundDeps>
-                                <!--
-                                    Upper-bound selection says Maven chose the newest candidate. It does
-                                    not say every path asked for that candidate. Convergence makes the
-                                    disagreement itself a failure, so the graph has one declared version
-                                    of each dependency rather than one winner hiding older requests.
-                                -->
-                                <dependencyConvergence/>
-                                <!--
-                                    A range, LATEST or RELEASE means "whatever is newest when you build",
-                                    so the same commit builds differently on different days and a verdict
-                                    stops describing the tree that earned it.
-
-                                    Snapshots are allowed here and refused by requireReleaseDeps below
-                                    instead. A project developing against an unreleased parent is an
-                                    ordinary state; a project publishing a release that depends on one is
-                                    not, and that is the narrower thing worth failing.
-
-                                    No message element: this rule and the next one build their own text
-                                    and never read a configured one, so setting it would leave the pom
-                                    describing an explanation nothing prints.
-                                -->
-                                <banDynamicVersions>
-                                    <allowSnapshots>true</allowSnapshots>
-                                </banDynamicVersions>
-                                <!--
-                                    Maven keeps the last of two declarations of the same coordinate and
-                                    says nothing, so the pom reads as one version while the build resolves
-                                    another. Nothing downstream can see the difference.
-                                -->
-                                <banDuplicatePomDependencyVersions/>
-                                <!--
-                                    A dependency without a scope silently means compile. Writing the
-                                    scope makes the production, runtime and test boundary visible in the
-                                    declaration that owns it.
-                                -->
-                                <requireExplicitDependencyScope/>
-                                <!--
-                                    Repository declarations in a project change where coordinates are
-                                    resolved and can make the same pom produce different bytes under a
-                                    different mirror setup. Repository policy belongs in Maven settings,
-                                    outside the source tree and under the operator's control.
-                                -->
-                                <requireNoRepositories>
-                                    <banRepositories>true</banRepositories>
-                                    <banPluginRepositories>true</banPluginRepositories>
-                                </requireNoRepositories>
-                                <!--
-                                    A snapshot is a moving target, so a release resolving one cannot be
-                                    rebuilt from its own coordinates. Only a release is held to this:
-                                    onlyWhenRelease leaves a snapshot project free to depend on snapshots,
-                                    which is what developing against an unreleased artifact requires.
-
-                                    The parent is exempt because the parent is the harness itself, whose
-                                    coordinates ManagedVersions already governs, and a release project
-                                    trialling an unreleased harness is a state the harness has to survive.
-                                    airness-annotations is exempt for the same reason: the parent supplies
-                                    it, it carries the parent's version, and no project chose it.
-                                -->
-                                <requireReleaseDeps>
-                                    <onlyWhenRelease>true</onlyWhenRelease>
-                                    <failWhenParentIsSnapshot>false</failWhenParentIsSnapshot>
-                                    <excludes>
-                                        <exclude>eu.ciechanowiec:airness-annotations</exclude>
-                                    </excludes>
-                                    <message>
-                                        A released project resolves a snapshot, which no later build can
-                                        reproduce. Depend on a released version instead.
-                                    </message>
-                                </requireReleaseDeps>
-                                <!--
-                                    Two artifacts carrying the same class leave classpath order deciding
-                                    which implementation runs. Identical bytecode is still rejected: two
-                                    owners for one class are two sources of truth even when they happen to
-                                    agree today.
-                                -->
-                                <banDuplicateClasses>
-                                    <findAllDuplicates>true</findAllDuplicates>
-                                    <ignoreWhenIdentical>false</ignoreWhenIdentical>
-                                </banDuplicateClasses>
-                                <!--
-                                    Declaring a mocking library is the project stating that it means to
-                                    mock, which the substitute rules in the shipped Checkstyle
-                                    configuration refuse. Refusing the declaration says so at the
-                                    coordinate rather than at the first import.
-
-                                    searchTransitive is off deliberately. An in-memory implementation of
-                                    an ecosystem protocol is a real component under the standard, and
-                                    several of them - sling-mock and aem-mock are the ones that matter -
-                                    carry a mocking library of their own. Banning the graph would refuse
-                                    those implementations for what their dependencies contain rather
-                                    than for anything the project wrote, and would leave a Sling or AEM
-                                    project with no way to test at all. What the project writes is held
-                                    by the source rules instead, which is where the difference between
-                                    using a protocol implementation and dictating an answer is visible.
-                                -->
-                                <bannedDependencies>
-                                    <searchTransitive>false</searchTransitive>
-                                    <excludes>
-                                        <exclude>org.mockito:*</exclude>
-                                        <exclude>org.easymock:*</exclude>
-                                        <exclude>org.powermock:*</exclude>
-                                        <exclude>org.jmock:*</exclude>
-                                        <exclude>org.jmockit:*</exclude>
-                                    </excludes>
-                                    <message>
-                                        A mocking library is declared here. A test proves nothing about
-                                        code whose collaborators answer what the test dictated. Use the
-                                        real component, or a local implementation of the protocol.
-                                    </message>
-                                </bannedDependencies>
-                            </rules>
                         </configuration>
                     </execution>
                 </executions>
@@ -517,20 +394,8 @@
             </plugin>
             <plugin>
                 <!--
-                    An allowlist over the licenses of everything that resolves. A dependency whose
-                    license cannot be read fails alongside one whose license is not allowed, because
-                    unknown and disallowed are the same answer to the question being asked.
-
-                    The weak copyleft entries are allowed for linking and redistribution and for
-                    nothing further. LGPL-3.0, CDDL-1.1 and the classpath exception to GPL-2.0 each
-                    reach only the artifact they are declared on, so a build that depends on one
-                    states nothing about the license of what depends on it. A strong copyleft
-                    license, which would, is absent from this list and is meant to stay absent.
-
-                    A merge names a spelling, not a license. A dependency whose POM writes a license
-                    by a name this list does not carry fails as unreadable, so the fix for such a
-                    failure is to add the spelling once its license has been read, rather than to
-                    admit the license itself.
+                    Fails the build on a dependency whose license the allowlist does not admit, and on
+                    one whose license cannot be read at all.
                 -->
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
@@ -546,36 +411,11 @@
                             <skipAddThirdParty>${skipTests}</skipAddThirdParty>
                             <failOnBlacklist>${airness.enforce}</failOnBlacklist>
                             <failOnMissing>${airness.enforce}</failOnMissing>
-                            <includedLicenses>
-                                <includedLicense>Apache-2.0</includedLicense>
-                                <includedLicense>MIT</includedLicense>
-                                <includedLicense>MIT-0</includedLicense>
-                                <includedLicense>BSD-2-Clause</includedLicense>
-                                <includedLicense>BSD-3-Clause</includedLicense>
-                                <includedLicense>EPL-1.0</includedLicense>
-                                <includedLicense>EPL-2.0</includedLicense>
-                                <includedLicense>LGPL-2.1</includedLicense>
-                                <includedLicense>LGPL-3.0</includedLicense>
-                                <includedLicense>CDDL-1.1</includedLicense>
-                                <includedLicense>GPL-2.0-with-classpath-exception</includedLicense>
-                                <includedLicense>JSON</includedLicense>
-                                <includedLicense>Public Domain</includedLicense>
-                                <includedLicense>Bouncy Castle Licence</includedLicense>
-                            </includedLicenses>
-                            <licenseMerges>
-                                <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License Version 2.0|Apache License 2.0|Apache 2.0|Apache 2|Apache License 2</licenseMerge>
-                                <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)|MIT license</licenseMerge>
-                                <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License</licenseMerge>
-                                <licenseMerge>BSD-3-Clause|BSD 3-Clause|BSD-3-Clause License|The 3-Clause BSD License|New BSD License|BSD|EDL 1.0|Eclipse Distribution License - v 1.0</licenseMerge>
-                                <licenseMerge>EPL-1.0|Eclipse Public License v1.0|Eclipse Public License - v 1.0|Eclipse Public License, Version 1.0|EPL</licenseMerge>
-                                <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0</licenseMerge>
-                                <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1|GNU Lesser General Public License|GNU Lesser General Public License, Version 2.1, February 1999</licenseMerge>
-                                <licenseMerge>LGPL-3.0|LGPL (GNU Lesser General Public License)</licenseMerge>
-                                <licenseMerge>CDDL-1.1|CDDL 1.1|CDDL + GPLv2 with classpath exception</licenseMerge>
-                                <licenseMerge>GPL-2.0-with-classpath-exception|GPL2 w/ CPE</licenseMerge>
-                                <licenseMerge>JSON|The JSON License</licenseMerge>
-                                <licenseMerge>Public Domain|Public Domain, per Creative Commons CC0</licenseMerge>
-                            </licenseMerges>
+                            <!--
+                                The allowlist and the spellings it merges are not written here. They
+                                reach this execution from the pluginManagement of the pom this one
+                                inherits, which carries the note on what the list admits and why.
+                            -->
                         </configuration>
                     </execution>
                 </executions>
