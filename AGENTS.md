@@ -20,7 +20,7 @@ Airness is a Maven 3.9.16+ multi-module build harness that requires exactly Java
 
 - `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, enforces
   the two-major freshness bound, and installs all reactor modules for consumer tests. Version checking
-  requires Maven Central.
+  requires Maven Central and Docker Hub; container-image updates have no failure threshold.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
 - `sh scripts/lint-docs.sh README.adoc README-guideline-software-project.adoc README-guideline-writing.adoc` checks project documentation when its external tools are installed.
 

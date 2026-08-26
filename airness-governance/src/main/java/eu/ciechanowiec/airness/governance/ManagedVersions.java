@@ -120,14 +120,16 @@ public final class ManagedVersions {
      * a project can repoint is a check a project can replace with one that finds nothing, and the digest
      * pin in the parent would then be advice rather than a rule.
      */
+    private static final List<String> IMAGE_PROPERTIES = List.of(
+        "gitleaks.image",
+        "qodana.image"
+    );
     private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(
-        COORDINATES.stream().map(Coordinate::property),
-        Stream.of(
-            "maven.compiler.release",
-            "airness.dependency-check.fail-build-on-cvss",
-            "gitleaks.image",
-            "qodana.image"
-        )
+        Stream.concat(
+            COORDINATES.stream().map(Coordinate::property),
+            IMAGE_PROPERTIES.stream()
+        ),
+        Stream.of("maven.compiler.release", "airness.dependency-check.fail-build-on-cvss")
     ).collect(Collectors.toUnmodifiableSet());
 
     /**
@@ -139,6 +141,15 @@ public final class ManagedVersions {
     public static List<String> problems(Path pom) {
         Element root = Xml.parse(read(pom)).getDocumentElement();
         return Stream.concat(coordinateProblems(root), propertyProblems(root)).sorted().toList();
+    }
+
+    /**
+     * The root properties that declare Airness-owned container images.
+     *
+     * @return immutable image-property names
+     */
+    public static List<String> imageProperties() {
+        return List.copyOf(IMAGE_PROPERTIES);
     }
 
     static List<Coordinate> coordinates() {
