@@ -18,3 +18,11 @@ regexTarget = "line"
 regexes = [
     '''AKIA1234567890123456''',
 ]
+
+[[allowlists]]
+description = "Known invalid GitHub value used to verify artifact secret detection"
+targetRules = ["generic-api-key"]
+regexTarget = "secret"
+regexes = [
+    '''ghp_12345678901234567890''',
+]

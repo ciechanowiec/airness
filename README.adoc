@@ -114,11 +114,11 @@ mvn airness:assets-sync
 | Formats and rewrites Java code.
 
 | [[default-verification,default verification]]Default verification
-| `mvn clean package`
-| Runs the default verification suite.
+| `mvn clean verify`
+| Runs the default verification suite. Verify rather than package, because a project that repackages its archive produces the archive that ships during package, and the artifact-content check reads that archive afterwards.
 
 | [[extended-verification,extended verification]]Extended verification
-| `mvn clean package -Pextended`
+| `mvn clean verify -Pextended`
 | Runs the xref:#default-verification[] plus additional checks.
 
 | [[release-publication,release publication]]Release publication
@@ -142,7 +142,7 @@ mvn airness:assets-sync
 | Skips tests and all _airness_ checks.
 |===
 +
-For example, `mvn clean package -Pextended -Dairness.enforce=false` runs xref:#extended-verification[] in xref:#report-only-mode[]. Use xref:#skip-tests[`mvn package -DskipTests`] only when the build needs to produce an artifact without running _airness_ checks.
+For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#extended-verification[] in xref:#report-only-mode[]. Use xref:#skip-tests[`mvn package -DskipTests`] only when the build needs to produce an artifact without running _airness_ checks.
 
 [[managed-files]]
 == Managed Files

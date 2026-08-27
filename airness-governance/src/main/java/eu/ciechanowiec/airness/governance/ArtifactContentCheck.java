@@ -24,6 +24,22 @@ import java.util.stream.Stream;
  * <p>Packaging plugins can add material that no source check reads. This check therefore opens the
  * finished archive and rejects ambiguous names, development-only material, test output, machine-local
  * paths, and recognizable secret material. Each finding names the archive entry that carried it.
+ *
+ * <p>The finished archive of a project that repackages holds two populations of bytes, and two rules
+ * here read only one of them. What the module itself put into the archive, whether from its own build
+ * output or from a packaging plugin that wrote into the archive afterwards, is this module's to answer
+ * for. What a dependency published inside its own archive and a packaging plugin then copied across is
+ * that dependency's own artifact-content question, answered in that dependency's own build, and no
+ * change to this project would settle it. The development rule and the secret rule are therefore read
+ * against the entries no vendored archive supplies. Both rules were written for first-party build
+ * output and neither states anything a project can act on when it fires on a dependency's published
+ * bytes: a library that ships its sources under {@code OSGI-OPT/src} and a library whose TLS code
+ * carries a throwaway test key in a string constant are each reporting on the library.
+ *
+ * <p>The remaining three rules read every entry whatever supplied it. An entry name that escapes the
+ * extraction directory is dangerous whoever wrote it, an absolute path out of the machine that built
+ * this archive cannot have reached a published dependency, and a duplicate name is a property of this
+ * archive rather than of any one contributor to it.
  */
 public final class ArtifactContentCheck {
 
@@ -34,27 +50,29 @@ public final class ArtifactContentCheck {
         ".git", ".github", ".idea", ".vscode"
     );
     private final Path artifact;
-    private final Path mainOutput;
-    private final Path testOutput;
+    private final ModuleOutput output;
     private final String repositoryPath;
+    private final List<Path> vendored;
 
     /**
      * Creates an inspection of one finished module artifact.
      *
      * @param artifact       JAR to inspect
-     * @param mainOutput     compiled production-output directory
-     * @param testOutput     compiled test-output directory
+     * @param output         compiled output directories of the module that produced the JAR
      * @param repositoryRoot repository root whose absolute path must not leak
+     * @param vendored       archives of the resolved dependencies a packaging plugin can copy into the
+     *                       JAR, which is what lets the two first-party rules tell the module's own
+     *                       bytes from a dependency's published ones
      */
     public ArtifactContentCheck(
-        Path artifact, Path mainOutput, Path testOutput, Path repositoryRoot
+        Path artifact, ModuleOutput output, Path repositoryRoot, Collection<Path> vendored
     ) {
         this.artifact = artifact;
-        this.mainOutput = mainOutput;
-        this.testOutput = testOutput;
+        this.output = output;
         byte[] encoded = repositoryRoot.toAbsolutePath().normalize().toString()
             .getBytes(StandardCharsets.UTF_8);
         this.repositoryPath = new String(encoded, StandardCharsets.ISO_8859_1);
+        this.vendored = List.copyOf(vendored);
     }
 
     /**
@@ -87,8 +105,9 @@ public final class ArtifactContentCheck {
     }
 
     private Map<Kind, List<String>> scan() {
-        Set<String> main = relativeFiles(this.mainOutput);
-        Set<String> test = relativeFiles(this.testOutput);
+        Set<String> main = relativeFiles(this.output.main());
+        Set<String> test = relativeFiles(this.output.test());
+        Set<String> supplied = this.vendoredEntries();
         try (JarFile jar = new JarFile(this.artifact.toFile())) {
             List<Content> entries = jar.stream().map(entry -> content(jar, entry)).toList();
             List<String> names = entries.stream().map(Content::name).toList();
@@ -98,7 +117,10 @@ public final class ArtifactContentCheck {
                     .filter(index -> unsafeEntry(names, index))
                     .mapToObj(names::get)
                     .toList(),
-                Kind.DEVELOPMENT, names.stream().filter(ArtifactContentCheck::development).toList(),
+                Kind.DEVELOPMENT, names.stream()
+                    .filter(name -> !supplied.contains(name))
+                    .filter(ArtifactContentCheck::development)
+                    .toList(),
                 Kind.TEST, files.filter(entry -> testOnly(entry, main, test))
                     .map(Content::name)
                     .toList(),
@@ -109,12 +131,32 @@ public final class ArtifactContentCheck {
                     .toList(),
                 Kind.SECRET, entries.stream()
                     .filter(Content::file)
+                    .filter(entry -> !supplied.contains(entry.name()))
                     .filter(entry -> SensitiveContent.secret(entry.content()))
                     .map(Content::name)
                     .toList()
             );
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect artifact " + this.artifact, exception);
+        }
+    }
+
+    /**
+     * Every entry name the resolved dependency archives carry.
+     *
+     * @return the names a packaging plugin can copy into this archive without this module writing one
+     */
+    private Set<String> vendoredEntries() {
+        return this.vendored.stream()
+            .flatMap(ArtifactContentCheck::archiveNames)
+            .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static Stream<String> archiveNames(Path archive) {
+        try (JarFile jar = new JarFile(archive.toFile())) {
+            return jar.stream().map(JarEntry::getName).toList().stream();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not read dependency archive " + archive, exception);
         }
     }
 

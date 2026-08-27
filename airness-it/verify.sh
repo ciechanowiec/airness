@@ -1973,6 +1973,54 @@ run_case 'artifact: development metadata in the finished jar is rejected' 1 \
 rm "$consumer/src/main/resources/.idea/workspace.xml"
 rmdir "$consumer/src/main/resources/.idea" "$consumer/src/main/resources"
 
+# The same rule aimed at a project that repackages. Package writes two archives there, the thin one the
+# jar plugin produces and the one that ships, written after it by the repackaging plugin, and Maven
+# merges an inherited plugin ahead of one the project declares. Every goal the parent binds to package
+# therefore runs before the repackaging, so a content goal bound to package reads the thin archive and
+# never the archive that ships. The development metadata below reaches the shaded archive alone, through
+# the shade transformer that includes a file the project keeps outside its resource directories, so the
+# thin archive carries nothing to report and a check reading it reports nothing at all.
+#
+# Findings are reported rather than enforced, because this fixture carries the same untidy sources every
+# consumer fixture here carries, and enforcement stops the build at the coverage floor long before any
+# archive exists.
+repackaged="$(new_consumer repackaged)"
+mkdir -p "$repackaged/packaging"
+printf 'local workspace metadata\n' > "$repackaged/packaging/workspace.xml"
+shade_block="$(cat <<'XML'
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>repackage</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                  <resource>.idea/workspace.xml</resource>
+                  <file>packaging/workspace.xml</file>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+XML
+)"
+SHADE_BLOCK="$shade_block" perl -0pi -e 's{(  <profiles>)}{$ENV{SHADE_BLOCK}."\n".$1}e' "$repackaged/pom.xml"
+run_case 'artifact: a repackaging project has the archive it ships inspected' 0 \
+    'Source or development files packaged in the JAR' \
+    "$repackaged" clean verify -Dairness.enforce=false
+
 # Compilation failures are not findings and remain fatal in report-only mode.
 cat > "$consumer/src/main/java/com/example/Broken.java" <<'JAVA'
 package com.example;

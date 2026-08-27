@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import eu.ciechanowiec.airness.governance.ArtifactContentCheck;
 import eu.ciechanowiec.airness.governance.Findings;
+import eu.ciechanowiec.airness.governance.ModuleOutput;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -59,9 +60,9 @@ class SelfArtifactContentTest {
     private static ArtifactContentCheck check(Path repository, Path module) {
         return new ArtifactContentCheck(
             archive(module),
-            module.resolve("target/classes"),
-            module.resolve("target/test-classes"),
-            repository
+            new ModuleOutput(module.resolve("target/classes"), module.resolve("target/test-classes")),
+            repository,
+            List.of()
         );
     }
 

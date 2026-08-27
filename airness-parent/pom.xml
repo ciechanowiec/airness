@@ -557,8 +557,25 @@
                             <goal>test-assertions</goal>
                             <goal>package-cycles</goal>
                             <goal>suppression-budget</goal>
-                            <goal>artifact-content</goal>
                             <goal>tree-verify</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        The archive is produced in package and finished in package, and those are not the
+                        same moment. Maven merges an inherited plugin ahead of one the project declares,
+                        so every goal bound here runs before every goal the project binds in the same
+                        phase. A project that repackages, through the shade plugin, the assembly plugin,
+                        or Spring Boot, would have this goal read the thin archive the jar plugin had
+                        just written rather than the archive that ships. Verify is the first phase Maven
+                        guarantees is past the whole of package whichever plugin did the repackaging,
+                        which is what this check needs and what Airness cannot arrange inside package.
+                        The same reasoning already puts publication-content in verify.
+                    -->
+                    <execution>
+                        <id>airness-artifact</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>artifact-content</goal>
                         </goals>
                     </execution>
                 </executions>

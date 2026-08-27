@@ -133,8 +133,65 @@ class ArtifactContentCheckTest {
         );
     }
 
+    @Test
+    void readsDevelopmentFilesAPackagingPluginAddedAndNotOnesADependencyPublished() {
+        Path vendor = this.jar(Map.of("OSGI-OPT/src/com/example/Vendored.java", VALUE));
+        Path shipped = this.jar(
+            Map.of("OSGI-OPT/src/com/example/Vendored.java", VALUE, ".idea/workspace.xml", VALUE)
+        );
+        assertEquals(
+            List.of(".idea/workspace.xml"),
+            offences(
+                this.check(
+                    shipped, this.directory.resolve(MAIN), this.directory.resolve(TEST), List.of(vendor)
+                ),
+                DEVELOPMENT
+            ),
+            "a library publishing its own sources reports on that library and not on the project vendoring it"
+        );
+    }
+
+    @Test
+    void readsSecretMaterialThisModuleShippedAndNotMaterialADependencyPublished() {
+        String credential = "ghp_12345678901234567890";
+        Path vendor = this.jar(Map.of("com/example/Vendored.class", credential));
+        Path shipped = this.jar(Map.of("com/example/Vendored.class", credential, "own.txt", credential));
+        assertEquals(
+            List.of("own.txt"),
+            offences(
+                this.check(
+                    shipped, this.directory.resolve(MAIN), this.directory.resolve(TEST), List.of(vendor)
+                ),
+                SECRETS
+            ),
+            "a credential shape inside a dependency's published bytes is that dependency's to answer for"
+        );
+    }
+
+    @Test
+    void readsAnUnsafeEntryWhicheverArchiveSuppliedIt() {
+        Path vendor = this.jar(Map.of("../outside.txt", VALUE));
+        Path shipped = this.jar(Map.of("../outside.txt", VALUE));
+        assertEquals(
+            List.of("../outside.txt"),
+            offences(
+                this.check(
+                    shipped, this.directory.resolve(MAIN), this.directory.resolve(TEST), List.of(vendor)
+                ),
+                UNSAFE
+            ),
+            "an entry that escapes the extraction directory is dangerous whichever archive wrote it"
+        );
+    }
+
     private List<Findings> check(Path jar, Path main, Path test) {
-        return new ArtifactContentCheck(jar, main, test, this.directory).findings();
+        return this.check(jar, main, test, List.of());
+    }
+
+    private List<Findings> check(Path jar, Path main, Path test, Collection<Path> vendored) {
+        return new ArtifactContentCheck(
+            jar, new ModuleOutput(main, test), this.directory, vendored
+        ).findings();
     }
 
     @SneakyThrows
