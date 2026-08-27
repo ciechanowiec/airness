@@ -29,12 +29,12 @@ record DockerTag(String raw, String prefix, String version, int levels, boolean 
     }
 
     boolean sameScheme(DockerTag other) {
-        return this.prefix.equals(other.prefix)
-            && this.levels == other.levels
-            && this.calendar == other.calendar;
+        return this.prefix.equals(other.prefix())
+            && this.levels == other.levels()
+            && this.calendar == other.calendar();
     }
 
     int compareVersion(DockerTag other) {
-        return new ComparableVersion(this.version).compareTo(new ComparableVersion(other.version));
+        return new ComparableVersion(this.version).compareTo(new ComparableVersion(other.version()));
     }
 }

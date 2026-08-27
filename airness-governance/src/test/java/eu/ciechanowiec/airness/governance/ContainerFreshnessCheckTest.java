@@ -49,7 +49,7 @@ class ContainerFreshnessCheckTest {
             Map.of(CURRENT_TAG, CURRENT, "v8.30.1", LATEST)
         );
 
-        ContainerFreshnessCheck check = this.check(CURRENT_TAG, CURRENT, registry);
+        ContainerFreshnessCheck check = this.check(CURRENT_TAG, registry);
 
         assertEquals(1, check.scanned());
         assertEquals(
@@ -65,7 +65,7 @@ class ContainerFreshnessCheckTest {
     @Test
     void reportsNoUpdateOrDriftForACurrentImmutablePin() {
         ContainerFreshnessCheck check = this.check(
-            CURRENT_TAG, CURRENT, this.registry(List.of(CURRENT_TAG), Map.of(CURRENT_TAG, CURRENT))
+            CURRENT_TAG, this.registry(List.of(CURRENT_TAG), Map.of(CURRENT_TAG, CURRENT))
         );
 
         assertTrue(check.updates().isEmpty(), "there is deliberately no update finding or threshold");
@@ -76,7 +76,7 @@ class ContainerFreshnessCheckTest {
     @Test
     void reportsWhenTheHeldTagNowNamesADifferentDigest() {
         ContainerFreshnessCheck check = this.check(
-            CURRENT_TAG, CURRENT, this.registry(List.of(CURRENT_TAG), Map.of(CURRENT_TAG, LATEST))
+            CURRENT_TAG, this.registry(List.of(CURRENT_TAG), Map.of(CURRENT_TAG, LATEST))
         );
 
         assertEquals(
@@ -95,7 +95,7 @@ class ContainerFreshnessCheckTest {
             Map.of("2026.1", CURRENT, "2027.1", LATEST)
         );
 
-        ContainerFreshnessCheck check = this.check("2026.1", CURRENT, registry);
+        ContainerFreshnessCheck check = this.check("2026.1", registry);
 
         assertTrue(check.updates().getFirst().contains(":2027.1@" + LATEST));
     }
@@ -104,7 +104,7 @@ class ContainerFreshnessCheckTest {
     void rejectsAnUnversionedCurrentTag() {
         assertThrows(
             IllegalStateException.class,
-            () -> this.check("latest", CURRENT, this.registry(List.of("latest"), Map.of()))
+            () -> this.check("latest", this.registry(List.of("latest"), Map.of()))
         );
     }
 
@@ -112,7 +112,7 @@ class ContainerFreshnessCheckTest {
     void rejectsARegistryFailureInsteadOfSilentlyReportingCurrent() {
         String registry = this.registry(HTTP_FAILURE, "unavailable");
         IllegalStateException failure = assertThrows(
-            IllegalStateException.class, () -> this.check(CURRENT_TAG, CURRENT, registry)
+            IllegalStateException.class, () -> this.check(CURRENT_TAG, registry)
         );
         assertTrue(failure.toString().contains(Integer.toString(HTTP_FAILURE)));
     }
@@ -120,7 +120,7 @@ class ContainerFreshnessCheckTest {
     @Test
     void rejectsATagResponseWithoutADigest() {
         String registry = this.registry(List.of(CURRENT_TAG), Map.of());
-        assertThrows(IllegalStateException.class, () -> this.check(CURRENT_TAG, CURRENT, registry));
+        assertThrows(IllegalStateException.class, () -> this.check(CURRENT_TAG, registry));
     }
 
     @Test
@@ -128,12 +128,12 @@ class ContainerFreshnessCheckTest {
         String registry = this.registry(
             HTTP_OK, "{\"count\":2,\"results\":[{\"name\":\"" + CURRENT_TAG + "\"}]}"
         );
-        assertThrows(IllegalStateException.class, () -> this.check(CURRENT_TAG, CURRENT, registry));
+        assertThrows(IllegalStateException.class, () -> this.check(CURRENT_TAG, registry));
     }
 
-    private ContainerFreshnessCheck check(String tag, String digest, String registry) {
+    private ContainerFreshnessCheck check(String tag, String registry) {
         DeclaredContainerImage image = new DeclaredContainerImage(
-            "gitleaks.image", "zricethezav/gitleaks:" + tag + '@' + digest
+            "gitleaks.image", "zricethezav/gitleaks:" + tag + '@' + CURRENT
         );
         return new ContainerFreshnessCheck(List.of(image), registry);
     }
