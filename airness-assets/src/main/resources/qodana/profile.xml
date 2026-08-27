@@ -47,6 +47,25 @@
            the finding names the group as '(?:missingValue)', which is the placeholder it never filled.
            The same template read through a helper is not analysed at all, so the check does not ask for
            a better expression, it asks for the literal to be written out of its reach
+         - AnonymousInnerClass: recommends replacing an anonymous implementation with a named inheriting
+           helper, while the SpotBugs policy deliberately accepts the anonymous form
+         - CloneableImplementsClone and CloneDeclaresCloneNotSupported: Checkstyle NoClone bans clone;
+           shaping a clone API would offer a repair that remains noncompliant
+         - LambdaCanBeReplacedWithAnonymous and MethodRefCanBeReplacedWithLambda: reverse modern Java
+           idioms by expanding lambdas or method references into more verbose forms
+         - LambdaParameterTypeCanBeSpecified: conflicts with RedundantLambdaParameterType (mutually exclusive)
+         - OptionalToIf: replaces typed Optional flow with nullable control flow, contrary to the null policy
+         - PatternVariablesCanBeReplacedWithCast: reverses Java pattern matching into an explicit cast
+         - RecordCanBeClass: reverses records into ordinary classes instead of preserving the preferred
+           immutable value shape
+         - StreamToLoop: performs a backward-compatibility rewrite that is inappropriate for Java 25-only code
+         - EnhancedSwitchBackwardMigration: conflicts with Checkstyle UseEnhancedSwitch and the Java 25 migration
+         - TextBlockBackwardMigration: reverses the Java 25 text-block modernization
+         - ExplicitToImplicitClassMigration: compact source files conflict with the explicit-class rule and
+           normal Maven source structure
+         - MigrateFromJavaLangIo: reverses UpgradeToJava25, which migrates System.out printing to java.lang.IO
+         - VarargParameter: replaces varargs with arrays for pre-Java-5 compatibility
+         - RemoveLiteralUnderscores: removes readable numeric separators solely to lower the source level
     -->
 
     <option name="myName" value="HC" />
@@ -557,6 +576,22 @@
         <option name="SUGGEST_PACKAGE_LOCAL_FOR_TOP_CLASSES" value="true" />
         <option name="SUGGEST_PRIVATE_FOR_INNERS" value="false" />
     </inspection_tool>
+    <inspection_tool class="AnonymousInnerClass" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="CloneableImplementsClone" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="CloneDeclaresCloneNotSupported" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="EnhancedSwitchBackwardMigration" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="ExplicitToImplicitClassMigration" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="LambdaCanBeReplacedWithAnonymous" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="LambdaParameterTypeCanBeSpecified" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="MethodRefCanBeReplacedWithLambda" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="MigrateFromJavaLangIo" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="OptionalToIf" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="PatternVariablesCanBeReplacedWithCast" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="RecordCanBeClass" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="RemoveLiteralUnderscores" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="StreamToLoop" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="TextBlockBackwardMigration" enabled="false" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="VarargParameter" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="OptionalUsedAsFieldOrParameterType" enabled="false" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="MavenModelInspection" enabled="false" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="XmlHighlighting" enabled="false" level="WARNING" enabled_by_default="false" />
