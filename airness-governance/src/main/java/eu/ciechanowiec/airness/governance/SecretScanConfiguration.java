@@ -112,7 +112,7 @@ public final class SecretScanConfiguration {
             .map(statement -> statement.at("a project rule can shadow one the shared set declares"))
             .forEach(problems::add);
         this.exemptions().stream()
-            .filter(entry -> !entry.declares(TARGET_RULES) || !entry.declares(DESCRIPTION))
+            .filter(entry -> entry.lacks(TARGET_RULES) || entry.lacks(DESCRIPTION))
             .map(
                 entry -> "line " + entry.number() + ": an exception needs both " + TARGET_RULES
                     + " and " + DESCRIPTION + ", so it says which rule it excuses and why"
@@ -285,8 +285,8 @@ public final class SecretScanConfiguration {
             this.keys.addAll(key.isEmpty() ? List.of() : List.of(key));
         }
 
-        boolean declares(String key) {
-            return this.keys.contains(key);
+        boolean lacks(String key) {
+            return !this.keys.contains(key);
         }
     }
 
