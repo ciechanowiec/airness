@@ -107,8 +107,9 @@ it is published, only a fresh history satisfies the rule.
 1. Read `airness.package.root` from the root `pom.xml` before adding or moving Java packages.
 2. Run `mvn airness:assets-sync` only to create or restore managed repository files, then review and commit its edits.
 3. Run `mvn process-resources -Pformat` to apply formatting and rewrite recipes, then review the resulting source.
-4. Run `mvn clean package` for Default verification.
-5. Run `mvn clean package -Pextended` before finishing. Extended verification includes Default verification and adds
+4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
+   its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
+5. Run `mvn clean verify -Pextended` before finishing. Extended verification includes Default verification and adds
    the known-vulnerability scan and the history, secret, and Qodana checks. Default verification alone never reads the
    vulnerability database.
 
