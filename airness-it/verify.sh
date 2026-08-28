@@ -2802,6 +2802,303 @@ JAVA
     fi
 fi
 
+# Spring Boot consumers name a second parent. It relaxes what Spring genuinely makes impossible, adds the
+# rules only a Spring Boot project can break, and leaves every other project answering to what it did
+# before. The source cases below declare no Spring dependency on purpose: the rules read the source, so
+# the fixture needs the annotations and not the platform behind them.
+spring_source="$scratch/spring-source"
+mkdir -p "$spring_source/src/main/java/com/example/deep"
+cat > "$spring_source/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent-spring-boot</artifactId>
+    <version>1.0.7-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>spring-source</artifactId>
+  <version>1.0.0</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+</project>
+POM
+cat > "$spring_source/src/main/java/com/example/Offender.java" <<'JAVA'
+package com.example;
+
+class Offender {
+
+    @Autowired
+    private Neighbour neighbour;
+
+    @Transactional
+    void hidden() {
+    }
+
+    @Async
+    void fired() {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Wiring.java" <<'JAVA'
+package com.example;
+
+@Configuration
+class Wiring {
+
+    @Bean
+    Neighbour neighbour() {
+        return new Neighbour();
+    }
+
+    @Bean
+    Holder holder() {
+        return new Holder(neighbour());
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/deep/Application.java" <<'JAVA'
+package com.example.deep;
+
+@SpringBootApplication(proxyBeanMethods = false)
+final class Application {
+}
+JAVA
+git -C "$spring_source" init --quiet
+git -C "$spring_source" config user.name Fixture
+git -C "$spring_source" config user.email fixture@example.invalid
+
+run_case 'spring: the added source rules all report' 0 'AirnessSpringTransactionalIsPublic' \
+    "$spring_source" checkstyle:check -Dairness.enforce=false
+spring_log="$scratch/spring__the_added_source_rules_all_report.log"
+for rule in AirnessSpringTransactionalIsPublic AirnessSpringAsyncReturnsAFuture \
+    AirnessSpringConfigurationIsLite; do
+    if grep -q "$rule" "$spring_log"; then
+        printf 'ok       spring: %s reports on the fixture\n' "$rule"
+    else
+        printf 'FAILED   spring: %s reported nothing\n' "$rule" >&2
+        failures=$((failures + 1))
+    fi
+done
+if grep -q 'Use constructor injection instead of field injection' "$spring_log"; then
+    echo 'ok       spring: field injection is refused'
+else
+    echo 'FAILED   spring: field injection went unreported' >&2
+    failures=$((failures + 1))
+fi
+
+run_case 'spring: a bean method calling another is refused' 1 'builds a second instance' \
+    "$spring_source" airness:spring-source
+run_case 'spring: an application class below the root is refused' 1 'component scanning starts there' \
+    "$spring_source" airness:spring-source
+
+# The same sources under airness-parent. The Spring rules are suppressed there, and the generic rule that
+# grew a Spring annotation is not, which is what says the relaxations reach only a Spring Boot project.
+plain_spring="$scratch/plain-spring"
+mkdir -p "$plain_spring"
+cp -R "$spring_source/src" "$plain_spring/src"
+sed -e 's|<artifactId>airness-parent-spring-boot</artifactId>|<artifactId>airness-parent</artifactId>|' \
+    -e 's|<artifactId>spring-source</artifactId>|<artifactId>plain-spring</artifactId>|' \
+    "$spring_source/pom.xml" > "$plain_spring/pom.xml"
+git -C "$plain_spring" init --quiet
+git -C "$plain_spring" config user.name Fixture
+git -C "$plain_spring" config user.email fixture@example.invalid
+
+run_case 'spring: a plain consumer still refuses field injection' 0 \
+    'Use constructor injection instead of field injection' \
+    "$plain_spring" checkstyle:check -Dairness.enforce=false
+plain_log="$scratch/spring__a_plain_consumer_still_refuses_field_injection.log"
+if grep -q 'AirnessSpring' "$plain_log"; then
+    echo 'FAILED   spring: a Spring rule reached a project that is not a Spring Boot one' >&2
+    failures=$((failures + 1))
+else
+    echo 'ok       spring: the Spring rules stay suppressed outside a Spring Boot project'
+fi
+if grep -q 'A concrete class must be final' "$plain_log"; then
+    echo 'ok       spring: the final-class rule keeps its Spring exemption to the Spring parent'
+else
+    echo 'FAILED   spring: the final-class relaxation leaked outside a Spring Boot project' >&2
+    failures=$((failures + 1))
+fi
+
+# A Spring Boot application built and run the way one ships. This is the only case that resolves the
+# platform, and the only one that starts the archive rather than reading it: the two defects it was
+# written after, a split test framework and an annotation left out of the repackaged jar, both passed
+# every source and artifact check and appeared for the first time in a running process.
+spring_app="$scratch/spring-app"
+mkdir -p "$spring_app/src/main/java/com/example" "$spring_app/src/test/java/com/example"
+cat > "$spring_app/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent-spring-boot</artifactId>
+        <version>1.0.7-SNAPSHOT</version>
+    </parent>
+    <groupId>com.example</groupId>
+    <artifactId>spring-app</artifactId>
+    <version>1.0.0</version>
+    <properties>
+        <airness.coverage.excluded.classes>com.example.Application</airness.coverage.excluded.classes>
+        <airness.package.root>com.example</airness.package.root>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>repackage-application</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+POM
+cat > "$spring_app/src/main/java/com/example/package-info.java" <<'JAVA'
+/**
+ * A Spring Boot application built against the harness.
+ */
+package com.example;
+JAVA
+cat > "$spring_app/src/main/java/com/example/Application.java" <<'JAVA'
+package com.example;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/**
+ * The entry point, which component scanning starts at.
+ */
+@SpringBootApplication(proxyBeanMethods = false)
+public final class Application {
+
+    /**
+     * Starts the container.
+     *
+     * @param args the command line arguments
+     */
+    static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+JAVA
+cat > "$spring_app/src/main/java/com/example/Greetings.java" <<'JAVA'
+package com.example;
+
+import org.springframework.stereotype.Component;
+
+/**
+ * The greeting the application answers with.
+ */
+@Component
+public final class Greetings {
+
+    private final String salutation;
+
+    /**
+     * Creates a greeting source.
+     */
+    public Greetings() {
+        this.salutation = "hello";
+    }
+
+    /**
+     * Greets one name.
+     *
+     * @param name the name to greet
+     * @return the greeting
+     */
+    public String greet(String name) {
+        return this.salutation + ", " + name;
+    }
+}
+JAVA
+cat > "$spring_app/src/test/java/com/example/GreetingsTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class GreetingsTest {
+
+    @Test
+    void greetsTheNameItIsGiven() {
+        assertEquals("hello, world", new Greetings().greet("world"), "the salutation precedes the name");
+    }
+}
+JAVA
+cat > "$spring_app/AGENTS.md" <<'INSTRUCTIONS'
+# Consumer instructions
+
+Run the Maven verification before committing a change.
+INSTRUCTIONS
+git -C "$spring_app" init --quiet
+git -C "$spring_app" config user.name Fixture
+git -C "$spring_app" config user.email fixture@example.invalid
+(cd "$spring_app" && mvn --quiet airness:assets-sync >/dev/null)
+# No format step, deliberately, and the fixture verifies without one. That is the guard on the Java 25
+# recipe set: spring-boot-starter-test carries Mockito transitively, and while the upstream migration
+# wired Mockito's agent into surefire, every Spring Boot project failed its first build until it had
+# accepted that wiring into its own project file. A format step here would absorb the same thing
+# silently if it ever came back.
+git -C "$spring_app" add --all
+git -C "$spring_app" commit --quiet \
+    --message 'test(it): create a Spring Boot consumer fixture' \
+    --message 'The fixture carries one bean and one entry point, so a consumer build has something to report on.'
+
+run_case 'spring: a conforming Spring Boot application verifies' 0 'BUILD SUCCESS' \
+    "$spring_app" clean verify
+
+spring_jar="$spring_app/target/spring-app-1.0.0.jar"
+if unzip -l "$spring_jar" 2>/dev/null | grep -q 'jspecify'; then
+    echo 'ok       spring: the repackaged archive carries the annotations the container reads'
+else
+    echo 'FAILED   spring: the repackaged archive omits the annotations the container reads' >&2
+    failures=$((failures + 1))
+fi
+spring_run="$scratch/spring-app-run.log"
+java -jar "$spring_jar" --server.port=0 --spring.main.banner-mode=off > "$spring_run" 2>&1 &
+spring_pid=$!
+spring_waited=0
+while [ "$spring_waited" -lt 90 ]; do
+    if grep -qE 'Started Application|Application run failed' "$spring_run" 2>/dev/null; then
+        break
+    fi
+    sleep 1
+    spring_waited=$((spring_waited + 1))
+done
+kill "$spring_pid" 2>/dev/null || true
+wait "$spring_pid" 2>/dev/null || true
+if grep -q 'Started Application' "$spring_run"; then
+    echo 'ok       spring: the repackaged archive starts from a package-private main'
+else
+    echo 'FAILED   spring: the repackaged archive did not start' >&2
+    sed -n '1,220p' "$spring_run" >&2
+    failures=$((failures + 1))
+fi
+
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
 assets="$local_repository/eu/ciechanowiec/airness-assets/$harness_version/airness-assets-$harness_version.jar"
 listing="$scratch/assets.txt"
