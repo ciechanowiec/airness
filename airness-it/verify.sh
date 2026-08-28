@@ -19,7 +19,7 @@ failures=0
 # shell instead. So the harness version is spelled out in each of them, and this is what keeps that
 # spelling honest. A release that raises the version in the project file and forgets this one is told so
 # here, in one sentence, rather than through an unresolvable parent somewhere in the middle of the suite.
-harness_version='1.0.6'
+harness_version='1.0.7-SNAPSHOT'
 repository="$(cd "$(dirname "$0")/.." && pwd)"
 declared="$(sed -n 's|^ *<version>\(.*\)</version> *$|\1|p' "$repository/pom.xml" | head -n 1)"
 if [ "$declared" != "$harness_version" ]; then
@@ -44,7 +44,7 @@ new_consumer() {
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>consumer</artifactId>
@@ -379,7 +379,7 @@ cat > "$snapshot_parent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>snapshot-parent</artifactId>
@@ -419,7 +419,7 @@ cat > "$publication_metadata/pom.xml" <<'POM'
 POM
 run_case 'publication: required metadata is rejected' 1 'Maven publication project metadata' \
     "$publication_metadata" \
-    eu.ciechanowiec:airness-maven-plugin:1.0.6:publication-metadata
+    eu.ciechanowiec:airness-maven-plugin:1.0.7-SNAPSHOT:publication-metadata
 
 managed="$scratch/managed-version"
 mkdir -p "$managed"
@@ -430,7 +430,7 @@ cat > "$managed/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>managed-version</artifactId>
@@ -493,7 +493,7 @@ write_settings() {
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>settings</artifactId>
@@ -571,7 +571,7 @@ cat > "$networknt_license/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>networknt-license</artifactId>
@@ -608,7 +608,7 @@ cat > "$declarations/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>declarations</artifactId>
@@ -645,7 +645,7 @@ cat > "$snapshot_dep/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>snapshot-dep</artifactId>
@@ -686,7 +686,7 @@ cat > "$convergence/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>convergence</artifactId>
@@ -728,7 +728,7 @@ cat > "$resolution/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>resolution-hygiene</artifactId>
@@ -1793,7 +1793,7 @@ cat > "$multimodule/child/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>test-only-child</artifactId>
@@ -2061,7 +2061,7 @@ cat > "$reactor/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>reactor</artifactId>
@@ -2126,7 +2126,7 @@ cat > "$stale_grandparent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>stale-grandparent</artifactId>
@@ -2195,7 +2195,7 @@ cat > "$relative_parent/pom.xml" <<'POM'
   <parent>
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness-parent</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
   </parent>
   <groupId>com.example</groupId>
   <artifactId>relative-parent</artifactId>
