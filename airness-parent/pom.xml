@@ -71,6 +71,19 @@
         <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
         <skipTests>false</skipTests>
         <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
+        <!--
+            The two file patterns that decide which Checkstyle rules a project answers to. The shipped
+            configuration holds one rule set, and these select the part of it that applies here.
+
+            Both are stated as the answer for a project that is not a Spring Boot one: no rule is relaxed,
+            and every Spring rule is suppressed. airness-parent-spring-boot inverts them, and nothing else
+            may, because a project that declared either would be choosing which rules it is judged by.
+
+            A file pattern rather than a switch, because that is the only lever a Checkstyle filter takes.
+            An empty pattern reaches no file, so a filter carrying one is a filter that never fires.
+        -->
+        <airness.checkstyle.spring.relaxed>^$</airness.checkstyle.spring.relaxed>
+        <airness.checkstyle.spring.suppressed>.*</airness.checkstyle.spring.suppressed>
     </properties>
 
     <!-- Versions come from the root dependency management. These declarations supply the dependencies. -->
@@ -620,6 +633,15 @@
                 </dependencies>
                 <configuration>
                     <configLocation>eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml</configLocation>
+                    <!--
+                        The shipped configuration reads these two rather than carrying their values, so a
+                        second parent selects a different part of one rule set instead of shipping a
+                        second copy of the whole of it.
+                    -->
+                    <propertyExpansion>
+                        airness.checkstyle.spring.relaxed=${airness.checkstyle.spring.relaxed}
+                        airness.checkstyle.spring.suppressed=${airness.checkstyle.spring.suppressed}
+                    </propertyExpansion>
                     <consoleOutput>true</consoleOutput>
                     <!--
                         failsOnError covers a Checkstyle processing error; failOnViolation covers a rule

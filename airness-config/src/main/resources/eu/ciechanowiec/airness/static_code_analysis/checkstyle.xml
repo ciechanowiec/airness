@@ -209,6 +209,26 @@
             <property name="id" value="RequireFinalClass"/>
             <property name="files" value=".*(Test|IT)\.java$"/>
         </module>
+        <module name="SuppressionXpathSingleFilter">
+            <!--
+                A bean the container wraps in an advice proxy is subclassed at run time, so it cannot be
+                final. Only the annotations that actually cause one are named: a plain component is built
+                by its constructor and stays final like anything else. Configuration classes are absent
+                because the rule below requires them to declare lite mode, which needs no subclass.
+
+                The annotation is looked for anywhere inside the class rather than on it, because what
+                decides whether the container proxies a bean is whether any of its methods carries one.
+                A class annotated with nothing and holding a single transactional method is subclassed
+                exactly as a class annotated at the top of it is.
+
+                The file pattern is empty everywhere but under airness-parent-spring-boot, so a project
+                that is not a Spring Boot one answers to the final-class rule with nothing taken out.
+            -->
+            <property name="id" value="RequireFinalClass"/>
+            <property name="files" value="${airness.checkstyle.spring.relaxed}"/>
+            <property name="query"
+                      value="//CLASS_DEF[.//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='Retryable' or @text='Validated']]/descendant-or-self::node()"/>
+        </module>
         <module name="HideUtilityClassConstructor"/>
         <module name="SuppressionXpathSingleFilter">
             <!-- See: https://github.com/checkstyle/checkstyle/issues/2579#issuecomment-539038275 -->
@@ -325,9 +345,20 @@
         </module>
         <module name="MissingNullCaseInSwitch"/>
         <module name="MatchXpath">
-            <!-- Dependency-injection frameworks: inject through the constructor, so a built object is whole. -->
+            <!--
+                Dependency-injection frameworks: inject through the constructor, so a built object is whole.
+
+                The list names the annotation rather than the framework, so a container Airness has never
+                heard of is covered the day somebody adds its spelling. Spring's four sit here beside the
+                JSR-330 and Sling ones because the rule they break is the same one, and because a project
+                that reaches a collaborator through a field has an object that exists before it is whole
+                whichever library assigned it.
+
+                Lombok's @Value is a type annotation and never lands on a variable, so naming Spring's
+                field annotation here does not reach it.
+            -->
             <property name="query"
-                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Inject' or @text='ChildResource' or @text='OSGiService' or @text='RequestAttribute' or @text='ResourcePath' or @text='ScriptVariable' or @text='Self' or @text='SlingObject' or @text='ValueMapValue']]"/>
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Inject' or @text='Autowired' or @text='ChildResource' or @text='OSGiService' or @text='PersistenceContext' or @text='PersistenceUnit' or @text='RequestAttribute' or @text='ResourcePath' or @text='ScriptVariable' or @text='Self' or @text='SlingObject' or @text='Value' or @text='ValueMapValue']]"/>
             <message key="matchxpath.match"
                      value="Use constructor injection instead of field injection"/>
         </module>
@@ -835,6 +866,66 @@
             <property name="message"
                       value="This annotation installs a substitute in place of a real collaborator. Wire the real component, or a local implementation of the protocol it speaks."/>
             <property name="illegalPattern" value="true"/>
+        </module>
+
+        <!--
+        Spring
+
+        Rules a project inheriting airness-parent-spring-boot answers to, and that the file pattern under
+        each one suppresses everywhere else. They live in this file rather than in a second configuration
+        because a rule set that exists twice is a rule set whose copies drift, and the fourth edit to one
+        of them is the one nobody makes to the other.
+
+        What they have in common is the container. Each names a construct the framework accepts, starts,
+        and then silently does not do what the code says it does.
+        -->
+        <module name="MatchXpath">
+            <!--
+                A proxy intercepts calls arriving from outside the bean, and a non-public method has none
+                to intercept. So the annotation is read, honoured by nothing, and reported by nothing:
+                the transaction the method says it opens is never opened.
+            -->
+            <property name="id" value="AirnessSpringTransactionalIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Transactional'] and not(./MODIFIERS/LITERAL_PUBLIC)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot intercept a non-public method, so this @Transactional opens no transaction. Make the method public, or move the annotation to a method that is."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTransactionalIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The executor holds the outcome of an asynchronous call, and a void return hands it nowhere
+                to be held. The exception is then caught by the executor's handler, which by default logs
+                it and moves on, so a failed call and a successful one leave the caller identical.
+            -->
+            <property name="id" value="AirnessSpringAsyncReturnsAFuture"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Async'] and ./TYPE/LITERAL_VOID]"/>
+            <message key="matchxpath.match"
+                     value="An @Async method returning void gives its exception nowhere to arrive. Return a CompletableFuture so a caller can see the failure."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringAsyncReturnsAFuture"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Full mode subclasses the configuration class so that one bean method calling another
+                returns the singleton. That subclass is what stops the class being final, and lite mode
+                does without it. The rule below is what makes lite mode safe to require.
+            -->
+            <property name="id" value="AirnessSpringConfigurationIsLite"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='Configuration' or @text='SpringBootApplication'] and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='proxyBeanMethods'] and .//LITERAL_FALSE])]]"/>
+            <message key="matchxpath.match"
+                     value="A configuration class that proxies its bean methods is subclassed at run time and cannot be final. Declare proxyBeanMethods = false and take each collaborator as a bean method parameter."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringConfigurationIsLite"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
 
         <!--
