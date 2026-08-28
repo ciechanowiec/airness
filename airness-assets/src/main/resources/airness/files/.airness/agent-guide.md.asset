@@ -140,9 +140,30 @@ it is published, only a fresh history satisfies the rule.
   obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
   suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
+- There is no setting that turns a check off. If a check is wrong for the project, that is an Airness bug to be
+  fixed in Airness, not a local override.
 - For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
   the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
   baseline mechanism and keep the reason beside the entry.
+
+### Change Requests
+
+A project cannot repair the harness from inside itself, and that is the design rather than a gap in it: a rule a
+project can edit is not a rule. What follows from it is that a rule improves only when somebody reports it, which
+makes the report part of the contract rather than a courtesy.
+
+Raise it with the Airness maintainers when:
+
+- a check blocks work that is correct, and the only way past it is a suppression or an exclusion;
+- the same finding is repaired the same way in project after project, which is a rule that belongs in the harness
+  rather than in each project's habits;
+- a project-owned check turns out to be true of every project of this kind, and should move into the harness;
+- a message names a defect without naming the repair, or names the wrong repair.
+
+Bring the failing output, the smallest case that reproduces it, and what the rule should have said. A suppression to
+get past a check is a local answer to a general problem: take it when the work cannot wait, and report it either
+way, because the next project meets the same check with no memory of this one, and a suppression left in place
+spends a ceiling the next repair will need.
 
 ### Project Settings
 
