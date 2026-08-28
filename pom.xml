@@ -462,15 +462,27 @@
                         are the same answer to the question being asked.
 
                         The weak copyleft entries are allowed for linking and redistribution and for
-                        nothing further. LGPL-3.0, CDDL-1.1 and the classpath exception to GPL-2.0 each
-                        reach only the artifact they are declared on, so a build that depends on one
-                        states nothing about the license of what depends on it. A strong copyleft
-                        license, which would, is absent from this list and is meant to stay absent.
+                        nothing further. LGPL-3.0, the CDDL versions, the MPL versions and the classpath
+                        exception to GPL-2.0 each reach only the file or the artifact they are declared
+                        on, so a build that depends on one states nothing about the license of what
+                        depends on it. A strong copyleft license, which would, is absent from this list
+                        and is meant to stay absent, and so is a license that restricts the field of use
+                        or delays its own grant, which is source-available rather than open source.
 
                         A merge names a spelling, not a license. A dependency whose POM writes a license
                         by a name this list does not carry fails as unreadable, so the fix for such a
                         failure is to add the spelling once its license has been read, rather than to
                         admit the license itself.
+
+                        The allowlist names an SPDX identifier where the license has one, and the
+                        license's own name where it has none. A bespoke name is admitted on the same
+                        terms as any other: once the license behind it has been read.
+
+                        A license expression is one spelling too. The check compares whole names, so a
+                        name written as an SPDX expression matches nothing until that expression is
+                        carried verbatim. An expression whose arms are alternatives may be carried as
+                        any one arm, because the consumer is free to take that arm. An expression whose
+                        arms are cumulative may not be carried at all unless every arm is allowed.
                     -->
                     <configuration>
                         <includedScopes>compile,runtime,provided,test</includedScopes>
@@ -481,31 +493,45 @@
                             <includedLicense>Apache-2.0</includedLicense>
                             <includedLicense>MIT</includedLicense>
                             <includedLicense>MIT-0</includedLicense>
+                            <includedLicense>ISC</includedLicense>
+                            <includedLicense>0BSD</includedLicense>
                             <includedLicense>BSD-2-Clause</includedLicense>
                             <includedLicense>BSD-3-Clause</includedLicense>
+                            <includedLicense>Unicode-3.0</includedLicense>
+                            <includedLicense>CPL-1.0</includedLicense>
                             <includedLicense>EPL-1.0</includedLicense>
                             <includedLicense>EPL-2.0</includedLicense>
+                            <includedLicense>MPL-1.1</includedLicense>
+                            <includedLicense>MPL-2.0</includedLicense>
                             <includedLicense>LGPL-2.1</includedLicense>
                             <includedLicense>LGPL-3.0</includedLicense>
+                            <includedLicense>CDDL-1.0</includedLicense>
                             <includedLicense>CDDL-1.1</includedLicense>
                             <includedLicense>GPL-2.0-with-classpath-exception</includedLicense>
-                            <includedLicense>JSON</includedLicense>
                             <includedLicense>Public Domain</includedLicense>
                             <includedLicense>Bouncy Castle Licence</includedLicense>
+                            <includedLicense>JDOM License</includedLicense>
+                            <includedLicense>Indiana University Extreme! Lab Software License</includedLicense>
                         </includedLicenses>
                         <licenseMerges>
-                            <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License Version 2.0|Apache License 2.0|Apache 2.0|Apache 2|Apache License 2</licenseMerge>
-                            <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)|MIT license</licenseMerge>
-                            <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License</licenseMerge>
-                            <licenseMerge>BSD-3-Clause|BSD 3-Clause|BSD-3-Clause License|The 3-Clause BSD License|New BSD License|BSD|EDL 1.0|Eclipse Distribution License - v 1.0</licenseMerge>
-                            <licenseMerge>EPL-1.0|Eclipse Public License v1.0|Eclipse Public License - v 1.0|Eclipse Public License, Version 1.0|EPL</licenseMerge>
-                            <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0</licenseMerge>
-                            <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1|GNU Lesser General Public License|GNU Lesser General Public License, Version 2.1, February 1999</licenseMerge>
-                            <licenseMerge>LGPL-3.0|LGPL (GNU Lesser General Public License)</licenseMerge>
-                            <licenseMerge>CDDL-1.1|CDDL 1.1|CDDL + GPLv2 with classpath exception</licenseMerge>
-                            <licenseMerge>GPL-2.0-with-classpath-exception|GPL2 w/ CPE</licenseMerge>
-                            <licenseMerge>JSON|The JSON License</licenseMerge>
-                            <licenseMerge>Public Domain|Public Domain, per Creative Commons CC0</licenseMerge>
+                            <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License Version 2.0|Apache License 2.0|Apache 2.0|Apache 2|Apache License 2|Apache License, 2.0|Apache License, version 2.0|Apache License version 2.0|Apache License v2.0|Apache License, Version 2|Apache Software License - Version 2.0|Apache Software License, version 2.0|Apache Software License 2.0|Apache Software Licenses|Apache Public License 2.0|Apache 2.0 License|Apache v2|ALv2|ASL2|ASF 2.0|AL 2.0|APL2|the Apache License, ASL Version 2.0|Apache Software License, Version 2.0|Apache License v2|ASLv2|ASF|(Apache-2.0 OR EPL-2.0)|Apache License</licenseMerge>
+                            <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)|MIT license|MIT-style|MIT License (MIT)|MIT X11 License</licenseMerge>
+                            <licenseMerge>MIT-0|MIT No Attribution</licenseMerge>
+                            <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License|BSD 2-Clause License|Simplified BSD License</licenseMerge>
+                            <licenseMerge>BSD-3-Clause|BSD 3-Clause|BSD-3-Clause License|The 3-Clause BSD License|New BSD License|BSD|EDL 1.0|Eclipse Distribution License - v 1.0|BSD 3-clause New License|The BSD 3-Clause License|3-Clause BSD License|Revised BSD|Modified BSD|BSD New|BSD New license|BSD 3-clause|BSD License 3|BSD Licence 3|The BSD3 License|The BSD License|BSD License|BSD License 2.0|BSD-style|BSD style|Plexus|The New BSD License|The (New) BSD License|New BSD license|BSD licence|Eclipse Distribution License (New BSD License)</licenseMerge>
+                            <licenseMerge>CPL-1.0|Common Public License Version 1.0|Common Public 1.0</licenseMerge>
+                            <licenseMerge>EPL-1.0|Eclipse Public License v1.0|Eclipse Public License - v 1.0|Eclipse Public License, Version 1.0|EPL|Eclipse Public License 1.0|Eclipse Public License - Version 1.0|EPL 1.0|Eclipse Public License</licenseMerge>
+                            <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0|EPL 2.0|Eclipse Public License 2.0|Eclipse Public License v. 2.0|Eclipse Public License - Version 2.0|Eclipse Public License (EPL) 2.0|EPLv2</licenseMerge>
+                            <licenseMerge>MPL-1.1|MPL 1.1|Mozilla Public License Version 1.1|Mozilla Public License, Version 1.1|Mozilla Public License version 1.1|Mozilla Public License 1.1 (MPL 1.1)</licenseMerge>
+                            <licenseMerge>MPL-2.0|MPL 2.0|Mozilla Public License Version 2.0|Mozilla Public License, Version 2.0|Mozilla Public License 2.0</licenseMerge>
+                            <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1|GNU Lesser General Public License|GNU Lesser General Public License, Version 2.1, February 1999|LGPL-2.1-only|LGPL-2.1-or-later|LGPL 2.1|LGPL, version 2.1|GNU Lesser General Public License v2.1 or later|GNU Lesser General Public License (LGPL), version 2.1 or later|GNU Library General Public License v2.1 or later|GNU Lesser General Public License version 2.1 (LGPLv2.1)|GNU Lesser General Public License Version 2.1|GNU Lesser General Public Licence|LGPL-2.1+|GNU Lesser General Public License v2.1 only|LGPL, v2.1 or later|Gnu Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE</licenseMerge>
+                            <licenseMerge>LGPL-3.0|LGPL (GNU Lesser General Public License)|The GNU Lesser General Public License, Version 3.0|GNU Lesser General Public License version 3|Lesser General Public License, version 3 or greater|Lesser General Public License (LGPL) v 3.0</licenseMerge>
+                            <licenseMerge>CDDL-1.0|CDDL 1.0|COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.0|CDDL, v1.0|CDDL License|Common Development and Distribution License (CDDL) v1.0</licenseMerge>
+                            <licenseMerge>CDDL-1.1|CDDL 1.1|CDDL + GPLv2 with classpath exception|CDDL+GPL License|Dual license consisting of the CDDL v1.1 and GPL v2</licenseMerge>
+                            <licenseMerge>GPL-2.0-with-classpath-exception|GPL2 w/ CPE|GNU General Public License, version 2 with the GNU Classpath Exception|The GNU General Public License (GPL), Version 2, With Classpath Exception|GNU General Public License (GPL), version 2, with the Classpath exception|GNU General Public License, version 2 (GPL2), with the classpath exception|GPLv2+CE|CDDL/GPLv2+CE</licenseMerge>
+                            <licenseMerge>JDOM License|Similar to Apache License but with the acknowledgment clause removed</licenseMerge>
+                            <licenseMerge>Indiana University Extreme! Lab Software License|Indiana University Extreme! Lab Software License, vesion 1.1.1</licenseMerge>
+                            <licenseMerge>Public Domain|Public Domain, per Creative Commons CC0|CC0-1.0|CC0 1.0 Universal|Public domain|CC0|Public domain, Sun Microsoystems</licenseMerge>
                         </licenseMerges>
                     </configuration>
                 </plugin>
