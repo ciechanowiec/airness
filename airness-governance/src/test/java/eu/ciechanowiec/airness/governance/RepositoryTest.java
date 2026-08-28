@@ -2,12 +2,14 @@ package eu.ciechanowiec.airness.governance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The repository reader answers from git rather than from the current directory, tells an unborn history
@@ -24,6 +26,23 @@ class RepositoryTest {
         assertEquals(
             root, Repository.rootFrom(root.resolve("nested/deep")),
             "asking git makes the answer the same from every module, and the module directory is the wrong one"
+        );
+    }
+
+    // The goal a project reaches for first is the one it runs before the repository exists, and a bare
+    // git exit status leaves that project reading a plumbing failure instead of the one thing to do.
+    @Test
+    void namesTheDirectoryAndTheRemedyOutsideAWorkingTree(@TempDir Path outside) {
+        IllegalStateException thrown = assertThrows(
+            IllegalStateException.class, () -> Repository.rootFrom(outside)
+        );
+        assertTrue(
+            thrown.toString().contains(outside.toString()),
+            "the directory git was asked about is the one the reader has to act on"
+        );
+        assertTrue(
+            thrown.toString().contains("git init"),
+            "a directory that was never a clone has to be told what makes it usable"
         );
     }
 
