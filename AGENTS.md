@@ -14,7 +14,7 @@ Every layer is binding, and a later layer may strengthen but never weaken an ear
 
 ## Project Structure & Module Organization
 
-Airness is a Maven 3.9.16+ multi-module build harness that requires exactly Java 25. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, formatter, and OpenRewrite rules), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-parent` (the consumer-facing parent), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
+Airness is a Maven 3.9.16+ multi-module build harness that requires exactly Java 25. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, formatter, and OpenRewrite rules), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-parent` (the consumer-facing parent), `airness-parent-spring-boot` (the parent a Spring Boot project inherits instead), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
 
 ## Build, Test, and Development Commands
 
