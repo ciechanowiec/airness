@@ -111,6 +111,20 @@ public final class ManagedVersions {
         ),
         suppliedDependency(
             "org.codehaus.mojo", "extra-enforcer-rules", "extra-enforcer-rules.version"
+        ),
+        /*
+         * The Spring platform, owned by airness-parent-spring-boot rather than by the pom above it. The
+         * bill of materials is supplied, because a project importing a second one would manage the same
+         * coordinates at a version the harness never read. The plugin is only allowed a version, because
+         * repackaging turns one module of a reactor into an executable archive and which module that is
+         * belongs to the project.
+         */
+        suppliedDependency("org.junit", "junit-bom", "junit.version"),
+        allowedPlugin(
+            "org.springframework.boot", "spring-boot-maven-plugin", "spring-boot.version"
+        ),
+        suppliedDependency(
+            "org.springframework.boot", "spring-boot-dependencies", "spring-boot.version"
         )
     );
 

@@ -49,6 +49,7 @@
         <module>airness-governance</module>
         <module>airness-maven-plugin</module>
         <module>airness-parent</module>
+        <module>airness-parent-spring-boot</module>
     </modules>
 
     <properties>
