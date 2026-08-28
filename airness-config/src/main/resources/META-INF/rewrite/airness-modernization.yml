@@ -32,7 +32,7 @@ recipeList:
   # nothing to clear here. It becomes worth naming on the day a collapsing migration joins the list.
   - org.openrewrite.staticanalysis.UseMapEntrySetIteration
   # Modernize toward current Java language idioms (text blocks, enhanced instanceof, records).
-  - org.openrewrite.java.migrate.UpgradeToJava25
+  - eu.ciechanowiec.airness.Java25
   # JUnit 5 best practices (lifecycle and visibility, assertion idioms).
   - org.openrewrite.java.testing.junit5.JUnit5BestPractices
   # Cleanup within test frameworks already used by the project. These do not add, replace, or
@@ -62,3 +62,47 @@ recipeList:
   - org.openrewrite.apache.commons.PreferJavaStandardLibrary
   # Maven pom hygiene (ordering, redundant version removal).
   - org.openrewrite.maven.BestPractices
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: eu.ciechanowiec.airness.Java25
+displayName: airness Java 25 migration
+description: >-
+  The upstream Java 25 migration without its build-plugin half, which upgrades coordinates this harness
+  owns and a library it bans.
+# A copy of org.openrewrite.java.migrate.UpgradeToJava25 with one member left out. OpenRewrite composes
+# only additively, so a member is dropped by restating the list rather than by naming an exclusion, and
+# the request to add one was closed as wontfix. Re-read the upstream list when rewrite-migrate-java is
+# upgraded: a member added there arrives here only when somebody copies it across.
+#
+# The member left out is UpgradePluginsForJava25, and it is left out whole rather than trimmed, because
+# every one of its eight entries is either irrelevant here or aimed at something this harness decides
+# for itself. It upgrades the compiler and surefire plugin versions, which ManagedVersions owns and a
+# project may not restate. It edits Gradle wrappers and GitHub workflow files, which this harness
+# governs elsewhere or not at all. It raises Mockito and Byte Buddy, and it wires Mockito's Java 25
+# agent into surefire.
+#
+# That last one is what forced the question. Mockito reaches a project transitively through
+# spring-boot-starter-test, sling-mock and aem-mock, so the recipe fires on a project that never asked
+# for it, and the dry run then refuses the tree until the wiring has been written into the project file.
+# A harness whose enforcer bans declaring a mocking library and whose IllegalImport bans reaching one
+# should not also require every project near one to configure its agent.
+preconditions:
+  - org.openrewrite.Singleton
+recipeList:
+  - org.openrewrite.java.migrate.UpgradeToJava21
+  - org.openrewrite.java.migrate.UpgradeKotlinForJava25
+  - org.openrewrite.java.migrate.UpgradeBuildToJava24ForKotlin1x
+  - org.openrewrite.java.migrate.UpgradeBuildToJava25
+  - org.openrewrite.java.migrate.UpgradeBuildToJava25ForKotlin
+  - org.openrewrite.java.migrate.io.ReplaceSystemOutWithIOPrint
+  - org.openrewrite.java.migrate.lang.MigrateProcessWaitForDuration
+  - org.openrewrite.java.migrate.util.MigrateInflaterDeflaterToClose
+  - org.openrewrite.java.migrate.util.MigrateStringReaderToReaderOf
+  - org.openrewrite.java.migrate.AccessController
+  - org.openrewrite.java.migrate.RemoveSecurityPolicy
+  - org.openrewrite.java.migrate.RemoveSecurityManager
+  - org.openrewrite.java.migrate.SystemGetSecurityManagerToNull
+  - org.openrewrite.java.migrate.MigrateZipErrorToZipException
+  - org.openrewrite.java.migrate.MigrateGraalVMResourceConfig
+  - org.openrewrite.java.migrate.CommentKotlinModulesCappedAtJava24
