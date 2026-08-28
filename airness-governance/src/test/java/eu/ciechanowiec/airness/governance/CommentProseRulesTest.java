@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
  */
 class CommentProseRulesTest {
 
+    private static final int LONG_TEXT_BLOCK_LENGTH = 20_000;
+
     @Test
     void reportsASemicolonJoiningTwoClauses() {
         List<String> found = CommentProseRules.semicolons(
@@ -209,16 +211,20 @@ class CommentProseRulesTest {
     }
 
     @Test
-    void ignoresAJustificationFixtureInsideATextBlock() {
+    void ignoresAJustificationFixturePastALongTextBlockBody() {
         String source = """
             class A {
                 String fixture = \"""
+                    %s
                     @Justification("one; two")
                     \""";
             }
-            """;
+            """.formatted("x".repeat(LONG_TEXT_BLOCK_LENGTH));
 
-        assertTrue(CommentProseRules.semicolons(source).isEmpty());
+        assertTrue(
+            CommentProseRules.semicolons(source).isEmpty(),
+            "a long text block stays one token without consuming regex stack or exposing its fixture"
+        );
     }
 
     // Only the annotation's own value is prose. Every other literal in the file is data, and reading one

@@ -46,22 +46,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class CommentProseRules {
 
-    /*
-     * One pass over the source, matching a literal or a comment, whichever starts first. Scanning both
-     * with one alternation is what makes the comment boundaries right: a "//" inside a string is
-     * consumed by the string alternative before the comment alternative can see it, and a quotation
-     * mark inside a comment is consumed by the comment. A pattern that looked for comments alone would
-     * read the tail of every URL as one.
-     *
-     * A text block consumes its escapes rather than stopping at the first three quotation marks it meets.
-     * Stopping there ends the token in the middle of a block that embeds its own delimiter, and what
-     * follows is then read as live code: a fixture quoting an annotation inside a text block was reported
-     * as the prose of the file quoting it.
-     */
-    private static final Pattern TOKEN = Pattern.compile(
-        "(?s)\"\"\"(?:\\\\.|[^\\\\])*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
-            + "|/\\*.*?\\*/|//[^\\n]*"
-    );
+    // The lexer belongs to JavaCode. Sharing it keeps this rule on the stack-safe text-block branch and
+    // makes every source-reading rule agree about where a literal or comment ends.
+    private static final Pattern TOKEN = JavaCode.TOKEN;
     private static final Pattern JUSTIFICATION = Pattern.compile("@Justification\\s*\\(");
     private static final Pattern SAMPLE = Pattern.compile("(?s)<pre>.*?</pre>");
     private static final Pattern INLINE_TAG = Pattern.compile("(?s)\\{@(?:code|literal|link|linkplain)\\s[^}]*}");
