@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
@@ -23,6 +24,7 @@ import org.w3c.dom.NodeList;
 final class ProjectFiles {
 
     private static final String PARENT = "airness-parent";
+    private static final Set<String> PARENTS = Set.of(PARENT, "airness-parent-spring-boot");
     private static final String MAIN = "src/main/java";
     private static final String POM = "pom.xml";
 
@@ -58,14 +60,17 @@ final class ProjectFiles {
     }
 
     /**
-     * The project file of every declared module other than the consumer-facing parent.
+     * The project file of every declared module other than the parents Airness publishes.
+     *
+     * <p>A parent is left out because it declares the rules rather than answering to them as a child, and
+     * because a module inheriting one already runs the consumer bindings the tests over this list assert.
      *
      * @return their paths
      */
     static List<Path> moduleFiles() {
         Path root = SelfModules.repository();
         return modules().stream()
-            .filter(module -> !PARENT.equals(module))
+            .filter(module -> !PARENTS.contains(module))
             .map(module -> root.resolve(module).resolve(POM))
             .toList();
     }

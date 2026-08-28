@@ -27,8 +27,8 @@ import org.apache.maven.project.MavenProject;
  * usually right is a default nobody checks.
  *
  * <p>This preflight runs once per reactor module, because every raw child pom can replace an inherited
- * property or declaration independently. The harness's own parent module is the source of those
- * declarations rather than a consumer and is therefore outside this child policy.
+ * property or declaration independently. A parent the harness publishes is the source of those
+ * declarations rather than a consumer, so every one of them is outside this child policy.
  */
 @Mojo(name = "check-parameters", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
 public final class CheckParametersMojo extends AbstractPreflightMojo {
@@ -61,9 +61,7 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
 
     @Override
     boolean applies() {
-        boolean airnessParent = AIRNESS_GROUP.equals(this.project().getGroupId())
-            && AIRNESS_PARENT.equals(this.project().getArtifactId());
-        if (airnessParent) {
+        if (RepositoryProjects.harnessParent(this.project())) {
             return false;
         }
         String pom = this.project().getFile().toPath().toAbsolutePath().normalize().toString();
