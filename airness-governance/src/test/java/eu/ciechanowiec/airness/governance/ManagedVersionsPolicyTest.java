@@ -20,7 +20,7 @@ import org.w3c.dom.Node;
 class ManagedVersionsPolicyTest {
 
     @Test
-    void policyClassifiesEveryRootAndParentCoordinate() {
+    void policyClassifiesEveryHarnessCoordinate() {
         Set<String> expected = ManagedVersions.coordinates().stream()
             .map(ManagedVersions.Coordinate::key)
             .collect(Collectors.toUnmodifiableSet());
@@ -30,24 +30,32 @@ class ManagedVersionsPolicyTest {
     }
 
     @Test
-    void rootManagementPinsEveryPolicyCoordinate() {
-        Element root = parse(repository().resolve("pom.xml"));
+    void harnessManagementPinsEveryPolicyCoordinate() {
+        List<Element> poms = sourcePoms().toList();
         assertAll(
             ManagedVersions.coordinates().stream()
-                .map(coordinate -> () -> assertManaged(root, coordinate))
+                .map(coordinate -> () -> assertManaged(poms, coordinate))
         );
     }
 
+    /*
+     * Once rather than once at the root. A Spring Boot project resolves a version set no other project
+     * has any use for, and importing it at the root would hand it to every consumer of airness-parent as
+     * well, which is how a plain project would start resolving a dependency it declared no version for.
+     * So the owning pom is whichever harness pom the coordinate belongs to, and what stays exactly as it
+     * was is that exactly one of them declares it.
+     */
     @Test
-    void everyVersionPropertyIsOwnedOnceAtTheRoot() {
+    void everyVersionPropertyIsOwnedOnceAcrossTheHarnessPoms() {
         Element root = parse(repository().resolve("pom.xml"));
         Element parent = parse(repository().resolve("airness-parent/pom.xml"));
-        Set<String> rootProperties = governedProperties(root);
-        assertEquals(ManagedVersions.protectedProperties(), rootProperties);
-        assertTrue(governedProperties(parent).isEmpty());
+        List<String> owned = sourcePoms().flatMap(ManagedVersionsPolicyTest::governedProperties).toList();
         Element mavenRule = elements(root, "requireMavenVersion").findFirst().orElseThrow();
         Element javaRule = elements(root, "requireJavaVersion").findFirst().orElseThrow();
         assertAll(
+            () -> assertEquals(ManagedVersions.protectedProperties(), Set.copyOf(owned)),
+            () -> assertEquals(owned.size(), Set.copyOf(owned).size(), "no property is declared twice"),
+            () -> assertTrue(governedProperties(parent).findAny().isEmpty()),
             () -> assertEquals("[3.9.16,)", Xml.text(mavenRule, "version").orElse("")),
             () -> assertEquals("[25,26)", Xml.text(javaRule, "version").orElse(""))
         );
@@ -84,13 +92,14 @@ class ManagedVersionsPolicyTest {
         );
     }
 
-    private static void assertManaged(Element root, ManagedVersions.Coordinate coordinate) {
+    private static void assertManaged(List<Element> poms, ManagedVersions.Coordinate coordinate) {
         String management = coordinate.kind() == ManagedVersions.Kind.PLUGIN
             ? "pluginManagement"
             : "dependencyManagement";
         String declaration = coordinate.kind() == ManagedVersions.Kind.PLUGIN ? "plugin" : "dependency";
         String expected = "${" + coordinate.property() + '}';
-        boolean pinned = elements(root, declaration)
+        boolean pinned = poms.stream()
+            .flatMap(pom -> elements(pom, declaration))
             .filter(element -> hasAncestor(element, management))
             .filter(coordinate::matches)
             .map(element -> Xml.text(element, "version").orElse(""))
@@ -133,12 +142,11 @@ class ManagedVersionsPolicyTest {
         return kind + ":" + group + ':' + artifact;
     }
 
-    private static Set<String> governedProperties(Node root) {
+    private static Stream<String> governedProperties(Node root) {
         return Xml.firstChild(root, "properties").stream()
             .flatMap(ManagedVersionsPolicyTest::directElements)
             .map(Element::getTagName)
-            .filter(ManagedVersions.protectedProperties()::contains)
-            .collect(Collectors.toUnmodifiableSet());
+            .filter(ManagedVersions.protectedProperties()::contains);
     }
 
     private static boolean hasAncestor(Node node, String tag) {
@@ -155,8 +163,11 @@ class ManagedVersionsPolicyTest {
 
     private static Stream<Element> sourcePoms() {
         Path repository = repository();
-        return Stream.of(repository.resolve("pom.xml"), repository.resolve("airness-parent/pom.xml"))
-            .map(ManagedVersionsPolicyTest::parse);
+        return Stream.of(
+            repository.resolve("pom.xml"),
+            repository.resolve("airness-parent/pom.xml"),
+            repository.resolve("airness-parent-spring-boot/pom.xml")
+        ).map(ManagedVersionsPolicyTest::parse);
     }
 
     private static Stream<Element> elements(Element root, String tag) {

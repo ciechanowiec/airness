@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The one module that inherits airness-parent rather than the aggregator. Every other module parents
+        to the aggregator because a plugin cannot be used in the reactor that builds it. This one is not a
+        module of the harness in that sense: it is a second consumer-facing parent, and inheriting the
+        first is the whole of what it does. The relativePath is written out because the default would
+        resolve to the aggregator in the directory above.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent</artifactId>
+        <version>1.0.7-SNAPSHOT</version>
+        <relativePath>../airness-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>airness-parent-spring-boot</artifactId>
+    <packaging>pom</packaging>
+
+    <name>airness-parent-spring-boot</name>
+    <description>
+        The parent a consuming Spring Boot project inherits. It carries everything airness-parent carries,
+        and adds the Spring version set and the rules that only a Spring Boot project can break.
+
+        A project states which kind it is by which parent it names, rather than by a switch. That is what
+        keeps the Spring relaxations off every project that is not a Spring Boot one, and what keeps them
+        reviewable: they are a diff against the parent above rather than a second copy of it.
+
+        Two rules are relaxed and five are added, so a project inheriting this answers to more than one
+        inheriting airness-parent, never to less.
+    </description>
+
+    <properties>
+        <!--
+            The inversion of what airness-parent declares. Relaxed reaches every file, so the handful of
+            filters keyed to a Spring annotation now fire, and suppressed reaches none, so the Spring
+            rules stop being suppressed and apply.
+
+            Both are read by the Checkstyle configuration airness-parent already points at. This is the
+            whole of how a Spring Boot project is judged differently, and it is two values rather than a
+            second rule set, so the difference can be read in one place. Neither is referenced in this
+            file, which is why the property order puts them ahead of the version below.
+        -->
+        <airness.checkstyle.spring.relaxed>.*</airness.checkstyle.spring.relaxed>
+        <airness.checkstyle.spring.suppressed>^$</airness.checkstyle.spring.suppressed>
+        <!--
+            The Spring Boot release the harness pins. A consumer names no Spring version at all: the bill
+            of materials below manages every coordinate the platform ships, and check-parameters refuses a
+            project that declares this property for itself.
+
+            Pinned here rather than in the root pom because no other module resolves a Spring coordinate,
+            and a bill of materials imported at the root would be inherited by airness-parent as well,
+            which is how a plain Java project would start silently resolving a dependency it declared no
+            version for.
+        -->
+        <spring-boot.version>4.1.1</spring-boot.version>
+    </properties>
+
+    <!--
+        Spring Framework reads JSpecify annotations reflectively while it builds beans, so the classes
+        have to be in the archive that ships. airness-parent declares them provided, which is right for a
+        library whose annotations are read by a compiler and by nothing afterwards, and wrong here: the
+        repackaged application starts, gets as far as the first handler mapping, and dies on a
+        NoClassDefFoundError naming an annotation nobody wrote.
+
+        Redeclared rather than changed above, because a plain Java project has no such runtime and would
+        be shipping an annotation jar it never loads.
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <!--
+                Ahead of the platform below, because the first match in a dependencyManagement block wins
+                and these two both manage JUnit. Without this the harness's own pin would reach the
+                Jupiter artifacts while the platform artifacts underneath them came from Spring, and the
+                two halves of one test framework would be at different versions. That fails at run time,
+                inside the reflection Jupiter does across the seam, with a message about neither pin.
+
+                Airness owns the test framework rather than deferring to the platform here, because the
+                timeout, the ordering seed, and the assertion rules are all written against the version
+                it pins. The version property is the one the root pom already declares.
+            -->
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!--
+                The platform bill of materials. Imported rather than depended on, so a consumer declares a
+                starter with a scope and no version, exactly as it already declares JUnit.
+
+                One versioned declaration standing for the whole platform is also what keeps the freshness
+                bound meaningful here. That check reads declarations that carry a version, and a consumer
+                whose starters take their versions from a bill of materials declares none, so without this
+                coordinate the whole Spring graph would go unread rather than be reported as current.
+            -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!--
+                    Version only, and no execution. Repackaging is what turns a module into an executable
+                    archive, and which module that is belongs to the project: a reactor holding one
+                    application and three libraries wants it on one of the four. So the harness pins the
+                    version and the project binds the goal, which is the same division ManagedVersions
+                    already draws for every plugin it allows rather than supplies.
+
+                    The archive a repackaging project ships is still read. artifact-content runs in verify
+                    rather than package precisely so that it opens the archive this plugin rewrote.
+                -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <!--
+                    A starter declares no type of its own, so every one of them reads as a dependency
+                    nothing uses, and every Spring type a project does use arrives through one and reads
+                    as undeclared. Both halves of that are what a starter is for, so both are named here
+                    rather than left to be worked around per project.
+
+                    The children are appended rather than written over the inherited list, which is what
+                    keeps the airness-annotations exemption airness-parent declares.
+                -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <ignoredUnusedDeclaredDependencies combine.children="append">
+                        <ignoredUnusedDeclaredDependency>
+                            org.springframework.boot:spring-boot-starter*
+                        </ignoredUnusedDeclaredDependency>
+                        <!-- Supplied above for the container to read, rather than for this project's code. -->
+                        <ignoredUnusedDeclaredDependency>org.jspecify:jspecify</ignoredUnusedDeclaredDependency>
+                    </ignoredUnusedDeclaredDependencies>
+                    <ignoredUsedUndeclaredDependencies combine.children="append">
+                        <ignoredUsedUndeclaredDependency>org.springframework:*</ignoredUsedUndeclaredDependency>
+                        <ignoredUsedUndeclaredDependency>org.springframework.boot:*</ignoredUsedUndeclaredDependency>
+                    </ignoredUsedUndeclaredDependencies>
+                </configuration>
+            </plugin>
+            <plugin>
+                <!--
+                    The two questions that only a Spring Boot project has to answer, and that no analyzer
+                    configuration can ask. Bound here rather than in airness-parent, so a project that is
+                    not a Spring Boot one never runs the goal at all.
+                -->
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-spring-governance</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>spring-source</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
