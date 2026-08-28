@@ -162,8 +162,8 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 | The file must match the active _airness_ version.
 
 | [[seed-file,seed file]]Seed
-| `.gitignore`, `.gitleaks.toml`
-| The xref:#asset-sync-goal[`assets-sync` goal] creates a missing file once. The project then owns its contents.
+| `.dockerignore`, `.gitignore`, `.gitleaks.toml`
+| The file must exist. The xref:#asset-sync-goal[`assets-sync` goal] creates it whenever it's missing, and the project owns its contents.
 
 | [[forbidden-file,forbidden file]]Forbidden
 | `rewrite.yml`, `qodana/profile.xml`
@@ -171,7 +171,7 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 |===
 
 . The xref:#managed-section[] in `AGENTS.md` is enclosed by `BEGIN AIRNESS MANAGED INSTRUCTIONS` and `END AIRNESS MANAGED INSTRUCTIONS`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or updates this section while preserving the project text below it.
-. The xref:#default-verification[] fails when a xref:#pinned-file[] is missing or outdated. It also fails if a build plugin modifies a project file during the build.
+. The xref:#default-verification[] fails when a xref:#pinned-file[] is missing or outdated or when a xref:#seed-file[] is missing. It also fails if a build plugin modifies a project file during the build.
 . Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a xref:#verification-commands[verification command]:
 +
 [source,bash]

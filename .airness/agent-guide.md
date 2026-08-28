@@ -115,8 +115,9 @@ it is published, only a fresh history satisfies the rule.
 
 ## Layer 5: Exceptions and Repairs
 
-- Fix a managed-file finding with `mvn airness:assets-sync`. A project may take over an eligible path through
-  `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
+- Fix a managed-file finding with `mvn airness:assets-sync`. A seed's contents belong to the project after creation,
+  but its path remains mandatory. A project may take over an eligible path through `airness.assets.unmanaged` only
+  when the assignment explicitly requires it and the project records the reason.
 - Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
 - Read a resource the JAR carries by resolving `Class.getResource` through `Optional.ofNullable(...)` and

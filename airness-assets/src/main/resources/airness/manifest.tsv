@@ -10,6 +10,7 @@ lombok.config	PINNED
 qodana.yaml	PINNED
 .airness/agent-guide.md	PINNED
 README-guideline-software-project.adoc	PINNED
+.dockerignore	SEED
 .gitignore	SEED
 .gitleaks.toml	SEED
 rewrite.yml	FORBIDDEN
