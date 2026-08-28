@@ -14,13 +14,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Every file the harness owns is where its policy says it should be, with the bytes it should have.
+ * Every file the harness owns is where its policy says it should be, with the bytes it should have
+ * where the policy owns those bytes.
  *
- * <p>Four disagreements are reported separately, because each of them names a different repair.
- * A file that drifted is a repair to run. An opt-out that no longer differs from canonical is a line to
- * delete, and without that half the opt-out list rots into a blanket exemption. An opt-out naming a path
- * the manifest does not hold is a typo, and a typo in an exemption list reads as an exemption that
- * works.
+ * <p>Five disagreements are reported separately, because each of them names a different repair. A
+ * pinned file that drifted and a seeded file that is missing are both repairs to run, but only the
+ * pinned file has canonical content to compare. An opt-out that no longer differs from canonical is a
+ * line to delete, and without that half the opt-out list rots into a blanket exemption. An opt-out
+ * naming a path the manifest does not hold is a typo, and a typo in an exemption list reads as an
+ * exemption that works.
  *
  * <p>The reason for an opt-out is not checked and cannot be. It lives as a comment beside the property
  * and binds by whoever reads the pom, which is worth saying plainly rather than implying a check that
@@ -29,6 +31,7 @@ import java.util.stream.Stream;
 public final class AssetCheck {
 
     private static final String DRIFTED = "Files the harness owns that this project changed or is missing";
+    private static final String MISSING = "Seeded files that must exist but are missing";
     private static final String PRESENT = "Files that must not be in the tree, since the harness supplies them";
     private static final String SETTLED = "Opt-outs that no longer differ from canonical, so delete these";
     private static final String UNKNOWN = "Opt-outs naming a path the harness does not own, which is a typo";
@@ -58,6 +61,7 @@ public final class AssetCheck {
     public List<Findings> findings() {
         return List.of(
             new Findings(DRIFTED, this.drifted()),
+            new Findings(MISSING, this.missing()),
             new Findings(PRESENT, this.present()),
             new Findings(SETTLED, this.settled()),
             new Findings(UNKNOWN, this.unknown())
@@ -80,6 +84,13 @@ public final class AssetCheck {
         return this.managed(AssetPolicy.PINNED)
             .filter(asset -> !this.matches(asset))
             .map(asset -> asset.path() + " (run mvn airness:assets-sync to restore it)")
+            .toList();
+    }
+
+    private List<String> missing() {
+        return this.managed(AssetPolicy.SEED)
+            .filter(asset -> !Files.isRegularFile(this.root.resolve(asset.path()), LinkOption.NOFOLLOW_LINKS))
+            .map(asset -> asset.path() + " (run mvn airness:assets-sync to create it)")
             .toList();
     }
 

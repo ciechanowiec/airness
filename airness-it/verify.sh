@@ -1664,6 +1664,23 @@ else
     echo 'FAILED   assets: sync wrote the wrong Java version' >&2
     failures=$((failures + 1))
 fi
+if cmp -s "$repository/airness-assets/src/main/resources/airness/files/.dockerignore.asset" \
+    "$consumer/.dockerignore"; then
+    echo 'ok       assets: sync writes the Docker ignore seed'
+else
+    echo 'FAILED   assets: sync did not write the Docker ignore seed' >&2
+    failures=$((failures + 1))
+fi
+mv "$consumer/.dockerignore" "$scratch/consumer-dockerignore"
+run_case 'assets: Docker ignore seed is mandatory' 1 \
+    'Seeded files that must exist but are missing|[.]dockerignore' \
+    "$consumer" airness:assets-check
+mv "$scratch/consumer-dockerignore" "$consumer/.dockerignore"
+printf '# The consumer owns these patterns.\n' > "$consumer/.dockerignore"
+run_case 'assets: Docker ignore seed content is project-owned' 0 'BUILD SUCCESS' \
+    "$consumer" airness:assets-check
+cp "$repository/airness-assets/src/main/resources/airness/files/.dockerignore.asset" \
+    "$consumer/.dockerignore"
 mv "$consumer/AGENTS.md" "$scratch/consumer-AGENTS.md"
 run_case 'instructions: AGENTS is mandatory' 1 'mandatory AGENTS.md file is missing' \
     "$consumer" airness:entry-files -Dairness.instruction.file=NONE -Dairness.entry.files=NONE

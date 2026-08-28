@@ -19,8 +19,9 @@ public enum AssetPolicy {
     PINNED,
 
     /**
-     * The file is written once when absent, and never looked at again. Its body is per-project by
-     * construction, so an exact-match check on it would fail on the first project that used it.
+     * The file must exist and is written whenever absent, but its content is never compared. Its body is
+     * per-project by construction, so an exact-match check on it would fail on the first project that
+     * used it.
      */
     SEED,
 

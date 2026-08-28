@@ -83,10 +83,24 @@ class AssetCheckTest {
         Path root = new GitFixture("assets-clean")
             .write(EDITORCONFIG, CANONICAL)
             .write(GUIDE, "guide\n")
+            .write(".gitignore", "project-owned\n")
             .root();
         assertTrue(
             Verdicts.clean(this.findings(root)),
             "the pinned file matches, the seed is unchecked, and the forbidden one is not there"
+        );
+    }
+
+    @Test
+    void reportsASeededFileThatIsNotThere() {
+        Path root = new GitFixture("assets-seed-absent")
+            .write(EDITORCONFIG, CANONICAL)
+            .write(GUIDE, "guide\n")
+            .root();
+        assertEquals(
+            List.of(".gitignore (run mvn airness:assets-sync to create it)"),
+            Verdicts.offences(this.findings(root), "Seeded files that must exist"),
+            "the project owns a seed's content but not the decision to remove the path"
         );
     }
 
@@ -131,6 +145,7 @@ class AssetCheckTest {
         Path root = new GitFixture("assets-optout")
             .write(EDITORCONFIG, "root = false\n")
             .write(GUIDE, "guide\n")
+            .write(".gitignore", "project-owned\n")
             .root();
         assertTrue(
             Verdicts.clean(this.findings(root, EDITORCONFIG)),
@@ -161,6 +176,7 @@ class AssetCheckTest {
         Path root = new GitFixture("assets-guide-optout")
             .write(EDITORCONFIG, CANONICAL)
             .write(GUIDE, "changed\n")
+            .write(".gitignore", "project-owned\n")
             .root();
         assertTrue(
             Verdicts.clean(this.findings(root, GUIDE)),
