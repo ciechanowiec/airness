@@ -9,8 +9,10 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
 
 ## Layer 2: Harness Invariants
 
-- The project inherits `airness-parent`. Do not weaken, replace, duplicate, or version the plugins, dependencies,
-  analyzers, rules, thresholds, or managed files that the parent owns.
+- The project inherits `airness-parent`, or `airness-parent-spring-boot` when it is a Spring Boot project.
+  That choice is the only place a project states which kind it is, and it is what decides which rules apply.
+  Do not weaken, replace, duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or
+  managed files that the parent owns.
 - Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Default verification reads Maven Central and
   Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon.
   Keep every production and test package under the `airness.package.root` declared in the root `pom.xml`.

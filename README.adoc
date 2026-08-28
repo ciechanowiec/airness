@@ -89,6 +89,24 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 ----
 . [[package-root,airness.package.root]]`airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`.
 
+[[spring-boot-projects]]
+=== Spring Boot Projects
+
+. A Spring Boot project names `airness-parent-spring-boot` as its parent instead. Everything above still applies, and the parent additionally supplies the Spring Boot platform and the rules that only a Spring Boot project can break:
++
+[source,xml,subs="attributes+"]
+----
+<parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent-spring-boot</artifactId>
+    <version>{airness-version}</version>
+    <relativePath/>
+</parent>
+----
+. Declare starters with a scope and no version. The parent imports the Spring Boot bill of materials, so the platform version is the harness's to set, exactly as the test framework and Lombok versions already are.
+. Bind `spring-boot-maven-plugin` in the module that ships the application, without a version. A reactor holding one application and three libraries wants the repackaging on one of the four, so the harness pins the version and the project chooses the module.
+. The added rules are that a bean is injected through its constructor, that a `@Transactional` method is public, that an `@Async` method returns a future, and that a configuration class declares `proxyBeanMethods = false`. Two more hold that no bean method calls another, and that the application class sits at the xref:#package-root[package root]. Each names a construct the container accepts and then silently doesn't honour.
+
 [[managed-file-setup]]
 === Managed File Setup
 
