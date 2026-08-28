@@ -33,12 +33,27 @@ public final class Repository {
      * documents, or the workflow files. Asking git makes the answer the same from every module and from
      * a test.
      *
+     * <p>Git answers a directory outside a working tree by exiting non-zero, and a raw exit status names
+     * neither what was asked nor what the caller has to do about it. The build that hits this is usually
+     * a directory that was never a clone, so a non-zero exit is taken as the answer it is and the failure
+     * says which directory was read and what would make it usable. Nothing is lost by taking the exit
+     * that way: every non-zero exit of this question means the same thing, that git found no working
+     * tree to report, while a missing git or a missing directory still fails on its own terms.
+     *
      * @param start a directory inside the working tree
      * @return the working tree root
      * @throws IllegalStateException when {@code start} is not inside a git working tree
      */
     public static Path rootFrom(Path start) {
-        String toplevel = GitPlumbing.run(start, List.of("rev-parse", "--show-toplevel")).strip();
+        String toplevel = GitPlumbing.attempt(start, List.of("rev-parse", "--show-toplevel"))
+            .map(String::strip)
+            .orElseThrow(
+                () -> new IllegalStateException(
+                    "Airness reads the project through git, but " + start
+                        + " is not inside a git working tree; run git init in the repository root,"
+                        + " or build the project from a clone"
+                )
+            );
         return Path.of(toplevel).toAbsolutePath().normalize();
     }
 
