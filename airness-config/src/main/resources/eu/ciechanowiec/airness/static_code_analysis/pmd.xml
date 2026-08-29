@@ -111,6 +111,26 @@
             <property name="maxmethods" value="20"/>
         </properties>
     </rule>
+    <!--
+    A persistent field is written twice: once by a constructor of the class, and again by the provider,
+    which populates the instance after it has been built and on every load of the row. PMD reads only the
+    first of those and asks for a final field, which is the one shape a persistent type cannot take.
+    AirnessSpringJpaEntityFieldIsNotFinal refuses it, and the provider could not write it.
+
+    Without this the two rules contradict each other and neither is wrong, so the only way through is a
+    suppression, and it is the same suppression in every entity of every project. That is the shape of a
+    defect the harness owns rather than one a project settles.
+
+    The exemption covers the whole body rather than the annotated fields alone, because a field mapped by
+    convention carries no annotation to match and is persisted exactly as an annotated one is. It is the
+    PMD half of the exemption that the final-field rule already carries in the Checkstyle configuration.
+    -->
+    <rule ref="category/java/design.xml/ImmutableField">
+        <properties>
+            <property name="violationSuppressXPath"
+                value="./ancestor::ClassDeclaration[ModifierList/Annotation[@SimpleName = 'Entity' or @SimpleName = 'Embeddable' or @SimpleName = 'MappedSuperclass']]"/>
+        </properties>
+    </rule>
     <rule ref="category/java/design.xml">
         <exclude name="LawOfDemeter"/>
         <exclude name="LoosePackageCoupling"/>

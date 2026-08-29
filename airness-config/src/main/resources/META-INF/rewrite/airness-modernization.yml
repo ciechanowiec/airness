@@ -33,8 +33,9 @@ recipeList:
   - org.openrewrite.staticanalysis.UseMapEntrySetIteration
   # Modernize toward current Java language idioms (text blocks, enhanced instanceof, records).
   - eu.ciechanowiec.airness.Java25
-  # JUnit 5 best practices (lifecycle and visibility, assertion idioms).
-  - org.openrewrite.java.testing.junit5.JUnit5BestPractices
+  # JUnit 5 best practices (lifecycle and visibility, assertion idioms), without the one member that
+  # rewrites what a test asserts rather than how it is written.
+  - eu.ciechanowiec.airness.JUnit5
   # Cleanup within test frameworks already used by the project. These do not add, replace, or
   # upgrade a test framework.
   - org.openrewrite.java.testing.assertj.SimplifyChainedAssertJAssertions
@@ -106,3 +107,85 @@ recipeList:
   - org.openrewrite.java.migrate.MigrateZipErrorToZipException
   - org.openrewrite.java.migrate.MigrateGraalVMResourceConfig
   - org.openrewrite.java.migrate.CommentKotlinModulesCappedAtJava24
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: eu.ciechanowiec.airness.JUnit5
+displayName: airness JUnit 5 best practices
+description: >-
+  The upstream JUnit 5 best practices without the assertion-argument reordering, which changes what a
+  test proves rather than how it is written.
+# A copy of org.openrewrite.java.testing.junit5.JUnit5BestPractices, differing only in the third member.
+# The member being dropped sits two composites below it, and OpenRewrite composes only additively, so
+# each level down to it is restated here rather than excluded. Re-read the upstream three when
+# rewrite-testing-frameworks is upgraded: a member added there arrives here only when somebody copies it
+# across. This is the same arrangement, and the same standing cost, as eu.ciechanowiec.airness.Java25.
+preconditions:
+  - org.openrewrite.Singleton
+recipeList:
+  - org.openrewrite.java.testing.junit5.JUnit4to5Migration
+  - org.openrewrite.java.testing.junit5.UpgradeToJUnit514
+  - eu.ciechanowiec.airness.JupiterBestPractices
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: eu.ciechanowiec.airness.JupiterBestPractices
+displayName: airness JUnit Jupiter best practices
+description: >-
+  The upstream Jupiter best practices, reaching the assertion cleanups through the copy that leaves the
+  argument reordering out.
+# A copy of org.openrewrite.java.testing.junit.JupiterBestPractices, differing only in the fourth member.
+preconditions:
+  - org.openrewrite.Singleton
+recipeList:
+  - org.openrewrite.java.testing.hamcrest.MigrateHamcrestToJUnit5
+  - org.openrewrite.java.testing.junit5.StaticImports
+  - org.openrewrite.java.testing.junit5.CleanupKotlinJUnit5AssertionImports
+  - eu.ciechanowiec.airness.CleanupAssertions
+  - org.openrewrite.java.testing.junit5.CsvSourceToValueSource
+  - org.openrewrite.java.testing.cleanup.AssertEqualsIntegralDeltaToAssertEquals
+  - org.openrewrite.java.testing.cleanup.AssertLiteralBooleanToFailRecipes
+  - org.openrewrite.java.testing.cleanup.AssertLiteralBooleanRemovedRecipe
+  - org.openrewrite.java.testing.cleanup.KotlinTestMethodsShouldReturnUnit
+  - org.openrewrite.java.testing.cleanup.RemoveTestPrefix
+  - org.openrewrite.java.testing.cleanup.SimplifyTestThrows
+  - org.openrewrite.java.testing.cleanup.TestsShouldNotBePublic
+  - org.openrewrite.java.testing.cleanup.TestMethodsShouldBeVoid
+  - org.openrewrite.java.testing.junit5.AddParameterizedTestAnnotation
+  - org.openrewrite.java.testing.junit5.RemoveDuplicateTestTemplates
+  - org.openrewrite.java.testing.junit5.RemoveTryCatchFailBlocks
+  - org.openrewrite.java.testing.junit5.LifecycleNonPrivate
+  - org.openrewrite.java.testing.junit5.AssertThrowsOnLastStatement
+  - org.openrewrite.java.testing.junit5.AssertTrueInstanceofToAssertInstanceOf
+  - org.openrewrite.java.testing.junit5.ImplausibleTimeoutToMinutes
+  - org.openrewrite.java.testing.junit5.UseAssertSame
+  - org.openrewrite.java.testing.junit.RemoveJupiterMigrationSupport
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: eu.ciechanowiec.airness.CleanupAssertions
+displayName: airness JUnit assertion cleanup
+description: >-
+  The upstream assertion cleanups without AssertionsArgumentOrder.
+# A copy of org.openrewrite.java.testing.junit5.CleanupAssertions with its last member left out.
+#
+# AssertionsArgumentOrder puts the constant first, which is the JUnit convention and is harmless for a
+# symmetric equals. It is not harmless here. assertEquals compares by calling equals on its first
+# argument, so swapping the two changes which type's equals runs, and a test written to prove that this
+# project's equals rejects a foreign value ends up proving that the JDK's does. The assertion still
+# passes, the source still reads as though it asserted the original thing, and the only signal is a
+# coverage number moving. Every other member of this set rewrites how an assertion is written. This one
+# rewrites what it asserts, which is the line a harness that nobody reviews cannot cross.
+preconditions:
+  - org.openrewrite.Singleton
+recipeList:
+  - org.openrewrite.java.testing.cleanup.AssertTrueNegationToAssertFalse
+  - org.openrewrite.java.testing.cleanup.AssertFalseNegationToAssertTrue
+  - org.openrewrite.java.testing.cleanup.AssertTrueEqualsToAssertEquals
+  - org.openrewrite.java.testing.cleanup.AssertTrueComparisonToAssertEquals
+  - org.openrewrite.java.testing.cleanup.AssertFalseEqualsToAssertNotEquals
+  - org.openrewrite.java.testing.cleanup.AssertEqualsNullToAssertNull
+  - org.openrewrite.java.testing.cleanup.AssertFalseNullToAssertNotNull
+  - org.openrewrite.java.testing.cleanup.AssertTrueNullToAssertNull
+  - org.openrewrite.java.testing.cleanup.AssertEqualsBooleanToAssertBoolean
+  - org.openrewrite.java.testing.cleanup.AssertNotEqualsBooleanToAssertBoolean

@@ -126,7 +126,12 @@ class SpringConfigurationRulesTest {
 
         List<String> reported = offences(configuration);
 
-        assertTrue(reported.size() >= 2, "max-lifetime and leak detection are both missing");
+        assertEquals(4, reported.size(), "all four pool settings are missing");
+        assertTrue(
+            reported.stream().anyMatch(offence -> offence.contains("maximum-pool-size"))
+                && reported.stream().anyMatch(offence -> offence.contains("connection-timeout")),
+            "the size of the pool and the wait for a connection are both asked for"
+        );
     }
 
     @Test
@@ -264,10 +269,41 @@ class SpringConfigurationRulesTest {
                 hikari:
                   max-lifetime: 1200000
                   leak-detection-threshold: 60000
+                  maximum-pool-size: 10
+                  connection-timeout: 3000
             """;
 
         List<String> reported = offences(configuration);
 
-        assertEquals(List.of(), reported, "both bounds are written");
+        assertEquals(List.of(), reported, "every pool setting is written");
+    }
+
+    @Test
+    void reportsSqlInitialisationRunOutsideTheMigrationTool() {
+        String configuration = """
+            spring:
+              sql:
+                init:
+                  mode: always
+            """;
+
+        List<String> reported = offences(configuration);
+
+        assertEquals(1, reported.size(), "the schema is applied by something no migration records");
+        assertTrue(reported.getFirst().contains("ddl-auto"), "the offence names the rule it reopens");
+    }
+
+    @Test
+    void acceptsSqlInitialisationLeftTurnedOff() {
+        String configuration = """
+            spring:
+              sql:
+                init:
+                  mode: never
+            """;
+
+        List<String> reported = offences(configuration);
+
+        assertEquals(List.of(), reported, "the migration tool is left owning the schema");
     }
 }

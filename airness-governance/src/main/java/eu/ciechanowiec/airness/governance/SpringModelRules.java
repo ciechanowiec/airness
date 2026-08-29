@@ -13,13 +13,13 @@ import lombok.experimental.UtilityClass;
  * None of them can be seen in a source file, because in each case the defect is a declaration that is
  * absent or a pairing that is present, rather than anything written down.
  *
- * <p>Four of the five ask only of a module the Boot plugin repackages. A library module of a Spring Boot
+ * <p>Four of the six ask only of a module the Boot plugin repackages. A library module of a Spring Boot
  * project legitimately maps a schema it does not create and legitimately publishes no probes, since it
  * is not the thing that gets deployed. Repackaging is what says which module is.
  *
- * <p>One of those four asks a second question. Probes are read over HTTP, so the rule that demands them
- * demands them of a deployment that serves it, and a batch job repackaged into the same kind of archive
- * is left alone.
+ * <p>Two of those four ask a second question. Probes are read over HTTP and so are requests, so the rule
+ * that demands probes and the rule that demands authentication both demand them of a deployment that
+ * serves HTTP, and a batch job repackaged into the same kind of archive is left alone by each.
  */
 @UtilityClass
 final class SpringModelRules {
@@ -28,6 +28,7 @@ final class SpringModelRules {
     private static final String DEVTOOLS = "spring-boot-devtools";
     private static final String DATA_JPA = "spring-boot-starter-data-jpa";
     private static final String ACTUATOR = "spring-boot-starter-actuator";
+    private static final String SECURITY = "spring-boot-starter-security";
     /*
      * Boot 4 renamed the servlet starter and kept the old name beside it, so a project on this platform
      * may be written either way and a rule that knew one spelling would pass over half of them.
@@ -109,6 +110,36 @@ final class SpringModelRules {
                         + " spring-boot-starter-actuator, so it publishes no liveness probe, no readiness"
                         + " probe and no metrics, and an orchestrator cannot tell a process that started"
                         + " from one that works"
+                )
+            )
+            : List.of();
+    }
+
+    /**
+     * A deployable module serving HTTP and declaring nothing that authenticates a caller.
+     *
+     * <p>Every other security rule Airness states reads a filter chain that exists. This one asks whether
+     * there is anything to read, which is the question none of them can ask: a module that declares no
+     * security at all presents each of them with nothing to match, so a fully public application is the
+     * one shape that passes the whole set without a finding.
+     *
+     * @param pom          the module's pom, which the offence names
+     * @param dependencies the module's effective dependencies
+     * @param repackaged   whether the Boot plugin turns this module into a deployable archive
+     * @return the offence, or none
+     */
+    static List<String> unauthenticatedService(
+        String pom, Collection<SpringDependency> dependencies, boolean repackaged
+    ) {
+        return repackaged && serving(dependencies) && !declares(dependencies, SECURITY)
+            ? List.of(
+                offence(
+                    pom,
+                    "the module is repackaged into a deployable archive that serves HTTP and declares no"
+                        + " spring-boot-starter-security, so every endpoint it maps answers whoever asks,"
+                        + " and the rules that read a filter chain have no chain to read. A build with no"
+                        + " accounts yet satisfies this with the chain Boot autoconfigures, which asks for"
+                        + " the password it generates at startup"
                 )
             )
             : List.of();

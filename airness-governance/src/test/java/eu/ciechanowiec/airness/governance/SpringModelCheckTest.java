@@ -10,7 +10,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * The model rules read what a module declares it is built from. Four of the five ask first whether the
+ * The model rules read what a module declares it is built from. Four of the six ask first whether the
  * Boot plugin repackages the module, because a library of a Spring Boot project legitimately maps a
  * schema it does not create and legitimately publishes none of the endpoints a deployment needs.
  */
@@ -26,6 +26,9 @@ class SpringModelCheckTest {
     private static final String SHIPPED = "Development tooling declared";
     private static final String SCHEMA = "nothing declared that would create it";
     private static final String ACTUATOR = "publishing nothing an orchestrator can read";
+    private static final String WEB = "spring-boot-starter-web";
+    private static final String SECURITY = "spring-boot-starter-security";
+    private static final String AUTHENTICATION = "nothing that authenticates a caller";
     private static final String STACKS = "Both web stacks declared";
     private static final String OWN = "Auto-configuration declared inside";
 
@@ -122,7 +125,7 @@ class SpringModelCheckTest {
     @Test
     void reportsADeployableApplicationWithNoActuator() {
         List<String> offences = Verdicts.offences(
-            findings(new GitFixture("model-actuator"), List.of(starter("spring-boot-starter-web")), DEPLOYED),
+            findings(new GitFixture("model-actuator"), List.of(starter(WEB)), DEPLOYED),
             ACTUATOR
         );
 
@@ -137,7 +140,7 @@ class SpringModelCheckTest {
             Verdicts.offences(
                 findings(
                     new GitFixture("model-actuator-declared"),
-                    List.of(starter("spring-boot-starter-web"), starter("spring-boot-starter-actuator")),
+                    List.of(starter(WEB), starter("spring-boot-starter-actuator")),
                     DEPLOYED
                 ),
                 ACTUATOR
@@ -182,7 +185,7 @@ class SpringModelCheckTest {
             findings(
                 new GitFixture("model-stacks"),
                 List.of(
-                    starter("spring-boot-starter-web"), starter("spring-boot-starter-webflux"),
+                    starter(WEB), starter("spring-boot-starter-webflux"),
                     starter("spring-boot-starter-actuator")
                 ),
                 DEPLOYED
@@ -268,10 +271,63 @@ class SpringModelCheckTest {
         Path root = new GitFixture("model-scope").write(POM, MINIMAL).root();
 
         SpringModelCheck check = new SpringModelCheck(
-            root.resolve(POM), RESOURCES, List.of(starter("spring-boot-starter-web")), LIBRARY
+            root.resolve(POM), RESOURCES, List.of(starter(WEB)), LIBRARY
         );
 
         assertEquals(1, check.scanned(), "one dependency was declared");
         assertFalse(check.repackaged(), "and nothing repackages this module");
+    }
+
+    @Test
+    void reportsADeployedServiceThatAuthenticatesNobody() {
+        List<String> offences = Verdicts.offences(
+            findings(
+                new GitFixture("model-unauthenticated"), List.of(starter(WEB)),
+                DEPLOYED
+            ),
+            AUTHENTICATION
+        );
+
+        assertEquals(1, offences.size(), "the module serves HTTP and declares no security");
+        assertTrue(
+            offences.getFirst().contains("no chain to read"),
+            "the offence says why the other security rules stay silent"
+        );
+    }
+
+    @Test
+    void leavesEveryShapeThatIsNotADeployedServiceWithoutSecurity() {
+        assertEquals(
+            List.of(),
+            Verdicts.offences(
+                findings(
+                    new GitFixture("model-authenticated"), List.of(starter(WEB), starter(SECURITY)),
+                    DEPLOYED
+                ),
+                AUTHENTICATION
+            ),
+            "the starter is what gives the filter chain rules something to read"
+        );
+        assertEquals(
+            List.of(),
+            Verdicts.offences(
+                findings(
+                    new GitFixture("model-unauthenticated-batch"),
+                    List.of(starter("spring-boot-starter-data-jpa")), DEPLOYED
+                ),
+                AUTHENTICATION
+            ),
+            "a batch job answers nobody, so there is nobody to authenticate"
+        );
+        assertEquals(
+            List.of(),
+            Verdicts.offences(
+                findings(
+                    new GitFixture("model-unauthenticated-library"), List.of(starter(WEB)), LIBRARY
+                ),
+                AUTHENTICATION
+            ),
+            "a library is mapped into the application that deploys it and secures it"
+        );
     }
 }

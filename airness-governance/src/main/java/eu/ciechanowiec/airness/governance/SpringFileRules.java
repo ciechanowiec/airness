@@ -99,8 +99,10 @@ final class SpringFileRules {
             .map(
                 at -> offence(
                     source, at,
-                    "credentials are allowed beside a wildcard origin, which the browser refuses outright,"
-                        + " so this configuration is permissive in the source and broken in the request"
+                    "credentials are allowed beside a wildcard origin: written as allowedOrigins the"
+                        + " browser refuses it outright, and written as allowedOriginPatterns Spring echoes"
+                        + " the caller's own origin back instead of a wildcard, so that form is accepted"
+                        + " and admits every site there is"
                 )
             )
             .stream()

@@ -940,21 +940,28 @@
         by nothing. The framework raises nothing because nothing went wrong as far as it can tell: it was
         asked to advise a method it never got the chance to advise.
 
+        The visibility rules below are the exception, and they state a uniformity requirement rather than
+        report a breakage. Since Spring 6.0 a class-based proxy advises a protected or package-visible
+        method as readily as a public one, and Spring Boot builds class-based proxies by default. Only a
+        private method is beyond every proxy. Requiring public keeps one answer under both proxy kinds,
+        which is worth saying plainly rather than dressing as a failure that no longer happens.
+
         Several of these are one rule stated at a different annotation. They stay written out rather than
         folded together, because a developer who reaches a finding wants the sentence about that
         annotation in front of them, and because suppressing one of them should not suppress the rest.
         -->
         <module name="MatchXpath">
             <!--
-                A proxy intercepts calls arriving from outside the bean, and a non-public method has none
-                to intercept. So the annotation is read, honoured by nothing, and reported by nothing:
-                the transaction the method says it opens is never opened.
+                A class-based proxy advises a protected or package-visible method, and an interface-based
+                one advises neither. Requiring public is what makes the answer the same under both, so a
+                project that ever moves to interface proxies does not quietly lose its transactions. A
+                private method is beyond both, and there the transaction is never opened at all.
             -->
             <property name="id" value="AirnessSpringTransactionalIsPublic"/>
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Transactional'] and not(./MODIFIERS/LITERAL_PUBLIC)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot intercept a non-public method, so this @Transactional opens no transaction. Make the method public, or move the annotation to a method that is."/>
+                     value="A non-public @Transactional depends on which proxy the container builds, and opens no transaction at all when the method is private. Make the method public, or move the annotation to a method that is."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringTransactionalIsPublic"/>
@@ -994,15 +1001,16 @@
         </module>
         <module name="MatchXpath">
             <!--
-                The worst member of the set. A method-security annotation on a method no proxy reaches is not
-                a weaker guard, it is no guard: the method runs for whoever called it while the source above
-                it reads as though a role were required.
+                The worst member of the set. A class-based proxy does reach a protected or package-visible
+                method, so the guard usually holds, and on a private one it is not a weaker guard but no
+                guard: the method runs for whoever called it while the source above it reads as though a
+                role were required. Requiring public stops that outcome depending on the proxy kind.
             -->
             <property name="id" value="AirnessSpringMethodSecurityIsPublic"/>
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='PreAuthorize' or @text='PostAuthorize' or @text='Secured' or @text='RolesAllowed' or @text='PreFilter' or @text='PostFilter'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot intercept a non-public method, so this authorization is never evaluated and the method runs unguarded. Make the method public, or move the annotation to the method that is."/>
+                     value="A non-public authorization depends on which proxy the container builds, and is never evaluated at all when the method is private, leaving it unguarded. Make the method public, or move the annotation to the method that is."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringMethodSecurityIsPublic"/>
@@ -1018,7 +1026,7 @@
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Caching'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot intercept a non-public method, so this cache is never consulted and never evicted. Make the method public, or move the annotation to the method that is."/>
+                     value="A non-public cache annotation depends on which proxy the container builds, and on a private method the cache is never consulted and never evicted. Make the method public, or move the annotation to the method that is."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringCacheableIsPublic"/>
@@ -1033,7 +1041,7 @@
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Async'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot intercept a non-public method, so this @Async runs on the caller thread. Make the method public, or move the annotation to the method that is."/>
+                     value="A non-public @Async depends on which proxy the container builds, and on a private method the call runs on the caller thread. Make the method public, or move the annotation to the method that is."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringAsyncIsPublic"/>
@@ -1048,7 +1056,7 @@
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Validated'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot intercept a non-public method, so these constraints are never evaluated. Make the method public, or move the annotation to the method that is."/>
+                     value="A non-public @Validated depends on which proxy the container builds, and on a private method the constraints are never evaluated. Make the method public, or move the annotation to the method that is."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringValidatedIsPublic"/>
@@ -1063,7 +1071,7 @@
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Retryable' or @text='Recover'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot intercept a non-public method, so this call is attempted once. Make the method public, or move the annotation to the method that is."/>
+                     value="A non-public @Retryable depends on which proxy the container builds, and on a private method the call is attempted once. Make the method public, or move the annotation to the method that is."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringRetryableIsPublic"/>
@@ -1209,6 +1217,24 @@
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringConfigurationPropertiesIsNotAComponent"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Binding reports nothing for a setting that is absent. A reference field stays null and a
+                numeric one stays zero, the context starts, and the first evidence is behaviour rather than
+                a failure: a zero timeout or a zero pool bound looks like a network fault rather than like a
+                missing property. Validation moves that to startup, where the offending key can still be
+                named.
+            -->
+            <property name="id" value="AirnessSpringConfigurationPropertiesIsValidated"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ConfigurationProperties'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Validated'])]"/>
+            <message key="matchxpath.match"
+                     value="An unvalidated properties class binds an absent setting to null or zero and starts anyway. Add @Validated and constrain the fields the application requires."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringConfigurationPropertiesIsValidated"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">
@@ -1606,6 +1632,23 @@
         </module>
         <module name="MatchXpath">
             <!--
+                The direction that surprises. Cascading from the owning side means deleting one order line
+                deletes the customer it points at, and every other line that customer owns goes with it or
+                is left pointing at a row that is gone. The to-many rule above guards the direction an
+                author usually intends, and this one guards the direction an author rarely means at all.
+            -->
+            <property name="id" value="AirnessSpringJpaToOneDoesNotCascadeRemove"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='ManyToOne' or @text='OneToOne'] and .//IDENT[@text='REMOVE' or @text='ALL']]]"/>
+            <message key="matchxpath.match"
+                     value="Cascading a delete from the owning side removes the parent row that other records still reference. Name the cascade types this association really owns, or remove the cascade."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaToOneDoesNotCascadeRemove"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 A list has an order the join table does not record, so Hibernate answers any change to one by
                 deleting every row of the association and inserting them again.
             -->
@@ -1692,14 +1735,17 @@
         -->
         <module name="MatchXpath">
             <!--
-                The dispatcher holds the proxy and calls the handler through it, so a non-public handler is
-                mapped and never invoked. The path answers with a 404 that names no cause.
+                The dispatcher selects handler methods without regard to visibility, so a non-public one is
+                mapped like any other. Unlike the scheduler and the event adapter it does not make the method
+                accessible first, so the invocation fails the access check. The path is mapped, the request
+                arrives, and the answer is a 500 raised inside the framework rather than anything the handler
+                wrote.
             -->
             <property name="id" value="AirnessSpringWebHandlerIsPublic"/>
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestMapping' or @text='GetMapping' or @text='PostMapping' or @text='PutMapping' or @text='DeleteMapping' or @text='PatchMapping'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot invoke a non-public method, so this handler is mapped and never reached. Make the method public."/>
+                     value="A non-public handler is mapped and then fails the access check when the request arrives, answering 500 from inside the framework. Make the method public."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringWebHandlerIsPublic"/>
@@ -1917,11 +1963,16 @@
         <module name="Regexp">
             <!--
                 The endpoints behind that prefix enumerate the environment, the beans, the mappings and the
-                configuration properties, which together describe the application well enough to attack it. A
-                liveness or readiness probe is named individually and is not matched.
+                configuration properties, which together describe the application well enough to attack it.
+
+                The two standard probe paths are named in the pattern and left alone, because permitting them
+                individually is what the message asks for and the rule used to refuse it: a matcher naming
+                both put the second literal directly before the permitAll, which the pattern matched. The
+                trailing list of further literals is what keeps a broad path from escaping by being written
+                first and a probe path second.
             -->
             <property name="id" value="AirnessSpringSecurityActuatorIsNotPublic"/>
-            <property name="format" value="&quot;/actuator[^&quot;]*&quot;\s*\)?\s*\)?\s*\.permitAll|ignoring\(\)[^;]{0,120}&quot;/actuator"/>
+            <property name="format" value="&quot;/actuator(?!/health/(?:liveness|readiness)&quot;)[^&quot;]*&quot;(?:\s*,\s*&quot;[^&quot;]*&quot;)*\s*\)?\s*\)?\s*\.permitAll|ignoring\(\)[^;]{0,120}&quot;/actuator"/>
             <property name="ignoreComments" value="true"/>
             <property name="message"
                       value="Permitting the actuator prefix publishes the environment, the beans and the mappings. Name the health probes individually and leave the rest authenticated."/>
@@ -1960,14 +2011,17 @@
         -->
         <module name="MatchXpath">
             <!--
-                The scheduler holds the proxy and invokes the method through it, so a non-public one is never
-                reached. The task is registered, the trigger fires, and nothing runs.
+                The scheduler does not go through the proxy. It selects the method without regard to
+                visibility and makes it accessible before invoking, so a protected or package-visible task
+                runs. A private one runs too, until something causes the bean to be proxied, and then the
+                invocation lands on the proxy instance whose fields were never populated. Requiring public
+                keeps the task independent of whether anything else on the class built a proxy.
             -->
             <property name="id" value="AirnessSpringScheduledIsPublic"/>
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot invoke a non-public method, so this scheduled task never runs. Make the method public."/>
+                     value="A private scheduled method breaks as soon as anything causes the bean to be proxied, because the invocation lands on the proxy rather than on the instance holding the state. Make the method public."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringScheduledIsPublic"/>
@@ -1992,12 +2046,17 @@
             <!--
                 Nothing receives the value, so a return carrying a result or a status is discarded, and an
                 author who wrote one expected somebody to read it.
+
+                A reactive return is the exception the framework documents. A method returning a Publisher,
+                or a type the default ReactiveAdapterRegistry adapts to one, hands the scheduler the work
+                itself rather than a discarded result: the infrastructure subscribes to it on the schedule,
+                and returning void there would mean nothing is ever subscribed. Those types are exempt.
             -->
             <property name="id" value="AirnessSpringScheduledReturnsVoid"/>
             <property name="query"
-                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and not(./TYPE/LITERAL_VOID)]"/>
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and not(./TYPE/LITERAL_VOID) and not(./TYPE/IDENT[@text='Publisher' or @text='Mono' or @text='Flux' or @text='Single' or @text='Maybe' or @text='Completable' or @text='Observable' or @text='Flowable'])]"/>
             <message key="matchxpath.match"
-                     value="Nothing receives what a scheduled method returns. Return void, and record the outcome where something reads it."/>
+                     value="Nothing receives what a scheduled method returns. Return void and record the outcome where something reads it, or return a Publisher, which the scheduler subscribes to on the schedule."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringScheduledReturnsVoid"/>
@@ -2020,15 +2079,18 @@
         </module>
         <module name="MatchXpath">
             <!--
-                The publisher reaches the listener through the proxy, so a non-public one is registered and
-                never called. Every other listener of the same event still runs, which is what makes the
-                omission hard to see.
+                The publisher does not reach the listener through the proxy. The adapter selects the method
+                without regard to visibility and makes it accessible before invoking, so a protected or
+                package-visible listener receives its event. A private one receives it too, until something
+                causes the bean to be proxied, and then the invocation lands on the proxy instance whose
+                fields were never populated. Every other listener of the same event still runs, which is
+                what makes the failure hard to see.
             -->
             <property name="id" value="AirnessSpringEventListenerIsPublic"/>
             <property name="query"
                       value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='EventListener' or @text='TransactionalEventListener'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A proxy cannot invoke a non-public method, so this listener never receives its event. Make the method public."/>
+                     value="A private listener breaks as soon as anything causes the bean to be proxied, because the invocation lands on the proxy rather than on the instance holding the state. Make the method public."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringEventListenerIsPublic"/>
@@ -2038,11 +2100,13 @@
             <!--
                 A listener takes the event and nothing else. Spring refuses the context at startup with a
                 message that names the method and not the reason. A listener naming its event classes in the
-                annotation legitimately takes none, so that form is allowed.
+                annotation legitimately takes none, so that form is allowed. The allowance reads the members
+                that declare a type, because condition names a filter and no type, and a listener carrying
+                only that still leaves Spring with nothing to bind.
             -->
             <property name="id" value="AirnessSpringEventListenerTakesOneArgument"/>
             <property name="query"
-                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']] and (count(./PARAMETERS/PARAMETER_DEF) &gt; 1 or count(./PARAMETERS/PARAMETER_DEF) = 0 and not(./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']]/EXPR) and not(./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']]/ANNOTATION_MEMBER_VALUE_PAIR))]"/>
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']] and (count(./PARAMETERS/PARAMETER_DEF) &gt; 1 or count(./PARAMETERS/PARAMETER_DEF) = 0 and not(./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']]/EXPR) and not(./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']]/ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value' or @text='classes']]))]"/>
             <message key="matchxpath.match"
                      value="An @EventListener takes the event alone, and Spring refuses the context otherwise. Take one parameter, or name the event classes in the annotation and take none."/>
         </module>
@@ -2085,11 +2149,17 @@
         <module name="Regexp">
             <!--
                 Each of these creates threads the container does not know about, so they miss the graceful
-                shutdown, the metrics, the security context and the request scope. A TaskExecutor bean covers
-                the legitimate cases and is not matched.
+                shutdown, the metrics, the security context and the request scope. The virtual-thread and
+                structured-concurrency forms stand beside the platform ones, because on the Java this harness
+                requires they are the spellings an author reaches for first.
+
+                This is a file-level rule with no syntax tree to consult, so it cannot tell a call inside a
+                @Bean method from any other. The executor definition the message asks for is matched like
+                everything else and needs a suppression carrying its justification. That is one deliberate
+                exemption per project, written where the executor is declared.
             -->
             <property name="id" value="AirnessSpringNoUnmanagedThreads"/>
-            <property name="format" value="new\s+Thread\s*\(|Executors\.new[A-Za-z]+\s*\(|supplyAsync\s*\([^,)]*\)"/>
+            <property name="format" value="new\s+Thread\s*\(|Thread\s*\.\s*(?:ofVirtual|ofPlatform|startVirtualThread)\s*\(|\bStructuredTaskScope\b|Executors\.new[A-Za-z]+\s*\(|supplyAsync\s*\([^,)]*\)"/>
             <property name="ignoreComments" value="true"/>
             <property name="message"
                       value="A thread the container did not create misses graceful shutdown, metrics and the security context. Take a TaskExecutor bean and submit to it."/>
@@ -2133,12 +2203,17 @@
                 Every distinct set of properties is a distinct context cache key, so a class carrying its own
                 set starts its own Spring. A suite that does this per class grows in time without growing in
                 coverage.
+
+                The repair is a composed annotation rather than a base class. Identical annotations name one
+                cached context just as inheritance would, and the inheritance rule above admits only its
+                allowlist, so a shared test superclass is refused by the rule set that would have asked for
+                it.
             -->
             <property name="id" value="AirnessSpringTestSharesTheContext"/>
             <property name="query"
                       value="//ANNOTATION[./IDENT[@text='SpringBootTest'] and .//IDENT[@text='properties']] | //ANNOTATION/IDENT[@text='TestPropertySource']"/>
             <message key="matchxpath.match"
-                     value="Inline test properties give this class its own application context rather than the shared one. Declare them once on a base class the tests extend."/>
+                     value="Inline test properties give this class its own application context rather than the shared one. Declare them once on a composed annotation that each test carries, which names the same context without a shared base class."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringTestSharesTheContext"/>
@@ -2214,9 +2289,29 @@
         <!--
         Spring: structure
 
-        One rule, because the rest of what a project declares about itself is decided by the Maven model
-        rather than by a source file.
+        What a project states about itself in a source file. Most of that is settled by the Maven model
+        instead, which is why there are only two rules here.
         -->
+        <module name="Regexp">
+            <!--
+                Boot 4 auto-configures the Jackson 3 mapper and manages the Jackson 2 line beside it only as
+                a compatibility module. Both are on the class path, so an import of the older package
+                compiles and serialises, and every spring.jackson setting then configures the mapper the
+                code is not using. The wire format differs from the configuration that claims to describe
+                it, and nothing between the two says so. An agent writes this one by default, because the
+                older package is the one almost every example on the internet imports.
+            -->
+            <property name="id" value="AirnessSpringJacksonIsTheConfiguredOne"/>
+            <property name="format" value="com\.fasterxml\.jackson\."/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                     value="This binds the Jackson 2 mapper, which Boot does not auto-configure, so every spring.jackson setting applies to a mapper this code never uses. Import the tools.jackson package instead."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJacksonIsTheConfiguredOne"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
         <module name="MatchXpath">
             <!--
                 Airness already fixes the scan root by requiring the application class to sit at the declared

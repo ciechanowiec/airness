@@ -60,6 +60,12 @@ final class SpringConfigurationRules {
                 + " something the source states"
         ),
         new Rule(
+            "spring.sql.init.mode", "always"::equals,
+            "schema.sql and data.sql then run on every startup, outside the migration tool and with no"
+                + " record of what was applied, which reopens exactly the schema ownership that ddl-auto"
+                + " and the migration-tool rule settle"
+        ),
+        new Rule(
             "spring.h2.console.enabled", "true"::equals,
             "this publishes a database console, and the security exemption written to make it work"
                 + " usually outlives it"
@@ -93,6 +99,16 @@ final class SpringConfigurationRules {
         new Required(
             "spring.datasource.url", "spring.datasource.hikari.leak-detection-threshold", _ -> true,
             "a leaked connection is never reported, so the pool drains with nothing saying why"
+        ),
+        new Required(
+            "spring.datasource.url", "spring.datasource.hikari.maximum-pool-size", _ -> true,
+            "the pool size decides how many requests are served at once and how much load the database is"
+                + " asked to carry, and the default of ten settles both without anybody choosing either"
+        ),
+        new Required(
+            "spring.datasource.url", "spring.datasource.hikari.connection-timeout", _ -> true,
+            "a caller waiting for a connection waits the default thirty seconds before it is told it"
+                + " cannot have one, so an exhausted pool arrives as latency rather than as an error"
         ),
         new Required(
             "server", "server.shutdown", "graceful"::equals,
