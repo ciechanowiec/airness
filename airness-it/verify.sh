@@ -16,6 +16,9 @@ failures=0
 passed=0
 failed_cases=''
 started="$(date +%s)"
+# Where each case records how long it took. It lands in the scratch directory the run discards,
+# unless a caller profiling the suite points it somewhere that outlives the run.
+timings="${AIRNESS_IT_TIMINGS:-$scratch/timings.tsv}"
 
 # Every case label already begins with the domain it belongs to, so the domain is printed once when it
 # changes rather than repeated on all two hundred lines. Results go to standard output and diagnostics
@@ -410,7 +413,7 @@ run_case() {
     (cd "$directory" && mvn --batch-mode --no-transfer-progress "$@") >"$log" 2>&1
     status=$?
     set -e
-    printf '%s\t%s\n' "$(($(date +%s) - case_started))" "$label" >> "$scratch/timings.tsv"
+    printf '%s\t%s\n' "$(($(date +%s) - case_started))" "$label" >> "$timings"
     matched=0
     if grep -Eq "$pattern" "$log"; then
         matched=1
