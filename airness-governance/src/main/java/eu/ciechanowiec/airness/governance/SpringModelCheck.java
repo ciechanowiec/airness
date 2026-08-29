@@ -10,8 +10,9 @@ import java.util.Objects;
  *
  * <p>Every other Spring check here reads a file a developer wrote. This reads the declarations around
  * them, because the defects it names are settled by the model: an archive that ships a debug endpoint,
- * a deployable application with no probes, a mapped schema nothing creates, two web stacks of which one
- * silently loses, and auto-configuration an application publishes to itself.
+ * a deployable application with no probes, a mapped schema nothing creates, a deployable service that
+ * authenticates nobody, two web stacks of which one silently loses, and auto-configuration an application
+ * publishes to itself.
  *
  * <p>The goal that runs this is bound at {@code validate}, which is the one departure from the other
  * Spring goals and the reason is the whole point of the check: every question it asks is answered before
@@ -27,6 +28,8 @@ public final class SpringModelCheck {
         = "A mapped schema with nothing declared that would create it";
     private static final String MISSING_ACTUATOR
         = "A deployable application publishing nothing an orchestrator can read";
+    private static final String NO_AUTHENTICATION
+        = "A deployable application serving HTTP with nothing that authenticates a caller";
     private static final String TWO_WEB_STACKS
         = "Both web stacks declared where only one of them can start";
     private static final String OWN_AUTO_CONFIGURATION
@@ -72,7 +75,7 @@ public final class SpringModelCheck {
     }
 
     /**
-     * Whether the module is the one that gets deployed, which four of the five rules ask first.
+     * Whether the module is the one that gets deployed, which four of the six rules ask first.
      *
      * @return whether the Boot plugin repackages this module
      */
@@ -95,6 +98,10 @@ public final class SpringModelCheck {
             new Findings(
                 MISSING_ACTUATOR,
                 SpringModelRules.missingActuator(this.pom, this.dependencies, this.repackaged)
+            ),
+            new Findings(
+                NO_AUTHENTICATION,
+                SpringModelRules.unauthenticatedService(this.pom, this.dependencies, this.repackaged)
             ),
             new Findings(TWO_WEB_STACKS, SpringModelRules.doubledWebStack(this.pom, this.dependencies)),
             new Findings(

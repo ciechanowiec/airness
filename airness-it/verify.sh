@@ -393,6 +393,7 @@ JAVA
 package com.example;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
@@ -402,6 +403,20 @@ class RewriteTestingTest {
     @Test
     void cleansAssertions() {
         assertThat("").hasSize(0);
+    }
+
+    @Test
+    void keepsTheArgumentOrderItWasWrittenWith() {
+        assertEquals(value(), "value");
+    }
+
+    @Test
+    void simplifiesABooleanComparison() {
+        assertEquals(false, value().isEmpty());
+    }
+
+    private String value() {
+        return "value";
     }
 }
 JAVA
@@ -1755,6 +1770,32 @@ if grep -Fq 'assertThat("").isEmpty();' "$consumer/src/test/java/com/example/Rew
     pass 'rewrite: AssertJ cleanup reaches consumers'
 else
     fail 'rewrite: test-framework cleanup did not reach consumers'
+fi
+
+# The recipe left out of the assertion cleanup set. It would put the constant first, which reads as a
+# convention and is not one: assertEquals calls equals on its first argument, so the swap moves the
+# comparison onto the constant's type and a test written to prove this project's equals rejects a
+# foreign value proves the JDK's instead. The assertion goes on passing either way, so this line is what
+# would notice the recipe coming back.
+# The assertion set the recipe above was taken out of is restated by the harness, so the whole JUnit
+# chain now runs through three copies of upstream composites. A name that stops resolving takes the set
+# away silently: nothing fails, the recipes simply stop running, and the order assertion below would
+# then pass for the wrong reason. This is the positive half that rules that out, because it can only
+# hold if the innermost copy is still reached.
+#
+# The comparison it reads is written over a call rather than over a constant. Written over a constant
+# the set folds it to a literal and then deletes the assertion outright, which leaves the test body
+# empty and the assertion rule reporting it, so the control has to survive its own recipe set.
+if grep -Fq 'assertFalse(value().isEmpty());' "$consumer/src/test/java/com/example/RewriteTestingTest.java"; then
+    pass 'rewrite: the restated JUnit assertion cleanup still reaches consumers'
+else
+    fail 'rewrite: the restated JUnit assertion cleanup stopped running'
+fi
+
+if grep -Fq 'assertEquals(value(), "value");' "$consumer/src/test/java/com/example/RewriteTestingTest.java"; then
+    pass 'rewrite: an assertion keeps the argument order it was written with'
+else
+    fail 'rewrite: the rewrite reordered the arguments of an assertion'
 fi
 
 # The agent files connect coding tools to the shared project instructions. Explicit synchronization
@@ -3138,7 +3179,7 @@ class Persisted {
     @GeneratedValue
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     private Persisted parent;
 
     @OneToMany(cascade = CascadeType.ALL)
@@ -3231,6 +3272,8 @@ JAVA
 cat > "$spring_source/src/main/java/com/example/Routed.java" <<'JAVA'
 package com.example;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 @RestController
 class Routed {
 
@@ -3280,6 +3323,47 @@ class Retained {
     }
 }
 JAVA
+# The entity shape this harness prescribes: the no-arg constructor JPA needs arrives as the Lombok
+# annotation the entity rule's own message asks for, so the only constructor PMD sees is the one that
+# assigns. ImmutableField then asks for a final field, which AirnessSpringJpaEntityFieldIsNotFinal refuses
+# and the provider could not write. Assembled is the same class without the annotation, and it is what
+# keeps the exemption assertion from passing on a rule that had stopped firing.
+cat > "$spring_source/src/main/java/com/example/Constructed.java" <<'JAVA'
+package com.example;
+
+@Entity
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+class Constructed {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    Constructed(Long identifier) {
+        this.id = identifier;
+    }
+
+    public Long identifier() {
+        return this.id;
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Assembled.java" <<'JAVA'
+package com.example;
+
+class Assembled {
+
+    private Long id;
+
+    Assembled(Long identifier) {
+        this.id = identifier;
+    }
+
+    public Long identifier() {
+        return this.id;
+    }
+}
+JAVA
 cat > "$spring_source/src/main/java/com/example/Served.java" <<'JAVA'
 package com.example;
 
@@ -3317,6 +3401,23 @@ class Secured {
         Jwts.parser().setSigningKey("literal-signing-key");
         http.authorizeHttpRequests(requests -> requests.requestMatchers("/actuator/**").permitAll());
         UserDetailsManager users = new InMemoryUserDetailsManager();
+    }
+}
+JAVA
+# The repair the actuator rule's own message prescribes. Naming the probes individually put the second
+# literal directly before the permitAll, which the pattern used to match, so the rule refused the one
+# shape it asked for.
+cat > "$spring_source/src/main/java/com/example/Probed.java" <<'JAVA'
+package com.example;
+
+class Probed {
+
+    public void chain(HttpSecurity http) {
+        http.authorizeHttpRequests(
+            requests -> requests
+                .requestMatchers("/actuator/health/liveness", "/actuator/health/readiness").permitAll()
+                .anyRequest().authenticated()
+        );
     }
 }
 JAVA
@@ -3584,6 +3685,9 @@ spring:
   h2:
     console:
       enabled: true
+  sql:
+    init:
+      mode: always
   jpa:
     show-sql: true
     openInView: true
@@ -3608,6 +3712,8 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringCacheAnnotationIsOnAConcreteType AirnessSpringCacheableIsNotCombinedWithCachePut \
     AirnessSpringCacheableIsPublic AirnessSpringConfigurationIsLite \
     AirnessSpringConfigurationPropertiesIsNotAComponent \
+    AirnessSpringConfigurationPropertiesIsValidated AirnessSpringJacksonIsTheConfiguredOne \
+    AirnessSpringJpaToOneDoesNotCascadeRemove \
     AirnessSpringDataPageMethodTakesAPageable AirnessSpringDataQueryIsBounded \
     AirnessSpringDataQueryIsNotConcatenated AirnessSpringEventListenerIsPublic \
     AirnessSpringEventListenerIsTransactionAware \
@@ -3655,6 +3761,12 @@ else
     pass 'spring: a correct entity is exempt from the final-class and final-field rules'
 fi
 
+if grep -E 'Probed\.java.*Permitting the actuator prefix' "$spring_log" >/dev/null; then
+    fail 'spring: probes named individually were read as a published actuator'
+else
+    pass 'spring: probes named individually are accepted'
+fi
+
 if grep -E 'Swept\.java.*differ between environments' "$spring_log" >/dev/null; then
     fail 'spring: a schedule read from a placeholder was called a literal'
 else
@@ -3663,6 +3775,20 @@ fi
 
 run_case 'spring: a native query without a reason is refused' 0 'NativeQueryNeedsJustification' \
     "$spring_source" pmd:check -Dairness.enforce=false
+# The PMD half of the persistence exemption, which the Checkstyle half had without it. The pair is read
+# from one log: the persistent type must draw nothing, and the type beside it that is not persistent must
+# draw the rule, because an exemption asserted against a rule that has stopped firing asserts nothing.
+spring_pmd_log="$scratch/spring__a_native_query_without_a_reason_is_refused.log"
+if grep -E 'Constructed.*ImmutableField' "$spring_pmd_log" >/dev/null; then
+    fail 'spring: a persistent field was asked to be final'
+else
+    pass 'spring: a persistent field is exempt from the immutable-field rule'
+fi
+if grep -E 'Assembled.*ImmutableField' "$spring_pmd_log" >/dev/null; then
+    pass 'spring: the immutable-field rule still reaches a type that is not persistent'
+else
+    fail 'spring: the immutable-field rule reported nothing, so the exemption proves nothing'
+fi
 
 run_case 'spring: a bean method calling another is refused' 1 'builds a second instance' \
     "$spring_source" airness:spring-source
@@ -3715,10 +3841,13 @@ spring.main.allow-bean-definition-overriding: two definitions of one name
 spring.h2.console.enabled: this publishes a database console
 spring.jpa.show-sql: every statement is written to standard output
 spring.profiles.active: the artifact chooses its own environment
+spring.sql.init.mode: schema.sql and data.sql then run on every startup
 spring.jpa.hibernate.ddl-auto is not set as it has to be
 spring.jpa.open-in-view is not set as it has to be
 spring.datasource.hikari.max-lifetime is not set as it has to be
 spring.datasource.hikari.leak-detection-threshold is not set as it has to be
+spring.datasource.hikari.maximum-pool-size is not set as it has to be
+spring.datasource.hikari.connection-timeout is not set as it has to be
 server.shutdown is not set as it has to be
 openInView is not written in kebab-case
 credential carries a literal secret
@@ -3790,9 +3919,10 @@ run_case 'spring: controllers with no error handler are refused' 1 'default erro
 
 # The model goal answers from the dependency list and the plugin bindings, so the fixture that breaks it
 # is a pom rather than a tree of sources. Every rule is broken once: the tooling is declared without
-# optional, the schema is mapped with no migration tool, the actuator is absent, both web stacks are
-# declared together, and the application registers auto-configuration with itself. Four of the five ask
-# first whether the module is deployed, which the repackage binding below is what says.
+# optional, the schema is mapped with no migration tool, the actuator is absent, nothing authenticates a
+# caller, both web stacks are declared together, and the application registers auto-configuration with
+# itself. Four of the six ask first whether the module is deployed, which the repackage binding below is
+# what says.
 spring_model="$scratch/spring-model"
 mkdir -p "$spring_model/src/main/resources/META-INF/spring"
 cat > "$spring_model/pom.xml" <<'POM'
@@ -3868,11 +3998,12 @@ done <<'RULES'
 Development tooling declared in a way that lets it ship
 A mapped schema with nothing declared that would create it
 A deployable application publishing nothing an orchestrator can read
+A deployable application serving HTTP with nothing that authenticates a caller
 Both web stacks declared where only one of them can start
 Auto-configuration declared inside the application it configures
 RULES
 
-# The same rules against a module that is not the deployed one. Four of the five have nothing to say
+# The same rules against a module that is not the deployed one. Four of the six have nothing to say
 # there, which is what keeps a library of a Spring Boot project from being asked to publish probes.
 run_case 'spring: a module that is not repackaged answers fewer of the model rules' 0 \
     'not repackaged' "$spring_source" airness:spring-model -Dairness.enforce=false
@@ -3944,6 +4075,11 @@ cat > "$spring_app/pom.xml" <<'POM'
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>

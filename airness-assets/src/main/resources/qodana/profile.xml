@@ -67,6 +67,21 @@
            state, widen the API the class deliberately narrows, and replace accessors that hand out
            defensive copies with ones that return the field. RecordCanBeClass is disabled for the mirror
            reason: the shape is the author's to choose
+         - FieldMayBeFinal and CanBeFinal: both restate a rule the harness already owns in Checkstyle,
+           where RequireFinalField and RequireFinalClass state it and carry the exemption a persistent
+           type needs. Hibernate subclasses an entity and writes its fields after the constructor has
+           run, so the final these two ask for is the one shape AirnessSpringJpaEntityFieldIsNotFinal
+           refuses and the provider could not write. Enabled they cost every entity in every project the
+           same suppression, while the rule they duplicate goes on being enforced with its exemption
+         - DefaultAnnotationParam: removes an annotation attribute whose value equals the default, which is
+           the opposite of what this harness asks for. AirnessSpringTransactionalDeclaresReadOnly exists
+           because a @Transactional that does not say whether it writes is read-write by default and reads
+           as though nobody decided, so readOnly = false is written on purpose. There is no third form: one
+           rule demands the attribute and the other demands its removal
+         - InterfaceNeverImplemented: a Spring Data repository is implemented by the container at startup,
+           so no source file declares a subclass in this project or any other. The inspection's only option
+           covers constant-holding interfaces, so there is no narrower way to say that, and the same is true
+           of every interface a framework implements by proxy
          - RecordCanBeClass: reverses records into ordinary classes instead of preserving the preferred
            immutable value shape
          - StreamToLoop: performs a backward-compatibility rewrite that is inappropriate for Java 25-only code
@@ -123,7 +138,7 @@
     <inspection_tool class="BulkFileAttributesRead" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="CallToNativeMethodWhileLocked" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="CallToSimpleGetterInClass" enabled="true" level="WARNING" enabled_by_default="true">
-        <option name="ignoreGetterCallsOnOtherObjects" value="false" />
+        <option name="ignoreGetterCallsOnOtherObjects" value="true" />
         <option name="onlyReportPrivateGetter" value="false" />
     </inspection_tool>
     <inspection_tool class="CallToSimpleSetterInClass" enabled="true" level="WARNING" enabled_by_default="true">
@@ -132,6 +147,8 @@
     </inspection_tool>
     <inspection_tool class="CallToStringConcatCanBeReplacedByOperator" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="CallToSuspiciousStringMethod" enabled="true" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="CanBeFinal" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="DefaultAnnotationParam" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="CastConflictsWithInstanceof" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="CastThatLosesPrecision" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="CastToIncompatibleInterface" enabled="true" level="WARNING" enabled_by_default="false" />
@@ -248,6 +265,7 @@
         <option name="m_limit" value="7" />
     </inspection_tool>
     <inspection_tool class="FieldHidesSuperclassField" enabled="true" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="FieldMayBeFinal" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="FieldMayBeStatic" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="FieldNamingConvention" enabled="true" level="WARNING" enabled_by_default="true">
         <extension name="ConstantNamingConvention" enabled="true">
@@ -333,7 +351,7 @@
     <inspection_tool class="InstanceofIncompatibleInterface" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="InstanceofThis" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="InterfaceMayBeAnnotatedFunctional" enabled="true" level="WARNING" enabled_by_default="true" />
-    <inspection_tool class="InterfaceNeverImplemented" enabled="true" level="WARNING" enabled_by_default="true">
+    <inspection_tool class="InterfaceNeverImplemented" enabled="false" level="WARNING" enabled_by_default="true">
         <option name="ignoreInterfacesThatOnlyDeclareConstants" value="false" />
     </inspection_tool>
     <inspection_tool class="IteratorNextDoesNotThrowNoSuchElementException" enabled="true" level="WARNING" enabled_by_default="false" />
@@ -695,8 +713,15 @@
     <inspection_tool class="UnreachableCode" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="UnsecureRandomNumberGeneration" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="UpperCaseFieldNameNotConstant" enabled="true" level="WARNING" enabled_by_default="true" />
+    <!--
+    A value type expresses a change of state as a new instance carrying the old one's values, which is
+    what the guideline asks for, and building one means reading a sibling instance of the class being
+    written. Both of these refused that: the field read directly, and the generated getter that is the
+    only other way to reach it. The risk each guards against is reaching into an unrelated object, which
+    is what remains reported once the same class is left out of it.
+    -->
     <inspection_tool class="UseOfAnotherObjectsPrivateField" enabled="true" level="WARNING" enabled_by_default="true">
-        <option name="ignoreSameClass" value="false" />
+        <option name="ignoreSameClass" value="true" />
         <option name="ignoreEquals" value="false" />
     </inspection_tool>
     <inspection_tool class="UseOfAWTPeerClass" enabled="true" level="WARNING" enabled_by_default="false" />
