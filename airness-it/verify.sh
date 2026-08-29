@@ -3145,6 +3145,155 @@ class SuiteTest {
     }
 }
 JAVA
+# The sources above carry the constructs the analyzer configuration reads. The ones below carry the
+# constructs it cannot: each needs two facts about one file correlated, which is the whole reason the
+# governance goal exists beside Checkstyle rather than inside it. They are written as separate files
+# because three of these rules are satisfied by anything anywhere in the file that answers them, so a
+# fixture that broke one of them beside a source that answered another would report neither.
+cat > "$spring_source/src/main/java/com/example/Advised.java" <<'JAVA'
+package com.example;
+
+@Service
+class Advised {
+
+    Advised() {
+        this.stored();
+    }
+
+    @Transactional(readOnly = true, timeout = 5)
+    public void stored() {
+    }
+
+    public void entry() {
+        stored();
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Registry.java" <<'JAVA'
+package com.example;
+
+@Component
+class Registry {
+
+    private static Registry current;
+
+    Registry() {
+        current = this;
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Identified.java" <<'JAVA'
+package com.example;
+
+@Entity
+class Identified {
+
+    @Id
+    @GeneratedValue
+    private Long id;
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Identified twin && this.id.equals(twin.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.id.hashCode();
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Handled.java" <<'JAVA'
+package com.example;
+
+@RestControllerAdvice
+class Handled {
+
+    @ExceptionHandler(RuntimeException.class)
+    public String onFailure(RuntimeException failure) {
+        return failure.getMessage();
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Caller.java" <<'JAVA'
+package com.example;
+
+@Component
+class Caller {
+
+    private final RestTemplate template;
+
+    Caller(RestTemplateBuilder builder) {
+        this.template = builder.build();
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Chained.java" <<'JAVA'
+package com.example;
+
+class Chained {
+
+    public void chain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(requests -> requests.requestMatchers("/public/**").permitAll());
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Origins.java" <<'JAVA'
+package com.example;
+
+class Origins {
+
+    public void configure(CorsRegistry registry) {
+        registry.addMapping("/**").allowedOrigins("*").allowCredentials(true);
+    }
+}
+JAVA
+cat > "$spring_source/src/test/java/com/example/ReplacedTest.java" <<'JAVA'
+package com.example;
+
+@DataJpaTest
+class ReplacedTest {
+
+    @Test
+    void reads() {
+    }
+}
+JAVA
+# The runtime settings the same consumer ships. Every rule the configuration check states is broken here
+# once, and several are broken by one line on purpose: openInView is read as open-in-view, so the line
+# both fails the setting and fails the spelling, which is exactly the confusion the spelling rule is for.
+mkdir -p "$spring_source/src/main/resources"
+cat > "$spring_source/src/main/resources/application.yml" <<'YML'
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+server:
+  error:
+    include-stacktrace: always
+    include-message: always
+spring:
+  profiles:
+    active: production
+  main:
+    allow-circular-references: true
+    allow-bean-definition-overriding: true
+  h2:
+    console:
+      enabled: true
+  jpa:
+    show-sql: true
+    openInView: true
+    hibernate:
+      ddl-auto: update
+  datasource:
+    url: jdbc:postgresql://localhost/example
+    credential: written-into-the-file
+YML
 git -C "$spring_source" init --quiet
 git -C "$spring_source" config user.name Fixture
 git -C "$spring_source" config user.email fixture@example.invalid
@@ -3203,6 +3352,63 @@ run_case 'spring: a bean method calling another is refused' 1 'builds a second i
     "$spring_source" airness:spring-source
 run_case 'spring: an application class below the root is refused' 1 'component scanning starts there' \
     "$spring_source" airness:spring-source
+
+# The two goals report every rule they state, not just the first. So each is run once with enforcement
+# withheld, and the single log is then read for one rule at a time. Asserting on the count rather than on
+# the text would pass a rule that reported another rule's offence, which is the failure this shape rules
+# out: the eleven titles below are distinct sentences, and each names the file that has to have tripped it.
+run_case 'spring: the source goal reports every rule it states' 0 'Spring source read' \
+    "$spring_source" airness:spring-source -Dairness.enforce=false
+spring_source_log="$scratch/spring__the_source_goal_reports_every_rule_it_states.log"
+while IFS= read -r rule; do
+    if grep -qF "$rule" "$spring_source_log"; then
+        printf 'ok       spring: the source goal reports %s\n' "$rule"
+    else
+        printf 'FAILED   spring: the source goal reported nothing for %s\n' "$rule" >&2
+        failures=$((failures + 1))
+    fi
+done <<'RULES'
+Spring application classes outside the declared package root
+Bean methods calling another bean method of the same class
+Calls reaching a proxied method from inside the bean that declares it
+Calls reaching a proxied method while the bean is still being built
+Beans assigning a static field of their own
+Entities deciding equality by a generated identifier
+Exception handlers copying the exception into the response
+HTTP clients built with no connect or read timeout
+Filter chains naming no terminal request matcher
+Credentialed requests accepted from a wildcard origin
+Persistence tests run against a database the application never uses
+RULES
+
+run_case 'spring: the configuration goal reports every rule it states' 0 'Spring configuration read' \
+    "$spring_source" airness:spring-configuration -Dairness.enforce=false
+spring_configuration_log="$scratch/spring__the_configuration_goal_reports_every_rule_it_states.log"
+while IFS= read -r rule; do
+    if grep -qF "$rule" "$spring_configuration_log"; then
+        printf 'ok       spring: the configuration goal reports %s\n' "$rule"
+    else
+        printf 'FAILED   spring: the configuration goal reported nothing for %s\n' "$rule" >&2
+        failures=$((failures + 1))
+    fi
+done <<'RULES'
+management.endpoints.web.exposure.include: the actuator is exposed at a wildcard
+management.endpoint.health.show-details: the health payload names every component
+server.error.include-stacktrace: an unhandled error returns its stack trace
+server.error.include-message: an unhandled error returns its internal message
+spring.main.allow-circular-references: circular references are refused by default
+spring.main.allow-bean-definition-overriding: two definitions of one name
+spring.h2.console.enabled: this publishes a database console
+spring.jpa.show-sql: every statement is written to standard output
+spring.profiles.active: the artifact chooses its own environment
+spring.jpa.hibernate.ddl-auto is not set as it has to be
+spring.jpa.open-in-view is not set as it has to be
+spring.datasource.hikari.max-lifetime is not set as it has to be
+spring.datasource.hikari.leak-detection-threshold is not set as it has to be
+server.shutdown is not set as it has to be
+openInView is not written in kebab-case
+credential carries a literal secret
+RULES
 
 # The same sources under airness-parent. The Spring rules are suppressed there, and the generic rule that
 # grew a Spring annotation is not, which is what says the relaxations reach only a Spring Boot project.
