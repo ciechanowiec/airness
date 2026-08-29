@@ -3214,6 +3214,46 @@ package com.example;
 record Recorded(Long id, String label) {
 }
 JAVA
+cat > "$spring_source/src/main/java/com/example/Swept.java" <<'JAVA'
+package com.example;
+
+class Swept {
+
+    @Scheduled(cron = "${app.swept.cron}")
+    private void sweep() {
+    }
+
+    @EventListener
+    private void observe(Object event) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Routed.java" <<'JAVA'
+package com.example;
+
+@RestController
+class Routed {
+
+    @GetMapping("/routed")
+    private String read() {
+        return "routed";
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Bound.java" <<'JAVA'
+package com.example;
+
+@Component
+@ConfigurationProperties("app")
+class Bound {
+
+    private final String name;
+
+    Bound(String name) {
+        this.name = name;
+    }
+}
+JAVA
 # A correct entity. It is the counterpart of the fixtures above: nothing may report it, and in
 # particular neither the final-class nor the final-field rule, which held it before the persistence
 # exemptions were written.
@@ -3567,8 +3607,10 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringAutowiredOnSoleConstructorIsRedundant AirnessSpringBeanMethodReturnsAValue \
     AirnessSpringCacheAnnotationIsOnAConcreteType AirnessSpringCacheableIsNotCombinedWithCachePut \
     AirnessSpringCacheableIsPublic AirnessSpringConfigurationIsLite \
+    AirnessSpringConfigurationPropertiesIsNotAComponent \
     AirnessSpringDataPageMethodTakesAPageable AirnessSpringDataQueryIsBounded \
-    AirnessSpringDataQueryIsNotConcatenated AirnessSpringEventListenerIsTransactionAware \
+    AirnessSpringDataQueryIsNotConcatenated AirnessSpringEventListenerIsPublic \
+    AirnessSpringEventListenerIsTransactionAware \
     AirnessSpringEventListenerTakesOneArgument AirnessSpringInitBinderReturnsVoid \
     AirnessSpringInjectionIsNotStatic AirnessSpringJpaEntityHasANoArgConstructor \
     AirnessSpringJpaEntityFieldIsNotFinal AirnessSpringJpaEntityIsNotALombokValue \
@@ -3582,7 +3624,8 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringNoUnmanagedThreads AirnessSpringPostProcessorBeanIsStatic \
     AirnessSpringProxiedClassIsNotFinal AirnessSpringProxiedMethodIsNotFinal \
     AirnessSpringProxiedMethodIsNotStatic AirnessSpringRetryableIsPublic AirnessSpringScanIsNotRedeclared \
-    AirnessSpringScheduleIsConfigurable AirnessSpringScheduledReturnsVoid \
+    AirnessSpringScheduleIsConfigurable AirnessSpringScheduledIsPublic \
+    AirnessSpringScheduledReturnsVoid \
     AirnessSpringScheduledTakesNoArguments AirnessSpringSingletonHasNoMutableState \
     AirnessSpringTestDoesNotDirtyTheContext AirnessSpringTestIsNotTransactional \
     AirnessSpringTestSharesTheContext AirnessSpringTestTransactionHooksRespectTheContract \
@@ -3591,6 +3634,7 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringTransactionalIsNotOnTheWebLayer AirnessSpringTransactionalIsPublic \
     AirnessSpringTransactionalRollsBackCheckedExceptions AirnessSpringValidatedIsPublic \
     AirnessSpringWebClientIsABean AirnessSpringWebCrossOriginIsNotWildcard \
+    AirnessSpringWebHandlerIsPublic \
     AirnessSpringWebMappingNamesItsMethod AirnessSpringWebParameterIsNamed \
     AirnessSpringWebRequestBodyIsValidated AirnessSpringWebSignatureIsNotServletTyped; do
     if grep -q "$rule" "$spring_log"; then

@@ -1194,6 +1194,25 @@
         -->
         <module name="MatchXpath">
             <!--
+                Constructor binding runs for a type the configuration-properties scan registers, and not for
+                one the component scan registers. A class carrying both annotations is built by the component
+                scan, so the binder never runs and every field keeps the value its constructor gave it.
+
+                Registering the type with @EnableConfigurationProperties, or reaching it with
+                @ConfigurationPropertiesScan, is the repair.
+            -->
+            <property name="id" value="AirnessSpringConfigurationPropertiesIsNotAComponent"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ConfigurationProperties'] and ./MODIFIERS/ANNOTATION/IDENT[@text='Component' or @text='Service' or @text='Repository']]"/>
+            <message key="matchxpath.match"
+                     value="A component-scanned class is built before the binder runs, so its properties stay unbound. Remove the stereotype and register the type with @EnableConfigurationProperties."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringConfigurationPropertiesIsNotAComponent"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 Spring does not write static members. The field stays null, the context starts clean, and the
                 first read is a NullPointerException in production rather than a refusal at startup.
 
@@ -1673,6 +1692,21 @@
         -->
         <module name="MatchXpath">
             <!--
+                The dispatcher holds the proxy and calls the handler through it, so a non-public handler is
+                mapped and never invoked. The path answers with a 404 that names no cause.
+            -->
+            <property name="id" value="AirnessSpringWebHandlerIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestMapping' or @text='GetMapping' or @text='PostMapping' or @text='PutMapping' or @text='DeleteMapping' or @text='PatchMapping'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot invoke a non-public method, so this handler is mapped and never reached. Make the method public."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebHandlerIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 Without it every constraint on the payload type is decorative, and the first thing to notice
                 the invalid value is a database constraint, or nothing at all.
             -->
@@ -1926,6 +1960,21 @@
         -->
         <module name="MatchXpath">
             <!--
+                The scheduler holds the proxy and invokes the method through it, so a non-public one is never
+                reached. The task is registered, the trigger fires, and nothing runs.
+            -->
+            <property name="id" value="AirnessSpringScheduledIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot invoke a non-public method, so this scheduled task never runs. Make the method public."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScheduledIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 Spring has nothing to pass, so it refuses the context at startup. The method compiles, and it
                 never runs anywhere.
             -->
@@ -1967,6 +2016,22 @@
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringScheduleIsConfigurable"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The publisher reaches the listener through the proxy, so a non-public one is registered and
+                never called. Every other listener of the same event still runs, which is what makes the
+                omission hard to see.
+            -->
+            <property name="id" value="AirnessSpringEventListenerIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='EventListener' or @text='TransactionalEventListener'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot invoke a non-public method, so this listener never receives its event. Make the method public."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringEventListenerIsPublic"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">
