@@ -114,10 +114,46 @@ printf '  %sharness %s, from isolated consumer repositories%s\n' \
 # is not read here, so a run using one names it through this variable rather than being quietly wrong.
 local_repository="${MAVEN_REPO_LOCAL:-$HOME/.m2/repository}"
 
+# Every jar consumer starts from the same project file, the same sources, and the same three Maven
+# invocations that seed the managed files, build the project once, and normalise its formatting. It only
+# diverges once the case using it starts writing to it. Building that seven times was the largest single
+# cost in this suite, at about forty seconds each, so it is built once and copied afterwards.
+#
+# Copying it is sound rather than merely quick because nothing in the built tree names its own location.
+# The Git repository is copied with it, so a fixture keeps the single commit that the cases reading
+# history expect to find.
+consumer_template="$scratch/.consumer-template"
+
 new_consumer() {
-    name="$1"
-    packaging="${2-jar}"
-    directory="$scratch/$name"
+    consumer_name="$1"
+    consumer_packaging="${2-jar}"
+    consumer_directory="$scratch/$consumer_name"
+    if [ "$consumer_packaging" = 'jar' ]; then
+        if [ ! -d "$consumer_template" ]; then
+            build_consumer "$consumer_template" jar
+        fi
+        clone_tree "$consumer_template" "$consumer_directory"
+    else
+        build_consumer "$consumer_directory" "$consumer_packaging"
+    fi
+    printf '%s\n' "$consumer_directory"
+}
+
+# APFS clones the blocks instead of reading and rewriting one and a half megabytes, which makes the copy
+# almost free. A filesystem without that support, which is what the runners use, does an ordinary
+# recursive copy and is still far cheaper than building the project again. A half-written clone from the
+# first attempt is removed before the second, so the fallback never copies into a directory that exists.
+clone_tree() {
+    rm -rf "$2"
+    if ! cp -c -R "$1" "$2" 2>/dev/null; then
+        rm -rf "$2"
+        cp -R "$1" "$2"
+    fi
+}
+
+build_consumer() {
+    directory="$1"
+    packaging="$2"
     mkdir -p "$directory/src/main/java/com/example" "$directory/src/test/java/com/example"
     cat > "$directory/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -380,7 +416,6 @@ JAVA
     git -C "$directory" commit --quiet \
         --message 'test(it): create an isolated consumer fixture' \
         --message 'The fixture carries one source per rule the harness enforces, so a consumer build has something to report on.'
-    printf '%s\n' "$directory"
 }
 
 # A setup step is not a case, so what it writes is captured rather than printed. Every direct start of a
