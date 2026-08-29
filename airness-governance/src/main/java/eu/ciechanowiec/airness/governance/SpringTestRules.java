@@ -49,12 +49,12 @@ final class SpringTestRules {
     private static Set<String> selectable(SpringTypes types, Collection<String> configured) {
         return Stream.concat(
             configured.stream(),
-            types.all().stream().flatMap(type -> profiles(DECLARED_PROFILE, type.quoted()))
+            types.all().stream().flatMap(type -> declaredProfiles(type.quoted()))
         ).collect(Collectors.toSet());
     }
 
-    private static Stream<String> profiles(Pattern annotation, String source) {
-        return annotation.matcher(source).results()
+    private static Stream<String> declaredProfiles(String source) {
+        return DECLARED_PROFILE.matcher(source).results()
             .flatMap(SpringTestRules::requested)
             .map(Requested::name);
     }
