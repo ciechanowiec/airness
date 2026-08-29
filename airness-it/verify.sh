@@ -2301,6 +2301,12 @@ fi
 # types beside one collaborator and must be reported by neither, which is the reading that showed the
 # dropped inspection was a second cap rather than a rule that counted the JDK.
 #
+# Tool answers a second change to the same profile. UtilityClassWithoutPrivateConstructor now names an
+# annotation it lets through, and an exemption keyed on an annotation is only as narrow as the projects
+# that cannot carry it. Tool declares nothing but a main and carries no annotation, so the inspection has
+# to report it here, in a consumer with no Spring on its classpath at all. The reading it is the control
+# for is in the Spring Boot fixture below, which is the only one that resolves the annotation.
+#
 # The verdict is read from the report rather than from the exit code, because a fixture that is meant to
 # carry one finding cannot say through an exit code which finding it carried. The case drives Docker, so
 # where no daemon answers it reports that it did not run instead of deciding the suite on a machine that
@@ -2762,6 +2768,24 @@ public final class JdkHeavy {
     }
 }
 JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/Tool.java" <<'JAVA'
+package com.example;
+
+/**
+ * A static-only class that declares a main and carries no annotation.
+ */
+public final class Tool {
+
+    /**
+     * Runs the tool.
+     *
+     * @param args the command line arguments
+     */
+    static void main(String[] args) {
+        IO.println(args.length);
+    }
+}
+JAVA
     git -C "$qodana_consumer" add --all
     git -C "$qodana_consumer" commit --quiet \
         --message 'test(it): carry the shapes the dropped inspections reported' \
@@ -2799,6 +2823,12 @@ JAVA
                 printf 'ok       qodana: ClassCoupling leaves %s alone\n' "$spared"
             fi
         done
+        if grep -q "Class 'Tool' has only 'static' members" "$qodana_sarif"; then
+            echo 'ok       qodana: a static-only class with a main is still reported'
+        else
+            echo 'FAILED   qodana: the utility-class exemption reached a project without the annotation' >&2
+            failures=$((failures + 1))
+        fi
     fi
 fi
 
@@ -3097,6 +3127,35 @@ else
     echo 'FAILED   spring: the repackaged archive did not start' >&2
     sed -n '1,220p' "$spring_run" >&2
     failures=$((failures + 1))
+fi
+
+# The entry point of the same application, read by the inspection engine. It holds nothing but its main,
+# and UtilityClassWithoutPrivateConstructor reported it until the profile named the annotation: every
+# repair the finding offers is closed to a Spring Boot project, because the container instantiates the
+# class, so a private constructor stops the application from starting and Lombok @UtilityClass makes the
+# type uninstantiable outright. That left a suppression as the only project-side answer, spent on a
+# construct every project of this kind carries. The exemption is keyed on the annotation, which is what
+# checkstyle.xml already keys its own on, and this is the only fixture that resolves it, so this is the
+# only place the exemption can be read at all. It costs a second container run, and the run is what says
+# the option reached the engine: the list is read by a JDOM externalizer of its own, so a shape borrowed
+# from a neighbouring option parses as XML, is ignored in silence, and leaves the finding standing.
+#
+# This fixture is meant to carry no finding at all, so unlike the profile cases above it can answer
+# through an exit code, and that is the reading that says the scan ran rather than that it found nothing
+# because it never started. The report is read after it for the one finding this case exists for, so a
+# failure names the regression instead of only the build that carried it.
+if ! docker info >/dev/null 2>&1; then
+    echo 'skipped  spring: no Docker daemon answered, so the entry-point case did not run'
+else
+    run_case 'spring: a conforming Spring Boot application passes the inspection engine' 0 'BUILD SUCCESS' \
+        "$spring_app" airness:qodana
+    spring_sarif="$spring_app/target/qodana/qodana.sarif.json"
+    if [ -f "$spring_sarif" ] && ! grep -q '"ruleId": "UtilityClassWithoutPrivateConstructor"' "$spring_sarif"; then
+        echo 'ok       spring: the entry point is not read as a utility class'
+    else
+        echo 'FAILED   spring: the entry point is still read as a utility class' >&2
+        failures=$((failures + 1))
+    fi
 fi
 
 # Published assets contain the pinned software guideline but no other documentation or Git-hook material.
