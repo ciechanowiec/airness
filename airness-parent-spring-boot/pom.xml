@@ -170,14 +170,28 @@
                     configuration can ask. Bound here rather than in airness-parent, so a project that is
                     not a Spring Boot one never runs the goal at all.
 
-                    The four goals differ in what each has to read before it can answer. Two read one file
-                    at a time, one reads every source of the module because the halves of the defect it
-                    looks for are written in different files, and the last reads every source of the build
-                    because a second application class is only a defect relative to the first.
+                    The five goals differ in what each has to read before it can answer. One reads the
+                    model and nothing else, which is why it runs first and at a different phase. Two read
+                    one source file at a time, one reads every source of the module because the halves of
+                    the defect it looks for are written in different files, and the last reads every source
+                    of the build because a second application class is only a defect relative to the first.
                 -->
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-maven-plugin</artifactId>
                 <executions>
+                    <!--
+                        Bound at validate, which is where the model already says everything this reads.
+                        A missing actuator, a schema with no migration tool and two web stacks at once are
+                        each settled by the dependency list, so waiting for package would mean building the
+                        archive in order to be told it should not have been built that way.
+                    -->
+                    <execution>
+                        <id>airness-spring-model</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>spring-model</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>airness-spring-governance</id>
                         <phase>package</phase>

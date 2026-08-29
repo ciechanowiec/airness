@@ -9,6 +9,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * The types a set of sources declares, read once so that a rule can judge one file against the others.
@@ -59,6 +60,19 @@ final class SpringTypes {
     }
 
     /**
+     * Every source read, whatever it declares.
+     *
+     * <p>A rule that looks for a construct rather than for an annotation has to read the whole module,
+     * because the file it reports is chosen by what it holds rather than by what it is marked as. That
+     * is the difference between asking which types are components and asking which sources build one.
+     *
+     * @return the declared types, in the order the sources were given
+     */
+    List<Declared> all() {
+        return this.declared;
+    }
+
+    /**
      * Every source carrying the given annotation.
      *
      * @param annotation the annotation to look for
@@ -104,5 +118,36 @@ final class SpringTypes {
      * @param text   the source as written, which a line number is counted over
      */
     public record Declared(Path source, String name, String code, CharSequence text) {
+
+        private static final String TESTS = "test";
+
+        /**
+         * The source with its comments gone and its one-line literals kept.
+         *
+         * <p>{@link #code()} is the right reading for structure and the wrong one for a rule that turns
+         * on a value: blanking erases the very word that tells {@code @Scope("prototype")} from
+         * {@code @Scope("request")}, and it takes the profile out of {@code @ActiveProfiles} and leaves
+         * the annotation naming nothing. Offsets survive either blanking, so a line number taken here
+         * is the line number of the file.
+         *
+         * @return the source carrying code and the literals written on one line
+         */
+        String quoted() {
+            return JavaCode.withoutComments(this.text);
+        }
+
+        /**
+         * Whether the source lies under a test root.
+         *
+         * <p>The distinction decides two rules in opposite directions. Building a component with
+         * {@code new} is how a test is meant to be written and is a defect anywhere else, while a
+         * declared application context is only ever a test's to declare.
+         *
+         * @return whether a path element names the test tree
+         */
+        boolean test() {
+            return IntStream.range(0, this.source.getNameCount())
+                .anyMatch(element -> TESTS.equals(this.source.getName(element).toString()));
+        }
     }
 }

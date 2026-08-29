@@ -22,7 +22,9 @@ public final class SpringModuleMojo extends AbstractGovernanceMojo {
 
     @Override
     List<Findings> findings() {
-        SpringModuleCheck check = new SpringModuleCheck(this.repositoryRoot(), this.moduleSourceRoots());
+        SpringModuleCheck check = new SpringModuleCheck(
+            this.repositoryRoot(), this.moduleSourceRoots(), this.moduleResourceRoots()
+        );
         this.getLog().info(
             "Spring module read " + check.scanned() + " Java source(s) declaring " + check.types() + " type(s)"
         );
