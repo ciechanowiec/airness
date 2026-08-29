@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Resource;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -91,6 +92,23 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      */
     protected final List<Path> moduleSourceRoots() {
         return sourceRoots(Stream.of(this.project));
+    }
+
+    /**
+     * The resource directories of the module being built, main and test alike.
+     *
+     * <p>A rule that reads Java and answers with a file needs both trees, since a profile a test names
+     * is as ordinarily answered from the test resources as from the main ones. A goal that reads the
+     * files themselves asks for the tree it means instead of calling this.
+     *
+     * @return the resource roots the project declares
+     */
+    protected final List<Path> moduleResourceRoots() {
+        return Stream.concat(this.project.getResources().stream(), this.project.getTestResources().stream())
+            .map(Resource::getDirectory)
+            .map(Path::of)
+            .distinct()
+            .toList();
     }
 
     /**

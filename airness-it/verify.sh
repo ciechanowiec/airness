@@ -3244,6 +3244,7 @@ cat > "$spring_source/src/test/java/com/example/SuiteTest.java" <<'JAVA'
 package com.example;
 
 @SpringBootTest(properties = "a=b")
+@ActiveProfiles("integration")
 @Transactional
 @DirtiesContext
 class SuiteTest {
@@ -3388,6 +3389,50 @@ class Exposed {
 
     @PostMapping("/persisted")
     public void accept(@RequestBody Persisted persisted) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Built.java" <<'JAVA'
+package com.example;
+
+class Built {
+
+    Registry own() {
+        return new Registry();
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Scoped.java" <<'JAVA'
+package com.example;
+
+@Component
+@Scope("prototype")
+class Scoped {
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Sharing.java" <<'JAVA'
+package com.example;
+
+@Service
+class Sharing {
+
+    Sharing(Scoped scoped) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Stored.java" <<'JAVA'
+package com.example;
+
+interface Stored extends JpaRepository<Persisted, Long> {
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Reaching.java" <<'JAVA'
+package com.example;
+
+@RestController
+class Reaching {
+
+    Reaching(Stored stored) {
     }
 }
 JAVA
@@ -3552,6 +3597,159 @@ run_case 'spring: an entity bound from a request body is refused' 1 'every colum
 run_case 'spring: a second application class is refused' 1 'whichever the search finds first' \
     "$spring_source" airness:spring-reactor
 
+# The module goal states nine rules and the two cases above prove one of them, so it is run once more
+# with enforcement withheld and the single log read one headline at a time. Each headline below names a
+# defect whose two halves are in different files of the fixture: a component annotated in one and built
+# in another, a scope declared in one and ignored in another, a profile activated in a test and answered
+# by no file at all. Asserting on the count instead would pass a rule that reported another rule's work.
+run_case 'spring: the module goal reports every rule it states' 0 'Spring module read' \
+    "$spring_source" airness:spring-module -Dairness.enforce=false
+spring_module_log="$scratch/spring__the_module_goal_reports_every_rule_it_states.log"
+while IFS= read -r rule; do
+    if grep -qF "$rule" "$spring_module_log"; then
+        pass "spring: the module goal reports $rule"
+    else
+        fail "spring: the module goal reported nothing for $rule"
+    fi
+done <<'RULES'
+Persistence entities carried by a web request or response
+Controllers holding the repository layer directly
+Components built with new rather than taken from the container
+Prototype beans injected into a singleton that is built once
+Method security annotations that nothing in the module enables
+Asynchronous methods left to an executor that pools nothing
+Test profiles activated with nothing to activate
+RULES
+
+# The ninth rule is the one this fixture cannot break, and that is the assertion: the module declares a
+# @RestControllerAdvice, and one advice answers for every controller of the module it is declared in.
+if grep -qF "left to the framework's own error page" "$spring_module_log"; then
+    fail 'spring: the error handler rule fired at a module that declares an advice'
+else
+    pass 'spring: an advice anywhere in the module answers for every controller in it'
+fi
+
+# So the rule gets a module of its own: one controller and nothing else, which is what a project looks
+# like on the day its first endpoint is written and its error contract has not been decided yet.
+spring_unadvised="$scratch/spring-unadvised"
+mkdir -p "$spring_unadvised/src/main/java/com/example"
+sed -e 's|<artifactId>spring-source</artifactId>|<artifactId>spring-unadvised</artifactId>|' \
+    "$spring_source/pom.xml" > "$spring_unadvised/pom.xml"
+cat > "$spring_unadvised/src/main/java/com/example/Only.java" <<'JAVA'
+package com.example;
+
+@RestController
+class Only {
+
+    @GetMapping("/only")
+    public String read() {
+        return "";
+    }
+}
+JAVA
+git -C "$spring_unadvised" init --quiet
+git -C "$spring_unadvised" config user.name Fixture
+git -C "$spring_unadvised" config user.email fixture@example.invalid
+
+run_case 'spring: controllers with no error handler are refused' 1 'default error page' \
+    "$spring_unadvised" airness:spring-module
+
+# The model goal answers from the dependency list and the plugin bindings, so the fixture that breaks it
+# is a pom rather than a tree of sources. Every rule is broken once: the tooling is declared without
+# optional, the schema is mapped with no migration tool, the actuator is absent, both web stacks are
+# declared together, and the application registers auto-configuration with itself. Four of the five ask
+# first whether the module is deployed, which the repackage binding below is what says.
+spring_model="$scratch/spring-model"
+mkdir -p "$spring_model/src/main/resources/META-INF/spring"
+cat > "$spring_model/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent-spring-boot</artifactId>
+    <version>1.0.7-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>spring-model</artifactId>
+  <version>1.0.0</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webflux</artifactId>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+POM
+printf 'com.example.Own\n' \
+    > "$spring_model/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"
+git -C "$spring_model" init --quiet
+git -C "$spring_model" config user.name Fixture
+git -C "$spring_model" config user.email fixture@example.invalid
+
+run_case 'spring: the model goal reports every rule it states' 0 'Spring model read' \
+    "$spring_model" airness:spring-model -Dairness.enforce=false
+spring_model_log="$scratch/spring__the_model_goal_reports_every_rule_it_states.log"
+while IFS= read -r rule; do
+    if grep -qF "$rule" "$spring_model_log"; then
+        pass "spring: the model goal reports $rule"
+    else
+        fail "spring: the model goal reported nothing for $rule"
+    fi
+done <<'RULES'
+Development tooling declared in a way that lets it ship
+A mapped schema with nothing declared that would create it
+A deployable application publishing nothing an orchestrator can read
+Both web stacks declared where only one of them can start
+Auto-configuration declared inside the application it configures
+RULES
+
+# The same rules against a module that is not the deployed one. Four of the five have nothing to say
+# there, which is what keeps a library of a Spring Boot project from being asked to publish probes.
+run_case 'spring: a module that is not repackaged answers fewer of the model rules' 0 \
+    'not repackaged' "$spring_source" airness:spring-model -Dairness.enforce=false
+if grep -qE 'mapped schema|orchestrator can read|Auto-configuration declared' \
+    "$scratch/spring__a_module_that_is_not_repackaged_answers_fewer_of_the_model_rules.log"; then
+    fail 'spring: a rule scoped to the deployed module reached a library'
+else
+    pass 'spring: the rules that ask about a deployment ask only where there is one'
+fi
+
+
 # The same sources under airness-parent. The Spring rules are suppressed there, and the generic rule that
 # grew a Spring annotation is not, which is what says the relaxations reach only a Spring Boot project.
 plain_spring="$scratch/plain-spring"
@@ -3602,6 +3800,18 @@ cat > "$spring_app/pom.xml" <<'POM'
         <airness.package.root>com.example</airness.package.root>
     </properties>
     <dependencies>
+        <!--
+            Declared because the module is repackaged, which is what the model goal asks of a deployed
+            application: without the actuator it publishes no liveness probe, no readiness probe and no
+            metrics, and this fixture is the one consumer here that is actually started. It is written
+            ahead of the starter below because the recipe set sorts a dependency list and this one has to
+            arrive already sorted.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
@@ -3726,6 +3936,16 @@ git -C "$spring_app" commit --quiet \
 
 run_case 'spring: a conforming Spring Boot application verifies' 0 'BUILD SUCCESS' \
     "$spring_app" clean verify
+# The model goal is bound rather than invoked, so this is where that binding is proven. Every other case
+# runs a goal from the command line, which says nothing about the phase a consumer would meet it at, and
+# this is the one consumer here that runs a whole lifecycle. It passing is the other half of the claim:
+# the fixture declares the actuator a repackaged module has to, so the rule is satisfiable as well as real.
+if grep -q 'airness-spring-model' \
+    "$scratch/spring__a_conforming_Spring_Boot_application_verifies.log"; then
+    pass 'spring: the model goal runs from its validate binding rather than from a command line'
+else
+    fail 'spring: the model goal never ran in a full consumer build'
+fi
 
 spring_jar="$spring_app/target/spring-app-1.0.0.jar"
 if unzip -l "$spring_jar" 2>/dev/null | grep -q 'jspecify'; then
