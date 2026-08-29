@@ -13,6 +13,81 @@ scratch="$(mktemp -d "$HOME/.airness-it-XXXXXX")"
 # without a word, so a scratch directory the runner discards anyway never decides the verdict.
 trap 'rm -rf "$scratch" 2>/dev/null || true' EXIT INT TERM
 failures=0
+passed=0
+failed_cases=''
+started="$(date +%s)"
+
+# Every case label already begins with the domain it belongs to, so the domain is printed once when it
+# changes rather than repeated on all two hundred lines. Results go to standard output and diagnostics
+# to standard error, which is the split a reader redirecting one of the two expects. The exit status
+# stays the authority on whether the suite passed.
+#
+# Colour is written only to a terminal. A captured log, which is how CI reads this, stays plain text,
+# and NO_COLOR turns it off for anyone who asks. Everything printed is ASCII, as the rest of this file is.
+if [ -t 1 ] && [ -z "${NO_COLOR-}" ]; then
+    style_bold="$(printf '\033[1m')"
+    style_dim="$(printf '\033[2m')"
+    style_pass="$(printf '\033[32m')"
+    style_fail="$(printf '\033[31m')"
+    style_off="$(printf '\033[0m')"
+else
+    style_bold=''
+    style_dim=''
+    style_pass=''
+    style_fail=''
+    style_off=''
+fi
+domain=''
+detail=''
+
+# Splits one label into the domain it opens with and the rest, printing the domain when it is a new one.
+enter() {
+    case "$1" in
+        *': '*)
+            heading="${1%%: *}"
+            detail="${1#*: }"
+            ;;
+        *)
+            heading='suite'
+            detail="$1"
+            ;;
+    esac
+    if [ "$heading" != "$domain" ]; then
+        domain="$heading"
+        printf '\n  %s%s%s\n' "$style_bold" "$heading" "$style_off"
+    fi
+}
+
+pass() {
+    enter "$1"
+    passed=$((passed + 1))
+    printf '    %sPASS%s  %s\n' "$style_pass" "$style_off" "$detail"
+}
+
+# The optional second argument is why the case failed, which is worth a line of its own: the assertion
+# that did not hold is what a reader needs before the log excerpt that follows it on standard error.
+fail() {
+    enter "$1"
+    failures=$((failures + 1))
+    failed_cases="$failed_cases$1
+"
+    printf '    %sFAIL%s  %s\n' "$style_fail" "$style_off" "$detail"
+    if [ -n "${2-}" ]; then
+        printf '          %s%s%s\n' "$style_dim" "$2" "$style_off"
+    fi
+}
+
+# Whole hours and minutes are dropped rather than printed as zero, so a short run reads as seconds.
+elapsed() {
+    span="$1"
+    if [ "$span" -ge 3600 ]; then
+        printf '%dh %02dm %02ds' "$((span / 3600))" "$(((span % 3600) / 60))" "$((span % 60))"
+    elif [ "$span" -ge 60 ]; then
+        printf '%dm %02ds' "$((span / 60))" "$((span % 60))"
+    else
+        printf '%ds' "$span"
+    fi
+}
 
 # The consumer fixtures below are written by quoted heredocs, and quoted is what they have to stay: the
 # project files they carry hold Maven ${...} properties that an interpolating heredoc would hand to the
@@ -23,10 +98,14 @@ harness_version='1.0.7-SNAPSHOT'
 repository="$(cd "$(dirname "$0")/.." && pwd)"
 declared="$(sed -n 's|^ *<version>\(.*\)</version> *$|\1|p' "$repository/pom.xml" | head -n 1)"
 if [ "$declared" != "$harness_version" ]; then
-    printf 'FAILED   version: %s declares %s, and this suite is written for %s\n' \
-        "$repository/pom.xml" "$declared" "$harness_version" >&2
+    printf '\n  %s%s declares %s, and this suite is written for %s%s\n\n' \
+        "$style_fail" "$repository/pom.xml" "$declared" "$harness_version" "$style_off" >&2
     exit 1
 fi
+
+printf '\n  %sAirness integration verification%s\n' "$style_bold" "$style_off"
+printf '  %sharness %s, from isolated consumer repositories%s\n' \
+    "$style_dim" "$harness_version" "$style_off"
 
 # Where the reactor installed what this suite consumes. A settings.xml that moves the local repository
 # is not read here, so a run using one names it through this variable rather than being quietly wrong.
@@ -290,15 +369,33 @@ JAVA
     git -C "$directory" init --quiet
     git -C "$directory" config user.name Fixture
     git -C "$directory" config user.email fixture@example.invalid
-    (cd "$directory" && mvn --quiet airness:assets-sync >/dev/null)
-    (cd "$directory" && mvn --quiet clean package -Dairness.enforce=false >/dev/null)
-    (cd "$directory" && mvn --quiet process-resources -Pformat -Dairness.enforce=false >/dev/null)
+    prepare "$directory" --quiet airness:assets-sync
+    prepare "$directory" --quiet clean package -Dairness.enforce=false
+    prepare "$directory" --quiet process-resources -Pformat -Dairness.enforce=false
     git -C "$directory" add --all
     # A body, because the slow profile reads this history back and a non-trivial change needs one.
     git -C "$directory" commit --quiet \
         --message 'test(it): create an isolated consumer fixture' \
         --message 'The fixture carries one source per rule the harness enforces, so a consumer build has something to report on.'
     printf '%s\n' "$directory"
+}
+
+# A setup step is not a case, so what it writes is captured rather than printed. Every direct start of a
+# JVM emits a deprecation warning that a transitive dependency of Maven earns and this suite cannot fix,
+# and sixty of them between two hundred result lines is what makes the result lines hard to read. A step
+# that succeeds has nothing to say. One that fails prints what it wrote and stops, which is more than the
+# bare abort that set -e would otherwise produce.
+prepare_step=0
+prepare() {
+    prepare_directory="$1"
+    shift
+    prepare_step=$((prepare_step + 1))
+    prepare_log="$scratch/prepare-$prepare_step-$(basename "$prepare_directory").log"
+    if ! (cd "$prepare_directory" && mvn "$@") > "$prepare_log" 2>&1; then
+        printf '\n  %ssetup failed in %s%s\n' "$style_fail" "$prepare_directory" "$style_off" >&2
+        sed -n '1,220p' "$prepare_log" >&2
+        exit 1
+    fi
 }
 
 run_case() {
@@ -308,21 +405,21 @@ run_case() {
     directory="$4"
     shift 4
     log="$scratch/$(printf '%s' "$label" | tr ' /:' '____').log"
+    case_started="$(date +%s)"
     set +e
     (cd "$directory" && mvn --batch-mode --no-transfer-progress "$@") >"$log" 2>&1
     status=$?
     set -e
+    printf '%s\t%s\n' "$(($(date +%s) - case_started))" "$label" >> "$scratch/timings.tsv"
     matched=0
     if grep -Eq "$pattern" "$log"; then
         matched=1
     fi
     if [ "$status" -eq "$expected" ] && [ "$matched" -eq 1 ]; then
-        printf 'ok       %s\n' "$label"
+        pass "$label"
     else
-        printf 'FAILED   %s (exit %s, expected %s, pattern /%s/: %s)\n' \
-            "$label" "$status" "$expected" "$pattern" "$matched" >&2
+        fail "$label" "exit $status, expected $expected; pattern /$pattern/ matched $matched"
         sed -n '1,220p' "$log" >&2
-        failures=$((failures + 1))
     fi
 }
 
@@ -362,7 +459,7 @@ POM
     cat >> "$directory/pom.xml" <<'POM'
 </project>
 POM
-    (cd "$directory" && mvn --quiet install -DskipTests)
+    prepare "$directory" --quiet install -DskipTests
 }
 
 consumer="$(new_consumer consumer)"
@@ -796,10 +893,9 @@ if grep -Fq '    private static final float FRACTION = 0.75F;' \
     "$consumer/src/main/java/com/example/FormatFixture.java" \
     && grep -Fq '    public static float value() {' \
         "$consumer/src/main/java/com/example/FormatFixture.java"; then
-    echo 'ok       format: inherited profile applies source formatting'
+    pass 'format: inherited profile applies source formatting'
 else
-    echo 'FAILED   format: inherited profile did not apply source formatting' >&2
-    failures=$((failures + 1))
+    fail 'format: inherited profile did not apply source formatting'
 fi
 run_case 'format: unchanged sources pass enforcement' 0 'BUILD SUCCESS' \
     "$consumer" airness:source-formatting
@@ -1596,17 +1692,15 @@ run_case 'tests: the inherited timeout bounds a wait no test declared' 0 'timed 
 rm "$consumer/src/test/java/com/example/UnboundedTest.java"
 
 if grep -Fq 'LOGGER.info("value {}", value);' "$consumer/src/main/java/com/example/RewriteLogging.java"; then
-    echo 'ok       rewrite: SLF4J best practices reach consumers'
+    pass 'rewrite: SLF4J best practices reach consumers'
 else
-    echo 'FAILED   rewrite: SLF4J best practices did not reach consumers' >&2
-    failures=$((failures + 1))
+    fail 'rewrite: SLF4J best practices did not reach consumers'
 fi
 
 if grep -Fq 'StringUtils.isBlank' "$consumer/src/main/java/com/example/RewriteApache.java"; then
-    echo 'FAILED   rewrite: Apache Commons cleanup did not reach consumers' >&2
-    failures=$((failures + 1))
+    fail 'rewrite: Apache Commons cleanup did not reach consumers'
 else
-    echo 'ok       rewrite: Apache Commons cleanup reaches consumers'
+    pass 'rewrite: Apache Commons cleanup reaches consumers'
 fi
 
 # The only static-analysis recipe named on its own, because it is absent from the composite that
@@ -1614,17 +1708,15 @@ fi
 # take it away without a word.
 if grep -Fq 'map.entrySet()' "$consumer/src/main/java/com/example/RewriteMapIteration.java" \
     && ! grep -Fq 'map.keySet()' "$consumer/src/main/java/com/example/RewriteMapIteration.java"; then
-    echo 'ok       rewrite: the map iteration cleanup reaches consumers'
+    pass 'rewrite: the map iteration cleanup reaches consumers'
 else
-    echo 'FAILED   rewrite: the map iteration cleanup did not reach consumers' >&2
-    failures=$((failures + 1))
+    fail 'rewrite: the map iteration cleanup did not reach consumers'
 fi
 
 if grep -Fq 'assertThat("").isEmpty();' "$consumer/src/test/java/com/example/RewriteTestingTest.java"; then
-    echo 'ok       rewrite: AssertJ cleanup reaches consumers'
+    pass 'rewrite: AssertJ cleanup reaches consumers'
 else
-    echo 'FAILED   rewrite: test-framework cleanup did not reach consumers' >&2
-    failures=$((failures + 1))
+    fail 'rewrite: test-framework cleanup did not reach consumers'
 fi
 
 # The agent files connect coding tools to the shared project instructions. Explicit synchronization
@@ -1634,42 +1726,36 @@ printf '@AGENTS.md\n' > "$expected_claude"
 expected_java_version="$scratch/expected-java-version"
 printf '25\n' > "$expected_java_version"
 if cmp -s "$expected_claude" "$consumer/CLAUDE.md"; then
-    echo 'ok       instructions: sync writes the exact Claude entry'
+    pass 'instructions: sync writes the exact Claude entry'
 else
-    echo 'FAILED   instructions: sync wrote the wrong Claude entry' >&2
-    failures=$((failures + 1))
+    fail 'instructions: sync wrote the wrong Claude entry'
 fi
 if sed -n '1p' "$consumer/AGENTS.md" | grep -Fq '<!-- BEGIN AIRNESS MANAGED INSTRUCTIONS -->' \
     && grep -Fq '# Consumer instructions' "$consumer/AGENTS.md"; then
-    echo 'ok       instructions: sync prepends Airness and preserves project prose'
+    pass 'instructions: sync prepends Airness and preserves project prose'
 else
-    echo 'FAILED   instructions: sync did not compose AGENTS.md safely' >&2
-    failures=$((failures + 1))
+    fail 'instructions: sync did not compose AGENTS.md safely'
 fi
 if grep -Fq '# Airness Agent Guide' "$consumer/.airness/agent-guide.md"; then
-    echo 'ok       instructions: sync writes the detailed agent guide'
+    pass 'instructions: sync writes the detailed agent guide'
 else
-    echo 'FAILED   instructions: sync did not write the detailed agent guide' >&2
-    failures=$((failures + 1))
+    fail 'instructions: sync did not write the detailed agent guide'
 fi
 if grep -Fq '= Software Project Guideline' "$consumer/README-guideline-software-project.adoc"; then
-    echo 'ok       instructions: sync writes the software project guideline'
+    pass 'instructions: sync writes the software project guideline'
 else
-    echo 'FAILED   instructions: sync did not write the software project guideline' >&2
-    failures=$((failures + 1))
+    fail 'instructions: sync did not write the software project guideline'
 fi
 if cmp -s "$expected_java_version" "$consumer/.java-version"; then
-    echo 'ok       assets: sync writes the pinned Java version'
+    pass 'assets: sync writes the pinned Java version'
 else
-    echo 'FAILED   assets: sync wrote the wrong Java version' >&2
-    failures=$((failures + 1))
+    fail 'assets: sync wrote the wrong Java version'
 fi
 if cmp -s "$repository/airness-assets/src/main/resources/airness/files/.dockerignore.asset" \
     "$consumer/.dockerignore"; then
-    echo 'ok       assets: sync writes the Docker ignore seed'
+    pass 'assets: sync writes the Docker ignore seed'
 else
-    echo 'FAILED   assets: sync did not write the Docker ignore seed' >&2
-    failures=$((failures + 1))
+    fail 'assets: sync did not write the Docker ignore seed'
 fi
 mv "$consumer/.dockerignore" "$scratch/consumer-dockerignore"
 run_case 'assets: Docker ignore seed is mandatory' 1 \
@@ -1688,13 +1774,12 @@ mv "$scratch/consumer-AGENTS.md" "$consumer/AGENTS.md"
 perl -0pi -e 's/Follow the complete Airness contract/Ignore the complete Airness contract/' "$consumer/AGENTS.md"
 run_case 'instructions: stale Airness block is rejected' 1 'stale Airness instructions' \
     "$consumer" airness:entry-files
-(cd "$consumer" && mvn --quiet airness:assets-sync >/dev/null)
+prepare "$consumer" --quiet airness:assets-sync
 if grep -Fq 'Follow the complete Airness contract' "$consumer/AGENTS.md" \
     && grep -Fq '# Consumer instructions' "$consumer/AGENTS.md"; then
-    echo 'ok       instructions: sync refreshes only the managed block'
+    pass 'instructions: sync refreshes only the managed block'
 else
-    echo 'FAILED   instructions: sync did not preserve prose while refreshing the block' >&2
-    failures=$((failures + 1))
+    fail 'instructions: sync did not preserve prose while refreshing the block'
 fi
 printf '@AGENTS.md\nRun Maven first.\n' > "$consumer/CLAUDE.md"
 run_case 'instructions: CLAUDE has exact content' 1 'must contain exactly @AGENTS.md' \
@@ -1704,17 +1789,15 @@ run_case 'assets: package rejects drifted pinned content' 1 \
     'Files the harness owns that this project changed or is missing|\.java-version' \
     "$consumer" package
 if grep -Fqx '24' "$consumer/.java-version"; then
-    echo 'ok       assets: failed package leaves drifted content untouched'
+    pass 'assets: failed package leaves drifted content untouched'
 else
-    echo 'FAILED   assets: failed package rewrote drifted pinned content' >&2
-    failures=$((failures + 1))
+    fail 'assets: failed package rewrote drifted pinned content'
 fi
-(cd "$consumer" && mvn --quiet airness:assets-sync >/dev/null)
+prepare "$consumer" --quiet airness:assets-sync
 if cmp -s "$expected_java_version" "$consumer/.java-version"; then
-    echo 'ok       assets: explicit sync restores drifted pinned content'
+    pass 'assets: explicit sync restores drifted pinned content'
 else
-    echo 'FAILED   assets: explicit sync did not restore drifted pinned content' >&2
-    failures=$((failures + 1))
+    fail 'assets: explicit sync did not restore drifted pinned content'
 fi
 printf 'duplicate license declaration\n' > "$consumer/LiCeNsE.Md"
 run_case 'assets: root license filename is rejected case-insensitively' 1 \
@@ -1833,7 +1916,7 @@ package com.example;
 final class OnlyTest {
 }
 JAVA
-(cd "$multimodule" && mvn --quiet editorconfig:format -Preactor-child >/dev/null)
+prepare "$multimodule" --quiet editorconfig:format -Preactor-child
 git -C "$multimodule" add --all
 git -C "$multimodule" commit --quiet --message 'test(it): add the reactor child fixture'
 run_case 'tree: a child-module mutation fails the reactor build' 1 \
@@ -1846,10 +1929,9 @@ git -C "$multimodule" restore .gitattributes
 run_case 'skip: independent child version packages' 0 'BUILD SUCCESS' "$consumer" clean package -DskipTests
 if grep -Eq 'rule\(s\) reported findings|Missing current-build JaCoCo evidence|Java sources that do not match' \
     "$scratch/skip__independent_child_version_packages.log"; then
-    echo 'FAILED   skip: harness findings were shown' >&2
-    failures=$((failures + 1))
+    fail 'skip: harness findings were shown'
 else
-    echo 'ok       skip: no harness findings are shown'
+    pass 'skip: no harness findings are shown'
 fi
 
 # A real JUnit failure is inherited without child dependency declarations. Default enforcement fails;
@@ -1874,10 +1956,9 @@ run_case 'default: test finding fails' 1 'Failures: 1|BUILD FAILURE' "$consumer"
 run_case 'report-only: test finding is visible' 0 'Failures: 1' "$consumer" clean package -Dairness.enforce=false
 if grep -Eq 'Missing current-build JaCoCo evidence|PMD Failure|Banned typography|Java sources that do not match' \
     "$scratch/report-only__test_finding_is_visible.log"; then
-    echo 'ok       report-only: later harness checks also run'
+    pass 'report-only: later harness checks also run'
 else
-    echo 'FAILED   report-only: later harness checks did not run' >&2
-    failures=$((failures + 1))
+    fail 'report-only: later harness checks did not run'
 fi
 
 # A suppression still needs a real explanation. Exercise the custom PMD rule directly so the failing
@@ -1983,7 +2064,7 @@ rm "$consumer/src/main/java/com/example/ProseJustification.java"
 # a Java-source rule.
 mkdir -p "$consumer/src/main/resources/.idea"
 printf 'local workspace metadata\n' > "$consumer/src/main/resources/.idea/workspace.xml"
-(cd "$consumer" && mvn --quiet resources:resources jar:jar -DskipTests)
+prepare "$consumer" --quiet resources:resources jar:jar -DskipTests
 run_case 'artifact: development metadata in the finished jar is rejected' 1 \
     'Source or development files packaged in the JAR|[.]idea/workspace[.]xml' \
     "$consumer" airness:artifact-content
@@ -2137,7 +2218,7 @@ cat > "$stale_grandparent/pom.xml" <<'POM'
   </properties>
 </project>
 POM
-(cd "$stale_grandparent" && mvn --quiet --non-recursive install -DskipTests)
+prepare "$stale_grandparent" --quiet --non-recursive install -DskipTests
 
 middle_parent="$scratch/middle-parent"
 mkdir -p "$middle_parent"
@@ -2155,7 +2236,7 @@ cat > "$middle_parent/pom.xml" <<'POM'
   <packaging>pom</packaging>
 </project>
 POM
-(cd "$middle_parent" && mvn --quiet --non-recursive install -DskipTests)
+prepare "$middle_parent" --quiet --non-recursive install -DskipTests
 
 ancestry_consumer="$scratch/ancestry-consumer"
 mkdir -p "$ancestry_consumer"
@@ -2237,7 +2318,7 @@ run_case 'freshness: child override resolves an uninstalled parent declaration' 
 # Production code without tests cannot deactivate coverage merely by omitting src/test/java.
 untested="$(new_consumer untested)"
 rm -rf "$untested/src/test"
-(cd "$untested" && mvn --quiet clean compile -DskipTests >/dev/null)
+prepare "$untested" --quiet clean compile -DskipTests
 run_case 'coverage: no-test production module fails' 1 'Missing current-build JaCoCo evidence' \
     "$untested" airness:coverage-evidence
 run_case 'coverage: no-test finding reports without failing' 0 'Missing current-build JaCoCo evidence' \
@@ -2281,11 +2362,10 @@ extended_log="$scratch/extended-profile.log"
     -Dairness.enforce=false) > "$extended_log" 2>&1 || true
 reached="$(grep -cE '^\[INFO\] --- airness:[^ ]+:(commit-history|commit-typography|linear-history|scan-secrets) \(airness-governance-extended\)' "$extended_log" || true)"
 if [ "$reached" -eq 4 ] && grep -Fq 'Commit messages that break the policy' "$extended_log"; then
-    echo 'ok       extended: a consumer reaches the profile governance goals'
+    pass 'extended: a consumer reaches the profile governance goals'
 else
-    echo "FAILED   extended: a consumer reached $reached of 4 profile governance goals" >&2
+    fail "extended: a consumer reached $reached of 4 profile governance goals"
     sed -n '1,220p' "$extended_log" >&2
-    failures=$((failures + 1))
 fi
 
 # Two inspections of the Qodana profile are off, and the fixture below carries what a consumer could not
@@ -2795,39 +2875,34 @@ JAVA
         > "$qodana_log" 2>&1 || true
     qodana_sarif="$qodana_consumer/target/qodana/qodana.sarif.json"
     if [ ! -f "$qodana_sarif" ]; then
-        echo 'FAILED   qodana: the run left no report to read' >&2
+        fail 'qodana: the run left no report to read'
         sed -n '1,220p' "$qodana_log" >&2
-        failures=$((failures + 1))
     else
         for dropped in InnerClassOnInterface ClassWithTooManyDependencies; do
             reported="$(grep -c "\"ruleId\": \"$dropped\"" "$qodana_sarif" || true)"
             if [ "$reported" -eq 0 ]; then
-                printf 'ok       qodana: %s reports nothing on the fixture\n' "$dropped"
+                pass "qodana: $dropped reports nothing on the fixture"
             else
-                printf 'FAILED   qodana: %s reported %s finding(s)\n' "$dropped" "$reported" >&2
-                failures=$((failures + 1))
+                fail "qodana: $dropped reported $reported finding(s)"
             fi
         done
         if grep -q "'CommandRouter' is overly coupled" "$qodana_sarif"; then
-            echo 'ok       qodana: ClassCoupling still reports an over-coupled class'
+            pass 'qodana: ClassCoupling still reports an over-coupled class'
         else
-            echo 'FAILED   qodana: ClassCoupling stopped reporting the over-coupled class' >&2
+            fail 'qodana: ClassCoupling stopped reporting the over-coupled class'
             sed -n '1,220p' "$qodana_log" >&2
-            failures=$((failures + 1))
         fi
         for spared in CommandRunner JdkHeavy; do
             if grep -q "'$spared' is overly coupled" "$qodana_sarif"; then
-                printf 'FAILED   qodana: ClassCoupling reported %s\n' "$spared" >&2
-                failures=$((failures + 1))
+                fail "qodana: ClassCoupling reported $spared"
             else
-                printf 'ok       qodana: ClassCoupling leaves %s alone\n' "$spared"
+                pass "qodana: ClassCoupling leaves $spared alone"
             fi
         done
         if grep -q "Class 'Tool' has only 'static' members" "$qodana_sarif"; then
-            echo 'ok       qodana: a static-only class with a main is still reported'
+            pass 'qodana: a static-only class with a main is still reported'
         else
-            echo 'FAILED   qodana: the utility-class exemption reached a project without the annotation' >&2
-            failures=$((failures + 1))
+            fail 'qodana: the utility-class exemption reached a project without the annotation'
         fi
     fi
 fi
@@ -3358,17 +3433,15 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringWebMappingNamesItsMethod AirnessSpringWebParameterIsNamed \
     AirnessSpringWebRequestBodyIsValidated AirnessSpringWebSignatureIsNotServletTyped; do
     if grep -q "$rule" "$spring_log"; then
-        printf 'ok       spring: %s reports on the fixture\n' "$rule"
+        pass "spring: $rule reports on the fixture"
     else
-        printf 'FAILED   spring: %s reported nothing\n' "$rule" >&2
-        failures=$((failures + 1))
+        fail "spring: $rule reported nothing"
     fi
 done
 if grep -q 'Use constructor injection instead of field injection' "$spring_log"; then
-    echo 'ok       spring: field injection is refused'
+    pass 'spring: field injection is refused'
 else
-    echo 'FAILED   spring: field injection went unreported' >&2
-    failures=$((failures + 1))
+    fail 'spring: field injection went unreported'
 fi
 
 run_case 'spring: a native query without a reason is refused' 0 'NativeQueryNeedsJustification' \
@@ -3388,10 +3461,9 @@ run_case 'spring: the source goal reports every rule it states' 0 'Spring source
 spring_source_log="$scratch/spring__the_source_goal_reports_every_rule_it_states.log"
 while IFS= read -r rule; do
     if grep -qF "$rule" "$spring_source_log"; then
-        printf 'ok       spring: the source goal reports %s\n' "$rule"
+        pass "spring: the source goal reports $rule"
     else
-        printf 'FAILED   spring: the source goal reported nothing for %s\n' "$rule" >&2
-        failures=$((failures + 1))
+        fail "spring: the source goal reported nothing for $rule"
     fi
 done <<'RULES'
 Spring application classes outside the declared package root
@@ -3412,10 +3484,9 @@ run_case 'spring: the configuration goal reports every rule it states' 0 'Spring
 spring_configuration_log="$scratch/spring__the_configuration_goal_reports_every_rule_it_states.log"
 while IFS= read -r rule; do
     if grep -qF "$rule" "$spring_configuration_log"; then
-        printf 'ok       spring: the configuration goal reports %s\n' "$rule"
+        pass "spring: the configuration goal reports $rule"
     else
-        printf 'FAILED   spring: the configuration goal reported nothing for %s\n' "$rule" >&2
-        failures=$((failures + 1))
+        fail "spring: the configuration goal reported nothing for $rule"
     fi
 done <<'RULES'
 management.endpoints.web.exposure.include: the actuator is exposed at a wildcard
@@ -3460,16 +3531,14 @@ run_case 'spring: a plain consumer still refuses field injection' 0 \
     "$plain_spring" checkstyle:check -Dairness.enforce=false
 plain_log="$scratch/spring__a_plain_consumer_still_refuses_field_injection.log"
 if grep -q 'AirnessSpring' "$plain_log"; then
-    echo 'FAILED   spring: a Spring rule reached a project that is not a Spring Boot one' >&2
-    failures=$((failures + 1))
+    fail 'spring: a Spring rule reached a project that is not a Spring Boot one'
 else
-    echo 'ok       spring: the Spring rules stay suppressed outside a Spring Boot project'
+    pass 'spring: the Spring rules stay suppressed outside a Spring Boot project'
 fi
 if grep -q 'A concrete class must be final' "$plain_log"; then
-    echo 'ok       spring: the final-class rule keeps its Spring exemption to the Spring parent'
+    pass 'spring: the final-class rule keeps its Spring exemption to the Spring parent'
 else
-    echo 'FAILED   spring: the final-class relaxation leaked outside a Spring Boot project' >&2
-    failures=$((failures + 1))
+    fail 'spring: the final-class relaxation leaked outside a Spring Boot project'
 fi
 
 # A Spring Boot application built and run the way one ships. This is the only case that resolves the
@@ -3606,7 +3675,7 @@ INSTRUCTIONS
 git -C "$spring_app" init --quiet
 git -C "$spring_app" config user.name Fixture
 git -C "$spring_app" config user.email fixture@example.invalid
-(cd "$spring_app" && mvn --quiet airness:assets-sync >/dev/null)
+prepare "$spring_app" --quiet airness:assets-sync
 # No format step, deliberately, and the fixture verifies without one. That is the guard on the Java 25
 # recipe set: spring-boot-starter-test carries Mockito transitively, and while the upstream migration
 # wired Mockito's agent into surefire, every Spring Boot project failed its first build until it had
@@ -3622,10 +3691,9 @@ run_case 'spring: a conforming Spring Boot application verifies' 0 'BUILD SUCCES
 
 spring_jar="$spring_app/target/spring-app-1.0.0.jar"
 if unzip -l "$spring_jar" 2>/dev/null | grep -q 'jspecify'; then
-    echo 'ok       spring: the repackaged archive carries the annotations the container reads'
+    pass 'spring: the repackaged archive carries the annotations the container reads'
 else
-    echo 'FAILED   spring: the repackaged archive omits the annotations the container reads' >&2
-    failures=$((failures + 1))
+    fail 'spring: the repackaged archive omits the annotations the container reads'
 fi
 spring_run="$scratch/spring-app-run.log"
 java -jar "$spring_jar" --server.port=0 --spring.main.banner-mode=off > "$spring_run" 2>&1 &
@@ -3641,11 +3709,10 @@ done
 kill "$spring_pid" 2>/dev/null || true
 wait "$spring_pid" 2>/dev/null || true
 if grep -q 'Started Application' "$spring_run"; then
-    echo 'ok       spring: the repackaged archive starts from a package-private main'
+    pass 'spring: the repackaged archive starts from a package-private main'
 else
-    echo 'FAILED   spring: the repackaged archive did not start' >&2
+    fail 'spring: the repackaged archive did not start'
     sed -n '1,220p' "$spring_run" >&2
-    failures=$((failures + 1))
 fi
 
 # The entry point of the same application, read by the inspection engine. It holds nothing but its main,
@@ -3670,10 +3737,9 @@ else
         "$spring_app" airness:qodana
     spring_sarif="$spring_app/target/qodana/qodana.sarif.json"
     if [ -f "$spring_sarif" ] && ! grep -q '"ruleId": "UtilityClassWithoutPrivateConstructor"' "$spring_sarif"; then
-        echo 'ok       spring: the entry point is not read as a utility class'
+        pass 'spring: the entry point is not read as a utility class'
     else
-        echo 'FAILED   spring: the entry point is still read as a utility class' >&2
-        failures=$((failures + 1))
+        fail 'spring: the entry point is still read as a utility class'
     fi
 fi
 
@@ -3682,17 +3748,30 @@ assets="$local_repository/eu/ciechanowiec/airness-assets/$harness_version/airnes
 listing="$scratch/assets.txt"
 jar tf "$assets" > "$listing"
 if ! grep -Fq 'airness/files/README-guideline-software-project.adoc.asset' "$listing"; then
-    echo 'FAILED   assets: published jar omitted the software project guideline' >&2
-    failures=$((failures + 1))
+    fail 'assets: published jar omitted the software project guideline'
 elif grep -Ev 'airness/files/README-guideline-software-project[.]adoc[.]asset$' "$listing" \
     | grep -Eq '(^|/)(\.vale|\.docs|docinfo|README|githooks|lint-docs)'; then
-    echo 'FAILED   assets: documentation or hooks leaked into the published jar' >&2
-    failures=$((failures + 1))
+    fail 'assets: documentation or hooks leaked into the published jar'
 else
-    echo 'ok       assets: published jar contains only the pinned guideline'
+    pass 'assets: published jar contains only the pinned guideline'
 fi
 
+# The failed cases are named once more here. After two hundred lines of scroll the reader needs the list
+# collected rather than found again, and the log excerpt for each is already above under its own domain.
+total=$((passed + failures))
+took="$(elapsed "$(($(date +%s) - started))")"
+
+printf '\n  %s%s%s\n' "$style_dim" \
+    '------------------------------------------------------------' "$style_off"
 if [ "$failures" -ne 0 ]; then
-    printf '\n%s integration case(s) failed.\n' "$failures" >&2
+    printf '  %sFailed%s\n' "$style_bold" "$style_off"
+    printf '%s' "$failed_cases" | while IFS= read -r case_label; do
+        if [ -n "$case_label" ]; then
+            printf '    %s\n' "$case_label"
+        fi
+    done
+    printf '\n  %s%s of %s cases failed%s, %s\n' \
+        "$style_fail" "$failures" "$total" "$style_off" "$took"
     exit 1
 fi
+printf '  %sall %s cases passed%s, %s\n' "$style_pass" "$total" "$style_off" "$took"
