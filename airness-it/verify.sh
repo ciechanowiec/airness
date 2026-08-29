@@ -3165,6 +3165,81 @@ interface PersistedRepository {
     Set<Persisted> byNativeQuery();
 }
 JAVA
+cat > "$spring_source/src/main/java/com/example/Hardened.java" <<'JAVA'
+package com.example;
+
+@Entity
+class Hardened {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    public final Long identifier() {
+        return this.id;
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Frozen.java" <<'JAVA'
+package com.example;
+
+@Entity
+final class Frozen {
+
+    private static final long SERIAL = 1L;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private final Long id = null;
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Enclosing.java" <<'JAVA'
+package com.example;
+
+class Enclosing {
+
+    @Entity
+    class Nested {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Recorded.java" <<'JAVA'
+package com.example;
+
+@Entity
+record Recorded(Long id, String label) {
+}
+JAVA
+# A correct entity. It is the counterpart of the fixtures above: nothing may report it, and in
+# particular neither the final-class nor the final-field rule, which held it before the persistence
+# exemptions were written.
+cat > "$spring_source/src/main/java/com/example/Retained.java" <<'JAVA'
+package com.example;
+
+@Entity
+class Retained {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String label;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Retained parent;
+
+    protected Retained() {
+    }
+
+    public String label() {
+        return this.label;
+    }
+}
+JAVA
 cat > "$spring_source/src/main/java/com/example/Served.java" <<'JAVA'
 package com.example;
 
@@ -3496,7 +3571,10 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringDataQueryIsNotConcatenated AirnessSpringEventListenerIsTransactionAware \
     AirnessSpringEventListenerTakesOneArgument AirnessSpringInitBinderReturnsVoid \
     AirnessSpringInjectionIsNotStatic AirnessSpringJpaEntityHasANoArgConstructor \
-    AirnessSpringJpaEntityIsNotALombokValue AirnessSpringJpaIdStrategyIsExplicit \
+    AirnessSpringJpaEntityFieldIsNotFinal AirnessSpringJpaEntityIsNotALombokValue \
+    AirnessSpringJpaEntityIsNotAnInnerClass AirnessSpringJpaEntityIsNotFinal \
+    AirnessSpringJpaEntityIsNotARecord AirnessSpringJpaEntityMethodIsNotFinal \
+    AirnessSpringJpaIdStrategyIsExplicit \
     AirnessSpringJpaManyToManyUsesASet AirnessSpringJpaToManyDoesNotCascadeRemove \
     AirnessSpringJpaToOneIsLazy AirnessSpringMethodSecurityIsPublic \
     AirnessSpringModifyingClearsThePersistenceContext AirnessSpringNoLazyCycleBreak \
@@ -3525,6 +3603,12 @@ if grep -q 'Use constructor injection instead of field injection' "$spring_log";
     pass 'spring: field injection is refused'
 else
     fail 'spring: field injection went unreported'
+fi
+
+if grep -E 'Retained\.java.*(concrete class must be final|assigned once)' "$spring_log" >/dev/null; then
+    fail 'spring: a correct entity was held to the final-class or final-field rule'
+else
+    pass 'spring: a correct entity is exempt from the final-class and final-field rules'
 fi
 
 run_case 'spring: a native query without a reason is refused' 0 'NativeQueryNeedsJustification' \

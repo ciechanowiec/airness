@@ -229,6 +229,23 @@
             <property name="query"
                       value="//CLASS_DEF[.//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='Retryable' or @text='Validated']]/descendant-or-self::node()"/>
         </module>
+        <module name="SuppressionXpathSingleFilter">
+            <!--
+                Hibernate subclasses a persistent type at run time to stand in for a row it has not read
+                yet, so a final one gets no proxy and every association to it is read immediately. That
+                turns the LAZY the rule below requires into a fetch the query does not state.
+
+                An embeddable and a mapped superclass are named beside the entity because the provider
+                instantiates and proxies all three, and none of them is written final.
+
+                The file pattern is empty everywhere but under airness-parent-spring-boot, so a project
+                that is not a Spring Boot one answers to the final-class rule with nothing taken out.
+            -->
+            <property name="id" value="RequireFinalClass"/>
+            <property name="files" value="${airness.checkstyle.spring.relaxed}"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='Embeddable' or @text='MappedSuperclass']]/descendant-or-self::node()"/>
+        </module>
         <module name="HideUtilityClassConstructor"/>
         <module name="SuppressionXpathSingleFilter">
             <!-- See: https://github.com/checkstyle/checkstyle/issues/2579#issuecomment-539038275 -->
@@ -316,6 +333,21 @@
                          ]"/>
             <message key="matchxpath.match"
                      value="A field is assigned once, when its object is created, so declare it final."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <!--
+                A persistent field is written by the provider after the constructor taking no arguments has
+                run, and again on every load of the row. Declaring it final leaves the provider assigning a
+                field the language says is already settled.
+
+                The exemption covers the whole body rather than the annotated fields alone, because a field
+                mapped by convention carries no annotation to match and is persisted exactly as an annotated
+                one is.
+            -->
+            <property name="id" value="RequireFinalField"/>
+            <property name="files" value="${airness.checkstyle.spring.relaxed}"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='Embeddable' or @text='MappedSuperclass']]/descendant-or-self::node()"/>
         </module>
         <module name="MatchXpath">
             <!--
@@ -1437,6 +1469,88 @@
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringJpaEntityHasANoArgConstructor"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The exemption above stops the final-class rule reaching a persistent type, and this states the
+                requirement that replaces it. Without the pair, a type written final draws nothing, and the
+                habit the final-class rule teaches everywhere else makes that the likely way to write one.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityIsNotFinal"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='Embeddable' or @text='MappedSuperclass'] and ./MODIFIERS/FINAL]"/>
+            <message key="matchxpath.match"
+                     value="Hibernate subclasses a persistent type to stand in for a row it has not read, and a final one gets no proxy, so every association to it is read immediately. Remove the final modifier."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityIsNotFinal"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The counterpart one level down, for the same reason. A constant is left alone, because a static
+                field holds no column and the provider never writes it.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityFieldIsNotFinal"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='Embeddable' or @text='MappedSuperclass']]/OBJBLOCK/VARIABLE_DEF[./MODIFIERS/FINAL and not(./MODIFIERS/LITERAL_STATIC)]"/>
+            <message key="matchxpath.match"
+                     value="The provider writes a persistent field after the constructor has run and again on every load, which a final field refuses. Remove the final modifier."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityFieldIsNotFinal"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The proxy that stands in for an unread row is a subclass, and it works by overriding every
+                method it has to intercept. A final one is called on the proxy while its fields are still
+                empty, so it returns null for a column the row holds.
+
+                The rule exists because the class-level exemption above stopped RequireFinalClass reaching an
+                entity, and the final method inside it is no longer reported by RedundantModifier as a
+                consequence.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityMethodIsNotFinal"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='MappedSuperclass']]/OBJBLOCK/METHOD_DEF[./MODIFIERS/FINAL]"/>
+            <message key="matchxpath.match"
+                     value="A lazy-loading proxy overrides every method it intercepts, and it cannot override a final one, so this method reads empty state. Remove the final modifier."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityMethodIsNotFinal"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                An inner class holds a reference to the instance that made it, so it has no constructor the
+                provider can call. The report arrives when the mapping is built rather than here.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityIsNotAnInnerClass"/>
+            <property name="query"
+                      value="//OBJBLOCK/CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='Embeddable' or @text='MappedSuperclass'] and not(./MODIFIERS/LITERAL_STATIC)]"/>
+            <message key="matchxpath.match"
+                     value="An inner class carries a reference to its enclosing instance, so the provider cannot construct it. Declare the nested type static, or move it to its own file."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityIsNotAnInnerClass"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A record is final and its components are final, which denies the provider both the subclass
+                it proxies with and the fields it writes on load. It also has no constructor taking nothing.
+                Three requirements fail at once, and none of them can be waived on a record.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityIsNotARecord"/>
+            <property name="query"
+                      value="//RECORD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='MappedSuperclass']]"/>
+            <message key="matchxpath.match"
+                     value="A record is final and holds final components, so the provider can neither proxy nor populate it. Declare the persistent type as a class."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityIsNotARecord"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">
