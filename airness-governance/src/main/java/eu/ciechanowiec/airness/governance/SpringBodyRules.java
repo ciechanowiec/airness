@@ -36,7 +36,20 @@ final class SpringBodyRules {
     private static final Pattern IDENTIFIER = Pattern.compile(
         "@Id\\b\\s*(?:@\\w+(?:\\s*\\([^)]*\\))?\\s*)*[\\w.$<>\\[\\], ]+?\\s+(\\w+)\\s*[;=]"
     );
-    private static final Pattern EQUALITY = Pattern.compile("(?=\\b(?:equals|hashCode)\\s*\\()");
+    /*
+     * The return type is part of the marker because the name alone does not tell a declaration from a
+     * call. An entity that overrides equality almost always calls equals on the identifier inside it, and
+     * a marker matching that call had the declaration reader run on from there to the next brace it
+     * found, which is the body of whatever method came next. The member that came back was named after
+     * one method and carried the body of another, so the rule counted it twice and could report a class
+     * whose equality never reads the identifier at all.
+     *
+     * An override has one signature each, so pairing the name with the type it must return is exact
+     * rather than merely narrower: a call is never preceded by boolean or int.
+     */
+    private static final Pattern EQUALITY = Pattern.compile(
+        "\\bboolean\\s+(?=equals\\s*\\()|\\bint\\s+(?=hashCode\\s*\\()"
+    );
     private static final Pattern HANDLER = Pattern.compile("@ExceptionHandler\\b");
     private static final Pattern ECHO = Pattern.compile(
         "\\.\\s*(getMessage|getLocalizedMessage|getStackTrace|printStackTrace)\\s*\\("
