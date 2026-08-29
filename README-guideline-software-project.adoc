@@ -186,7 +186,7 @@ This section describes the state of the source code: its size, its types, its na
 [[immutability-and-composition]]
 === Immutability and Composition
 
-. Data is immutable. A field is assigned once, when its object is created, and a local variable is assigned once. Changed state is expressed as a new value, not as an overwrite of the old one. The only way to mutate is through a xref:#suppressions[suppression].
+. Data is immutable. A field is assigned once, when its object is created, and a local variable is assigned once. Changed state is expressed as a new value, not as an overwrite of the old one. A field stays writable only where a dependency must populate it after construction at run time, and the code itself never writes such a field. Anywhere else the only way to mutate is through a xref:#suppressions[suppression].
 . A concrete type is closed to inheritance where the programming language can express the closure. A type stays open only where a dependency must subclass it at run time.
 . New behavior is added by composing objects, not by inheriting. A type inherits only from a base that the programming language or a dependency requires - for example, the base error type.
 
