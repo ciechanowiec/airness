@@ -39,6 +39,11 @@ Airness governs all of the following domains:
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
   settle, production-to-test boundaries, per-class line and branch coverage, and current-build coverage evidence.
+- **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container accepts
+  and then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the web layer,
+  security configuration, asynchrony and scheduling, and test context handling; the runtime settings an
+  `application.yml` or `application.properties` declares, and the ones whose absence decides behaviour; a persistence
+  entity carried by a web request or response; and more than one application class in the build.
 - **Repository assurance:** secret scanning, Qodana analysis, the ceiling on how many suppressions the repository
   holds, complete Git history, commit-message policy, commit typography, linear history, and history-wide
   compliance.

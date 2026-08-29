@@ -3259,6 +3259,32 @@ class ReplacedTest {
     }
 }
 JAVA
+# The two halves of a cross-file defect. Neither source is wrong on its own: an entity is an ordinary
+# entity, a controller is an ordinary controller, and a second application class is what every module
+# holding one looks like. Only the pair is the defect, which is what the module and reactor goals read.
+cat > "$spring_source/src/main/java/com/example/Exposed.java" <<'JAVA'
+package com.example;
+
+@RestController
+class Exposed {
+
+    @GetMapping("/persisted")
+    public List<Persisted> all() {
+        return List.of();
+    }
+
+    @PostMapping("/persisted")
+    public void accept(@RequestBody Persisted persisted) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Twin.java" <<'JAVA'
+package com.example;
+
+@SpringBootApplication(proxyBeanMethods = false)
+class Twin {
+}
+JAVA
 # The runtime settings the same consumer ships. Every rule the configuration check states is broken here
 # once, and several are broken by one line on purpose: openInView is read as open-in-view, so the line
 # both fails the setting and fails the spelling, which is exactly the confusion the spelling rule is for.
@@ -3409,6 +3435,13 @@ server.shutdown is not set as it has to be
 openInView is not written in kebab-case
 credential carries a literal secret
 RULES
+
+run_case 'spring: an entity carried by a web signature is refused' 1 'republishes the schema' \
+    "$spring_source" airness:spring-module
+run_case 'spring: an entity bound from a request body is refused' 1 'every column' \
+    "$spring_source" airness:spring-module
+run_case 'spring: a second application class is refused' 1 'whichever the search finds first' \
+    "$spring_source" airness:spring-reactor
 
 # The same sources under airness-parent. The Spring rules are suppressed there, and the generic rule that
 # grew a Spring annotation is not, which is what says the relaxations reach only a Spring Boot project.

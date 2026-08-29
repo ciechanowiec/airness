@@ -166,9 +166,14 @@
             </plugin>
             <plugin>
                 <!--
-                    The two questions that only a Spring Boot project has to answer, and that no analyzer
+                    The questions that only a Spring Boot project has to answer, and that no analyzer
                     configuration can ask. Bound here rather than in airness-parent, so a project that is
                     not a Spring Boot one never runs the goal at all.
+
+                    The four goals differ in what each has to read before it can answer. Two read one file
+                    at a time, one reads every source of the module because the halves of the defect it
+                    looks for are written in different files, and the last reads every source of the build
+                    because a second application class is only a defect relative to the first.
                 -->
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-maven-plugin</artifactId>
@@ -179,6 +184,8 @@
                         <goals>
                             <goal>spring-source</goal>
                             <goal>spring-configuration</goal>
+                            <goal>spring-module</goal>
+                            <goal>spring-reactor</goal>
                         </goals>
                     </execution>
                 </executions>
