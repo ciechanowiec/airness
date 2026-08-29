@@ -2010,7 +2010,7 @@
             -->
             <property name="id" value="AirnessSpringScheduleIsConfigurable"/>
             <property name="query"
-                      value="//ANNOTATION[./IDENT[@text='Scheduled']]//NUM_INT | //ANNOTATION[./IDENT[@text='Scheduled']]//STRING_LITERAL[not(starts-with(@text,'&quot;$'))]"/>
+                      value="//ANNOTATION[./IDENT[@text='Scheduled']]//NUM_INT | //ANNOTATION[./IDENT[@text='Scheduled']]//STRING_LITERAL[not(starts-with(@text,'$'))]"/>
             <message key="matchxpath.match"
                      value="A schedule written as a literal cannot differ between environments. Read it from a property placeholder."/>
         </module>

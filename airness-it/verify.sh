@@ -3655,6 +3655,12 @@ else
     pass 'spring: a correct entity is exempt from the final-class and final-field rules'
 fi
 
+if grep -E 'Swept\.java.*differ between environments' "$spring_log" >/dev/null; then
+    fail 'spring: a schedule read from a placeholder was called a literal'
+else
+    pass 'spring: a schedule read from a placeholder is accepted'
+fi
+
 run_case 'spring: a native query without a reason is refused' 0 'NativeQueryNeedsJustification' \
     "$spring_source" pmd:check -Dairness.enforce=false
 
