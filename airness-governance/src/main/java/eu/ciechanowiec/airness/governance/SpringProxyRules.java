@@ -109,15 +109,25 @@ final class SpringProxyRules {
     // The identifier immediately before an offset, ignoring whitespace, or an empty string when the text
     // there is not an identifier.
     private static String wordBefore(String code, int at) {
+        int end = wordEnd(code, at);
+        int start = wordStart(code, end);
+        return code.substring(start, end);
+    }
+
+    private static int wordEnd(String code, int at) {
         int end = at;
         while (end > 0 && Character.isWhitespace(code.charAt(end - 1))) {
             end -= 1;
         }
+        return end;
+    }
+
+    private static int wordStart(String code, int end) {
         int start = end;
         while (start > 0 && Character.isJavaIdentifierPart(code.charAt(start - 1))) {
             start -= 1;
         }
-        return code.substring(start, end);
+        return start;
     }
 
     private static String offence(CharSequence source, MatchResult call, String consequence) {
