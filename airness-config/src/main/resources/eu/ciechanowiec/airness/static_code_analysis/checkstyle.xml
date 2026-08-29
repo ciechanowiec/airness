@@ -442,6 +442,26 @@
         <module name="SuperClone"/>
         <module name="SuperFinalize"/>
         <module name="UnnecessaryParentheses"/>
+        <module name="MatchXpath">
+            <!--
+                An expression mixing || and && has no spelling that both analyzers accept. Written without
+                parentheses, the precedence check refuses it, because a reader has to know which operator
+                binds tighter to know what it says. Written with them, UnnecessaryParentheses above refuses
+                it, because they change nothing. Each rule is right on its own terms and the pair of them
+                leaves the expression nowhere to go.
+
+                So the expression itself is what goes. Naming each condition in a local says the same thing
+                and says it in words, which is the answer the two rules were arguing towards.
+
+                Only the form where the parentheses are optional is matched. In (a || b) && c they carry
+                the meaning rather than restating it, so that expression parses the other way up and is
+                left alone.
+            -->
+            <property name="id" value="AirnessNoMixedBooleanOperators"/>
+            <property name="query" value="//LOR[./LAND]"/>
+            <message key="matchxpath.match"
+                     value="An expression mixing || and &amp;&amp; is refused with parentheses and without them. Name each condition in its own local, then combine the locals."/>
+        </module>
         <module name="UnnecessaryNullCheckWithInstanceOf"/>
         <module name="UnnecessarySemicolonAfterOuterTypeDeclaration"/>
         <module name="UnnecessarySemicolonAfterTypeMemberDeclaration"/>
@@ -879,6 +899,19 @@
         What they have in common is the container. Each names a construct the framework accepts, starts,
         and then silently does not do what the code says it does.
         -->
+
+        <!--
+        Spring: the proxy
+
+        A proxy wraps the bean and intercepts calls arriving from outside it. Every construct below puts a
+        method beyond that proxy, which leaves the annotation readable, honoured by nothing, and reported
+        by nothing. The framework raises nothing because nothing went wrong as far as it can tell: it was
+        asked to advise a method it never got the chance to advise.
+
+        Several of these are one rule stated at a different annotation. They stay written out rather than
+        folded together, because a developer who reaches a finding wants the sentence about that
+        annotation in front of them, and because suppressing one of them should not suppress the rest.
+        -->
         <module name="MatchXpath">
             <!--
                 A proxy intercepts calls arriving from outside the bean, and a non-public method has none
@@ -925,6 +958,1100 @@
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringConfigurationIsLite"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The worst member of the set. A method-security annotation on a method no proxy reaches is not
+                a weaker guard, it is no guard: the method runs for whoever called it while the source above
+                it reads as though a role were required.
+            -->
+            <property name="id" value="AirnessSpringMethodSecurityIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='PreAuthorize' or @text='PostAuthorize' or @text='Secured' or @text='RolesAllowed' or @text='PreFilter' or @text='PostFilter'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot intercept a non-public method, so this authorization is never evaluated and the method runs unguarded. Make the method public, or move the annotation to the method that is."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringMethodSecurityIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The cache annotation is read and then reached by nothing, so every call recomputes and every
+                eviction is skipped. The answers stay correct, which is why this one survives a review: it
+                costs throughput rather than correctness, and nothing in a test says so.
+            -->
+            <property name="id" value="AirnessSpringCacheableIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Caching'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot intercept a non-public method, so this cache is never consulted and never evicted. Make the method public, or move the annotation to the method that is."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringCacheableIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The call runs on the thread that made it. The request the author meant to hand to an executor
+                is the request that now blocks, and the only symptom is latency.
+            -->
+            <property name="id" value="AirnessSpringAsyncIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Async'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot intercept a non-public method, so this @Async runs on the caller thread. Make the method public, or move the annotation to the method that is."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringAsyncIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The constraints are never evaluated, so the argument the annotation exists to reject arrives
+                in the body exactly as it was written.
+            -->
+            <property name="id" value="AirnessSpringValidatedIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Validated'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot intercept a non-public method, so these constraints are never evaluated. Make the method public, or move the annotation to the method that is."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringValidatedIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Nothing retries. The transient failure the annotation was added for propagates on the first
+                attempt, and the incident it was meant to absorb happens anyway.
+            -->
+            <property name="id" value="AirnessSpringRetryableIsPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Retryable' or @text='Recover'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A proxy cannot intercept a non-public method, so this call is attempted once. Make the method public, or move the annotation to the method that is."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringRetryableIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Spring Boot proxies a bean by subclassing it, and a subclass cannot override a final method.
+                So the annotation is read, the proxy is built, and the one method it was built for is the one
+                it cannot advise.
+
+                Airness forbids final on a parameter and on a local, so a final here was written deliberately
+                and is the modifier to remove.
+            -->
+            <property name="id" value="AirnessSpringProxiedMethodIsNotFinal"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/FINAL and ./MODIFIERS/ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
+            <message key="matchxpath.match"
+                     value="A subclass cannot override a final method, so the proxy leaves this annotation unhonoured. Remove final from the method."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringProxiedMethodIsNotFinal"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The same defect one level up, and the exact complement of the final-class relaxation above:
+                that filter stops Airness demanding final on a proxied bean, and this rule stops the bean
+                declaring it anyway. A final class cannot be subclassed at all, so the container fails to
+                build the proxy rather than building one that advises nothing.
+            -->
+            <property name="id" value="AirnessSpringProxiedClassIsNotFinal"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/FINAL and .//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
+            <message key="matchxpath.match"
+                     value="A proxied bean is subclassed at run time, and a final class cannot be. Remove final from the class, which the final-class rule already exempts here."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringProxiedClassIsNotFinal"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The proxy wraps an instance and a static method belongs to the class, so the call never passes
+                through anything that could advise it.
+            -->
+            <property name="id" value="AirnessSpringProxiedMethodIsNotStatic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/LITERAL_STATIC and ./MODIFIERS/ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
+            <message key="matchxpath.match"
+                     value="A proxy wraps an instance, so it never sees a call to a static method. Make the method an instance method."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringProxiedMethodIsNotStatic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                One says read the cache and skip the body, the other says always run the body and write the
+                result. Both are honoured, in whichever order the interceptors happen to sit, so the method
+                does something no reader of it predicted.
+            -->
+            <property name="id" value="AirnessSpringCacheableIsNotCombinedWithCachePut"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Cacheable'] and ./MODIFIERS/ANNOTATION/IDENT[@text='CachePut']]"/>
+            <message key="matchxpath.match"
+                     value="@Cacheable skips the body and @CachePut always runs it, so the pair contradicts itself and interceptor order decides. Keep whichever one states what the method is for."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringCacheableIsNotCombinedWithCachePut"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Spring Boot proxies by subclassing the class, so an annotation reachable only through the
+                interface is never read. The interface documents a cache the implementation does not have.
+            -->
+            <property name="id" value="AirnessSpringCacheAnnotationIsOnAConcreteType"/>
+            <property name="query"
+                      value="//INTERFACE_DEF//ANNOTATION/IDENT[@text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Caching']"/>
+            <message key="matchxpath.match"
+                     value="A class-based proxy does not read a cache annotation from an interface, so this caching never happens. Move the annotation onto the implementing class."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringCacheAnnotationIsOnAConcreteType"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A bean method returning void registers nothing. Whatever it was written to publish is simply
+                absent, and the report arrives far away, as a missing dependency of something else.
+            -->
+            <property name="id" value="AirnessSpringBeanMethodReturnsAValue"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Bean'] and ./TYPE/LITERAL_VOID]"/>
+            <message key="matchxpath.match"
+                     value="A @Bean method returning void registers no bean. Return the object the container is meant to hold, or drop the annotation and call this from one that does."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringBeanMethodReturnsAValue"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A post-processor has to exist before the beans it processes, and a non-static bean method
+                forces its whole configuration class to be built early to supply one. Every @Value and every
+                injected collaborator on that class is then skipped, silently, and beans created before the
+                post-processor was ready go unprocessed.
+            -->
+            <property name="id" value="AirnessSpringPostProcessorBeanIsStatic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Bean'] and not(./MODIFIERS/LITERAL_STATIC) and ./TYPE/IDENT[@text='BeanFactoryPostProcessor' or @text='BeanPostProcessor']]"/>
+            <message key="matchxpath.match"
+                     value="A non-static post-processor bean forces its configuration class to be built too early, which skips the injection into that class. Declare the method static."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringPostProcessorBeanIsStatic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+
+        <!--
+        Spring: injection and bean lifecycle
+
+        Field injection is refused for every project, Spring or not, by the rule in Class Design above.
+        What is left here are the other ways an object comes to exist before it is whole: a static field
+        the container never writes, a collaborator looked up instead of taken, and state on a singleton
+        that every concurrent request shares.
+        -->
+        <module name="MatchXpath">
+            <!--
+                Spring does not write static members. The field stays null, the context starts clean, and the
+                first read is a NullPointerException in production rather than a refusal at startup.
+
+                The field-injection rule above does not reach these. It names the same annotations, but a
+                static field is a different declaration and deserves the sentence that says why.
+            -->
+            <property name="id" value="AirnessSpringInjectionIsNotStatic"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[./MODIFIERS/LITERAL_STATIC and ./MODIFIERS/ANNOTATION/IDENT[@text='Autowired' or @text='Inject' or @text='Value' or @text='PersistenceContext' or @text='Resource']]"/>
+            <message key="matchxpath.match"
+                     value="Spring does not inject a static field, so this one stays null until something reads it. Take the value through the constructor and hold it in an instance field."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringInjectionIsNotStatic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The same defect the field rule names, reached by the other door: the object is published, then
+                completed, so there is a window in which it exists and does not work.
+            -->
+            <property name="id" value="AirnessSpringNoSetterInjection"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Autowired' or @text='Inject' or @text='Resource']]"/>
+            <message key="matchxpath.match"
+                     value="Use constructor injection instead of setter injection, so a built object is whole."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringNoSetterInjection"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Reaching the container turns a dependency the compiler checks into a lookup nothing checks. A
+                collaborator that has gone missing stops being a refusal at startup and becomes an exception
+                on whichever path happens to ask for it.
+
+                ObjectProvider is deliberately absent from the list. It is the supported way to hold a
+                shorter-lived bean, and it names the type it will supply.
+            -->
+            <property name="id" value="AirnessSpringNoServiceLocator"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./TYPE/IDENT[@text='ApplicationContext' or @text='BeanFactory' or @text='ConfigurableApplicationContext' or @text='ConfigurableListableBeanFactory']] | //CLASS_DEF/IMPLEMENTS_CLAUSE/IDENT[@text='ApplicationContextAware']"/>
+            <message key="matchxpath.match"
+                     value="Reaching the container for a bean hides the dependency from the compiler. Take the collaborator as a constructor parameter, or an ObjectProvider of it when its lifetime is shorter."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringNoServiceLocator"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                @Lazy on an injection point has one real use, which is deferring a circular dependency, and
+                Spring Boot refuses a circular dependency by default because it is a design defect. The
+                annotation converts that refusal into a proxy that fails somewhere else instead.
+            -->
+            <property name="id" value="AirnessSpringNoLazyCycleBreak"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Lazy']] | //VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Lazy']]"/>
+            <message key="matchxpath.match"
+                     value="@Lazy on an injection point defers a cycle rather than removing it. Break the cycle by moving the shared behaviour into a third bean both can depend on."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringNoLazyCycleBreak"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                One instance answers every concurrent request, so a mutable field on it is shared across
+                threads that never agreed to share anything. The failure is a wrong answer under load and
+                nothing at all under a test.
+
+                A bean carrying @Scope has said its lifetime is not the container lifetime, so it is left
+                alone.
+            -->
+            <property name="id" value="AirnessSpringSingletonHasNoMutableState"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Component' or @text='Service' or @text='Repository' or @text='RestController' or @text='Controller'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Scope'])]/OBJBLOCK/VARIABLE_DEF[not(./MODIFIERS/FINAL) and not(./MODIFIERS/LITERAL_STATIC)]"/>
+            <message key="matchxpath.match"
+                     value="A singleton bean serves every request from one instance, so a mutable field on it is shared across threads. Make the field final, or move the value into the call that needs it."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSingletonHasNoMutableState"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Spring has injected a sole constructor without the annotation since 4.3. Writing it states
+                something the container already does, and suggests to the next reader that constructor
+                injection is a thing this class opted into rather than the rule.
+            -->
+            <property name="id" value="AirnessSpringAutowiredOnSoleConstructorIsRedundant"/>
+            <property name="query"
+                      value="//CLASS_DEF[count(./OBJBLOCK/CTOR_DEF) = 1]/OBJBLOCK/CTOR_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Autowired']]"/>
+            <message key="matchxpath.match"
+                     value="Spring injects a sole constructor without being told to. Remove the @Autowired."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringAutowiredOnSoleConstructorIsRedundant"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+
+        <!--
+        Spring: transactions
+
+        A transaction annotation is a promise about atomicity that the framework keeps only under
+        conditions the annotation itself does not state. The proxy rules above cover the conditions that
+        stop the advice being applied at all. These cover the ones where the advice is applied and the
+        semantics are still not what the author wrote.
+
+        Two of them require an attribute to be written rather than checking the value in it. That is the
+        same move the written-type rule makes against var: the harness cannot know which value is right
+        here, and it can insist the decision was made rather than defaulted into.
+        -->
+        <module name="MatchXpath">
+            <!--
+                Spring rolls back on an unchecked exception and commits on a checked one. So a method whose
+                signature announces a failure path has a transaction that treats that path as success and
+                writes the half-finished work out.
+
+                The rule asks for rollbackFor whenever any exception is declared. Asking only for a checked
+                one would need the type resolved, and requiring it in both cases is correct in both.
+            -->
+            <property name="id" value="AirnessSpringTransactionalRollsBackCheckedExceptions"/>
+            <property name="query"
+                      value="//METHOD_DEF[./LITERAL_THROWS and ./MODIFIERS/ANNOTATION[./IDENT[@text='Transactional'] and not(.//IDENT[@text='rollbackFor'])]]"/>
+            <message key="matchxpath.match"
+                     value="Spring commits rather than rolls back when a checked exception leaves a transaction. Declare rollbackFor so the failure this method announces also undoes its work."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTransactionalRollsBackCheckedExceptions"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The default is a read-write transaction, so a query method takes write locks and gives the
+                database nothing to optimise against. Which of the two a method wants cannot be inferred from
+                the source, so the source has to say.
+            -->
+            <property name="id" value="AirnessSpringTransactionalDeclaresReadOnly"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Transactional'] and not(.//IDENT[@text='readOnly'])]"/>
+            <message key="matchxpath.match"
+                     value="A @Transactional that does not say whether it writes is a read-write transaction by default. Declare readOnly explicitly, true or false."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTransactionalDeclaresReadOnly"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A transaction with no ceiling holds its connection for as long as the statement runs, and a
+                pool of connections held that way is an outage. Airness caps a single test at 30 seconds for
+                the same reason.
+            -->
+            <property name="id" value="AirnessSpringTransactionalDeclaresTimeout"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Transactional'] and not(.//IDENT[@text='timeout'])]"/>
+            <message key="matchxpath.match"
+                     value="A transaction with no timeout can hold a pooled connection indefinitely. Declare timeout, raising it for the work that genuinely takes longer rather than leaving it out."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTransactionalDeclaresTimeout"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A transaction opened here spans request parsing and response serialisation, so a slow client
+                holds a database connection. It also puts the atomicity boundary in the layer that knows least
+                about the invariant it is protecting.
+            -->
+            <property name="id" value="AirnessSpringTransactionalIsNotOnTheWebLayer"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RestController' or @text='Controller']]//ANNOTATION/IDENT[@text='Transactional']"/>
+            <message key="matchxpath.match"
+                     value="A transaction on the web layer spans request parsing and response writing, so a slow client holds a connection. Move the boundary to the service the controller calls."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTransactionalIsNotOnTheWebLayer"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A class-based proxy does not read the annotation from the interface, so the transaction never
+                opens. A Spring Data repository is the exception, because its implementation is generated and
+                does read it, so a type named for one is left alone.
+            -->
+            <property name="id" value="AirnessSpringTransactionalIsNotOnAnInterface"/>
+            <property name="query"
+                      value="//INTERFACE_DEF[not(./IDENT[ends-with(@text,'Repository')])]//ANNOTATION/IDENT[@text='Transactional']"/>
+            <message key="matchxpath.match"
+                     value="A class-based proxy does not read @Transactional from an interface, so no transaction opens. Move the annotation onto the implementing class."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTransactionalIsNotOnAnInterface"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The statement runs against the database while the persistence context goes on holding the rows
+                it replaced. The next read in the same transaction then returns the value the statement just
+                changed, and nothing anywhere says the two disagree.
+            -->
+            <property name="id" value="AirnessSpringModifyingClearsThePersistenceContext"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Modifying'] and not(.//IDENT[@text='clearAutomatically'])]"/>
+            <message key="matchxpath.match"
+                     value="A bulk @Modifying statement leaves stale entities in the persistence context. Declare clearAutomatically = true, and flushAutomatically = true when the statement reads what was written before it."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringModifyingClearsThePersistenceContext"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                Driving the transaction by hand opens a second boundary beside the one the container manages.
+                The two then interleave, and which of them a given statement belongs to is not the one the
+                code reads as.
+
+                TransactionTemplate is deliberately not matched. It composes with the container rather than
+                going around it.
+            -->
+            <property name="id" value="AirnessSpringNoManualTransactionControl"/>
+            <property name="format" value="\.getTransaction\(\)|\.setAutoCommit\(|\.commit\(\)|\.rollback\(\)"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Driving a transaction by hand opens a second boundary beside the container one. Let @Transactional own the boundary, or use a TransactionTemplate."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringNoManualTransactionControl"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+
+        <!--
+        Spring: persistence
+
+        The part of an application where a defect costs most and shows least. A wrong fetch type is a
+        working feature that issues a thousand queries; a wrong cascade is a working feature that deletes
+        rows nobody asked it to. Neither fails a test that checks the object it got back.
+        -->
+        <module name="MatchXpath">
+            <!--
+                Each of these generates a method over every field. Equality then changes the moment the
+                database assigns an identifier, so an entity put in a set before it was saved cannot be found
+                in that set afterwards. The generated toString walks a bidirectional association until the
+                stack ends. Both touch lazy fields, so either can throw outside a transaction.
+
+                Getter and Setter are deliberately absent, so the half of Lombok that costs nothing here stays
+                available.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityIsNotALombokValue"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity']]/MODIFIERS/ANNOTATION/IDENT[@text='Data' or @text='EqualsAndHashCode' or @text='ToString' or @text='Value']"/>
+            <message key="matchxpath.match"
+                     value="A generated equals, hashCode or toString over every field breaks entity identity and walks lazy associations. Use @Getter and @Setter, and write the rest by hand."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityIsNotALombokValue"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                JPA instantiates an entity through a constructor taking nothing, and a class that declares any
+                other constructor has lost the implicit one. The report arrives when the first row is loaded
+                rather than when the class is compiled.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityHasANoArgConstructor"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='NoArgsConstructor']) and ./OBJBLOCK/CTOR_DEF and not(./OBJBLOCK/CTOR_DEF[not(./PARAMETERS/PARAMETER_DEF)])]"/>
+            <message key="matchxpath.match"
+                     value="JPA needs a constructor taking no arguments, and declaring another one removes the implicit default. Add @NoArgsConstructor(access = AccessLevel.PROTECTED)."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityHasANoArgConstructor"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A to-one association is eager unless it says otherwise, so loading one row loads its parent,
+                and that parent loads its own. A query written to fetch one entity fetches a subgraph whose
+                size nothing in the query states.
+            -->
+            <property name="id" value="AirnessSpringJpaToOneIsLazy"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='ManyToOne' or @text='OneToOne'] and not(.//IDENT[@text='LAZY'])]]"/>
+            <message key="matchxpath.match"
+                     value="A to-one association is eager by default, so reading one row reads its whole parent chain. Declare fetch = FetchType.LAZY, or FetchType.EAGER when that is genuinely wanted."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaToOneIsLazy"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Deleting one parent then loads every child and deletes it one statement at a time, and any
+                child shared with another parent goes with it. Where the children really do share the parent
+                lifetime, orphanRemoval says so without the collateral reach.
+            -->
+            <property name="id" value="AirnessSpringJpaToManyDoesNotCascadeRemove"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='OneToMany' or @text='ManyToMany'] and .//IDENT[@text='REMOVE' or @text='ALL']]]"/>
+            <message key="matchxpath.match"
+                     value="Cascading a delete across a to-many association removes rows the parent does not own. Use orphanRemoval = true, or delete the children explicitly."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaToManyDoesNotCascadeRemove"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A list has an order the join table does not record, so Hibernate answers any change to one by
+                deleting every row of the association and inserting them again.
+            -->
+            <property name="id" value="AirnessSpringJpaManyToManyUsesASet"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ManyToMany'] and ./TYPE/IDENT[@text='List' or @text='Collection']]"/>
+            <message key="matchxpath.match"
+                     value="A @ManyToMany held in a list makes Hibernate rewrite the whole join table on any change. Hold it in a Set."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaManyToManyUsesASet"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Spring Data cannot build the query and refuses the context at startup. It is a crash rather
+                than a silence, but it is a crash the compiler never sees and an agent writes often.
+            -->
+            <property name="id" value="AirnessSpringDataPageMethodTakesAPageable"/>
+            <property name="query"
+                      value="//INTERFACE_DEF//METHOD_DEF[./TYPE/IDENT[@text='Page' or @text='Slice'] and not(./PARAMETERS/PARAMETER_DEF/TYPE/IDENT[@text='Pageable'])]"/>
+            <message key="matchxpath.match"
+                     value="A repository method returning Page or Slice needs a Pageable to build the query from. Take one as a parameter."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringDataPageMethodTakesAPageable"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The result set is whatever the table holds. A query that answers instantly against a seeded
+                test database exhausts the heap against a real one, and nothing between the two says when that
+                changed.
+            -->
+            <property name="id" value="AirnessSpringDataQueryIsBounded"/>
+            <property name="query"
+                      value="//INTERFACE_DEF[./IDENT[ends-with(@text,'Repository')]]//METHOD_DEF[./TYPE/IDENT[@text='List' or @text='Set' or @text='Collection' or @text='Stream'] and not(./PARAMETERS/PARAMETER_DEF/TYPE/IDENT[@text='Pageable' or @text='Limit']) and not(./IDENT[starts-with(@text,'findTop') or starts-with(@text,'findFirst')])]"/>
+            <message key="matchxpath.match"
+                     value="A repository method returning an unbounded collection reads as many rows as the table holds. Take a Pageable, or name the bound with findFirst or findTop."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringDataQueryIsBounded"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Anything joined into JPQL or SQL with a plus is a query fragment rather than a bound
+                parameter, whatever the surrounding code intends by it. Two literals joined only to fit a line
+                are not matched, because the operand that makes this dangerous is the one that is not a
+                literal.
+            -->
+            <property name="id" value="AirnessSpringDataQueryIsNotConcatenated"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Query']]//PLUS[.//IDENT]"/>
+            <message key="matchxpath.match"
+                     value="A query built by concatenation puts its operand into the statement rather than into a parameter. Bind the value with a named parameter instead."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringDataQueryIsNotConcatenated"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                AUTO resolves differently per dialect, so the schema generated against one database is not the
+                schema needed against another, and TABLE serialises every insert in the application through a
+                single row.
+            -->
+            <property name="id" value="AirnessSpringJpaIdStrategyIsExplicit"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='GeneratedValue'] and (not(.//IDENT[@text='strategy']) or .//IDENT[@text='AUTO' or @text='TABLE'])]"/>
+            <message key="matchxpath.match"
+                     value="An AUTO or absent generation strategy resolves differently per dialect, and TABLE serialises every insert. Declare IDENTITY or SEQUENCE."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaIdStrategyIsExplicit"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+
+        <!--
+        Spring: the web layer
+
+        Where an internal model becomes a public contract and an exception becomes a response. Both
+        conversions are lossy in one direction and dangerous in the other.
+        -->
+        <module name="MatchXpath">
+            <!--
+                Without it every constraint on the payload type is decorative, and the first thing to notice
+                the invalid value is a database constraint, or nothing at all.
+            -->
+            <property name="id" value="AirnessSpringWebRequestBodyIsValidated"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestBody'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Valid' or @text='Validated'])]"/>
+            <message key="matchxpath.match"
+                     value="A @RequestBody without @Valid leaves every constraint on the payload type unevaluated. Add @Valid to the parameter."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebRequestBodyIsValidated"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                An unnamed binding depends on parameter names surviving compilation, which a shaded or
+                repackaged artifact does not guarantee. The failure appears in the built archive and not
+                before it.
+            -->
+            <property name="id" value="AirnessSpringWebParameterIsNamed"/>
+            <property name="query"
+                      value="//PARAMETER_DEF/MODIFIERS/ANNOTATION[./IDENT[@text='PathVariable' or @text='RequestParam'] and not(./ANNOTATION_MEMBER_VALUE_PAIR) and not(./EXPR)]"/>
+            <message key="matchxpath.match"
+                     value="An unnamed binding relies on parameter names surviving compilation. Name the parameter in the annotation."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebParameterIsNamed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A handler mapping that names no method answers every verb, so a handler written for a read
+                also accepts a delete on the same path. The class-level form is untouched, since it carries
+                the base path rather than a handler.
+            -->
+            <property name="id" value="AirnessSpringWebMappingNamesItsMethod"/>
+            <property name="query"
+                      value="//METHOD_DEF/MODIFIERS/ANNOTATION[./IDENT[@text='RequestMapping'] and not(.//IDENT[@text='method'])]"/>
+            <message key="matchxpath.match"
+                     value="A handler @RequestMapping naming no method answers every HTTP verb. Use @GetMapping, @PostMapping or the sibling that states the verb."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebMappingNamesItsMethod"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The default is every origin, so the annotation added to unblock one front end opens the
+                endpoint to all of them.
+            -->
+            <property name="id" value="AirnessSpringWebCrossOriginIsNotWildcard"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='CrossOrigin'] and (not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR) or .//STRING_LITERAL[@text='&quot;*&quot;'])]"/>
+            <message key="matchxpath.match"
+                     value="A @CrossOrigin with no origin, or with a wildcard, admits every origin. Name the origins the endpoint serves."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebCrossOriginIsNotWildcard"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Each call builds a fresh connection pool, so nothing is reused, nothing is instrumented, and
+                the timeouts have to be configured at every call site or not at all. Inside a bean method the
+                construction happens once and is the supported place for it.
+            -->
+            <property name="id" value="AirnessSpringWebClientIsABean"/>
+            <property name="query"
+                      value="//LITERAL_NEW[./IDENT[@text='RestTemplate'] and not(ancestor::METHOD_DEF/MODIFIERS/ANNOTATION/IDENT[@text='Bean'])] | //METHOD_CALL[./DOT/IDENT[@text='create'] and ./DOT/IDENT[@text='WebClient' or @text='RestClient'] and not(ancestor::METHOD_DEF/MODIFIERS/ANNOTATION/IDENT[@text='Bean'])]"/>
+            <message key="matchxpath.match"
+                     value="An HTTP client built at a call site carries its own connection pool and no shared timeouts. Declare it once as a @Bean and take it as a constructor parameter."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebClientIsABean"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                It ties the handler to the servlet stack, makes it untestable without a container, and usually
+                hides a parameter that should have been declared. A filter or an interceptor is a different
+                thing and is not matched, because the rule asks for a controller around the signature.
+            -->
+            <property name="id" value="AirnessSpringWebSignatureIsNotServletTyped"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RestController' or @text='Controller']]//PARAMETER_DEF/TYPE/IDENT[@text='HttpServletRequest' or @text='HttpServletResponse' or @text='HttpSession']"/>
+            <message key="matchxpath.match"
+                     value="A servlet type in a handler signature ties the controller to the container and hides the value it actually wanted. Declare that value as a parameter instead."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebSignatureIsNotServletTyped"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+
+        <!--
+        Spring: security
+
+        Security configuration fails open. A wrong rule in a filter chain throws nothing, logs nothing,
+        and appears in no test that authenticates correctly, so the only thing standing between a mistake
+        and an open endpoint is somebody reading the chain.
+
+        Each rule below matches the blanket form and leaves the scoped one alone, because the scoped form
+        is how the same need is met without opening everything.
+        -->
+        <module name="Regexp">
+            <!--
+                The standard first move when a form stops working, and correct only for a chain that
+                authenticates with no cookie at all, which the line disabling it does not establish. Scoping
+                the exemption with ignoringRequestMatchers is not matched.
+            -->
+            <property name="id" value="AirnessSpringSecurityCsrfIsNotDisabled"/>
+            <property name="format" value="csrf\s*\(\s*[A-Za-z]*\s*-&gt;\s*[A-Za-z]+\.disable\(|csrf\(\)\s*\.disable\(|csrf\(AbstractHttpConfigurer::disable\)"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Disabling CSRF for the whole chain is right only when no cookie authenticates a request. Scope the exemption with ignoringRequestMatchers instead."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityCsrfIsNotDisabled"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                The shape that makes every other line in the chain decorative. A public service still names
+                the paths that are public.
+            -->
+            <property name="id" value="AirnessSpringSecurityPermitAllIsScoped"/>
+            <property name="format" value="anyRequest\(\)\s*\.permitAll|requestMatchers\(\s*&quot;/\*\*&quot;\s*\)\s*\.permitAll"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Permitting every request makes the rest of the filter chain decorative. Name the public paths and leave anyRequest authenticated."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityPermitAllIsScoped"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                Unlike permitAll, this removes the path from the filter chain altogether, so the security
+                headers, the CSRF token and the audit trail go with it. Static resources are served correctly
+                by permitAll.
+            -->
+            <property name="id" value="AirnessSpringSecurityFilterChainIsNotBypassed"/>
+            <property name="format" value="\.ignoring\(\)"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Ignoring a path removes it from the filter chain entirely, headers and audit included. Use permitAll on that path instead."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityFilterChainIsNotBypassed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                The first three store a password that can be recovered. The last stores it at a work factor
+                chosen for the hardware of 2011, and passing a strength explicitly is all it takes to say
+                otherwise.
+            -->
+            <property name="id" value="AirnessSpringSecurityPasswordEncoderIsStrong"/>
+            <property name="format" value="NoOpPasswordEncoder|MessageDigestPasswordEncoder|withDefaultPasswordEncoder|new\s+BCryptPasswordEncoder\s*\(\s*\)"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="This encoder either stores a recoverable password or uses a default work factor. Use BCrypt, PBKDF2 or Argon2 with an explicit strength."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityPasswordEncoderIsStrong"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                Turning off frame options makes the application framable, which is clickjacking, and it is the
+                usual fix for an embedded console that should not be deployed at all. The sameOrigin setting
+                is a different call and is not matched.
+            -->
+            <property name="id" value="AirnessSpringSecurityHeadersStay"/>
+            <property name="format" value="(frameOptions|contentTypeOptions|httpStrictTransportSecurity)[^;]{0,60}disable"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Disabling this response header removes a protection the browser applies for free. Keep it, and use sameOrigin where a frame is genuinely wanted."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityHeadersStay"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Gitleaks catches the values whose shape it recognises. This rule catches the argument
+                position, which is what makes a value a key however it happens to look. A fixture under src
+                test is exempt, since the key there is the subject rather than a secret.
+            -->
+            <property name="id" value="AirnessSpringSecurityKeyIsNotALiteral"/>
+            <property name="query"
+                      value="//METHOD_CALL[./DOT/IDENT[@text='hmacShaKeyFor' or @text='signWith' or @text='setSigningKey' or @text='withSecretKey']]/ELIST/EXPR/STRING_LITERAL | //LITERAL_NEW[./IDENT[@text='SecretKeySpec']]/ELIST/EXPR/STRING_LITERAL"/>
+            <message key="matchxpath.match"
+                     value="A signing or encryption key written as a literal ships with the artifact that uses it. Read it from configuration."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityKeyIsNotALiteral"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityKeyIsNotALiteral"/>
+            <property name="files" value=".*(Test|IT)\.java$"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                The endpoints behind that prefix enumerate the environment, the beans, the mappings and the
+                configuration properties, which together describe the application well enough to attack it. A
+                liveness or readiness probe is named individually and is not matched.
+            -->
+            <property name="id" value="AirnessSpringSecurityActuatorIsNotPublic"/>
+            <property name="format" value="&quot;/actuator[^&quot;]*&quot;\s*\)?\s*\)?\s*\.permitAll|ignoring\(\)[^;]{0,120}&quot;/actuator"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Permitting the actuator prefix publishes the environment, the beans and the mappings. Name the health probes individually and leave the rest authenticated."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityActuatorIsNotPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                The shape a tutorial leaves behind, and it ships a working credential inside the artifact.
+            -->
+            <property name="id" value="AirnessSpringSecurityHasNoInMemoryUsers"/>
+            <property name="format" value="InMemoryUserDetailsManager"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="An in-memory user ships a working credential with the artifact. Load users from the system that owns them."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityHasNoInMemoryUsers"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityHasNoInMemoryUsers"/>
+            <property name="files" value=".*(Test|IT)\.java$"/>
+        </module>
+
+        <!--
+        Spring: asynchrony, scheduling and events
+
+        These three subsystems are wired by reflection at startup, which makes a wrong signature either an
+        exception nobody sees until deployment or a method that is simply never called. The compiler
+        checks none of it, because from its side every one of these methods is well formed.
+        -->
+        <module name="MatchXpath">
+            <!--
+                Spring has nothing to pass, so it refuses the context at startup. The method compiles, and it
+                never runs anywhere.
+            -->
+            <property name="id" value="AirnessSpringScheduledTakesNoArguments"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and ./PARAMETERS/PARAMETER_DEF]"/>
+            <message key="matchxpath.match"
+                     value="A scheduled method takes no arguments, because the scheduler has nothing to pass it. Read what the method needs from a collaborator instead."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScheduledTakesNoArguments"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Nothing receives the value, so a return carrying a result or a status is discarded, and an
+                author who wrote one expected somebody to read it.
+            -->
+            <property name="id" value="AirnessSpringScheduledReturnsVoid"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and not(./TYPE/LITERAL_VOID)]"/>
+            <message key="matchxpath.match"
+                     value="Nothing receives what a scheduled method returns. Return void, and record the outcome where something reads it."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScheduledReturnsVoid"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A literal interval is a code change away from being tuned, which means it is never tuned, and
+                it cannot differ between an environment that can afford the load and one that cannot.
+            -->
+            <property name="id" value="AirnessSpringScheduleIsConfigurable"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Scheduled']]//NUM_INT | //ANNOTATION[./IDENT[@text='Scheduled']]//STRING_LITERAL[not(starts-with(@text,'&quot;$'))]"/>
+            <message key="matchxpath.match"
+                     value="A schedule written as a literal cannot differ between environments. Read it from a property placeholder."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScheduleIsConfigurable"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A listener takes the event and nothing else. Spring refuses the context at startup with a
+                message that names the method and not the reason. A listener naming its event classes in the
+                annotation legitimately takes none, so that form is allowed.
+            -->
+            <property name="id" value="AirnessSpringEventListenerTakesOneArgument"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']] and (count(./PARAMETERS/PARAMETER_DEF) &gt; 1 or count(./PARAMETERS/PARAMETER_DEF) = 0 and not(./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']]/EXPR) and not(./MODIFIERS/ANNOTATION[./IDENT[@text='EventListener']]/ANNOTATION_MEMBER_VALUE_PAIR))]"/>
+            <message key="matchxpath.match"
+                     value="An @EventListener takes the event alone, and Spring refuses the context otherwise. Take one parameter, or name the event classes in the annotation and take none."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringEventListenerTakesOneArgument"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The listener runs inside the transaction of whatever published the event. So a listener that
+                fails rolls back the operation that published, and a listener that succeeds is undone when the
+                publisher fails afterwards. Which of the two is wanted is exactly what the transactional form
+                of the annotation states.
+            -->
+            <property name="id" value="AirnessSpringEventListenerIsTransactionAware"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='EventListener'] and ./MODIFIERS/ANNOTATION/IDENT[@text='Transactional']]"/>
+            <message key="matchxpath.match"
+                     value="A listener writing inside the publisher transaction ties the two together in both directions. Use @TransactionalEventListener and say which phase it runs in."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringEventListenerIsTransactionAware"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Spring refuses the context at startup. The method initialises a binder that is handed to it,
+                so there is nothing for a return value to mean.
+            -->
+            <property name="id" value="AirnessSpringInitBinderReturnsVoid"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='InitBinder'] and not(./TYPE/LITERAL_VOID)]"/>
+            <message key="matchxpath.match"
+                     value="An @InitBinder method returns nothing, and Spring refuses the context otherwise. Configure the WebDataBinder it is given and return void."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringInitBinderReturnsVoid"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                Each of these creates threads the container does not know about, so they miss the graceful
+                shutdown, the metrics, the security context and the request scope. A TaskExecutor bean covers
+                the legitimate cases and is not matched.
+            -->
+            <property name="id" value="AirnessSpringNoUnmanagedThreads"/>
+            <property name="format" value="new\s+Thread\s*\(|Executors\.new[A-Za-z]+\s*\(|supplyAsync\s*\([^,)]*\)"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="A thread the container did not create misses graceful shutdown, metrics and the security context. Take a TaskExecutor bean and submit to it."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringNoUnmanagedThreads"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+
+        <!--
+        Spring: tests
+
+        Airness already requires a test to run against real components and refuses every substitute, which
+        removes most of the ways a Spring test can lie. What is left are the ways a test passes while
+        proving less than it appears to, and each rule below is paired with the filter that keeps it
+        inside src/test.
+        -->
+        <module name="MatchXpath">
+            <!--
+                Every test then runs inside a transaction that is rolled back at the end, so nothing is ever
+                committed. The constraint, the trigger and the flush ordering that appear only at commit are
+                never exercised, and the test proves the code ran rather than that it persisted.
+            -->
+            <property name="id" value="AirnessSpringTestIsNotTransactional"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Transactional' or @text='Rollback']]"/>
+            <message key="matchxpath.match"
+                     value="A rolled-back test never commits, so nothing that happens at commit is exercised. Let the test commit and clean up after itself."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestIsNotTransactional"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestIsNotTransactional"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Every distinct set of properties is a distinct context cache key, so a class carrying its own
+                set starts its own Spring. A suite that does this per class grows in time without growing in
+                coverage.
+            -->
+            <property name="id" value="AirnessSpringTestSharesTheContext"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='SpringBootTest'] and .//IDENT[@text='properties']] | //ANNOTATION/IDENT[@text='TestPropertySource']"/>
+            <message key="matchxpath.match"
+                     value="Inline test properties give this class its own application context rather than the shared one. Declare them once on a base class the tests extend."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestSharesTheContext"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestSharesTheContext"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Spring raises at run time, and for a hook that means the test it guards behaves as though the
+                hook were not there at all.
+            -->
+            <property name="id" value="AirnessSpringTestTransactionHooksRespectTheContract"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='BeforeTransaction' or @text='AfterTransaction'] and (not(./TYPE/LITERAL_VOID) or ./PARAMETERS/PARAMETER_DEF)]"/>
+            <message key="matchxpath.match"
+                     value="A transaction hook returns void and takes no arguments, and Spring raises otherwise. Correct the signature."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestTransactionHooksRespectTheContract"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestTransactionHooksRespectTheContract"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                It discards the cached application context, so the next class pays a full startup. A suite
+                that uses it liberally spends most of its wall time booting Spring, and a test that genuinely
+                mutates the context is itself the thing worth removing.
+            -->
+            <property name="id" value="AirnessSpringTestDoesNotDirtyTheContext"/>
+            <property name="format" value="@DirtiesContext"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Discarding the application context makes every later test class pay a fresh startup. Leave the context as the test found it."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestDoesNotDirtyTheContext"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestDoesNotDirtyTheContext"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                None of these start a server, so the serialisation, the filter chain ordering, the content
+                negotiation and the error handling that a real request passes through are all simulated.
+                Airness already requires a test to run against real components, and this is that rule in the
+                shape Spring offers for breaking it.
+            -->
+            <property name="id" value="AirnessSpringTestUsesARealPort"/>
+            <property name="format" value="MockMvcTester|MockMvc|@AutoConfigureMockMvc|@WebMvcTest"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="This starts no server, so the filter chain, the serialisation and the error handling are simulated rather than exercised. Use @SpringBootTest with a random port and a real client."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestUsesARealPort"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestUsesARealPort"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+
+        <!--
+        Spring: structure
+
+        One rule, because the rest of what a project declares about itself is decided by the Maven model
+        rather than by a source file.
+        -->
+        <module name="MatchXpath">
+            <!--
+                Airness already fixes the scan root by requiring the application class to sit at the declared
+                package root. An explicit base package either restates that or silently overrides it, and the
+                second case reintroduces exactly the defect the misplaced-entry-point rule exists to prevent.
+            -->
+            <property name="id" value="AirnessSpringScanIsNotRedeclared"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='ComponentScan' or @text='EntityScan' or @text='EnableJpaRepositories'] and .//IDENT[@text='basePackages' or @text='basePackageClasses']]"/>
+            <message key="matchxpath.match"
+                     value="The scan root is already fixed by airness.package.root, so naming a base package here either restates it or overrides it. Remove the attribute."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScanIsNotRedeclared"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
 

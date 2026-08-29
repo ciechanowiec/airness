@@ -341,4 +341,31 @@
         </properties>
     </rule>
 
+    <rule name="NativeQueryNeedsJustification"
+        language="java"
+        message="A nativeQuery must be accompanied by @Justification stating why JPQL does not answer here."
+        class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            A native query ties the application to one database dialect and bypasses the persistence context,
+            so the entities it returns are outside whatever the surrounding transaction is tracking. It is
+            sometimes the right answer and never an accidental one, which is the shape the suppression policy
+            already has a mechanism for. Pairing it with @Justification keeps the reason beside the query and
+            prices it against the same budget every other deliberate exception is priced against.
+
+            The rule needs no Spring file pattern. Nothing outside Spring Data writes this attribute, so a
+            project that is not a Spring Boot one never reaches the rule at all.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//MethodDeclaration[
+    ModifierList/Annotation[@SimpleName = 'Query']//MemberValuePair[@Name = 'nativeQuery']
+    and not(ModifierList/Annotation[@SimpleName = 'Justification'])
+]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
 </ruleset>
