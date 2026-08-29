@@ -126,6 +126,6 @@ final class SpringMembers {
      * @param start       the offset its body opens at
      * @param end         the offset its body closes at
      */
-    record Member(String name, int declaration, int start, int end) {
+    public record Member(String name, int declaration, int start, int end) {
     }
 }

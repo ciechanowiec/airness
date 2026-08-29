@@ -103,6 +103,6 @@ final class SpringTypes {
      * @param code   the source with comments and literals blanked, which every rule reads
      * @param text   the source as written, which a line number is counted over
      */
-    record Declared(Path source, String name, String code, CharSequence text) {
+    public record Declared(Path source, String name, String code, CharSequence text) {
     }
 }

@@ -104,7 +104,7 @@ final class SpringConfiguration {
     private void readProperties(List<String> lines) {
         for (int number = 0; number < lines.size(); number++) {
             String line = lines.get(number).strip();
-            if (!skipped(line)) {
+            if (hasContent(line)) {
                 this.assignment(line, number + 1);
             }
         }
@@ -136,7 +136,7 @@ final class SpringConfiguration {
         for (int number = 0; number < lines.size(); number++) {
             String line = lines.get(number);
             String text = line.strip();
-            if (!skipped(text) && !DOCUMENT.equals(text)) {
+            if (hasContent(text) && !DOCUMENT.equals(text)) {
                 this.entry(path, line, text, number + 1);
             }
         }
@@ -160,8 +160,8 @@ final class SpringConfiguration {
         }
     }
 
-    private static boolean skipped(String line) {
-        return line.isEmpty() || line.startsWith(COMMENT);
+    private static boolean hasContent(String line) {
+        return !line.isEmpty() && !line.startsWith(COMMENT);
     }
 
     /**
@@ -172,6 +172,6 @@ final class SpringConfiguration {
      * @param value the value as written, quotation marks included
      * @param line  the one-based line the setting sits on
      */
-    record Setting(String key, String raw, String value, int line) {
+    public record Setting(String key, String raw, String value, int line) {
     }
 }
