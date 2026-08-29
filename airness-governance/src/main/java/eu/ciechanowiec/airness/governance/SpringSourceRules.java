@@ -1,7 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,8 +29,6 @@ final class SpringSourceRules {
     private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
     private static final Pattern ENTRY_POINT = Pattern.compile("@SpringBootApplication\\b");
     private static final Pattern BEAN = Pattern.compile("@Bean\\b");
-    private static final Pattern DECLARATION = Pattern.compile("\\b(\\w+)\\s*\\(");
-    private static final char ANNOTATION = '@';
 
     /**
      * Whether the application class sits anywhere but at the declared package root.
@@ -68,9 +65,16 @@ final class SpringSourceRules {
      */
     static List<String> calledBeanMethods(CharSequence source) {
         String code = JavaCode.blanked(source);
-        List<Bean> beans = beans(code);
-        List<String> names = beans.stream().map(Bean::name).toList();
-        return beans.stream().flatMap(bean -> callsWithin(source, code, bean, names).stream()).toList();
+        List<SpringMembers.Member> beans = SpringMembers.annotated(code, BEAN);
+        List<String> names = beans.stream().map(SpringMembers.Member::name).toList();
+        return beans.stream().flatMap(bean -> calls(source, code, bean, names)).toList();
+    }
+
+    private static Stream<String> calls(
+        CharSequence source, String code, SpringMembers.Member bean, List<String> names
+    ) {
+        return SpringMembers.callsWithin(code, bean.start(), bean.end(), names).stream()
+            .map(call -> offence(source, bean, call));
     }
 
     private static String declaredPackage(CharSequence code) {
@@ -78,95 +82,8 @@ final class SpringSourceRules {
         return declaration.find() ? declaration.group(1) : "";
     }
 
-    private static List<String> callsWithin(
-        CharSequence source, String code, Bean bean, List<String> names
-    ) {
-        return DECLARATION.matcher(code).results()
-            .filter(call -> call.start() >= bean.body() && call.end() <= bean.end())
-            .filter(call -> names.contains(call.group(1)))
-            .map(call -> offence(source, bean, call))
-            .toList();
-    }
-
-    private static String offence(CharSequence source, Bean bean, MatchResult call) {
+    private static String offence(CharSequence source, SpringMembers.Member bean, MatchResult call) {
         return "line " + JavaCode.lineOf(source, call.start(1)) + ": bean method " + bean.name()
             + " calls " + call.group(1) + ", which builds a second instance the container never sees";
-    }
-
-    private static List<Bean> beans(String code) {
-        return BEAN.matcher(code).results()
-            .map(annotation -> declaration(code, annotation.end()))
-            .flatMap(Optional::stream)
-            .toList();
-    }
-
-    private static Optional<Bean> declaration(String code, int from) {
-        return declarations(code, from)
-            .filter(match -> code.charAt(match.start(1) - 1) != ANNOTATION)
-            .findFirst()
-            .flatMap(match -> bean(code, match));
-    }
-
-    private static Stream<MatchResult> declarations(String code, int from) {
-        return DECLARATION.matcher(code).results().filter(match -> match.start() >= from);
-    }
-
-    private static Optional<Bean> bean(String code, MatchResult match) {
-        return body(code, match.end()).map(range -> new Bean(match.group(1), range));
-    }
-
-    private static Optional<Range> body(String code, int parenthesis) {
-        int opening = code.indexOf('{', close(code, parenthesis - 1));
-        return opening < 0 ? Optional.empty() : Optional.of(new Range(opening, matching(code, opening)));
-    }
-
-    private static int close(String code, int opening) {
-        return balanced(code, opening, '(', ')');
-    }
-
-    private static int matching(String code, int opening) {
-        return balanced(code, opening, '{', '}');
-    }
-
-    private static int balanced(String code, int opening, char open, char shut) {
-        int depth = 0;
-        for (int at = opening; at < code.length(); at++) {
-            depth += step(code.charAt(at), open, shut);
-            if (depth == 0) {
-                return at;
-            }
-        }
-        return code.length();
-    }
-
-    private static int step(char character, char open, char shut) {
-        int opened = character == open ? 1 : 0;
-        return character == shut ? -1 : opened;
-    }
-
-    /**
-     * The half-open source range one construct occupies.
-     *
-     * @param start the offset the construct opens at
-     * @param end   the offset it closes at
-     */
-    private record Range(int start, int end) {
-    }
-
-    /**
-     * One bean method, by name and by the range of its body.
-     *
-     * @param name  the declared method name
-     * @param range the range its body occupies
-     */
-    private record Bean(String name, Range range) {
-
-        int body() {
-            return this.range.start();
-        }
-
-        int end() {
-            return this.range.end();
-        }
     }
 }

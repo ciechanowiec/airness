@@ -21,6 +21,24 @@ public final class SpringSourceCheck {
         = "Spring application classes outside the declared package root";
     private static final String BEAN_CALLS
         = "Bean methods calling another bean method of the same class";
+    private static final String SELF_INVOCATION
+        = "Calls reaching a proxied method from inside the bean that declares it";
+    private static final String CONSTRUCTOR_CALLS
+        = "Calls reaching a proxied method while the bean is still being built";
+    private static final String STATIC_HOLDERS
+        = "Beans assigning a static field of their own";
+    private static final String IDENTITY_EQUALITY
+        = "Entities deciding equality by a generated identifier";
+    private static final String ECHOED_EXCEPTIONS
+        = "Exception handlers copying the exception into the response";
+    private static final String UNTIMED_CLIENTS
+        = "HTTP clients built with no connect or read timeout";
+    private static final String OPEN_CHAINS
+        = "Filter chains naming no terminal request matcher";
+    private static final String CORS_CREDENTIALS
+        = "Credentialed requests accepted from a wildcard origin";
+    private static final String REPLACED_DATABASES
+        = "Persistence tests run against a database the application never uses";
 
     private final Path root;
     private final List<Path> sources;
@@ -56,7 +74,16 @@ public final class SpringSourceCheck {
     public List<Findings> findings() {
         return List.of(
             new Findings(ENTRY_POINT, this.offences(this::entryPoint)),
-            new Findings(BEAN_CALLS, this.offences(SpringSourceRules::calledBeanMethods))
+            new Findings(BEAN_CALLS, this.offences(SpringSourceRules::calledBeanMethods)),
+            new Findings(SELF_INVOCATION, this.offences(SpringProxyRules::selfInvocations)),
+            new Findings(CONSTRUCTOR_CALLS, this.offences(SpringProxyRules::constructorInvocations)),
+            new Findings(STATIC_HOLDERS, this.offences(SpringBodyRules::staticBeanHolders)),
+            new Findings(IDENTITY_EQUALITY, this.offences(SpringBodyRules::generatedIdentityEquality)),
+            new Findings(ECHOED_EXCEPTIONS, this.offences(SpringBodyRules::echoedExceptions)),
+            new Findings(UNTIMED_CLIENTS, this.offences(SpringFileRules::untimedClients)),
+            new Findings(OPEN_CHAINS, this.offences(SpringFileRules::openFilterChains)),
+            new Findings(CORS_CREDENTIALS, this.offences(SpringFileRules::unscopedCorsCredentials)),
+            new Findings(REPLACED_DATABASES, this.offences(SpringFileRules::replacedTestDatabases))
         );
     }
 
