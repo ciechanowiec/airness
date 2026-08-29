@@ -16,6 +16,10 @@ import lombok.experimental.UtilityClass;
  * <p>Four of the five ask only of a module the Boot plugin repackages. A library module of a Spring Boot
  * project legitimately maps a schema it does not create and legitimately publishes no probes, since it
  * is not the thing that gets deployed. Repackaging is what says which module is.
+ *
+ * <p>One of those four asks a second question. Probes are read over HTTP, so the rule that demands them
+ * demands them of a deployment that serves it, and a batch job repackaged into the same kind of archive
+ * is left alone.
  */
 @UtilityClass
 final class SpringModelRules {
@@ -82,7 +86,12 @@ final class SpringModelRules {
     }
 
     /**
-     * A deployable module publishing none of the endpoints an orchestrator reads.
+     * A deployable module serving HTTP and publishing none of the endpoints an orchestrator reads.
+     *
+     * <p>A web stack is asked for beside the repackaging, because the probes named here are read over
+     * HTTP. A batch job or a command-line application is repackaged into an executable archive exactly
+     * as a service is, and has nowhere to publish them: the actuator would register its endpoints over
+     * JMX, where the orchestrator that the offence speaks of is not looking.
      *
      * @param pom          the module's pom, which the offence names
      * @param dependencies the module's effective dependencies
@@ -92,7 +101,7 @@ final class SpringModelRules {
     static List<String> missingActuator(
         String pom, Collection<SpringDependency> dependencies, boolean repackaged
     ) {
-        return repackaged && !declares(dependencies, ACTUATOR)
+        return repackaged && serving(dependencies) && !declares(dependencies, ACTUATOR)
             ? List.of(
                 offence(
                     pom,
@@ -113,8 +122,7 @@ final class SpringModelRules {
      * @return the offence, or none
      */
     static List<String> doubledWebStack(String pom, Collection<SpringDependency> dependencies) {
-        boolean servlet = SERVLET.stream().anyMatch(artifact -> declares(dependencies, artifact));
-        return servlet && declares(dependencies, REACTIVE)
+        return servlet(dependencies) && declares(dependencies, REACTIVE)
             ? List.of(
                 offence(
                     pom,
@@ -147,6 +155,14 @@ final class SpringModelRules {
                 + " it, so declaring it inside the application subjects its own beans to ordering,"
                 + " conditions and overrides that a plain @Bean would have settled where it was written"
         );
+    }
+
+    private static boolean serving(Collection<SpringDependency> dependencies) {
+        return servlet(dependencies) || declares(dependencies, REACTIVE);
+    }
+
+    private static boolean servlet(Collection<SpringDependency> dependencies) {
+        return SERVLET.stream().anyMatch(artifact -> declares(dependencies, artifact));
     }
 
     private static boolean migrated(Collection<SpringDependency> dependencies) {

@@ -137,11 +137,42 @@ class SpringModelCheckTest {
             Verdicts.offences(
                 findings(
                     new GitFixture("model-actuator-declared"),
-                    List.of(starter("spring-boot-starter-actuator")), DEPLOYED
+                    List.of(starter("spring-boot-starter-web"), starter("spring-boot-starter-actuator")),
+                    DEPLOYED
                 ),
                 ACTUATOR
             ),
             "the starter is what publishes the probes an orchestrator reads"
+        );
+    }
+
+    @Test
+    void leavesADeployableApplicationThatServesNoHttp() {
+        assertEquals(
+            List.of(),
+            Verdicts.offences(
+                findings(
+                    new GitFixture("model-actuator-batch"),
+                    List.of(starter("spring-boot-starter-batch")), DEPLOYED
+                ),
+                ACTUATOR
+            ),
+            "a batch job is repackaged like a service and has no port to publish a probe on"
+        );
+    }
+
+    @Test
+    void readsTheReactiveStarterAsAWebStackTheProbesWouldBeServedOn() {
+        assertEquals(
+            1,
+            Verdicts.offences(
+                findings(
+                    new GitFixture("model-actuator-reactive"),
+                    List.of(starter("spring-boot-starter-webflux")), DEPLOYED
+                ),
+                ACTUATOR
+            ).size(),
+            "either stack serves the endpoints, so either one is asked for them"
         );
     }
 
