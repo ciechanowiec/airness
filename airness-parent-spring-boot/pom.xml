@@ -178,6 +178,7 @@
                         <phase>package</phase>
                         <goals>
                             <goal>spring-source</goal>
+                            <goal>spring-configuration</goal>
                         </goals>
                     </execution>
                 </executions>
