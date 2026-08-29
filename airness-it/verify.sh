@@ -2896,6 +2896,255 @@ package com.example.deep;
 final class Application {
 }
 JAVA
+
+# One source per rule group, each construct chosen so the rules of that group report on it. The sources
+# declare no Spring dependency for the reason the block header gives: Checkstyle reads the annotation
+# text, so a fixture needs the spelling and not the platform behind it.
+mkdir -p "$spring_source/src/test/java/com/example"
+cat > "$spring_source/src/main/java/com/example/Proxied.java" <<'JAVA'
+package com.example;
+
+class Proxied {
+
+    @PreAuthorize("hasRole('X')")
+    void guarded() {
+    }
+
+    @Cacheable("names")
+    String cached() {
+        return "";
+    }
+
+    @Async
+    void offloaded() {
+    }
+
+    @Validated
+    void checked() {
+    }
+
+    @Retryable
+    void attempted() {
+    }
+
+    @Transactional(readOnly = true, timeout = 5)
+    public final void frozen() {
+    }
+
+    @Transactional(readOnly = true, timeout = 5)
+    public static void detached() {
+    }
+
+    @Cacheable("a")
+    @CachePut("a")
+    public String contradictory() {
+        return "";
+    }
+
+    @Bean
+    public void publishes() {
+    }
+
+    @Bean
+    public BeanPostProcessor processor() {
+        return null;
+    }
+}
+
+@Service
+final class Frozen {
+
+    @Transactional(readOnly = true, timeout = 5)
+    public void act() {
+    }
+}
+
+interface CachedReader {
+
+    @Cacheable("x")
+    String read();
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Injected.java" <<'JAVA'
+package com.example;
+
+@Service
+class Injected {
+
+    @Autowired
+    private static Neighbour shared;
+
+    private Neighbour mutable;
+
+    @Autowired
+    Injected(@Lazy ApplicationContext context) {
+    }
+
+    @Autowired
+    public void setNeighbour(Neighbour neighbour) {
+        this.mutable = neighbour;
+    }
+}
+
+class Aware implements ApplicationContextAware {
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Transacted.java" <<'JAVA'
+package com.example;
+
+@Service
+class Transacted {
+
+    @Transactional
+    public void writes() throws java.io.IOException {
+    }
+
+    @Modifying
+    public void bulk() {
+    }
+
+    public void manual() {
+        this.entityManager.getTransaction();
+    }
+}
+
+interface Ledger {
+
+    @Transactional(readOnly = true, timeout = 5)
+    void post();
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Persisted.java" <<'JAVA'
+package com.example;
+
+@Entity
+@Data
+class Persisted {
+
+    @Id
+    @GeneratedValue
+    private Long id;
+
+    @ManyToOne
+    private Persisted parent;
+
+    @OneToMany(cascade = CascadeType.ALL)
+    private List<Persisted> children;
+
+    @ManyToMany
+    private List<Persisted> peers;
+
+    Persisted(Long identifier) {
+        this.id = identifier;
+    }
+}
+
+interface PersistedRepository {
+
+    Page<Persisted> byName(String name);
+
+    List<Persisted> findByParent(Persisted parent);
+
+    @Query("select p from Persisted p where p.name = " + NAME)
+    Set<Persisted> byQuery();
+
+    @Query(value = "select * from persisted", nativeQuery = true)
+    Set<Persisted> byNativeQuery();
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Served.java" <<'JAVA'
+package com.example;
+
+@RestController
+class Served {
+
+    @Transactional(readOnly = true, timeout = 5)
+    public void act() {
+    }
+
+    @RequestMapping("/x")
+    public String handle(@RequestBody Payload body, @RequestParam String query, HttpServletRequest request) {
+        return "";
+    }
+
+    @CrossOrigin
+    public String open() {
+        RestTemplate client = new RestTemplate();
+        return "";
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Secured.java" <<'JAVA'
+package com.example;
+
+class Secured {
+
+    public void chain(HttpSecurity http, WebSecurity web) throws Exception {
+        http.csrf(csrf -> csrf.disable());
+        http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll());
+        web.ignoring();
+        PasswordEncoder encoder = new BCryptPasswordEncoder();
+        boolean mixed = http.isSecure() || http.isOpen() && web.isOpen();
+        http.headers(headers -> headers.frameOptions().disable());
+        Jwts.parser().setSigningKey("literal-signing-key");
+        http.authorizeHttpRequests(requests -> requests.requestMatchers("/actuator/**").permitAll());
+        UserDetailsManager users = new InMemoryUserDetailsManager();
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Timed.java" <<'JAVA'
+package com.example;
+
+@Component
+class Timed {
+
+    @Scheduled(fixedRate = 5000)
+    public String tick(String argument) {
+        return "";
+    }
+
+    @EventListener
+    @Transactional(readOnly = true, timeout = 5)
+    public void onEvent(Object event) {
+    }
+
+    @EventListener
+    public void onTwo(Object first, Object second) {
+    }
+
+    @InitBinder
+    public String bind() {
+        return "";
+    }
+
+    public void spawn() {
+        new Thread(() -> {
+        });
+    }
+}
+
+@ComponentScan(basePackages = "com.example")
+class Scanned {
+}
+JAVA
+cat > "$spring_source/src/test/java/com/example/SuiteTest.java" <<'JAVA'
+package com.example;
+
+@SpringBootTest(properties = "a=b")
+@Transactional
+@DirtiesContext
+class SuiteTest {
+
+    @BeforeTransaction
+    String hook(String argument) {
+        return "";
+    }
+
+    void uses() {
+        MockMvc mvc = null;
+    }
+}
+JAVA
 git -C "$spring_source" init --quiet
 git -C "$spring_source" config user.name Fixture
 git -C "$spring_source" config user.email fixture@example.invalid
@@ -2903,8 +3152,36 @@ git -C "$spring_source" config user.email fixture@example.invalid
 run_case 'spring: the added source rules all report' 0 'AirnessSpringTransactionalIsPublic' \
     "$spring_source" checkstyle:check -Dairness.enforce=false
 spring_log="$scratch/spring__the_added_source_rules_all_report.log"
-for rule in AirnessSpringTransactionalIsPublic AirnessSpringAsyncReturnsAFuture \
-    AirnessSpringConfigurationIsLite; do
+for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPublic AirnessSpringSecurityCsrfIsNotDisabled \
+    AirnessSpringSecurityFilterChainIsNotBypassed AirnessSpringSecurityHasNoInMemoryUsers AirnessSpringSecurityHeadersStay \
+    AirnessSpringSecurityKeyIsNotALiteral AirnessSpringSecurityPasswordEncoderIsStrong AirnessSpringSecurityPermitAllIsScoped \
+    AirnessSpringAsyncIsPublic AirnessSpringAsyncReturnsAFuture \
+    AirnessSpringAutowiredOnSoleConstructorIsRedundant AirnessSpringBeanMethodReturnsAValue \
+    AirnessSpringCacheAnnotationIsOnAConcreteType AirnessSpringCacheableIsNotCombinedWithCachePut \
+    AirnessSpringCacheableIsPublic AirnessSpringConfigurationIsLite \
+    AirnessSpringDataPageMethodTakesAPageable AirnessSpringDataQueryIsBounded \
+    AirnessSpringDataQueryIsNotConcatenated AirnessSpringEventListenerIsTransactionAware \
+    AirnessSpringEventListenerTakesOneArgument AirnessSpringInitBinderReturnsVoid \
+    AirnessSpringInjectionIsNotStatic AirnessSpringJpaEntityHasANoArgConstructor \
+    AirnessSpringJpaEntityIsNotALombokValue AirnessSpringJpaIdStrategyIsExplicit \
+    AirnessSpringJpaManyToManyUsesASet AirnessSpringJpaToManyDoesNotCascadeRemove \
+    AirnessSpringJpaToOneIsLazy AirnessSpringMethodSecurityIsPublic \
+    AirnessSpringModifyingClearsThePersistenceContext AirnessSpringNoLazyCycleBreak \
+    AirnessSpringNoManualTransactionControl AirnessSpringNoServiceLocator AirnessSpringNoSetterInjection \
+    AirnessSpringNoUnmanagedThreads AirnessSpringPostProcessorBeanIsStatic \
+    AirnessSpringProxiedClassIsNotFinal AirnessSpringProxiedMethodIsNotFinal \
+    AirnessSpringProxiedMethodIsNotStatic AirnessSpringRetryableIsPublic AirnessSpringScanIsNotRedeclared \
+    AirnessSpringScheduleIsConfigurable AirnessSpringScheduledReturnsVoid \
+    AirnessSpringScheduledTakesNoArguments AirnessSpringSingletonHasNoMutableState \
+    AirnessSpringTestDoesNotDirtyTheContext AirnessSpringTestIsNotTransactional \
+    AirnessSpringTestSharesTheContext AirnessSpringTestTransactionHooksRespectTheContract \
+    AirnessSpringTestUsesARealPort AirnessSpringTransactionalDeclaresReadOnly \
+    AirnessSpringTransactionalDeclaresTimeout AirnessSpringTransactionalIsNotOnAnInterface \
+    AirnessSpringTransactionalIsNotOnTheWebLayer AirnessSpringTransactionalIsPublic \
+    AirnessSpringTransactionalRollsBackCheckedExceptions AirnessSpringValidatedIsPublic \
+    AirnessSpringWebClientIsABean AirnessSpringWebCrossOriginIsNotWildcard \
+    AirnessSpringWebMappingNamesItsMethod AirnessSpringWebParameterIsNamed \
+    AirnessSpringWebRequestBodyIsValidated AirnessSpringWebSignatureIsNotServletTyped; do
     if grep -q "$rule" "$spring_log"; then
         printf 'ok       spring: %s reports on the fixture\n' "$rule"
     else
@@ -2918,6 +3195,9 @@ else
     echo 'FAILED   spring: field injection went unreported' >&2
     failures=$((failures + 1))
 fi
+
+run_case 'spring: a native query without a reason is refused' 0 'NativeQueryNeedsJustification' \
+    "$spring_source" pmd:check -Dairness.enforce=false
 
 run_case 'spring: a bean method calling another is refused' 1 'builds a second instance' \
     "$spring_source" airness:spring-source
