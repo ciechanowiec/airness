@@ -706,9 +706,26 @@
     <inspection_tool class="UseOfSunClasses" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="UtilityClassCanBeEnum" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="UtilityClassWithPublicConstructor" enabled="true" level="WARNING" enabled_by_default="true" />
+    <!--
+        A Spring Boot entry point is annotated, holds nothing but its main, and no repair this inspection
+        offers is open to it: the container reads the class as a bean definition and instantiates it, so a
+        private constructor stops the application from starting, and Lombok @UtilityClass, which the
+        Checkstyle MatchXpath rule would then demand, makes the type uninstantiable outright. That left a
+        source suppression as the only answer a project had, spent on a construct every project of this
+        kind carries. The annotation is listed rather than ignoreClassesWithOnlyMain being turned on, so
+        the exemption reaches the construct that cannot comply instead of every static-only class that
+        declares a main, and it is the key checkstyle.xml already suppresses HideUtilityClassConstructor
+        on, so the two analyzers read this shape alike. One profile serves both parents, and a project
+        with no Spring on its classpath cannot carry the annotation, so nothing is taken from a plain
+        project. The option is an ExternalizableStringSet, which reads item children of value by their
+        value attribute; the list size shape written for a plain string list belongs to a different
+        externalizer, parses as valid XML here, and is ignored without a word.
+    -->
     <inspection_tool class="UtilityClassWithoutPrivateConstructor" enabled="true" level="WARNING" enabled_by_default="true">
         <option name="ignorableAnnotations">
-            <value />
+            <value>
+                <item value="org.springframework.boot.autoconfigure.SpringBootApplication" />
+            </value>
         </option>
         <option name="ignoreClassesWithOnlyMain" value="false" />
     </inspection_tool>
