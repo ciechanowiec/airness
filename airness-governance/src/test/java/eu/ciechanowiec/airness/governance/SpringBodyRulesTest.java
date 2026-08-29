@@ -88,6 +88,71 @@ class SpringBodyRulesTest {
         assertTrue(offences.getFirst().contains("cannot be found"), "the offence names the failure");
     }
 
+    // Both members together are what the marker used to get wrong. The call to equals inside the first
+    // was read as a declaration, and the reader then ran on to the next brace it found, which opened the
+    // body of the second. The result was named after one method and measured against the body of another.
+    @Test
+    void countsEachEqualityMemberOnceWhenBothAreDeclared() {
+        String source = """
+            package com.example;
+
+            @Entity
+            class Row {
+
+                @Id
+                @GeneratedValue
+                private Long id;
+
+                @Override
+                public boolean equals(Object other) {
+                    return other instanceof Row row && this.id.equals(row.id);
+                }
+
+                @Override
+                public int hashCode() {
+                    return this.id.hashCode();
+                }
+            }
+            """;
+
+        List<String> offences = SpringBodyRules.generatedIdentityEquality(source);
+
+        assertEquals(2, offences.size(), "one offence for the declaration, and not one for the call in it");
+    }
+
+    // The false positive the phantom member made reachable. Equality here reads a business key, and the
+    // body that follows is the only place the identifier appears.
+    @Test
+    void acceptsEqualityOnABusinessKeyBesideAMethodThatReadsTheIdentifier() {
+        String source = """
+            package com.example;
+
+            @Entity
+            class Row {
+
+                @Id
+                @GeneratedValue
+                private Long id;
+
+                private String reference;
+
+                @Override
+                public boolean equals(Object other) {
+                    return other instanceof Row row && this.reference.equals(row.reference);
+                }
+
+                Long identifier() {
+                    return this.id;
+                }
+            }
+            """;
+
+        assertEquals(
+            List.of(), SpringBodyRules.generatedIdentityEquality(source),
+            "equality reads the business key, and the identifier is read by something that is not equality"
+        );
+    }
+
     @Test
     void acceptsEqualityReadFromABusinessKey() {
         String source = """
