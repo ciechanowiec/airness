@@ -1,0 +1,108 @@
+package eu.ciechanowiec.airness.governance;
+
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * The types a set of sources declares, read once so that a rule can judge one file against the others.
+ *
+ * <p>Every Spring rule written so far answers about the file in front of it. A whole class of defect is
+ * invisible from there, because the two halves are in different files: an entity is declared in one and
+ * returned from a controller in another, a component is annotated in one and instantiated with
+ * {@code new} in another, an application class is unremarkable until a second one exists somewhere else.
+ * Reading every source before judging any is the only shape in which those questions can be asked, and
+ * it is the shape {@link PackageGraph} already established for package cycles.
+ *
+ * <p>An annotation is credited to the source that carries it rather than to a particular declaration in
+ * it. Airness allows one top-level type per file, so the two are the same thing here, and asking the
+ * cheaper question keeps this reading text rather than parsing it.
+ */
+final class SpringTypes {
+
+    private static final Pattern DECLARATION = Pattern.compile(
+        "\\b(?:class|record|interface|enum)\\s+(\\w+)"
+    );
+
+    private final List<Declared> declared;
+
+    private SpringTypes(Collection<Declared> declared) {
+        this.declared = List.copyOf(declared);
+    }
+
+    /**
+     * Reads every source and records the type it declares.
+     *
+     * @param root    the repository root every offence names a source relative to
+     * @param sources the Java sources to read
+     * @return the types they declare
+     */
+    static SpringTypes over(Path root, Collection<Path> sources) {
+        return new SpringTypes(
+            sources.stream().flatMap(source -> read(root, source).stream()).toList()
+        );
+    }
+
+    /**
+     * How many types were declared, which a caller reports so an empty scope reads as one.
+     *
+     * @return the number of declared types
+     */
+    int size() {
+        return this.declared.size();
+    }
+
+    /**
+     * Every source carrying the given annotation.
+     *
+     * @param annotation the annotation to look for
+     * @return the matching types, in the order the sources were given
+     */
+    List<Declared> carrying(Pattern annotation) {
+        return this.declared.stream()
+            .filter(type -> annotation.matcher(type.code()).find())
+            .toList();
+    }
+
+    /**
+     * The names of the types carrying the given annotation.
+     *
+     * @param annotation the annotation to look for
+     * @return the type names, in order
+     */
+    Set<String> named(Pattern annotation) {
+        return this.carrying(annotation).stream()
+            .map(Declared::name)
+            .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    private static Optional<Declared> read(Path root, Path source) {
+        Optional<CharSequence> text = Repository.readText(source).map(CharSequence.class::cast);
+        return text.flatMap(read -> declaredIn(root.relativize(source), read));
+    }
+
+    private static Optional<Declared> declaredIn(Path source, CharSequence text) {
+        String code = JavaCode.blanked(text);
+        Matcher found = DECLARATION.matcher(code);
+        return found.find()
+            ? Optional.of(new Declared(source, found.group(1), code, text))
+            : Optional.empty();
+    }
+
+    /**
+     * One source, by the type it declares and by what it holds.
+     *
+     * @param source the path relative to the repository root, which an offence names
+     * @param name   the first type the source declares
+     * @param code   the source with comments and literals blanked, which every rule reads
+     * @param text   the source as written, which a line number is counted over
+     */
+    record Declared(Path source, String name, String code, CharSequence text) {
+    }
+}
