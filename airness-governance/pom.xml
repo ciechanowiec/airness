@@ -34,6 +34,17 @@
             <artifactId>maven-artifact</artifactId>
             <scope>compile</scope>
         </dependency>
+        <!--
+            The parser Thymeleaf itself reads templates with, which is what makes a verdict here mean
+            what the engine would say rather than what a specification says. It carries no dependency
+            of its own beyond its tests, so the governance module stays as small as its description
+            claims.
+        -->
+        <dependency>
+            <groupId>org.attoparser</groupId>
+            <artifactId>attoparser</artifactId>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

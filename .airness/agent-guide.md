@@ -29,7 +29,9 @@ Airness governs all of the following domains:
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
   instruction files; editor and Git configuration; and an unchanged committable tree during verification.
 - **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
-  comments, source comments, typography, banned substitutes, and cycles among the packages of a module.
+  comments, source comments, typography, banned substitutes, and cycles among the packages of a module. Markup and
+  stylesheets are formatted too, and every markup resource a module ships is read by the parser the template engines
+  use, so a fragment no page calls yet is still proved to parse.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
