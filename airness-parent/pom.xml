@@ -620,6 +620,7 @@
                             <goal>package-cycles</goal>
                             <goal>template-parse</goal>
                             <goal>template-fragments</goal>
+                            <goal>template-replacements</goal>
                             <goal>suppression-budget</goal>
                             <goal>tree-verify</goal>
                         </goals>
