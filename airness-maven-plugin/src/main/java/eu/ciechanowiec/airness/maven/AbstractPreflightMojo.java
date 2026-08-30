@@ -4,11 +4,13 @@ import eu.ciechanowiec.airness.governance.Repository;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A goal that runs before the checks do, and asks whether they can mean anything.
@@ -22,10 +24,10 @@ import org.apache.maven.project.MavenProject;
 abstract class AbstractPreflightMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
-    private MavenProject project;
+    private @Nullable MavenProject project;
 
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
-    private MavenSession session;
+    private @Nullable MavenSession session;
 
     /**
      * Whether Airness quality and governance checks are bypassed.
@@ -50,9 +52,9 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
     }
 
     boolean applies() {
-        return RepositoryProjects.owns(this.session.getTopLevelProject(), this.project)
+        return RepositoryProjects.owns(this.session().getTopLevelProject(), this.project())
             && OncePerSession.firstRun(
-                this.session.getRepositorySession().getData(), this.getClass()
+                this.session().getRepositorySession().getData(), this.getClass()
             );
     }
 
@@ -62,7 +64,7 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
      * @return the repository root
      */
     protected final Path repositoryRoot() {
-        return Repository.rootFrom(this.project.getBasedir().toPath());
+        return Repository.rootFrom(this.project().getBasedir().toPath());
     }
 
     /**
@@ -71,7 +73,7 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
      * @return the current project
      */
     protected final MavenProject project() {
-        return this.project;
+        return Objects.requireNonNull(this.project, "Maven did not inject the current project");
     }
 
     /**
@@ -80,7 +82,7 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
      * @return the active session
      */
     protected final MavenSession session() {
-        return this.session;
+        return Objects.requireNonNull(this.session, "Maven did not inject the current session");
     }
 
     private void decide(Collection<String> problems) throws MojoFailureException {

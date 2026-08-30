@@ -14,6 +14,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The parameters the harness cannot default are set and the inherited Airness artifacts agree.
@@ -41,13 +42,13 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
      * The package every class of this project lives under, unescaped.
      */
     @Parameter(property = "airness.package.root", defaultValue = UNSET)
-    private String packageRoot;
+    private @Nullable String packageRoot;
 
     /**
      * The release every inherited Airness artifact must use.
      */
     @Parameter(property = "airness.version", required = true)
-    private String airnessVersion;
+    private @Nullable String airnessVersion;
 
     /**
      * The Dependency-Check suppression document this project declared, if it declared one.
@@ -57,7 +58,7 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
      * the network at validate time would make a verdict depend on a host rather than on the tree.
      */
     @Parameter(property = "airness.dependency-check.suppression.file")
-    private String suppressionFile;
+    private @Nullable String suppressionFile;
 
     @Override
     boolean applies() {
@@ -73,13 +74,14 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
     @Override
     List<String> problems() {
         this.logParameters();
+        String root = this.packageRoot();
         Stream<String> parameters = Stream.of(
             this.packageRootProblem(),
             this.versionAgreement()
         ).flatMap(Optional::stream);
-        Stream<String> packages = UNSET.equals(this.packageRoot)
+        Stream<String> packages = UNSET.equals(root)
             ? Stream.empty()
-            : PackageRoots.problems(this.packageRoot, this.sourceRoots()).stream();
+            : PackageRoots.problems(root, this.sourceRoots()).stream();
         Stream<String> versions = ManagedVersions.problems(this.project().getFile().toPath()).stream();
         Stream<String> model = MavenModelPolicy.problems(this.project().getFile().toPath()).stream();
         return Stream.of(parameters, packages, versions, model, this.suppressions())
@@ -102,8 +104,8 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
     }
 
     private void logParameters() {
-        this.getLog().info("airness.package.root = " + this.packageRoot);
-        this.getLog().info("airness.version = " + this.airnessVersion);
+        this.getLog().info("airness.package.root = " + this.packageRoot());
+        this.getLog().info("airness.version = " + this.airnessVersion());
     }
 
     /**
@@ -113,11 +115,12 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
      */
     private Optional<String> versionAgreement() {
         String parent = airnessParentVersion(this.project()).orElse("");
+        String configured = this.airnessVersion();
         return Optional.of(
-            "airness.version (" + this.airnessVersion + ") does not match the inherited "
+            "airness.version (" + configured + ") does not match the inherited "
                 + "airness-parent version (" + parent + ")"
         )
-            .filter(_ -> !Objects.equals(this.airnessVersion, parent));
+            .filter(_ -> !Objects.equals(configured, parent));
     }
 
     static Optional<String> airnessParentVersion(MavenProject project) {
@@ -132,6 +135,14 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
     private Optional<String> packageRootProblem() {
         return Optional.of(
             "Set airness.package.root to the package every class lives under, which the harness cannot guess"
-        ).filter(_ -> UNSET.equals(this.packageRoot));
+        ).filter(_ -> UNSET.equals(this.packageRoot()));
+    }
+
+    private String airnessVersion() {
+        return Objects.requireNonNull(this.airnessVersion, "Maven did not inject airness.version");
+    }
+
+    private String packageRoot() {
+        return Objects.requireNonNull(this.packageRoot, "Maven did not inject airness.package.root");
     }
 }

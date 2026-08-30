@@ -6,10 +6,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import org.attoparser.ParseException;
 import org.attoparser.config.ParseConfiguration;
 import org.attoparser.simple.AbstractSimpleMarkupHandler;
 import org.attoparser.simple.SimpleMarkupParser;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Reads every markup resource a module ships and hands each element to whoever is asking about it.
@@ -54,22 +56,27 @@ final class MarkupScan {
      * @param reading what the calling check makes of one document
      * @return the offences, in the order the files were read
      */
-    List<String> offences(Document reading) {
+    List<String> offences(BiFunction<Path, Collection<String>, MarkupElement> reading) {
         List<String> offences = new ArrayList<>();
         this.files.forEach(file -> this.read(file, reading, offences));
         return List.copyOf(offences);
     }
 
-    private void read(Path file, Document reading, Collection<String> offences) {
+    private void read(
+        Path file, BiFunction<Path, Collection<String>, MarkupElement> reading,
+        Collection<String> offences
+    ) {
         Repository.readText(file)
             .ifPresent(text -> offences.addAll(elementsIn(this.root.relativize(file), text, reading)));
     }
 
-    private static List<String> elementsIn(Path named, String text, Document reading) {
+    private static List<String> elementsIn(
+        Path named, String text, BiFunction<Path, Collection<String>, MarkupElement> reading
+    ) {
         List<String> found = new ArrayList<>();
         try {
             new SimpleMarkupParser(ParseConfiguration.htmlConfiguration())
-                .parse(text, new Elements(reading.over(named, found)));
+                .parse(text, new Elements(reading.apply(named, found)));
             return List.copyOf(found);
         } catch (ParseException _) {
             // Markup no engine could read is nobody's finding to make here. template-parse reports it
@@ -82,52 +89,19 @@ final class MarkupScan {
     }
 
     /**
-     * What a check makes of one document: a reader of its elements, writing what it objects to into the
-     * collection it is given.
-     */
-    @FunctionalInterface
-    interface Document {
-
-        /**
-         * Answers the reader of one document.
-         *
-         * @param named    the file, named the way an offence names it
-         * @param offences where the reader writes what it objects to
-         * @return the reader of that document's elements
-         */
-        Element over(Path named, Collection<String> offences);
-    }
-
-    /**
-     * One element of a document, as the check reading it sees it.
-     */
-    @FunctionalInterface
-    interface Element {
-
-        /**
-         * Reads one element.
-         *
-         * @param attributes what the element carries, which is empty rather than absent
-         * @param line       the line the element was written on
-         * @param column     the column the element was written at
-         */
-        void read(Map<String, String> attributes, int line, int column);
-    }
-
-    /**
      * Hands the parser's elements to one reader, however a document happens to close them.
      */
     private static final class Elements extends AbstractSimpleMarkupHandler {
 
-        private final Element reader;
+        private final MarkupElement reader;
 
-        private Elements(Element reader) {
+        private Elements(MarkupElement reader) {
             this.reader = reader;
         }
 
         @Override
         public void handleOpenElement(
-            String element, Map<String, String> attributes, int line, int column
+            String element, @Nullable Map<String, String> attributes, int line, int column
         ) {
             this.hand(attributes, line, column);
         }
@@ -137,7 +111,7 @@ final class MarkupScan {
         // and whatever was written on one unread.
         @Override
         public void handleStandaloneElement(
-            String element, Map<String, String> attributes, boolean minimized, int line, int column
+            String element, @Nullable Map<String, String> attributes, boolean minimized, int line, int column
         ) {
             this.hand(attributes, line, column);
         }
@@ -145,7 +119,7 @@ final class MarkupScan {
         // An element carrying no attribute at all arrives with nothing rather than with an empty map,
         // which is the parser saying the same thing in a way its caller has to answer for. It is
         // answered once, here, so that no reader of an element has to.
-        private void hand(Map<String, String> attributes, int line, int column) {
+        private void hand(@Nullable Map<String, String> attributes, int line, int column) {
             this.reader.read(Optional.ofNullable(attributes).orElseGet(Map::of), line, column);
         }
     }

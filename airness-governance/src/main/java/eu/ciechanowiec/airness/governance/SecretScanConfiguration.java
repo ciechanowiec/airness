@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.SequencedCollection;
 import java.util.regex.MatchResult;
@@ -220,10 +221,11 @@ public final class SecretScanConfiguration {
     private static List<String> strings(CharSequence value) {
         return STRING.matcher(value).results()
             .map(
-                hit -> Optional.ofNullable(hit.group(1))
-                    .or(() -> Optional.ofNullable(hit.group(2)))
-                    .or(() -> Optional.ofNullable(hit.group(3)))
-                    .orElse("")
+                hit -> Objects.requireNonNullElse(
+                    hit.group(1), Objects.requireNonNullElse(
+                        hit.group(2), Objects.requireNonNullElse(hit.group(3), "")
+                    )
+                )
             )
             .toList();
     }

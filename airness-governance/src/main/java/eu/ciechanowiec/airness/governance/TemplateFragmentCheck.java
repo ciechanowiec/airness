@@ -129,7 +129,7 @@ public final class TemplateFragmentCheck {
     /**
      * Collects every fragment declaration the parser reaches, with the place it was written.
      */
-    private static final class Declarations implements MarkupScan.Element {
+    private static final class Declarations implements MarkupElement {
 
         private final Path named;
 

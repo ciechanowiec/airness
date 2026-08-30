@@ -117,7 +117,7 @@ class SelfHarnessMirrorTest {
 
     private static List<String> executionIds(Path pom) {
         return ProjectFiles.descendants(ProjectFiles.document(pom), "execution")
-            .map(execution -> Xml.text(execution, "id").orElse(""))
+            .map(Xml::idTextOrEmpty)
             .toList();
     }
 

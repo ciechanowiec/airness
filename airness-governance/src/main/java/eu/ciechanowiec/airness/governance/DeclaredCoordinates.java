@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -194,15 +195,15 @@ public final class DeclaredCoordinates {
             && plugin.filter(PluginDeclaration::matches).isPresent();
     }
 
-    private static boolean projectOrProfile(Node node) {
+    private static boolean projectOrProfile(@Nullable Node node) {
         return named(node, "project") || named(node, "profile");
     }
 
     private static Stream<Node> ancestors(Node node) {
-        return Stream.iterate(node.getParentNode(), Objects::nonNull, Node::getParentNode);
+        return Stream.iterate(node, Objects::nonNull, Node::getParentNode).skip(1);
     }
 
-    private static boolean named(Node node, String name) {
+    private static boolean named(@Nullable Node node, String name) {
         return Optional.ofNullable(node)
             .filter(held -> held.getNodeType() == Node.ELEMENT_NODE)
             .map(Node::getNodeName)

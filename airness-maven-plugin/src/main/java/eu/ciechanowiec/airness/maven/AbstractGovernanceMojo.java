@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Resource;
@@ -15,6 +16,7 @@ import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What every governance goal does with the verdicts a check produces: print all of them, then fail on
@@ -32,10 +34,10 @@ import org.apache.maven.project.MavenProject;
 abstract class AbstractGovernanceMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
-    private MavenProject project;
+    private @Nullable MavenProject project;
 
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
-    private MavenSession session;
+    private @Nullable MavenSession session;
 
     /**
      * Whether a finding fails the build. Every check runs and prints either way.
@@ -82,7 +84,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return the repository root
      */
     protected final Path repositoryRoot() {
-        return Repository.rootFrom(this.project.getBasedir().toPath());
+        return Repository.rootFrom(this.project().getBasedir().toPath());
     }
 
     /**
@@ -91,7 +93,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return the source roots that exist on disk
      */
     protected final List<Path> moduleSourceRoots() {
-        return sourceRoots(Stream.of(this.project));
+        return sourceRoots(Stream.of(this.project()));
     }
 
     /**
@@ -104,7 +106,8 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return the resource roots the project declares
      */
     protected final List<Path> moduleResourceRoots() {
-        return Stream.concat(this.project.getResources().stream(), this.project.getTestResources().stream())
+        MavenProject current = this.project();
+        return Stream.concat(current.getResources().stream(), current.getTestResources().stream())
             .map(Resource::getDirectory)
             .map(Path::of)
             .distinct()
@@ -117,7 +120,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return the test source roots that exist on disk
      */
     protected final List<Path> moduleTestSourceRoots() {
-        return this.project.getTestCompileSourceRoots().stream()
+        return this.project().getTestCompileSourceRoots().stream()
             .map(Path::of)
             .filter(Files::isDirectory)
             .distinct()
@@ -130,7 +133,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return production source roots
      */
     protected final List<Path> moduleProductionSourceRoots() {
-        return this.project.getCompileSourceRoots().stream()
+        return this.project().getCompileSourceRoots().stream()
             .map(Path::of)
             .filter(Files::isDirectory)
             .distinct()
@@ -185,7 +188,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return the source roots that exist on disk
      */
     protected final List<Path> reactorSourceRoots() {
-        return sourceRoots(this.session.getAllProjects().stream());
+        return sourceRoots(this.session().getAllProjects().stream());
     }
 
     /**
@@ -194,7 +197,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return the project
      */
     protected final MavenProject project() {
-        return this.project;
+        return Objects.requireNonNull(this.project, "Maven did not inject the current project");
     }
 
     /**
@@ -203,7 +206,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return the session
      */
     protected final MavenSession session() {
-        return this.session;
+        return Objects.requireNonNull(this.session, "Maven did not inject the current session");
     }
 
     private static List<Path> sourceRoots(Stream<MavenProject> projects) {

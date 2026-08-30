@@ -7,10 +7,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Runs Qodana once per reactor from a writable copy of a read-only repository mount.
@@ -24,7 +26,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
     private static final int FINDINGS = 255;
 
     @Parameter(property = "qodana.image", required = true)
-    private String image;
+    private @Nullable String image;
 
     @Override
     List<String> command() throws IOException {
@@ -39,7 +41,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
         this.trustedRoots(roots);
         Path localRepository = this.session().getRequest().getLocalRepositoryPath().toPath().toRealPath();
         QodanaPaths.Environment environment = new QodanaPaths.Environment(roots, localRepository);
-        return dockerCommand(new QodanaPaths(root, output, profile, environment), this.image);
+        return dockerCommand(new QodanaPaths(root, output, profile, environment), this.image());
     }
 
     static List<String> dockerCommand(QodanaPaths paths, String image) {
@@ -122,6 +124,6 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
 
     @Override
     String image() {
-        return this.image;
+        return Objects.requireNonNull(this.image, "Maven did not inject qodana.image");
     }
 }

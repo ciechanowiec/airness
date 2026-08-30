@@ -7,9 +7,11 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Requires current-build coverage evidence whenever a module has production Java sources, and requires
@@ -19,7 +21,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
 
     @Parameter(property = "jacoco.dataFile", defaultValue = "${project.build.directory}/jacoco.exec")
-    private String dataFile;
+    private @Nullable String dataFile;
 
     /**
      * The report the coverage tool wrote, which names every class it measured before any exclusion is
@@ -29,13 +31,13 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
         property = "jacoco.reportFile",
         defaultValue = "${project.reporting.outputDirectory}/jacoco/jacoco.xml"
     )
-    private String reportFile;
+    private @Nullable String reportFile;
 
     /**
      * The exclusions this project declared, read here to check that each one still names a class.
      */
     @Parameter(property = "airness.coverage.excluded.classes")
-    private String excluded;
+    private @Nullable String excluded;
 
     @Override
     boolean applies() {
@@ -44,7 +46,7 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
 
     @Override
     List<Findings> findings() {
-        Path evidence = Path.of(this.dataFile);
+        Path evidence = Path.of(this.dataFile());
         boolean current = Files.isRegularFile(evidence)
             && modified(evidence) >= this.session().getStartTime().toInstant().toEpochMilli();
         List<String> offences = current ? List.of() : List.of(
@@ -68,7 +70,7 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
      */
     private List<String> unreached() {
         List<String> declared = Sentinel.optional(this.excluded);
-        Path report = Path.of(this.reportFile);
+        Path report = Path.of(this.reportFile());
         return declared.isEmpty() || !Files.isRegularFile(report)
             ? List.of()
             : new CoverageReport(report).unreached(declared).stream()
@@ -82,5 +84,13 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read the age of " + file, exception);
         }
+    }
+
+    private String dataFile() {
+        return Objects.requireNonNull(this.dataFile, "Maven did not inject jacoco.dataFile");
+    }
+
+    private String reportFile() {
+        return Objects.requireNonNull(this.reportFile, "Maven did not inject jacoco.reportFile");
     }
 }

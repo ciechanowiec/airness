@@ -89,7 +89,7 @@ public final class MavenModelPolicy {
     private static Stream<String> executionProblems(Element root) {
         return DeclaredCoordinates.plugins(root)
             .flatMap(MavenModelPolicy::executions)
-            .map(execution -> Xml.text(execution, "id").orElse(""))
+            .map(Xml::idTextOrEmpty)
             .filter(id -> id.startsWith("airness-"))
             .distinct()
             .map(id -> "Remove child execution " + id + "; Airness owns every airness-* execution");

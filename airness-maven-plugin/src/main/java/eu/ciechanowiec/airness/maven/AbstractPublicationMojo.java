@@ -4,10 +4,12 @@ import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.Repository;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A publication check that remains mandatory when the already-verified release skips its tests.
@@ -15,7 +17,7 @@ import org.apache.maven.project.MavenProject;
 abstract class AbstractPublicationMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
-    private MavenProject project;
+    private @Nullable MavenProject project;
 
     abstract List<Findings> findings();
 
@@ -37,10 +39,10 @@ abstract class AbstractPublicationMojo extends AbstractMojo {
     }
 
     protected final MavenProject project() {
-        return this.project;
+        return Objects.requireNonNull(this.project, "Maven did not inject the current project");
     }
 
     protected final Path repositoryRoot() {
-        return Repository.rootFrom(this.project.getBasedir().toPath());
+        return Repository.rootFrom(this.project().getBasedir().toPath());
     }
 }

@@ -7,6 +7,7 @@ import java.util.stream.Stream;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Every committable file uses plain ASCII typography: the hyphen rather than a dash, three periods
@@ -32,7 +33,7 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
      * reach for the switch rather than the list.
      */
     @Parameter(property = "airness.typography.excludes")
-    private String excludes;
+    private @Nullable String excludes;
 
     @Override
     List<Findings> findings() {
