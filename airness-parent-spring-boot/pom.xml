@@ -192,9 +192,24 @@
                             <goal>spring-model</goal>
                         </goals>
                     </execution>
+                    <!--
+                        Bound at process-classes, the first phase at which the sources are the ones the
+                        build will keep. The format profile rewrites and reformats at process-resources,
+                        so a check reading earlier would judge a tree the build was about to replace, and
+                        target/classes exists by then, which is where a project that declares settings of
+                        its own has the metadata for them written.
+
+                        It runs before package for the reason the model goal runs before it. These four
+                        read the sources and the settings and nothing else, and they answer in about a
+                        second, while package carries the analyzers, and under the extended profile the
+                        vulnerability database and the inspection engine as well. Those are minutes of
+                        Docker and network. Ordering them first meant a misspelled property key was
+                        reported only once all of it had already run, and a child execution merges after
+                        the inherited ones, so the phase is the only place that order can be settled.
+                    -->
                     <execution>
                         <id>airness-spring-governance</id>
-                        <phase>package</phase>
+                        <phase>process-classes</phase>
                         <goals>
                             <goal>spring-source</goal>
                             <goal>spring-configuration</goal>
