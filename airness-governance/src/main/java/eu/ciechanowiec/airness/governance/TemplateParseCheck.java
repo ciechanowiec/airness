@@ -23,15 +23,12 @@ import org.attoparser.discard.DiscardMarkupHandler;
  * against one reports the dialect rather than a defect. Asking the engine's own parser asks the only
  * question with an answer, which is whether the file can be read at all.
  *
- * <p>The files are found through the resource directories the module declares rather than through a
- * directory named like a template root. A name says where templates are usually kept and never where
- * this project keeps them, so a project that moves them would otherwise pass by holding nothing
- * the check looked for.
+ * <p>Which files those are is answered by {@link MarkupResources}, so that this check and every other
+ * check over templates read one set rather than two that can drift apart.
  */
 public final class TemplateParseCheck {
 
     private static final String HEADLINE = "Markup resources that no template engine could read";
-    private static final String SUFFIX = ".html";
 
     private final Path root;
     private final List<Path> files;
@@ -44,7 +41,7 @@ public final class TemplateParseCheck {
      */
     public TemplateParseCheck(Path root, Collection<Path> resourceRoots) {
         this.root = root;
-        this.files = markup(root, resourceRoots);
+        this.files = MarkupResources.of(root, resourceRoots);
     }
 
     /**
@@ -84,13 +81,5 @@ public final class TemplateParseCheck {
         } catch (ParseException exception) {
             return Optional.of("%s: %s".formatted(named, exception.getMessage()));
         }
-    }
-
-    private static List<Path> markup(Path root, Collection<Path> resourceRoots) {
-        List<Path> resolved = resourceRoots.stream().map(root::resolve).map(Path::normalize).toList();
-        return Repository.trackedFiles(root).stream()
-            .filter(file -> file.getFileName().toString().endsWith(SUFFIX))
-            .filter(file -> resolved.stream().anyMatch(file::startsWith))
-            .toList();
     }
 }

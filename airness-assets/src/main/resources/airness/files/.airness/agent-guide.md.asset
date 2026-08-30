@@ -27,11 +27,17 @@ Airness governs all of the following domains:
   ownership, raw-model anti-bypass checks, effective dependency convergence, the ordering of declared properties, and
   valid Airness parameters.
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
-  instruction files; editor and Git configuration; and an unchanged committable tree during verification.
+  instruction files; editor and Git configuration; and an unchanged committable tree during verification. The editor
+  configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
+  rather than reported: build output and a tool's scratch are not content this style governs.
 - **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
-  comments, source comments, typography, banned substitutes, and cycles among the packages of a module. Markup and
-  stylesheets are formatted too, and every markup resource a module ships is read by the parser the template engines
-  use, so a fragment no page calls yet is still proved to parse.
+  comments, source comments, typography, banned substitutes, and cycles among the packages of a module. Every
+  production package declares its nullness with `@NullMarked` on its `package-info`, which the parent supplies the
+  annotation for: a package that declares none leaves every type in it undecided, and a class implementing a marked
+  framework interface then states a weaker contract than the one it overrides. Markup and stylesheets are formatted
+  too, every markup resource a module ships is read by the parser the template engines use, so a fragment no page
+  calls yet is still proved to parse, and a fragment is held to the argument cap a callable is held to, because a
+  fragment is invoked by name with a positional list like any other callable.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,

@@ -60,7 +60,7 @@
         alternative. The allowlist carries those cases across the project types this configuration serves.
         -->
         <property name="format"
-                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo)\b)\w+[^{]*\{"/>
+                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo|AbstractSimpleMarkupHandler)\b)\w+[^{]*\{"/>
         <property name="message"
                   value="Inheritance is allowed only for explicitly specified cases."/>
     </module>
@@ -171,6 +171,41 @@
         </module>
         <module name="MissingOverrideOnRecordAccessor"/>
         <module name="PackageAnnotation"/>
+        <module name="Regexp">
+            <!--
+                A package that declares no nullness leaves every type in it undecided: neither never null
+                nor possibly null, so no reader and no checker can tell whether the author considered it.
+
+                The cost falls where this code meets a framework that did decide. Spring marks its own
+                packages, so an override of one of its methods states a weaker contract than the method it
+                overrides, and the promise it failed to repeat is then checked by nothing. The report that
+                arrives instead names the defect and not the repair, which is why the repair is required
+                here rather than left to be discovered once per project.
+
+                The annotation is on the compile classpath already, put there by this parent, so this asks
+                for a line and not for a dependency. @NullUnmarked is deliberately not accepted in its
+                place: opting a package out is a decision worth the cost of a suppression.
+
+                The check runs on every file and is scoped to package-info by the filter below, because
+                JavadocPackage already requires one per package, which makes that file the one place the
+                answer can be given.
+            -->
+            <property name="id" value="AirnessPackageDeclaresItsNullness"/>
+            <property name="format" value="@NullMarked"/>
+            <property name="illegalPattern" value="false"/>
+            <property name="message"
+                      value="This package does not declare its nullness, so every type in it is undecided. Add @NullMarked to package-info.java, and @Nullable to whatever genuinely may be absent."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <!--
+                Everything that is not a package-info. The anchors carry the rule: Checkstyle matches this
+                against the file name with find() rather than matches(), so without them the lookahead
+                succeeds partway along a path that does end in package-info.java, every file is suppressed,
+                and the rule above passes every project while checking nothing.
+            -->
+            <property name="id" value="AirnessPackageDeclaresItsNullness"/>
+            <property name="files" value="^(?!.*package-info\.java$).*$"/>
+        </module>
         <module name="SuppressWarnings">
             <property name="format" value="(?i)^(?:\s*|all)$"/>
         </module>
@@ -797,6 +832,18 @@
         <module name="OuterTypeNumber"/>
         <module name="ParameterNumber">
             <property name="max" value="4"/>
+            <!--
+                A method that overrides another does not choose its parameter list, so the cap asks it
+                for a refactoring that no edit to this code can perform. The only ways past would be to
+                suppress the rule or to stop implementing the interface, and neither is the smaller
+                signature the cap exists to get. The declaration the list came from is not an override
+                and is still measured, so the finding lands on whoever can answer it, and lands nowhere
+                when that declaration belongs to a dependency.
+
+                Only the parameter cap is relaxed. The length, complexity and nesting of the body are
+                this code's own wherever the method came from, and stay measured.
+            -->
+            <property name="ignoreOverriddenMethods" value="true"/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <!-- See: https://github.com/checkstyle/checkstyle/issues/7432#issuecomment-570259104 -->
