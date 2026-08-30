@@ -418,6 +418,20 @@
                     <skip>${skipTests}</skip>
                     <failOnFormatViolation>${airness.enforce}</failOnFormatViolation>
                     <failOnNoMatchingProperties>true</failOnNoMatchingProperties>
+                    <!--
+                        What git is configured never to carry, written at validate by
+                        airness:editorconfig-excludes. A file git ignores is build output or a tool's
+                        scratch rather than content this style governs, and the linter has no notion of
+                        git, so without this it reads them and reports a missing newline in a directory
+                        nobody wrote. A project cannot answer that itself: these exclusions are the
+                        parent's and no Airness setting reaches them.
+                    -->
+                    <excludesFile>${project.build.directory}/airness/editorconfig-excludes.txt</excludesFile>
+                    <!--
+                        What git does carry and this style still does not govern. Binaries the linter
+                        would read as text, and data whose format is a tab. These are a different
+                        question from the one above and stay stated by hand.
+                    -->
                     <excludes>
                         <exclude>**/target/**</exclude>
                         <exclude>.git/**</exclude>
@@ -433,13 +447,6 @@
                         <exclude>**/*.webp</exclude>
                         <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
                         <exclude>**/*.tsv</exclude>
-                        <!--
-                            Exported copies of the documentation. The managed .gitignore asset already
-                            keeps them out of every consumer's tree, and the exporter writes them without
-                            a final newline, so they are excluded by role rather than repaired by hand.
-                        -->
-                        <exclude>**/README*.html</exclude>
-                        <exclude>**/README*.pdf</exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -584,6 +591,7 @@
                             <goal>tree-snapshot</goal>
                             <goal>check-parameters</goal>
                             <goal>assets-check</goal>
+                            <goal>editorconfig-excludes</goal>
                         </goals>
                     </execution>
                     <execution>
@@ -611,6 +619,7 @@
                             <goal>test-assertions</goal>
                             <goal>package-cycles</goal>
                             <goal>template-parse</goal>
+                            <goal>template-fragments</goal>
                             <goal>suppression-budget</goal>
                             <goal>tree-verify</goal>
                         </goals>

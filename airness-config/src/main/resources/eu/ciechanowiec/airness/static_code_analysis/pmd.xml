@@ -88,6 +88,15 @@
         <properties>
             <!-- PMD reports at the threshold, so 5 permits the repository cap of 4 parameters. -->
             <property name="minimum" value="5"/>
+            <!--
+                The counterpart of ignoreOverriddenMethods in the Checkstyle rule that measures the same
+                thing: a method that overrides another did not choose its parameter list, so reporting it
+                asks for an edit that cannot be made here. PMD offers no property for it, and every rule
+                accepts this one, so the same exemption is written as the shape it applies to. The
+                declaration the list came from is not an override and is measured as before.
+            -->
+            <property name="violationSuppressXPath"
+                      value="./ancestor-or-self::MethodDeclaration[ModifierList/Annotation[@SimpleName='Override']]"/>
         </properties>
     </rule>
     <rule ref="category/java/design.xml/ExcessivePublicCount">

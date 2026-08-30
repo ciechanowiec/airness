@@ -240,7 +240,10 @@ INSTRUCTIONS
 /**
  * Isolated consumer types used to exercise the inherited harness.
  */
+@NullMarked
 package com.example;
+
+import org.jspecify.annotations.NullMarked;
 JAVA
     cat > "$directory/src/main/java/com/example/Example.java" <<'JAVA'
 package com.example;
@@ -1116,6 +1119,97 @@ JAVA
 run_case 'checkstyle: a name that only contains Util passes' 0 'BUILD SUCCESS' \
     "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Utilization.java'
 rm "$consumer/src/main/java/com/example/Utilization.java"
+
+# A method that overrides another does not choose its parameter list, so the cap asks it for an edit
+# that cannot be made here. Both analyzers that measure it pass over an override, and both still
+# measure the declaration the list came from, which is where the finding can be answered.
+#
+# Only Checkstyle is driven here, because it is the one of the two whose scope a command line can
+# narrow: maven-pmd-plugin publishes no includes property, so a run of it would read the whole fixture
+# and report on files these two cases are not about. The PMD half is held by this harness's own build
+# instead, where TemplateFragmentCheck overrides a five-parameter method of the markup parser and
+# carries no suppression: removing the exemption fails that build.
+cat > "$consumer/src/main/java/com/example/Wide.java" <<'JAVA'
+package com.example;
+
+/**
+ * Declares a list wider than the cap allows, which is this file's own decision to make.
+ */
+public interface Wide {
+
+    /**
+     * Takes more than a callable may.
+     *
+     * @param first  the first
+     * @param second the second
+     * @param third  the third
+     * @param fourth the fourth
+     * @param fifth  the fifth
+     */
+    void carry(String first, String second, String third, String fourth, String fifth);
+}
+JAVA
+run_case 'caps: a declaration wider than the cap is rejected' 1 'More than 4 parameters' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Wide.java'
+cat > "$consumer/src/main/java/com/example/Carrier.java" <<'JAVA'
+package com.example;
+
+/**
+ * Implements a list it did not choose, which no edit to this file can narrow.
+ */
+public final class Carrier implements Wide {
+
+    @Override
+    public void carry(String first, String second, String third, String fourth, String fifth) {
+        throw new IllegalStateException(first + second + third + fourth + fifth);
+    }
+}
+JAVA
+run_case 'caps: an override of that declaration passes' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Carrier.java'
+rm "$consumer/src/main/java/com/example/Carrier.java" "$consumer/src/main/java/com/example/Wide.java"
+
+# A package that declares no nullness leaves every type in it undecided, which costs nothing until this
+# code meets a framework that did decide. Spring marks its own packages, so an override of one of its
+# methods then states a weaker contract than the method it overrides, and the promise it failed to
+# repeat is checked by nothing. The annotation is on the compile classpath already, put there by the
+# parent, so the rule asks for a line rather than for a dependency.
+cat > "$consumer/src/main/java/com/example/package-info.java" <<'JAVA'
+/**
+ * A package that says nothing about whether the types in it can be absent.
+ */
+package com.example;
+JAVA
+run_case 'checkstyle: a package that declares no nullness is rejected' 1 'does not declare its nullness' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/package-info.java'
+cat > "$consumer/src/main/java/com/example/package-info.java" <<'JAVA'
+/**
+ * Isolated consumer types used to exercise the inherited harness.
+ */
+@NullMarked
+package com.example;
+
+import org.jspecify.annotations.NullMarked;
+JAVA
+run_case 'checkstyle: a package that declares its nullness passes' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/package-info.java'
+# The other half of the same rule. An ordinary source carries no package annotation and must not be
+# asked for one, and a filter that failed to scope would suppress the rule everywhere rather than
+# here, which is the way this rule fails silently rather than loudly.
+cat > "$consumer/src/main/java/com/example/Marked.java" <<'JAVA'
+package com.example;
+
+/**
+ * An ordinary source, which declares no package and must not be asked to.
+ *
+ * @param seats how many people the room holds
+ */
+public record Marked(int seats) {
+}
+JAVA
+run_case 'checkstyle: the nullness rule reaches no file but a package-info' 0 'BUILD SUCCESS' \
+    "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Marked.java'
+rm "$consumer/src/main/java/com/example/Marked.java"
 cat > "$consumer/src/main/java/com/example/Quantity.java" <<'JAVA'
 package com.example;
 
@@ -1926,6 +2020,11 @@ run_case 'assets: later pinned change fails tree verification' 1 \
     'Build plugins changed committable files|working tree content differs' \
     "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \
     antrun:run@drift-pinned-asset airness:tree-verify
+# The case above leaves the drift it made, which is the point of it. Restoring the file here is what
+# keeps that drift the subject of one case rather than the reason every later case that reaches a
+# lifecycle phase fails its assets check instead of the rule it was written for. The multimodule
+# twin of this case restores in the same way.
+git -C "$consumer" restore .gitattributes
 
 # A typography exemption is a role rather than a convenience, so the goal reports a prefix that
 # excluded nothing as its own rule. Such a prefix names a path that moved or went, it protects
@@ -1971,6 +2070,35 @@ run_case 'templates: the attributes and elements of a dialect pass' 0 'Template 
 rm "$consumer/src/main/resources/templates/dialect.html"
 rmdir "$consumer/src/main/resources/templates"
 
+# A fragment is invoked by name with a positional argument list, which is what a callable is, so the cap
+# on a callable's parameters is the cap on its arguments. Every measured cap in the build stops at the
+# last Java file, so without this one a fragment grows to seven positional strings and nothing objects.
+mkdir -p "$consumer/src/main/resources/templates"
+cat > "$consumer/src/main/resources/templates/wide.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="field(label, name, type, purpose, value, error)"></div>
+</body>
+</html>
+HTML
+run_case 'templates: a fragment past the argument cap is rejected' 1 'takes 6 arguments' \
+    "$consumer" airness:template-fragments
+rm "$consumer/src/main/resources/templates/wide.html"
+cat > "$consumer/src/main/resources/templates/narrow.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="field(label, name, control, error)"></div>
+<div th:replace="~{templates/narrow :: field('one, two', b, c, d)}"></div>
+</body>
+</html>
+HTML
+run_case 'templates: a fragment at the argument cap passes' 0 'Template fragments read [1-9]' \
+    "$consumer" airness:template-fragments
+rm "$consumer/src/main/resources/templates/narrow.html"
+rmdir "$consumer/src/main/resources/templates"
+
 # The formatter over the half of the tree the Java one never reads. Checking is bound to an ordinary
 # build and writing is reachable only through the format profile, so the same file answers both ways.
 mkdir -p "$consumer/src/main/resources/static"
@@ -1983,6 +2111,26 @@ run_case 'prettier: the rewritten stylesheet then passes' 0 'BUILD SUCCESS' \
     "$consumer" process-resources
 rm "$consumer/src/main/resources/static/style.css"
 rmdir "$consumer/src/main/resources/static" "$consumer/src/main/resources"
+
+# A file git is configured never to carry is build output or a tool's scratch rather than content this
+# style governs. The linter has no notion of git, so the list is written for it at validate. Without it
+# a stray file in an ignored directory fails a build in a directory nobody wrote, and no project setting
+# reaches the exclusions to say otherwise.
+# The pair below reads one ignored file and one committable file, and differs in nothing but whether
+# the committable one is well formed. Scoping the run to those two is what keeps the subject the
+# exclusion rather than the rest of a fixture that was never written to satisfy .editorconfig, and
+# including a clean file is what makes the pass mean the linter read something and was content with
+# it rather than that it read nothing at all.
+mkdir -p "$consumer/coverage"
+printf 'A report with no final newline, written by a tool' > "$consumer/coverage/report.txt"
+printf 'A note that ends as it should.\n' > "$consumer/notes.txt"
+run_case 'editorconfig: a file git ignores is not read' 0 'BUILD SUCCESS' \
+    "$consumer" validate editorconfig:check '-Deditorconfig.includes=coverage/**,notes.txt'
+printf 'A note with no final newline' > "$consumer/notes.txt"
+run_case 'editorconfig: a file git would carry is still read' 1 'insert_final_newline' \
+    "$consumer" validate editorconfig:check '-Deditorconfig.includes=coverage/**,notes.txt'
+rm -r "$consumer/coverage"
+rm "$consumer/notes.txt"
 
 # Maven finishes the root module before starting its child. The tree net therefore needs a fresh
 # snapshot and verification pair in every module, or a child plugin can edit the repository after the
@@ -2037,7 +2185,7 @@ package com.example;
 final class OnlyTest {
 }
 JAVA
-prepare "$multimodule" --quiet editorconfig:format -Preactor-child
+prepare "$multimodule" --quiet validate editorconfig:format -Preactor-child
 git -C "$multimodule" add --all
 git -C "$multimodule" commit --quiet --message 'test(it): add the reactor child fixture'
 run_case 'tree: a child-module mutation fails the reactor build' 1 \
@@ -4240,7 +4388,10 @@ cat > "$spring_app/src/main/java/com/example/package-info.java" <<'JAVA'
 /**
  * A Spring Boot application built against the harness.
  */
+@NullMarked
 package com.example;
+
+import org.jspecify.annotations.NullMarked;
 JAVA
 cat > "$spring_app/src/main/java/com/example/Application.java" <<'JAVA'
 package com.example;

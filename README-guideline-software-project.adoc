@@ -155,7 +155,7 @@ This section describes the state of the source code: its size, its types, its na
 [[size-and-complexity-caps]]
 === Size and Complexity Caps
 
-. Code respects the caps listed below, and each cap binds as an error in a static analyzer. A [[callable,a callable]]_callable_ is a source-code construct that can be invoked, such as a function, method, or constructor.
+. Code respects the caps listed below, and each cap binds as an error in a static analyzer. A [[callable,a callable]]_callable_ is a source-code construct that can be invoked, such as a function, method, constructor, or a template fragment invoked by name.
 +
 [cols="<3,>1",options="header"]
 |===
@@ -167,6 +167,7 @@ This section describes the state of the source code: its size, its types, its na
 |Control-structure nesting depth |3 levels
 |Line length |120 characters
 |===
+. The parameter cap doesn't bind on a xref:#callable[callable] that overrides another, because it doesn't choose its own parameter list. Every other cap binds.
 . Where no tool for the programming language or platform measures a cap, a script of the xref:#governed-repository[governed repository] measures that cap, and the script is a xref:#check[check].
 . Code that grows past a cap is refactored until every measured value meets the cap. A cap is never raised. A xref:#governed-repository[governed repository] may set caps stricter than the table and never sets looser ones.
 
