@@ -92,6 +92,16 @@
          - MigrateFromJavaLangIo: reverses UpgradeToJava25, which migrates System.out printing to java.lang.IO
          - VarargParameter: replaces varargs with arrays for pre-Java-5 compatibility
          - RemoveLiteralUnderscores: removes readable numeric separators solely to lower the source level
+         - HtmlUnknownAttribute: reads a server-side template as though it were finished HTML, so a
+           project fails it on its first template and the count grows with template size rather than
+           with defects. Its custom-value list is an exact-match set with no prefix form, while the
+           th: prefix is open by construction (th:anything sets anything, including th:hx-get) and
+           Alpine takes unbounded modifiers such as @click.outside, so no finite list of entries
+           closes the set. Scoping it off template roots is not available either: the harness can see
+           only that a directory is named like a root, never that it holds templates, and a project
+           that moves the root has no exception left to take, so the check would be unsatisfiable
+           for a shape the harness governs. HtmlUnknownTag stays enabled and goes on naming a tag
+           that does not exist
     -->
 
     <option name="myName" value="HC" />
@@ -303,10 +313,11 @@
     <inspection_tool class="HashCodeUsesNonFinalVariable" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="HibernateResource" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="HtmlTagCanBeJavadocTag" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="HtmlUnknownAttribute" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="HtmlUnknownTag" enabled="true" level="WARNING" enabled_by_default="true">
         <option name="myValues">
             <value>
-                <list size="7">
+                <list size="8">
                     <item index="0" class="java.lang.String" itemvalue="nobr" />
                     <item index="1" class="java.lang.String" itemvalue="noembed" />
                     <item index="2" class="java.lang.String" itemvalue="comment" />
@@ -314,6 +325,7 @@
                     <item index="4" class="java.lang.String" itemvalue="embed" />
                     <item index="5" class="java.lang.String" itemvalue="script" />
                     <item index="6" class="java.lang.String" itemvalue="style" />
+                    <item index="7" class="java.lang.String" itemvalue="th:block" />
                 </list>
             </value>
         </option>
