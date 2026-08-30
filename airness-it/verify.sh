@@ -3885,6 +3885,7 @@ cat > "$spring_settings/pom.xml" <<'POM'
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+      <scope>compile</scope>
     </dependency>
   </dependencies>
 </project>
