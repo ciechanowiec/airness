@@ -1,17 +1,11 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Pattern;
-import org.attoparser.ParseException;
-import org.attoparser.config.ParseConfiguration;
-import org.attoparser.simple.AbstractSimpleMarkupHandler;
-import org.attoparser.simple.SimpleMarkupParser;
 
 /**
  * Reads every markup resource a module ships and reports the fragments that take more arguments than
@@ -58,9 +52,7 @@ public final class TemplateFragmentCheck {
     // nesting of any depth, which is what keeps this file from counting brackets itself.
     private static final Pattern INNERMOST = Pattern.compile("[(\\[{][^()\\[\\]{}]*[)\\]}]");
 
-    private final Path root;
-
-    private final List<Path> files;
+    private final MarkupScan scan;
 
     /**
      * Creates a check over the markup one module ships.
@@ -69,8 +61,7 @@ public final class TemplateFragmentCheck {
      * @param resourceRoots resource directories of the module
      */
     public TemplateFragmentCheck(Path root, Collection<Path> resourceRoots) {
-        this.root = root;
-        this.files = MarkupResources.of(root, resourceRoots);
+        this.scan = new MarkupScan(root, resourceRoots);
     }
 
     /**
@@ -79,7 +70,7 @@ public final class TemplateFragmentCheck {
      * @return the number of files in scope
      */
     public int scanned() {
-        return this.files.size();
+        return this.scan.scanned();
     }
 
     /**
@@ -88,7 +79,7 @@ public final class TemplateFragmentCheck {
      * @return one verdict, carrying a line per fragment that takes too many arguments
      */
     public List<Findings> findings() {
-        return List.of(new Findings(HEADLINE, this.overwide()));
+        return List.of(new Findings(HEADLINE, this.scan.offences(Declarations::new)));
     }
 
     /**
@@ -121,33 +112,6 @@ public final class TemplateFragmentCheck {
         return (opens < 0 ? declaration : declaration.substring(0, opens)).trim();
     }
 
-    private List<String> overwide() {
-        List<String> offences = new ArrayList<>();
-        this.files.forEach(file -> this.read(file, offences));
-        return List.copyOf(offences);
-    }
-
-    private void read(Path file, Collection<String> offences) {
-        Repository.readText(file)
-            .ifPresent(text -> offences.addAll(declarationsIn(this.root.relativize(file), text)));
-    }
-
-    private static List<String> declarationsIn(Path named, String text) {
-        List<String> found = new ArrayList<>();
-        try {
-            new SimpleMarkupParser(ParseConfiguration.htmlConfiguration())
-                .parse(text, new Declarations(named, found));
-            return List.copyOf(found);
-        } catch (ParseException _) {
-            // Markup no engine could read is not this check's finding to make. template-parse reports
-            // it from the same files, with the line and column of what it could not read, and a build
-            // fails on that before anybody asks what its fragments declare. Whatever the parser reached
-            // before it stopped is half a document, so this contributes nothing rather than a count
-            // taken from a file that has no settled contents.
-            return List.of();
-        }
-    }
-
     // What is left once every literal and every group has been taken out is the list itself, so the
     // commas still standing are the ones that separate one argument from the next.
     private static int separators(String list) {
@@ -165,7 +129,7 @@ public final class TemplateFragmentCheck {
     /**
      * Collects every fragment declaration the parser reaches, with the place it was written.
      */
-    private static final class Declarations extends AbstractSimpleMarkupHandler {
+    private static final class Declarations implements MarkupScan.Element {
 
         private final Path named;
 
@@ -177,28 +141,8 @@ public final class TemplateFragmentCheck {
         }
 
         @Override
-        public void handleOpenElement(
-            String element, Map<String, String> attributes, int line, int column
-        ) {
-            this.read(attributes, line, column);
-        }
-
-        // The list is attoparser's rather than this code's, which is why the parameter cap passes over
-        // an override. Declining it would leave the handler uncalled for an element that closes itself,
-        // and a fragment declared on one unread.
-        @Override
-        public void handleStandaloneElement(
-            String element, Map<String, String> attributes, boolean minimized, int line, int column
-        ) {
-            this.read(attributes, line, column);
-        }
-
-        // An element carrying no attribute at all arrives with nothing rather than with an empty map,
-        // which is the parser saying the same thing in a way its caller has to answer for.
-        private void read(Map<String, String> attributes, int line, int column) {
-            Optional.ofNullable(attributes)
-                .orElseGet(Map::of)
-                .entrySet()
+        public void read(Map<String, String> attributes, int line, int column) {
+            attributes.entrySet()
                 .stream()
                 .filter(attribute -> declares(attribute.getKey()))
                 .forEach(attribute -> this.measure(attribute.getValue(), line, column));
