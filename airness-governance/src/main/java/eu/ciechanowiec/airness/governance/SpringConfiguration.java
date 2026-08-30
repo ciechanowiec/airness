@@ -161,7 +161,7 @@ final class SpringConfiguration {
             String text = line.strip();
             if (DOCUMENT.equals(text)) {
                 path.clear();
-                document = document + 1;
+                document += 1;
             } else if (hasContent(text)) {
                 this.entry(path, line, number + 1, document);
             }

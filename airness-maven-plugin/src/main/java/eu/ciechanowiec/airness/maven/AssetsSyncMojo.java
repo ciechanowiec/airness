@@ -6,11 +6,13 @@ import eu.ciechanowiec.airness.governance.AssetSync;
 import eu.ciechanowiec.airness.governance.Repository;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Writes the files the harness owns into this project when explicitly requested.
@@ -23,10 +25,10 @@ import org.apache.maven.project.MavenProject;
 public final class AssetsSyncMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
-    private MavenProject project;
+    private @Nullable MavenProject project;
 
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
-    private MavenSession session;
+    private @Nullable MavenSession session;
 
     /**
      * Whether tests and Airness-managed operations are bypassed.
@@ -38,7 +40,7 @@ public final class AssetsSyncMojo extends AbstractMojo {
      * Repository-relative paths this project has taken over, comma-separated. These are left alone.
      */
     @Parameter(property = "airness.assets.unmanaged")
-    private String unmanaged;
+    private @Nullable String unmanaged;
 
     /**
      * Writes the managed files once, from the project that owns the repository.
@@ -55,19 +57,19 @@ public final class AssetsSyncMojo extends AbstractMojo {
     public void execute() {
         if (this.skip) {
             this.getLog().info("Skipping Airness because skipTests is true");
-        } else if (RepositoryProjects.owns(this.session.getTopLevelProject(), this.project)) {
+        } else if (RepositoryProjects.owns(this.session().getTopLevelProject(), this.project())) {
             this.write();
         } else {
             this.getLog().info(
-                "Skipping Airness because " + this.project.getArtifactId()
+                "Skipping Airness because " + this.project().getArtifactId()
                     + " does not own the repository files; run this goal from "
-                    + this.session.getTopLevelProject().getArtifactId()
+                    + this.session().getTopLevelProject().getArtifactId()
             );
         }
     }
 
     private void write() {
-        Path root = Repository.rootFrom(this.project.getBasedir().toPath());
+        Path root = Repository.rootFrom(this.project().getBasedir().toPath());
         boolean instructions = new AgentInstructions(
             root, new AgentMaterials(AssetsSyncMojo.class.getClassLoader()).instructions()
         ).write();
@@ -85,5 +87,13 @@ public final class AssetsSyncMojo extends AbstractMojo {
         if (written == 0 && !instructions) {
             this.getLog().info("Every file the harness owns was already in place");
         }
+    }
+
+    private MavenProject project() {
+        return Objects.requireNonNull(this.project, "Maven did not inject the current project");
+    }
+
+    private MavenSession session() {
+        return Objects.requireNonNull(this.session, "Maven did not inject the current session");
     }
 }

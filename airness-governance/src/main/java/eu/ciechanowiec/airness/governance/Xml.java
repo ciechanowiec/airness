@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import javax.xml.parsers.DocumentBuilder;
@@ -58,6 +59,14 @@ final class Xml {
     }
 
     static Optional<String> text(Node parent, String tag) {
-        return firstChild(parent, tag).map(element -> element.getTextContent().strip());
+        return firstChild(parent, tag)
+            .map(element -> Objects.requireNonNull(element.getTextContent()).strip());
+    }
+
+    static String idTextOrEmpty(Node parent) {
+        List<Element> found = children(parent, "id");
+        return found.isEmpty()
+            ? ""
+            : Objects.requireNonNull(found.getFirst().getTextContent()).strip();
     }
 }

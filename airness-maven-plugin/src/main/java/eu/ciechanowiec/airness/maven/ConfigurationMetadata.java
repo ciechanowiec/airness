@@ -104,10 +104,9 @@ record ConfigurationMetadata(List<Path> classpath) {
     }
 
     private static Stream<ConfigurationProperty> parsed(JsonNode root) {
-        JsonNode document = root;
         return Stream.concat(
-            listed(document.path(PROPERTIES), false),
-            listed(document.path(GROUPS), true)
+            listed(root.path(PROPERTIES), false),
+            listed(root.path(GROUPS), true)
         );
     }
 
@@ -116,12 +115,11 @@ record ConfigurationMetadata(List<Path> classpath) {
     }
 
     private static ConfigurationProperty property(JsonNode entry, boolean group) {
-        JsonNode declared = entry;
         return new ConfigurationProperty(
-            declared.path(NAME).asText(NONE),
-            declared.path(TYPE).asText(NONE),
+            entry.path(NAME).asText(NONE),
+            entry.path(TYPE).asText(NONE),
             group,
-            deprecation(declared)
+            deprecation(entry)
         );
     }
 

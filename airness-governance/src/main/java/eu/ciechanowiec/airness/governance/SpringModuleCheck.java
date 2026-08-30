@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -150,8 +151,10 @@ public final class SpringModuleCheck {
 
     private static String profileOf(Path file) {
         Matcher named = PROFILE_FILE.matcher(file.getFileName().toString());
-        named.matches();
-        return named.group(1);
+        if (!named.matches()) {
+            throw new IllegalArgumentException("Not a Spring profile file: " + file);
+        }
+        return Objects.requireNonNull(named.group(1));
     }
 
     private static boolean underTests(Path file) {

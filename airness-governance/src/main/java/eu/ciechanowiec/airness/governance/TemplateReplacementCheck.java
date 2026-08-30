@@ -29,15 +29,6 @@ public final class TemplateReplacementCheck {
 
     private static final String HEADLINE = "Elements replaced by a fragment that also carry an attribute nothing reads";
 
-    private static final String THYMELEAF = "th:";
-
-    // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
-    private static final String THYMELEAF_DATA = "data-th-";
-
-    private static final String REPLACE = "th:replace";
-
-    private static final String REPLACE_DATA = "data-th-replace";
-
     private static final String SEPARATOR = ", ";
 
     private final MarkupScan scan;
@@ -72,34 +63,19 @@ public final class TemplateReplacementCheck {
     }
 
     /**
-     * Whether the attribute belongs to the template dialect at all.
-     *
-     * <p>The namespace declaration a document opens with is not one of these. It is spelled
-     * {@code xmlns:th} and so carries the prefix in the wrong half of its name, which is what tells a
-     * declaration of the dialect apart from a use of it.
-     *
-     * @param attribute the name of an attribute, lowercased
-     * @return whether the dialect reads it
-     */
-    static boolean dialect(String attribute) {
-        return attribute.startsWith(THYMELEAF) || attribute.startsWith(THYMELEAF_DATA);
-    }
-
-    /**
-     * Whether the attribute replaces the element it is written on, under either spelling.
-     *
-     * @param attribute the name of an attribute, lowercased
-     * @return whether it is a replacement
-     */
-    static boolean replaces(String attribute) {
-        return REPLACE.equals(attribute) || REPLACE_DATA.equals(attribute);
-    }
-
-    /**
      * Collects every element whose replacement discards something written beside it, with the place it
      * was written.
      */
-    private static final class Replacements implements MarkupScan.Element {
+    private static final class Replacements implements MarkupElement {
+
+        private static final String THYMELEAF = "th:";
+
+        // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
+        private static final String THYMELEAF_DATA = "data-th-";
+
+        private static final String REPLACE = "th:replace";
+
+        private static final String REPLACE_DATA = "data-th-replace";
 
         private final Path named;
 
@@ -115,7 +91,7 @@ public final class TemplateReplacementCheck {
             List<String> written = attributes.keySet()
                 .stream()
                 .map(attribute -> attribute.toLowerCase(Locale.ROOT))
-                .filter(TemplateReplacementCheck::dialect)
+                .filter(Replacements::dialect)
                 .sorted()
                 .toList();
             this.measure(written, line, column);
@@ -126,7 +102,7 @@ public final class TemplateReplacementCheck {
         private void measure(List<String> written, int line, int column) {
             List<String> discarded = written.stream().filter(attribute -> !replaces(attribute)).toList();
             written.stream()
-                .filter(TemplateReplacementCheck::replaces)
+                .filter(Replacements::replaces)
                 .findFirst()
                 .filter(_ -> !discarded.isEmpty())
                 .ifPresent(
@@ -135,6 +111,14 @@ public final class TemplateReplacementCheck {
                             .formatted(this.named, line, column, replacement, String.join(SEPARATOR, discarded))
                     )
                 );
+        }
+
+        private static boolean dialect(String attribute) {
+            return attribute.startsWith(THYMELEAF) || attribute.startsWith(THYMELEAF_DATA);
+        }
+
+        private static boolean replaces(String attribute) {
+            return REPLACE.equals(attribute) || REPLACE_DATA.equals(attribute);
         }
     }
 }

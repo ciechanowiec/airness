@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -11,6 +12,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Runs one repository-wide Docker check while separating findings from operational failures.
@@ -29,10 +31,10 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     );
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
-    private MavenProject project;
+    private @Nullable MavenProject project;
 
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
-    private MavenSession session;
+    private @Nullable MavenSession session;
 
     @Parameter(property = "airness.enforce", defaultValue = "true")
     private boolean enforce;
@@ -74,7 +76,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private boolean firstRun() {
         return OncePerSession.firstRun(
-            this.session.getRepositorySession().getData(), this.getClass()
+            this.session().getRepositorySession().getData(), this.getClass()
         );
     }
 
@@ -110,7 +112,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     }
 
     protected final MavenProject project() {
-        return this.project;
+        return Objects.requireNonNull(this.project, "Maven did not inject the current project");
     }
 
     /**
@@ -119,7 +121,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
      * @return the active session
      */
     protected final MavenSession session() {
-        return this.session;
+        return Objects.requireNonNull(this.session, "Maven did not inject the current session");
     }
 
     private int runCheck() throws MojoExecutionException {

@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -89,7 +90,7 @@ final class PomPropertyOrder {
         return node.getNodeType() == Node.TEXT_NODE || node.getNodeType() == Node.CDATA_SECTION_NODE;
     }
 
-    private static boolean inside(Node node, Collection<Node> blocks) {
+    private static boolean inside(@Nullable Node node, Collection<Node> blocks) {
         return Optional.ofNullable(node)
             .map(held -> propertyBlock(held, blocks) || inside(held.getParentNode(), blocks))
             .orElse(false);

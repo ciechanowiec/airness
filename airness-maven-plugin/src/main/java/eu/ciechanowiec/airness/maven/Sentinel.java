@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Reads an optional comma-separated parameter.
@@ -22,7 +23,7 @@ final class Sentinel {
      * @param value the raw parameter value
      * @return the entries, empty when nothing was set
      */
-    static List<String> optional(String value) {
+    static List<String> optional(@Nullable String value) {
         return Optional.ofNullable(value).map(String::strip).filter(text -> !text.isEmpty())
             .map(Sentinel::entries)
             .orElseGet(List::of);

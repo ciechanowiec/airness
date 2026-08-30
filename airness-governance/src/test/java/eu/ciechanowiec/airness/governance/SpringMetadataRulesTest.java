@@ -31,8 +31,8 @@ class SpringMetadataRulesTest {
         );
     }
 
-    private static ConfigurationProperty group(String name) {
-        return new ConfigurationProperty(name, "com.example.Settings", true, sound());
+    private static ConfigurationProperty group() {
+        return new ConfigurationProperty("spring.application", "com.example.Settings", true, sound());
     }
 
     private static ConfigurationProperty.Deprecation sound() {
@@ -87,7 +87,7 @@ class SpringMetadataRulesTest {
     @Test
     void reportsAKeyBeneathADeclaredGroupThatDeclaresNoSuchKey() {
         List<String> reported = SpringMetadataRules.unknown(
-            FILE, read(NAMED), metadata(group("spring.application"))
+            FILE, read(NAMED), metadata(group())
         );
 
         assertEquals(1, reported.size(), "the group is declared and knows no such key");
@@ -102,7 +102,7 @@ class SpringMetadataRulesTest {
             """;
 
         List<String> reported = SpringMetadataRules.unknown(
-            FILE, read(own), metadata(group("spring.application"))
+            FILE, read(own), metadata(group())
         );
 
         assertEquals(List.of(), reported, "a project binds its own settings and answers to nothing here");
@@ -133,7 +133,7 @@ class SpringMetadataRulesTest {
     void acceptsAKeyThatIsDeclaredAndInGoodStanding() {
         SpringMetadata metadata = metadata(
             new ConfigurationProperty("spring.application.name", "java.lang.String", false, sound()),
-            group("spring.application")
+            group()
         );
 
         assertEquals(List.of(), SpringMetadataRules.unknown(FILE, read(NAMED), metadata), "it is declared");

@@ -51,19 +51,19 @@ class ConfigurationMetadataTest {
         """;
 
     @SneakyThrows
-    private static Path archive(Path directory, String name, String content) {
-        Path jar = directory.resolve(name);
+    private static Path archive(Path directory) {
+        Path jar = directory.resolve("starter.jar");
         try (OutputStream file = Files.newOutputStream(jar); ZipOutputStream zip = new ZipOutputStream(file)) {
             zip.putNextEntry(new ZipEntry(ENTRY));
-            zip.write(content.getBytes(StandardCharsets.UTF_8));
+            zip.write(WITHDRAWN.getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
         }
         return jar;
     }
 
     @SneakyThrows
-    private static Path empty(Path directory, String name) {
-        Path jar = directory.resolve(name);
+    private static Path empty(Path directory) {
+        Path jar = directory.resolve("plain.jar");
         try (OutputStream file = Files.newOutputStream(jar); ZipOutputStream zip = new ZipOutputStream(file)) {
             zip.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
             zip.closeEntry();
@@ -77,7 +77,7 @@ class ConfigurationMetadataTest {
 
     @Test
     void readsEveryPropertyAndGroupAnArchiveDeclares(@TempDir Path directory) {
-        Path jar = archive(directory, "starter.jar", WITHDRAWN);
+        Path jar = archive(directory);
 
         List<ConfigurationProperty> published = new ConfigurationMetadata(List.of(jar)).published();
 
@@ -88,7 +88,7 @@ class ConfigurationMetadataTest {
 
     @Test
     void carriesWhatTheSupplierSaysAboutAWithdrawnKey(@TempDir Path directory) {
-        Path jar = archive(directory, "starter.jar", WITHDRAWN);
+        Path jar = archive(directory);
 
         ConfigurationProperty.Deprecation stated = named(
             new ConfigurationMetadata(List.of(jar)).published(), "server.error.include-message"
@@ -101,7 +101,7 @@ class ConfigurationMetadataTest {
 
     @Test
     void defaultsTheLevelOfADeprecationThatNamesNone(@TempDir Path directory) {
-        Path jar = archive(directory, "starter.jar", WITHDRAWN);
+        Path jar = archive(directory);
 
         ConfigurationProperty.Deprecation stated = named(
             new ConfigurationMetadata(List.of(jar)).published(), "spring.datasource.dbcp2.max-wait-millis"
@@ -113,7 +113,7 @@ class ConfigurationMetadataTest {
 
     @Test
     void leavesAKeyInGoodStandingWithNothingSaidAboutIt(@TempDir Path directory) {
-        Path jar = archive(directory, "starter.jar", WITHDRAWN);
+        Path jar = archive(directory);
 
         ConfigurationProperty.Deprecation stated = named(
             new ConfigurationMetadata(List.of(jar)).published(), "server.port"
@@ -124,7 +124,7 @@ class ConfigurationMetadataTest {
 
     @Test
     void passesOverAnArchiveThatPublishesNoMetadata(@TempDir Path directory) {
-        Path jar = empty(directory, "plain.jar");
+        Path jar = empty(directory);
 
         assertEquals(
             List.of(), new ConfigurationMetadata(List.of(jar)).published(),

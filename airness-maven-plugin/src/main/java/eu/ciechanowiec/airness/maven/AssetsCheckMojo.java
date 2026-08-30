@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The files the harness owns are where their policy says, with the bytes it ships.
@@ -32,7 +33,7 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
      * leaving to be assumed, and an opt-out whose reason nobody wrote down is one nobody can retire.
      */
     @Parameter(property = "airness.assets.unmanaged")
-    private String unmanaged;
+    private @Nullable String unmanaged;
 
     @Override
     List<Findings> findings() {

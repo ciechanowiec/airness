@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Scans the full Git history with gitleaks in a read-only repository mount.
@@ -16,7 +18,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 public final class SecretScanMojo extends AbstractDockerCheckMojo {
 
     @Parameter(property = "gitleaks.image", required = true)
-    private String image;
+    private @Nullable String image;
 
     @Override
     List<String> command() throws IOException {
@@ -26,7 +28,7 @@ public final class SecretScanMojo extends AbstractDockerCheckMojo {
             throw new IOException("Secret scan configuration is missing: " + config);
         }
         return List.of(
-            "docker", "run", "--rm", "-v", root + ":/repo:ro", this.image,
+            "docker", "run", "--rm", "-v", root + ":/repo:ro", this.image(),
             "git", "/repo", "--no-banner", "--redact", "--config", "/repo/.gitleaks.toml"
         );
     }
@@ -38,6 +40,6 @@ public final class SecretScanMojo extends AbstractDockerCheckMojo {
 
     @Override
     String image() {
-        return this.image;
+        return Objects.requireNonNull(this.image, "Maven did not inject gitleaks.image");
     }
 }

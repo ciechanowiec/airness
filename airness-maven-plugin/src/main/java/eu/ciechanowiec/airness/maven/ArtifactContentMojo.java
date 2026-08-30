@@ -13,6 +13,7 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Inspects the completed JAR for content that source-tree checks cannot see.
@@ -37,13 +38,13 @@ public final class ArtifactContentMojo extends AbstractGovernanceMojo {
     private static final String ARCHIVE = ".jar";
 
     @Parameter(defaultValue = "${project.build.directory}/${project.build.finalName}.jar", readonly = true)
-    private String artifact;
+    private @Nullable String artifact;
 
     @Parameter(defaultValue = "${project.build.outputDirectory}", readonly = true)
-    private String mainOutput;
+    private @Nullable String mainOutput;
 
     @Parameter(defaultValue = "${project.build.testOutputDirectory}", readonly = true)
-    private String testOutput;
+    private @Nullable String testOutput;
 
     @Override
     boolean applies() {
@@ -58,7 +59,7 @@ public final class ArtifactContentMojo extends AbstractGovernanceMojo {
         }
         return new ArtifactContentCheck(
             jar,
-            new ModuleOutput(Path.of(this.mainOutput), Path.of(this.testOutput)),
+            new ModuleOutput(Path.of(this.mainOutput()), Path.of(this.testOutput())),
             this.repositoryRoot(),
             this.vendored()
         ).findings();
@@ -68,7 +69,7 @@ public final class ArtifactContentMojo extends AbstractGovernanceMojo {
         return Optional.ofNullable(this.project().getArtifact())
             .map(Artifact::getFile)
             .map(File::toPath)
-            .orElseGet(() -> Path.of(this.artifact));
+            .orElseGet(() -> Path.of(this.artifact()));
     }
 
     private List<Path> vendored() {
@@ -79,5 +80,17 @@ public final class ArtifactContentMojo extends AbstractGovernanceMojo {
             .filter(archive -> archive.getFileName().toString().endsWith(ARCHIVE))
             .filter(Files::isRegularFile)
             .toList();
+    }
+
+    private String artifact() {
+        return Objects.requireNonNull(this.artifact, "Maven did not inject the artifact path");
+    }
+
+    private String mainOutput() {
+        return Objects.requireNonNull(this.mainOutput, "Maven did not inject the main output path");
+    }
+
+    private String testOutput() {
+        return Objects.requireNonNull(this.testOutput, "Maven did not inject the test output path");
     }
 }

@@ -9,6 +9,7 @@ import org.apache.maven.model.License;
 import org.apache.maven.model.Scm;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Validates the metadata and immutable coordinates required for a public Maven release.
@@ -95,11 +96,11 @@ public final class PublicationMetadataMojo extends AbstractPublicationMojo {
         ).flatMap(Optional::stream).toList();
     }
 
-    private static Optional<String> missing(String name, String value) {
+    private static Optional<String> missing(String name, @Nullable String value) {
         return Optional.of(name).filter(_ -> Optional.ofNullable(value).orElse("").isBlank());
     }
 
-    private static boolean snapshot(String version) {
+    private static boolean snapshot(@Nullable String version) {
         return Optional.ofNullable(version).orElse("").endsWith(SNAPSHOT);
     }
 }
