@@ -1,10 +1,13 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
@@ -41,12 +44,18 @@ final class SpringConfigurationRules {
             "the health payload names every component and often its host to an unauthenticated caller;"
                 + " use when-authorized"
         ),
+        /*
+         * Named under spring.web rather than server. Spring Boot 4 stopped binding the server.error
+         * spelling altogether, so a rule written against it guarded a key the container no longer reads,
+         * while the key it does read went unguarded. The old spelling is not left with a rule of its own
+         * because the metadata check reports it as unbound and names this one as its replacement.
+         */
         new Rule(
-            "server.error.include-stacktrace", value -> !NEVER.equals(value),
+            "spring.web.error.include-stacktrace", value -> !NEVER.equals(value),
             "an unhandled error returns its stack trace to the caller; set never"
         ),
         new Rule(
-            "server.error.include-message", value -> !NEVER.equals(value),
+            "spring.web.error.include-message", value -> !NEVER.equals(value),
             "an unhandled error returns its internal message to the caller; set never"
         ),
         new Rule(
@@ -127,7 +136,8 @@ final class SpringConfigurationRules {
         return Stream.of(
             WRONG_VALUE.stream().flatMap(rule -> wrongValue(path, configuration, rule)),
             REQUIRED.stream().flatMap(rule -> missing(path, configuration, rule)),
-            configuration.settings().stream().flatMap(setting -> hygiene(path, setting))
+            configuration.settings().stream().flatMap(setting -> hygiene(path, setting)),
+            duplicates(path, configuration)
         ).flatMap(stream -> stream).toList();
     }
 
@@ -183,6 +193,39 @@ final class SpringConfigurationRules {
                 )
             )
             : Stream.empty();
+    }
+
+    /*
+     * Grouped by document as well as by key, because one file may hold several and the same key in two of
+     * them is how a profile overrides a default. Within one document there is no such reading: Spring
+     * binds the last occurrence, so every earlier one is a line the project wrote and nothing reads.
+     */
+    private static Stream<String> duplicates(String path, SpringConfiguration read) {
+        Map<String, List<SpringConfiguration.Setting>> grouped = read.settings().stream()
+            .collect(
+                Collectors.groupingBy(
+                    SpringConfigurationRules::within, LinkedHashMap::new, Collectors.toList()
+                )
+            );
+        return grouped.values().stream()
+            .filter(declared -> declared.size() > 1)
+            .map(declared -> repeated(path, declared));
+    }
+
+    private static String within(SpringConfiguration.Setting setting) {
+        return setting.document() + ":" + setting.key();
+    }
+
+    private static String repeated(String path, List<SpringConfiguration.Setting> declared) {
+        SpringConfiguration.Setting bound = declared.getLast();
+        String earlier = declared.subList(0, declared.size() - 1).stream()
+            .map(setting -> String.valueOf(setting.line()))
+            .collect(Collectors.joining(", "));
+        return offence(
+            path, bound.line(), bound.raw()
+                + " is declared more than once in this document, at line " + earlier
+                + " as well, and Spring binds the last of them, so every earlier line is read by nothing"
+        );
     }
 
     private static String unquoted(String value) {

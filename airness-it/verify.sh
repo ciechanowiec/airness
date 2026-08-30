@@ -3375,7 +3375,9 @@ class Served {
     }
 
     @RequestMapping("/x")
-    public String handle(@RequestBody Payload body, @RequestParam String query, HttpServletRequest request) {
+    public String handle(
+        @RequestBody Payload body, @Size(max = 10) @RequestParam String query, HttpServletRequest request
+    ) {
         return "";
     }
 
@@ -3673,10 +3675,12 @@ management:
     health:
       show-details: always
 server:
-  error:
-    include-stacktrace: always
-    include-message: always
+  port: 8080
 spring:
+  web:
+    error:
+      include-stacktrace: always
+      include-message: always
   profiles:
     active: production
   main:
@@ -3741,7 +3745,8 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringTransactionalRollsBackCheckedExceptions AirnessSpringValidatedIsPublic \
     AirnessSpringWebClientIsABean AirnessSpringWebCrossOriginIsNotWildcard \
     AirnessSpringWebHandlerIsPublic \
-    AirnessSpringWebMappingNamesItsMethod AirnessSpringWebParameterIsNamed \
+    AirnessSpringWebMappingNamesItsMethod AirnessSpringWebParameterConstraintIsEvaluated \
+    AirnessSpringWebParameterIsNamed \
     AirnessSpringWebRequestBodyIsValidated AirnessSpringWebSignatureIsNotServletTyped; do
     if grep -q "$rule" "$spring_log"; then
         pass "spring: $rule reports on the fixture"
@@ -3834,8 +3839,8 @@ while IFS= read -r rule; do
 done <<'RULES'
 management.endpoints.web.exposure.include: the actuator is exposed at a wildcard
 management.endpoint.health.show-details: the health payload names every component
-server.error.include-stacktrace: an unhandled error returns its stack trace
-server.error.include-message: an unhandled error returns its internal message
+spring.web.error.include-stacktrace: an unhandled error returns its stack trace
+spring.web.error.include-message: an unhandled error returns its internal message
 spring.main.allow-circular-references: circular references are refused by default
 spring.main.allow-bean-definition-overriding: two definitions of one name
 spring.h2.console.enabled: this publishes a database console
@@ -3851,7 +3856,84 @@ spring.datasource.hikari.connection-timeout is not set as it has to be
 server.shutdown is not set as it has to be
 openInView is not written in kebab-case
 credential carries a literal secret
+no dependency on the compile classpath published a spring-configuration-metadata.json
 RULES
+
+# The rules above judge a value. These judge the key itself, against the metadata the dependencies
+# publish about what they bind, so this fixture is the one Spring fixture that has to resolve a starter.
+# Every rule is broken once: include-message was withdrawn outright in Boot 4, show-banner is deprecated
+# and still bound, shutdwon is a typo under a namespace the classpath declares, and shutdown is written
+# twice in one document where only the last of them is read.
+spring_settings="$scratch/spring-settings"
+mkdir -p "$spring_settings/src/main/resources"
+cat > "$spring_settings/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent-spring-boot</artifactId>
+    <version>1.0.7-SNAPSHOT</version>
+  </parent>
+  <groupId>com.example</groupId>
+  <artifactId>spring-settings</artifactId>
+  <version>1.0.0</version>
+  <properties>
+    <airness.package.root>com.example</airness.package.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+  </dependencies>
+</project>
+POM
+cat > "$spring_settings/src/main/resources/application.yml" <<'YML'
+server:
+  error:
+    include-message: never
+  shutdown: graceful
+  shutdown: graceful
+  shutdwon: graceful
+spring:
+  main:
+    show-banner: false
+acme:
+  retry:
+    attempts: 3
+YML
+git -C "$spring_settings" init --quiet
+git -C "$spring_settings" config user.name Fixture
+git -C "$spring_settings" config user.email fixture@example.invalid
+
+run_case 'spring: a setting the container no longer binds is refused' 1 'stopped binding' \
+    "$spring_settings" airness:spring-configuration
+run_case 'spring: the metadata rules all report' 0 'Spring configuration read' \
+    "$spring_settings" airness:spring-configuration -Dairness.enforce=false
+spring_settings_log="$scratch/spring__the_metadata_rules_all_report.log"
+while IFS= read -r rule; do
+    if grep -qF "$rule" "$spring_settings_log"; then
+        pass "spring: the configuration goal reports $rule"
+    else
+        fail "spring: the configuration goal reported nothing for $rule"
+    fi
+done <<'RULES'
+include-message names a setting the container has stopped binding
+write spring.web.error.include-message instead
+show-banner names a setting its supplier has deprecated
+write spring.main.banner-mode instead
+shutdwon is not a setting anything on the classpath declares
+shutdown is declared more than once in this document
+RULES
+
+# A key beneath a namespace no dependency declares is the project's own, and saying otherwise would
+# leave a project unable to bind anything it did not inherit.
+if grep -qF 'acme.retry.attempts' "$spring_settings_log"; then
+    fail 'spring: a setting of the project own namespace was judged against somebody else metadata'
+else
+    pass 'spring: a setting under an undeclared namespace is left alone'
+fi
 
 run_case 'spring: an entity carried by a web signature is refused' 1 'republishes the schema' \
     "$spring_source" airness:spring-module

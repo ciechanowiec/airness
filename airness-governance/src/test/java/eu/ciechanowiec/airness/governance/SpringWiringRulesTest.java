@@ -18,6 +18,35 @@ class SpringWiringRulesTest {
     private static final String CALLER = "src/main/java/sample/Caller.java";
     private static final String SESSION = "src/main/java/sample/Session.java";
     private static final String HOLDER = "src/main/java/sample/Holder.java";
+    private static final String SETTINGS_SOURCE = "src/main/java/sample/Settings.java";
+    private static final String ENTRY_SOURCE = "src/main/java/sample/Entry.java";
+
+    private static final String BOUND_SETTINGS = """
+        package sample;
+
+        @ConfigurationProperties(prefix = "acme")
+        @Validated
+        class Settings {
+        }
+        """;
+
+    private static final String ENABLES_THE_SETTINGS = """
+        package sample;
+
+        @Configuration
+        @EnableConfigurationProperties(Settings.class)
+        class Entry {
+        }
+        """;
+
+    private static final String SCANS_FOR_SETTINGS = """
+        package sample;
+
+        @Configuration
+        @ConfigurationPropertiesScan
+        class Entry {
+        }
+        """;
 
     private static final String SERVICE = """
         package sample;
@@ -357,6 +386,57 @@ class SpringWiringRulesTest {
         assertEquals(
             List.of(), SpringWiringRules.unnamedAsyncExecutors(types),
             "an AsyncConfigurer decides the executor for every unnamed @Async"
+        );
+    }
+
+    @Test
+    void reportsAConfigurationPropertiesTypeNothingRegisters() {
+        SpringTypes types = types(new GitFixture("props-orphan").write(SETTINGS_SOURCE, BOUND_SETTINGS));
+
+        List<String> offences = SpringWiringRules.unregisteredProperties(types);
+
+        assertEquals(1, offences.size(), "the annotation builds no bean on its own");
+        assertTrue(
+            offences.getFirst().contains("keeps the default"),
+            "and the offence says what the unbound type leaves behind"
+        );
+    }
+
+    @Test
+    void leavesAConfigurationPropertiesTypeThatIsEnabledByName() {
+        SpringTypes types = types(
+            new GitFixture("props-enabled")
+                .write(SETTINGS_SOURCE, BOUND_SETTINGS)
+                .write(ENTRY_SOURCE, ENABLES_THE_SETTINGS)
+        );
+
+        assertEquals(
+            List.of(), SpringWiringRules.unregisteredProperties(types),
+            "the module names the type in @EnableConfigurationProperties"
+        );
+    }
+
+    @Test
+    void leavesEveryConfigurationPropertiesTypeInAModuleThatScansForThem() {
+        SpringTypes types = types(
+            new GitFixture("props-scanned")
+                .write(SETTINGS_SOURCE, BOUND_SETTINGS)
+                .write(ENTRY_SOURCE, SCANS_FOR_SETTINGS)
+        );
+
+        assertEquals(
+            List.of(), SpringWiringRules.unregisteredProperties(types),
+            "one scan answers for every such type at once"
+        );
+    }
+
+    @Test
+    void readsTheScanAnnotationAsSomethingOtherThanTheBindingOne() {
+        SpringTypes types = types(new GitFixture("props-prefix").write(ENTRY_SOURCE, SCANS_FOR_SETTINGS));
+
+        assertEquals(
+            List.of(), SpringWiringRules.unregisteredProperties(types),
+            "@ConfigurationPropertiesScan is not a type waiting to be registered"
         );
     }
 }

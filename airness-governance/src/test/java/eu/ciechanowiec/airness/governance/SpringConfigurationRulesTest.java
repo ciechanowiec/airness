@@ -48,10 +48,10 @@ class SpringConfigurationRulesTest {
     @Test
     void reportsAStackTraceReturnedToTheCaller() {
         String configuration = """
-            server:
-              error:
-                include-stacktrace: always
-              shutdown: graceful
+            spring:
+              web:
+                error:
+                  include-stacktrace: always
             """;
 
         List<String> reported = offences(configuration);
@@ -238,10 +238,11 @@ class SpringConfigurationRulesTest {
                   show-details: when-authorized
             server:
               shutdown: graceful
-              error:
-                include-stacktrace: never
-                include-message: never
             spring:
+              web:
+                error:
+                  include-stacktrace: never
+                  include-message: never
               main:
                 allow-circular-references: false
                 allow-bean-definition-overriding: false
@@ -305,5 +306,19 @@ class SpringConfigurationRulesTest {
         List<String> reported = offences(configuration);
 
         assertEquals(List.of(), reported, "the migration tool is left owning the schema");
+    }
+
+    @Test
+    void readsAValueThroughTheCommentWrittenBesideIt() {
+        String configuration = """
+            spring:
+              h2:
+                console:
+                  enabled: true # only while the schema is being written
+            """;
+
+        List<String> reported = offences(configuration);
+
+        assertEquals(1, reported.size(), "the note beside the value does not excuse the value");
     }
 }
