@@ -1942,6 +1942,48 @@ run_case 'typography: a prefix that excluded files passes and records its cost' 
     'Typography exemption src left [1-9][0-9]* file' \
     "$consumer" airness:typography -Dairness.typography.excludes=src
 
+# A template is a program whose output is HTML, so nothing about it is known until something reads it,
+# and a fragment no page calls yet is read by nothing at all. The parser is the engines' own, so what a
+# templating dialect adds is not a defect and only markup no engine could read is reported.
+mkdir -p "$consumer/src/main/resources/templates"
+cat > "$consumer/src/main/resources/templates/broken.html" <<'HTML'
+<html>
+<body>
+<div class="never closed></div>
+</body>
+</html>
+HTML
+run_case 'templates: markup no engine could read is rejected' 1 'no template engine could read' \
+    "$consumer" airness:template-parse
+rm "$consumer/src/main/resources/templates/broken.html"
+cat > "$consumer/src/main/resources/templates/dialect.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:if="${present}">
+    <span th:text="${name}" x-data="{ open: true }" @click="open = false">Name</span>
+</th:block>
+</body>
+</html>
+HTML
+run_case 'templates: the attributes and elements of a dialect pass' 0 'Template parse read [1-9]' \
+    "$consumer" airness:template-parse
+rm "$consumer/src/main/resources/templates/dialect.html"
+rmdir "$consumer/src/main/resources/templates"
+
+# The formatter over the half of the tree the Java one never reads. Checking is bound to an ordinary
+# build and writing is reachable only through the format profile, so the same file answers both ways.
+mkdir -p "$consumer/src/main/resources/static"
+printf '.pill {\ncolor : red ;\n     background:blue}\n' > "$consumer/src/main/resources/static/style.css"
+run_case 'prettier: an unformatted stylesheet is rejected' 1 'Incorrectly formatted file' \
+    "$consumer" process-resources
+run_case 'prettier: the format profile rewrites it' 0 'BUILD SUCCESS' \
+    "$consumer" -Pformat process-resources
+run_case 'prettier: the rewritten stylesheet then passes' 0 'BUILD SUCCESS' \
+    "$consumer" process-resources
+rm "$consumer/src/main/resources/static/style.css"
+rmdir "$consumer/src/main/resources/static" "$consumer/src/main/resources"
+
 # Maven finishes the root module before starting its child. The tree net therefore needs a fresh
 # snapshot and verification pair in every module, or a child plugin can edit the repository after the
 # root verification has already passed.

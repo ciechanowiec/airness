@@ -55,6 +55,11 @@ public final class ManagedVersions {
         allowedPlugin("org.codehaus.mojo", "versions-maven-plugin", "versions-maven-plugin.version"),
         suppliedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco-maven-plugin.version"),
         suppliedPlugin("org.ec4j.maven", "editorconfig-maven-plugin", "editorconfig-maven-plugin.version"),
+        suppliedPlugin(
+            "com.hubspot.maven.plugins",
+            "prettier-maven-plugin",
+            "prettier-maven-plugin.version"
+        ),
         suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),
         suppliedPlugin("org.owasp", "dependency-check-maven", "dependency-check-maven.version"),
         suppliedPlugin("org.openrewrite.maven", "rewrite-maven-plugin", "rewrite-maven-plugin.version"),
@@ -74,6 +79,7 @@ public final class ManagedVersions {
         suppliedDependency("eu.ciechanowiec", "airness-annotations", "airness.version"),
         suppliedDependency("eu.ciechanowiec", "airness-config", "airness.version"),
         suppliedDependency("org.apache.maven", "maven-artifact", "maven-artifact.version"),
+        suppliedDependency("org.attoparser", "attoparser", "attoparser.version"),
         suppliedDependency("org.jspecify", "jspecify", "jspecify.version"),
         suppliedDependency(
             "com.github.spotbugs",

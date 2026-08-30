@@ -70,6 +70,7 @@
         -->
         <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
         <skipTests>false</skipTests>
+        <airness.prettier.goal>check</airness.prettier.goal>
         <airness.rewrite.apply.phase>none</airness.rewrite.apply.phase>
         <!--
             The two file patterns that decide which Checkstyle rules a project answers to. The shipped
@@ -368,6 +369,46 @@
             </plugin>
             <plugin>
                 <!--
+                    Formats the markup and the stylesheets, which is the half of the tree the Java
+                    formatter never reads. The guideline asks for a formatter wherever the platform has
+                    one, and .editorconfig settles only line endings, encoding and trailing whitespace:
+                    how a nested element or a declaration block is laid out was left to whoever wrote it.
+
+                    The goal is a property for the same reason the Java formatter's apply switch is one.
+                    Checking is what a verification does and is bound here; writing is reachable only
+                    through the format profile, so no ordinary build reshapes the tree it is judging.
+                    Both sit at process-resources, beside the Java formatter, because that is the phase
+                    the format command names and a goal bound past it could never be applied.
+
+                    Only the roots a project owns are read. A vendored library is third-party text that
+                    this project neither wrote nor may reformat, and minified text would be rewritten
+                    into something no upstream release matches.
+                -->
+                <groupId>com.hubspot.maven.plugins</groupId>
+                <artifactId>prettier-maven-plugin</artifactId>
+                <configuration>
+                    <skip>${skipTests}</skip>
+                    <fail>${airness.enforce}</fail>
+                    <inputGlobs>
+                        <inputGlob>src/main/resources/**/*.css</inputGlob>
+                        <inputGlob>src/main/resources/**/*.html</inputGlob>
+                        <inputGlob>src/test/resources/**/*.css</inputGlob>
+                        <inputGlob>src/test/resources/**/*.html</inputGlob>
+                        <inputGlob>!**/vendor/**</inputGlob>
+                    </inputGlobs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>airness-prettier</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>${airness.prettier.goal}</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!--
                     Holds every committable text file to the .editorconfig the harness owns. Binaries,
                     IDE metadata, and build output are exempt by role.
                 -->
@@ -569,6 +610,7 @@
                             <goal>javadoc-links</goal>
                             <goal>test-assertions</goal>
                             <goal>package-cycles</goal>
+                            <goal>template-parse</goal>
                             <goal>suppression-budget</goal>
                             <goal>tree-verify</goal>
                         </goals>
@@ -869,6 +911,7 @@
             <id>format</id>
             <properties>
                 <airness.source.formatting.apply>true</airness.source.formatting.apply>
+                <airness.prettier.goal>write</airness.prettier.goal>
                 <airness.rewrite.apply.phase>process-resources</airness.rewrite.apply.phase>
             </properties>
         </profile>
