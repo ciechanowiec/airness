@@ -26,6 +26,18 @@ class SpringModuleCheckTest {
     private static final String ADVISED = "left to the framework's own error page";
     private static final String REACHED = "holding the repository layer directly";
     private static final String PROFILED = "Test profiles activated";
+    private static final String UNACTIVATED = "Test profile files that nothing activates";
+    private static final String UNREGISTERED = "Configuration property types nothing";
+    private static final List<Path> TREES
+        = List.of(Path.of("src/main/resources"), Path.of("src/test/resources"));
+
+    private static final String BOUND_SETTINGS = """
+        package sample;
+
+        @ConfigurationProperties(prefix = "acme")
+        class Settings {
+        }
+        """;
 
     private static final String ORDER = """
         package sample;
@@ -302,5 +314,44 @@ class SpringModuleCheckTest {
 
         assertEquals(1, offences.size(), "one of the two profiles has a file and the other has none");
         assertTrue(offences.getFirst().contains("staging"), "and it is the one without the file that is named");
+    }
+
+    @Test
+    void reportsATestProfileFileThatNoSuiteActivates() {
+        Path root = new GitFixture("module-profile-orphan")
+            .write(SUITE, ACTIVATES_TWO_PROFILES)
+            .write("src/test/resources/application-forgotten.yml", "spring:\n")
+            .root();
+
+        List<String> offences = Verdicts.offences(
+            new SpringModuleCheck(root, BOTH, TREES).findings(), UNACTIVATED
+        );
+
+        assertEquals(1, offences.size(), "the file answers a profile nothing selects");
+        assertTrue(offences.getFirst().contains("forgotten"), "and the offence names it");
+    }
+
+    @Test
+    void leavesAProfileFileUnderTheMainResourcesAlone() {
+        Path root = new GitFixture("module-profile-deployed")
+            .write(SUITE, ACTIVATES_TWO_PROFILES)
+            .write("src/main/resources/application-forgotten.yml", "spring:\n")
+            .root();
+
+        assertEquals(
+            List.of(), Verdicts.offences(new SpringModuleCheck(root, BOTH, TREES).findings(), UNACTIVATED),
+            "a deployment this repository does not hold may be what selects it"
+        );
+    }
+
+    @Test
+    void reportsAConfigurationPropertiesTypeTheModuleNeverRegisters() {
+        Path root = new GitFixture("module-props")
+            .write("src/main/java/sample/Settings.java", BOUND_SETTINGS)
+            .root();
+
+        List<String> offences = Verdicts.offences(check(root).findings(), UNREGISTERED);
+
+        assertEquals(1, offences.size(), "the annotation alone builds no bean");
     }
 }

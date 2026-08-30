@@ -42,8 +42,16 @@ Airness governs all of the following domains:
 - **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container accepts
   and then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the web layer,
   security configuration, asynchrony and scheduling, and test context handling; the runtime settings an
-  `application.yml` or `application.properties` declares, and the ones whose absence decides behaviour; a persistence
-  entity carried by a web request or response; and more than one application class in the build.
+  `application.yml`, `application.yaml` or `application.properties` declares, and the ones whose absence decides
+  behaviour; a persistence entity carried by a web request or response; and more than one application class in the
+  build.
+- **Spring Boot configuration keys:** every key a settings file declares is read against the
+  `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
+  those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
+  for are each refused, because none of them fails at startup and none appears in a log. Write the key the metadata
+  names: a replacement is reported with the offence. A key under a namespace no dependency declares is your own and is
+  left alone, so a project binds its own settings freely. Declaring one key twice in one document is refused as well,
+  since only the last of them is bound.
 - **Repository assurance:** secret scanning, Qodana analysis, the ceiling on how many suppressions the repository
   holds, complete Git history, commit-message policy, commit typography, linear history, and history-wide
   compliance.

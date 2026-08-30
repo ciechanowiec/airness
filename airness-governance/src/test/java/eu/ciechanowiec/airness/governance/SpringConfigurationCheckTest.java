@@ -31,12 +31,27 @@ class SpringConfigurationCheckTest {
         management
         """;
 
+    private static final List<ConfigurationProperty> PUBLISHED = List.of(
+        declared("spring.application.name"),
+        declared("management.endpoints.web.exposure.include")
+    );
+
+    private static SpringConfigurationCheck check(Path root) {
+        return new SpringConfigurationCheck(root, RESOURCES, PUBLISHED);
+    }
+
+    private static ConfigurationProperty declared(String name) {
+        return new ConfigurationProperty(
+            name, "java.lang.String", false, new ConfigurationProperty.Deprecation("", "", "", "")
+        );
+    }
+
     @Test
     void reportsNothingAboutAConfigurationThatDecidesNothingRisky() {
         Path root = new GitFixture("config-clean").write(YAML, CLEAN).root();
 
         assertTrue(
-            Verdicts.clean(new SpringConfigurationCheck(root, RESOURCES).findings()),
+            Verdicts.clean(check(root).findings()),
             "nothing here takes on an obligation it then fails"
         );
     }
@@ -45,7 +60,7 @@ class SpringConfigurationCheckTest {
     void reportsASettingThatDecidesTheWrongThing() {
         Path root = new GitFixture("config-exposed").write(YAML, EXPOSED).root();
 
-        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES).findings();
+        List<Findings> findings = check(root).findings();
 
         assertEquals(1, Verdicts.offences(findings, "Runtime settings").size(), "the wildcard is reported");
     }
@@ -55,7 +70,7 @@ class SpringConfigurationCheckTest {
         Path root = new GitFixture("config-named").write(YAML, EXPOSED).root();
 
         List<String> offences = Verdicts.offences(
-            new SpringConfigurationCheck(root, RESOURCES).findings(), "Runtime settings"
+            check(root).findings(), "Runtime settings"
         );
 
         assertTrue(offences.getFirst().startsWith(YAML), "the offence opens with the path");
@@ -65,7 +80,7 @@ class SpringConfigurationCheckTest {
     void reportsALineTheReaderCouldNotAccountFor() {
         Path root = new GitFixture("config-unreadable").write(YAML, UNREADABLE).root();
 
-        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES).findings();
+        List<Findings> findings = check(root).findings();
 
         assertEquals(1, Verdicts.offences(findings, "could not account").size(), "the line is reported");
     }
@@ -77,21 +92,21 @@ class SpringConfigurationCheckTest {
             .write(PROFILE, CLEAN)
             .root();
 
-        assertEquals(2, new SpringConfigurationCheck(root, RESOURCES).scanned(), "both are in scope");
+        assertEquals(2, check(root).scanned(), "both are in scope");
     }
 
     @Test
     void readsNothingWhenTheModuleCarriesNoConfiguration() {
         Path root = new GitFixture("config-absent").write("src/main/java/A.java", "class A {}").root();
 
-        assertEquals(0, new SpringConfigurationCheck(root, RESOURCES).scanned(), "there is none to read");
+        assertEquals(0, check(root).scanned(), "there is none to read");
     }
 
     @Test
     void readsNothingOutsideTheResourceRootsItWasGiven() {
         Path root = new GitFixture("config-elsewhere").write("config/application.yml", EXPOSED).root();
 
-        assertEquals(0, new SpringConfigurationCheck(root, RESOURCES).scanned(), "that root was not named");
+        assertEquals(0, check(root).scanned(), "that root was not named");
     }
 
     @Test
@@ -100,7 +115,7 @@ class SpringConfigurationCheckTest {
             .write("src/main/resources/logback-spring.xml", "<configuration/>")
             .root();
 
-        assertEquals(0, new SpringConfigurationCheck(root, RESOURCES).scanned(), "only application files");
+        assertEquals(0, check(root).scanned(), "only application files");
     }
 
     @Test
@@ -109,6 +124,33 @@ class SpringConfigurationCheckTest {
             .write("src/main/resources/application-notes.txt", "not configuration")
             .root();
 
-        assertEquals(0, new SpringConfigurationCheck(root, RESOURCES).scanned(), "the format is not one");
+        assertEquals(0, check(root).scanned(), "the format is not one");
+    }
+
+    @Test
+    void reportsASettingTheContainerHasStoppedBinding() {
+        Path root = new GitFixture("config-unbound").write(YAML, CLEAN).root();
+        List<ConfigurationProperty> withdrawn = List.of(
+            new ConfigurationProperty(
+                "spring.application.name", "java.lang.String", false,
+                new ConfigurationProperty.Deprecation("error", "spring.application.title", "", "4.0.0")
+            )
+        );
+
+        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES, withdrawn).findings();
+
+        assertEquals(1, Verdicts.offences(findings, "stopped binding").size(), "the key is not bound");
+    }
+
+    @Test
+    void reportsAConfigurationNothingOnTheClasspathCouldAccountFor() {
+        Path root = new GitFixture("config-unread").write(YAML, CLEAN).root();
+
+        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES, List.of()).findings();
+
+        assertEquals(
+            1, Verdicts.offences(findings, "could account").size(),
+            "a file judged against nothing is not a file known to be right"
+        );
     }
 }

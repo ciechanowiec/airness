@@ -21,21 +21,30 @@ public final class SpringConfigurationCheck {
 
     private static final String SETTINGS = "Runtime settings that decide the wrong thing";
     private static final String UNREADABLE = "Configuration lines the reader could not account for";
+    private static final String UNBOUND = "Settings the container has stopped binding";
+    private static final String DEPRECATED = "Settings their supplier has deprecated";
+    private static final String UNKNOWN = "Settings nothing on the classpath declares";
+    private static final String UNREAD = "Configuration nothing on the classpath could account for";
     private static final List<String> NAMES = List.of(".yml", ".yaml", ".properties");
     private static final String PREFIX = "application";
 
     private final Path root;
     private final List<Path> files;
+    private final SpringMetadata metadata;
 
     /**
      * Creates a check over the configuration files one module holds.
      *
      * @param root          repository root the offences are reported relative to
      * @param resourceRoots resource directories of the module
+     * @param published     the configuration metadata the compile classpath publishes
      */
-    public SpringConfigurationCheck(Path root, Collection<Path> resourceRoots) {
+    public SpringConfigurationCheck(
+        Path root, Collection<Path> resourceRoots, Collection<ConfigurationProperty> published
+    ) {
         this.root = root;
         this.files = configurations(root, resourceRoots);
+        this.metadata = new SpringMetadata(published);
     }
 
     /**
@@ -66,8 +75,18 @@ public final class SpringConfigurationCheck {
                 read.stream()
                     .flatMap(file -> file.parsed().unreadable().stream().map(line -> file.path() + ": " + line))
                     .toList()
-            )
+            ),
+            new Findings(UNBOUND, this.stated(read, SpringMetadataRules::unbound)),
+            new Findings(DEPRECATED, this.stated(read, SpringMetadataRules::deprecated)),
+            new Findings(UNKNOWN, this.stated(read, SpringMetadataRules::unknown)),
+            new Findings(UNREAD, this.stated(read, SpringMetadataRules::unread))
         );
+    }
+
+    private List<String> stated(Collection<Parsed> read, MetadataRule rule) {
+        return read.stream()
+            .flatMap(file -> rule.offences(file.path(), file.parsed(), this.metadata).stream())
+            .toList();
     }
 
     private List<Parsed> parse(Path file) {
@@ -102,5 +121,15 @@ public final class SpringConfigurationCheck {
      * @param parsed the settings and the lines the reader could not account for
      */
     private record Parsed(String path, SpringConfiguration parsed) {
+    }
+
+    /**
+     * One rule read against the metadata, so the four of them are applied by naming them rather than by
+     * repeating the walk over the files for each.
+     */
+    @FunctionalInterface
+    private interface MetadataRule {
+
+        List<String> offences(String path, SpringConfiguration configuration, SpringMetadata metadata);
     }
 }

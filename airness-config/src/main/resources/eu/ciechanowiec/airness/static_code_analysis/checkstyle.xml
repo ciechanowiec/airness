@@ -1784,6 +1784,24 @@
         </module>
         <module name="MatchXpath">
             <!--
+                A constraint on a bound parameter is evaluated by the method interceptor rather than by the
+                argument resolver, and the interceptor advises a class only where @Validated asks it to.
+                Without the annotation on the class the constraint parses, compiles, reads as a guard and
+                rejects nothing. This is the parameter-level counterpart of the payload rule above, which
+                needs no such condition because @Valid on the parameter is honoured on its own.
+            -->
+            <property name="id" value="AirnessSpringWebParameterConstraintIsEvaluated"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestParam' or @text='PathVariable' or @text='RequestHeader' or @text='CookieValue'] and ./MODIFIERS/ANNOTATION/IDENT[@text='AssertFalse' or @text='AssertTrue' or @text='DecimalMax' or @text='DecimalMin' or @text='Digits' or @text='Email' or @text='Future' or @text='FutureOrPresent' or @text='Max' or @text='Min' or @text='Negative' or @text='NegativeOrZero' or @text='NotBlank' or @text='NotEmpty' or @text='NotNull' or @text='Null' or @text='Past' or @text='PastOrPresent' or @text='Pattern' or @text='Positive' or @text='PositiveOrZero' or @text='Size'] and not(ancestor::CLASS_DEF/MODIFIERS/ANNOTATION/IDENT[@text='Validated'])]"/>
+            <message key="matchxpath.match"
+                     value="A constraint on a bound parameter is evaluated only where the declaring class carries @Validated, so this one rejects nothing. Add @Validated to the class."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebParameterConstraintIsEvaluated"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 A handler mapping that names no method answers every verb, so a handler written for a read
                 also accepts a delete on the same path. The class-level form is untouched, since it carries
                 the base path rather than a handler.

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -17,6 +18,16 @@ class SpringTestRulesTest {
     private static final List<String> NOTHING_CONFIGURED = List.of();
     private static final String SUITE = "src/test/java/sample/SuiteTest.java";
     private static final String INTEGRATION = "integration";
+    private static final String PROFILE_FILE = "src/test/resources/application-integration.yml";
+    private static final Map<String, String> CARRIED = Map.of(INTEGRATION, PROFILE_FILE);
+
+    private static final String PLAIN_SUITE = """
+        package sample;
+
+        @SpringBootTest
+        class SuiteTest {
+        }
+        """;
 
     private static final String ACTIVATES_A_PROFILE = """
         package sample;
@@ -96,6 +107,41 @@ class SpringTestRulesTest {
         assertEquals(
             List.of(), SpringTestRules.missingProfiles(types, NOTHING_CONFIGURED),
             "a bean excluded by the profile is a bean the profile decides, which is the profile existing"
+        );
+    }
+
+    @Test
+    void reportsAProfileFileThatNothingActivates() {
+        SpringTypes types = types(new GitFixture("profile-orphan").write(SUITE, PLAIN_SUITE));
+
+        List<String> offences = SpringTestRules.unactivatedProfiles(types, CARRIED);
+
+        assertEquals(1, offences.size(), "every setting in the file is read by nothing");
+        assertTrue(offences.getFirst().startsWith(PROFILE_FILE), "the offence names the file it is about");
+        assertTrue(offences.getFirst().contains(INTEGRATION), "and the profile the file is named after");
+    }
+
+    @Test
+    void leavesAProfileFileASuiteActivates() {
+        SpringTypes types = types(new GitFixture("profile-used").write(SUITE, ACTIVATES_A_PROFILE));
+
+        assertEquals(
+            List.of(), SpringTestRules.unactivatedProfiles(types, CARRIED),
+            "the file answers the profile the suite asked for"
+        );
+    }
+
+    @Test
+    void leavesAProfileFileABeanIsDeclaredFor() {
+        SpringTypes types = types(
+            new GitFixture("profile-selected")
+                .write(SUITE, PLAIN_SUITE)
+                .write("src/main/java/sample/Stub.java", SELECTS_ON_THE_PROFILE)
+        );
+
+        assertEquals(
+            List.of(), SpringTestRules.unactivatedProfiles(types, CARRIED),
+            "a bean declared for the profile is evidence the profile is reached"
         );
     }
 }

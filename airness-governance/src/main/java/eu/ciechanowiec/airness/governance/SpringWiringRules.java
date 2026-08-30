@@ -24,6 +24,11 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class SpringWiringRules {
 
+    private static final Pattern BOUND = Pattern.compile("@ConfigurationProperties\\b");
+    private static final Pattern SCANNED = Pattern.compile("@ConfigurationPropertiesScan\\b");
+    private static final Pattern ENABLED_PROPERTIES
+        = Pattern.compile("@EnableConfigurationProperties\\s*\\(([^)]*)\\)");
+    private static final Pattern LITERAL = Pattern.compile("(\\w+)\\s*\\.\\s*class");
     private static final Pattern STEREOTYPE = Pattern.compile("@(?:Service|Component|Repository)\\b");
     private static final Pattern SINGLETON = Pattern.compile(
         "@(?:Service|Component|Repository|RestController|Controller|Configuration)\\b"
@@ -127,6 +132,50 @@ final class SpringWiringRules {
                 prototype -> Pattern.compile("\\b" + Pattern.quote(prototype) + "\\b\\s+\\w")
                     .matcher(parameters)
                     .find()
+            );
+    }
+
+    /**
+     * Every configuration property type that nothing in the module registers as a bean.
+     *
+     * @param types the module already read
+     * @return one offence per unregistered type, by source and line
+     */
+    static List<String> unregisteredProperties(SpringTypes types) {
+        if (!types.carrying(SCANNED).isEmpty()) {
+            return List.of();
+        }
+        Set<String> registered = registered(types);
+        return types.carrying(BOUND).stream()
+            .filter(type -> !registered.contains(type.name()))
+            .flatMap(SpringWiringRules::unregistered)
+            .toList();
+    }
+
+    /*
+     * The names a module hands to @EnableConfigurationProperties, taken from the class literals inside
+     * it. A module that declares @ConfigurationPropertiesScan instead has answered for all of them at
+     * once, which is why the caller leaves before reaching here.
+     */
+    private static Set<String> registered(SpringTypes types) {
+        return types.all().stream()
+            .flatMap(type -> ENABLED_PROPERTIES.matcher(type.code()).results())
+            .flatMap(enabled -> LITERAL.matcher(enabled.group(1)).results())
+            .map(literal -> literal.group(1))
+            .collect(Collectors.toSet());
+    }
+
+    private static Stream<String> unregistered(SpringTypes.Declared type) {
+        return BOUND.matcher(type.code()).results()
+            .limit(1)
+            .map(
+                bound -> offence(
+                    type, bound.start(),
+                    "@ConfigurationProperties builds no bean on its own, and this module neither declares"
+                        + " @ConfigurationPropertiesScan nor names this type in @EnableConfigurationProperties,"
+                        + " so nothing binds it and every field keeps the default the settings were written"
+                        + " to replace"
+                )
             );
     }
 

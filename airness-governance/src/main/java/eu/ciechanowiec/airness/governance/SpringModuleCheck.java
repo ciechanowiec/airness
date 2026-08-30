@@ -3,7 +3,9 @@ package eu.ciechanowiec.airness.governance;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,12 +46,18 @@ public final class SpringModuleCheck {
         = "Asynchronous methods left to an executor that pools nothing";
     private static final String MISSING_PROFILES
         = "Test profiles activated with nothing to activate";
+    private static final String UNREGISTERED_PROPERTIES
+        = "Configuration property types nothing in the module registers";
+    private static final String UNACTIVATED_PROFILES
+        = "Test profile files that nothing activates";
     private static final Pattern PROFILE_FILE
         = Pattern.compile("application-(.+)\\.(?:yml|yaml|properties)");
+    private static final String TESTS = "test";
 
     private final SpringTypes types;
     private final int sources;
     private final Set<String> profiles;
+    private final Map<String, String> tested;
 
     /**
      * Reads the sources and records the types they declare.
@@ -62,7 +70,9 @@ public final class SpringModuleCheck {
         List<Path> found = JavaSources.under(root, sourceRoots);
         this.sources = found.size();
         this.types = SpringTypes.over(root, found);
-        this.profiles = profiled(root, resourceRoots);
+        List<Path> files = profileFiles(root, resourceRoots);
+        this.profiles = named(files);
+        this.tested = tested(root, files);
     }
 
     /**
@@ -98,21 +108,58 @@ public final class SpringModuleCheck {
             new Findings(UNPROVIDED_PROTOTYPES, SpringWiringRules.prototypesWithoutProviders(this.types)),
             new Findings(UNENABLED_METHOD_SECURITY, SpringWiringRules.unenabledMethodSecurity(this.types)),
             new Findings(UNNAMED_EXECUTORS, SpringWiringRules.unnamedAsyncExecutors(this.types)),
-            new Findings(MISSING_PROFILES, SpringTestRules.missingProfiles(this.types, this.profiles))
+            new Findings(MISSING_PROFILES, SpringTestRules.missingProfiles(this.types, this.profiles)),
+            new Findings(UNREGISTERED_PROPERTIES, SpringWiringRules.unregisteredProperties(this.types)),
+            new Findings(UNACTIVATED_PROFILES, SpringTestRules.unactivatedProfiles(this.types, this.tested))
         );
     }
 
     /*
-     * The profiles this module carries a configuration file for. Only the name is taken, since whether
-     * the file says anything useful is a question the configuration check already asks of it.
+     * The configuration files this module carries that are named after a profile. Only the name is taken
+     * from them, since whether the file says anything useful is a question the configuration check
+     * already asks of it.
      */
-    private static Set<String> profiled(Path root, Collection<Path> resourceRoots) {
+    private static List<Path> profileFiles(Path root, Collection<Path> resourceRoots) {
         List<Path> resolved = resourceRoots.stream().map(root::resolve).map(Path::normalize).toList();
         return Repository.trackedFiles(root).stream()
             .filter(file -> resolved.stream().anyMatch(file::startsWith))
-            .map(file -> PROFILE_FILE.matcher(file.getFileName().toString()))
-            .filter(Matcher::matches)
-            .map(profile -> profile.group(1))
+            .filter(file -> PROFILE_FILE.matcher(file.getFileName().toString()).matches())
+            .toList();
+    }
+
+    private static Set<String> named(Collection<Path> files) {
+        return files.stream()
+            .map(SpringModuleCheck::profileOf)
             .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    /*
+     * Only the test trees, because only there is the absence of an activation conclusive. A file under
+     * the main resources may be selected by a deployment this repository does not hold.
+     */
+    private static Map<String, String> tested(Path root, Collection<Path> files) {
+        return files.stream()
+            .filter(SpringModuleCheck::underTests)
+            .collect(
+                Collectors.toMap(
+                    SpringModuleCheck::profileOf, file -> root.relativize(file).toString(),
+                    (first, _) -> first, TreeMap::new
+                )
+            );
+    }
+
+    private static String profileOf(Path file) {
+        Matcher named = PROFILE_FILE.matcher(file.getFileName().toString());
+        named.matches();
+        return named.group(1);
+    }
+
+    private static boolean underTests(Path file) {
+        for (Path segment : file) {
+            if (TESTS.equals(segment.toString())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
