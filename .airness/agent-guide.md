@@ -37,7 +37,10 @@ Airness governs all of the following domains:
   framework interface then states a weaker contract than the one it overrides. Markup and stylesheets are formatted
   too, every markup resource a module ships is read by the parser the template engines use, so a fragment no page
   calls yet is still proved to parse, and a fragment is held to the argument cap a callable is held to, because a
-  fragment is invoked by name with a positional list like any other callable.
+  fragment is invoked by name with a positional list like any other callable. An element a fragment replaces
+  carries nothing else the dialect reads, because the replacement discards the element and everything written on
+  it, which no other check reaches: the markup parses, the page renders, and the condition beside the replacement
+  decided nothing.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
@@ -159,6 +162,13 @@ it is published, only a fresh history satisfies the rule.
   itself. A local already carries its initializer's type, so only parameters need this. Neither repair costs any
   coverage, and neither needs an entry in the profile: prefer both to `stopClasses`, which would exempt a type
   everywhere and so give up the genuine weakenings the same run still reports.
+- Write a multi-line annotation with its arguments on their own lines and its closing bracket alone, which is what
+  the paired-brackets rule asks of every construct whose brackets span lines. An annotation whose argument is a
+  text block always spans lines, so the shape is not optional there: open the bracket, start the text block on the
+  next line, and close the bracket on a line of its own. A single-member annotation names no member, because
+  `value =` written out is a redundancy the inspections refuse; an annotation carrying two or more members names
+  each one. The formatter cannot produce this shape and leaves a one-line opening untouched, so it is written by
+  hand.
 - Change an exclusion or the default test timeout only for an explicit project requirement. Never use one merely to
   obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
