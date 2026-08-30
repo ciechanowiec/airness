@@ -1729,12 +1729,17 @@
                 The result set is whatever the table holds. A query that answers instantly against a seeded
                 test database exhausts the heap against a real one, and nothing between the two says when that
                 changed.
+
+                A bound named in the method rather than taken as a parameter is not accepted. A name carrying
+                the bound carries the ordering with it, which is how a derived name reaches the length a method
+                name is held to, and the parameter states the same bound where a reader of the call site can
+                see it rather than where only the declaration can.
             -->
             <property name="id" value="AirnessSpringDataQueryIsBounded"/>
             <property name="query"
-                      value="//INTERFACE_DEF[./IDENT[ends-with(@text,'Repository')]]//METHOD_DEF[./TYPE/IDENT[@text='List' or @text='Set' or @text='Collection' or @text='Stream'] and not(./PARAMETERS/PARAMETER_DEF/TYPE/IDENT[@text='Pageable' or @text='Limit']) and not(./IDENT[starts-with(@text,'findTop') or starts-with(@text,'findFirst')])]"/>
+                      value="//INTERFACE_DEF[./IDENT[ends-with(@text,'Repository')]]//METHOD_DEF[./TYPE/IDENT[@text='List' or @text='Set' or @text='Collection' or @text='Stream'] and not(./PARAMETERS/PARAMETER_DEF/TYPE/IDENT[@text='Pageable' or @text='Limit'])]"/>
             <message key="matchxpath.match"
-                     value="A repository method returning an unbounded collection reads as many rows as the table holds. Take a Pageable, or name the bound with findFirst or findTop."/>
+                     value="A repository method returning an unbounded collection reads as many rows as the table holds. Take a Pageable."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringDataQueryIsBounded"/>

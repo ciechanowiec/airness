@@ -2099,6 +2099,37 @@ run_case 'templates: a fragment at the argument cap passes' 0 'Template fragment
 rm "$consumer/src/main/resources/templates/narrow.html"
 rmdir "$consumer/src/main/resources/templates"
 
+# A replacement discards the element it is written on, so a condition written beside it decides nothing
+# and the fragment is drawn for everybody. The markup parses and the page renders, which is why no other
+# check reaches it: the document is valid and the page is wrong.
+mkdir -p "$consumer/src/main/resources/templates"
+cat > "$consumer/src/main/resources/templates/discarded.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<span th:if="${primary}" th:replace="~{templates/discarded :: pill}"></span>
+</body>
+</html>
+HTML
+run_case 'templates: a replacement that discards a condition is rejected' 1 'discards th:if' \
+    "$consumer" airness:template-replacements
+rm "$consumer/src/main/resources/templates/discarded.html"
+cat > "$consumer/src/main/resources/templates/wrapped.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:if="${primary}">
+    <span th:replace="~{templates/wrapped :: pill}"></span>
+</th:block>
+<div th:if="${shown}" th:insert="~{templates/wrapped :: pill}"></div>
+</body>
+</html>
+HTML
+run_case 'templates: a condition on the block around a replacement passes' 0 'Template replacements read [1-9]' \
+    "$consumer" airness:template-replacements
+rm "$consumer/src/main/resources/templates/wrapped.html"
+rmdir "$consumer/src/main/resources/templates"
+
 # The formatter over the half of the tree the Java one never reads. Checking is bound to an ordinary
 # build and writing is reachable only through the format profile, so the same file answers both ways.
 mkdir -p "$consumer/src/main/resources/static"
@@ -3396,6 +3427,25 @@ interface PersistedRepository {
     Set<Persisted> byNativeQuery();
 }
 JAVA
+# The two ways a repository query claims a bound, read as a pair from one log. The parameter is the only
+# one the harness accepts: a bound named in the method carries the ordering with it, which is how a
+# derived name outgrows the length a method name is held to.
+cat > "$spring_source/src/main/java/com/example/Named.java" <<'JAVA'
+package com.example;
+
+interface NamedRepository {
+
+    List<Persisted> findTop10ByName(String name);
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Paged.java" <<'JAVA'
+package com.example;
+
+interface PagedRepository {
+
+    List<Persisted> byPage(String name, Pageable pageable);
+}
+JAVA
 cat > "$spring_source/src/main/java/com/example/Hardened.java" <<'JAVA'
 package com.example;
 
@@ -3944,6 +3994,19 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
         fail "spring: $rule reported nothing"
     fi
 done
+
+# The bound is claimed two ways and only one of them counts. The pair is read from the same log, because
+# an exemption asserted against a rule that has stopped firing asserts nothing.
+if grep -E 'Named\.java.*unbounded collection' "$spring_log" >/dev/null; then
+    pass 'spring: a bound named in the method no longer stands in for a Pageable'
+else
+    fail 'spring: a query bounded only by its name was accepted'
+fi
+if grep -E 'Paged\.java.*unbounded collection' "$spring_log" >/dev/null; then
+    fail 'spring: a query taking a Pageable was called unbounded'
+else
+    pass 'spring: a query taking a Pageable is accepted'
+fi
 if grep -q 'Use constructor injection instead of field injection' "$spring_log"; then
     pass 'spring: field injection is refused'
 else
