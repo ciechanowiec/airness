@@ -51,11 +51,14 @@ public final class SpringModuleCheck {
         = "Configuration property types nothing in the module registers";
     private static final String UNACTIVATED_PROFILES
         = "Test profile files that nothing activates";
+    private static final String UNRESOLVED_VIEWS
+        = "View names that reach no template the module ships";
     private static final Pattern PROFILE_FILE
         = Pattern.compile("application-(.+)\\.(?:yml|yaml|properties)");
     private static final String TESTS = "test";
 
     private final SpringTypes types;
+    private final TemplateIndex markup;
     private final int sources;
     private final Set<String> profiles;
     private final Map<String, String> tested;
@@ -71,6 +74,7 @@ public final class SpringModuleCheck {
         List<Path> found = JavaSources.under(root, sourceRoots);
         this.sources = found.size();
         this.types = SpringTypes.over(root, found);
+        this.markup = new TemplateIndex(root, resourceRoots);
         List<Path> files = profileFiles(root, resourceRoots);
         this.profiles = named(files);
         this.tested = tested(root, files);
@@ -111,7 +115,8 @@ public final class SpringModuleCheck {
             new Findings(UNNAMED_EXECUTORS, SpringWiringRules.unnamedAsyncExecutors(this.types)),
             new Findings(MISSING_PROFILES, SpringTestRules.missingProfiles(this.types, this.profiles)),
             new Findings(UNREGISTERED_PROPERTIES, SpringWiringRules.unregisteredProperties(this.types)),
-            new Findings(UNACTIVATED_PROFILES, SpringTestRules.unactivatedProfiles(this.types, this.tested))
+            new Findings(UNACTIVATED_PROFILES, SpringTestRules.unactivatedProfiles(this.types, this.tested)),
+            new Findings(UNRESOLVED_VIEWS, SpringViewRules.unresolvedViews(this.types, this.markup))
         );
     }
 

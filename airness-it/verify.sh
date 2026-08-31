@@ -4070,6 +4070,23 @@ class Routed {
     }
 }
 JAVA
+# A view name states a template in a string that nothing compiles. This one names a template the
+# module does not ship, which is the shape a rename leaves behind: the handler still compiles, every
+# analyzer passes over it, and the first request that reaches it answers with a template not found.
+cat > "$spring_source/src/main/java/com/example/Viewed.java" <<'JAVA'
+package com.example;
+
+@Controller
+class Viewed {
+
+    private static final String PAGE = "room/renamed";
+
+    @GetMapping("/viewed")
+    String read() {
+        return PAGE;
+    }
+}
+JAVA
 cat > "$spring_source/src/main/java/com/example/Bound.java" <<'JAVA'
 package com.example;
 
@@ -4851,6 +4868,7 @@ Prototype beans injected into a singleton that is built once
 Method security annotations that nothing in the module enables
 Asynchronous methods left to an executor that pools nothing
 Test profiles activated with nothing to activate
+View names that reach no template the module ships
 RULES
 
 # The ninth rule is the one this fixture cannot break, and that is the assertion: the module declares a
