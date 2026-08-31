@@ -804,19 +804,44 @@
         </module>
 
         <!--
-        Regexp
+        Constructs
+
+        The project's own rules that answer to no stock category, named for what they read rather than
+        for the mechanism that reads it: all three query the syntax tree. The first two name a construct
+        that hands over an object the container has not finished with, and the third names a type
+        written out inline where an import would say it once.
         -->
-        <module name="RegexpSinglelineJava">
-            <property name="format" value="@PostConstruct|@Builder"/>
-            <property name="ignoreComments" value="true"/>
-            <property name="message"
-                      value="@PostConstruct and @Builder are bad practices and not allowed"/>
+        <module name="MatchXpath">
+            <!--
+                A second initialisation step, run by whichever container happens to own the instance,
+                after the constructor has already returned an object the type called finished. Nothing at
+                the call site says the object is not yet usable, and outside a container nothing runs the
+                method at all, so the same class is whole in one setting and half-built in another. Take
+                what the object needs in the constructor.
+
+                @Builder was stated beside this one until the Lombok section below took it, with a
+                reason. The query reads the annotation's own name node, so a mention in a comment or a
+                string is passed over.
+            -->
+            <property name="id" value="AirnessObjectNeedsNoSecondInitialisation"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='PostConstruct'] or ./DOT//IDENT[@text='PostConstruct']]"/>
+            <message key="matchxpath.match"
+                     value="This runs a second initialisation after the constructor already returned a finished object, and only inside a container. Take what the object needs in the constructor."/>
         </module>
-        <module name="RegexpSinglelineJava">
-            <property name="format" value="DefaultInjectionStrategy.OPTIONAL"/>
-            <property name="ignoreComments" value="true"/>
-            <property name="message"
-                      value="Usage of org.apache.sling.models.annotations.DefaultInjectionStrategy.OPTIONAL is a bad practice and is not allowed"/>
+        <module name="MatchXpath">
+            <!--
+                An optional injection turns a missing value into a null field rather than into a failure
+                to build the model, so the defect surfaces as a null dereference on the page that reads
+                it. The strategy is read as the qualified constant it is written as: the enum sits in an
+                annotation argument, which the text form of this rule could not tell from a mention of
+                the same name anywhere else on the line.
+            -->
+            <property name="id" value="AirnessInjectionIsNotOptional"/>
+            <property name="query"
+                      value="//DOT[./IDENT[@text='DefaultInjectionStrategy']][./IDENT[@text='OPTIONAL']]"/>
+            <message key="matchxpath.match"
+                     value="An optional injection turns a missing value into a null field instead of a model that refuses to build. Require the value, or model its absence explicitly."/>
         </module>
         <module name="MatchXpath">
             <!--
@@ -938,28 +963,41 @@
         <module name="WhitespaceBeforeEmptyBody"/>
 
         <!--
-        Custom
+        Absence
+
+        Null is the value that answers every type and satisfies no contract, so a reference holding it
+        passes every boundary the compiler guards and fails at the first use. These two rules keep it out
+        of the two places it spreads from: a test that asks whether it arrived, and a return that sends it
+        on. What replaces it is a type that says so, java.util.Optional at a boundary and @Nullable on a
+        field the checker then holds the reader to.
+
+        Both read the syntax tree. The text form they replace matched the same characters wherever they
+        appeared, so a literal spelling out a null test and a name such as nullable were reported beside
+        the code, while a comparison written the other way round, with the literal on the left, was not
+        reported at all.
         -->
-        <module name="Regexp">
-            <property name="format" value="\s*!=\s*null"/>
-            <property name="ignoreComments" value="true"/>
-            <property name="message"
-                      value="Avoid using '!= null' for nullability check. Use java.util.Optional instead"/>
-            <property name="illegalPattern" value="true"/>
+        <module name="MatchXpath">
+            <!--
+                Both directions and both operators, because the defect is the question and not the way it
+                is spelled. What a null test costs is not the branch it writes but the one it does not:
+                every other caller of the same value is now free to skip the test, and nothing reports the
+                one that does.
+            -->
+            <property name="id" value="AirnessAbsenceIsModelled"/>
+            <property name="query" value="//EQUAL[./LITERAL_NULL] | //NOT_EQUAL[./LITERAL_NULL]"/>
+            <message key="matchxpath.match"
+                     value="A null test asks every caller to remember that absence is possible and reports none of the ones that forget. Model the absence in the type: java.util.Optional at a boundary, @Nullable on what may be missing."/>
         </module>
-        <module name="Regexp">
-            <property name="format" value="\s*==\s*null"/>
-            <property name="ignoreComments" value="true"/>
-            <property name="message"
-                      value="Avoid using '== null' for nullability check. Use java.util.Optional instead"/>
-            <property name="illegalPattern" value="true"/>
-        </module>
-        <module name="Regexp">
-            <property name="format" value="\s*return\s*null"/>
-            <property name="ignoreComments" value="true"/>
-            <property name="message"
-                      value="Returning of nulls is prohibited"/>
-            <property name="illegalPattern" value="true"/>
+        <module name="MatchXpath">
+            <!--
+                A returned null is the same defect handed to somebody else. The caller receives a value
+                that answers its declared type, and the report arrives wherever it is finally used, which
+                is a place that never chose to accept it.
+            -->
+            <property name="id" value="AirnessNullIsNeverReturned"/>
+            <property name="query" value="//LITERAL_RETURN/EXPR/LITERAL_NULL"/>
+            <message key="matchxpath.match"
+                     value="A returned null hands the caller a value that answers its type and fails only where it is finally used. Return an empty java.util.Optional, an empty collection, or throw."/>
         </module>
 
         <!--
@@ -997,6 +1035,89 @@
             <property name="message"
                       value="This annotation installs a substitute in place of a real collaborator. Wire the real component, or a local implementation of the protocol it speaks."/>
             <property name="illegalPattern" value="true"/>
+        </module>
+
+        <!--
+        Lombok
+
+        Generated members cost nothing to write and nothing to review, which is worth paying for only
+        where what is generated is what the author would have written out by hand. Each annotation below
+        fails that test in the same way: it hands the type a public API nobody stated, or it answers a
+        question this harness already settles somewhere else. The rest of the library is untouched, and
+        two of its members are required elsewhere in this file, so what follows is a boundary drawn
+        through Lombok rather than a verdict on it.
+
+        The queries read the annotation's own name node, so a mention in a comment, in a string or in an
+        annotation argument is passed over, and a name that merely begins with a banned one is a
+        different IDENT rather than a prefix to be excluded by hand: @DataJpaTest and @WithMockUser need
+        no lookahead here. A qualified use is matched beside the bare one, because the rule against
+        fully-qualified type names does not reach these: it asks for two lowercase identifiers before the
+        type, and lombok.Data has one. The same branch matches a member of a banned annotation, such as
+        @Builder.Default and @Locked.Read, which is where the qualified and the nested form coincide.
+        -->
+        <module name="MatchXpath">
+            <!--
+                A setter lets an object that was whole the moment it was constructed be taken apart
+                again, at any point, by anything holding a reference. @Data adds equals and hashCode over
+                exactly the fields those setters change, so an instance placed in a hash container is
+                lost from it the first time one runs, and nothing reports that but the lookup that later
+                finds nothing.
+            -->
+            <property name="id" value="AirnessObjectIsWholeWhenConstructed"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Setter' or @text='Data'] or ./DOT//IDENT[@text='Setter' or @text='Data']]"/>
+            <message key="matchxpath.match"
+                     value="This generates a mutator per field, so an object that was whole when constructed can be taken apart again, and @Data hashes the very fields the mutators change. Take the state in the constructor and keep the fields final."/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A constructor states what an instance needs by refusing to run without it. A builder
+                restates that as a fluent call where every field is optional, so a required one nobody
+                set is a null discovered at runtime rather than an argument missing at compile time. A
+                wither states the mirror image: that any single field may be swapped for another value,
+                in a combination no call site ever had to name. @SuperBuilder is the same construct
+                spread across a hierarchy and is matched beside it, because what is banned here is the
+                criterion and not a name.
+            -->
+            <property name="id" value="AirnessConstructorStatesWhatAnInstanceNeeds"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Builder' or @text='SuperBuilder' or @text='With'] or ./DOT//IDENT[@text='Builder' or @text='SuperBuilder' or @text='With']]"/>
+            <message key="matchxpath.match"
+                     value="This displaces the constructor as the statement of what an instance needs: a builder makes every field optional at the call site, and a wither offers every field for replacement. Write the parameters the type requires."/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Nullness is stated once, in jSpecify, which this parent puts on the compile classpath and
+                which the package rule above already requires every package to answer. Lombok's
+                annotation states it a second time in a vocabulary no checker reads, and enforces it by
+                throwing when the call has already been made rather than by reporting before it is
+                written.
+
+                This is the one rule here that cannot read the name alone: jSpecify's own @NonNull is the
+                one to keep and carries the same simple name, so what separates them is where the name
+                came from. The import is matched, and the qualified use beside it, because a star import
+                is refused above and those are the two remaining ways to reach the annotation.
+            -->
+            <property name="id" value="AirnessNullnessIsStatedOnce"/>
+            <property name="query"
+                      value="//IMPORT/DOT[./IDENT[@text='lombok']][./IDENT[@text='NonNull']] | //ANNOTATION/DOT[./IDENT[@text='lombok']][./IDENT[@text='NonNull']]"/>
+            <message key="matchxpath.match"
+                     value="This states nullness a second time, in a vocabulary no checker reads, and enforces it by throwing at runtime. Declare it with jSpecify instead: @NullMarked on the package, @Nullable on what may genuinely be absent."/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Both lock on a field the source never shows: @Synchronized on a generated $lock or
+                $LOCK, @Locked on a generated ReentrantLock. Nothing at the declaration names the monitor
+                being held and no other code can take it, so the lock cannot be widened to cover two
+                methods that need one, cannot be ordered against another to rule out a deadlock, and
+                cannot be reasoned about at all from the file that uses it. @Locked is the same
+                construct under a newer name and is matched beside it.
+            -->
+            <property name="id" value="AirnessLockIsVisible"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Synchronized' or @text='Locked'] or ./DOT//IDENT[@text='Synchronized' or @text='Locked']]"/>
+            <message key="matchxpath.match"
+                     value="This locks on a generated field the source never shows, so nothing else can take the same monitor, order against it, or widen it. Declare the lock as a field and hold it where the code can be read."/>
         </module>
 
         <!--
@@ -1566,14 +1687,16 @@
                 in that set afterwards. The generated toString walks a bidirectional association until the
                 stack ends. Both touch lazy fields, so either can throw outside a transaction.
 
-                Getter and Setter are deliberately absent, so the half of Lombok that costs nothing here stays
-                available.
+                Getter is deliberately absent, so the half of Lombok that costs nothing here stays
+                available. Setter is absent for a different reason: the Lombok section above refuses it for
+                every project, so an entity is mutated through the methods it names rather than through one
+                generated per field.
             -->
             <property name="id" value="AirnessSpringJpaEntityIsNotALombokValue"/>
             <property name="query"
                       value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity']]/MODIFIERS/ANNOTATION/IDENT[@text='Data' or @text='EqualsAndHashCode' or @text='ToString' or @text='Value']"/>
             <message key="matchxpath.match"
-                     value="A generated equals, hashCode or toString over every field breaks entity identity and walks lazy associations. Use @Getter and @Setter, and write the rest by hand."/>
+                     value="A generated equals, hashCode or toString over every field breaks entity identity and walks lazy associations. Use @Getter, and write the rest by hand."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringJpaEntityIsNotALombokValue"/>

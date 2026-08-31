@@ -1120,6 +1120,161 @@ run_case 'checkstyle: a name that only contains Util passes' 0 'BUILD SUCCESS' \
     "$consumer" checkstyle:check '-Dcheckstyle.includes=**/Utilization.java'
 rm "$consumer/src/main/java/com/example/Utilization.java"
 
+# The constructs a project is refused, read from what the analyzer reported rather than from an exit
+# status, because a rule asserted to be silent on the third file asserts nothing unless it is seen firing
+# on the first two. The run does not enforce, so an unrelated rule reporting on any of the three leaves
+# these assertions alone.
+#
+# The third file is where the move to the syntax tree is proved. Every annotation in it merely begins
+# with a banned name, its nullness annotation is jSpecify's and not Lombok's, its literals spell out
+# every banned token as text, and it returns a variable whose name begins with null. A rule reading raw
+# lines reported on all of that.
+cat > "$consumer/src/main/java/com/example/Generated.java" <<'JAVA'
+package com.example;
+
+import lombok.Builder;
+import lombok.Data;
+import lombok.Locked;
+import lombok.NonNull;
+import lombok.Setter;
+import lombok.Synchronized;
+import lombok.With;
+import lombok.experimental.SuperBuilder;
+
+/** Carries one banned generated member per rule, in the bare, the qualified and the nested form. */
+@Data
+@Setter
+@Builder
+@With
+@SuperBuilder
+final class Generated {
+
+    @Builder.Default
+    private String named = "x";
+
+    @lombok.Data
+    private Object qualified;
+
+    @NonNull
+    private String required;
+
+    @lombok.NonNull
+    private String alsoRequired;
+
+    @Inject(injectionStrategy = DefaultInjectionStrategy.OPTIONAL)
+    private String injected;
+
+    @Synchronized
+    void locks() {
+    }
+
+    @Locked.Read
+    void alsoLocks() {
+    }
+
+    @PostConstruct
+    void initialises() {
+    }
+}
+JAVA
+cat > "$consumer/src/main/java/com/example/Absence.java" <<'JAVA'
+package com.example;
+
+/** A null test written in all four directions, and a null returned bare and parenthesised. */
+final class Absence {
+
+    Object tests(Object left, Object right) {
+        boolean a = left == null;
+        boolean b = left != null;
+        boolean c = null == right;
+        boolean d = null != right;
+        if (a || b || c || d) {
+            return null;
+        }
+        return (null);
+    }
+}
+JAVA
+cat > "$consumer/src/main/java/com/example/Stated.java" <<'JAVA'
+package com.example;
+
+import lombok.Getter;
+import org.jspecify.annotations.NonNull;
+
+/**
+ * The near misses. It names the banned annotations and the banned null tests in prose and in literals,
+ * and carries annotations whose simple names merely begin with a banned one.
+ */
+@Getter
+final class Stated {
+
+    private static final String NAMES = "@Data @Setter @Builder @With @Synchronized @PostConstruct";
+
+    private static final String TESTS = "x == null, y != null, return null";
+
+    @NonNull
+    private String jspecify;
+
+    @DataJpaTest
+    private String notData;
+
+    @WithMockUser
+    private String notWith;
+
+    @SetterLike
+    private String notSetter;
+
+    @LockedDown
+    private String notLocked;
+
+    String returns(String nullable) {
+        return nullable;
+    }
+}
+JAVA
+run_case 'analysis: every banned construct reports' 0 'AirnessObjectIsWholeWhenConstructed' \
+    "$consumer" checkstyle:check -Dairness.enforce=false \
+    '-Dcheckstyle.includes=**/Generated.java,**/Absence.java,**/Stated.java'
+banned_log="$scratch/analysis__every_banned_construct_reports.log"
+banned_rules='AirnessObjectIsWholeWhenConstructed|AirnessConstructorStatesWhatAnInstanceNeeds'
+banned_rules="$banned_rules|AirnessNullnessIsStatedOnce|AirnessLockIsVisible"
+banned_rules="$banned_rules|AirnessObjectNeedsNoSecondInitialisation|AirnessInjectionIsNotOptional"
+banned_rules="$banned_rules|AirnessAbsenceIsModelled|AirnessNullIsNeverReturned"
+for rule in AirnessObjectIsWholeWhenConstructed AirnessConstructorStatesWhatAnInstanceNeeds \
+    AirnessNullnessIsStatedOnce AirnessLockIsVisible AirnessObjectNeedsNoSecondInitialisation \
+    AirnessInjectionIsNotOptional; do
+    if grep -E "Generated\.java:\[[0-9]+,.*$rule" "$banned_log" >/dev/null; then
+        pass "analysis: $rule reports on the fixture"
+    else
+        fail "analysis: $rule reported nothing"
+    fi
+done
+for rule in AirnessAbsenceIsModelled AirnessNullIsNeverReturned; do
+    if grep -E "Absence\.java:\[[0-9]+,.*$rule" "$banned_log" >/dev/null; then
+        pass "analysis: $rule reports on the fixture"
+    else
+        fail "analysis: $rule reported nothing"
+    fi
+done
+
+# The half the text form could not reach. Four tests are written and two of them put the literal on the
+# left, which the pattern this rule replaced never matched, so a count below four is that gap returning.
+absence_findings="$(grep -E 'Absence\.java:\[[0-9]+,.*AirnessAbsenceIsModelled' "$banned_log" \
+    | grep -Eo '\[[0-9]+,' | sort -u | wc -l | tr -d ' ')"
+if [ "$absence_findings" -eq 4 ]; then
+    pass 'analysis: a null test is refused with the literal on either side'
+else
+    fail "analysis: $absence_findings of the four null tests reported"
+fi
+if grep -E "Stated\.java:\[[0-9]+,.*($banned_rules)" "$banned_log" >/dev/null; then
+    fail 'analysis: a near miss, a literal or the jSpecify nullness annotation was refused'
+else
+    pass 'analysis: a near miss, a literal and the jSpecify nullness annotation are accepted'
+fi
+rm "$consumer/src/main/java/com/example/Generated.java" \
+    "$consumer/src/main/java/com/example/Absence.java" \
+    "$consumer/src/main/java/com/example/Stated.java"
+
 # A method that overrides another does not choose its parameter list, so the cap asks it for an edit
 # that cannot be made here. Both analyzers that measure it pass over an override, and both still
 # measure the declaration the list came from, which is where the finding can be answered.
