@@ -1845,12 +1845,20 @@
         <module name="MatchXpath">
             <!--
                 An unnamed binding depends on parameter names surviving compilation, which a shaded or
-                repackaged artifact does not guarantee. The failure appears in the built archive and not
+                repackaged artifact does not guarantee, and which a compiler that was not asked for
+                -parameters does not produce at all. The failure appears in the built archive and not
                 before it.
+
+                Every annotation named here falls back to the parameter name the same way. The two that are
+                not named here fall back to something else: a model attribute is bound by its type, and a
+                request body carries no name to begin with.
             -->
             <property name="id" value="AirnessSpringWebParameterIsNamed"/>
             <property name="query"
-                      value="//PARAMETER_DEF/MODIFIERS/ANNOTATION[./IDENT[@text='PathVariable' or @text='RequestParam'] and not(./ANNOTATION_MEMBER_VALUE_PAIR) and not(./EXPR)]"/>
+                      value="//PARAMETER_DEF/MODIFIERS/ANNOTATION[./IDENT[@text='PathVariable' or @text='RequestParam'
+                            or @text='RequestHeader' or @text='CookieValue' or @text='MatrixVariable'
+                            or @text='RequestPart' or @text='RequestAttribute' or @text='SessionAttribute']
+                            and not(./ANNOTATION_MEMBER_VALUE_PAIR) and not(./EXPR)]"/>
             <message key="matchxpath.match"
                      value="An unnamed binding relies on parameter names surviving compilation. Name the parameter in the annotation."/>
         </module>

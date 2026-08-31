@@ -3826,6 +3826,41 @@ class Served {
     }
 }
 JAVA
+# Every binding that falls back to the parameter name, unnamed once and named once. The two that fall
+# back to something else are in the named handler as well, because a rule that reached them would be a
+# rule refusing a model attribute for having no name to give.
+cat > "$spring_source/src/main/java/com/example/Binds.java" <<'JAVA'
+package com.example;
+
+@RestController
+class Binds {
+
+    @RequestMapping("/unnamed")
+    public String unnamed(
+        @RequestHeader String one,
+        @CookieValue String two,
+        @MatrixVariable String three,
+        @RequestPart String four,
+        @RequestAttribute String five,
+        @SessionAttribute String six
+    ) {
+        return "";
+    }
+
+    @RequestMapping("/named")
+    public String named(
+        @RequestHeader(name = "one") String one,
+        @CookieValue("two") String two,
+        @MatrixVariable(name = "three") String three,
+        @RequestPart("four") String four,
+        @RequestAttribute(name = "five") String five,
+        @SessionAttribute("six") String six,
+        @ModelAttribute Object seven
+    ) {
+        return "";
+    }
+}
+JAVA
 cat > "$spring_source/src/main/java/com/example/Secured.java" <<'JAVA'
 package com.example;
 
@@ -4195,6 +4230,12 @@ done
 
 # The bound is claimed two ways and only one of them counts. The pair is read from the same log, because
 # an exemption asserted against a rule that has stopped firing asserts nothing.
+bound_findings="$(grep -Ec 'Binds\.java:.*WebParameterIsNamed' "$spring_log" || printf '0')"
+if [ "$bound_findings" -eq 6 ]; then
+    pass 'spring: every binding that falls back to a parameter name is held to naming it'
+else
+    fail "spring: $bound_findings of the six unnamed bindings reported, or a named one did"
+fi
 if grep -E 'Owned\.java:\[6,.*ToManyDoesNotCascadeRemove' "$spring_log" >/dev/null; then
     fail 'spring: a cascade the association owns through orphanRemoval was refused'
 else
