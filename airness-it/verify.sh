@@ -3905,6 +3905,27 @@ class Served {
     }
 }
 JAVA
+# A record and a query that constructs it, which is a call nothing compiles. The record beside it is what
+# the count is read against, and the second expression names a type no module here declares, which is
+# passed over rather than reported.
+cat > "$spring_source/src/main/java/com/example/Row.java" <<'JAVA'
+package com.example;
+
+record Row(Object booking, String room, String client) {
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Rows.java" <<'JAVA'
+package com.example;
+
+interface Rows {
+
+    @Query("SELECT new com.example.Row(booking, room.name) FROM Booking booking")
+    List<Row> rows();
+
+    @Query("SELECT new com.example.Elsewhere(booking) FROM Booking booking")
+    List<Object> elsewhere();
+}
+JAVA
 # Every binding that falls back to the parameter name, unnamed once and named once. The two that fall
 # back to something else are in the named handler as well, because a rule that reached them would be a
 # rule refusing a model attribute for having no name to give.
@@ -4406,7 +4427,20 @@ HTTP clients built with no connect or read timeout
 Filter chains naming no terminal request matcher
 Credentialed requests accepted from a wildcard origin
 Persistence tests run against a database the application never uses
+Queries constructing a record the module declares with the wrong number of arguments
 RULES
+
+if grep -qF 'Rows.java: line 5: the query constructs com.example.Row with 2 argument(s), and it takes 3' \
+    "$spring_source_log"; then
+    pass 'spring: a query is read against the record it constructs'
+else
+    fail 'spring: a query handing a record the wrong number of arguments was accepted'
+fi
+if grep -qF 'com.example.Elsewhere' "$spring_source_log"; then
+    fail 'spring: a type no module here declares was reported'
+else
+    pass 'spring: a type this module does not declare is passed over'
+fi
 
 run_case 'spring: the configuration goal reports every rule it states' 0 'Spring configuration read' \
     "$spring_source" airness:spring-configuration -Dairness.enforce=false

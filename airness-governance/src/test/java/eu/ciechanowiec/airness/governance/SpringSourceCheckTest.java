@@ -12,6 +12,8 @@ class SpringSourceCheckTest {
     private static final String ROOT = "com.example";
     private static final String APPLICATION = "src/main/java/sample/Application.java";
     private static final String WIRING = "src/main/java/sample/Wiring.java";
+    private static final String ROW = "src/main/java/sample/Row.java";
+    private static final String ROWS = "src/main/java/sample/Rows.java";
     private static final List<Path> MAIN = List.of(Path.of("src/main/java"));
 
     private static final String CLEAN = """
@@ -52,6 +54,23 @@ class SpringSourceCheckTest {
         }
         """;
 
+    private static final String RECORD = """
+        package com.example;
+
+        record Row(Booking booking, String room, String client) {
+        }
+        """;
+
+    private static final String QUERY = """
+        package com.example;
+
+        interface Rows {
+
+            @Query("SELECT new com.example.Row(booking, room.name) FROM Booking booking")
+            List<Row> rows();
+        }
+        """;
+
     @Test
     void passesOverASourceTreeThatBreaksNeitherRule() {
         Path root = new GitFixture("spring-clean").write(APPLICATION, CLEAN).root();
@@ -79,6 +98,28 @@ class SpringSourceCheckTest {
         List<String> offences = Verdicts.offences(new SpringSourceCheck(root, MAIN, ROOT).findings(), "Bean methods");
 
         assertTrue(offences.getFirst().startsWith(WIRING), "the offence opens with the path it came from");
+    }
+
+    @Test
+    void readsWhatAQueryConstructsAgainstTheRecordDeclaredBesideIt() {
+        Path root = new GitFixture("spring-constructed")
+            .write(ROW, RECORD)
+            .write(ROWS, QUERY)
+            .root();
+
+        List<Findings> findings = new SpringSourceCheck(root, MAIN, ROOT).findings();
+
+        assertEquals(1, Verdicts.offences(findings, "wrong number of arguments").size(), "one is missing");
+    }
+
+    @Test
+    void leavesAQueryConstructingTheRecordItCanBuild() {
+        Path root = new GitFixture("spring-buildable")
+            .write(ROW, RECORD)
+            .write(ROWS, QUERY.replace("room.name)", "room.name, client.name)"))
+            .root();
+
+        assertTrue(Verdicts.clean(new SpringSourceCheck(root, MAIN, ROOT).findings()), "the arguments answer");
     }
 
     @Test

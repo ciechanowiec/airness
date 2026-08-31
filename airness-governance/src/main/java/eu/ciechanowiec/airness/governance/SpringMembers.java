@@ -68,6 +68,17 @@ final class SpringMembers {
         return balanced(code, opening, '{', '}');
     }
 
+    /**
+     * The offset at which the parenthesis opened at the given offset is closed again.
+     *
+     * @param code    the text to read, which a caller has already narrowed to one construct
+     * @param opening the offset of the opening parenthesis
+     * @return the offset of the matching parenthesis, or the end of the text when there is none
+     */
+    static int closing(String code, int opening) {
+        return balanced(code, opening, '(', ')');
+    }
+
     private static Optional<Member> declaration(String code, int from) {
         return declarations(code, from)
             .filter(match -> code.charAt(match.start(1) - 1) != ANNOTATION)

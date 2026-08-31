@@ -3,14 +3,18 @@ package eu.ciechanowiec.airness.governance;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Reads the Java sources of one module for the Spring constructs that fail without saying so.
  *
- * <p>Both rules need something no analyzer configuration carries. The first compares a package against
+ * <p>Every rule here needs something no analyzer configuration carries. One compares a package against
  * the root the project declared, which is a value the build supplies rather than one the source states.
- * The second correlates a call with the declarations beside it, which the XPath the rule set is written
- * in cannot express. So they live here, where a check reads a file and answers about the whole of it.
+ * One correlates a call with the declarations beside it, which the XPath the rule set is written in
+ * cannot express. And one reads a call written as text in one file against a declaration in another,
+ * which nothing reading a single file can answer at all. So they live here, where a check reads a file
+ * and answers about the whole of it.
  *
  * <p>The goal that runs this is bound by {@code airness-parent-spring-boot} alone, so a project that is
  * not a Spring Boot one never asks either question.
@@ -39,6 +43,8 @@ public final class SpringSourceCheck {
         = "Credentialed requests accepted from a wildcard origin";
     private static final String REPLACED_DATABASES
         = "Persistence tests run against a database the application never uses";
+    private static final String QUERY_CONSTRUCTORS
+        = "Queries constructing a record the module declares with the wrong number of arguments";
 
     private final Path root;
     private final List<Path> sources;
@@ -83,8 +89,24 @@ public final class SpringSourceCheck {
             new Findings(UNTIMED_CLIENTS, this.offences(SpringFileRules::untimedClients)),
             new Findings(OPEN_CHAINS, this.offences(SpringFileRules::openFilterChains)),
             new Findings(CORS_CREDENTIALS, this.offences(SpringFileRules::unscopedCorsCredentials)),
-            new Findings(REPLACED_DATABASES, this.offences(SpringFileRules::replacedTestDatabases))
+            new Findings(REPLACED_DATABASES, this.offences(SpringFileRules::replacedTestDatabases)),
+            new Findings(QUERY_CONSTRUCTORS, this.queryConstructors())
         );
+    }
+
+    // The only rule here that reads the module rather than a file. What a query constructs is declared
+    // somewhere else, so the sources are read once into the types they declare before any of them is
+    // judged, which is the shape a cross-file question takes throughout this package.
+    private List<String> queryConstructors() {
+        SpringTypes types = SpringTypes.over(this.root, this.sources);
+        Map<String, Integer> records = SpringQueryRules.records(types.all());
+        return types.all().stream()
+            .flatMap(declared -> named(declared, SpringQueryRules.mismatchedConstructors(declared, records)))
+            .toList();
+    }
+
+    private static Stream<String> named(SpringTypes.Declared declared, Collection<String> offences) {
+        return offences.stream().map(offence -> "%s: %s".formatted(declared.source(), offence));
     }
 
     private List<String> entryPoint(CharSequence source) {
