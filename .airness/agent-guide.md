@@ -40,7 +40,10 @@ Airness governs all of the following domains:
   fragment is invoked by name with a positional list like any other callable. An element a fragment replaces
   carries nothing else the dialect reads, because the replacement discards the element and everything written on
   it, which no other check reaches: the markup parses, the page renders, and the condition beside the replacement
-  decided nothing.
+  decided nothing. A link expression reaches for nothing the engine refuses to read inside one, because what a link
+  carries ends up in an address a browser follows and is evaluated under a rule that turns away a bean, a static
+  class and an instantiation. That expression compiles and fails on the first request that draws it, so what the
+  link needs is asked for beside it and the link is handed the variable that answered.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
