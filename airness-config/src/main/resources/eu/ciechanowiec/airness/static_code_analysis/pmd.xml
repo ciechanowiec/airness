@@ -372,14 +372,24 @@
 
     <rule name="NativeQueryNeedsJustification"
         language="java"
-        message="A nativeQuery must be accompanied by @Justification stating why JPQL does not answer here."
+        message="A native query is a deliberate exception. Suppress this rule and state in @Justification why JPQL does not answer here."
         class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
         <description>
             A native query ties the application to one database dialect and bypasses the persistence context,
             so the entities it returns are outside whatever the surrounding transaction is tracking. It is
             sometimes the right answer and never an accidental one, which is the shape the suppression policy
-            already has a mechanism for. Pairing it with @Justification keeps the reason beside the query and
-            prices it against the same budget every other deliberate exception is priced against.
+            already has a mechanism for. The pair that answers it is @SuppressWarnings with @Justification
+            beside it, which keeps the reason next to the query and prices it against the same budget every
+            other deliberate exception is priced against.
+
+            The rule therefore reports a justified query as well as an unjustified one, and that is what makes
+            the pair possible at all. A rule that fell silent at the sight of the reason would leave the
+            suppression suppressing nothing, which UnnecessaryWarningSuppression refuses and no suppression can
+            answer, and a justification with no suppression beside it, which JustificationNeedsSuppression
+            refuses. Between the three of them a native query could not be written in any form.
+
+            The value is read rather than the member, because a query stating nativeQuery = false states that it
+            is not one.
 
             The rule needs no Spring file pattern. Nothing outside Spring Data writes this attribute, so a
             project that is not a Spring Boot one never reaches the rule at all.
@@ -390,7 +400,7 @@
                 <value><![CDATA[
 //MethodDeclaration[
     ModifierList/Annotation[@SimpleName = 'Query']//MemberValuePair[@Name = 'nativeQuery']
-    and not(ModifierList/Annotation[@SimpleName = 'Justification'])
+        /BooleanLiteral[@True = true()]
 ]
                 ]]></value>
             </property>
