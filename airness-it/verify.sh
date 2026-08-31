@@ -2383,8 +2383,14 @@ interface JustifiedQuery {
     long typed();
 }
 JAVA
-run_case 'default: a native query suppressed with its reason passes' 0 'BUILD SUCCESS' \
-    "$queried" pmd:check
+run_case 'default: a native query suppressed with its reason is not reported' 0 'PMD version' \
+    "$queried" pmd:check -Dairness.enforce=false
+if grep -Eq 'JustifiedQuery.*(NativeQuery|JustificationNeeds|UnnecessaryWarning)' \
+    "$scratch/default__a_native_query_suppressed_with_its_reason_is_not_reported.log"; then
+    fail 'default: the three rules that meet on a native query still close on each other'
+else
+    pass 'default: the three rules that meet on a native query leave a way through'
+fi
 rm "$queried/src/main/java/com/example/JustifiedQuery.java"
 
 # A case label counts as a branch in both analyzers, so a switch expression over a vocabulary of eight
@@ -2424,8 +2430,14 @@ enum Measured {
 JAVA
 run_case 'metrics: a switch expression is measured by its arms' 0 'BUILD SUCCESS' \
     "$measured" checkstyle:check '-Dcheckstyle.includes=**/Measured.java'
-run_case 'metrics: the same switch expression passes the other analyzer' 0 'BUILD SUCCESS' \
-    "$measured" pmd:check
+run_case 'metrics: the same switch expression is not reported by the other analyzer' 0 'PMD version' \
+    "$measured" pmd:check -Dairness.enforce=false
+if grep -Eq 'Measured.*CyclomaticComplexity' \
+    "$scratch/metrics__the_same_switch_expression_is_not_reported_by_the_other_analyzer.log"; then
+    fail 'metrics: the label count still reaches the cap in the other analyzer'
+else
+    pass 'metrics: the other analyzer measures the switch expression by its arms too'
+fi
 rm "$measured/src/main/java/com/example/Measured.java"
 cat > "$measured/src/main/java/com/example/Branched.java" <<'JAVA'
 package com.example;
@@ -2489,6 +2501,9 @@ injected="$(new_consumer injected)"
 cat > "$injected/src/test/java/com/example/WideTest.java" <<'JAVA'
 package com.example;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
 /**
  * Exercises the parameter cap on an injected test constructor.
  */
@@ -2511,17 +2526,23 @@ final class WideTest {
 
     /**
      * Reads the first collaborator.
-     *
-     * @return the first collaborator
      */
-    String read() {
-        return this.first;
+    @Test
+    void readsTheFirstCollaborator() {
+        Assertions.assertEquals("one", this.first, "the container handed it over");
     }
 }
 JAVA
 run_case 'metrics: an injected test constructor takes its collaborators' 0 'BUILD SUCCESS' \
     "$injected" checkstyle:check '-Dcheckstyle.includes=**/WideTest.java'
-run_case 'metrics: the other analyzer passes it too' 0 'BUILD SUCCESS' "$injected" pmd:check
+run_case 'metrics: the other analyzer does not report it either' 0 'PMD version' \
+    "$injected" pmd:check -Dairness.enforce=false
+if grep -Eq 'WideTest.*ExcessiveParameterList' \
+    "$scratch/metrics__the_other_analyzer_does_not_report_it_either.log"; then
+    fail 'metrics: the other analyzer still caps an injected test constructor'
+else
+    pass 'metrics: the other analyzer exempts an injected test constructor too'
+fi
 cat > "$injected/src/main/java/com/example/Wide.java" <<'JAVA'
 package com.example;
 
@@ -4330,7 +4351,8 @@ done
 
 # The bound is claimed two ways and only one of them counts. The pair is read from the same log, because
 # an exemption asserted against a rule that has stopped firing asserts nothing.
-bound_findings="$(grep -Ec 'Binds\.java:.*WebParameterIsNamed' "$spring_log" || printf '0')"
+bound_findings="$(grep -E 'Binds\.java:\[[0-9]+,.*WebParameterIsNamed' "$spring_log" \
+    | grep -Eo '\[[0-9]+,' | sort -u | wc -l | tr -d ' ')"
 if [ "$bound_findings" -eq 6 ]; then
     pass 'spring: every binding that falls back to a parameter name is held to naming it'
 else
