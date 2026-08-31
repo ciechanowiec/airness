@@ -1666,10 +1666,16 @@
                 Deleting one parent then loads every child and deletes it one statement at a time, and any
                 child shared with another parent goes with it. Where the children really do share the parent
                 lifetime, orphanRemoval says so without the collateral reach.
+
+                An association that declares orphanRemoval = true has said exactly that, and the provider
+                then removes the children with the parent whatever the cascade names, so the cascade beside
+                it reaches nothing the association does not already own. The rule reads that declaration
+                rather than the cascade alone, because the repair this message names has to be one the rule
+                accepts.
             -->
             <property name="id" value="AirnessSpringJpaToManyDoesNotCascadeRemove"/>
             <property name="query"
-                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='OneToMany' or @text='ManyToMany'] and .//IDENT[@text='REMOVE' or @text='ALL']]]"/>
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='OneToMany' or @text='ManyToMany'] and .//IDENT[@text='REMOVE' or @text='ALL'] and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='orphanRemoval'] and ./EXPR/LITERAL_TRUE])]]"/>
             <message key="matchxpath.match"
                      value="Cascading a delete across a to-many association removes rows the parent does not own. Use orphanRemoval = true, or delete the children explicitly."/>
         </module>
