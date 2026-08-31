@@ -45,6 +45,8 @@ public final class SpringSourceCheck {
         = "Persistence tests run against a database the application never uses";
     private static final String QUERY_CONSTRUCTORS
         = "Queries constructing a record the module declares with the wrong number of arguments";
+    private static final String UNNAMED_GUARD_PARAMETERS
+        = "Security expressions reading a parameter the runtime cannot name";
 
     private final Path root;
     private final List<Path> sources;
@@ -90,7 +92,10 @@ public final class SpringSourceCheck {
             new Findings(OPEN_CHAINS, this.offences(SpringFileRules::openFilterChains)),
             new Findings(CORS_CREDENTIALS, this.offences(SpringFileRules::unscopedCorsCredentials)),
             new Findings(REPLACED_DATABASES, this.offences(SpringFileRules::replacedTestDatabases)),
-            new Findings(QUERY_CONSTRUCTORS, this.queryConstructors())
+            new Findings(QUERY_CONSTRUCTORS, this.queryConstructors()),
+            new Findings(
+                UNNAMED_GUARD_PARAMETERS, this.offences(SpringSecurityRules::unnamedSecurityParameters)
+            )
         );
     }
 

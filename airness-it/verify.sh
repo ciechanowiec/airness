@@ -4070,6 +4070,21 @@ class Routed {
     }
 }
 JAVA
+# The only part of an authorization expression that reaches back into the call it guards is a
+# parameter reference, and the engine resolves it by a name the class file does not keep. Nothing here
+# asks a compiler to keep one, so a reference with no parameter annotation behind it resolves to
+# nothing, and the guard goes on deciding by a comparison that is false whatever was passed in.
+cat > "$spring_source/src/main/java/com/example/Guarded.java" <<'JAVA'
+package com.example;
+
+class Guarded {
+
+    @PreAuthorize("#reference == authentication.name")
+    public String read(UUID reference) {
+        return "read";
+    }
+}
+JAVA
 # A view name states a template in a string that nothing compiles. This one names a template the
 # module does not ship, which is the shape a rename leaves behind: the handler still compiles, every
 # analyzer passes over it, and the first request that reaches it answers with a template not found.
@@ -4716,6 +4731,7 @@ Filter chains naming no terminal request matcher
 Credentialed requests accepted from a wildcard origin
 Persistence tests run against a database the application never uses
 Queries constructing a record the module declares with the wrong number of arguments
+Security expressions reading a parameter the runtime cannot name
 RULES
 
 if grep -qF 'Rows.java: line 5: the query constructs com.example.Row with 2 argument(s), and it takes 3' \
