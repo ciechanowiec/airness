@@ -3429,6 +3429,21 @@ interface CachedReader {
     String read();
 }
 JAVA
+# The cascade a to-many association really does own. The children share the parent lifetime, the
+# association says so, and the rule that names orphanRemoval as the repair has to accept it.
+cat > "$spring_source/src/main/java/com/example/Owned.java" <<'JAVA'
+package com.example;
+
+@Entity
+class Owned {
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Owned> children;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = false)
+    private Set<Owned> declined;
+}
+JAVA
 cat > "$spring_source/src/main/java/com/example/Injected.java" <<'JAVA'
 package com.example;
 
@@ -4086,6 +4101,16 @@ done
 
 # The bound is claimed two ways and only one of them counts. The pair is read from the same log, because
 # an exemption asserted against a rule that has stopped firing asserts nothing.
+if grep -E 'Owned\.java:\[6,.*ToManyDoesNotCascadeRemove' "$spring_log" >/dev/null; then
+    fail 'spring: a cascade the association owns through orphanRemoval was refused'
+else
+    pass 'spring: a cascade the association owns through orphanRemoval is accepted'
+fi
+if grep -E 'Owned\.java:\[9,.*ToManyDoesNotCascadeRemove' "$spring_log" >/dev/null; then
+    pass 'spring: orphanRemoval = false leaves the cascade reaching rows the parent does not own'
+else
+    fail 'spring: a cascade declining orphanRemoval was accepted'
+fi
 if grep -E 'Named\.java.*unbounded collection' "$spring_log" >/dev/null; then
     pass 'spring: a bound named in the method no longer stands in for a Pageable'
 else
