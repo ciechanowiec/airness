@@ -51,7 +51,17 @@ Airness governs all of the following domains:
   read the same way and for the same reason: it is a call nothing compiles, so a record given four components and
   constructed with three is correct everywhere a tool looks and wrong the first time the query runs. The count is
   read against the records the module itself declares, so a type declared beside it in another module is passed
-  over rather than reported.
+  over rather than reported. A fragment call is read against the fragments the module declares, so a name nothing
+  declares and an argument list of the wrong length are both reported where they are written. That is the other half
+  of the cap above and it fails the same way a constructor expression does: the document parses, the page renders for
+  as long as nothing draws that branch, and the first request that draws it fails on a name. A fragment renamed in one
+  file and called from four others is the ordinary way it happens. What an expression builds rather than writes out,
+  and what selects an element rather than naming a declaration, are passed over, since neither names a fragment that
+  can be resolved. Markup writes nothing into a page unescaped and has no expression read a second time as an
+  expression. The first turns a stored value into markup and renders correctly for every value nobody chose to attack
+  it with, and the second turns one into an expression the engine runs, whose reach is the engine's rather than the
+  page's. Write the escaping form and keep markup out of what the model carries, and write the expression the
+  preprocessing was building rather than composing a name out of a value.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
