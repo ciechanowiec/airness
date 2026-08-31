@@ -2163,6 +2163,17 @@ run_case 'editorconfig: a file git would carry is still read' 1 'insert_final_ne
 rm -r "$consumer/coverage"
 rm "$consumer/notes.txt"
 
+# A picture, a font or a video the linter would otherwise read as text. The suffixes it passes over of
+# its own accord stop short of the newer formats, so the parent names them, and the carriage return
+# written below is the byte one of them would be reported for. The clean file beside it is what makes
+# the pass mean the linter read something and was content with it rather than that it read nothing.
+printf 'a\r\nb\n' > "$consumer/mark.woff2"
+printf 'A note that ends as it should.\n' > "$consumer/notes.txt"
+run_case 'editorconfig: a binary suffix the parent excludes is not read' 0 'BUILD SUCCESS' \
+    "$consumer" validate editorconfig:check '-Deditorconfig.includes=mark.woff2,notes.txt'
+rm "$consumer/mark.woff2"
+rm "$consumer/notes.txt"
+
 # Maven finishes the root module before starting its child. The tree net therefore needs a fresh
 # snapshot and verification pair in every module, or a child plugin can edit the repository after the
 # root verification has already passed.
