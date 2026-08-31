@@ -81,7 +81,12 @@ Airness governs all of the following domains:
   every handler that named it compiling and failing on the first request that reaches it. The name is read where it is
   written plainly, which is a constant as readily as a literal. A name a handler builds is passed over, and so is a
   string returned by anything answering with a body rather than with a page, since neither states a template. What a
-  redirect or a forward names is an address rather than a template and is left alone here.
+  redirect or a forward names is an address rather than a template and is left alone here. A parameter an
+  authorization expression reads is named for the runtime by its own annotation, because a parameter name is not
+  kept in the class file and nothing here asks a compiler to keep one. A reference with no such annotation behind
+  it resolves to nothing rather than failing, so every comparison against it is false and the guard goes on
+  deciding by an answer that no longer follows what it reads as: a rule admitting the owner of a record admits
+  nobody, and the same rule written around a negation admits everybody.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
