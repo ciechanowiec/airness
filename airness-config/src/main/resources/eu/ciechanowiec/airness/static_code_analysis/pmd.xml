@@ -77,6 +77,21 @@
         <properties>
             <property name="classReportLevel" value="80"/>
             <property name="methodReportLevel" value="8"/>
+            <!--
+                A case label counts as a branch, so a switch expression over a vocabulary of seven reaches
+                the cap whatever its shape: two arms and seven labels measure the same as seven arms. That
+                is the one shape this rule set asks for elsewhere, because an enum may hold no collection
+                and works its answer out in a switch that the compiler then holds to every constant.
+
+                A method whose whole body is one arrow-form switch expression is therefore exempt. Nothing
+                else about it is: CognitiveComplexity counts a switch as a single increment and still
+                measures the method at a report level of five, and NcssCount still measures its length, so
+                an arm that hides a branch of its own is still reported by the rule that reads it as one.
+                A colon-form switch is not exempt, because a fall-through arm is a branch a reader has to
+                follow rather than a row of a table.
+            -->
+            <property name="violationSuppressXPath"
+                      value="./ancestor-or-self::MethodDeclaration[Block[count(*) = 1]/ReturnStatement/SwitchExpression[not(SwitchFallthroughBranch)]]"/>
         </properties>
     </rule>
     <rule ref="category/java/design.xml/ExcessiveImports">
