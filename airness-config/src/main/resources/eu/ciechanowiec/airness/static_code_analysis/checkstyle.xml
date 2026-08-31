@@ -598,6 +598,24 @@
         <module name="CyclomaticComplexity">
             <property name="max" value="8"/>
         </module>
+        <module name="SuppressionXpathSingleFilter">
+            <!--
+                The counterpart of the exemption the PMD rule that measures the same thing carries. A case
+                label counts as a branch, so a switch expression over a vocabulary of eight reaches the cap
+                whatever its shape, and that shape is the one this configuration asks for elsewhere: an enum
+                holds no collection and works its answer out in a switch the compiler holds to every
+                constant.
+
+                A method whose whole body is one arrow-form switch expression is exempt from the branch count
+                and from nothing else. Its length is still measured by JavaNCSS, and the arms of a colon-form
+                switch are branches a reader follows rather than rows of a table, so that form is measured as
+                before.
+            -->
+            <property name="checks" value="CyclomaticComplexity"/>
+            <property name="query"
+                      value="//METHOD_DEF[./SLIST/LITERAL_RETURN/EXPR/LITERAL_SWITCH/SWITCH_RULE
+                            and count(./SLIST/*[not(self::RCURLY)]) = 1]"/>
+        </module>
         <module name="JavaNCSS">
             <property name="methodMaximum" value="30"/>
             <property name="classMaximum" value="600"/>

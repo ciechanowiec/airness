@@ -2387,6 +2387,100 @@ run_case 'default: a native query suppressed with its reason passes' 0 'BUILD SU
     "$queried" pmd:check
 rm "$queried/src/main/java/com/example/JustifiedQuery.java"
 
+# A case label counts as a branch in both analyzers, so a switch expression over a vocabulary of eight
+# reaches the cap whatever its shape. That shape is the one this harness asks for of an enum, which may
+# hold no collection and works its answer out in a switch the compiler holds to every constant. The
+# exemption is read from both tools at once, because a cap two of them measure is lifted by neither
+# alone.
+measured="$(new_consumer measured)"
+cat > "$measured/src/main/java/com/example/Measured.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the branch count over an exhaustive switch expression.
+ */
+enum Measured {
+
+    ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT;
+
+    /**
+     * Names this constant.
+     *
+     * @return the word this constant is written in
+     */
+    String named() {
+        return switch (this) {
+            case ONE -> "one";
+            case TWO -> "two";
+            case THREE -> "three";
+            case FOUR -> "four";
+            case FIVE -> "five";
+            case SIX -> "six";
+            case SEVEN -> "seven";
+            case EIGHT -> "eight";
+        };
+    }
+}
+JAVA
+run_case 'metrics: a switch expression is measured by its arms' 0 'BUILD SUCCESS' \
+    "$measured" checkstyle:check '-Dcheckstyle.includes=**/Measured.java'
+run_case 'metrics: the same switch expression passes the other analyzer' 0 'BUILD SUCCESS' \
+    "$measured" pmd:check
+rm "$measured/src/main/java/com/example/Measured.java"
+cat > "$measured/src/main/java/com/example/Branched.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the branch count over a method that is not a switch expression.
+ */
+final class Branched {
+
+    private Branched() {
+        throw new IllegalStateException("no instances");
+    }
+
+    /**
+     * Counts how many bounds the given number is past.
+     *
+     * @param given the number to read
+     * @return how many bounds it is past
+     */
+    static int counted(int given) {
+        int total = given;
+        if (given > 1) {
+            total = total + 1;
+        }
+        if (given > 2) {
+            total = total + 1;
+        }
+        if (given > 3) {
+            total = total + 1;
+        }
+        if (given > 4) {
+            total = total + 1;
+        }
+        if (given > 5) {
+            total = total + 1;
+        }
+        if (given > 6) {
+            total = total + 1;
+        }
+        if (given > 7) {
+            total = total + 1;
+        }
+        if (given > 8) {
+            total = total + 1;
+        }
+        return total;
+    }
+}
+JAVA
+run_case 'metrics: branches a reader follows are still counted' 1 'Cyclomatic Complexity is 9' \
+    "$measured" checkstyle:check '-Dcheckstyle.includes=**/Branched.java'
+run_case 'metrics: the other analyzer counts them too' 1 'cyclomatic complexity of 9' \
+    "$measured" pmd:check
+rm "$measured/src/main/java/com/example/Branched.java"
+
 # Copy-paste detection. The consumer is clone-free before the pair below is written, so the rejection
 # that follows is the pair being reported rather than the fixture carrying duplication of its own.
 run_case 'default: a consumer without duplication passes' 0 'BUILD SUCCESS' "$consumer" pmd:cpd-check
