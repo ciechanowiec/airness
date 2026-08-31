@@ -31,23 +31,27 @@ Airness governs all of the following domains:
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
   rather than reported: build output and a tool's scratch are not content this style governs.
 - **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
-  comments, source comments, typography, banned substitutes, and cycles among the packages of a module. Every
-  production package declares its nullness with `@NullMarked` on its `package-info`, which the parent supplies the
-  annotation for: a package that declares none leaves every type in it undecided, and a class implementing a marked
-  framework interface then states a weaker contract than the one it overrides. Markup and stylesheets are formatted
-  too, every markup resource a module ships is read by the parser the template engines use, so a fragment no page
-  calls yet is still proved to parse, and a fragment is held to the argument cap a callable is held to, because a
-  fragment is invoked by name with a positional list like any other callable. An element a fragment replaces
-  carries nothing else the dialect reads, because the replacement discards the element and everything written on
-  it, which no other check reaches: the markup parses, the page renders, and the condition beside the replacement
-  decided nothing. A link expression reaches for nothing the engine refuses to read inside one, because what a link
-  carries ends up in an address a browser follows and is evaluated under a rule that turns away a bean, a static
-  class and an instantiation. That expression compiles and fails on the first request that draws it, so what the
-  link needs is asked for beside it and the link is handed the variable that answered. A constructor expression
-  written inside a repository query is read the same way and for the same reason: it is a call nothing compiles, so
-  a record given four components and constructed with three is correct everywhere a tool looks and wrong the first
-  time the query runs. The count is read against the records the module itself declares, so a type declared beside
-  it in another module is passed over rather than reported.
+  comments, source comments, typography, banned substitutes, banned generated members, and cycles among the
+  packages of a module. A generated member is refused where what it generates is a public API the type never
+  stated, or an answer this harness already gives elsewhere: a mutator, a builder, a wither, a lock held on a field
+  the source never shows, and a second vocabulary for nullness beside jSpecify. The rest of Lombok stays available,
+  and two of its members are required rather than merely allowed. Every production package declares its nullness
+  with `@NullMarked` on its `package-info`, which the parent supplies the annotation for: a package that declares
+  none leaves every type in it undecided, and a class implementing a marked framework interface then states a
+  weaker contract than the one it overrides. Markup and stylesheets are formatted too, every markup resource a
+  module ships is read by the parser the template engines use, so a fragment no page calls yet is still proved to
+  parse, and a fragment is held to the argument cap a callable is held to, because a fragment is invoked by name
+  with a positional list like any other callable. An element a fragment replaces carries nothing else the dialect
+  reads, because the replacement discards the element and everything written on it, which no other check reaches:
+  the markup parses, the page renders, and the condition beside the replacement decided nothing. A link expression
+  reaches for nothing the engine refuses to read inside one, because what a link carries ends up in an address a
+  browser follows and is evaluated under a rule that turns away a bean, a static class and an instantiation. That
+  expression compiles and fails on the first request that draws it, so what the link needs is asked for beside it
+  and the link is handed the variable that answered. A constructor expression written inside a repository query is
+  read the same way and for the same reason: it is a call nothing compiles, so a record given four components and
+  constructed with three is correct everywhere a tool looks and wrong the first time the query runs. The count is
+  read against the records the module itself declares, so a type declared beside it in another module is passed
+  over rather than reported.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
