@@ -2481,6 +2481,85 @@ run_case 'metrics: the other analyzer counts them too' 1 'cyclomatic complexity 
     "$measured" pmd:check
 rm "$measured/src/main/java/com/example/Branched.java"
 
+# The cap on a parameter list, read where the list is not the author's. A test class is built by the
+# container, which reads the constructor and hands it every collaborator the case needs, and Spring
+# writes no annotation on one, so the exemption the annotated form carries cannot see it. Both analyzers
+# measure this cap, so both are read.
+injected="$(new_consumer injected)"
+cat > "$injected/src/test/java/com/example/WideTest.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the parameter cap on an injected test constructor.
+ */
+final class WideTest {
+
+    private final String first;
+
+    /**
+     * Takes what the container hands it.
+     *
+     * @param first  one collaborator
+     * @param second another
+     * @param third  another
+     * @param fourth another
+     * @param fifth  another
+     */
+    WideTest(String first, String second, String third, String fourth, String fifth) {
+        this.first = first;
+    }
+
+    /**
+     * Reads the first collaborator.
+     *
+     * @return the first collaborator
+     */
+    String read() {
+        return this.first;
+    }
+}
+JAVA
+run_case 'metrics: an injected test constructor takes its collaborators' 0 'BUILD SUCCESS' \
+    "$injected" checkstyle:check '-Dcheckstyle.includes=**/WideTest.java'
+run_case 'metrics: the other analyzer passes it too' 0 'BUILD SUCCESS' "$injected" pmd:check
+cat > "$injected/src/main/java/com/example/Wide.java" <<'JAVA'
+package com.example;
+
+/**
+ * Exercises the parameter cap where the list is the author's own.
+ */
+final class Wide {
+
+    private final String first;
+
+    /**
+     * Takes five.
+     *
+     * @param first  one
+     * @param second another
+     * @param third  another
+     * @param fourth another
+     * @param fifth  another
+     */
+    Wide(String first, String second, String third, String fourth, String fifth) {
+        this.first = first;
+    }
+
+    /**
+     * Reads the first.
+     *
+     * @return the first
+     */
+    String read() {
+        return this.first;
+    }
+}
+JAVA
+run_case 'metrics: a list the author chose is still capped' 1 'More than 4 parameters' \
+    "$injected" checkstyle:check '-Dcheckstyle.includes=**/Wide.java'
+run_case 'metrics: the other analyzer caps it too' 1 'ExcessiveParameterList' "$injected" pmd:check
+rm "$injected/src/main/java/com/example/Wide.java" "$injected/src/test/java/com/example/WideTest.java"
+
 # Copy-paste detection. The consumer is clone-free before the pair below is written, so the rejection
 # that follows is the pair being reported rather than the fixture carrying duplication of its own.
 run_case 'default: a consumer without duplication passes' 0 'BUILD SUCCESS' "$consumer" pmd:cpd-check

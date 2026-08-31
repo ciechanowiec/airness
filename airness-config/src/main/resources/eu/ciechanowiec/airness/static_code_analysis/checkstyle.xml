@@ -871,6 +871,20 @@
                             |
                             //METHOD_DEF/IDENT[../MODIFIERS/ANNOTATION/IDENT[@text='Inject'] or ../MODIFIERS/ANNOTATION/IDENT[@text='Autowired']]"/>
         </module>
+        <module name="SuppressionXpathSingleFilter">
+            <!--
+                The same exemption for the injection that carries no annotation. A test class is built by the
+                container, which reads the constructor and hands it every collaborator the case needs, so the
+                list is no more the author's choice than an annotated one is. A test of anything that spans
+                several tables reaches the cap on the fixtures alone, and the shape the cap then asks for is a
+                test that reaches its subject some other way, which is a worse test rather than a smaller one.
+
+                Constructors only. A test method taking five arguments chose them.
+            -->
+            <property name="checks" value="ParameterNumber"/>
+            <property name="query" value="//CTOR_DEF/IDENT"/>
+            <property name="files" value="[/\\]src[/\\]test[/\\]"/>
+        </module>
 
         <!--
         Indentation
