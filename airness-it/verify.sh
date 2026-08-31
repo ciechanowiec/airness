@@ -2340,6 +2340,53 @@ run_case 'default: a justification without its suppression is stale' 1 \
     'JustificationNeedsSuppression' "$consumer" pmd:check
 rm "$consumer/src/main/java/com/example/StaleJustification.java"
 
+# A native query is the one exception the suppression policy prices rather than forbids, so the three
+# rules that meet on one have to leave a way through. It is read in a consumer of its own, because the
+# case that matters asserts a clean run rather than a named finding, and a clean run is only evidence
+# where nothing else in the project has anything to report.
+queried="$(new_consumer queried)"
+cat > "$queried/src/main/java/com/example/DialectQuery.java" <<'JAVA'
+package com.example;
+
+/** Exercises the native query rule. */
+interface DialectQuery {
+
+    @Query(value = "select nextval('numbering')", nativeQuery = true)
+    long unjustified();
+
+    @Query(value = "select two from Two two", nativeQuery = false)
+    long typed();
+}
+JAVA
+run_case 'default: a native query with no reason beside it is refused' 1 \
+    'NativeQueryNeedsJustification' "$queried" pmd:check
+if grep -Eq 'DialectQuery:9' "$scratch/default__a_native_query_with_no_reason_beside_it_is_refused.log"; then
+    fail 'default: a query stating that it is not native was read as one'
+else
+    pass 'default: a query stating that it is not native is passed over'
+fi
+rm "$queried/src/main/java/com/example/DialectQuery.java"
+cat > "$queried/src/main/java/com/example/JustifiedQuery.java" <<'JAVA'
+package com.example;
+
+import eu.ciechanowiec.airness.Justification;
+
+/** Exercises the pair that answers the native query rule. */
+interface JustifiedQuery {
+
+    @SuppressWarnings("PMD.NativeQueryNeedsJustification")
+    @Justification("A sequence is reachable from SQL alone")
+    @Query(value = "select nextval('numbering')", nativeQuery = true)
+    long justified();
+
+    @Query(value = "select two from Two two", nativeQuery = false)
+    long typed();
+}
+JAVA
+run_case 'default: a native query suppressed with its reason passes' 0 'BUILD SUCCESS' \
+    "$queried" pmd:check
+rm "$queried/src/main/java/com/example/JustifiedQuery.java"
+
 # Copy-paste detection. The consumer is clone-free before the pair below is written, so the rejection
 # that follows is the pair being reported rather than the fixture carrying duplication of its own.
 run_case 'default: a consumer without duplication passes' 0 'BUILD SUCCESS' "$consumer" pmd:cpd-check
