@@ -2172,7 +2172,7 @@ run_case 'secrets: an exception that excuses a whole file is rejected' 1 'excuse
     "$consumer" airness:assets-check
 write_gitleaks true "$scoped"
 run_case 'assets: later pinned change fails tree verification' 1 \
-    'Build plugins changed committable files|working tree content differs' \
+    'Committable files changed during the build|working tree content differs' \
     "$consumer" -Pdrift-pinned-asset airness:assets-sync airness:tree-snapshot \
     antrun:run@drift-pinned-asset airness:tree-verify
 # The case above leaves the drift it made, which is the point of it. Restoring the file here is what
@@ -2511,7 +2511,7 @@ prepare "$multimodule" --quiet validate editorconfig:format -Preactor-child
 git -C "$multimodule" add --all
 git -C "$multimodule" commit --quiet --message 'test(it): add the reactor child fixture'
 run_case 'tree: a child-module mutation fails the reactor build' 1 \
-    'Build plugins changed committable files|working tree content differs' \
+    'Committable files changed during the build|working tree content differs' \
     "$multimodule" clean package -Preactor-child
 git -C "$multimodule" restore .gitattributes
 
@@ -2641,6 +2641,81 @@ else
     pass 'default: the three rules that meet on a native query leave a way through'
 fi
 rm "$queried/src/main/java/com/example/JustifiedQuery.java"
+
+# A mapped value that may hold nothing is priced rather than forbidden, for the same reason a native
+# query is. The cases that matter are the two halves of the distinction: a field of a persistent type
+# is read, and a parameter of its constructor is not, because a record standing a default in for what
+# a binder could not build says nothing there about the column.
+cat > "$queried/src/main/java/com/example/AbsentColumn.java" <<'JAVA'
+package com.example;
+
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Entity;
+import org.jspecify.annotations.Nullable;
+
+/** Exercises the nullable persistent value rule. */
+@Entity
+class AbsentColumn {
+
+    private @Nullable String note;
+
+    String note() {
+        return this.note;
+    }
+}
+
+/** Exercises the same rule on a component rather than a field. */
+@Embeddable
+record AbsentComponent(String stated, @Nullable String absent) {
+}
+
+/** Exercises the parameter the rule passes over. */
+@Embeddable
+record BoundDefault(String stated) {
+
+    BoundDefault(@Nullable String stated) {
+        this.stated = stated == null ? "" : stated;
+    }
+}
+JAVA
+run_case 'spring: a persistent value that may hold nothing is refused' 1 \
+    'NullablePersistentValueNeedsJustification' "$queried" pmd:check
+if grep -Eq 'BoundDefault' \
+    "$scratch/spring__a_persistent_value_that_may_hold_nothing_is_refused.log"; then
+    fail 'spring: a constructor parameter standing a default in was read as a column'
+else
+    pass 'spring: a constructor parameter standing a default in is passed over'
+fi
+rm "$queried/src/main/java/com/example/AbsentColumn.java"
+cat > "$queried/src/main/java/com/example/JustifiedColumn.java" <<'JAVA'
+package com.example;
+
+import eu.ciechanowiec.airness.Justification;
+import jakarta.persistence.Entity;
+import org.jspecify.annotations.Nullable;
+
+/** Exercises the pair that answers the nullable persistent value rule. */
+@Entity
+class JustifiedColumn {
+
+    @SuppressWarnings("PMD.NullablePersistentValueNeedsJustification")
+    @Justification("The day an unissued document was issued, which no value stands in for")
+    private @Nullable String issuedOn;
+
+    String issuedOn() {
+        return this.issuedOn;
+    }
+}
+JAVA
+run_case 'spring: a persistent value suppressed with its reason is not reported' 0 'PMD version' \
+    "$queried" pmd:check -Dairness.enforce=false
+if grep -Eq 'JustifiedColumn.*(NullablePersistentValue|JustificationNeeds|UnnecessaryWarning)' \
+    "$scratch/spring__a_persistent_value_suppressed_with_its_reason_is_not_reported.log"; then
+    fail 'spring: the three rules that meet on a nullable column still close on each other'
+else
+    pass 'spring: the three rules that meet on a nullable column leave a way through'
+fi
+rm "$queried/src/main/java/com/example/JustifiedColumn.java"
 
 # A case label counts as a branch in both analyzers, so a switch expression over a vocabulary of eight
 # reaches the cap whatever its shape. That shape is the one this harness asks for of an enum, which may
