@@ -790,9 +790,16 @@
                         <!--
                             A picture like the ones above it, but WEBP postdates the binary suffixes the
                             linter passes over of its own accord, so without this it reads the file as
-                            text and reports every carriage return in it as a line ending to repair.
+                            text and reports every carriage return in it as a line ending to repair. The
+                            five below it are the same case, reached the same way: a newer picture, the
+                            font format the web ships and the one a designer hands over, and video.
                         -->
                         <exclude>**/*.webp</exclude>
+                        <exclude>**/*.avif</exclude>
+                        <exclude>**/*.woff2</exclude>
+                        <exclude>**/*.otf</exclude>
+                        <exclude>**/*.mp4</exclude>
+                        <exclude>**/*.webm</exclude>
                         <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
                         <exclude>**/*.tsv</exclude>
                         <!--
