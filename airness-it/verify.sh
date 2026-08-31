@@ -2130,6 +2130,37 @@ run_case 'templates: a condition on the block around a replacement passes' 0 'Te
 rm "$consumer/src/main/resources/templates/wrapped.html"
 rmdir "$consumer/src/main/resources/templates"
 
+# A link expression is what ends up in an address a browser follows, so the engine refuses to reach
+# past the model inside one. The document parses, the expression compiles, every analyzer passes over
+# it, and the page fails on the first request that draws it, naming the restriction rather than the
+# attribute that tripped it.
+mkdir -p "$consumer/src/main/resources/templates"
+cat > "$consumer/src/main/resources/templates/reached.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<img th:src="@{${@artwork.thumbnail(code)}}" alt="" />
+</body>
+</html>
+HTML
+run_case 'templates: a link expression that reaches for a bean is rejected' 1 'th:src reaches for a bean' \
+    "$consumer" airness:template-links
+rm "$consumer/src/main/resources/templates/reached.html"
+cat > "$consumer/src/main/resources/templates/asked.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<img th:with="drawn=${@artwork.thumbnail(code)}" th:src="@{${drawn}}" alt="" />
+<a th:href="@{/rooms/{reference}(reference=${room.reference()})}">Kepler Hall</a>
+<a th:href="@{/rooms/new}">Register a room</a>
+</body>
+</html>
+HTML
+run_case 'templates: asking for it beside the link passes' 0 'Template links read [1-9]' \
+    "$consumer" airness:template-links
+rm "$consumer/src/main/resources/templates/asked.html"
+rmdir "$consumer/src/main/resources/templates"
+
 # The formatter over the half of the tree the Java one never reads. Checking is bound to an ordinary
 # build and writing is reachable only through the format profile, so the same file answers both ways.
 mkdir -p "$consumer/src/main/resources/static"
