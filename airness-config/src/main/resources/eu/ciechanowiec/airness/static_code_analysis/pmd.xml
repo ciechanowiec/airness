@@ -432,4 +432,65 @@
         </properties>
     </rule>
 
+    <rule name="NullablePersistentValueNeedsJustification"
+        language="java"
+        message="A persistent value that may hold nothing is a deliberate exception. Suppress this rule and state in @Justification why the absence is a fact about the record rather than two shapes sharing one type."
+        class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Nullness at a boundary and nullness at rest are different things. A bound form holds nothing
+            because the framework read nothing into it, which is a fact about the request and is what
+            @Nullable exists to state. A column holds nothing because somebody decided it may, and that
+            decision is usually one of two things: a fact that is genuinely absent, such as the day an
+            unissued document was issued, or two shapes flattened into one table because the type system
+            was not asked to tell them apart.
+
+            The second is the common one and it is a design defect. A row that carries a reference on some
+            of its kinds and not on others is a sum type with the sum left out, and every reader of it
+            afterwards has to know which kind it is holding before the column means anything. The first is
+            legitimate and there is no honest value to put in its place, because a date, a reference and a
+            constant have no empty form the way text and an amount do.
+
+            The rule therefore prices the decision rather than forbidding it, which is the mechanism the
+            suppression policy already has for a thing that is sometimes right and never accidental. The
+            pair that answers it is @SuppressWarnings with @Justification beside it, and writing the reason
+            is what separates the two cases: a justification that reads "the day it was issued, and it has
+            not been issued" states a fact, while one that reads "this kind of row has no such reference"
+            has written the sum type out by hand and is the argument for modelling it instead.
+
+            The rule reports a justified value as well as an unjustified one, for the reason
+            NativeQueryNeedsJustification does: a rule that fell silent at the sight of the reason would
+            leave the suppression suppressing nothing, which UnnecessaryWarningSuppression refuses, and a
+            justification with no suppression beside it, which JustificationNeedsSuppression refuses.
+
+            It reads a field of a persistent class and a component of a persistent record, because those are
+            the two shapes a mapped value takes. It does not read a constructor parameter, since a
+            persistent record standing a default in for what a binder could not build carries @Nullable
+            there and states nothing about the column. The annotation is matched wherever it sits in the
+            declaration, because JSpecify marks a type use rather than a declaration and an element type
+            that may be null is the same decision as a value that may be.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//FieldDeclaration[
+    ancestor::ClassDeclaration[
+        ModifierList/Annotation[
+            @SimpleName = 'Entity' or @SimpleName = 'Embeddable' or @SimpleName = 'MappedSuperclass'
+        ]
+    ]
+][.//Annotation[@SimpleName = 'Nullable']]
+|
+//RecordComponent[
+    ancestor::RecordDeclaration[
+        ModifierList/Annotation[
+            @SimpleName = 'Entity' or @SimpleName = 'Embeddable' or @SimpleName = 'MappedSuperclass'
+        ]
+    ]
+][.//Annotation[@SimpleName = 'Nullable']]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
 </ruleset>

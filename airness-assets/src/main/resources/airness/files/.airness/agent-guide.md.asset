@@ -86,7 +86,16 @@ Airness governs all of the following domains:
   kept in the class file and nothing here asks a compiler to keep one. A reference with no such annotation behind
   it resolves to nothing rather than failing, so every comparison against it is false and the guard goes on
   deciding by an answer that no longer follows what it reads as: a rule admitting the owner of a record admits
-  nobody, and the same rule written around a negation admits everybody.
+  nobody, and the same rule written around a negation admits everybody. A mapped value that may hold nothing is a
+  deliberate exception rather than an ordinary one, and is priced the way every deliberate exception here is: a
+  field of a persistent class or a component of a persistent record annotated `@Nullable` is reported until a
+  suppression with its reason sits beside it. Nullness at a boundary and nullness at rest are different things: a
+  bound form holds nothing because the framework read nothing into it, while a column holds nothing because
+  somebody decided it may, which is either a fact that is genuinely absent, such as the day an unissued document
+  was issued, or two shapes flattened into one table because the type system was never asked to tell them apart.
+  Writing the reason is what separates the two, since a reason that has to name which kind of row carries the value
+  has written the missing type out by hand. A constructor parameter is passed over, because a persistent record
+  standing a default in for what a binder could not build says nothing there about the column.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
