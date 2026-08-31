@@ -110,8 +110,18 @@
                 accepts this one, so the same exemption is written as the shape it applies to. The
                 declaration the list came from is not an override and is measured as before.
             -->
+            <!--
+                The second arm is the constructor of a test class, which the container builds by reading its
+                parameter list and handing it every collaborator the case needs. Spring writes no annotation
+                on such a constructor, so the exemption above cannot see it, and PMD scopes by shape rather
+                than by path, so the class name is what says a test here. The Checkstyle rule that measures
+                the same thing says it by path, because its own dialect has no string functions.
+            -->
             <property name="violationSuppressXPath"
-                      value="./ancestor-or-self::MethodDeclaration[ModifierList/Annotation[@SimpleName='Override']]"/>
+                      value="./ancestor-or-self::MethodDeclaration[ModifierList/Annotation[@SimpleName='Override']]
+                            |
+                            ./ancestor-or-self::ConstructorDeclaration/ancestor::ClassDeclaration[
+                                ends-with(@SimpleName, 'Test') or ends-with(@SimpleName, 'IT')]"/>
         </properties>
     </rule>
     <rule ref="category/java/design.xml/ExcessivePublicCount">
