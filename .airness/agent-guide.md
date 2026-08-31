@@ -43,7 +43,11 @@ Airness governs all of the following domains:
   decided nothing. A link expression reaches for nothing the engine refuses to read inside one, because what a link
   carries ends up in an address a browser follows and is evaluated under a rule that turns away a bean, a static
   class and an instantiation. That expression compiles and fails on the first request that draws it, so what the
-  link needs is asked for beside it and the link is handed the variable that answered.
+  link needs is asked for beside it and the link is handed the variable that answered. A constructor expression
+  written inside a repository query is read the same way and for the same reason: it is a call nothing compiles, so
+  a record given four components and constructed with three is correct everywhere a tool looks and wrong the first
+  time the query runs. The count is read against the records the module itself declares, so a type declared beside
+  it in another module is passed over rather than reported.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
@@ -165,6 +169,13 @@ it is published, only a fresh history satisfies the rule.
   itself. A local already carries its initializer's type, so only parameters need this. Neither repair costs any
   coverage, and neither needs an entry in the profile: prefer both to `stopClasses`, which would exempt a type
   everywhere and so give up the genuine weakenings the same run still reports.
+- Say that a bound value is required in a method rather than in an annotation beside a nullable one. A value read
+  out of a request may genuinely arrive as nothing, which the type says with `@Nullable`, and a constraint
+  annotation that says it must not be absent is a second nullness annotation on the same type use, which the
+  compiler refuses. The two are both right and cannot be written together. What answers both is a method on the
+  bound record that names every value the request left out, keyed by the same property path a constraint violation
+  would carry, which whatever gathers the refusals then merges with what the binder could not read and what the
+  remaining rules refuse. The constraints that bound a value which is present stay where they are.
 - Write a multi-line annotation with its arguments on their own lines and its closing bracket alone, which is what
   the paired-brackets rule asks of every construct whose brackets span lines. An annotation whose argument is a
   text block always spans lines, so the shape is not optional there: open the bracket, start the text block on the
