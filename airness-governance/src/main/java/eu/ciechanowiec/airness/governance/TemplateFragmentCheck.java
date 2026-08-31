@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Reads every markup resource a module ships and reports the fragments that take more arguments than
@@ -23,7 +22,8 @@ import java.util.regex.Pattern;
  *
  * <p>The arguments are counted from the parsed document rather than matched in its text, so a fragment
  * named inside a comment, an attribute of some other name, or a block of literal script is not read as
- * a declaration.
+ * a declaration. What counts them is {@link FragmentSignature}, which reads a declaration and a call
+ * alike, so this rule and the rule over calls agree about where an argument list ends.
  */
 public final class TemplateFragmentCheck {
 
@@ -37,20 +37,6 @@ public final class TemplateFragmentCheck {
 
     // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
     private static final String THYMELEAF_DATA = "data-th-fragment";
-
-    private static final char OPENS = '(';
-
-    private static final char CLOSES = ')';
-
-    private static final char SEPARATOR = ',';
-
-    // A literal, under either quotation. What sits inside one is a value rather than a list, so a
-    // comma there separates nothing.
-    private static final Pattern QUOTED = Pattern.compile("'[^']*'|\"[^\"]*\"");
-
-    // A group holding no further group. Taking every one of those out and asking again reduces a
-    // nesting of any depth, which is what keeps this file from counting brackets itself.
-    private static final Pattern INNERMOST = Pattern.compile("[(\\[{][^()\\[\\]{}]*[)\\]}]");
 
     private final MarkupScan scan;
 
@@ -83,47 +69,14 @@ public final class TemplateFragmentCheck {
     }
 
     /**
-     * How many arguments a fragment declaration takes.
+     * Whether an attribute of the given name declares a fragment, under either spelling.
      *
-     * <p>Commas inside a nested call or inside a quoted literal separate nothing, so a fragment
-     * declared as {@code field('one, two', other)} takes two arguments rather than three.
-     *
-     * @param declaration the value of a fragment attribute, such as {@code field(label, name)}
-     * @return the number of arguments, and zero for a fragment that declares no list at all
+     * @param attribute the attribute name as the document wrote it
+     * @return whether it declares a fragment
      */
-    static int arguments(String declaration) {
-        int opens = declaration.indexOf(OPENS);
-        int closes = declaration.lastIndexOf(CLOSES);
-        if (opens < 0 || closes < opens) {
-            return 0;
-        }
-        String list = declaration.substring(opens + 1, closes).trim();
-        return list.isEmpty() ? 0 : separators(list) + 1;
-    }
-
-    /**
-     * The name a fragment is invoked by, which is everything before its argument list.
-     *
-     * @param declaration the value of a fragment attribute
-     * @return the fragment name
-     */
-    static String name(String declaration) {
-        int opens = declaration.indexOf(OPENS);
-        return (opens < 0 ? declaration : declaration.substring(0, opens)).trim();
-    }
-
-    // What is left once every literal and every group has been taken out is the list itself, so the
-    // commas still standing are the ones that separate one argument from the next.
-    private static int separators(String list) {
-        return (int) flattened(QUOTED.matcher(list).replaceAll(""))
-            .chars()
-            .filter(character -> character == SEPARATOR)
-            .count();
-    }
-
-    private static String flattened(String list) {
-        String reduced = INNERMOST.matcher(list).replaceAll("");
-        return reduced.equals(list) ? list : flattened(reduced);
+    static boolean declares(String attribute) {
+        String spelled = attribute.toLowerCase(Locale.ROOT);
+        return THYMELEAF.equals(spelled) || THYMELEAF_DATA.equals(spelled);
     }
 
     /**
@@ -149,18 +102,15 @@ public final class TemplateFragmentCheck {
         }
 
         private void measure(String declaration, int line, int column) {
-            int arguments = arguments(declaration);
+            int arguments = FragmentSignature.arguments(declaration);
             if (arguments > CAP) {
                 this.offences.add(
                     "%s:%d:%d: %s takes %d arguments, and the cap is %d"
-                        .formatted(this.named, line, column, name(declaration), arguments, CAP)
+                        .formatted(
+                            this.named, line, column, FragmentSignature.name(declaration), arguments, CAP
+                        )
                 );
             }
-        }
-
-        private static boolean declares(String attribute) {
-            String spelled = attribute.toLowerCase(Locale.ROOT);
-            return THYMELEAF.equals(spelled) || THYMELEAF_DATA.equals(spelled);
         }
     }
 }
