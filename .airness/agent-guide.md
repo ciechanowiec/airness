@@ -76,7 +76,12 @@ Airness governs all of the following domains:
   security configuration, asynchrony and scheduling, and test context handling; the runtime settings an
   `application.yml`, `application.yaml` or `application.properties` declares, and the ones whose absence decides
   behaviour; a persistence entity carried by a web request or response; and more than one application class in the
-  build.
+  build. A view name a handler hands back is read against the markup the module ships, because nothing compiles that
+  string and the template behind it is found only when a request is answered, so a template renamed or moved leaves
+  every handler that named it compiling and failing on the first request that reaches it. The name is read where it is
+  written plainly, which is a constant as readily as a literal. A name a handler builds is passed over, and so is a
+  string returned by anything answering with a body rather than with a page, since neither states a template. What a
+  redirect or a forward names is an address rather than a template and is left alone here.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
