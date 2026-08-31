@@ -2316,6 +2316,100 @@ run_case 'templates: asking for it beside the link passes' 0 'Template links rea
 rm "$consumer/src/main/resources/templates/asked.html"
 rmdir "$consumer/src/main/resources/templates"
 
+# The other half of the fragment cap. A fragment is called by name with a positional list, from a
+# document that does not declare it, and nothing else in a build says whether the name reaches
+# anything or whether the list is the length the declaration takes. A fragment renamed in one file and
+# called from four others compiles, parses, and fails on the first request that draws it.
+mkdir -p "$consumer/src/main/resources/templates"
+cat > "$consumer/src/main/resources/templates/library.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="field(control, value, error)">Field</div>
+</body>
+</html>
+HTML
+cat > "$consumer/src/main/resources/templates/miscounted.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:replace="~{library :: field(${name})}"></div>
+</body>
+</html>
+HTML
+run_case 'templates: a fragment call handed the wrong number of arguments is rejected' 1 \
+    'it is declared to take 3' "$consumer" airness:template-calls
+rm "$consumer/src/main/resources/templates/miscounted.html"
+cat > "$consumer/src/main/resources/templates/unnamed.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:replace="~{library :: control(a, b, c)}"></div>
+</body>
+</html>
+HTML
+run_case 'templates: a fragment call naming nothing the module declares is rejected' 1 \
+    'declares no fragment of that name' "$consumer" airness:template-calls
+rm "$consumer/src/main/resources/templates/unnamed.html"
+# The passing case carries the two shapes a naive reading gets wrong. A comma inside a literal
+# substitution belongs to the sentence rather than to the list, and a name the expression builds
+# names nothing that can be resolved and is passed over rather than guessed at.
+cat > "$consumer/src/main/resources/templates/matched.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:replace="~{library :: field(${name}, |Code ${code}, ${floor}|, '')}"></div>
+<div th:replace="${content}"></div>
+<div th:replace="~{library :: #field}"></div>
+</body>
+</html>
+HTML
+run_case 'templates: a fragment call that matches the declaration passes' 0 'Template calls read [1-9]' \
+    "$consumer" airness:template-calls
+rm "$consumer/src/main/resources/templates/matched.html"
+rm "$consumer/src/main/resources/templates/library.html"
+rmdir "$consumer/src/main/resources/templates"
+
+# Output a template writes without escaping, and an expression the engine reads a second time as an
+# expression. The first renders correctly for every value nobody chose to attack it with, and the
+# second reaches as far as the engine does rather than as far as the page does.
+mkdir -p "$consumer/src/main/resources/templates"
+cat > "$consumer/src/main/resources/templates/unescaped.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<p th:utext="${room.notes()}">Notes</p>
+</body>
+</html>
+HTML
+run_case 'templates: output written into the page unescaped is rejected' 1 \
+    'writes its value as markup' "$consumer" airness:template-output
+rm "$consumer/src/main/resources/templates/unescaped.html"
+cat > "$consumer/src/main/resources/templates/preprocessed.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<p th:text="${__${chosen}__.name}">Name</p>
+</body>
+</html>
+HTML
+run_case 'templates: an expression read a second time as an expression is rejected' 1 \
+    'run as an expression' "$consumer" airness:template-output
+rm "$consumer/src/main/resources/templates/preprocessed.html"
+cat > "$consumer/src/main/resources/templates/escaped.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<p th:text="${room.notes()}">Notes</p>
+<p>[[${room.code()}]]</p>
+</body>
+</html>
+HTML
+run_case 'templates: escaped output passes' 0 'Template output read [1-9]' \
+    "$consumer" airness:template-output
+rm "$consumer/src/main/resources/templates/escaped.html"
+rmdir "$consumer/src/main/resources/templates"
+
 # The formatter over the half of the tree the Java one never reads. Checking is bound to an ordinary
 # build and writing is reachable only through the format profile, so the same file answers both ways.
 mkdir -p "$consumer/src/main/resources/static"
