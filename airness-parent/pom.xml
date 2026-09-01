@@ -706,6 +706,12 @@
                         <artifactId>airness-config</artifactId>
                         <version>${airness.version}</version>
                     </dependency>
+                    <!-- Supplies the Airness-owned Checkstyle classes named by the configuration. -->
+                    <dependency>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-governance</artifactId>
+                        <version>${airness.version}</version>
+                    </dependency>
                 </dependencies>
                 <configuration>
                     <configLocation>eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml</configLocation>

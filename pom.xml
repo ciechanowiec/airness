@@ -921,6 +921,11 @@
             </dependency>
             <dependency>
                 <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-governance</artifactId>
+                <version>${airness.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-spring-evidence</artifactId>
                 <version>${airness.version}</version>
             </dependency>

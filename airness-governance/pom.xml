@@ -25,6 +25,15 @@
 
     <dependencies>
         <dependency>
+            <!--
+                Supplies the API for Airness's own Checkstyle checks. The analyzer plugin supplies the
+                implementation at runtime, so consumers do not inherit it as an application dependency.
+            -->
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>eu.ciechanowiec</groupId>
             <artifactId>airness-annotations</artifactId>
             <scope>provided</scope>
@@ -54,12 +63,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <!-- The tests execute the shipped XPath rules through the same parser consumers run. -->
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <scope>test</scope>
         </dependency>
         <!--
             The API is what the tests compile against and the engine is what runs them, so both are named.
