@@ -520,6 +520,20 @@ POM
 
 consumer="$(new_consumer consumer)"
 
+# A profile selector is part of the command's claim. Maven 3 otherwise prints a warning and carries on,
+# which would let a misspelled Extended command report success after running Default verification. Both
+# directions remain mandatory when the caller disables findings and skips ordinary Airness checks.
+run_case 'profiles: an inherited profile is accepted' 0 'BUILD SUCCESS' \
+    "$consumer" validate -Pextended -DskipTests
+run_case 'profiles: a declared profile can be deactivated' 0 'BUILD SUCCESS' \
+    "$consumer" validate '-P!format' -DskipTests
+run_case 'profiles: a missing activation fails in bypass modes' 1 \
+    'requested profiles \[missing-profile\].*do not exist' \
+    "$consumer" validate -Pmissing-profile -DskipTests -Dairness.enforce=false
+run_case 'profiles: a missing deactivation fails in bypass modes' 1 \
+    'requested profiles \[missing-profile\].*do not exist' \
+    "$consumer" validate '-P!missing-profile' -DskipTests -Dairness.enforce=false
+
 # Publication safety is inherited separately from the ordinary test verdict. A release can skip an
 # already completed verification, but it cannot publish mutable coordinates or incomplete metadata.
 snapshot_parent="$scratch/snapshot-parent"

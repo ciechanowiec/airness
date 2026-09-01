@@ -22,9 +22,9 @@
 
         A check that shipped as a test could be accidentally deselected by -Dtest=OneClass. As goals the
         checks stay bound to their phases, their parameters are named and typed, and a failure names the
-        check in the line that reports it. Every goal honors -DskipTests as the quality and governance
-        bypass, except the publication checks, which a release must answer even though it skips the tests
-        it already ran.
+        check in the line that reports it. Quality and governance goals honor -DskipTests. Publication,
+        compiler metadata, and required-profile checks describe the artifact or command itself, so they
+        remain mandatory after the tests they depend on have already run or when the build skips tests.
     </description>
 
     <prerequisites>
