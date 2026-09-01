@@ -41,10 +41,6 @@ public final class SpringModuleCheck {
         = "Components built with new rather than taken from the container";
     private static final String UNPROVIDED_PROTOTYPES
         = "Prototype beans injected into a singleton that is built once";
-    private static final String UNENABLED_METHOD_SECURITY
-        = "Method security annotations that nothing in the module enables";
-    private static final String UNNAMED_EXECUTORS
-        = "Asynchronous methods left to an executor that pools nothing";
     private static final String MISSING_PROFILES
         = "Test profiles activated with nothing to activate";
     private static final String UNREGISTERED_PROPERTIES
@@ -53,6 +49,10 @@ public final class SpringModuleCheck {
         = "Test profile files that nothing activates";
     private static final String UNRESOLVED_VIEWS
         = "View names that reach no template the module ships";
+    private static final String IMPLICIT_BEAN_CHOICES
+        = "Injection points relying on an implicit choice among local beans";
+    private static final String IMPLICIT_HIERARCHIES
+        = "Persistence inheritance mappings relying on provider naming defaults";
     private static final Pattern PROFILE_FILE
         = Pattern.compile("application-(.+)\\.(?:yml|yaml|properties)");
     private static final String TESTS = "test";
@@ -111,12 +111,15 @@ public final class SpringModuleCheck {
             new Findings(CONTROLLERS_ON_REPOSITORIES, SpringModuleRules.controllersOnRepositories(this.types)),
             new Findings(INSTANTIATED_COMPONENTS, SpringWiringRules.instantiatedComponents(this.types)),
             new Findings(UNPROVIDED_PROTOTYPES, SpringWiringRules.prototypesWithoutProviders(this.types)),
-            new Findings(UNENABLED_METHOD_SECURITY, SpringWiringRules.unenabledMethodSecurity(this.types)),
-            new Findings(UNNAMED_EXECUTORS, SpringWiringRules.unnamedAsyncExecutors(this.types)),
             new Findings(MISSING_PROFILES, SpringTestRules.missingProfiles(this.types, this.profiles)),
             new Findings(UNREGISTERED_PROPERTIES, SpringWiringRules.unregisteredProperties(this.types)),
             new Findings(UNACTIVATED_PROFILES, SpringTestRules.unactivatedProfiles(this.types, this.tested)),
-            new Findings(UNRESOLVED_VIEWS, SpringViewRules.unresolvedViews(this.types, this.markup))
+            new Findings(UNRESOLVED_VIEWS, SpringViewRules.unresolvedViews(this.types, this.markup)),
+            new Findings(IMPLICIT_BEAN_CHOICES, SpringBeanChoiceRules.implicitChoices(this.types)),
+            new Findings(
+                IMPLICIT_HIERARCHIES,
+                SpringPersistenceHierarchyRules.implicitMappings(this.types)
+            )
         );
     }
 

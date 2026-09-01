@@ -4411,6 +4411,211 @@ class Binds {
     }
 }
 JAVA
+# The explicitness rules below each receive the smallest construct that relies on their framework
+# default. They are separate from the older fixtures so the log names the rule and the source that owns
+# its repair rather than letting one overloaded class stand in for unrelated contracts.
+cat > "$spring_source/src/main/java/com/example/RootSettings.java" <<'JAVA'
+package com.example;
+
+@ConfigurationProperties(ignoreUnknownFields = false)
+@Validated
+class RootSettings {
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ImplicitCache.java" <<'JAVA'
+package com.example;
+
+class ImplicitCache {
+
+    @Cacheable
+    public String read() {
+        return "";
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ImplicitEvent.java" <<'JAVA'
+package com.example;
+
+class ImplicitEvent {
+
+    @TransactionalEventListener
+    public void after(Object event) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ImplicitWeb.java" <<'JAVA'
+package com.example;
+
+@RestController
+class ImplicitWeb {
+
+    @GetMapping("/implicit")
+    public void inferred(String owner) {
+    }
+
+    @PostMapping("/part")
+    public void part(@RequestPart(name = "payload", required = true) Payload payload) {
+    }
+
+    @GetMapping("/pages")
+    public void pages(Pageable current, Pageable archived, Sort order) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Mapped.java" <<'JAVA'
+package com.example;
+
+@Entity(name = "Mapped")
+@Table(name = "mapped")
+@Access(AccessType.FIELD)
+class Mapped {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @Column
+    private Long id;
+
+    private String implicit;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn
+    private Mapped parent;
+
+    @ElementCollection
+    private Set<String> tags;
+
+    @CreatedDate
+    @Column(name = "created_at")
+    private Instant created;
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/BaseKind.java" <<'JAVA'
+package com.example;
+
+@Entity(name = "BaseKind")
+@Table(name = "base_kind")
+@Access(AccessType.FIELD)
+@Inheritance
+class BaseKind {
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ChildKind.java" <<'JAVA'
+package com.example;
+
+@Entity(name = "ChildKind")
+@Access(AccessType.FIELD)
+class ChildKind extends BaseKind {
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Pools.java" <<'JAVA'
+package com.example;
+
+@Configuration(proxyBeanMethods = false)
+class Pools {
+
+    @Bean
+    TaskExecutor first() {
+        return null;
+    }
+
+    @Bean
+    TaskExecutor second() {
+        return null;
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/Work.java" <<'JAVA'
+package com.example;
+
+@Service
+class Work {
+
+    Work(TaskExecutor executor) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ParameterRepository.java" <<'JAVA'
+package com.example;
+
+interface ParameterRepository {
+
+    @Query("select row from Row row where row.owner = ?1")
+    Object positional(@Param("owner") UUID owner);
+
+    @Query("select row from Row row where row.owner = :owner")
+    Object mismatched(@Param("holder") UUID owner);
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ExplicitController.java" <<'JAVA'
+package com.example;
+
+@RestController
+class ExplicitController {
+
+    @GetMapping("/explicit")
+    public void read(
+        @RequestParam(name = "owner", required = true) String owner,
+        @PageableDefault(size = 25, sort = "id", direction = Sort.Direction.ASC) Pageable page
+    ) {
+    }
+
+    @PostMapping("/explicit/part")
+    public void part(@Valid @RequestPart(name = "payload", required = true) Payload payload) {
+    }
+
+    @PostMapping("/explicit/form")
+    public void form(@Valid @ModelAttribute(name = "form", binding = true) Form form) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ExplicitRuntime.java" <<'JAVA'
+package com.example;
+
+@ConfigurationProperties(prefix = "app.explicit", ignoreUnknownFields = false)
+@Validated
+class ExplicitRuntime {
+
+    @Async("${app.executor}")
+    public CompletableFuture<String> async() {
+        return null;
+    }
+
+    @Scheduled(
+        cron = "${app.cron}",
+        zone = "${app.zone}",
+        scheduler = "${app.scheduler}"
+    )
+    public void scheduled() {
+    }
+
+    @Cacheable(cacheNames = "rows")
+    public String cached() {
+        return "";
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = false)
+    public void event(Object event) {
+    }
+}
+JAVA
+cat > "$spring_source/src/main/java/com/example/ExplicitEntity.java" <<'JAVA'
+package com.example;
+
+@Entity(name = "ExplicitEntity")
+@Table(name = "explicit_entity")
+@Access(AccessType.FIELD)
+class ExplicitEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id", referencedColumnName = "id")
+    private ExplicitEntity parent;
+}
+JAVA
 cat > "$spring_source/src/main/java/com/example/Secured.java" <<'JAVA'
 package com.example;
 
@@ -4488,6 +4693,7 @@ package com.example;
 @ActiveProfiles("integration")
 @Transactional
 @DirtiesContext
+@Sql
 class SuiteTest {
 
     @BeforeTransaction
@@ -4500,6 +4706,17 @@ class SuiteTest {
     }
 }
 JAVA
+cat > "$spring_source/src/test/java/com/example/ExplicitSqlTest.java" <<'JAVA'
+package com.example;
+
+@Sql(scripts = "/explicit.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+class ExplicitSqlTest {
+}
+JAVA
+mkdir -p "$spring_source/src/test/resources"
+cat > "$spring_source/src/test/resources/application-forgotten.yml" <<'YML'
+spring:
+YML
 # The sources above carry the constructs the analyzer configuration reads. The ones below carry the
 # constructs it cannot: each needs two facts about one file correlated, which is the whole reason the
 # governance goal exists beside Checkstyle rather than inside it. They are written as separate files
@@ -4734,12 +4951,14 @@ spring_log="$scratch/spring__the_added_source_rules_all_report.log"
 for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPublic AirnessSpringSecurityCsrfIsNotDisabled \
     AirnessSpringSecurityFilterChainIsNotBypassed AirnessSpringSecurityHasNoInMemoryUsers AirnessSpringSecurityHeadersStay \
     AirnessSpringSecurityKeyIsNotALiteral AirnessSpringSecurityPasswordEncoderIsStrong AirnessSpringSecurityPermitAllIsScoped \
-    AirnessSpringAsyncIsPublic AirnessSpringAsyncReturnsAFuture \
+    AirnessSpringAsyncIsPublic AirnessSpringAsyncNamesItsExecutor AirnessSpringAsyncReturnsAFuture \
     AirnessSpringAutowiredOnSoleConstructorIsRedundant AirnessSpringBeanMethodReturnsAValue \
     AirnessSpringCacheAnnotationIsOnAConcreteType AirnessSpringCacheableIsNotCombinedWithCachePut \
-    AirnessSpringCacheableIsPublic AirnessSpringConfigurationIsLite \
+    AirnessSpringCacheableIsPublic AirnessSpringCacheNamesItsDestination AirnessSpringConfigurationIsLite \
     AirnessSpringConfigurationPropertiesIsNotAComponent \
-    AirnessSpringConfigurationPropertiesIsValidated AirnessSpringJacksonIsTheConfiguredOne \
+    AirnessSpringConfigurationPropertiesIsValidated \
+    AirnessSpringConfigurationPropertiesNamesItsNamespace \
+    AirnessSpringConfigurationPropertiesRejectsUnknownFields AirnessSpringJacksonIsTheConfiguredOne \
     AirnessSpringJpaToOneDoesNotCascadeRemove \
     AirnessSpringDataPageMethodTakesAPageable AirnessSpringDataQueryIsBounded \
     AirnessSpringDataQueryIsNotConcatenated AirnessSpringEventListenerIsPublic \
@@ -4748,29 +4967,38 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     AirnessSpringInjectionIsNotStatic AirnessSpringJpaEntityHasANoArgConstructor \
     AirnessSpringJpaEntityFieldIsNotFinal AirnessSpringJpaEntityIsNotALombokValue \
     AirnessSpringJpaEntityIsNotAnInnerClass AirnessSpringJpaEntityIsNotFinal \
-    AirnessSpringJpaEntityIsNotARecord AirnessSpringJpaEntityMethodIsNotFinal \
-    AirnessSpringJpaIdStrategyIsExplicit \
+    AirnessSpringJpaEntityIsNotARecord AirnessSpringJpaEntityIsNamed \
+    AirnessSpringJpaEntityMethodIsNotFinal AirnessSpringJpaAccessIsExplicit \
+    AirnessSpringJpaColumnIsNamed AirnessSpringJpaIdStrategyIsExplicit \
+    AirnessSpringJpaInheritanceIsExplicit AirnessSpringJpaJoinIsNamed \
     AirnessSpringJpaManyToManyUsesASet AirnessSpringJpaToManyDoesNotCascadeRemove \
-    AirnessSpringJpaToOneIsLazy AirnessSpringMethodSecurityIsPublic \
+    AirnessSpringJpaPersistentMemberIsMapped AirnessSpringJpaSequenceIsNamed \
+    AirnessSpringJpaTableIsNamed AirnessSpringJpaToOneIsLazy AirnessSpringMethodSecurityIsPublic \
     AirnessSpringModifyingClearsThePersistenceContext AirnessSpringNoLazyCycleBreak \
     AirnessSpringNoManualTransactionControl AirnessSpringNoServiceLocator AirnessSpringNoSetterInjection \
     AirnessSpringNoUnmanagedThreads AirnessSpringPostProcessorBeanIsStatic \
     AirnessSpringProxiedClassIsNotFinal AirnessSpringProxiedMethodIsNotFinal \
     AirnessSpringProxiedMethodIsNotStatic AirnessSpringRetryableIsPublic AirnessSpringScanIsNotRedeclared \
-    AirnessSpringScheduleIsConfigurable AirnessSpringScheduledIsPublic \
-    AirnessSpringScheduledReturnsVoid \
+    AirnessSpringScheduleIsConfigurable AirnessSpringScheduledDeclaresTimeUnit \
+    AirnessSpringScheduledIsPublic AirnessSpringScheduledNamesItsScheduler \
+    AirnessSpringScheduledNamesItsZone AirnessSpringScheduledReturnsVoid \
     AirnessSpringScheduledTakesNoArguments AirnessSpringSingletonHasNoMutableState \
+    AirnessSpringSqlIsExplicit \
     AirnessSpringTestDoesNotDirtyTheContext AirnessSpringTestIsNotTransactional \
     AirnessSpringTestSharesTheContext AirnessSpringTestTransactionHooksRespectTheContract \
     AirnessSpringTestUsesARealPort AirnessSpringTransactionalDeclaresReadOnly \
     AirnessSpringTransactionalDeclaresTimeout AirnessSpringTransactionalIsNotOnAnInterface \
+    AirnessSpringTransactionalEventListenerIsExplicit \
     AirnessSpringTransactionalIsNotOnTheWebLayer AirnessSpringTransactionalIsPublic \
     AirnessSpringTransactionalRollsBackCheckedExceptions AirnessSpringValidatedIsPublic \
     AirnessSpringWebClientIsABean AirnessSpringWebCrossOriginIsNotWildcard \
-    AirnessSpringWebHandlerIsPublic \
+    AirnessSpringWebHandlerIsPublic AirnessSpringWebModelAttributeIsExplicit \
     AirnessSpringWebMappingNamesItsMethod AirnessSpringWebParameterConstraintIsEvaluated \
-    AirnessSpringWebParameterIsNamed \
-    AirnessSpringWebRequestBodyIsValidated AirnessSpringWebSignatureIsNotServletTyped; do
+    AirnessSpringWebPageableHasDefaults AirnessSpringWebPaginationIsQualified \
+    AirnessSpringWebParameterDeclaresRequiredness AirnessSpringWebParameterHasExplicitSource \
+    AirnessSpringWebParameterIsNamed AirnessSpringWebRequestBodyIsValidated \
+    AirnessSpringWebRequestPartIsValidated AirnessSpringWebSignatureIsNotServletTyped \
+    AirnessSpringWebSortHasDefaults; do
     if grep -q "$rule" "$spring_log"; then
         pass "spring: $rule reports on the fixture"
     else
@@ -4778,14 +5006,21 @@ for rule in AirnessNoMixedBooleanOperators AirnessSpringSecurityActuatorIsNotPub
     fi
 done
 
+if grep -E 'Explicit(Controller|Runtime|Entity|SqlTest).*AirnessSpring(AsyncNamesItsExecutor|CacheNamesItsDestination|ConfigurationPropertiesNamesItsNamespace|ConfigurationPropertiesRejectsUnknownFields|JpaAccessIsExplicit|JpaColumnIsNamed|JpaEntityIsNamed|JpaJoinIsNamed|JpaPersistentMemberIsMapped|JpaTableIsNamed|ScheduledDeclaresTimeUnit|ScheduledNamesItsScheduler|ScheduledNamesItsZone|SqlIsExplicit|TransactionalEventListenerIsExplicit|WebModelAttributeIsExplicit|WebPageableHasDefaults|WebPaginationIsQualified|WebParameterDeclaresRequiredness|WebParameterHasExplicitSource|WebParameterIsNamed|WebRequestPartIsValidated|WebSortHasDefaults)' \
+    "$spring_log" >/dev/null; then
+    fail 'spring: an explicit annotation contract was refused'
+else
+    pass 'spring: explicit annotation contracts are accepted'
+fi
+
 # The bound is claimed two ways and only one of them counts. The pair is read from the same log, because
 # an exemption asserted against a rule that has stopped firing asserts nothing.
 bound_findings="$(grep -E 'Binds\.java:\[[0-9]+,.*WebParameterIsNamed' "$spring_log" \
     | grep -Eo '\[[0-9]+,' | sort -u | wc -l | tr -d ' ')"
-if [ "$bound_findings" -eq 6 ]; then
-    pass 'spring: every binding that falls back to a parameter name is held to naming it'
+if [ "$bound_findings" -eq 7 ]; then
+    pass 'spring: every request and model binding is held to naming its external contract'
 else
-    fail "spring: $bound_findings of the six unnamed bindings reported, or a named one did"
+    fail "spring: $bound_findings of the seven unnamed bindings reported, or a named one did"
 fi
 if grep -E 'Owned\.java:\[6,.*ToManyDoesNotCascadeRemove' "$spring_log" >/dev/null; then
     fail 'spring: a cascade the association owns through orphanRemoval was refused'
@@ -4880,6 +5115,8 @@ Credentialed requests accepted from a wildcard origin
 Persistence tests run against a database the application never uses
 Queries constructing a record the module declares with the wrong number of arguments
 Security expressions reading a parameter the runtime cannot name
+Repository queries binding parameters by position
+Repository query parameter names that disagree with their query
 RULES
 
 if grep -qF 'Rows.java: line 5: the query constructs com.example.Row with 2 argument(s), and it takes 3' \
@@ -5010,7 +5247,26 @@ run_case 'spring: an entity bound from a request body is refused' 1 'every colum
 run_case 'spring: a second application class is refused' 1 'whichever the search finds first' \
     "$spring_source" airness:spring-reactor
 
-# The module goal states nine rules and the two cases above prove one of them, so it is run once more
+run_case 'spring: the reactor goal reports every rule it states' 0 'Spring reactor read' \
+    "$spring_source" airness:spring-reactor -Dairness.enforce=false
+spring_reactor_log="$scratch/spring__the_reactor_goal_reports_every_rule_it_states.log"
+while IFS= read -r rule; do
+    if grep -qF "$rule" "$spring_reactor_log"; then
+        pass "spring: the reactor goal reports $rule"
+    else
+        fail "spring: the reactor goal reported nothing for $rule"
+    fi
+done <<'RULES'
+Spring application classes declared more than once in this build
+Asynchronous methods no production configuration enables
+Scheduled methods no production configuration enables
+Cache operations no production configuration enables
+Retry operations no production configuration enables
+JPA auditing members no production configuration enables
+Method-security annotations whose family remains disabled
+RULES
+
+# The module goal reads every cross-file relation once, so it is run once more
 # with enforcement withheld and the single log read one headline at a time. Each headline below names a
 # defect whose two halves are in different files of the fixture: a component annotated in one and built
 # in another, a scope declared in one and ignored in another, a profile activated in a test and answered
@@ -5029,13 +5285,15 @@ Persistence entities carried by a web request or response
 Controllers holding the repository layer directly
 Components built with new rather than taken from the container
 Prototype beans injected into a singleton that is built once
-Method security annotations that nothing in the module enables
-Asynchronous methods left to an executor that pools nothing
 Test profiles activated with nothing to activate
+Configuration property types nothing in the module registers
+Test profile files that nothing activates
 View names that reach no template the module ships
+Injection points relying on an implicit choice among local beans
+Persistence inheritance mappings relying on provider naming defaults
 RULES
 
-# The ninth rule is the one this fixture cannot break, and that is the assertion: the module declares a
+# The one rule this fixture cannot break is itself an assertion: the module declares a
 # @RestControllerAdvice, and one advice answers for every controller of the module it is declared in.
 if grep -qF "left to the framework's own error page" "$spring_module_log"; then
     fail 'spring: the error handler rule fired at a module that declares an advice'

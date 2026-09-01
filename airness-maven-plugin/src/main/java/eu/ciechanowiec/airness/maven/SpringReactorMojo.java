@@ -9,10 +9,10 @@ import org.apache.maven.plugins.annotations.Mojo;
 /**
  * The Spring questions a single module cannot answer, asked once for the whole build.
  *
- * <p>A second application class is the shape of defect this exists for: each module holding one is
- * correct on its own, and only the build as a whole shows that two of them exist. Running per module
- * would therefore report nothing, and running per module once the check reads the reactor would report
- * the same finding once for every module there is.
+ * <p>A second application class is one shape this exists for: each module holding one is correct on its
+ * own, and only the build as a whole shows that two of them exist. Feature use and activation are the
+ * inverse shape, because a library uses an annotation that configuration in the application module
+ * enables. Running either question per module gives the wrong verdict and repeats it across the reactor.
  */
 @Mojo(name = "spring-reactor", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class SpringReactorMojo extends AbstractRepositoryMojo {

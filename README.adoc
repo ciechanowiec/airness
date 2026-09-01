@@ -101,6 +101,11 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 </parent>
 ----
 
+The Spring Boot parent treats retained Java parameter names as fallback metadata, not as an endpoint, query, or
+security contract. It requires explicit Spring bindings, feature activation, infrastructure selection, configuration
+names, persistence mappings, pagination defaults, event phases, and test SQL wherever a framework default would make
+an ordinary Java rename or configuration change alter runtime behavior.
+
 [[managed-file-setup]]
 === Managed File Setup
 

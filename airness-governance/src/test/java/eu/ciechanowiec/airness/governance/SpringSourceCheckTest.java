@@ -123,6 +123,26 @@ class SpringSourceCheckTest {
     }
 
     @Test
+    void reportsARepositoryQueryWhoseParameterNameDisagrees() {
+        String query = """
+            package com.example;
+
+            interface Rows {
+
+                @Query("select row from Row row where row.owner = :owner")
+                Row row(@Param("holder") UUID owner);
+            }
+            """;
+        Path root = new GitFixture("spring-query-parameters").write(ROWS, query).root();
+
+        List<String> offences = Verdicts.offences(
+            new SpringSourceCheck(root, MAIN, ROOT).findings(), "parameter names"
+        );
+
+        assertEquals(1, offences.size(), "the source check exposes the query rule");
+    }
+
+    @Test
     void countsTheSourcesItRead() {
         Path root = new GitFixture("spring-counted")
             .write(APPLICATION, CLEAN)

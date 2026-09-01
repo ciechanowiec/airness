@@ -86,4 +86,19 @@ class SpringReactorCheckTest {
             2, new SpringReactorCheck(root, ROOTS).scanned(), "both modules are inside the scope given"
         );
     }
+
+    @Test
+    void reportsAFeatureUsedInOneModuleAndEnabledByNone() {
+        String asynchronous = PLAIN.replace("@Service", "@Service\n@Async(\"pool\")");
+        Path root = new GitFixture("reactor-feature")
+            .write(FIRST, APPLICATION)
+            .write(SECOND, asynchronous)
+            .root();
+
+        List<String> offences = Verdicts.offences(
+            new SpringReactorCheck(root, ROOTS).findings(), "Asynchronous methods"
+        );
+
+        assertEquals(1, offences.size(), "reactor findings include feature activation");
+    }
 }
