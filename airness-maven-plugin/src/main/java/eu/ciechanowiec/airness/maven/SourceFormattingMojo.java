@@ -124,7 +124,8 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
     static String formattedSource(JavaFormatter formatter, Path source) {
         try {
             String held = Files.readString(source);
-            return Optional.ofNullable(formatter.doFormat(held, LF)).orElse(held);
+            String eclipseFormatted = Optional.ofNullable(formatter.doFormat(held, LF)).orElse(held);
+            return ParameterAnnotationFormatting.normalized(eclipseFormatted);
         } catch (IOException | BadLocationException exception) {
             throw new IllegalStateException("Could not format " + source, exception);
         }

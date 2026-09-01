@@ -44,6 +44,68 @@ class SourceFormattingMojoTest {
         assertFalse(SourceFormattingMojo.sorted(sorter, shuffled));
     }
 
+    @Test
+    @SneakyThrows
+    void finishesTheConditionalParameterAnnotationLayout(@TempDir Path directory) {
+        String held = """
+            package example;
+
+            final class Example {
+
+                void update(
+                    @PathVariable(name = "reference", required = true) String reference,
+                    @ModelAttribute(name = "form", binding = true)
+                    @Valid BookingForm bookingForm
+                ) {
+                }
+            }
+            """;
+        String expected = """
+            package example;
+
+            final class Example {
+
+                void update(
+                    @PathVariable(name = "reference", required = true) String reference,
+                    @ModelAttribute(name = "form", binding = true)
+                    @Valid
+                    BookingForm bookingForm
+                ) {
+                }
+            }
+            """;
+        Path source = directory.resolve("Example.java");
+        Files.writeString(source, held);
+        JavaFormatter formatter = SourceFormattingMojo.formatter(
+            new SystemStreamLog(), directory.resolve("target").toString()
+        );
+
+        assertEquals(expected, SourceFormattingMojo.formattedSource(formatter, source));
+        Files.writeString(source, expected);
+        assertTrue(SourceFormattingMojo.formatted(formatter, source));
+    }
+
+    @Test
+    @SneakyThrows
+    void keepsAShortMultipleAnnotationParameterCompact(@TempDir Path directory) {
+        String held = """
+            package example;
+
+            final class Example {
+
+                void update(@First @Second Type value) {
+                }
+            }
+            """;
+        Path source = directory.resolve("Example.java");
+        Files.writeString(source, held);
+        JavaFormatter formatter = SourceFormattingMojo.formatter(
+            new SystemStreamLog(), directory.resolve("target").toString()
+        );
+
+        assertEquals(held, SourceFormattingMojo.formattedSource(formatter, source));
+    }
+
     private static String source(String name, String imports) {
         return "package example;\n\n" + imports + "\nfinal class " + name + " {\n\n"
             + "    List<Map<String, String>> held() {\n        return List.of();\n    }\n}\n";

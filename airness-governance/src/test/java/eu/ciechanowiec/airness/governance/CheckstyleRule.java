@@ -22,6 +22,31 @@ final class CheckstyleRule {
         DefaultConfiguration ruleConfiguration = new DefaultConfiguration("MatchXpath");
         ruleConfiguration.addProperty("id", rule);
         ruleConfiguration.addProperty("query", query(rule, queryMarker));
+        return findings(directory, source, ruleConfiguration);
+    }
+
+    static int findings(Path directory, String source, String rule) {
+        Element module = ProjectFiles.descendants(configuration(), "module")
+            .filter(candidate -> rule.equals(property(candidate, "id")))
+            .reduce(
+                (_, _) -> {
+                    throw new IllegalStateException("Several modules matched " + rule);
+                }
+            )
+            .orElseThrow(() -> new IllegalStateException("No module matched " + rule));
+        DefaultConfiguration ruleConfiguration = new DefaultConfiguration(module.getAttribute("name"));
+        Xml.children(module, "property").forEach(
+            property -> ruleConfiguration.addProperty(
+                property.getAttribute("name"), property.getAttribute("value")
+            )
+        );
+        return findings(directory, source, ruleConfiguration);
+    }
+
+    @SneakyThrows
+    private static int findings(
+        Path directory, String source, DefaultConfiguration ruleConfiguration
+    ) {
         DefaultConfiguration walkerConfiguration = new DefaultConfiguration("TreeWalker");
         walkerConfiguration.addChild(ruleConfiguration);
         DefaultConfiguration checkerConfiguration = new DefaultConfiguration("Checker");
