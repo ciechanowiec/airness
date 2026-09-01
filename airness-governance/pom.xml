@@ -55,6 +55,12 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <!-- The tests execute the shipped XPath rules through the same parser consumers run. -->
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!--
             The API is what the tests compile against and the engine is what runs them, so both are named.
             The junit-jupiter aggregator would bring them and hide which of the two this module actually
