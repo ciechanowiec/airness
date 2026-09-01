@@ -78,6 +78,7 @@ public final class ManagedVersions {
         suppliedDependency("org.junit.jupiter", "junit-jupiter-params", "junit.version"),
         suppliedDependency("eu.ciechanowiec", "airness-annotations", "airness.version"),
         suppliedDependency("eu.ciechanowiec", "airness-config", "airness.version"),
+        suppliedDependency("eu.ciechanowiec", "airness-spring-evidence", "airness.version"),
         suppliedDependency("org.apache.maven", "maven-artifact", "maven-artifact.version"),
         suppliedDependency("org.attoparser", "attoparser", "attoparser.version"),
         suppliedDependency("org.jspecify", "jspecify", "jspecify.version"),

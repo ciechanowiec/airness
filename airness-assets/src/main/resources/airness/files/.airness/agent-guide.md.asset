@@ -71,13 +71,16 @@ Airness governs all of the following domains:
   machine-local repository paths, or recognizable secret material.
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
-  settle, production-to-test boundaries, per-class line and branch coverage, and current-build coverage evidence.
+  settle, production-to-test boundaries, per-class line and branch coverage, current-build coverage evidence, and
+  current-build evidence that a framework-assembled production application reached ready.
 - **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container accepts
   and then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the web layer,
   security configuration, asynchrony and scheduling, and test context handling; the runtime settings an
   `application.yml`, `application.yaml` or `application.properties` declares, and the ones whose absence decides
-  behaviour; a persistence entity carried by a web request or response; and more than one application class in the
-  build. A view name a handler hands back is read against the markup the module ships, because nothing compiles that
+  behaviour; a persistence entity carried by a web request or response; more than one application class in the
+  build; and evidence that the production application reached ready during the current tests. That evidence proves
+  unconditional wiring and the profiles active in the test, not a profile the test never activated. A view name a
+  handler hands back is read against the markup the module ships, because nothing compiles that
   string and the template behind it is found only when a request is answered, so a template renamed or moved leaves
   every handler that named it compiling and failing on the first request that reaches it. The name is read where it is
   written plainly, which is a constant as readily as a literal. A name a handler builds is passed over, and so is a

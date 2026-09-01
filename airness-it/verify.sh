@@ -1306,14 +1306,32 @@ final class Stated {
     }
 }
 JAVA
+cat > "$consumer/src/main/java/com/example/LocalNullness.java" <<'JAVA'
+package com.example;
+
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+/** Carries nullness annotations where local data flow already knows the answer. */
+final class LocalNullness {
+
+    String reads(String input) {
+        @Nullable
+        String absent = System.getProperty(input);
+        @NonNull
+        String present = input;
+        return present + absent;
+    }
+}
+JAVA
 run_case 'analysis: every banned construct reports' 0 'AirnessObjectIsWholeWhenConstructed' \
     "$consumer" checkstyle:check -Dairness.enforce=false \
-    '-Dcheckstyle.includes=**/Generated.java,**/Absence.java,**/Stated.java'
+    '-Dcheckstyle.includes=**/Generated.java,**/Absence.java,**/Stated.java,**/LocalNullness.java'
 banned_log="$scratch/analysis__every_banned_construct_reports.log"
 banned_rules='AirnessObjectIsWholeWhenConstructed|AirnessConstructorStatesWhatAnInstanceNeeds'
 banned_rules="$banned_rules|AirnessNullnessIsStatedOnce|AirnessLockIsVisible"
 banned_rules="$banned_rules|AirnessObjectNeedsNoSecondInitialisation|AirnessInjectionIsNotOptional"
-banned_rules="$banned_rules|AirnessAbsenceIsModelled|AirnessNullIsNeverReturned"
+banned_rules="$banned_rules|AirnessAbsenceIsModelled|AirnessNullIsNeverReturned|AirnessLocalNullnessIsInferred"
 for rule in AirnessObjectIsWholeWhenConstructed AirnessConstructorStatesWhatAnInstanceNeeds \
     AirnessNullnessIsStatedOnce AirnessLockIsVisible AirnessObjectNeedsNoSecondInitialisation \
     AirnessInjectionIsNotOptional; do
@@ -1323,6 +1341,13 @@ for rule in AirnessObjectIsWholeWhenConstructed AirnessConstructorStatesWhatAnIn
         fail "analysis: $rule reported nothing"
     fi
 done
+local_nullness_findings="$(grep -E 'LocalNullness\.java:\[[0-9]+,.*AirnessLocalNullnessIsInferred' \
+    "$banned_log" | grep -Eo '\[[0-9]+,' | sort -u | wc -l | tr -d ' ')"
+if [ "$local_nullness_findings" -eq 2 ]; then
+    pass 'analysis: nullness annotations on local variables are rejected'
+else
+    fail "analysis: $local_nullness_findings of the two local nullness annotations reported"
+fi
 for rule in AirnessAbsenceIsModelled AirnessNullIsNeverReturned; do
     if grep -E "Absence\.java:\[[0-9]+,.*$rule" "$banned_log" >/dev/null; then
         pass "analysis: $rule reports on the fixture"
@@ -1347,7 +1372,8 @@ else
 fi
 rm "$consumer/src/main/java/com/example/Generated.java" \
     "$consumer/src/main/java/com/example/Absence.java" \
-    "$consumer/src/main/java/com/example/Stated.java"
+    "$consumer/src/main/java/com/example/Stated.java" \
+    "$consumer/src/main/java/com/example/LocalNullness.java"
 
 # A method that overrides another does not choose its parameter list, so the cap asks it for an edit
 # that cannot be made here. Both analyzers that measure it pass over an override, and both still
@@ -5325,6 +5351,8 @@ git -C "$spring_unadvised" config user.email fixture@example.invalid
 
 run_case 'spring: controllers with no error handler are refused' 1 'default error page' \
     "$spring_unadvised" airness:spring-module
+run_case 'spring: a module with no application class needs no startup evidence' 0 'BUILD SUCCESS' \
+    "$spring_unadvised" airness:spring-context
 
 # The model goal answers from the dependency list and the plugin bindings, so the fixture that breaks it
 # is a pom rather than a tree of sources. Every rule is broken once: the tooling is declared without
@@ -5452,9 +5480,10 @@ else
 fi
 
 # A Spring Boot application built and run the way one ships. This is the only case that resolves the
-# platform, and the only one that starts the archive rather than reading it: the two defects it was
-# written after, a split test framework and an annotation left out of the repackaged jar, both passed
-# every source and artifact check and appeared for the first time in a running process.
+# platform. It begins with a unit test alone, proving that compilation, coverage and every source check
+# can pass without starting Spring, then gains one composed context test that supplies the missing
+# current-build evidence. The packaged archive is still started afterwards: test configuration proves
+# unconditional wiring, while that process proves the artifact itself retains the runtime contract.
 spring_app="$scratch/spring-app"
 mkdir -p "$spring_app/src/main/java/com/example" "$spring_app/src/test/java/com/example"
 cat > "$spring_app/pom.xml" <<'POM'
@@ -5616,6 +5645,67 @@ git -C "$spring_app" commit --quiet \
     --message 'test(it): create a Spring Boot consumer fixture' \
     --message 'The fixture carries one bean and one entry point, so a consumer build has something to report on.'
 
+run_case 'spring: unit tests alone do not prove application startup' 1 \
+    'Spring application context not started by this build' \
+    "$spring_app" clean verify
+run_case 'spring: missing startup evidence remains visible in report-only mode' 0 \
+    'Spring application context not started by this build' \
+    "$spring_app" clean test airness:spring-context -Dairness.enforce=false
+
+# The marker is composed, so neither the test class nor the evidence goal has to name @SpringBootTest.
+# Its classes member deliberately names the real production application: an explicit source that still
+# performs the production component scan is valid, while the narrowed source case below is not.
+cat > "$spring_app/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
+package com.example;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestConstructor;
+
+/**
+ * Marks a test that starts the production application.
+ */
+@Documented
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@SpringBootTest(
+    classes = Application.class,
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
+)
+@TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
+public @interface ApplicationTest {
+}
+JAVA
+cat > "$spring_app/src/test/java/com/example/ContextTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+@ApplicationTest
+class ContextTest {
+
+    private final Greetings greetings;
+
+    ContextTest(Greetings greetings) {
+        this.greetings = greetings;
+    }
+
+    @Test
+    void startsTheProductionApplication() {
+        assertEquals("hello, context", this.greetings.greet("context"), "the context supplies its component");
+    }
+}
+JAVA
+git -C "$spring_app" add --all
+git -C "$spring_app" commit --quiet \
+    --message 'test(it): prove the Spring application reaches ready'
+
 run_case 'spring: a conforming Spring Boot application verifies' 0 'BUILD SUCCESS' \
     "$spring_app" clean verify
 # The model goal is bound rather than invoked, so this is where that binding is proven. Every other case
@@ -5628,12 +5718,114 @@ if grep -q 'airness-spring-model' \
 else
     fail 'spring: the model goal never ran in a full consumer build'
 fi
+if grep -qx 'com.example.Application' "$spring_app/target/airness/spring-context.evidence"; then
+    pass 'spring: a composed context test records the production application source'
+else
+    fail 'spring: the ready production application left no exact runtime evidence'
+fi
+
+# Reaching ready is not enough on its own. The source of that ready run must be the production
+# application, so an explicit test-only configuration cannot stand in for the component scan.
+spring_narrow="$scratch/spring-narrow"
+clone_tree "$spring_app" "$spring_narrow"
+cat > "$spring_narrow/src/test/java/com/example/NarrowConfiguration.java" <<'JAVA'
+package com.example;
+
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.TestConfiguration;
+
+/**
+ * A context deliberately narrower than the production application.
+ */
+@EnableAutoConfiguration
+@TestConfiguration(proxyBeanMethods = false)
+public class NarrowConfiguration {
+
+    /**
+     * Identifies this deliberately narrow configuration.
+     *
+     * @return the configuration identity
+     */
+    public String identity() {
+        return "narrow";
+    }
+}
+JAVA
+cat > "$spring_narrow/src/test/java/com/example/ContextTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.context.ConfigurableApplicationContext;
+
+class ContextTest {
+
+    @Test
+    void startsOnlyTheNarrowConfiguration() {
+        SpringApplication application = new SpringApplication(NarrowConfiguration.class);
+        application.setWebApplicationType(WebApplicationType.NONE);
+        try (ConfigurableApplicationContext context = application.run()) {
+            assertTrue(context.isActive(), "the narrow context reached ready");
+        }
+    }
+}
+JAVA
+run_case 'spring: a ready test-only context is not application evidence' 1 \
+    'contains no current run that reached ready with this production application' \
+    "$spring_narrow" clean test airness:spring-context
+
+# Both components compile and every source analyzer accepts them. The production context is the one
+# authority on the collision, and its own diagnostic names the derived bean name and both definitions.
+spring_collision="$scratch/spring-collision"
+clone_tree "$spring_app" "$spring_collision"
+mkdir -p "$spring_collision/src/main/java/com/example/one" \
+    "$spring_collision/src/main/java/com/example/two"
+for feature in one two; do
+    cat > "$spring_collision/src/main/java/com/example/$feature/package-info.java" <<'JAVA'
+/**
+ * A feature contributing one component to the collision fixture.
+ */
+@NullMarked
+package com.example.FEATURE;
+
+import org.jspecify.annotations.NullMarked;
+JAVA
+    sed -i.bak "s/FEATURE/$feature/" \
+        "$spring_collision/src/main/java/com/example/$feature/package-info.java"
+    rm "$spring_collision/src/main/java/com/example/$feature/package-info.java.bak"
+    cat > "$spring_collision/src/main/java/com/example/$feature/Numbering.java" <<'JAVA'
+package com.example.FEATURE;
+
+import org.springframework.stereotype.Component;
+
+/**
+ * A component whose simple name collides with the other feature's component.
+ */
+@Component
+public final class Numbering {
+}
+JAVA
+    sed -i.bak "s/FEATURE/$feature/" \
+        "$spring_collision/src/main/java/com/example/$feature/Numbering.java"
+    rm "$spring_collision/src/main/java/com/example/$feature/Numbering.java.bak"
+done
+run_case 'spring: colliding component names fail the context test' 1 \
+    "ConflictingBeanDefinitionException.*bean name 'numbering'" \
+    "$spring_collision" clean test
 
 spring_jar="$spring_app/target/spring-app-1.0.0.jar"
 if unzip -l "$spring_jar" 2>/dev/null | grep -q 'jspecify'; then
     pass 'spring: the repackaged archive carries the annotations the container reads'
 else
     fail 'spring: the repackaged archive omits the annotations the container reads'
+fi
+if unzip -l "$spring_jar" 2>/dev/null | grep -q 'airness-spring-evidence'; then
+    fail 'spring: test-only context evidence leaked into the application archive'
+else
+    pass 'spring: context evidence stays out of the application archive'
 fi
 spring_run="$scratch/spring-app-run.log"
 java -jar "$spring_jar" --server.port=0 --spring.main.banner-mode=off > "$spring_run" 2>&1 &

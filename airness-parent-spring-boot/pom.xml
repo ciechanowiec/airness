@@ -47,17 +47,6 @@
         -->
         <airness.checkstyle.spring.relaxed>.*</airness.checkstyle.spring.relaxed>
         <airness.checkstyle.spring.suppressed>^$</airness.checkstyle.spring.suppressed>
-        <!--
-            The Spring Boot release the harness pins. A consumer names no Spring version at all: the bill
-            of materials below manages every coordinate the platform ships, and check-parameters refuses a
-            project that declares this property for itself.
-
-            Pinned here rather than in the root pom because no other module resolves a Spring coordinate,
-            and a bill of materials imported at the root would be inherited by airness-parent as well,
-            which is how a plain Java project would start silently resolving a dependency it declared no
-            version for.
-        -->
-        <spring-boot.version>4.1.1</spring-boot.version>
     </properties>
 
     <!--
@@ -71,6 +60,17 @@
         be shipping an annotation jar it never loads.
     -->
     <dependencies>
+        <!--
+            Test-only runtime evidence that SpringApplication reached ready with the production
+            application as a primary source. Kept out of the archive that ships, and supplied here so
+            every Spring Boot consumer produces the same evidence without a project annotation or
+            listener declaration of its own.
+        -->
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-spring-evidence</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
@@ -138,6 +138,22 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <!--
+                    The test-scope listener writes to this fixed module-local path. The governance goal
+                    reads the same path after Surefire, and the raw-model policy prevents a child from
+                    replacing this one property while leaving other test system properties available.
+                -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <airness.spring.context.evidence.file>
+                            ${project.build.directory}/airness/spring-context.evidence
+                        </airness.spring.context.evidence.file>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             <plugin>
                 <!--
                     A starter declares no type of its own, so every one of them reads as a dependency
@@ -215,6 +231,17 @@
                             <goal>spring-configuration</goal>
                             <goal>spring-module</goal>
                             <goal>spring-reactor</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        Runtime evidence exists only after Surefire. This execution therefore sits beside
+                        coverage-evidence at prepare-package rather than beside the source checks above.
+                    -->
+                    <execution>
+                        <id>airness-spring-context</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>spring-context</goal>
                         </goals>
                     </execution>
                 </executions>
