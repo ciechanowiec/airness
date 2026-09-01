@@ -1857,11 +1857,15 @@
                      value="An owning association declares neither mappedBy nor an explicit join. State the join columns or join table."/>
         </module>
         <module name="MatchXpath">
+            <!--
+                A basic element has one column at the collection member. An embeddable element has one
+                column per component, and the collection member overrides those component mappings.
+            -->
             <property name="id" value="AirnessSpringJpaJoinIsNamed"/>
             <property name="query"
-                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ElementCollection'] and (not(./MODIFIERS/ANNOTATION/IDENT[@text='CollectionTable']) or not(./MODIFIERS/ANNOTATION/IDENT[@text='Column']))] | //METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ElementCollection'] and (not(./MODIFIERS/ANNOTATION/IDENT[@text='CollectionTable']) or not(./MODIFIERS/ANNOTATION/IDENT[@text='Column']))]"/>
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ElementCollection'] and (not(./MODIFIERS/ANNOTATION/IDENT[@text='CollectionTable']) or not(./MODIFIERS/ANNOTATION/IDENT[@text='Column' or @text='AttributeOverride' or @text='AttributeOverrides']))] | //METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ElementCollection'] and (not(./MODIFIERS/ANNOTATION/IDENT[@text='CollectionTable']) or not(./MODIFIERS/ANNOTATION/IDENT[@text='Column' or @text='AttributeOverride' or @text='AttributeOverrides']))]"/>
             <message key="matchxpath.match"
-                     value="An element collection infers its table or element column. Add named @CollectionTable join columns and @Column."/>
+                     value="An element collection infers its table or element columns. Add named @CollectionTable join columns, plus @Column for a basic element or @AttributeOverride(s) for an embeddable element."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringJpaJoinIsNamed"/>
@@ -2288,7 +2292,7 @@
             -->
             <property name="id" value="AirnessSpringWebPageableHasDefaults"/>
             <property name="query"
-                      value="//PARAMETER_DEF[./TYPE//IDENT[@text='Pageable'] and (not(./MODIFIERS/ANNOTATION[./IDENT[@text='PageableDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='size' or @text='value']]) or not(./MODIFIERS/ANNOTATION[./IDENT[@text='PageableDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']] or ./MODIFIERS/ANNOTATION[./IDENT[@text='SortDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort' or @text='value'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']]))]"/>
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestMapping' or @text='GetMapping' or @text='PostMapping' or @text='PutMapping' or @text='DeleteMapping' or @text='PatchMapping']]/PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Pageable'] and (not(./MODIFIERS/ANNOTATION[./IDENT[@text='PageableDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='size' or @text='value']]) or not(./MODIFIERS/ANNOTATION[./IDENT[@text='PageableDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']] or ./MODIFIERS/ANNOTATION[./IDENT[@text='SortDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort' or @text='value'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']]))]"/>
             <message key="matchxpath.match"
                      value="A Pageable inherits an unboundedly changeable default contract. Add @PageableDefault with size and a deterministic sort with direction."/>
         </module>
@@ -2299,7 +2303,7 @@
         <module name="MatchXpath">
             <property name="id" value="AirnessSpringWebSortHasDefaults"/>
             <property name="query"
-                      value="//PARAMETER_DEF[./TYPE//IDENT[@text='Sort'] and not(./MODIFIERS/ANNOTATION[./IDENT[@text='SortDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort' or @text='value'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']])]"/>
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestMapping' or @text='GetMapping' or @text='PostMapping' or @text='PutMapping' or @text='DeleteMapping' or @text='PatchMapping']]/PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Sort'] and not(./MODIFIERS/ANNOTATION[./IDENT[@text='SortDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort' or @text='value'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']])]"/>
             <message key="matchxpath.match"
                      value="A Sort parameter names no deterministic default. Add @SortDefault with sort and direction."/>
         </module>
@@ -2310,7 +2314,7 @@
         <module name="MatchXpath">
             <property name="id" value="AirnessSpringWebPaginationIsQualified"/>
             <property name="query"
-                      value="//METHOD_DEF[count(./PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Pageable' or @text='Sort']]) &gt; 1]/PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Pageable' or @text='Sort'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Qualifier'])]"/>
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestMapping' or @text='GetMapping' or @text='PostMapping' or @text='PutMapping' or @text='DeleteMapping' or @text='PatchMapping'] and count(./PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Pageable' or @text='Sort']]) &gt; 1]/PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Pageable' or @text='Sort'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Qualifier'])]"/>
             <message key="matchxpath.match"
                      value="Several pagination parameters share one request namespace. Give each a non-empty @Qualifier."/>
         </module>
