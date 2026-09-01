@@ -39,6 +39,7 @@ public final class MavenModelPolicy {
         ),
         "maven-surefire-plugin",
         Set.of(
+            "airness.spring.context.evidence.file",
             "configurationParameters", "excludedGroups", "excludes", "failIfNoSpecifiedTests",
             "failIfNoTests", "groups", "includes", "skip", "skipExec", "skipTests", "suiteXmlFiles",
             "test", "testFailureIgnore"
@@ -184,7 +185,9 @@ public final class MavenModelPolicy {
     private static Stream<Element> mergeControls(Node plugin) {
         Stream<Element> declaration = Stream.of((Element) plugin);
         Stream<Element> executions = Xml.firstChild(plugin, "executions").stream();
-        return Stream.of(declaration, executions, configurations(plugin)).flatMap(stream -> stream);
+        Stream<Element> configured = configurations(plugin)
+            .flatMap(configuration -> Stream.concat(Stream.of(configuration), descendants(configuration)));
+        return Stream.of(declaration, executions, configured).flatMap(stream -> stream);
     }
 
     private static Stream<Element> descendants(Element root) {

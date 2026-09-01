@@ -999,6 +999,19 @@
             <message key="matchxpath.match"
                      value="A returned null hands the caller a value that answers its type and fails only where it is finally used. Return an empty java.util.Optional, an empty collection, or throw."/>
         </module>
+        <module name="MatchXpath">
+            <!--
+                A local has no caller-facing type contract: data flow sees every assignment and use in
+                the same body. A declaration annotation there is either redundant, or it hides an
+                optional state in a value the algorithm then has to test. Type-argument annotations stay
+                available because List&lt;@Nullable Value&gt; describes the elements rather than the local.
+            -->
+            <property name="id" value="AirnessLocalNullnessIsInferred"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[not(parent::OBJBLOCK)]/MODIFIERS/ANNOTATION/IDENT[@text='Nullable' or @text='NonNull' or @text='NullnessUnspecified']"/>
+            <message key="matchxpath.match"
+                     value="A local variable has no caller-facing nullness contract, and data-flow analysis already sees its assignments. Remove the annotation; model an optional local state with java.util.Optional."/>
+        </module>
 
         <!--
         Substitutes

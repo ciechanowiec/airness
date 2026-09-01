@@ -47,6 +47,7 @@
         <module>airness-assets</module>
         <module>airness-annotations</module>
         <module>airness-governance</module>
+        <module>airness-spring-evidence</module>
         <module>airness-maven-plugin</module>
         <module>airness-parent</module>
         <module>airness-parent-spring-boot</module>
@@ -83,6 +84,7 @@
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <qodana.image>jetbrains/qodana-jvm-community:2026.2@sha256:8ff36b5cebc0a6d720f77dcf3e0a94a03c39b4c42c3724a99ce5f7e462e42f99</qodana.image>
+        <spring-boot.version>4.1.1</spring-boot.version>
 
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
@@ -349,14 +351,16 @@
                                 The parent is exempt because the parent is the harness itself, whose
                                 coordinates ManagedVersions already governs, and a release project
                                 trialling an unreleased harness is a state the harness has to survive.
-                                airness-annotations is exempt for the same reason: the parent supplies
-                                it, it carries the parent's version, and no project chose it.
+                                The two Airness dependencies are exempt for the same reason: a parent
+                                supplies them, they carry the parent's version, and no project chose
+                                either one.
                             -->
                             <requireReleaseDeps>
                                 <onlyWhenRelease>true</onlyWhenRelease>
                                 <failWhenParentIsSnapshot>false</failWhenParentIsSnapshot>
                                 <excludes>
                                     <exclude>eu.ciechanowiec:airness-annotations</exclude>
+                                    <exclude>eu.ciechanowiec:airness-spring-evidence</exclude>
                                 </excludes>
                                 <message>
                                     A released project resolves a snapshot, which no later build can
@@ -913,6 +917,11 @@
             <dependency>
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-config</artifactId>
+                <version>${airness.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-spring-evidence</artifactId>
                 <version>${airness.version}</version>
             </dependency>
             <dependency>
