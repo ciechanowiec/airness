@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,7 +18,7 @@ class MavenModelPolicyTest {
 
     @Test
     void rejectsAVerdictBypassInsideAnInactiveProfile() {
-        String pom = """
+        String skipped = """
             <project>
                 <profiles>
                     <profile>
@@ -26,9 +27,24 @@ class MavenModelPolicyTest {
                 </profiles>
             </project>
             """;
-        assertEquals(
-            List.of("Remove child property skipTests; it can bypass the Airness verdict"),
-            this.problems(pom)
+        String parameters = """
+            <project>
+                <profiles><profile><properties>
+                    <maven.compiler.parameters>false</maven.compiler.parameters>
+                </properties></profile></profiles>
+            </project>
+            """;
+        assertAll(
+            () -> assertEquals(
+                List.of("Remove child property skipTests; it can bypass the Airness verdict"),
+                this.problems(skipped)
+            ),
+            () -> assertEquals(
+                List.of(
+                    "Remove child property maven.compiler.parameters; it can bypass the Airness verdict"
+                ),
+                this.problems(parameters)
+            )
         );
     }
 
@@ -50,13 +66,22 @@ class MavenModelPolicyTest {
 
     @Test
     void rejectsCompilerConfigurationThatRemovesAnalysis() {
-        String pom = plugin(
+        String arguments = plugin(
             "maven-compiler-plugin",
             """
                 <configuration><compilerArgs combine.self="override"/></configuration>
                 """
         );
-        assertTrue(this.problems(pom).getFirst().contains("compilerArgs"));
+        String parameters = plugin(
+            "maven-compiler-plugin",
+            """
+                <configuration><parameters>false</parameters></configuration>
+                """
+        );
+        assertAll(
+            () -> assertTrue(this.problems(arguments).getFirst().contains("compilerArgs")),
+            () -> assertTrue(this.problems(parameters).getFirst().contains("parameters"))
+        );
     }
 
     @Test

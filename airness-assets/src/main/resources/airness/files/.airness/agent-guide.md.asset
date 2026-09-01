@@ -30,7 +30,8 @@ Airness governs all of the following domains:
   instruction files; editor and Git configuration; and an unchanged committable tree during verification. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
   rather than reported: build output and a tool's scratch are not content this style governs.
-- **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
+- **Source:** formatting, imports, modernization recipes, compilation with retained formal parameter names,
+  nullness, static analysis, documentation
   comments, source comments, typography, banned substitutes, banned generated members, and cycles among the
   packages of a module. A generated member is refused where what it generates is a public API the type never
   stated, or an answer this harness already gives elsewhere: a mutator, a builder, a wither, a lock held on a field
@@ -82,11 +83,11 @@ Airness governs all of the following domains:
   written plainly, which is a constant as readily as a literal. A name a handler builds is passed over, and so is a
   string returned by anything answering with a body rather than with a page, since neither states a template. What a
   redirect or a forward names is an address rather than a template and is left alone here. A parameter an
-  authorization expression reads is named for the runtime by its own annotation, because a parameter name is not
-  kept in the class file and nothing here asks a compiler to keep one. A reference with no such annotation behind
-  it resolves to nothing rather than failing, so every comparison against it is false and the guard goes on
-  deciding by an answer that no longer follows what it reads as: a rule admitting the owner of a record admits
-  nobody, and the same rule written around a negation admits everybody. A mapped value that may hold nothing is a
+  authorization expression reads is named for the runtime by its own annotation even though Airness retains Java
+  parameter names in the class file. The annotation makes the security binding a declaration that survives a Java
+  parameter rename instead of letting that refactor silently change what the expression reads. A reference with no
+  such annotation behind it is therefore refused before it can resolve to an unintended value and make the guard
+  decide something other than what it says. A mapped value that may hold nothing is a
   deliberate exception rather than an ordinary one, and is priced the way every deliberate exception here is: a
   field of a persistent class or a component of a persistent record annotated `@Nullable` is reported until a
   suppression with its reason sits beside it. Nullness at a boundary and nullness at rest are different things: a
