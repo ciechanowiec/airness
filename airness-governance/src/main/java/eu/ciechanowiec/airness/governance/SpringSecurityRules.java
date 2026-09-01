@@ -14,19 +14,19 @@ import lombok.experimental.UtilityClass;
  *
  * <p>An authorization expression is a string, and the only part of one that reaches back into the
  * method is a parameter reference. Nothing compiles that reference. The engine resolves it by asking
- * what the parameters of the method are called, and the answer is not in the class file: a parameter
- * name survives compilation only when the compiler is told to keep it, which this harness does not do,
- * or when the parameter carries an annotation stating the name. Spring asks for the annotation first
- * and reflection second, so a reference with neither behind it resolves to nothing at all.
+ * what the parameters of the method are called. Airness keeps those names in the class file, but a
+ * source parameter rename then changes the value the expression addresses without changing the string.
+ * Spring asks for an explicit naming annotation before reflection, so the annotation makes that binding
+ * a declaration that an ordinary Java refactor cannot silently rewrite.
  *
  * <p>Resolving to nothing is not an error the engine reports. The reference becomes null, every
  * comparison against it is false, and the expression goes on deciding, in a way that no longer follows
  * what it says. A guard written to admit the owner of a record admits nobody, and one written around a
  * negation admits everybody. Both look right in review, both compile, and neither is a line in any log.
  *
- * <p>The repair is to state the name where the runtime can still read it, which is what the parameter
- * annotation is for. Stating it is worth doing even where a compiler was told to keep parameter names,
- * since it makes the binding a declaration rather than a build setting the expression depends on.
+ * <p>The repair is to state the name where the runtime reads it, which is what the parameter annotation
+ * is for. Retained compiler metadata remains the reflective fallback for framework features that have
+ * no explicit name, while a security decision keeps its binding written beside the parameter it means.
  *
  * <p>A reference the engine supplies itself is not a parameter and is left alone. A guard written on a
  * declaration that carries no body is read like any other, because an interface is an ordinary place to
@@ -119,9 +119,9 @@ final class SpringSecurityRules {
 
     private static String offence(CharSequence source, int at, String reference) {
         return "line " + JavaCode.lineOf(source, at) + ": the security expression reads #" + reference
-            + ", and the guarded method states no parameter of that name for the runtime to find."
-            + " A parameter name is not kept in the class file, so the reference resolves to nothing,"
-            + " every comparison against it is false, and the guard stops deciding what it reads as."
+            + ", and the guarded method states no explicit parameter binding of that name."
+            + " Retained compiler metadata would make a Java parameter rename silently retarget this"
+            + " unchanged security expression."
             + " Name the parameter it means with @P(\"" + reference + "\")";
     }
 

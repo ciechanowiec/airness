@@ -34,8 +34,8 @@ public final class MavenModelPolicy {
     private static final Map<String, Set<String>> PROTECTED_PLUGIN_CONFIGURATION = Map.of(
         "maven-compiler-plugin",
         Set.of(
-            "annotationProcessorPaths", "compilerArgs", "failOnWarning", "fork", "proc", "release",
-            "source", "target"
+            "annotationProcessorPaths", "compilerArgs", "failOnWarning", "fork", "parameters", "proc",
+            "release", "source", "target"
         ),
         "maven-surefire-plugin",
         Set.of(

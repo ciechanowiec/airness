@@ -68,7 +68,7 @@ final class SpringViewRules {
      */
     static List<String> unresolvedViews(SpringTypes types, TemplateIndex index) {
         return types.all().stream()
-            .filter(source -> !source.test())
+            .filter(SpringTypes.Declared::production)
             .flatMap(source -> unresolved(source, index))
             .toList();
     }

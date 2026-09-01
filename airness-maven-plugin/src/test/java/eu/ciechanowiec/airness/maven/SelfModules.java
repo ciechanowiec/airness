@@ -60,6 +60,19 @@ final class SelfModules {
             .toList();
     }
 
+    /**
+     * Every declared module directory that holds production Java.
+     *
+     * @return module directories in reactor order
+     */
+    static List<Path> withProductionJava() {
+        Path root = repository();
+        return declared().stream()
+            .map(root::resolve)
+            .filter(module -> Files.isDirectory(module.resolve(MAIN)))
+            .toList();
+    }
+
     @SneakyThrows
     private static List<String> declared() {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();

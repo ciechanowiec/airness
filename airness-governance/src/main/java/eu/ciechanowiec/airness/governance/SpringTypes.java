@@ -137,17 +137,17 @@ final class SpringTypes {
         }
 
         /**
-         * Whether the source lies under a test root.
+         * Whether the source lies outside every test root.
          *
          * <p>The distinction decides two rules in opposite directions. Building a component with
          * {@code new} is how a test is meant to be written and is a defect anywhere else, while a
          * declared application context is only ever a test's to declare.
          *
-         * @return whether a path element names the test tree
+         * @return whether no path element names the test tree
          */
-        boolean test() {
+        boolean production() {
             return IntStream.range(0, this.source.getNameCount())
-                .anyMatch(element -> TESTS.equals(this.source.getName(element).toString()));
+                .noneMatch(element -> TESTS.equals(this.source.getName(element).toString()));
         }
     }
 }

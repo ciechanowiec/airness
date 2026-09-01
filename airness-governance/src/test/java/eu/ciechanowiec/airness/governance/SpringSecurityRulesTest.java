@@ -8,9 +8,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A parameter reference is the only part of an authorization expression that reaches back into the
- * call it guards, and the engine resolves it by a name the class file does not keep. A reference with
- * no parameter annotation behind it resolves to nothing, and the guard goes on deciding by an answer
- * that is false whatever was passed in.
+ * call it guards. Airness retains Java parameter names, but a refactor can rename one without changing
+ * the expression string. A naming annotation makes that security binding explicit and stable.
  */
 class SpringSecurityRulesTest {
 
@@ -34,7 +33,7 @@ class SpringSecurityRulesTest {
 
         List<String> offences = SpringSecurityRules.unnamedSecurityParameters(source);
 
-        assertEquals(1, offences.size(), "the class file does not keep the name this reads");
+        assertEquals(1, offences.size(), "the expression carries no explicit binding to this parameter");
     }
 
     @Test
@@ -78,11 +77,11 @@ class SpringSecurityRulesTest {
     }
 
     @Test
-    void namesTheReferenceThatResolvesToNothing() {
+    void namesTheReferenceWithoutAnExplicitBinding() {
         String source = guarded("@PreAuthorize(\"#reference == authentication.name\")", "UUID reference");
         assertTrue(
             SpringSecurityRules.unnamedSecurityParameters(source).getFirst().contains("reads #reference"),
-            "an offence names the reference it could not answer"
+            "an offence names the reference whose binding was implicit"
         );
     }
 
@@ -134,7 +133,7 @@ class SpringSecurityRulesTest {
 
             class Rooms {
 
-                // A guard here would read #reference and resolve it to nothing.
+                // A guard here would read #reference through an implicit binding.
                 public Room rename(UUID reference) {
                     return null;
                 }

@@ -1981,10 +1981,9 @@
         </module>
         <module name="MatchXpath">
             <!--
-                An unnamed binding depends on parameter names surviving compilation, which a shaded or
-                repackaged artifact does not guarantee, and which a compiler that was not asked for
-                -parameters does not produce at all. The failure appears in the built archive and not
-                before it.
+                Airness retains parameter names for reflection, but an unnamed binding makes a Java
+                parameter rename change the external request contract without changing the annotation.
+                Naming the binding keeps that contract explicit and stable through an ordinary refactor.
 
                 Every annotation named here falls back to the parameter name the same way. The two that are
                 not named here fall back to something else: a model attribute is bound by its type, and a
@@ -1997,7 +1996,7 @@
                             or @text='RequestPart' or @text='RequestAttribute' or @text='SessionAttribute']
                             and not(./ANNOTATION_MEMBER_VALUE_PAIR) and not(./EXPR)]"/>
             <message key="matchxpath.match"
-                     value="An unnamed binding relies on parameter names surviving compilation. Name the parameter in the annotation."/>
+                     value="An unnamed binding changes when its Java parameter is renamed. Name the external binding in the annotation."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringWebParameterIsNamed"/>

@@ -171,6 +171,11 @@
                     unannotated and left alone, which is why a wrong value there disables the checker
                     while leaving it in the log looking configured.
 
+                    -parameters is a literal member of the protected compiler argument list rather than
+                    a project property. It therefore reaches main and test compilation in every mode,
+                    and a command-line maven.compiler.parameters value cannot remove it. The
+                    compiler-parameters goal later reads the emitted class files as the final proof.
+
                     The reflective-injection annotations are excluded from the field-initialization
                     check, because a field a framework assigns is not a field the constructor forgot.
                     The list is fixed rather than a property: a project that could extend it could also
@@ -192,6 +197,7 @@
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-parameters</arg>
                         <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=${airness.nullaway.excluded-field-annotations}</arg>
                         <arg>-Werror</arg>
                         <arg>-Xlint:deprecation</arg>
@@ -602,6 +608,13 @@
                         </goals>
                     </execution>
                     <execution>
+                        <id>airness-compiler-parameters</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>compiler-parameters</goal>
+                        </goals>
+                    </execution>
+                    <execution>
                         <id>airness-coverage-evidence</id>
                         <phase>prepare-package</phase>
                         <goals>
@@ -855,6 +868,7 @@
                             <compilerArgs combine.self="override">
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-parameters</arg>
                                 <arg>-Xplugin:ErrorProne -XepAllErrorsAsWarnings -Xep:NullAway:WARN -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=${airness.nullaway.excluded-field-annotations}</arg>
                                 <arg>-Xlint:deprecation</arg>
                                 <arg>-Xdoclint:all,-missing</arg>
@@ -875,7 +889,10 @@
             </build>
         </profile>
         <profile>
-            <!-- skipTests removes compiler-side analysis as well as lifecycle-bound harness checks. -->
+            <!--
+                skipTests removes compiler-side analysis and ordinary lifecycle-bound checks. Parameter
+                metadata remains: it is part of the bytecode contract rather than an analyzer verdict.
+            -->
             <id>airness-skip</id>
             <activation>
                 <property>
@@ -890,7 +907,9 @@
                         <artifactId>maven-compiler-plugin</artifactId>
                         <configuration>
                             <fork>false</fork>
-                            <compilerArgs combine.self="override"/>
+                            <compilerArgs combine.self="override">
+                                <arg>-parameters</arg>
+                            </compilerArgs>
                             <annotationProcessorPaths combine.self="override">
                                 <path>
                                     <groupId>org.projectlombok</groupId>

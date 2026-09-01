@@ -916,6 +916,66 @@ run_case 'parameters: wrong package root cannot disable NullAway' 1 \
     "$consumer" airness:check-parameters
 perl -0pi -e 's{<airness[.]package[.]root>wrong[.]base</airness[.]package[.]root>}{<airness.package.root>com.example</airness.package.root>}' \
     "$consumer/pom.xml"
+
+# Parameter retention belongs to the compiler contract, so neither the user property Maven exposes nor
+# the dedicated compiler-plugin element is a setting a project owns. Both are refused in the raw model,
+# including a declaration in a profile nobody activates today.
+perl -0pi -e \
+    's{<id>reactor-child</id>}{<id>reactor-child</id>\n      <properties><maven.compiler.parameters>false</maven.compiler.parameters></properties>}' \
+    "$consumer/pom.xml"
+run_case 'parameters: the compiler parameter property is harness-owned' 1 \
+    'Remove child property maven[.]compiler[.]parameters' "$consumer" airness:check-parameters
+perl -0pi -e \
+    's{\n      <properties><maven[.]compiler[.]parameters>false</maven[.]compiler[.]parameters></properties>}{}' \
+    "$consumer/pom.xml"
+perl -0pi -e \
+    's{</project>}{  <build><plugins><plugin>\n    <artifactId>maven-compiler-plugin</artifactId>\n    <configuration><parameters>false</parameters></configuration>\n  </plugin></plugins></build>\n</project>}' \
+    "$consumer/pom.xml"
+run_case 'parameters: compiler parameter configuration is harness-owned' 1 \
+    'Remove child maven-compiler-plugin configuration parameters' \
+    "$consumer" airness:check-parameters
+perl -0pi -e \
+    's{  <build><plugins><plugin>\n    <artifactId>maven-compiler-plugin</artifactId>\n    <configuration><parameters>false</parameters></configuration>\n  </plugin></plugins></build>\n}{}' \
+    "$consumer/pom.xml"
+
+# The literal compiler argument is stronger than Maven's user property. Even an explicit false value on
+# the command line cannot remove -parameters from production or test compilation, including skip mode.
+parameter_override="$(new_consumer parameter-override)"
+run_case 'parameters: command-line false cannot remove the compiler argument' 0 'BUILD SUCCESS' \
+    "$parameter_override" clean package -DskipTests -Dmaven.compiler.parameters=false
+
+# Prove that the bytecode is the final authority rather than merely the effective POM. The ordinary
+# compiler first writes the class correctly, then an extension execution overwrites one class with a
+# direct javac invocation that omits -parameters. The mandatory goal must still fail when report-only
+# and skipped-test modes are active together.
+missing_metadata="$(new_consumer missing-parameter-metadata)"
+cat > "$missing_metadata/src/main/java/com/example/ParameterFixture.java" <<'JAVA'
+package com.example;
+
+/** A class overwritten after the inherited compiler runs. */
+final class ParameterFixture {
+
+    private ParameterFixture() {
+    }
+
+    /**
+     * Returns its argument.
+     *
+     * @param value value to return
+     * @return the supplied value
+     */
+    static String echo(String value) {
+        return value;
+    }
+}
+JAVA
+perl -0pi -e \
+    's{</project>}{  <build><plugins><plugin>\n    <groupId>org.apache.maven.plugins</groupId>\n    <artifactId>maven-antrun-plugin</artifactId>\n    <version>3.2.0</version>\n    <executions><execution>\n      <id>overwrite-parameter-metadata</id>\n      <phase>process-test-classes</phase>\n      <goals><goal>run</goal></goals>\n      <configuration><target>\n        <exec executable="javac" failonerror="true">\n          <arg value="--release"/><arg value="25"/>\n          <arg value="-d"/><arg value="target/classes"/>\n          <arg value="src/main/java/com/example/ParameterFixture.java"/>\n        </exec>\n      </target></configuration>\n    </execution></executions>\n  </plugin></plugins></build>\n</project>}' \
+    "$missing_metadata/pom.xml"
+run_case 'parameters: emitted bytecode remains mandatory in bypass modes' 1 \
+    'ParameterFixture[.]class: echo.*has no MethodParameters attribute' \
+    "$missing_metadata" clean package -DskipTests -Dairness.enforce=false
+
 perl -0pi -e \
     's{<id>reactor-child</id>}{<id>reactor-child</id>\n      <properties><skipTests>true</skipTests></properties>}' \
     "$consumer/pom.xml"
@@ -4146,9 +4206,8 @@ class Routed {
 }
 JAVA
 # The only part of an authorization expression that reaches back into the call it guards is a
-# parameter reference, and the engine resolves it by a name the class file does not keep. Nothing here
-# asks a compiler to keep one, so a reference with no parameter annotation behind it resolves to
-# nothing, and the guard goes on deciding by a comparison that is false whatever was passed in.
+# parameter reference. Airness retains Java parameter names, but a refactor can rename one without
+# changing the expression string. The annotation keeps that security binding explicit and stable.
 cat > "$spring_source/src/main/java/com/example/Guarded.java" <<'JAVA'
 package com.example;
 

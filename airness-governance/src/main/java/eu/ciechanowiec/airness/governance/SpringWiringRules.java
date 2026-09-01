@@ -58,7 +58,7 @@ final class SpringWiringRules {
         return components.isEmpty()
             ? List.of()
             : types.all().stream()
-                .filter(type -> !type.test())
+                .filter(SpringTypes.Declared::production)
                 .flatMap(type -> instantiations(type, components))
                 .toList();
     }
