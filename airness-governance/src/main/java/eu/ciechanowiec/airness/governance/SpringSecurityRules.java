@@ -47,12 +47,8 @@ final class SpringSecurityRules {
     // contributes and which the discoverer accepts wherever Spring Data is on the classpath.
     private static final Pattern NAMED = Pattern.compile("@(?:P|Param)\\s*\\(\\s*\"([^\"]*)\"");
 
-    private static final Pattern MEMBER = Pattern.compile("\\b(\\w+)\\s*\\(");
-
     // What the engine puts in scope itself, which no parameter has to answer for.
     private static final Set<String> SUPPLIED = Set.of("root", "this");
-
-    private static final char ANNOTATION = '@';
 
     /**
      * Every reference a security expression makes to a parameter that is not named for the runtime.
@@ -89,23 +85,12 @@ final class SpringSecurityRules {
      * @return the stated names, and nothing when the guarded method could not be found
      */
     private static Optional<Set<String>> names(String code, String read, int from) {
-        return list(code, from).map(
+        return SpringParameters.after(code, from).map(
             taken -> NAMED.matcher(read.substring(taken.opens() + 1, taken.closes()))
                 .results()
                 .map(name -> name.group(1))
                 .collect(Collectors.toUnmodifiableSet())
         );
-    }
-
-    // The parameter list of the method the annotation guards, which opens at the first name followed by
-    // a parenthesis that is not itself an annotation. Another annotation may sit between the two, and
-    // one of those reads as a name and a parenthesis like any other.
-    private static Optional<Range> list(String code, int from) {
-        return MEMBER.matcher(code).results()
-            .filter(match -> match.start() >= from)
-            .filter(match -> code.charAt(match.start(1) - 1) != ANNOTATION)
-            .findFirst()
-            .map(match -> new Range(match.end() - 1, SpringMembers.closing(code, match.end() - 1)));
     }
 
     private static List<String> references(String expression) {
@@ -123,14 +108,5 @@ final class SpringSecurityRules {
             + " Retained compiler metadata would make a Java parameter rename silently retarget this"
             + " unchanged security expression."
             + " Name the parameter it means with @P(\"" + reference + "\")";
-    }
-
-    /**
-     * The parenthesis pair a parameter list occupies.
-     *
-     * @param opens  the offset the list opens at
-     * @param closes the offset it closes at
-     */
-    private record Range(int opens, int closes) {
     }
 }

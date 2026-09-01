@@ -8,10 +8,10 @@ import java.util.regex.Pattern;
 /**
  * Reads every Java source of the whole build for the questions a single module cannot answer.
  *
- * <p>One question is here so far, and it is here rather than in {@link SpringModuleCheck} for a reason
- * that decides the scope rather than the convenience: a module holding one application class is correct,
- * and two modules each holding one is the defect. A per-module check sees only the first half of that
- * and reports nothing, however many modules it is run over.
+ * <p>Two shapes of question live here. A module holding one application class is correct, and two modules
+ * each holding one is the defect. A feature annotation in a library module and its enabling configuration
+ * in the application module are the opposite: either module alone looks incomplete, while the pair is the
+ * working declaration. A per-module check gives the wrong verdict in both directions.
  *
  * <p>The goal that runs this therefore runs once for the session rather than once per module, which is
  * what stops one finding being printed as many times as the reactor has modules.
@@ -20,6 +20,18 @@ public final class SpringReactorCheck {
 
     private static final String ONE_APPLICATION
         = "Spring application classes declared more than once in this build";
+    private static final String UNENABLED_ASYNC
+        = "Asynchronous methods no production configuration enables";
+    private static final String UNENABLED_SCHEDULING
+        = "Scheduled methods no production configuration enables";
+    private static final String UNENABLED_CACHING
+        = "Cache operations no production configuration enables";
+    private static final String UNENABLED_RETRY
+        = "Retry operations no production configuration enables";
+    private static final String UNENABLED_AUDITING
+        = "JPA auditing members no production configuration enables";
+    private static final String DISABLED_METHOD_SECURITY
+        = "Method-security annotations whose family remains disabled";
     private static final Pattern APPLICATION = Pattern.compile("@SpringBootApplication\\b");
 
     private final SpringTypes types;
@@ -47,13 +59,21 @@ public final class SpringReactorCheck {
     }
 
     /**
-     * The one rule, with one offence per application class when there is more than one.
+     * Every reactor-wide Spring rule.
      *
      * @return the verdict
      */
     public List<Findings> findings() {
         List<SpringTypes.Declared> declared = this.types.carrying(APPLICATION);
-        return List.of(new Findings(ONE_APPLICATION, declared.size() > 1 ? named(declared) : List.of()));
+        return List.of(
+            new Findings(ONE_APPLICATION, declared.size() > 1 ? named(declared) : List.of()),
+            new Findings(UNENABLED_ASYNC, SpringFeatureRules.unenabledAsync(this.types)),
+            new Findings(UNENABLED_SCHEDULING, SpringFeatureRules.unenabledScheduling(this.types)),
+            new Findings(UNENABLED_CACHING, SpringFeatureRules.unenabledCaching(this.types)),
+            new Findings(UNENABLED_RETRY, SpringFeatureRules.unenabledRetry(this.types)),
+            new Findings(UNENABLED_AUDITING, SpringFeatureRules.unenabledAuditing(this.types)),
+            new Findings(DISABLED_METHOD_SECURITY, SpringFeatureRules.disabledMethodSecurity(this.types))
+        );
     }
 
     private static List<String> named(Collection<SpringTypes.Declared> declared) {

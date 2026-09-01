@@ -87,7 +87,14 @@ Airness governs all of the following domains:
   parameter names in the class file. The annotation makes the security binding a declaration that survives a Java
   parameter rename instead of letting that refactor silently change what the expression reads. A reference with no
   such annotation behind it is therefore refused before it can resolve to an unintended value and make the guard
-  decide something other than what it says. A mapped value that may hold nothing is a
+  decide something other than what it says. Retained Java parameter names are fallback metadata rather than an
+  external contract. A handler therefore annotates the source, name and requiredness of every request value; a
+  string repository query binds only named `@Param` values; and a bound model or application request part states
+  validation. Feature annotations are paired with the production annotation that enables them, and an asynchronous
+  or scheduled method names the infrastructure that runs it. Cache destinations, configuration-property namespaces,
+  transaction-bound event phases, pagination defaults and test SQL are written rather than inherited from framework
+  defaults. Persistence mapping follows the same boundary: entity, table, column, join, sequence, access and
+  inheritance names stay stable when a Java declaration is renamed. A mapped value that may hold nothing is a
   deliberate exception rather than an ordinary one, and is priced the way every deliberate exception here is: a
   field of a persistent class or a component of a persistent record annotated `@Nullable` is reported until a
   suppression with its reason sits beside it. Nullness at a boundary and nullness at rest are different things: a

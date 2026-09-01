@@ -1185,6 +1185,22 @@
         </module>
         <module name="MatchXpath">
             <!--
+                Choosing an executor by a unique bean or by AsyncConfigurer makes a later bean addition
+                retarget an existing asynchronous method. The qualifier is the stable edge between the
+                call and the queue that carries it.
+            -->
+            <property name="id" value="AirnessSpringAsyncNamesItsExecutor"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Async'] and (not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value']]) or ./EXPR/STRING_LITERAL[@text='&quot;&quot;'] or ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value']]/EXPR/STRING_LITERAL[@text='&quot;&quot;'])]"/>
+            <message key="matchxpath.match"
+                     value="An unnamed @Async is retargeted when the executor set changes. Name the executor qualifier in the annotation."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringAsyncNamesItsExecutor"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 Full mode subclasses the configuration class so that one bean method calling another
                 returns the singleton. That subclass is what stops the class being final, and lite mode
                 does without it. The rule below is what makes lite mode safe to require.
@@ -1230,6 +1246,22 @@
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringCacheableIsPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A cache operation with no destination depends on configuration outside the operation and
+                can silently move when that configuration changes. A resolver is accepted because choosing
+                the destination dynamically is exactly the contract it declares.
+            -->
+            <property name="id" value="AirnessSpringCacheNamesItsDestination"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Cacheable' or @text='CachePut' or @text='CacheEvict'] and not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value' or @text='cacheNames' or @text='cacheResolver']]) and not(ancestor::CLASS_DEF/MODIFIERS/ANNOTATION[./IDENT[@text='CacheConfig'] and (./EXPR or ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value' or @text='cacheNames' or @text='cacheResolver']])])]"/>
+            <message key="matchxpath.match"
+                     value="A cache operation names no destination. State cacheNames, value or cacheResolver on the operation, or in @CacheConfig on its class."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringCacheNamesItsDestination"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">
@@ -1435,6 +1467,36 @@
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringConfigurationPropertiesIsValidated"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                An empty prefix binds against the whole environment, so a property added for an unrelated
+                subsystem can become a member of this type without crossing a namespace boundary.
+            -->
+            <property name="id" value="AirnessSpringConfigurationPropertiesNamesItsNamespace"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='ConfigurationProperties'] and (not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value' or @text='prefix']]) or ./EXPR/STRING_LITERAL[@text='&quot;&quot;'] or ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value' or @text='prefix']]/EXPR/STRING_LITERAL[@text='&quot;&quot;'])]"/>
+            <message key="matchxpath.match"
+                     value="A configuration-properties type with no prefix binds against the whole environment. Give it a non-empty project namespace."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringConfigurationPropertiesNamesItsNamespace"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The default accepts a misspelled or retired key and starts with the value that key was meant
+                to replace. Refusing unknown members turns that configuration drift into startup evidence.
+            -->
+            <property name="id" value="AirnessSpringConfigurationPropertiesRejectsUnknownFields"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='ConfigurationProperties'] and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='ignoreUnknownFields'] and ./EXPR/LITERAL_FALSE])]"/>
+            <message key="matchxpath.match"
+                     value="Unknown properties are ignored by default. Declare ignoreUnknownFields = false so a misspelled or retired setting refuses startup."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringConfigurationPropertiesRejectsUnknownFields"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">
@@ -1680,6 +1742,145 @@
         working feature that issues a thousand queries; a wrong cascade is a working feature that deletes
         rows nobody asked it to. Neither fails a test that checks the object it got back.
         -->
+        <module name="MatchXpath">
+            <!--
+                The default entity name is the Java class name, so a refactor silently changes every JPQL
+                string that names it. The annotation name is the stable query contract.
+            -->
+            <property name="id" value="AirnessSpringJpaEntityIsNamed"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Entity'] and (not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='name']) or ./EXPR/STRING_LITERAL[@text='&quot;&quot;'] or ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='name']]/EXPR/STRING_LITERAL[@text='&quot;&quot;'])]"/>
+            <message key="matchxpath.match"
+                     value="An unnamed entity changes its JPQL name when the Java class is renamed. Declare the entity name explicitly."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaEntityIsNamed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Inferring access from the location of @Id makes moving that annotation change every member
+                the provider persists. A member-level override recreates the same split one member at a time,
+                so a persistent type has one access strategy at its declaration.
+            -->
+            <property name="id" value="AirnessSpringJpaAccessIsExplicit"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='Embeddable' or @text='MappedSuperclass'] and not(./MODIFIERS/ANNOTATION[./IDENT[@text='Access'] and .//IDENT[@text='FIELD' or @text='PROPERTY']])] | //CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity' or @text='Embeddable' or @text='MappedSuperclass']]/OBJBLOCK/*/MODIFIERS/ANNOTATION/IDENT[@text='Access']"/>
+            <message key="matchxpath.match"
+                     value="Persistence access is inferred or mixed between members. Declare one class-level @Access(FIELD) or @Access(PROPERTY) strategy."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaAccessIsExplicit"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Under field access every eligible instance field is persistent by default. Requiring a
+                mapping or @Transient makes that boundary visible instead of letting a new field become a
+                column merely because it was declared.
+            -->
+            <property name="id" value="AirnessSpringJpaPersistentMemberIsMapped"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='Access'] and .//IDENT[@text='FIELD']]]/OBJBLOCK/VARIABLE_DEF[not(./MODIFIERS/LITERAL_STATIC) and not(./MODIFIERS/LITERAL_TRANSIENT) and not(./MODIFIERS/ANNOTATION/IDENT[@text='Transient' or @text='Column' or @text='Embedded' or @text='EmbeddedId' or @text='ManyToOne' or @text='OneToOne' or @text='OneToMany' or @text='ManyToMany' or @text='ElementCollection'])]"/>
+            <message key="matchxpath.match"
+                     value="A persistent field relies on the provider default. Add its explicit mapping, or @Transient when it is not stored."/>
+        </module>
+        <module name="MatchXpath">
+            <!-- Property access applies the same boundary to JavaBean getters. -->
+            <property name="id" value="AirnessSpringJpaPersistentMemberIsMapped"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='Access'] and .//IDENT[@text='PROPERTY']]]/OBJBLOCK/METHOD_DEF[not(./MODIFIERS/LITERAL_STATIC) and not(./TYPE/LITERAL_VOID) and not(./PARAMETERS/PARAMETER_DEF) and ./IDENT[starts-with(@text,'get') or starts-with(@text,'is')] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Transient' or @text='Column' or @text='Embedded' or @text='EmbeddedId' or @text='ManyToOne' or @text='OneToOne' or @text='OneToMany' or @text='ManyToMany' or @text='ElementCollection'])]"/>
+            <message key="matchxpath.match"
+                     value="A persistent property relies on the provider default. Add its explicit mapping, or @Transient when it is not stored."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaPersistentMemberIsMapped"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A root entity owns a table. Naming the table breaks the accidental coupling between a Java
+                class rename and the schema a deployed migration already created.
+            -->
+            <property name="id" value="AirnessSpringJpaTableIsNamed"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Entity'] and not(./EXTENDS_CLAUSE) and not(./MODIFIERS/ANNOTATION/IDENT[@text='Table'])] | //ANNOTATION[./IDENT[@text='Table'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='name'])]"/>
+            <message key="matchxpath.match"
+                     value="An entity table is inferred from the Java type. Add @Table with an explicit name."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaTableIsNamed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!-- Every basic and override column keeps its schema name beside the member it stores. -->
+            <property name="id" value="AirnessSpringJpaColumnIsNamed"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Column' or @text='MapKeyColumn' or @text='OrderColumn' or @text='DiscriminatorColumn'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='name'])] | //ANNOTATION[./IDENT[@text='Column' or @text='MapKeyColumn' or @text='OrderColumn' or @text='DiscriminatorColumn'] and .//STRING_LITERAL[@text='&quot;&quot;']]"/>
+            <message key="matchxpath.match"
+                     value="A persistence column name is inferred from a Java declaration. State name explicitly."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaColumnIsNamed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Join defaults derive both sides from member and identifier names. Complete join annotations
+                make either Java side independently renameable without changing the deployed schema.
+            -->
+            <property name="id" value="AirnessSpringJpaJoinIsNamed"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='JoinColumn' or @text='PrimaryKeyJoinColumn'] and (not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='name']) or not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='referencedColumnName']))] | //ANNOTATION[./IDENT[@text='JoinTable'] and (not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='name']) or not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='joinColumns']) or not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='inverseJoinColumns']))] | //ANNOTATION[./IDENT[@text='CollectionTable'] and (not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='name']) or not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='joinColumns']))]"/>
+            <message key="matchxpath.match"
+                     value="A join derives schema names from Java members. Name the table and both local and referenced columns explicitly."/>
+        </module>
+        <module name="MatchXpath">
+            <!-- Owning associations need a join; inverse associations state mappedBy instead. -->
+            <property name="id" value="AirnessSpringJpaJoinIsNamed"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ManyToOne'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='JoinColumn' or @text='JoinColumns' or @text='JoinTable'])] | //VARIABLE_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='OneToOne' or @text='OneToMany' or @text='ManyToMany'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='mappedBy'])] and not(./MODIFIERS/ANNOTATION/IDENT[@text='JoinColumn' or @text='JoinColumns' or @text='JoinTable'])] | //METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ManyToOne'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='JoinColumn' or @text='JoinColumns' or @text='JoinTable'])] | //METHOD_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='OneToOne' or @text='OneToMany' or @text='ManyToMany'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='mappedBy'])] and not(./MODIFIERS/ANNOTATION/IDENT[@text='JoinColumn' or @text='JoinColumns' or @text='JoinTable'])]"/>
+            <message key="matchxpath.match"
+                     value="An owning association declares neither mappedBy nor an explicit join. State the join columns or join table."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringJpaJoinIsNamed"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ElementCollection'] and (not(./MODIFIERS/ANNOTATION/IDENT[@text='CollectionTable']) or not(./MODIFIERS/ANNOTATION/IDENT[@text='Column']))] | //METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='ElementCollection'] and (not(./MODIFIERS/ANNOTATION/IDENT[@text='CollectionTable']) or not(./MODIFIERS/ANNOTATION/IDENT[@text='Column']))]"/>
+            <message key="matchxpath.match"
+                     value="An element collection infers its table or element column. Add named @CollectionTable join columns and @Column."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaJoinIsNamed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!-- Inheritance defaults to one table and derives discriminator values from entity names. -->
+            <property name="id" value="AirnessSpringJpaInheritanceIsExplicit"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Inheritance'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='strategy'])] | //ANNOTATION[./IDENT[@text='DiscriminatorValue'] and not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='value'])]"/>
+            <message key="matchxpath.match"
+                     value="A persistence hierarchy inherits its storage or discriminator from a provider default. Declare the strategy and discriminator explicitly."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaInheritanceIsExplicit"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A sequence strategy without a generator falls back to a provider sequence. The generator
+                and physical sequence name are the two stable names the mapping needs.
+            -->
+            <property name="id" value="AirnessSpringJpaSequenceIsNamed"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='GeneratedValue'] and .//IDENT[@text='SEQUENCE'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='generator'])] | //ANNOTATION[./IDENT[@text='SequenceGenerator'] and (not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='name']) or not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sequenceName']))]"/>
+            <message key="matchxpath.match"
+                     value="A sequence identifier relies on a provider name. Name the generator and its physical sequence explicitly."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringJpaSequenceIsNamed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
         <module name="MatchXpath">
             <!--
                 Each of these generates a method over every field. Equality then changes the moment the
@@ -1981,25 +2182,127 @@
         </module>
         <module name="MatchXpath">
             <!--
+                Spring infers an unannotated simple value as a request parameter and any other value as a
+                model attribute. The signature then says neither which part of the request is trusted nor
+                which binding rules are applied, and a type change can silently switch between the two.
+            -->
+            <property name="id" value="AirnessSpringWebParameterHasExplicitSource"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestMapping' or @text='GetMapping' or @text='PostMapping' or @text='PutMapping' or @text='DeleteMapping' or @text='PatchMapping']]/PARAMETERS/PARAMETER_DEF[not(./MODIFIERS/ANNOTATION/IDENT[@text='PathVariable' or @text='MatrixVariable' or @text='RequestParam' or @text='RequestHeader' or @text='CookieValue' or @text='RequestBody' or @text='RequestPart' or @text='ModelAttribute' or @text='SessionAttribute' or @text='RequestAttribute' or @text='AuthenticationPrincipal' or @text='CurrentSecurityContext' or @text='RegisteredOAuth2AuthorizedClient']) and not(./TYPE//IDENT[@text='WebRequest' or @text='NativeWebRequest' or @text='ServletRequest' or @text='HttpServletRequest' or @text='MultipartRequest' or @text='MultipartHttpServletRequest' or @text='ServletResponse' or @text='HttpServletResponse' or @text='HttpSession' or @text='PushBuilder' or @text='ServerWebExchange' or @text='ServerHttpRequest' or @text='ServerHttpResponse' or @text='WebSession' or @text='Principal' or @text='Authentication' or @text='HttpMethod' or @text='Locale' or @text='TimeZone' or @text='ZoneId' or @text='InputStream' or @text='Reader' or @text='OutputStream' or @text='Writer' or @text='HttpEntity' or @text='RequestEntity' or @text='Map' or @text='Model' or @text='ModelMap' or @text='RedirectAttributes' or @text='Errors' or @text='BindingResult' or @text='SessionStatus' or @text='UriComponentsBuilder' or @text='Pageable' or @text='Sort'])]"/>
+            <message key="matchxpath.match"
+                     value="An unannotated handler parameter lets Spring infer its request source from the type. Add the resolver annotation that states where the value comes from."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebParameterHasExplicitSource"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 Airness retains parameter names for reflection, but an unnamed binding makes a Java
                 parameter rename change the external request contract without changing the annotation.
                 Naming the binding keeps that contract explicit and stable through an ordinary refactor.
 
-                Every annotation named here falls back to the parameter name the same way. The two that are
-                not named here fall back to something else: a model attribute is bound by its type, and a
-                request body carries no name to begin with.
+                Every annotation named here falls back to the parameter or inferred model name. An unrelated
+                member such as required does not name the binding and therefore cannot satisfy this rule.
             -->
             <property name="id" value="AirnessSpringWebParameterIsNamed"/>
             <property name="query"
-                      value="//PARAMETER_DEF/MODIFIERS/ANNOTATION[./IDENT[@text='PathVariable' or @text='RequestParam'
-                            or @text='RequestHeader' or @text='CookieValue' or @text='MatrixVariable'
-                            or @text='RequestPart' or @text='RequestAttribute' or @text='SessionAttribute']
-                            and not(./ANNOTATION_MEMBER_VALUE_PAIR) and not(./EXPR)]"/>
+                      value="//ANNOTATION[./IDENT[@text='PathVariable' or @text='RequestParam' or @text='RequestHeader' or @text='CookieValue' or @text='MatrixVariable' or @text='RequestPart' or @text='RequestAttribute' or @text='SessionAttribute' or @text='ModelAttribute'] and (not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='value' or @text='name']) or ./EXPR/STRING_LITERAL[@text='&quot;&quot;'] or ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value' or @text='name']]/EXPR/STRING_LITERAL[@text='&quot;&quot;'])]"/>
             <message key="matchxpath.match"
                      value="An unnamed binding changes when its Java parameter is renamed. Name the external binding in the annotation."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringWebParameterIsNamed"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Requiredness is an endpoint contract. Optional states the same decision in the Java type,
+                and defaultValue states it together with the fallback, so neither needs a redundant member.
+            -->
+            <property name="id" value="AirnessSpringWebParameterDeclaresRequiredness"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[not(./TYPE//IDENT[@text='Optional'])]/MODIFIERS/ANNOTATION[./IDENT[@text='PathVariable' or @text='RequestParam' or @text='RequestHeader' or @text='CookieValue' or @text='MatrixVariable' or @text='RequestBody' or @text='RequestPart' or @text='RequestAttribute' or @text='SessionAttribute'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='required' or @text='defaultValue'])]"/>
+            <message key="matchxpath.match"
+                     value="The endpoint does not state whether this value is required. Declare required, provide a defaultValue, or use Optional."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringWebParameterDeclaresRequiredness"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./TYPE//IDENT[@text='Optional']]/MODIFIERS/ANNOTATION[./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='required'] and ./EXPR/LITERAL_TRUE]] | //ANNOTATION[./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='defaultValue'] and ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='required'] and ./EXPR/LITERAL_TRUE]]"/>
+            <message key="matchxpath.match"
+                     value="This binding says required and optional at once. Keep Optional or defaultValue and remove required = true."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebParameterDeclaresRequiredness"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                binding decides whether request values may populate the object. Validation is required only
+                on the branch that binds, because an existing model value with binding disabled is not a
+                request payload.
+            -->
+            <property name="id" value="AirnessSpringWebModelAttributeIsExplicit"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='ModelAttribute'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='binding'])] or ./MODIFIERS/ANNOTATION[./IDENT[@text='ModelAttribute'] and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='binding'] and ./EXPR/LITERAL_FALSE])] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Valid' or @text='Validated'])]"/>
+            <message key="matchxpath.match"
+                     value="A model attribute must state binding, and a bound one must be validated. Declare binding explicitly and add @Valid when it is true."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebModelAttributeIsExplicit"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A converted application object is a payload and needs validation. Raw multipart carriers
+                have no bean constraints to traverse and are deliberately passed over.
+            -->
+            <property name="id" value="AirnessSpringWebRequestPartIsValidated"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RequestPart'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Valid' or @text='Validated']) and not(./TYPE//IDENT[@text='MultipartFile' or @text='Part' or @text='FilePart' or @text='Resource' or @text='String' or @text='ByteBuffer' or @text='DataBuffer' or @text='Byte']) and not(./TYPE/ARRAY_DECLARATOR)]"/>
+            <message key="matchxpath.match"
+                     value="A converted request part without @Valid leaves its payload constraints unevaluated. Add @Valid, or use a raw multipart carrier type."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebRequestPartIsValidated"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The default page size and order are public endpoint behaviour. A size bounds work, and an
+                order makes repeated requests over unchanged data return the same rows.
+            -->
+            <property name="id" value="AirnessSpringWebPageableHasDefaults"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./TYPE//IDENT[@text='Pageable'] and (not(./MODIFIERS/ANNOTATION[./IDENT[@text='PageableDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='size' or @text='value']]) or not(./MODIFIERS/ANNOTATION[./IDENT[@text='PageableDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']] or ./MODIFIERS/ANNOTATION[./IDENT[@text='SortDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort' or @text='value'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']]))]"/>
+            <message key="matchxpath.match"
+                     value="A Pageable inherits an unboundedly changeable default contract. Add @PageableDefault with size and a deterministic sort with direction."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebPageableHasDefaults"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringWebSortHasDefaults"/>
+            <property name="query"
+                      value="//PARAMETER_DEF[./TYPE//IDENT[@text='Sort'] and not(./MODIFIERS/ANNOTATION[./IDENT[@text='SortDefault'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='sort' or @text='value'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='direction']])]"/>
+            <message key="matchxpath.match"
+                     value="A Sort parameter names no deterministic default. Add @SortDefault with sort and direction."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebSortHasDefaults"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringWebPaginationIsQualified"/>
+            <property name="query"
+                      value="//METHOD_DEF[count(./PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Pageable' or @text='Sort']]) &gt; 1]/PARAMETERS/PARAMETER_DEF[./TYPE//IDENT[@text='Pageable' or @text='Sort'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Qualifier'])]"/>
+            <message key="matchxpath.match"
+                     value="Several pagination parameters share one request namespace. Give each a non-empty @Qualifier."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebPaginationIsQualified"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">
@@ -2317,6 +2620,51 @@
         </module>
         <module name="MatchXpath">
             <!--
+                The unnamed scheduler is a fallback selected from the context. Naming it keeps the task on
+                the same capacity and shutdown policy when another scheduler is later added.
+            -->
+            <property name="id" value="AirnessSpringScheduledNamesItsScheduler"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Scheduled'] and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='scheduler']])]"/>
+            <message key="matchxpath.match"
+                     value="A scheduled task names no scheduler, so a later bean can retarget it. Declare scheduler with a non-empty property placeholder."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScheduledNamesItsScheduler"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The default zone belongs to the scheduler process, so the same cron expression can denote a
+                different instant after a deployment or a daylight-saving configuration change.
+            -->
+            <property name="id" value="AirnessSpringScheduledNamesItsZone"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Scheduled'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='cron'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='zone'])]"/>
+            <message key="matchxpath.match"
+                     value="A cron expression with no zone runs in the scheduler process zone. Declare zone with a property placeholder."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScheduledNamesItsZone"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A bare duration read from configuration otherwise means milliseconds. The unit is part of
+                the schedule contract even when a particular environment writes a suffixed duration.
+            -->
+            <property name="id" value="AirnessSpringScheduledDeclaresTimeUnit"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Scheduled'] and ./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='fixedRate' or @text='fixedRateString' or @text='fixedDelay' or @text='fixedDelayString' or @text='initialDelay' or @text='initialDelayString'] and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='timeUnit'])]"/>
+            <message key="matchxpath.match"
+                     value="A fixed schedule with no timeUnit interprets a bare configured value as milliseconds. Declare the intended TimeUnit."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringScheduledDeclaresTimeUnit"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 The publisher does not reach the listener through the proxy. The adapter selects the method
                 without regard to visibility and makes it accessible before invoking, so a protected or
                 package-visible listener receives its event. A private one receives it too, until something
@@ -2371,6 +2719,22 @@
         </module>
         <module name="MatchXpath">
             <!--
+                Phase decides which transaction outcome the listener observes, and fallbackExecution decides
+                whether an event published without a transaction is delivered or discarded. Both branches
+                are externally visible and neither should be inherited from a default.
+            -->
+            <property name="id" value="AirnessSpringTransactionalEventListenerIsExplicit"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='TransactionalEventListener'] and (not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='phase']) or not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='fallbackExecution']))]"/>
+            <message key="matchxpath.match"
+                     value="A transactional listener inherits when it runs and whether non-transactional events are discarded. Declare phase and fallbackExecution explicitly."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTransactionalEventListenerIsExplicit"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 Spring refuses the context at startup. The method initialises a binder that is handed to it,
                 so there is nothing for a return value to mean.
             -->
@@ -2416,6 +2780,26 @@
         proving less than it appears to, and each rule below is paired with the filter that keeps it
         inside src/test.
         -->
+        <module name="MatchXpath">
+            <!--
+                With no script or statement Spring derives a resource name from the test class and method.
+                A Java rename then selects a different fixture without changing the annotation. The phase is
+                equally part of the fixture contract: it decides whether the data prepares or cleans a test.
+            -->
+            <property name="id" value="AirnessSpringSqlIsExplicit"/>
+            <property name="query"
+                      value="//ANNOTATION[./IDENT[@text='Sql'] and (not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='value' or @text='scripts' or @text='statements']) or not(./ANNOTATION_MEMBER_VALUE_PAIR/IDENT[@text='executionPhase']))]"/>
+            <message key="matchxpath.match"
+                     value="An @Sql with an inferred resource or phase changes under a test rename. Name scripts or statements and executionPhase explicitly."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSqlIsExplicit"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSqlIsExplicit"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
         <module name="MatchXpath">
             <!--
                 Every test then runs inside a transaction that is rolled back at the end, so nothing is ever

@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  * and answers about the whole of it.
  *
  * <p>The goal that runs this is bound by {@code airness-parent-spring-boot} alone, so a project that is
- * not a Spring Boot one never asks either question.
+ * not a Spring Boot one never asks these questions.
  */
 public final class SpringSourceCheck {
 
@@ -47,6 +47,10 @@ public final class SpringSourceCheck {
         = "Queries constructing a record the module declares with the wrong number of arguments";
     private static final String UNNAMED_GUARD_PARAMETERS
         = "Security expressions reading a parameter the runtime cannot name";
+    private static final String POSITIONAL_QUERY_PARAMETERS
+        = "Repository queries binding parameters by position";
+    private static final String MISBOUND_QUERY_PARAMETERS
+        = "Repository query parameter names that disagree with their query";
 
     private final Path root;
     private final List<Path> sources;
@@ -95,6 +99,12 @@ public final class SpringSourceCheck {
             new Findings(QUERY_CONSTRUCTORS, this.queryConstructors()),
             new Findings(
                 UNNAMED_GUARD_PARAMETERS, this.offences(SpringSecurityRules::unnamedSecurityParameters)
+            ),
+            new Findings(
+                POSITIONAL_QUERY_PARAMETERS, this.offences(SpringQueryParameterRules::positional)
+            ),
+            new Findings(
+                MISBOUND_QUERY_PARAMETERS, this.offences(SpringQueryParameterRules::mismatched)
             )
         );
     }
