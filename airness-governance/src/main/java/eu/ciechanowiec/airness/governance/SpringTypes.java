@@ -149,5 +149,21 @@ final class SpringTypes {
             return IntStream.range(0, this.source.getNameCount())
                 .noneMatch(element -> TESTS.equals(this.source.getName(element).toString()));
         }
+
+        /**
+         * This source named by the type it declares and the path it was read from.
+         *
+         * <p>The reading a record generates states every component, and two of these are whole files.
+         * Nothing here asks to be printed, so what prints one is an accident: a map that rejects a
+         * duplicate key reports the values it could not merge, and the report becomes a stack trace
+         * carrying two sources inline. What identifies this source is its name and its path, and the
+         * two fields holding a file are not an identity but the thing identified.
+         *
+         * @return the type this source declares and the path it sits at
+         */
+        @Override
+        public String toString() {
+            return "%s (%s)".formatted(this.name, this.source);
+        }
     }
 }

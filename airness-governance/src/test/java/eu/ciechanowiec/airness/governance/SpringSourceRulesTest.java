@@ -257,6 +257,29 @@ class SpringSourceRulesTest {
     }
 
     @Test
+    void resolvesAControllerPathWhereOneNameIsDeclaredInTwoScopes() {
+        String source = """
+            package com.example;
+
+            @Controller(value = PATH)
+            final class Orders {
+
+                private static final String PATH = "/orders";
+
+                static final class Drafts {
+
+                    private static final String PATH = "/drafts";
+                }
+            }
+            """;
+
+        assertEquals(
+            1, SpringSourceRules.controllerPaths(source).size(),
+            "one name in two scopes is one reading rather than a failure"
+        );
+    }
+
+    @Test
     void leavesAControllerWithAnOrdinaryBeanName() {
         String source = """
             package com.example;

@@ -10,6 +10,15 @@ class SpringAiRulesTest {
 
     private static final String TOOL_IMPORT
         = "import org.springframework.ai.tool.annotation.Tool;";
+    private static final String TWO_SCOPES = """
+        final class Tools {
+
+            private static final String DESCRIPTION = "Calculates an answer";
+
+            static final class Drafts {
+
+                private static final String DESCRIPTION = "Drafts an answer";
+            }""";
 
     private static String source(String imported, String annotation) {
         return """
@@ -64,6 +73,17 @@ class SpringAiRulesTest {
             );
 
         assertEquals(List.of(), SpringAiRules.missingDescriptions(declared), "the constant has a value");
+    }
+
+    @Test
+    void readsASourceThatDeclaresOneConstantNameInTwoScopes() {
+        String declared = source(TOOL_IMPORT, "@Tool(description = DESCRIPTION)")
+            .replace("final class Tools {", TWO_SCOPES);
+
+        assertEquals(
+            List.of(), SpringAiRules.missingDescriptions(declared),
+            "one name in two scopes is one reading rather than a failure"
+        );
     }
 
     @Test
