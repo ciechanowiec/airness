@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.Repository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,7 +21,7 @@ public final class SecretScanMojo extends AbstractDockerCheckMojo {
 
     @Override
     List<String> command() throws IOException {
-        Path root = Repository.rootFrom(this.project().getBasedir().toPath());
+        Path root = this.repositoryRoot();
         Path config = root.resolve(".gitleaks.toml");
         if (!Files.isRegularFile(config)) {
             throw new IOException("Secret scan configuration is missing: " + config);

@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.Repository;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -30,7 +29,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
 
     @Override
     List<String> command() throws IOException {
-        Path root = Repository.rootFrom(this.project().getBasedir().toPath());
+        Path root = this.repositoryRoot();
         Path output = root.resolve(OUTPUT);
         Files.createDirectories(output);
         Path profile = output.resolve("inspection-profile.xml");
@@ -113,7 +112,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
 
     @Override
     List<String> findings() {
-        Path root = Repository.rootFrom(this.project().getBasedir().toPath());
+        Path root = this.repositoryRoot();
         return new SarifFindings(root.resolve(OUTPUT).resolve(REPORT)).listed();
     }
 
