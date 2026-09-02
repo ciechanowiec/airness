@@ -14,7 +14,10 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
   Do not weaken, replace, duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or
   managed files that the parent owns.
 - Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Default verification reads Maven Central and
-  Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon.
+  Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon
+  that can read the repository through a bind mount. On macOS with Colima, a repository under Downloads, Desktop or
+  Documents is unreadable inside a container until the terminal that starts Colima is granted access to that folder
+  under System Settings, Privacy and Security, Files and Folders, so keep the repository elsewhere or grant it.
   Keep every production and test package under the `airness.package.root` declared in the root `pom.xml`.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.

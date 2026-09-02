@@ -1,6 +1,8 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.Repository;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -21,6 +23,23 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private static final int SUCCESS = 0;
     private static final List<String> DOCKER_INFO = List.of("docker", "info");
+    private static final String MOUNT = "/repo";
+    /**
+     * Read inside the image the check itself runs, from the mount the check itself takes. The listing
+     * proves the directory can be walked, the Git pointer proves a file can be opened whether .git is a
+     * directory or the file a worktree leaves behind, and the top-level files prove it was not one lucky
+     * file. The shell is the POSIX one, because the gitleaks image carries busybox and the Qodana image
+     * carries dash.
+     */
+    private static final String PROBE = "set -e; cd /repo; ls -A . > /dev/null;"
+        + " if [ -d .git ]; then cat .git/HEAD > /dev/null; else cat .git > /dev/null; fi;"
+        + " find . -maxdepth 1 -type f -exec cat {} + > /dev/null";
+    private static final String UNREADABLE = " cannot be read inside a container, so this"
+        + " check would report on nothing. Docker mounted it read-only and a shell in the image could not list"
+        + " it or read its files. On macOS with Colima this is the privacy protection of Downloads, Desktop and"
+        + " Documents: grant the terminal that starts Colima access to the folder under System Settings,"
+        + " Privacy and Security, Files and Folders, then restart Colima, or keep the repository outside those"
+        + " folders.";
     /**
      * A repository, an optional tag, and a digest. The digest is what makes this a pin: a tag can be
      * republished against different bytes, so an image named by tag alone lets an upstream release change
@@ -83,6 +102,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     private void check() throws MojoExecutionException, MojoFailureException {
         this.requirePinnedImage();
         this.requireDocker();
+        this.requireReadableRepository();
         int exit = this.runCheck();
         if (exit != 0) {
             this.fail(exit);
@@ -124,9 +144,19 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
         return Objects.requireNonNull(this.session, "Maven did not inject the current session");
     }
 
+    /**
+     * The root of the working tree every Docker check mounts, read through Git so that a module built
+     * from a subdirectory still mounts the whole repository.
+     *
+     * @return the repository root
+     */
+    protected final Path repositoryRoot() {
+        return Repository.rootFrom(this.project().getBasedir().toPath());
+    }
+
     private int runCheck() throws MojoExecutionException {
         try {
-            return this.run(this.command());
+            return this.run(this.command(), ProcessBuilder.Redirect.INHERIT);
         } catch (IOException exception) {
             throw new MojoExecutionException("Could not start the Docker check", exception);
         }
@@ -148,7 +178,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private void requireDocker() throws MojoExecutionException {
         try {
-            if (this.runSilently() != SUCCESS) {
+            if (this.run(DOCKER_INFO, ProcessBuilder.Redirect.DISCARD) != SUCCESS) {
                 throw new MojoExecutionException("Docker is installed but its daemon is not reachable");
             }
         } catch (IOException exception) {
@@ -156,25 +186,41 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
         }
     }
 
-    private int run(List<String> command) throws IOException {
+    /**
+     * The daemon answering is not the daemon seeing the files. A bind mount the host refuses to serve
+     * arrives inside the container as a tree whose every open fails, and a scanner reading such a tree
+     * reports on nothing or exits the way it exits for a finding. So one shell in the same image reads
+     * the same mount before the check is trusted with it.
+     */
+    private void requireReadableRepository() throws MojoExecutionException {
+        Path root = this.repositoryRoot();
         try {
-            return new ProcessBuilder(command).inheritIO().start().waitFor();
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for " + command.getFirst(), exception);
+            if (this.run(probeCommand(root, this.image()), ProcessBuilder.Redirect.DISCARD) != SUCCESS) {
+                throw new MojoExecutionException("The repository at " + root + UNREADABLE);
+            }
+        } catch (IOException exception) {
+            throw new MojoExecutionException("Could not start the container that reads " + root, exception);
         }
     }
 
-    private int runSilently() throws IOException {
+    static List<String> probeCommand(Path root, String image) {
+        return List.of(
+            "docker", "run", "--rm", "-v", root + ":" + MOUNT + ":ro",
+            "--entrypoint", "/bin/sh", image, "-c", PROBE
+        );
+    }
+
+    private int run(List<String> command, ProcessBuilder.Redirect streams) throws IOException {
         try {
-            return new ProcessBuilder(DOCKER_INFO)
-                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-                .redirectError(ProcessBuilder.Redirect.DISCARD)
+            return new ProcessBuilder(command)
+                .redirectInput(ProcessBuilder.Redirect.INHERIT)
+                .redirectOutput(streams)
+                .redirectError(streams)
                 .start()
                 .waitFor();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for " + DOCKER_INFO.getFirst(), exception);
+            throw new IOException("Interrupted while waiting for " + command.getFirst(), exception);
         }
     }
 }
