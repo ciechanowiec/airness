@@ -104,10 +104,13 @@
         rule in pmd.xml extends that layout to multiline if/while conditions. See
         https://www.yegor256.com/2014/10/23/paired-brackets-notation.html
         The remaining checks enforce curly-bracket structure, the empty line before a first member,
-        Javadoc conventions, no extra semicolons, no nested switch, and no protected methods in final
-        classes. ConstantUsageCheck is intentionally NOT used: it scans only a single file's text and so
+        Javadoc conventions, and no extra semicolons or nested switch. ProtectedMethodInFinalClassCheck
+        was named here until PMD 7.27.0 brought ProtectedMemberInFinalClass, which reports the fields,
+        constructors and nested types as well as the methods and exempts an override, so the narrower
+        check went. ConstantUsageCheck is intentionally NOT used: it scans only a single file's text and so
         mis-fires on Lombok @Getter value objects, whose fields are read via generated accessors from other
-        files; PMD/SpotBugs already cover genuinely unused private fields.
+        files; PMD/SpotBugs already cover genuinely unused private fields, and Checkstyle's own
+        UnusedPrivateField from 14.1.0 is left out for the same reason.
         EmptyLinesCheck is intentionally NOT used either: it reads raw lines and so cannot tell a blank
         line between statements, which is what it means to forbid, from one inside a text block, which is
         content. A blank line is what terminates a Server-Sent Event, so any fixture holding one tripped
@@ -122,6 +125,16 @@
         exception with (String) and (String, Throwable) has no arrangement that satisfies both rules. The
         check has no properties to narrow, so it is dropped rather than worked around, and constructor order
         stays with ConstructorsDeclarationGrouping alone.
+        qulice 0.35.1 added five checks, of which JavadocStrayAsteriskCheck below is the one taken: a bare
+        asterisk ending a paragraph line renders as literal text, and a sample inside a pre block or a
+        snippet tag is skipped. FullyQualifiedTypeCheck is NOT used: PMD's UnnecessaryFullyQualifiedName
+        and the Constructs rule below already report the inline qualified type. ImplicitConstructorCheck
+        is NOT used: it demands an explicit constructor in every documented class, including the one whose
+        private constructor Lombok @UtilityClass writes, the very false positive doclint runs with
+        -missing to avoid. JavadocUnclosedParagraphCheck is NOT used: it requires a closing paragraph tag,
+        and the Javadoc style here opens a paragraph without closing it. SingleUseConstantCheck is NOT
+        used: MagicNumber sends a quantity used once into a named constant, which this check would then
+        report as single-use, so no form satisfies both.
         -->
         <module name="com.qulice.checkstyle.BracketsStructureCheck"/>
         <module name="com.qulice.checkstyle.CurlyBracketsStructureCheck"/>
@@ -130,6 +143,7 @@
         <module name="com.qulice.checkstyle.JavadocEmptyLineCheck"/>
         <module name="com.qulice.checkstyle.JavadocFirstLineCheck"/>
         <module name="com.qulice.checkstyle.JavadocLocationCheck"/>
+        <module name="com.qulice.checkstyle.JavadocStrayAsteriskCheck"/>
         <!--
             Require Javadoc on every public/protected member of production code. This is the real
             enforcer of "all exported API is documented": unlike the Javadoc tool's doclint (which the
@@ -152,7 +166,6 @@
             <property name="accessModifiers" value="public, protected"/>
         </module>
         <module name="com.qulice.checkstyle.NestedSwitchCheck"/>
-        <module name="com.qulice.checkstyle.ProtectedMethodInFinalClassCheck"/>
 
         <!--
         Annotations
@@ -545,11 +558,23 @@
         <module name="UseEnhancedSwitch"/>
         <module name="VariableDeclarationUsageDistance"/>
         <module name="WhenShouldBeUsed"/>
+        <!--
+            ExpressionOverBlockLambda from Checkstyle 14.1.0 is not used: it reads a block lambda written
+            on one line, and the formatter never leaves one, since keep_lambda_body_block_on_one_line is
+            set to never in EclipseCodeStyle.xml.
+        -->
 
         <!--
         Imports
         -->
         <module name="AvoidStarImport"/>
+        <!--
+            A module import brings in every exported type of a module and of every module it reads, which
+            is the star import writ larger, so it is banned outright. ModuleImportOrder is not used, since
+            it orders what this forbids. UnnecessaryFullyQualifiedType is not used either: PMD's
+            UnnecessaryFullyQualifiedName and the Constructs rule below already report the qualified type.
+        -->
+        <module name="AvoidModuleImport"/>
         <module name="IllegalImport">
             <!--
                 sun is the Checkstyle default and is kept. The rest are the mocking libraries: an import
@@ -579,6 +604,14 @@
             <property name="separated" value="true"/>
             <property name="sortStaticImportsAlphabetically" value="true"/>
         </module>
+
+        <!--
+        Modules
+
+        The directives of a module declaration come in blocks, in the order requires, exports, opens,
+        uses, provides, with one empty line between two blocks and none inside one.
+        -->
+        <module name="ModuleDirectiveOrder"/>
 
         <!--
         Metrics
@@ -740,6 +773,19 @@
                       value="@author, @version, @param, @return, @throws, @exception, @deprecated, @since, @see, @serial, @serialField, @serialData"/>
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
+        <!--
+            A block tag that names a parameter, a return value or a thrown exception says nothing on a
+            field, a package or a type, and the Javadoc tool renders it as if it did.
+        -->
+        <module name="InappropriateJavadocBlockTagsOnField">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="InappropriateJavadocBlockTagsOnPackage">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="InappropriateJavadocBlockTagsOnType">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
         <module name="InvalidJavadocPosition"/>
         <module name="JavadocBlockTagLocation">
             <property name="violateExecutionOnNonTightHtml" value="false"/>
@@ -747,6 +793,7 @@
         <module name="JavadocContentLocation">
             <property name="location" value="second_line"/>
         </module>
+        <module name="JavadocEndCommentDelimiter"/>
         <module name="JavadocLeadingAsteriskAlign">
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
@@ -774,6 +821,20 @@
         <module name="JavadocMissingWhitespaceAfterAsterisk">
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
+        <!--
+            An Error is unpredictable, so the documentation comments style guide leaves it out of the
+            throws tags; one the body throws itself is the exception, and stays documented.
+        -->
+        <module name="JavadocNoErrorInThrowsTag">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <!--
+            The param tags follow the declaration, type parameters first and record components in the
+            order of the header; the throws tags are alphabetical, since a signature gives them no order.
+        -->
+        <module name="JavadocParamOrder">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
         <module name="JavadocParagraph">
             <property name="allowNewlineParagraph" value="false"/>
             <property name="violateExecutionOnNonTightHtml" value="false"/>
@@ -781,6 +842,9 @@
         <module name="MissingJavadocPackage"/>
         <module name="JavadocTagContinuationIndentation">
             <property name="offset" value="4"/>
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <module name="JavadocThrowsOrder">
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
         <module name="NonEmptyAtclauseDescription">
@@ -792,8 +856,12 @@
         An escaped entity such as &lt; is markup that a reader of the source has to decode, while the
         rendered page shows the same character either way. The OpenJDK documentation style guide asks
         for the inline tag instead. Verbatim regions ({@code}, {@literal}, {@snippet}, <pre>, <code>)
-        are exempt, so a code sample keeps whatever escaping it needs.
+        are exempt, so a code sample keeps whatever escaping it needs. The same guide asks for {@code}
+        and {@snippet} in place of the code and pre elements themselves, which is the second check.
         -->
+        <module name="PreferCodeOrSnippetJavadocInlineTag">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
         <module name="PreferLiteralJavadocInlineTag">
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
@@ -805,6 +873,12 @@
             <property name="period" value="."/>
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
+        <!--
+            Two link checks from Checkstyle 14.1.0 are not used, because the javadoc-links goal of the
+            airness plugin already settles linking the other way: a type name that resolves from the file
+            is linked wherever it appears, and java.lang counts as resolving. JavadocLinkFirstOccurrence
+            would forbid the second link, and JavadocLinkWellKnownApi the link to String.
+        -->
 
         <!--
         Constructs
