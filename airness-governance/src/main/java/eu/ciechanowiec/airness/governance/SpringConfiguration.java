@@ -23,7 +23,8 @@ import java.util.regex.Pattern;
  *
  * <p>Keys are canonicalised the way Spring binds them, so {@code open-in-view}, {@code openInView} and
  * {@code OPEN_IN_VIEW} are one setting rather than three. A rule therefore asks about one spelling and
- * gets an answer whichever the project wrote.
+ * gets an answer whichever the project wrote. A map key written in brackets, as Spring requires when the
+ * key carries dots of its own, is read as the flattened key the brackets stand for.
  *
  * <p>A trailing comment is removed from a YAML value rather than left on it. Keeping it made the value a
  * rule compares against the whole of {@code true # only in development}, which no rule matches, so a
@@ -42,6 +43,8 @@ import java.util.regex.Pattern;
 final class SpringConfiguration {
 
     private static final Pattern QUOTED = Pattern.compile("\"[^\"]*\"|'[^']*'");
+    private static final Pattern REPEATED_DOTS = Pattern.compile("\\.{2,}");
+    private static final Pattern EDGE_DOTS = Pattern.compile("^\\.+|\\.+$");
     private static final Pattern COMMENTED = Pattern.compile("(?:^|\\s)#");
     private static final String SPACE = " ";
     private static final String COMMENT = "#";
@@ -116,11 +119,25 @@ final class SpringConfiguration {
     /**
      * The key as Spring binds it, so that every spelling of one setting compares equal.
      *
+     * <p>A map key that carries dots of its own is written in brackets, as {@code [mail.smtp.timeout]},
+     * and in YAML the brackets sit inside quotation marks. Both are notation rather than name, so they
+     * are taken off here and the key inside them joins the path with a dot, which is how Spring flattens
+     * it whether the brackets follow a dot or stand in its place. The relaxed spelling is applied to the
+     * key inside the brackets as well, although Spring keeps a map key as written, so a dash inside one
+     * is read here as generously as a dash anywhere else.
+     *
      * @param key the key as written
      * @return the canonical form
      */
     static String canonical(String key) {
-        return key.toLowerCase(Locale.ROOT).replace("-", "").replace("_", "");
+        String bare = key.toLowerCase(Locale.ROOT)
+            .replace("-", "")
+            .replace("_", "")
+            .replace("\"", "")
+            .replace("'", "")
+            .replace("[", ".")
+            .replace("]", "");
+        return EDGE_DOTS.matcher(REPEATED_DOTS.matcher(bare).replaceAll(".")).replaceAll("");
     }
 
     private void readProperties(List<String> lines) {

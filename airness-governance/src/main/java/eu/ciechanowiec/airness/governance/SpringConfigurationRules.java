@@ -120,6 +120,23 @@ final class SpringConfigurationRules {
                 + " cannot have one, so an exhausted pool arrives as latency rather than as an error"
         ),
         new Required(
+            "spring.mail.host", "spring.mail.properties.mail.smtp.connectiontimeout", _ -> true,
+            "Jakarta Mail waits without limit for the server to accept the connection, so a mail host that"
+                + " stops answering holds the sending thread for as long as the operating system waits on a"
+                + " socket"
+        ),
+        new Required(
+            "spring.mail.host", "spring.mail.properties.mail.smtp.timeout", _ -> true,
+            "Jakarta Mail waits without limit for the server to answer each command, so a session that"
+                + " stalls after connecting holds the sending thread for as long as the operating system"
+                + " waits on a socket"
+        ),
+        new Required(
+            "spring.mail.host", "spring.mail.properties.mail.smtp.writetimeout", _ -> true,
+            "Jakarta Mail waits without limit for the server to take the bytes of a message, so a stalled"
+                + " write holds the sending thread for as long as the operating system waits on a socket"
+        ),
+        new Required(
             "server", "server.shutdown", "graceful"::equals,
             "an in-flight request is cut at the socket on every deploy, so a rolling restart drops traffic"
         )
