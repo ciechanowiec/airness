@@ -170,7 +170,6 @@
         <dependency>
             <groupId>eu.ciechanowiec</groupId>
             <artifactId>airness-governance</artifactId>
-            <version>${project.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.maven</groupId>
@@ -288,11 +287,6 @@
             <artifactId>org.eclipse.text</artifactId>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
-        </dependency>
         <!--
             The API is what the tests compile against and the engine is what runs them, so both are named.
             The junit-jupiter aggregator would bring them and hide which of the two this module actually
@@ -301,6 +295,11 @@
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>

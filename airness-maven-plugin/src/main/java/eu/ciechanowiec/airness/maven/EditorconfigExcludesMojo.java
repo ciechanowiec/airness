@@ -3,7 +3,6 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.EditorconfigExcludes;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -54,7 +53,7 @@ public final class EditorconfigExcludesMojo extends AbstractPreflightMojo {
     private static void write(Path file, String document) {
         try {
             Files.createDirectories(file.getParent());
-            Files.writeString(file, document, StandardCharsets.UTF_8);
+            Files.writeString(file, document);
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not write the linter exclusions to " + file, exception);
         }
