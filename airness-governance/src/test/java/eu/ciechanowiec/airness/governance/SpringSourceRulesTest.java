@@ -224,4 +224,74 @@ class SpringSourceRulesTest {
 
         assertEquals(List.of(), SpringSourceRules.calledBeanMethods(source), "an abstract bean has no body");
     }
+
+    @Test
+    void reportsAControllerBeanNameWrittenAsAPath() {
+        String source = """
+            package com.example;
+
+            @Controller("/orders")
+            final class Orders {
+            }
+            """;
+
+        List<String> offences = SpringSourceRules.controllerPaths(source);
+
+        assertEquals(1, offences.size(), "the slash makes the default member look like a mapping");
+        assertTrue(offences.getFirst().contains("@RequestMapping"), "the repair names the mapping annotation");
+    }
+
+    @Test
+    void resolvesAControllerPathFromASameSourceConstant() {
+        String source = """
+            package com.example;
+
+            @Controller(value = PATH)
+            final class Orders {
+
+                private static final String PATH = "/orders";
+            }
+            """;
+
+        assertEquals(1, SpringSourceRules.controllerPaths(source).size(), "the constant states the path");
+    }
+
+    @Test
+    void leavesAControllerWithAnOrdinaryBeanName() {
+        String source = """
+            package com.example;
+
+            @Controller("orders")
+            final class Orders {
+            }
+            """;
+
+        assertEquals(List.of(), SpringSourceRules.controllerPaths(source), "a bean name is the member's role");
+    }
+
+    @Test
+    void passesOverAControllerValueItCannotResolve() {
+        String source = """
+            package com.example;
+
+            @Controller(Names.PATH)
+            final class Orders {
+            }
+            """;
+
+        assertEquals(List.of(), SpringSourceRules.controllerPaths(source), "the source does not state its value");
+    }
+
+    @Test
+    void passesOverAControllerAnnotationInsideAComment() {
+        String source = """
+            package com.example;
+
+            // @Controller("/orders")
+            final class Orders {
+            }
+            """;
+
+        assertEquals(List.of(), SpringSourceRules.controllerPaths(source), "prose maps no controller");
+    }
 }

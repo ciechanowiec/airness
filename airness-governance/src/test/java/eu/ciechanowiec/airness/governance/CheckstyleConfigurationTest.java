@@ -325,7 +325,7 @@ class CheckstyleConfigurationTest {
     }
 
     @SneakyThrows
-    private static List<Finding> inspect(Path directory, Fixture fixture, boolean spring) {
+    static List<Finding> inspect(Path directory, Fixture fixture, boolean spring) {
         Path source = directory.resolve(fixture.file());
         Files.createDirectories(source.getParent());
         Files.writeString(source, fixture.source());
@@ -353,10 +353,10 @@ class CheckstyleConfigurationTest {
         );
     }
 
-    private record Fixture(String file, String source, String rule, int line) {
+    public record Fixture(String file, String source, String rule, int line) {
     }
 
-    private record Finding(String rule, int line, String message) {
+    public record Finding(String rule, int line, String message) {
 
         boolean is(String expected) {
             return this.rule.equals(expected);

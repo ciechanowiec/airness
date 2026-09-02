@@ -51,6 +51,10 @@ public final class SpringSourceCheck {
         = "Repository queries binding parameters by position";
     private static final String MISBOUND_QUERY_PARAMETERS
         = "Repository query parameter names that disagree with their query";
+    private static final String CONTROLLER_PATHS
+        = "Controller annotations whose bean name is a request path";
+    private static final String AI_DESCRIPTIONS
+        = "Spring AI tools, prompts, and resources with no description";
 
     private final Path root;
     private final List<Path> sources;
@@ -105,7 +109,9 @@ public final class SpringSourceCheck {
             ),
             new Findings(
                 MISBOUND_QUERY_PARAMETERS, this.offences(SpringQueryParameterRules::mismatched)
-            )
+            ),
+            new Findings(CONTROLLER_PATHS, this.offences(SpringSourceRules::controllerPaths)),
+            new Findings(AI_DESCRIPTIONS, this.offences(SpringAiRules::missingDescriptions))
         );
     }
 

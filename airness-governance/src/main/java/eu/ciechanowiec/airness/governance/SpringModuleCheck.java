@@ -53,6 +53,12 @@ public final class SpringModuleCheck {
         = "Injection points relying on an implicit choice among local beans";
     private static final String IMPLICIT_HIERARCHIES
         = "Persistence inheritance mappings relying on provider naming defaults";
+    private static final String COMPONENT_REGISTRARS
+        = "Bean registrars declared as component-scanned beans";
+    private static final String UNIMPORTED_REGISTRARS
+        = "Bean registrars that no configuration imports";
+    private static final String REDUNDANT_REPOSITORIES
+        = "Spring Data repository interfaces carrying a redundant stereotype";
     private static final Pattern PROFILE_FILE
         = Pattern.compile("application-(.+)\\.(?:yml|yaml|properties)");
     private static final String TESTS = "test";
@@ -119,7 +125,10 @@ public final class SpringModuleCheck {
             new Findings(
                 IMPLICIT_HIERARCHIES,
                 SpringPersistenceHierarchyRules.implicitMappings(this.types)
-            )
+            ),
+            new Findings(COMPONENT_REGISTRARS, SpringRegistrarRules.componentRegistrars(this.types)),
+            new Findings(UNIMPORTED_REGISTRARS, SpringRegistrarRules.unimportedRegistrars(this.types)),
+            new Findings(REDUNDANT_REPOSITORIES, SpringDataRules.redundantStereotypes(this.types))
         );
     }
 

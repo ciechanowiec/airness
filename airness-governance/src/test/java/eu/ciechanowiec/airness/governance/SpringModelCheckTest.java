@@ -10,7 +10,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * The model rules read what a module declares it is built from. Four of the six ask first whether the
+ * The model rules read what a module declares it is built from. Four of the seven ask first whether the
  * Boot plugin repackages the module, because a library of a Spring Boot project legitimately maps a
  * schema it does not create and legitimately publishes none of the endpoints a deployment needs.
  */
