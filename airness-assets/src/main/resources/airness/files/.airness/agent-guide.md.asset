@@ -73,39 +73,40 @@ Airness governs all of the following domains:
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
   settle, production-to-test boundaries, per-class line and branch coverage, current-build coverage evidence, and
   current-build evidence that a framework-assembled production application reached ready.
-- **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container accepts
-  and then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the web layer,
+- **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container accepts and
+  then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the web layer,
   security configuration, asynchrony and scheduling, and test context handling; the runtime settings an
   `application.yml`, `application.yaml` or `application.properties` declares, and the ones whose absence decides
-  behaviour; a persistence entity carried by a web request or response; more than one application class in the
-  build; and evidence that the production application reached ready during the current tests. That evidence proves
+  behaviour; a persistence entity carried by a web request or response; more than one application class in the build;
+  and evidence that the production application reached ready during the current tests. That evidence proves
   unconditional wiring and the profiles active in the test, not a profile the test never activated. A view name a
-  handler hands back is read against the markup the module ships, because nothing compiles that
-  string and the template behind it is found only when a request is answered, so a template renamed or moved leaves
-  every handler that named it compiling and failing on the first request that reaches it. The name is read where it is
-  written plainly, which is a constant as readily as a literal. A name a handler builds is passed over, and so is a
-  string returned by anything answering with a body rather than with a page, since neither states a template. What a
-  redirect or a forward names is an address rather than a template and is left alone here. A parameter an
-  authorization expression reads is named for the runtime by its own annotation even though Airness retains Java
-  parameter names in the class file. The annotation makes the security binding a declaration that survives a Java
-  parameter rename instead of letting that refactor silently change what the expression reads. A reference with no
-  such annotation behind it is therefore refused before it can resolve to an unintended value and make the guard
-  decide something other than what it says. Retained Java parameter names are fallback metadata rather than an
-  external contract. A handler therefore annotates the source, name and requiredness of every request value; a
-  string repository query binds only named `@Param` values; and a bound model or application request part states
-  validation. Feature annotations are paired with the production annotation that enables them, and an asynchronous
-  or scheduled method names the infrastructure that runs it. Cache destinations, configuration-property namespaces,
-  transaction-bound event phases, pagination defaults and test SQL are written rather than inherited from framework
-  defaults. Persistence mapping follows the same boundary: entity, table, column, join, sequence, access and
-  inheritance names stay stable when a Java declaration is renamed. A mapped value that may hold nothing is a
-  deliberate exception rather than an ordinary one, and is priced the way every deliberate exception here is: a
-  field of a persistent class or a component of a persistent record annotated `@Nullable` is reported until a
-  suppression with its reason sits beside it. Nullness at a boundary and nullness at rest are different things: a
-  bound form holds nothing because the framework read nothing into it, while a column holds nothing because
-  somebody decided it may, which is either a fact that is genuinely absent, such as the day an unissued document
-  was issued, or two shapes flattened into one table because the type system was never asked to tell them apart.
-  Writing the reason is what separates the two, since a reason that has to name which kind of row carries the value
-  has written the missing type out by hand. A constructor parameter is passed over, because a persistent record
+  handler hands back is read against the markup the module ships, because nothing compiles that string and the template
+  behind it is found only when a request is answered, so a template renamed or moved leaves every handler that named it
+  compiling and failing on the first request that reaches it. The name is read where it is written plainly, which is a
+  constant as readily as a literal. A name a handler builds is passed over, and so is a string returned by anything
+  answering with a body rather than with a page, since neither states a template. What a redirect or a forward names is
+  an address rather than a template and is left alone here. A parameter an authorization expression reads is named for
+  the runtime by its own annotation even though Airness retains Java parameter names in the class file. The annotation
+  makes the security binding a declaration that survives a Java parameter rename instead of letting that refactor
+  silently change what the expression reads. A reference with no such annotation behind it is therefore refused before
+  it can resolve to an unintended value and make the guard decide something other than what it says. Retained Java
+  parameter names are fallback metadata rather than an external contract. A handler therefore annotates the source, name
+  and requiredness of every request value; a string repository query binds only named `@Param` values; and a bound model
+  or application request part states validation. Feature annotations are paired with the production annotation that
+  enables them, and an asynchronous or scheduled method names the infrastructure that runs it. Cache destinations,
+  configuration-property namespaces, transaction-bound event phases, pagination defaults and test SQL are written rather
+  than inherited from framework defaults. A listener that runs after its publisher has committed and writes under
+  `@Transactional` opens a transaction of its own with `REQUIRES_NEW`, because the one it would otherwise join has
+  already ended and a write made under it is flushed by nothing. Persistence mapping follows the same boundary: entity,
+  table, column, join, sequence, access and inheritance names stay stable when a Java declaration is renamed. A mapped
+  value that may hold nothing is a deliberate exception rather than an ordinary one, and is priced the way every
+  deliberate exception here is: a field of a persistent class or a component of a persistent record annotated
+  `@Nullable` is reported until a suppression with its reason sits beside it. Nullness at a boundary and nullness at
+  rest are different things: a bound form holds nothing because the framework read nothing into it, while a column holds
+  nothing because somebody decided it may, which is either a fact that is genuinely absent, such as the day an unissued
+  document was issued, or two shapes flattened into one table because the type system was never asked to tell them
+  apart. Writing the reason is what separates the two, since a reason that has to name which kind of row carries the
+  value has written the missing type out by hand. A constructor parameter is passed over, because a persistent record
   standing a default in for what a binder could not build says nothing there about the column.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
