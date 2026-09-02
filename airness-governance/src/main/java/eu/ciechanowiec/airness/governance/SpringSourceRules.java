@@ -98,7 +98,7 @@ final class SpringSourceRules {
     static List<String> controllerPaths(CharSequence source) {
         String readable = JavaCode.withoutComments(source);
         Map<String, String> constants = STRING_CONSTANT.matcher(readable).results()
-            .collect(Collectors.toMap(found -> found.group(1), found -> found.group(2)));
+            .collect(Collectors.toMap(found -> found.group(1), found -> found.group(2), (first, _) -> first));
         return CONTROLLER.matcher(readable).results()
             .flatMap(found -> controllerPath(source, constants, found).stream())
             .toList();

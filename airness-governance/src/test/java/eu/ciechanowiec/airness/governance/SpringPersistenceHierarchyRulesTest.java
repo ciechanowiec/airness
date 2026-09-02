@@ -12,6 +12,7 @@ class SpringPersistenceHierarchyRulesTest {
     private static final List<Path> SOURCES = List.of(Path.of("src"));
     private static final String ROOT = "src/main/java/sample/Account.java";
     private static final String CHILD = "src/main/java/sample/Customer.java";
+    private static final String SHADOW = "src/test/java/sample/Account.java";
     private static final String SINGLE_ROOT = """
         package sample;
 
@@ -38,6 +39,21 @@ class SpringPersistenceHierarchyRulesTest {
         );
 
         assertEquals(List.of(), SpringPersistenceHierarchyRules.implicitMappings(types), "all names are stated");
+    }
+
+    @Test
+    void readsAHierarchyTwoSourceRootsBothDeclare() {
+        SpringTypes types = types(
+            new GitFixture("hierarchy-shadowed")
+                .write(ROOT, SINGLE_ROOT)
+                .write(CHILD, SINGLE_CHILD)
+                .write(SHADOW, SINGLE_ROOT)
+        );
+
+        assertEquals(
+            List.of(), SpringPersistenceHierarchyRules.implicitMappings(types),
+            "a name the test tree declares again is the same name rather than a second one"
+        );
     }
 
     @Test

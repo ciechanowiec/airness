@@ -48,7 +48,7 @@ final class SpringAiRules {
         String readable = JavaCode.withoutComments(source);
         String code = JavaCode.blanked(source);
         Map<String, String> constants = STRING_CONSTANT.matcher(readable).results()
-            .collect(Collectors.toMap(found -> found.group(1), found -> found.group(2)));
+            .collect(Collectors.toMap(found -> found.group(1), found -> found.group(2), (first, _) -> first));
         return ANNOTATIONS.stream()
             .filter(annotation -> annotation.available(readable))
             .flatMap(annotation -> annotation.markers(code).stream())

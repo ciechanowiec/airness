@@ -46,7 +46,7 @@ final class SpringPersistenceHierarchyRules {
      */
     static List<String> implicitMappings(SpringTypes types) {
         Map<String, SpringTypes.Declared> declared = types.all().stream()
-            .collect(Collectors.toMap(SpringPersistenceHierarchyRules::qualified, type -> type));
+            .collect(Collectors.toMap(SpringPersistenceHierarchyRules::qualified, type -> type, (first, _) -> first));
         List<EntityType> entities = types.all().stream()
             .filter(type -> ENTITY.matcher(type.code()).find())
             .map(type -> entity(type, declared))
@@ -123,7 +123,7 @@ final class SpringPersistenceHierarchyRules {
         EntityType root, Collection<EntityType> entities
     ) {
         Map<String, EntityType> indexed = entities.stream()
-            .collect(Collectors.toMap(EntityType::qualified, type -> type));
+            .collect(Collectors.toMap(EntityType::qualified, type -> type, (first, _) -> first));
         return candidate -> descendant(candidate.parent(), root.qualified(), indexed);
     }
 
