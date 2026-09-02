@@ -78,8 +78,8 @@ final class MarkupScan {
     /**
      * Everything the given reading keeps, across every file in scope.
      *
-     * @param reading what the calling check makes of one document
      * @param <T>     what the calling check keeps about a document
+     * @param reading what the calling check makes of one document
      * @return what was kept, in the order the files were read
      */
     <T> List<T> gathered(BiFunction<Path, Collection<T>, MarkupElement> reading) {

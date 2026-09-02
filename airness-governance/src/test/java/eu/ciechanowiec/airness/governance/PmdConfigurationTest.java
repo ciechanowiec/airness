@@ -275,7 +275,6 @@ class PmdConfigurationTest {
     @SneakyThrows
     private static Report inspect(Path directory, Fixture fixture) {
         PMDConfiguration configuration = new PMDConfiguration();
-        configuration.setClassLoader(Thread.currentThread().getContextClassLoader());
         configuration.setDefaultLanguageVersion(JavaLanguageModule.getInstance().getVersion("25"));
         configuration.setIgnoreIncrementalAnalysis(true);
         configuration.setShowSuppressedViolations(true);
