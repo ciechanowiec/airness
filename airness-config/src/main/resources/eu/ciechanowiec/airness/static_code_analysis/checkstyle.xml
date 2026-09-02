@@ -1424,6 +1424,23 @@
         </module>
         <module name="MatchXpath">
             <!--
+                A bean method is invoked by the container rather than by an external caller. Public
+                visibility therefore exposes an API nobody consumes and makes a refactor of configuration
+                internals look like a breaking change. An override keeps the visibility of the contract it
+                implements and is left alone.
+            -->
+            <property name="id" value="AirnessSpringBeanMethodIsNotPublic"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/LITERAL_PUBLIC and ./MODIFIERS/ANNOTATION/IDENT[@text='Bean'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Override'])]"/>
+            <message key="matchxpath.match"
+                     value="A @Bean method exposes no caller API. Remove public; an overridden framework contract is the exception."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringBeanMethodIsNotPublic"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 A post-processor has to exist before the beans it processes, and a non-static bean method
                 forces its whole configuration class to be built early to supply one. Every @Value and every
                 injected collaborator on that class is then skipped, silently, and beans created before the
@@ -1448,6 +1465,38 @@
         the container never writes, a collaborator looked up instead of taken, and state on a singleton
         that every concurrent request shares.
         -->
+        <module name="MatchXpath">
+            <!--
+                Implementing a web configurer does not register the implementing class. Without a
+                configuration annotation the callbacks compile and are called by nothing, so routes,
+                formatters, interceptors and CORS rules written there never reach the application.
+            -->
+            <property name="id" value="AirnessSpringWebConfigurerIsConfiguration"/>
+            <property name="query"
+                      value="//CLASS_DEF[not(./MODIFIERS/LITERAL_ABSTRACT) and ./IMPLEMENTS_CLAUSE//IDENT[@text='WebMvcConfigurer' or @text='WebFluxConfigurer'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Configuration'])]"/>
+            <message key="matchxpath.match"
+                     value="A web configurer that is not a configuration bean is called by nothing. Add @Configuration(proxyBeanMethods = false)."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebConfigurerIsConfiguration"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                Method constraints on a component are evaluated by Spring's method-validation proxy.
+                The proxy is installed only where @Validated marks the type, so a constraint without it
+                remains readable in the signature and rejects no call.
+            -->
+            <property name="id" value="AirnessSpringComponentMethodConstraintsAreEvaluated"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Component' or @text='Service' or @text='Repository' or @text='Configuration' or @text='SpringBootApplication'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Controller' or @text='RestController' or @text='Validated']) and .//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='AssertFalse' or @text='AssertTrue' or @text='DecimalMax' or @text='DecimalMin' or @text='Digits' or @text='Email' or @text='Future' or @text='FutureOrPresent' or @text='Max' or @text='Min' or @text='Negative' or @text='NegativeOrZero' or @text='NotBlank' or @text='NotEmpty' or @text='NotNull' or @text='Null' or @text='Past' or @text='PastOrPresent' or @text='Pattern' or @text='Positive' or @text='PositiveOrZero' or @text='Size'] or ./PARAMETERS/PARAMETER_DEF/MODIFIERS/ANNOTATION/IDENT[@text='AssertFalse' or @text='AssertTrue' or @text='DecimalMax' or @text='DecimalMin' or @text='Digits' or @text='Email' or @text='Future' or @text='FutureOrPresent' or @text='Max' or @text='Min' or @text='Negative' or @text='NegativeOrZero' or @text='NotBlank' or @text='NotEmpty' or @text='NotNull' or @text='Null' or @text='Past' or @text='PastOrPresent' or @text='Pattern' or @text='Positive' or @text='PositiveOrZero' or @text='Size']]]"/>
+            <message key="matchxpath.match"
+                     value="A constraint on a component method is ignored without class-level @Validated. Add @Validated to the component."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringComponentMethodConstraintsAreEvaluated"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
         <module name="MatchXpath">
             <!--
                 Constructor binding runs for a type the configuration-properties scan registers, and not for
@@ -2361,6 +2410,23 @@
         </module>
         <module name="MatchXpath">
             <!--
+                A composed mapping states one verb in the annotation type. RequestMapping remains the
+                necessary form for several verbs and for the three verbs with no composed sibling, so
+                this rule reaches only the single-verb cases it can replace exactly. The no-verb case
+                remains owned by AirnessSpringWebMappingNamesItsMethod above.
+            -->
+            <property name="id" value="AirnessSpringWebMappingUsesPreciseAnnotation"/>
+            <property name="query"
+                      value="//METHOD_DEF/MODIFIERS/ANNOTATION[./IDENT[@text='RequestMapping'] and count(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='method']]//IDENT[@text='GET' or @text='POST' or @text='PUT' or @text='DELETE' or @text='PATCH']) = 1]"/>
+            <message key="matchxpath.match"
+                     value="A single-verb handler should use @GetMapping, @PostMapping, @PutMapping, @DeleteMapping or @PatchMapping instead of @RequestMapping."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebMappingUsesPreciseAnnotation"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 The default is every origin, so the annotation added to unblock one front end opens the
                 endpoint to all of them.
             -->
@@ -2800,6 +2866,26 @@
         proving less than it appears to, and each rule below is paired with the filter that keeps it
         inside src/test.
         -->
+        <module name="MatchXpath">
+            <!--
+                Every Boot context and slice annotation already carries SpringExtension. Repeating it
+                suggests that removing the explicit extension would change the test, when the composed
+                annotation continues to install the same extension.
+            -->
+            <property name="id" value="AirnessSpringBootTestDoesNotRepeatSpringExtension"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='SpringBootTest' or @text='JdbcTest' or @text='RestClientTest' or @text='WebMvcTest' or @text='WebFluxTest' or @text='DataJpaTest' or @text='WebServiceClientTest' or @text='JooqTest' or @text='JsonTest' or @text='DataCassandraTest' or @text='DataJdbcTest' or @text='DataLdapTest' or @text='DataMongoTest' or @text='DataNeo4jTest' or @text='DataR2dbcTest' or @text='DataRedisTest'] and ./MODIFIERS/ANNOTATION[./IDENT[@text='ExtendWith'] and .//IDENT[@text='SpringExtension']]]"/>
+            <message key="matchxpath.match"
+                     value="This Spring Boot test annotation already applies SpringExtension. Remove SpringExtension from @ExtendWith and retain any other extensions."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringBootTestDoesNotRepeatSpringExtension"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringBootTestDoesNotRepeatSpringExtension"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
         <module name="MatchXpath">
             <!--
                 With no script or statement Spring derives a resource name from the test class and method.

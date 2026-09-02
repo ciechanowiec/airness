@@ -34,6 +34,8 @@ public final class SpringModelCheck {
         = "Both web stacks declared where only one of them can start";
     private static final String OWN_AUTO_CONFIGURATION
         = "Auto-configuration declared inside the application it configures";
+    private static final String UNSUPPORTED_FACTORIES
+        = "Auto-configuration registrations Boot no longer reads";
     private static final List<String> REGISTRATIONS = List.of(
         "org.springframework.boot.autoconfigure.AutoConfiguration.imports", "spring.factories"
     );
@@ -41,6 +43,7 @@ public final class SpringModelCheck {
     private final String pom;
     private final List<SpringDependency> dependencies;
     private final List<String> declarations;
+    private final List<String> unsupportedFactories;
     private final boolean repackaged;
 
     /**
@@ -62,6 +65,7 @@ public final class SpringModelCheck {
         this.pom = root.relativize(pom).toString();
         this.dependencies = List.copyOf(dependencies);
         this.declarations = registered(root, resourceRoots);
+        this.unsupportedFactories = unsupportedFactories(root, resourceRoots);
         this.repackaged = repackaged;
     }
 
@@ -75,7 +79,7 @@ public final class SpringModelCheck {
     }
 
     /**
-     * Whether the module is the one that gets deployed, which four of the six rules ask first.
+     * Whether the module is the one that gets deployed, which four of the seven rules ask first.
      *
      * @return whether the Boot plugin repackages this module
      */
@@ -107,7 +111,8 @@ public final class SpringModelCheck {
             new Findings(
                 OWN_AUTO_CONFIGURATION,
                 SpringModelRules.ownAutoConfiguration(this.declarations, this.repackaged)
-            )
+            ),
+            new Findings(UNSUPPORTED_FACTORIES, this.unsupportedFactories)
         );
     }
 
@@ -121,6 +126,22 @@ public final class SpringModelCheck {
             .filter(file -> resolved.stream().anyMatch(file::startsWith))
             .filter(file -> REGISTRATIONS.contains(file.getFileName().toString()))
             .map(file -> root.relativize(file).toString())
+            .toList();
+    }
+
+    private static List<String> unsupportedFactories(
+        Path root, Collection<Path> resourceRoots
+    ) {
+        List<Path> resolved = resourceRoots.stream().map(root::resolve).map(Path::normalize).toList();
+        return Repository.trackedFiles(root).stream()
+            .filter(file -> resolved.stream().anyMatch(file::startsWith))
+            .filter(file -> "spring.factories".equals(file.getFileName().toString()))
+            .flatMap(
+                file -> Repository.readText(file).stream()
+                    .flatMap(
+                        content -> SpringFactoriesRules.unsupported(root.relativize(file), content).stream()
+                    )
+            )
             .toList();
     }
 }
