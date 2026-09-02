@@ -2895,6 +2895,26 @@
         </module>
         <module name="MatchXpath">
             <!--
+                After the commit, the resources of the transaction that published are still bound to the
+                thread, so a plain @Transactional on a listener running in any phase after the commit joins
+                a transaction that has already ended. Nothing commits it again, and whatever the listener
+                wrote through it is flushed by nothing. Spring documents REQUIRES_NEW as the propagation for
+                exactly this method. A listener that names no phase runs after the commit by default, so the
+                absence of the member is read the same way as AFTER_COMMIT. The rule above says when the
+                listener runs, and this one says what a write from there is worth.
+            -->
+            <property name="id" value="AirnessSpringAfterCommitListenerRunsItsOwnTransaction"/>
+            <property name="query"
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION[./IDENT[@text='TransactionalEventListener'] and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='phase']]//IDENT[@text='BEFORE_COMMIT'])] and ./MODIFIERS/ANNOTATION[./IDENT[@text='Transactional'] and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='propagation']]//IDENT[@text='REQUIRES_NEW'])]]"/>
+            <message key="matchxpath.match"
+                     value="A listener running after the commit still finds the committed transaction bound to its thread, so a plain @Transactional joins it and its writes are flushed by nothing. Declare propagation = Propagation.REQUIRES_NEW, or run in BEFORE_COMMIT."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringAfterCommitListenerRunsItsOwnTransaction"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 Spring refuses the context at startup. The method initialises a binder that is handed to it,
                 so there is nothing for a return value to mean.
             -->

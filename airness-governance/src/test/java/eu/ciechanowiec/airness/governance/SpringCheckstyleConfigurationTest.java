@@ -76,6 +76,20 @@ class SpringCheckstyleConfigurationTest {
                 """,
             "AirnessSpringWebMappingUsesPreciseAnnotation",
             3
+        ),
+        new Fixture(
+            "Listeners.java",
+            """
+                package example;
+                final class Listeners {
+                    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = false)
+                    @Transactional(readOnly = false, timeout = 5)
+                    public void deliver(Posted posted) {
+                    }
+                }
+                """,
+            "AirnessSpringAfterCommitListenerRunsItsOwnTransaction",
+            3
         )
     );
     private static final List<String> NEW_SPRING_RULES = SPRING_FIXTURES.stream()
@@ -120,6 +134,10 @@ class SpringCheckstyleConfigurationTest {
                     }
                     @RequestMapping(path = "/head", method = RequestMethod.HEAD)
                     public void head() {
+                    }
+                    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = false)
+                    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false, timeout = 5)
+                    public void deliver(Posted posted) {
                     }
                 }
                 @Service
