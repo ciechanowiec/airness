@@ -41,7 +41,10 @@ public final class ParameterAnnotationLocationCheck extends AbstractCheck {
 
     @Override
     public void visitToken(DetailAST parameter) {
-        DetailAST modifiers = parameter.findFirstToken(TokenTypes.MODIFIERS);
+        DetailAST modifiers = Objects.requireNonNull(
+            parameter.findFirstToken(TokenTypes.MODIFIERS),
+            "A parameter AST has no modifiers node"
+        );
         if (modifiers.getChildCount(TokenTypes.ANNOTATION) < MULTIPLE_ANNOTATIONS) {
             return;
         }
@@ -50,11 +53,19 @@ public final class ParameterAnnotationLocationCheck extends AbstractCheck {
             .toList();
         DetailAST first = annotations.getFirst();
         DetailAST last = annotations.getLast();
-        int finalAnnotationLine = last.getLastChild().getLineNo();
+        int finalAnnotationLine = Objects.requireNonNull(
+            last.getLastChild(),
+            "An annotation AST has no final child"
+        ).getLineNo();
         DetailAST declaration = children(modifiers)
             .filter(child -> child.getType() != TokenTypes.ANNOTATION)
             .findFirst()
-            .orElseGet(() -> parameter.findFirstToken(TokenTypes.TYPE));
+            .orElseGet(
+                () -> Objects.requireNonNull(
+                    parameter.findFirstToken(TokenTypes.TYPE),
+                    "A parameter AST has no declaration or type node"
+                )
+            );
         if (first.getLineNo() != finalAnnotationLine && declaration.getLineNo() <= finalAnnotationLine) {
             this.log(declaration, MSG_LOCATION);
         }
