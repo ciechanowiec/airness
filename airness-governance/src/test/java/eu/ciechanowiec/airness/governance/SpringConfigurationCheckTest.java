@@ -12,6 +12,7 @@ class SpringConfigurationCheckTest {
     private static final String YAML = "src/main/resources/application.yml";
     private static final String PROFILE = "src/main/resources/application-production.yml";
     private static final List<Path> RESOURCES = List.of(Path.of("src/main/resources"));
+    private static final List<Path> SOURCES = List.of(Path.of("src/main/java"));
 
     private static final String CLEAN = """
         spring:
@@ -31,13 +32,25 @@ class SpringConfigurationCheckTest {
         management
         """;
 
+    private static final String CLOCK = "src/main/java/sample/Clock.java";
+
+    private static final String READING = """
+        package sample;
+
+        class Clock {
+
+            Clock(@Value("${example.zone}") String zone) {
+            }
+        }
+        """;
+
     private static final List<ConfigurationProperty> PUBLISHED = List.of(
         declared("spring.application.name"),
         declared("management.endpoints.web.exposure.include")
     );
 
     private static SpringConfigurationCheck check(Path root) {
-        return new SpringConfigurationCheck(root, RESOURCES, PUBLISHED);
+        return new SpringConfigurationCheck(root, RESOURCES, SOURCES, PUBLISHED);
     }
 
     private static ConfigurationProperty declared(String name) {
@@ -74,6 +87,33 @@ class SpringConfigurationCheckTest {
         );
 
         assertTrue(offences.getFirst().startsWith(YAML), "the offence opens with the path");
+    }
+
+    @Test
+    void reportsAPlaceholderTheBaseFileDoesNotDeclare() {
+        Path root = new GitFixture("config-placeholder")
+            .write(YAML, CLEAN)
+            .write("src/main/resources/application-test.yml", "example:\n  zone: UTC\n")
+            .write(CLOCK, READING)
+            .root();
+
+        List<String> offences = Verdicts.offences(check(root).findings(), "Placeholders production code reads");
+
+        assertEquals(1, offences.size(), "the profile file stands in for the base file only in tests");
+        assertTrue(offences.getFirst().startsWith(CLOCK + ": line 5"), "the source is named");
+    }
+
+    @Test
+    void passesOverPlaceholdersOfAModuleShippingNoBaseFile() {
+        Path root = new GitFixture("config-library")
+            .write("src/main/resources/application-test.yml", CLEAN)
+            .write(CLOCK, READING)
+            .root();
+
+        assertTrue(
+            Verdicts.clean(check(root).findings()),
+            "a library reads a key the application module declares"
+        );
     }
 
     @Test
@@ -137,7 +177,7 @@ class SpringConfigurationCheckTest {
             )
         );
 
-        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES, withdrawn).findings();
+        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES, SOURCES, withdrawn).findings();
 
         assertEquals(1, Verdicts.offences(findings, "stopped binding").size(), "the key is not bound");
     }
@@ -146,7 +186,7 @@ class SpringConfigurationCheckTest {
     void reportsAConfigurationNothingOnTheClasspathCouldAccountFor() {
         Path root = new GitFixture("config-unread").write(YAML, CLEAN).root();
 
-        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES, List.of()).findings();
+        List<Findings> findings = new SpringConfigurationCheck(root, RESOURCES, SOURCES, List.of()).findings();
 
         assertEquals(
             1, Verdicts.offences(findings, "could account").size(),

@@ -55,6 +55,8 @@ public final class SpringSourceCheck {
         = "Controller annotations whose bean name is a request path";
     private static final String AI_DESCRIPTIONS
         = "Spring AI tools, prompts, and resources with no description";
+    private static final String UNBOUND_PATH_VARIABLES
+        = "Path variables bound to no placeholder of their mapping";
 
     private final Path root;
     private final List<Path> sources;
@@ -111,7 +113,8 @@ public final class SpringSourceCheck {
                 MISBOUND_QUERY_PARAMETERS, this.offences(SpringQueryParameterRules::mismatched)
             ),
             new Findings(CONTROLLER_PATHS, this.offences(SpringSourceRules::controllerPaths)),
-            new Findings(AI_DESCRIPTIONS, this.offences(SpringAiRules::missingDescriptions))
+            new Findings(AI_DESCRIPTIONS, this.offences(SpringAiRules::missingDescriptions)),
+            new Findings(UNBOUND_PATH_VARIABLES, this.offences(SpringWebRules::unboundPathVariables))
         );
     }
 

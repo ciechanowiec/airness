@@ -32,6 +32,8 @@ public final class SpringReactorCheck {
         = "JPA auditing members no production configuration enables";
     private static final String DISABLED_METHOD_SECURITY
         = "Method-security annotations whose family remains disabled";
+    private static final String UNDECLARED_ROLES
+        = "Security annotations naming a role no enum declares";
     private static final Pattern APPLICATION = Pattern.compile("@SpringBootApplication\\b");
 
     private final SpringTypes types;
@@ -72,7 +74,8 @@ public final class SpringReactorCheck {
             new Findings(UNENABLED_CACHING, SpringFeatureRules.unenabledCaching(this.types)),
             new Findings(UNENABLED_RETRY, SpringFeatureRules.unenabledRetry(this.types)),
             new Findings(UNENABLED_AUDITING, SpringFeatureRules.unenabledAuditing(this.types)),
-            new Findings(DISABLED_METHOD_SECURITY, SpringFeatureRules.disabledMethodSecurity(this.types))
+            new Findings(DISABLED_METHOD_SECURITY, SpringFeatureRules.disabledMethodSecurity(this.types)),
+            new Findings(UNDECLARED_ROLES, SpringRoleRules.undeclaredRoles(this.types))
         );
     }
 

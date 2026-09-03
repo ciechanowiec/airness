@@ -87,6 +87,12 @@ final class SpringConfigurationRules {
             "spring.profiles.active", value -> !value.isEmpty(),
             "the artifact chooses its own environment here, so the same build cannot be promoted between"
                 + " them; pass the profile at run time"
+        ),
+        new Rule(
+            "spring.data.jpa.repositories.bootstrap-mode", "lazy"::equals,
+            "every repository query is parsed against the entity model when the repository is built, and"
+                + " a lazy bootstrap moves that to the first call, so a query naming an entity or a property"
+                + " that no longer exists survives every test that never calls it; use default or deferred"
         )
     );
 

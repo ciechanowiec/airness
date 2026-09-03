@@ -15,6 +15,18 @@ class SpringCheckstyleConfigurationTest {
 
     private static final List<Fixture> SPRING_FIXTURES = List.of(
         new Fixture(
+            "Premises.java",
+            """
+                package example;
+                final class Premises {
+                    static final String DERIVED = "ROLE_" + Role.ADMIN.name();
+                    static final String SPELLED = "ROLE_ADMIN";
+                }
+                """,
+            "AirnessSpringRoleIsNotSpelledOut",
+            4
+        ),
+        new Fixture(
             "Beans.java",
             """
                     package example;

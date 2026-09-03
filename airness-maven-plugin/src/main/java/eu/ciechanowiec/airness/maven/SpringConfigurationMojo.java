@@ -45,7 +45,7 @@ public final class SpringConfigurationMojo extends AbstractGovernanceMojo {
     List<Findings> findings() {
         List<ConfigurationProperty> published = new ConfigurationMetadata(this.classpath()).published();
         SpringConfigurationCheck check = new SpringConfigurationCheck(
-            this.repositoryRoot(), this.resourceRoots(), published
+            this.repositoryRoot(), this.resourceRoots(), this.moduleProductionSourceRoots(), published
         );
         this.getLog().info(
             "Spring configuration read %d file(s) against %d declared setting(s)"
