@@ -106,6 +106,48 @@ class SourceFormattingMojoTest {
         assertEquals(held, SourceFormattingMojo.formattedSource(formatter, source));
     }
 
+    @Test
+    @SneakyThrows
+    void pairsTheParenthesesOfAConditionItWraps(@TempDir Path directory) {
+        String condition = "users.countByRoleAndStatus(Role.ADMINISTRATOR, Status.ACTIVE) == 0"
+            + " && arguments.containsOption(\"bootstrap\")";
+        String held = """
+            package example;
+
+            final class Example {
+
+                void run(Users users, Arguments arguments) {
+                    if (%s) {
+                        users.seed();
+                    }
+                }
+            }
+            """.formatted(condition);
+        String expected = """
+            package example;
+
+            final class Example {
+
+                void run(Users users, Arguments arguments) {
+                    if (
+                        %s
+                    ) {
+                        users.seed();
+                    }
+                }
+            }
+            """.formatted(condition);
+        Path source = directory.resolve("Example.java");
+        Files.writeString(source, held);
+        JavaFormatter formatter = SourceFormattingMojo.formatter(
+            new SystemStreamLog(), directory.resolve("target").toString()
+        );
+
+        assertEquals(expected, SourceFormattingMojo.formattedSource(formatter, source));
+        Files.writeString(source, expected);
+        assertTrue(SourceFormattingMojo.formatted(formatter, source));
+    }
+
     private static String source(String name, String imports) {
         return "package example;\n\n" + imports + "\nfinal class " + name + " {\n\n"
             + "    List<Map<String, String>> held() {\n        return List.of();\n    }\n}\n";

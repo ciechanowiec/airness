@@ -243,6 +243,15 @@ it is published, only a fresh history satisfies the rule.
   `value =` written out is a redundancy the inspections refuse; an annotation carrying two or more members names
   each one. The formatter cannot produce this shape and leaves a one-line opening untouched, so it is written by
   hand.
+- Let the formatter wrap a condition too long for one line: it opens the bracket, writes the condition on the next
+  line one level deeper, and closes the bracket on a line of its own, which is the shape the paired-brackets rule
+  asks of an `if` or `while` whose condition spans lines. A condition an author wraps by hand keeps the shape it was
+  written in, because the formatter joins no line it finds broken, so it is written paired from the start: nothing
+  follows `if (` on its line, and `) {` stands alone.
+- Start a block lambda handed to a call on the line after the bracket, or hand the call a method reference to a
+  private method holding the body. The formatter wraps a call only when the call itself is too long for its line,
+  so `run(x -> {` is left where it stands, and the paired-brackets rule refuses it because the call's brackets span
+  lines while the content starts on the opening bracket's line. Neither repair is made by the format command.
 - Change an exclusion or the default test timeout only for an explicit project requirement. Never use one merely to
   obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
