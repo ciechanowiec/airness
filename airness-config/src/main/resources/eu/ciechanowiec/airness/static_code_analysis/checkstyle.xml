@@ -1568,12 +1568,34 @@
             -->
             <property name="id" value="AirnessSpringWebConfigurerIsConfiguration"/>
             <property name="query"
-                      value="//CLASS_DEF[not(./MODIFIERS/LITERAL_ABSTRACT) and ./IMPLEMENTS_CLAUSE//IDENT[@text='WebMvcConfigurer' or @text='WebFluxConfigurer'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Configuration'])]"/>
+                      value="//CLASS_DEF[not(./MODIFIERS/ABSTRACT) and ./IMPLEMENTS_CLAUSE//IDENT[@text='WebMvcConfigurer' or @text='WebFluxConfigurer'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Configuration'])]"/>
             <message key="matchxpath.match"
                      value="A web configurer that is not a configuration bean is called by nothing. Add @Configuration(proxyBeanMethods = false)."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringWebConfigurerIsConfiguration"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The container runs every ApplicationRunner and CommandLineRunner it holds sorted by @Order or
+                Ordered, and the ones that state no order after them in whatever order registration happened
+                to give it. That order moves with a rename, a moved package or an added bean, and nothing
+                reports the move. Two runners that share a table depend on it: a bootstrap that writes the
+                first administrator only into an empty user table is inverted in silence by a runner that
+                admits users before it. A class is what is read here. A runner a @Bean method returns is a
+                lambda or an anonymous type rather than a class and is not read, whether or not the method
+                carries @Order, and an abstract base is passed over because its concrete subclass is what
+                the container registers.
+            -->
+            <property name="id" value="AirnessSpringRunnerStatesItsOrder"/>
+            <property name="query"
+                      value="//CLASS_DEF[not(./MODIFIERS/ABSTRACT) and ./IMPLEMENTS_CLAUSE//IDENT[@text='ApplicationRunner' or @text='CommandLineRunner'] and not(./IMPLEMENTS_CLAUSE//IDENT[@text='Ordered' or @text='PriorityOrdered']) and not(./MODIFIERS/ANNOTATION/IDENT[@text='Order']) and not(./MODIFIERS/ANNOTATION/DOT/IDENT[@text='Order'])]"/>
+            <message key="matchxpath.match"
+                     value="A runner that states no order runs wherever the container happened to register it, so a runner that admits users can run before the bootstrap that writes the first administrator only into an empty table and invert it in silence. Annotate the class @Order, or implement Ordered."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringRunnerStatesItsOrder"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">

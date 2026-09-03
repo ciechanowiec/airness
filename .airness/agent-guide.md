@@ -100,25 +100,27 @@ Airness governs all of the following domains:
   configuration-property namespaces, transaction-bound event phases, pagination defaults and test SQL are written rather
   than inherited from framework defaults. A listener that runs after its publisher has committed and writes under
   `@Transactional` opens a transaction of its own with `REQUIRES_NEW`, because the one it would otherwise join has
-  already ended and a write made under it is flushed by nothing. Persistence mapping follows the same boundary: entity,
-  table, column, join, sequence, access and inheritance names stay stable when a Java declaration is renamed. A mapped
-  value that may hold nothing is a deliberate exception rather than an ordinary one, and is priced the way every
-  deliberate exception here is: a field of a persistent class or a component of a persistent record annotated
-  `@Nullable` is reported until a suppression with its reason sits beside it. Nullness at a boundary and nullness at
-  rest are different things: a bound form holds nothing because the framework read nothing into it, while a column holds
-  nothing because somebody decided it may, which is either a fact that is genuinely absent, such as the day an unissued
-  document was issued, or two shapes flattened into one table because the type system was never asked to tell them
-  apart. Writing the reason is what separates the two, since a reason that has to name which kind of row carries the
-  value has written the missing type out by hand. A constructor parameter is passed over, because a persistent record
-  standing a default in for what a binder could not build says nothing there about the column. A role a security
-  annotation names is read against the enum implementing `GrantedAuthority` that the production sources declare, with
-  or without the `ROLE_` prefix, because a role nobody is granted decides against every caller without a line in any
-  log. A project naming a role while declaring no such enum is refused rather than passed over, since a security rule
-  that quietly checks nothing is worse than one asking for the declaration it needs, and an authority spelled out as a
-  literal such as `"ROLE_ADMIN"` is refused in favour of the enum's own derivation. A path variable a handler names is
-  read against the placeholders of its mapping, class-level and method-level paths joined, since a name the mapping
-  never declares answers the route and fails on the first request; a path or a name the source does not state is
-  passed over.
+  already ended and a write made under it is flushed by nothing. A startup runner states its order with `@Order` or
+  `Ordered`, because the container runs a runner that states none wherever registration happened to put it, and a runner
+  that admits users before the bootstrap which writes the first administrator only into an empty user table inverts that
+  bootstrap in silence. Persistence mapping follows the same boundary: entity, table, column, join, sequence, access and
+  inheritance names stay stable when a Java declaration is renamed. A mapped value that may hold nothing is a deliberate
+  exception rather than an ordinary one, and is priced the way every deliberate exception here is: a field of a
+  persistent class or a component of a persistent record annotated `@Nullable` is reported until a suppression with its
+  reason sits beside it. Nullness at a boundary and nullness at rest are different things: a bound form holds nothing
+  because the framework read nothing into it, while a column holds nothing because somebody decided it may, which is
+  either a fact that is genuinely absent, such as the day an unissued document was issued, or two shapes flattened into
+  one table because the type system was never asked to tell them apart. Writing the reason is what separates the two,
+  since a reason that has to name which kind of row carries the value has written the missing type out by hand. A
+  constructor parameter is passed over, because a persistent record standing a default in for what a binder could not
+  build says nothing there about the column. A role a security annotation names is read against the enum implementing
+  `GrantedAuthority` that the production sources declare, with or without the `ROLE_` prefix, because a role nobody is
+  granted decides against every caller without a line in any log. A project naming a role while declaring no such enum
+  is refused rather than passed over, since a security rule that quietly checks nothing is worse than one asking for the
+  declaration it needs, and an authority spelled out as a literal such as `"ROLE_ADMIN"` is refused in favour of the
+  enum's own derivation. A path variable a handler names is read against the placeholders of its mapping, class-level
+  and method-level paths joined, since a name the mapping never declares answers the route and fails on the first
+  request; a path or a name the source does not state is passed over.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
