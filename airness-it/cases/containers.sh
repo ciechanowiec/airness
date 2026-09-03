@@ -36,6 +36,18 @@ run_qodana_profile() {
         else
             fail 'qodana: the utility-class exemption reached a project without the annotation'
         fi
+        for named in bar then; do
+            if grep -q "Questionable name '$named'" "$qodana_sarif"; then
+                fail "qodana: QuestionableName refused the domain word $named"
+            else
+                pass "qodana: QuestionableName leaves the domain word $named alone"
+            fi
+        done
+        if grep -q "Questionable name 'foo'" "$qodana_sarif"; then
+            pass 'qodana: QuestionableName still reports a placeholder'
+        else
+            fail 'qodana: QuestionableName stopped reporting a placeholder'
+        fi
     fi
 }
 

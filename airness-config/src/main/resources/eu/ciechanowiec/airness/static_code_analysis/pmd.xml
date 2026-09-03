@@ -214,9 +214,18 @@
 
     <!--
     MULTITHREADING
+
+    UseConcurrentHashMap reads any variable declared as a Map and built by a constructor, and asks for a
+    ConcurrentHashMap whether or not a second thread ever sees it. A map local to one method, which is
+    what a grouping or a ranking is built in, has no concurrent access at all, and the message presumes
+    one. The risk the rule guards against is shared mutable state, and that is refused here already: a
+    bean holds no mutable state, so a map that two threads could reach is a map the harness never lets
+    exist. PMD offers no property to narrow the rule to a field, and a project meeting it rewrote a plain
+    local into a collector with a map supplier to satisfy a rule that had nothing to say about the code.
     -->
     <rule ref="category/java/multithreading.xml">
         <exclude name="DoNotUseThreads"/>
+        <exclude name="UseConcurrentHashMap"/>
     </rule>
 
     <!--

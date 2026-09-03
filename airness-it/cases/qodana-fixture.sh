@@ -474,8 +474,49 @@ public final class Tool {
     }
 }
 JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/Chart.java" <<'JAVA'
+package com.example;
+
+/**
+ * A chart whose parts are named for what they are, in words the questionable-name list once held.
+ */
+public final class Chart {
+
+    private final int longest;
+
+    /**
+     * Draws every bar against the given longest one.
+     *
+     * @param longest the longest bar of the chart
+     */
+    public Chart(int longest) {
+        this.longest = longest;
+    }
+
+    /**
+     * Answers the given bar cut to the longest, which is how far a bar may run.
+     *
+     * @param bar the bar to draw
+     * @return the bar, or the longest where the bar is longer
+     */
+    public int drawn(int bar) {
+        int then = this.longest;
+        return bar > then ? then : bar;
+    }
+
+    /**
+     * Answers the given placeholder unchanged, which is the control the profile still refuses.
+     *
+     * @param foo a name that says nothing
+     * @return the same value
+     */
+    public int control(int foo) {
+        return foo;
+    }
+}
+JAVA
     git -C "$qodana_consumer" add --all
     git -C "$qodana_consumer" commit --quiet \
         --message 'test(it): carry the shapes the dropped inspections reported' \
-        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved and a JDK-heavy class, so the profile has something to be read against.'
+        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class and a chart named in domain words, so the profile has something to be read against.'
 }

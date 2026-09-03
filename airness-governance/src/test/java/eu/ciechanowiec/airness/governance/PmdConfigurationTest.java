@@ -153,6 +153,13 @@ class PmdConfigurationTest {
                 WideTest(String first, String second, String third, String fourth, String fifth) {
                 }
             }
+            final class Grouped {
+                java.util.Map<String, String> byName() {
+                    java.util.Map<String, String> held = new java.util.HashMap<>();
+                    held.put("kepler", "hall");
+                    return held;
+                }
+            }
             """,
         "unused",
         1
@@ -222,7 +229,8 @@ class PmdConfigurationTest {
             "NativeQueryNeedsJustification",
             "NullablePersistentValueNeedsJustification",
             "CyclomaticComplexity",
-            "ExcessiveParameterList"
+            "ExcessiveParameterList",
+            "UseConcurrentHashMap"
         );
         assertTrue(
             report.getViolations().stream().noneMatch(
