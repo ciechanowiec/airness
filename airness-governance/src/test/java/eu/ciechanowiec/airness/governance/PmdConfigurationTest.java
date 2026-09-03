@@ -117,6 +117,24 @@ class PmdConfigurationTest {
                 """,
             "ExcessiveParameterList",
             3
+        ),
+        new Fixture(
+            "Hugging.java",
+            """
+                package example;
+                final class Hugging {
+                    boolean seeded(Administrators administrators) {
+                        if (administrators.count(
+                            Role.ADMINISTRATOR
+                        ) == 0) {
+                            return false;
+                        }
+                        return true;
+                    }
+                }
+                """,
+            "PairedConditionParentheses",
+            4
         )
     );
 
@@ -158,6 +176,16 @@ class PmdConfigurationTest {
                     java.util.Map<String, String> held = new java.util.HashMap<>();
                     held.put("kepler", "hall");
                     return held;
+                }
+            }
+            final class Paired {
+                boolean seeded(Administrators administrators) {
+                    if (
+                        administrators.count(Role.ADMINISTRATOR) == 0
+                    ) {
+                        return false;
+                    }
+                    return true;
                 }
             }
             """,
@@ -230,7 +258,8 @@ class PmdConfigurationTest {
             "NullablePersistentValueNeedsJustification",
             "CyclomaticComplexity",
             "ExcessiveParameterList",
-            "UseConcurrentHashMap"
+            "UseConcurrentHashMap",
+            "PairedConditionParentheses"
         );
         assertTrue(
             report.getViolations().stream().noneMatch(
