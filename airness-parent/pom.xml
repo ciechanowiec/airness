@@ -1015,6 +1015,16 @@
                                 that happens to be installed beside it.
                             -->
                             <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                            <!--
+                                The Node package analyzer is off for the same reason. It reads a
+                                package.json as a Node project, and the only package.json a Java build
+                                unpacks sits inside a webjar, where the analyzer then warns that no lock
+                                file and no node_modules directory exist and asks for an npm install that
+                                cannot be run inside an archive. The webjar is identified by its Maven
+                                coordinates through the jar analyzer, and the npm identity the package
+                                analyzer would add feeds the OSS Index analyzer, which is off below.
+                            -->
+                            <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
                             <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
                             <versionCheckEnabled>false</versionCheckEnabled>
                         </configuration>
