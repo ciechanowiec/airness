@@ -102,7 +102,78 @@ class SpringCheckstyleConfigurationTest {
                 """,
             "AirnessSpringAfterCommitListenerRunsItsOwnTransaction",
             3
+        ),
+        new Fixture(
+            "Bootstrap.java",
+            """
+                package example;
+                final class Bootstrap implements ApplicationRunner {
+                    @Override
+                    public void run(ApplicationArguments arguments) {
+                    }
+                }
+                """,
+            "AirnessSpringRunnerStatesItsOrder",
+            2
         )
+    );
+    private static final Fixture CONTROLS = new Fixture(
+        "src/test/java/example/SpringControls.java",
+        """
+            package example;
+            interface BeanContract {
+                String inherited();
+            }
+            @Configuration(proxyBeanMethods = false)
+            final class Controls implements BeanContract, WebMvcConfigurer {
+                @Override
+                @Bean
+                public String inherited() {
+                    return "";
+                }
+                @RequestMapping(
+                    path = "/many",
+                    method = {RequestMethod.GET, RequestMethod.POST}
+                )
+                public void many() {
+                }
+                @RequestMapping(path = "/head", method = RequestMethod.HEAD)
+                public void head() {
+                }
+                @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = false)
+                @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false, timeout = 5)
+                public void deliver(Posted posted) {
+                }
+            }
+            @Service
+            @Validated
+            final class Operations {
+                void save(@NotBlank String name) {
+                }
+            }
+            @SpringBootTest
+            final class ContextTest {
+            }
+            abstract class WebBase implements WebMvcConfigurer {
+            }
+            @Order(0)
+            final class Seeding implements ApplicationRunner {
+                @Override
+                public void run(ApplicationArguments arguments) {
+                }
+            }
+            final class Admitting implements CommandLineRunner, Ordered {
+                @Override
+                public void run(String... arguments) {
+                }
+                @Override
+                public int getOrder() {
+                    return 1;
+                }
+            }
+            """,
+        "controls",
+        1
     );
     private static final List<String> NEW_SPRING_RULES = SPRING_FIXTURES.stream()
         .map(Fixture::rule)
@@ -124,48 +195,7 @@ class SpringCheckstyleConfigurationTest {
     @Test
     @SneakyThrows
     void acceptsTheExplicitControlsForEveryNewSpringRule(@TempDir Path directory) {
-        Fixture controls = new Fixture(
-            "src/test/java/example/SpringControls.java",
-            """
-                package example;
-                interface BeanContract {
-                    String inherited();
-                }
-                @Configuration(proxyBeanMethods = false)
-                final class Controls implements BeanContract, WebMvcConfigurer {
-                    @Override
-                    @Bean
-                    public String inherited() {
-                        return "";
-                    }
-                    @RequestMapping(
-                        path = "/many",
-                        method = {RequestMethod.GET, RequestMethod.POST}
-                    )
-                    public void many() {
-                    }
-                    @RequestMapping(path = "/head", method = RequestMethod.HEAD)
-                    public void head() {
-                    }
-                    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = false)
-                    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false, timeout = 5)
-                    public void deliver(Posted posted) {
-                    }
-                }
-                @Service
-                @Validated
-                final class Operations {
-                    void save(@NotBlank String name) {
-                    }
-                }
-                @SpringBootTest
-                final class ContextTest {
-                }
-                """,
-            "controls",
-            1
-        );
-        List<Finding> findings = CheckstyleConfigurationTest.inspect(directory, controls, true);
+        List<Finding> findings = CheckstyleConfigurationTest.inspect(directory, CONTROLS, true);
         assertTrue(
             findings.stream().noneMatch(finding -> NEW_SPRING_RULES.contains(finding.rule())),
             () -> "explicit controls must carry no new Spring finding, but reported " + findings
