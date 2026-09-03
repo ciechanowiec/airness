@@ -110,14 +110,26 @@ Airness governs all of the following domains:
   document was issued, or two shapes flattened into one table because the type system was never asked to tell them
   apart. Writing the reason is what separates the two, since a reason that has to name which kind of row carries the
   value has written the missing type out by hand. A constructor parameter is passed over, because a persistent record
-  standing a default in for what a binder could not build says nothing there about the column.
+  standing a default in for what a binder could not build says nothing there about the column. A role a security
+  annotation names is read against the enum implementing `GrantedAuthority` that the production sources declare, with
+  or without the `ROLE_` prefix, because a role nobody is granted decides against every caller without a line in any
+  log. A project naming a role while declaring no such enum is refused rather than passed over, since a security rule
+  that quietly checks nothing is worse than one asking for the declaration it needs, and an authority spelled out as a
+  literal such as `"ROLE_ADMIN"` is refused in favour of the enum's own derivation. A path variable a handler names is
+  read against the placeholders of its mapping, class-level and method-level paths joined, since a name the mapping
+  never declares answers the route and fails on the first request; a path or a name the source does not state is
+  passed over.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
   for are each refused, because none of them fails at startup and none appears in a log. Write the key the metadata
   names: a replacement is reported with the offence. A key under a namespace no dependency declares is your own and is
   left alone, so a project binds its own settings freely. Declaring one key twice in one document is refused as well,
-  since only the last of them is bound.
+  since only the last of them is bound. A placeholder production code reads without a default is read against the base
+  configuration file and the published metadata, because the test profile satisfies it in every test while an
+  environment starting from the base file refuses to start; a module shipping no base file is passed over. A lazy
+  repository bootstrap is refused, because every repository query is parsed against the entity model when the
+  repository is built, and a lazy one is built on its first call.
 - **Repository assurance:** secret scanning, Qodana analysis, the ceiling on how many suppressions the repository
   holds, complete Git history, commit-message policy, commit typography, linear history, and history-wide
   compliance.

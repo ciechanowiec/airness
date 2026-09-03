@@ -1257,6 +1257,27 @@
             <property name="id" value="AirnessSpringTransactionalIsPublic"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
+        <module name="Regexp">
+            <!--
+                A literal such as "ROLE_ADMIN" is the role set spelled a second time, beside the enum
+                that declares it and derives every authority from its constants. The governance rule
+                over security annotations reads a role against that enum, and a literal written
+                elsewhere is what a renamed constant leaves behind unchanged: a test that grants it
+                keeps passing against a role the application no longer knows. The prefix on its own,
+                as the left side of a concatenation with a constant's name, is the derivation itself
+                and is left alone.
+            -->
+            <property name="id" value="AirnessSpringRoleIsNotSpelledOut"/>
+            <property name="format" value="&quot;ROLE_[A-Z0-9_]+&quot;"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="A spelled-out authority is the role set written a second time, and a renamed constant leaves it behind unchanged. Derive it from the role enum's getAuthority()."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringRoleIsNotSpelledOut"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
         <module name="MatchXpath">
             <!--
                 The executor holds the outcome of an asynchronous call, and a void return hands it nowhere

@@ -300,6 +300,81 @@ expect_exit spring_narrow 'spring: a ready test-only context is not application 
 expect_match spring_narrow 'spring: narrowed evidence names the missing production source' \
     'contains no current run that reached ready with this production application'
 
+# A role named in a guard is a string the engine compares with what a caller holds, and one no enum
+# declares is granted to nobody. The build refuses it rather than waiting for the request that finds out.
+spring_roles="$scratch/spring-roles"
+clone_tree "$spring_app" "$spring_roles"
+cat > "$spring_roles/src/main/java/com/example/Guarded.java" <<'JAVA'
+package com.example;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+
+/**
+ * A service guarded by a role nothing declares.
+ */
+@Service
+public class Guarded {
+
+    /**
+     * Answers only to a role nobody holds.
+     *
+     * @return the answer
+     */
+    @PreAuthorize("hasRole('NOBODY')")
+    public String answer() {
+        return "answer";
+    }
+}
+JAVA
+git -C "$spring_roles" add --all
+run_maven spring_roles spring "$spring_roles" airness:spring-reactor
+expect_exit spring_roles 'spring: a guard naming a role no enum declares fails the reactor goal' 1
+expect_match spring_roles 'spring: the offence names the role and the missing enum' \
+    "names the role 'NOBODY'.*enum implementing GrantedAuthority"
+
+# The test profile satisfies a placeholder in every test, so a key it alone declares ships missing.
+spring_placeholder="$scratch/spring-placeholder"
+clone_tree "$spring_app" "$spring_placeholder"
+mkdir -p "$spring_placeholder/src/main/resources"
+cat > "$spring_placeholder/src/main/resources/application.yml" <<'YAML'
+example:
+  zone: UTC
+YAML
+cat > "$spring_placeholder/src/main/java/com/example/Clock.java" <<'JAVA'
+package com.example;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+/**
+ * A component reading one key the base file declares and one it does not.
+ */
+@Component
+public class Clock {
+
+    private final String zone;
+    private final String greeting;
+
+    /**
+     * Reads the keys.
+     *
+     * @param zone     the zone the base file declares
+     * @param greeting the greeting nothing declares
+     */
+    public Clock(@Value("${example.zone}") String zone, @Value("${example.greeting}") String greeting) {
+        this.zone = zone;
+        this.greeting = greeting;
+    }
+}
+JAVA
+git -C "$spring_placeholder" add --all
+run_maven spring_placeholder spring "$spring_placeholder" airness:spring-configuration
+expect_exit spring_placeholder \
+    'spring: a placeholder the base configuration does not declare fails the configuration goal' 1
+expect_match spring_placeholder 'spring: the offence names the undeclared key alone' \
+    'Clock.java: line 21: the placeholder reads example.greeting'
+
 # Both components compile and every source analyzer accepts them. The production context is the one
 # authority on the collision, and its own diagnostic names the derived bean name and both definitions.
 spring_collision="$scratch/spring-collision"

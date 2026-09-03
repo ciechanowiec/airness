@@ -97,8 +97,7 @@ final class SpringSourceRules {
      */
     static List<String> controllerPaths(CharSequence source) {
         String readable = JavaCode.withoutComments(source);
-        Map<String, String> constants = STRING_CONSTANT.matcher(readable).results()
-            .collect(Collectors.toMap(found -> found.group(1), found -> found.group(2), (first, _) -> first));
+        Map<String, String> constants = stringConstants(readable);
         return CONTROLLER.matcher(readable).results()
             .flatMap(found -> controllerPath(source, constants, found).stream())
             .toList();
@@ -116,7 +115,25 @@ final class SpringSourceRules {
             );
     }
 
-    private static Optional<String> resolvedString(Map<String, String> constants, String written) {
+    /**
+     * Every string constant the source declares, by name.
+     *
+     * @param readable the source with its comments gone and its literals kept
+     * @return the constants, the first declaration of a name winning
+     */
+    static Map<String, String> stringConstants(String readable) {
+        return STRING_CONSTANT.matcher(readable).results()
+            .collect(Collectors.toMap(found -> found.group(1), found -> found.group(2), (first, _) -> first));
+    }
+
+    /**
+     * The value a literal or a constant name stands for.
+     *
+     * @param constants the string constants the source declares
+     * @param written   a quoted literal, or the name of a constant
+     * @return the value, and nothing when the name is no constant the source declares
+     */
+    static Optional<String> resolvedString(Map<String, String> constants, String written) {
         return written.startsWith("\"")
             ? Optional.of(written.substring(1, written.length() - 1))
             : Optional.ofNullable(constants.get(written));

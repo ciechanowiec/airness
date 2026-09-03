@@ -36,6 +36,25 @@ class SpringReactorCheckTest {
         }
         """;
 
+    private static final String ROLES = """
+        package sample;
+
+        enum First implements GrantedAuthority {
+            ADMIN
+        }
+        """;
+
+    private static final String GUARDED = """
+        package sample;
+
+        class Second {
+
+            @PreAuthorize("hasRole('AUDITOR')")
+            void audit() {
+            }
+        }
+        """;
+
     private static final String PLAIN = """
         package sample;
 
@@ -73,6 +92,17 @@ class SpringReactorCheckTest {
             Verdicts.clean(new SpringReactorCheck(root, ROOTS).findings()),
             "one application class in a build is the arrangement the rule exists to protect"
         );
+    }
+
+    @Test
+    void readsARoleGuardedInOneModuleAgainstTheEnumOfAnother() {
+        Path root = new GitFixture("reactor-roles").write(FIRST, ROLES).write(SECOND, GUARDED).root();
+
+        List<String> offences = Verdicts.offences(
+            new SpringReactorCheck(root, ROOTS).findings(), "naming a role no enum declares"
+        );
+
+        assertEquals(1, offences.size(), "the enum in the first module is the set the second is read against");
     }
 
     @Test

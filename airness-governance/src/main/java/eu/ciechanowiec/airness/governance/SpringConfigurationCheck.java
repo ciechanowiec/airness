@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Reads the application configuration of one module for the settings that decide how it behaves in
@@ -25,11 +26,17 @@ public final class SpringConfigurationCheck {
     private static final String DEPRECATED = "Settings their supplier has deprecated";
     private static final String UNKNOWN = "Settings nothing on the classpath declares";
     private static final String UNREAD = "Configuration nothing on the classpath could account for";
+    private static final String UNDECLARED_PLACEHOLDERS
+        = "Placeholders production code reads that the base configuration does not declare";
     private static final List<String> NAMES = List.of(".yml", ".yaml", ".properties");
     private static final String PREFIX = "application";
+    private static final Set<String> BASE = Set.of(
+        "application.yml", "application.yaml", "application.properties"
+    );
 
     private final Path root;
     private final List<Path> files;
+    private final List<Path> sources;
     private final SpringMetadata metadata;
 
     /**
@@ -37,13 +44,16 @@ public final class SpringConfigurationCheck {
      *
      * @param root          repository root the offences are reported relative to
      * @param resourceRoots resource directories of the module
+     * @param sourceRoots   production source directories of the module, whose placeholders are read
      * @param published     the configuration metadata the compile classpath publishes
      */
     public SpringConfigurationCheck(
-        Path root, Collection<Path> resourceRoots, Collection<ConfigurationProperty> published
+        Path root, Collection<Path> resourceRoots, Collection<Path> sourceRoots,
+        Collection<ConfigurationProperty> published
     ) {
         this.root = root;
         this.files = configurations(root, resourceRoots);
+        this.sources = JavaSources.under(root, sourceRoots);
         this.metadata = new SpringMetadata(published);
     }
 
@@ -79,8 +89,32 @@ public final class SpringConfigurationCheck {
             new Findings(UNBOUND, this.stated(read, SpringMetadataRules::unbound)),
             new Findings(DEPRECATED, this.stated(read, SpringMetadataRules::deprecated)),
             new Findings(UNKNOWN, this.stated(read, SpringMetadataRules::unknown)),
-            new Findings(UNREAD, this.stated(read, SpringMetadataRules::unread))
+            new Findings(UNREAD, this.stated(read, SpringMetadataRules::unread)),
+            new Findings(UNDECLARED_PLACEHOLDERS, this.placeholders(read))
         );
+    }
+
+    /*
+     * The base files are the ones named with no profile, and a module holding none is passed over: a
+     * library reads a key the application declares, and that is the application module's file to hold.
+     */
+    private List<String> placeholders(Collection<Parsed> read) {
+        List<SpringConfiguration> base = read.stream()
+            .filter(file -> BASE.contains(Path.of(file.path()).getFileName().toString()))
+            .map(Parsed::parsed)
+            .toList();
+        return base.isEmpty()
+            ? List.of()
+            : this.sources.stream()
+                .flatMap(
+                    source -> Repository.readText(source).stream()
+                        .flatMap(
+                            text -> SpringPlaceholderRules.undeclaredPlaceholders(text, base, this.metadata)
+                                .stream()
+                        )
+                        .map(offence -> this.root.relativize(source) + ": " + offence)
+                )
+                .toList();
     }
 
     private List<String> stated(Collection<Parsed> read, MetadataRule rule) {
