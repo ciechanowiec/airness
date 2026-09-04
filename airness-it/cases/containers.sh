@@ -10,7 +10,7 @@ run_qodana_profile() {
         fail 'qodana: the run left no report to read'
         sed -n '1,220p' "$qodana_log" >&2
     else
-        for dropped in InnerClassOnInterface ClassWithTooManyDependencies; do
+        for dropped in InnerClassOnInterface ClassWithTooManyDependencies Singleton; do
             reported="$(grep -c "\"ruleId\": \"$dropped\"" "$qodana_sarif" || true)"
             if [ "$reported" -eq 0 ]; then
                 pass "qodana: $dropped reports nothing on the fixture"

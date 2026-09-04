@@ -82,6 +82,12 @@
            so no source file declares a subclass in this project or any other. The inspection's only option
            covers constant-holding interfaces, so there is no narrower way to say that, and the same is true
            of every interface a framework implements by proxy
+         - Singleton: reports an enum with one constant, which is the shape the Spring rule about roles
+           demands of a product with one role, since a role a security expression names is read against the
+           enum implementing GrantedAuthority and a single role is a single constant. What the inspection
+           guards against, one mutable instance held in a static, RequireFinalField in checkstyle.xml already
+           refuses, and its documentation lists no option that spares an enum, so enabled it costs every
+           one-role product the same suppression for a vocabulary of one word
          - RecordCanBeClass: reverses records into ordinary classes instead of preserving the preferred
            immutable value shape
          - StreamToLoop: performs a backward-compatibility rewrite that is inappropriate for Java 25-only code
@@ -642,7 +648,7 @@
     <inspection_tool class="SimpleDateFormatWithoutLocale" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="SimplifiableAnnotation" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="SimplifiableIfStatement" enabled="true" level="WARNING" enabled_by_default="true" editorAttributes="WARNING_ATTRIBUTES" />
-    <inspection_tool class="Singleton" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="Singleton" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="SleepWhileHoldingLock" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="SocketResource" enabled="true" level="WARNING" enabled_by_default="true">
         <option name="insideTryAllowed" value="false" />

@@ -136,6 +136,20 @@ public sealed interface CommandRequest {
     }
 }
 JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/Channel.java" <<'JAVA'
+package com.example;
+
+/**
+ * Where a run writes, which is one place and therefore one word.
+ */
+public enum Channel {
+
+    /**
+     * The standard output of the process.
+     */
+    STANDARD_OUTPUT
+}
+JAVA
     cat > "$qodana_consumer/src/main/java/com/example/OutputFormat.java" <<'JAVA'
 package com.example;
 
@@ -518,5 +532,5 @@ JAVA
     git -C "$qodana_consumer" add --all
     git -C "$qodana_consumer" commit --quiet \
         --message 'test(it): carry the shapes the dropped inspections reported' \
-        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class and a chart named in domain words, so the profile has something to be read against.'
+        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class, a chart named in domain words and an enum of one constant, so the profile has something to be read against.'
 }
