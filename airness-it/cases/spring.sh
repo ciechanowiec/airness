@@ -132,14 +132,24 @@ cat > "$spring_app/src/test/java/com/example/GreetingsTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
 class GreetingsTest {
 
     @Test
     void greetsTheNameItIsGiven() {
         assertEquals("hello, world", new Greetings().greet("world"), "the salutation precedes the name");
+    }
+
+    // Names a type of the web module while nothing in the production sources does. The artifact reaches
+    // the compile classpath through the starter and cannot be declared at either scope, so the analyzer
+    // has to read it the way it reads every other Spring artifact a starter carries.
+    @Test
+    void namesAWebTypeTheProductionCodeDoesNot() {
+        assertTrue(HttpStatus.OK.is2xxSuccessful(), "a test may name a Spring type its module never declares");
     }
 }
 JAVA
@@ -231,6 +241,8 @@ git -C "$spring_app" commit --quiet \
 run_maven spring_verify spring "$spring_app" clean verify
 expect_exit spring_verify 'spring: a conforming Spring Boot application verifies' 0
 expect_match spring_verify 'spring: the conforming lifecycle reaches a build verdict' 'BUILD SUCCESS'
+expect_no_match spring_verify 'spring: a Spring type only a test names is not reported as test only' \
+    'Non-test scoped test only dependencies found'
 # The model goal is bound rather than invoked, so this is where that binding is proven. Every other case
 # runs a goal from the command line, which says nothing about the phase a consumer would meet it at, and
 # this is the one consumer here that runs a whole lifecycle. It passing is the other half of the claim:
