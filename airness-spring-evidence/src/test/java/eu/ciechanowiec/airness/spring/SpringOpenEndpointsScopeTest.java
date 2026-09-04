@@ -17,7 +17,7 @@ import org.springframework.web.context.support.GenericWebApplicationContext;
 class SpringOpenEndpointsScopeTest {
 
     private static GenericWebApplicationContext admitting(Class<?> endpoints) {
-        return SpringEndpointFixtures.context(SpringEndpointFixtures.admitting("/**"), endpoints);
+        return SpringEndpointFixtures.context(SpringEndpointFixtures.admitting(), endpoints);
     }
 
     private static List<String> reached(GenericWebApplicationContext context) {
@@ -26,7 +26,7 @@ class SpringOpenEndpointsScopeTest {
 
     @Test
     void passesOverAHandlerAMethodSecurityAnnotationGuards() {
-        try (GenericWebApplicationContext context = admitting(SpringEndpointFixtures.Guarded.class)) {
+        try (GenericWebApplicationContext context = admitting(Guarded.class)) {
             assertTrue(
                 reached(context).isEmpty(),
                 "a guarded handler is decided after the chain, so the chain says nothing about it"
@@ -36,7 +36,7 @@ class SpringOpenEndpointsScopeTest {
 
     @Test
     void passesOverAHandlerWhoseTypeAMethodSecurityAnnotationGuards() {
-        try (GenericWebApplicationContext context = admitting(SpringEndpointFixtures.GuardedType.class)) {
+        try (GenericWebApplicationContext context = admitting(GuardedType.class)) {
             assertTrue(
                 reached(context).isEmpty(),
                 "a guard written once on the type governs every handler the type declares"
@@ -46,7 +46,7 @@ class SpringOpenEndpointsScopeTest {
 
     @Test
     void passesOverAHandlerOutsideTheDeclaredPackageRoot() {
-        try (GenericWebApplicationContext context = admitting(SpringEndpointFixtures.Endpoints.class)) {
+        try (GenericWebApplicationContext context = admitting(Endpoints.class)) {
             assertTrue(
                 SpringOpenEndpoints.reached(context, Set.of("com.example")).isEmpty(),
                 "a mapping the application did not declare belongs to the rules written about it"
@@ -56,7 +56,7 @@ class SpringOpenEndpointsScopeTest {
 
     @Test
     void readsAMappingThatRestrictsItselfToNoMethod() {
-        try (GenericWebApplicationContext context = admitting(SpringEndpointFixtures.Any.class)) {
+        try (GenericWebApplicationContext context = admitting(Any.class)) {
             assertEquals(
                 List.of("open GET /any"), reached(context),
                 "a mapping open to every method is reached by the one a caller would try first"

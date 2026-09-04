@@ -41,7 +41,7 @@ class SpringEndpointRulesTest {
     private static List<String> offences(List<String> open, String... files) {
         GitFixture fixture = new GitFixture("endpoints-" + files.length + '-' + open.size());
         for (int index = 0; index < files.length; index += 2) {
-            fixture = fixture.write(files[index], files[index + 1]);
+            fixture.write(files[index], files[index + 1]);
         }
         Path root = fixture.root();
         return SpringEndpointRules.undeclared(open, SpringTypes.over(root, JavaSources.under(root, ROOTS)));

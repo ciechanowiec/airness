@@ -129,7 +129,7 @@ class SpringContextCheckTest {
     @SneakyThrows
     void acceptsAnOpenMappingTheModuleNames() {
         Path root = this.source(SOURCE, APPLICATION);
-        this.write(root, "Security.java", SECURITY);
+        this.writeSecurity(root);
         Path evidence = this.evidence(root, "sample.Application\nopen GET /api/orders/{id}\n");
 
         assertTrue(
@@ -173,9 +173,11 @@ class SpringContextCheckTest {
         );
     }
 
+    // What is written is named here rather than handed in, because one test writes one file and a
+    // parameter that never varies says nothing about either.
     @SneakyThrows
-    private void write(Path root, String name, CharSequence content) {
-        Files.writeString(root.resolve("src/main/java/sample").resolve(name), content);
+    private void writeSecurity(Path root) {
+        Files.writeString(root.resolve("src/main/java/sample").resolve("Security.java"), SECURITY);
     }
 
     private static List<String> offences(SpringContextCheck check) {

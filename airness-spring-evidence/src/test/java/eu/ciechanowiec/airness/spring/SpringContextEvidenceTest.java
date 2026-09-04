@@ -33,8 +33,6 @@ import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -203,7 +201,7 @@ class SpringContextEvidenceTest {
                 )
             )
         );
-        context.registerBean(Public.class);
+        context.registerBean(PublicEndpoint.class);
         context.refresh();
         return context;
     }
@@ -213,15 +211,6 @@ class SpringContextEvidenceTest {
             value -> System.setProperty(DESTINATION, value),
             () -> System.clearProperty(DESTINATION)
         );
-    }
-
-    @RestController
-    static class Public {
-
-        @GetMapping("/public")
-        String open() {
-            return "open";
-        }
     }
 
     private enum ApplicationSource {
