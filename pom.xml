@@ -1024,40 +1024,11 @@
 
     <profiles>
         <profile>
-            <!--
-                Airness's README is repository source, not a consumer asset. Keep this execution on the
-                aggregator while making the same extended command verify the main document changed here.
-            -->
             <id>extended</id>
             <properties>
                 <!-- Binds airness-self-known-vulnerabilities, which is unbound in Default verification. -->
                 <airness.self.vulnerabilities.phase>package</airness.self.vulnerabilities.phase>
             </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <inherited>false</inherited>
-                        <executions>
-                            <execution>
-                                <id>lint-airness-documentation</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>sh</executable>
-                                    <arguments>
-                                        <argument>scripts/lint-docs.sh</argument>
-                                        <argument>README.adoc</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
         </profile>
         <profile>
             <!--

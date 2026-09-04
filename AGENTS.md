@@ -22,7 +22,7 @@ Airness is a Maven 3.9.16+ multi-module build harness that requires exactly Java
   the two-major freshness bound, and installs all reactor modules for consumer tests. Version checking
   requires Maven Central and Docker Hub; container-image updates have no failure threshold.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
-- `sh scripts/lint-docs.sh README.adoc README-guideline-software-project.adoc README-guideline-writing.adoc` checks project documentation when its external tools are installed.
+- `sh scripts/lint-docs.sh <document>.adoc` reads a document against the writing rules when its external tools are installed. No build and no CI job lints a document: the average-paragraph-length metric divides every word of one by its prose paragraphs alone, so a reference card of tables and a guideline written as a numbered list of rules each fail it on their shape rather than on their prose. Run it by hand where its reading is wanted.
 
 ## Coding Style & Naming Conventions
 

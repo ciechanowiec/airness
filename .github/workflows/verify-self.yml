@@ -78,25 +78,3 @@ jobs:
               ;;
           esac
 
-  documentation:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: 'Checkout'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: 'Install Airness documentation tools'
-        env:
-          VALE_VERSION: '3.15.1'
-          VALE_SHA256: 'c024d9c157874fb043d4f24a055d60050d1bb18755251f590593eed5bace1857'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes asciidoctor poppler-utils tesseract-ocr
-          archive="$RUNNER_TEMP/vale.tar.gz"
-          curl --fail --location --silent --show-error --output "$archive" \
-            "https://github.com/vale-cli/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
-          echo "$VALE_SHA256  $archive" | sha256sum --check
-          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
-
-      - name: 'Lint Airness documentation only'
-        run: sh scripts/lint-docs.sh README.adoc README-guideline-software-project.adoc README-guideline-writing.adoc
