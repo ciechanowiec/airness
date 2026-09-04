@@ -73,6 +73,14 @@
            run, so the final these two ask for is the one shape AirnessSpringJpaEntityFieldIsNotFinal
            refuses and the provider could not write. Enabled they cost every entity in every project the
            same suppression, while the rule they duplicate goes on being enforced with its exemption
+         - MagicNumber: restates a rule Checkstyle owns, whose allowlist this harness chose and wrote the
+           reason for, and which AvoidLiteralsInIfCondition in pmd.xml already mirrors value for value. The
+           inspection disagrees with that choice by the type of the literal rather than by its value.
+           Measured against jetbrains/qodana-jvm-community:2026.1, an int across the allowlist passes and a
+           long outside -2 to 2 does not, so 3L is reported where 3 is not and where the allowlist admits
+           both. It names no option for the values it allows, so there is no form in which the two agree,
+           and every int it would refuse Checkstyle refuses first and earlier in the build. Enabled it
+           moves the real magic-number policy into the slowest gate and states it nowhere
          - DefaultAnnotationParam: removes an annotation attribute whose value equals the default, which is
            the opposite of what this harness asks for. AirnessSpringTransactionalDeclaresReadOnly exists
            because a @Transactional that does not say whether it writes is read-write by default and reads
@@ -396,7 +404,7 @@
         <option name="m_ignoreInvisibleFields" value="true" />
         <option name="m_ignoreStaticMethods" value="true" />
     </inspection_tool>
-    <inspection_tool class="MagicNumber" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="MagicNumber" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="MapReplaceableByEnumMap" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="MethodCallInLoopCondition" enabled="false" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="MethodCount" enabled="true" level="WARNING" enabled_by_default="true">

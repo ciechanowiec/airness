@@ -529,8 +529,37 @@ public final class Chart {
     }
 }
 JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/Budget.java" <<'JAVA'
+package com.example;
+
+/**
+ * A budget counted in whole units, whose figures sit inside the allowlist the harness wrote down.
+ */
+public final class Budget {
+
+    private final long allowance;
+
+    /**
+     * Sets the budget.
+     *
+     * @param allowance how much the budget allows
+     */
+    public Budget(long allowance) {
+        this.allowance = allowance;
+    }
+
+    /**
+     * Answers the allowance cut to the three units a run may spend at once.
+     *
+     * @return the allowance, or three where the allowance is larger
+     */
+    public long spendable() {
+        return this.allowance > 3L ? 3L : this.allowance;
+    }
+}
+JAVA
     git -C "$qodana_consumer" add --all
     git -C "$qodana_consumer" commit --quiet \
         --message 'test(it): carry the shapes the dropped inspections reported' \
-        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class, a chart named in domain words and an enum of one constant, so the profile has something to be read against.'
+        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class, a chart named in domain words, an enum of one constant and a budget counted in long units, so the profile has something to be read against.'
 }
