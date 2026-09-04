@@ -57,6 +57,10 @@ public final class SpringSourceCheck {
         = "Spring AI tools, prompts, and resources with no description";
     private static final String UNBOUND_PATH_VARIABLES
         = "Path variables bound to no placeholder of their mapping";
+    private static final String PARTIAL_GUARDS
+        = "Public methods left unguarded in a class that guards its others";
+    private static final String OPEN_REDIRECTS
+        = "Redirect targets built from a value the caller sent";
 
     private final Path root;
     private final List<Path> sources;
@@ -114,7 +118,9 @@ public final class SpringSourceCheck {
             ),
             new Findings(CONTROLLER_PATHS, this.offences(SpringSourceRules::controllerPaths)),
             new Findings(AI_DESCRIPTIONS, this.offences(SpringAiRules::missingDescriptions)),
-            new Findings(UNBOUND_PATH_VARIABLES, this.offences(SpringWebRules::unboundPathVariables))
+            new Findings(UNBOUND_PATH_VARIABLES, this.offences(SpringWebRules::unboundPathVariables)),
+            new Findings(PARTIAL_GUARDS, this.offences(SpringGuardRules::partiallyGuardedClasses)),
+            new Findings(OPEN_REDIRECTS, this.offences(SpringRedirectRules::requestBuiltRedirects))
         );
     }
 

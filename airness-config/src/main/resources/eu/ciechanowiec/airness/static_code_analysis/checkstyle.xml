@@ -2652,12 +2652,13 @@
         </module>
         <module name="Regexp">
             <!--
-                The first three store a password that can be recovered. The last stores it at a work factor
-                chosen for the hardware of 2011, and passing a strength explicitly is all it takes to say
-                otherwise.
+                The first three store a password that can be recovered, and so does the {noop} prefix, which
+                is the delegating encoder being told to store the password as it was typed. The remaining form
+                stores it at a work factor chosen for the hardware of 2011, and passing a strength explicitly
+                is all it takes to say otherwise.
             -->
             <property name="id" value="AirnessSpringSecurityPasswordEncoderIsStrong"/>
-            <property name="format" value="NoOpPasswordEncoder|MessageDigestPasswordEncoder|withDefaultPasswordEncoder|new\s+BCryptPasswordEncoder\s*\(\s*\)"/>
+            <property name="format" value="NoOpPasswordEncoder|MessageDigestPasswordEncoder|withDefaultPasswordEncoder|new\s+BCryptPasswordEncoder\s*\(\s*\)|\{noop\}"/>
             <property name="ignoreComments" value="true"/>
             <property name="message"
                       value="This encoder either stores a recoverable password or uses a default work factor. Use BCrypt, PBKDF2 or Argon2 with an explicit strength."/>
@@ -2682,6 +2683,42 @@
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringSecurityHeadersStay"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                The session identifier is what an authenticated request is recognised by afterwards, so
+                keeping the one the caller arrived with lets an identifier planted before the sign-in become
+                an authenticated one. The default changes it, and the migrating and newSession settings are
+                both ways of keeping that while deciding what carries over.
+            -->
+            <property name="id" value="AirnessSpringSecuritySessionFixationIsPrevented"/>
+            <property name="format" value="sessionFixation\s*\(\s*\)\s*\.\s*none|sessionFixation\s*\(\s*[A-Za-z]*\s*-&gt;\s*[A-Za-z]+\s*\.\s*none\s*\("/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Keeping the session identifier across authentication lets one planted before the sign-in become an authenticated session. Leave the default, or choose migrateSession or newSession."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecuritySessionFixationIsPrevented"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="Regexp">
+            <!--
+                The annotated half of this is already refused, and this is the half written as a call. A
+                statement whose text is assembled from a value puts that value into the statement rather than
+                into a parameter, so what the caller sent decides what the statement is. The template forms
+                are named by the receiver, because query and update are ordinary words elsewhere.
+            -->
+            <property name="id" value="AirnessSpringStatementIsNotAssembled"/>
+            <property name="format" value="\b(?:createQuery|createNativeQuery|queryFor\w*)\s*\(\s*&quot;[^&quot;]*&quot;\s*\+|\w*[Tt]emplate\s*\.\s*(?:query|update|execute)\s*\(\s*&quot;[^&quot;]*&quot;\s*\+"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="A statement assembled from a value puts it into the statement rather than into a parameter, so the value decides what runs. Bind it with a parameter instead."/>
+            <property name="illegalPattern" value="true"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringStatementIsNotAssembled"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
         <module name="MatchXpath">

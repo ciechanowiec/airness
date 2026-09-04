@@ -16,6 +16,37 @@ class SpringSourceCheckTest {
     private static final String ROWS = "src/main/java/sample/Rows.java";
     private static final List<Path> MAIN = List.of(Path.of("src/main/java"));
 
+    private static final String GUARDS = "src/main/java/sample/Rooms.java";
+    private static final String PAGES = "src/main/java/sample/Pages.java";
+
+    private static final String PARTLY_GUARDED = """
+        package com.example;
+
+        @Service
+        class Rooms {
+
+            @PreAuthorize("hasRole('ADMIN')")
+            public void register(Form form) {
+            }
+
+            public void retire(UUID reference) {
+            }
+        }
+        """;
+
+    private static final String SENT_REDIRECT = """
+        package com.example;
+
+        @Controller
+        class Pages {
+
+            @GetMapping("/a")
+            public String open(@RequestParam(name = "to", required = false) String to) {
+                return "redirect:" + to;
+            }
+        }
+        """;
+
     private static final String CLEAN = """
         package com.example;
 
@@ -157,5 +188,29 @@ class SpringSourceCheckTest {
         Path root = new GitFixture("spring-empty").root();
 
         assertEquals(0, new SpringSourceCheck(root, MAIN, ROOT).scanned(), "the goal refuses this count");
+    }
+
+    @Test
+    void reportsAPublicMethodItsSiblingsLeftUnguarded() {
+        Path root = new GitFixture("spring-guards").write(APPLICATION, CLEAN).write(GUARDS, PARTLY_GUARDED).root();
+
+        List<Findings> findings = new SpringSourceCheck(root, MAIN, ROOT).findings();
+
+        assertEquals(
+            1, Verdicts.offences(findings, "guards its others").size(),
+            "the class guards one method and leaves the other reachable by every role"
+        );
+    }
+
+    @Test
+    void reportsARedirectBuiltFromAValueTheCallerSent() {
+        Path root = new GitFixture("spring-redirect").write(APPLICATION, CLEAN).write(PAGES, SENT_REDIRECT).root();
+
+        List<Findings> findings = new SpringSourceCheck(root, MAIN, ROOT).findings();
+
+        assertEquals(
+            1, Verdicts.offences(findings, "Redirect targets").size(),
+            "the caller chose the whole address the reader is sent to"
+        );
     }
 }

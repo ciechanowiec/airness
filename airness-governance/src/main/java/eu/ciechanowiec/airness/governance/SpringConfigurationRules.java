@@ -1,10 +1,12 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -32,6 +34,17 @@ final class SpringConfigurationRules {
         "(?:password|secret|token|credential|privatekey|apikey|accesskey)$"
     );
     private static final Pattern KEBAB = Pattern.compile("[A-Z_]");
+    private static final String ALWAYS = "always";
+    private static final String LIST = ",";
+
+    /*
+     * The actuator endpoints that hand out a secret or change the application. Naming one of them over
+     * the web is a decision, and it is one nothing else here would report: the rule beside this one reads
+     * the wildcard, and a list naming an endpoint outright is not one.
+     */
+    private static final Set<String> DANGEROUS = Set.of(
+        "env", "configprops", "heapdump", "threaddump", "shutdown", "loggers", "sessions"
+    );
 
     private static final List<Rule> WRONG_VALUE = List.of(
         new Rule(
@@ -40,7 +53,24 @@ final class SpringConfigurationRules {
                 + " name the endpoints this application serves"
         ),
         new Rule(
-            "management.endpoint.health.show-details", "always"::equals,
+            "management.endpoints.web.exposure.include", SpringConfigurationRules::dangerous,
+            "an actuator endpoint published here hands out a credential or changes the application, and"
+                + " what a filter chain admits to it is a second decision written somewhere else; serve"
+                + " health and the metrics this application is watched by, and reach the rest through the"
+                + " management port or not over the web at all"
+        ),
+        new Rule(
+            "management.endpoint.env.show-values", ALWAYS::equals,
+            "the environment endpoint returns its values in full, including whatever a placeholder"
+                + " resolved a credential to; use never or when-authorized"
+        ),
+        new Rule(
+            "server.servlet.session.cookie.http-only", "false"::equals,
+            "the session cookie becomes readable by script running in the page, so anything injected into"
+                + " one page takes the session rather than merely acting inside it"
+        ),
+        new Rule(
+            "management.endpoint.health.show-details", ALWAYS::equals,
             "the health payload names every component and often its host to an unauthenticated caller;"
                 + " use when-authorized"
         ),
@@ -254,6 +284,11 @@ final class SpringConfigurationRules {
     private static String unquoted(String value) {
         String stripped = value.replace("\"", "").replace("'", "").strip();
         return stripped.toLowerCase(Locale.ROOT);
+    }
+
+    // Whether the endpoints published here include one that hands out a secret or stops the application.
+    private static boolean dangerous(String value) {
+        return Arrays.stream(value.split(LIST)).map(String::strip).anyMatch(DANGEROUS::contains);
     }
 
     private static boolean wildcard(String value) {
