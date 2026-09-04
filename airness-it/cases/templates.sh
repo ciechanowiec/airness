@@ -21,6 +21,7 @@ HTML
 <div th:if="${ready}" th:replace="~{fragments :: panel('1', '2', '3', '4', '5', '6')}"></div>
 <div th:replace="~{fragments :: missing('one')}"></div>
 <img alt="asset" th:src="@{${@assets.path()}}">
+<div th:replace="~{fragments :: panel(${@vocabulary.of(status)}, '2', '3', '4', '5', '6')}"></div>
 <span th:utext="${content}">Content</span>
 <span th:text="__${expression}__">Expression</span>
 </body>
@@ -44,6 +45,8 @@ HTML
         'page[.]html.*discards th:if'
     expect_match template_report_only 'templates: forbidden link reach stays visible at its fixture' \
         'page[.]html.*th:src reaches for a bean'
+    expect_match template_report_only 'templates: forbidden fragment reach stays visible at its fixture' \
+        'page[.]html.*th:replace reaches for a bean inside a fragment expression'
     expect_match template_report_only 'templates: missing fragment calls stay visible at their fixture' \
         'page[.]html.*fragment.*missing'
     expect_match template_report_only 'templates: unescaped output stays visible at its fixture' \
@@ -55,6 +58,11 @@ HTML
     expect_exit template_enforcement 'templates: a representative installed-goal finding fails enforcement' 1
     expect_match template_enforcement 'templates: enforcement names the fragment fixture and offence' \
         'fragments[.]html.*takes 6 arguments'
+
+    run_maven template_links_enforcement templates "$template_consumer" airness:template-links
+    expect_exit template_links_enforcement 'templates: a forbidden fragment reach fails enforcement' 1
+    expect_match template_links_enforcement 'templates: enforcement names the fragment reach and its repair' \
+        'page[.]html.*inside a fragment expression.*Ask for it in a th:with beside this'
 
     new_consumer message-parity
     parity_consumer="$consumer_directory"

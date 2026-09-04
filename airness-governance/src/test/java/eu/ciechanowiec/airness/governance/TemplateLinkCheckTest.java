@@ -137,7 +137,7 @@ class TemplateLinkCheckTest {
             </html>
             """;
         Path root = new GitFixture("links-argument").write(TEMPLATE, argument).root();
-        assertTrue(Verdicts.clean(findings(root)), "what follows the brace that closes a link belongs to its caller");
+        assertTrue(offences(root).isEmpty(), "what follows the brace that closes a link belongs to its caller");
     }
 
     @Test
