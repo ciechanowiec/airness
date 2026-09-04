@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Requires current-build evidence that Spring Boot made the production application ready.
@@ -18,6 +17,12 @@ import java.util.stream.Collectors;
  * composed annotation, an explicit production application class, and a direct call to
  * {@code SpringApplication.run} therefore mean the same thing here: each counts only when the actual
  * production application was one of the primary sources of a run that reached ready.
+ *
+ * <p>Requiring the application to start is what makes a second question askable. Once a build must
+ * produce a ready context, what that context decided is available to be read, and the mappings it
+ * left open to an anonymous caller are read here against the patterns the module says it meant to
+ * open. The two rules share a file because they share a guarantee: evidence is only worth judging
+ * where its absence is already a failure.
  */
 public final class SpringContextCheck {
 
@@ -26,10 +31,13 @@ public final class SpringContextCheck {
         "\\bpackage\\s+([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)\\s*;"
     );
     private static final String MISSING = "Spring application context not started by this build";
+    private static final String OPEN = "Endpoints the security chain admits to an unauthenticated caller";
+    private static final String OPENED = "open ";
 
     private final Path evidence;
     private final long started;
     private final List<String> applications;
+    private final SpringTypes types;
     private final int sources;
 
     /**
@@ -47,7 +55,8 @@ public final class SpringContextCheck {
         this.evidence = evidence;
         this.started = started;
         this.sources = found.size();
-        this.applications = SpringTypes.over(root, found).carrying(APPLICATION).stream()
+        this.types = SpringTypes.over(root, found);
+        this.applications = this.types.carrying(APPLICATION).stream()
             .filter(SpringTypes.Declared::production)
             .map(SpringContextCheck::qualified)
             .toList();
@@ -72,19 +81,36 @@ public final class SpringContextCheck {
     }
 
     /**
-     * The startup-evidence rule and every application class for which evidence is absent.
+     * The startup-evidence rule, the open-endpoint rule, and what each of them found.
      *
      * @return the verdict
      */
     public List<Findings> findings() {
-        return List.of(new Findings(MISSING, this.missing()));
+        List<String> recorded = this.recorded();
+        return List.of(
+            new Findings(MISSING, this.missing(recorded)),
+            new Findings(OPEN, SpringEndpointRules.undeclared(opened(recorded), this.types))
+        );
     }
 
-    private List<String> missing() {
+    /**
+     * The lines this build's evidence holds, and nothing where the evidence is absent or stale.
+     *
+     * @return the recorded lines
+     */
+    private List<String> recorded() {
+        return this.current() ? this.read() : List.of();
+    }
+
+    private static List<String> opened(Collection<String> recorded) {
+        return recorded.stream().filter(line -> line.startsWith(OPENED)).toList();
+    }
+
+    private List<String> missing(Collection<String> recorded) {
         if (this.applications.isEmpty()) {
             return List.of();
         }
-        Set<String> ready = this.current() ? this.ready() : Set.of();
+        Set<String> ready = Set.copyOf(recorded);
         return this.applications.stream()
             .filter(application -> !ready.contains(application))
             .map(
@@ -98,12 +124,12 @@ public final class SpringContextCheck {
         return Files.isRegularFile(this.evidence) && modified(this.evidence) >= this.started;
     }
 
-    private Set<String> ready() {
+    private List<String> read() {
         try {
             return Files.readAllLines(this.evidence).stream()
                 .map(String::strip)
                 .filter(line -> !line.isEmpty())
-                .collect(Collectors.toUnmodifiableSet());
+                .toList();
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read Spring context evidence " + this.evidence, exception);
         }

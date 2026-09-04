@@ -246,6 +246,117 @@ else
     fail 'spring: the ready production application left no exact runtime evidence'
 fi
 
+# What a running application leaves open is only visible from the ready context, so these two cases are
+# the only place the probe is exercised against a real container. The endpoints, the advice and the chain
+# are added together because a module with controllers owes an advice, and the two consumers differ by
+# one matcher: the one naming the pattern it opens, and the one opening a prefix it never reread.
+spring_open_named="$scratch/spring-open-named"
+clone_tree "$spring_app" "$spring_open_named"
+write_spring_web_module() {
+    cat > "$1/src/main/java/com/example/Orders.java" <<'JAVA'
+package com.example;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * The orders the application publishes.
+ */
+@RestController
+public final class Orders {
+
+    /**
+     * Answers with every order.
+     *
+     * @return the orders
+     */
+    @GetMapping("/api/orders")
+    public String list() {
+        return "[]";
+    }
+}
+JAVA
+    cat > "$1/src/main/java/com/example/Failures.java" <<'JAVA'
+package com.example;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+/**
+ * The answer every unhandled failure of this module is turned into.
+ */
+@RestControllerAdvice
+public final class Failures {
+
+    /**
+     * Answers a failure without naming what it was.
+     *
+     * @return the answer
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> failed() {
+        return ResponseEntity.internalServerError().body("failed");
+    }
+}
+JAVA
+    cat > "$1/src/main/java/com/example/Security.java" <<JAVA
+package com.example;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+/**
+ * What this application asks of a caller.
+ */
+@Configuration(proxyBeanMethods = false)
+public class Security {
+
+    /**
+     * Builds the chain every request is decided by.
+     *
+     * @param http the chain under construction
+     * @return the built chain
+     * @throws Exception when the chain cannot be built
+     */
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+        return http
+            .authorizeHttpRequests(
+                registry -> registry
+                    .requestMatchers("$2").permitAll()
+                    .anyRequest().authenticated()
+            )
+            .build();
+    }
+}
+JAVA
+}
+write_spring_web_module "$spring_open_named" '/api/orders'
+git -C "$spring_open_named" add --all
+# The goal is invoked after the test phase rather than reached through prepare-package, because the
+# fixture adds production classes that no consumer test covers and the coverage gate would stop the
+# build before the evidence goal ran. Everything the rule needs is in place by then: the governance
+# goals bound to process-classes have run, and the test phase has written the evidence this reads.
+run_maven spring_open_named spring "$spring_open_named" clean test airness:spring-context
+expect_exit spring_open_named 'spring: an endpoint whose pattern the chain names passes the context goal' 0
+
+# The same application, opened by a prefix instead. Airness already refuses anyRequest().permitAll() and
+# a "/**" matcher, so this is the spelling that survives every rule reading source: it admits an endpoint
+# the project never named, and only the running container says so.
+spring_open_prefix="$scratch/spring-open-prefix"
+clone_tree "$spring_app" "$spring_open_prefix"
+write_spring_web_module "$spring_open_prefix" '/api/**'
+git -C "$spring_open_prefix" add --all
+run_maven spring_open_prefix spring "$spring_open_prefix" clean test airness:spring-context
+expect_exit spring_open_prefix 'spring: an endpoint only a prefix admits fails the context goal' 1
+expect_match spring_open_prefix 'spring: the offence names the mapping the chain let through' \
+    'GET /api/orders: the security chain let an unauthenticated request reach this mapping'
+expect_match spring_open_prefix 'spring: the offence names the pattern the project would declare' \
+    'requestMatchers\("/api/orders"\).permitAll\(\)'
+
 # Reaching ready is not enough on its own. The source of that ready run must be the production
 # application, so an explicit test-only configuration cannot stand in for the component scan.
 spring_narrow="$scratch/spring-narrow"

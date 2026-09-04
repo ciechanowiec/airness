@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class SpringContextCheckTest {
 
+    private static final String SOURCE = "Application.java";
     private static final String APPLICATION = """
         package sample;
 
@@ -23,6 +24,22 @@ class SpringContextCheckTest {
         package sample;
 
         public final class Plain {
+        }
+        """;
+    private static final String SECURITY = """
+        package sample;
+
+        public final class Security {
+
+            SecurityFilterChain chain(HttpSecurity http) throws Exception {
+                return http
+                    .authorizeHttpRequests(
+                        registry -> registry
+                            .requestMatchers("/api/orders/{id}").permitAll()
+                            .anyRequest().authenticated()
+                    )
+                    .build();
+            }
         }
         """;
 
@@ -38,7 +55,7 @@ class SpringContextCheckTest {
     @Test
     @SneakyThrows
     void reportsAnApplicationWithNoEvidence() {
-        Path root = this.source("Application.java", APPLICATION);
+        Path root = this.source(SOURCE, APPLICATION);
         SpringContextCheck check = this.check(root, root.resolve("missing"), 0);
 
         assertEquals(
@@ -49,7 +66,7 @@ class SpringContextCheckTest {
     @Test
     @SneakyThrows
     void acceptsCurrentEvidenceNamingTheProductionApplication() {
-        Path root = this.source("Application.java", APPLICATION);
+        Path root = this.source(SOURCE, APPLICATION);
         Path evidence = this.evidence(root, "sample.Application\n");
         long started = Files.getLastModifiedTime(evidence).toMillis();
 
@@ -62,7 +79,7 @@ class SpringContextCheckTest {
     @Test
     @SneakyThrows
     void rejectsAReadyRunUsingOnlyTestConfiguration() {
-        Path root = this.source("Application.java", APPLICATION);
+        Path root = this.source(SOURCE, APPLICATION);
         Path evidence = this.evidence(root, "sample.TestConfiguration\n");
 
         assertEquals(
@@ -74,7 +91,7 @@ class SpringContextCheckTest {
     @Test
     @SneakyThrows
     void rejectsEvidenceFromAnEarlierMavenSession() {
-        Path root = this.source("Application.java", APPLICATION);
+        Path root = this.source(SOURCE, APPLICATION);
         Path evidence = this.evidence(root, "sample.Application\n");
         Files.setLastModifiedTime(evidence, FileTime.fromMillis(1));
 
@@ -87,12 +104,50 @@ class SpringContextCheckTest {
     @Test
     @SneakyThrows
     void readsAnApplicationInTheDefaultPackage() {
-        Path root = this.source("Application.java", APPLICATION.replace("package sample;\n\n", ""));
+        Path root = this.source(SOURCE, APPLICATION.replace("package sample;\n\n", ""));
         Path evidence = this.evidence(root, "Application\n");
 
         assertTrue(
             Verdicts.clean(this.check(root, evidence, 0).findings()),
             "the source parser keeps a default-package name whole"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void reportsAnOpenMappingTheModuleNamesNowhere() {
+        Path root = this.source(SOURCE, APPLICATION);
+        Path evidence = this.evidence(root, "sample.Application\nopen GET /api/orders/{id}\n");
+
+        assertEquals(
+            1, open(this.check(root, evidence, 0)).size(),
+            "a mapping the chain left open and the module never declared is reported"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void acceptsAnOpenMappingTheModuleNames() {
+        Path root = this.source(SOURCE, APPLICATION);
+        this.write(root, "Security.java", SECURITY);
+        Path evidence = this.evidence(root, "sample.Application\nopen GET /api/orders/{id}\n");
+
+        assertTrue(
+            Verdicts.clean(this.check(root, evidence, 0).findings()),
+            "the module named the pattern its chain leaves open"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void readsNoOpenMappingOutOfEvidenceFromAnEarlierMavenSession() {
+        Path root = this.source(SOURCE, APPLICATION);
+        Path evidence = this.evidence(root, "sample.Application\nopen GET /api/orders/{id}\n");
+        Files.setLastModifiedTime(evidence, FileTime.fromMillis(1));
+
+        assertTrue(
+            open(this.check(root, evidence, 2)).isEmpty(),
+            "what an earlier build observed is not what this build exposes"
         );
     }
 
@@ -118,7 +173,16 @@ class SpringContextCheckTest {
         );
     }
 
+    @SneakyThrows
+    private void write(Path root, String name, CharSequence content) {
+        Files.writeString(root.resolve("src/main/java/sample").resolve(name), content);
+    }
+
     private static List<String> offences(SpringContextCheck check) {
         return Verdicts.offences(check.findings(), "context not started");
+    }
+
+    private static List<String> open(SpringContextCheck check) {
+        return Verdicts.offences(check.findings(), "admits to an unauthenticated caller");
     }
 }
