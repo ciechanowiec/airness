@@ -61,7 +61,9 @@ Airness governs all of the following domains:
   as long as nothing draws that branch, and the first request that draws it fails on a name. A fragment renamed in one
   file and called from four others is the ordinary way it happens. What an expression builds rather than writes out,
   and what selects an element rather than naming a declaration, are passed over, since neither names a fragment that
-  can be resolved. Markup writes nothing into a page unescaped and has no expression read a second time as an
+  can be resolved. A call is read wherever it is written, including inside another call's argument list, because a
+  page handing its own controls to a shared header calls a fragment there and hands it a positional list like any
+  other call. Markup writes nothing into a page unescaped and has no expression read a second time as an
   expression. The first turns a stored value into markup and renders correctly for every value nobody chose to attack
   it with, and the second turns one into an expression the engine runs, whose reach is the engine's rather than the
   page's. Write the escaping form and keep markup out of what the model carries, and write the expression the
@@ -126,7 +128,8 @@ Airness governs all of the following domains:
   pattern. Which endpoints answer an unauthenticated caller is decided by a mapping in one file, a matcher in another
   and a path the container composes from both, so no source states it and no rule reading source can find it. Naming
   the pattern is the declaration that it is public; a matcher naming a prefix is not, because it admits whatever is
-  mapped under that prefix afterwards and widens without anybody rereading it. A handler carrying a method-security
+  mapped under that prefix afterwards and widens without anybody rereading it.
+  A handler carrying a method-security
   annotation is passed over, since its decision is taken after the chain, and mappings the framework contributes, the
   error controller and the actuator endpoints among them, belong to the rules already written about them. Nothing but
   the authorization decision is exercised: no filter of the project runs, no session is created and no handler is
