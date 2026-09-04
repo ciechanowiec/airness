@@ -140,26 +140,39 @@ Airness governs all of the following domains:
   enum's own derivation. A path variable a handler names is read against the placeholders of its mapping, class-level
   and method-level paths joined, since a name the mapping never declares answers the route and fails on the first
   request; a path or a name the source does not state is passed over. What the running application leaves open is read
-  from the ready context rather than from any file: every mapping the module declares is put to the security chain as
-  an anonymous caller, and one the chain admits is reported unless a `permitAll` matcher of the module names that exact
+  from the ready context rather than from any file: every mapping the module declares is put to the security chain as an
+  anonymous caller, and one the chain admits is reported unless a `permitAll` matcher of the module names that exact
   pattern. Which endpoints answer an unauthenticated caller is decided by a mapping in one file, a matcher in another
-  and a path the container composes from both, so no source states it and no rule reading source can find it. Naming
-  the pattern is the declaration that it is public, whether the matcher writes it out or names a string constant of
-  the module, bare from the same source or qualified by the type declaring it; a matcher naming a prefix is not,
-  because it admits whatever is mapped under that prefix afterwards and widens without anybody rereading it. An
-  argument that resolves to no written string, a call among them, states no pattern, so the mapping stays reported.
-  A handler carrying a method-security
-  annotation is passed over, since its decision is taken after the chain, and mappings the framework contributes, the
-  error controller and the actuator endpoints among them, belong to the rules already written about them. Nothing but
-  the authorization decision is exercised: no filter of the project runs, no session is created and no handler is
-  called, so recording this cannot change what the test around it observes. A fragment the module's markup declares is
-  read against everything in the module that could reach it, which is a fragment call in that markup and, because a
-  view name is as often assembled from constants as returned as a literal, the plain occurrence of the name inside a
-  string the module's Java writes. A fragment neither of those mentions is dead markup that parses, is held to the
-  argument cap, is passed over by the rule about calls because it is the callee rather than a caller, and is rendered
-  by nothing, so it is reported where it was declared; a fragment merely mentioned anywhere, tests included, is left
-  alone, which trades a dead fragment somebody happened to name for never accusing one a handler reaches by a name it
-  builds.
+  and a path the container composes from both, so no source states it and no rule reading source can find it. Naming the
+  pattern is the declaration that it is public, whether the matcher writes it out or names a string constant of the
+  module, bare from the same source or qualified by the type declaring it; a matcher naming a prefix is not, because it
+  admits whatever is mapped under that prefix afterwards and widens without anybody rereading it. An argument that
+  resolves to no written string, a call among them, states no pattern, so the mapping stays reported. A handler carrying
+  a method-security annotation is passed over, since its decision is taken after the chain, and mappings the framework
+  contributes, the error controller and the actuator endpoints among them, belong to the rules already written about
+  them. Nothing but the authorization decision is exercised: no filter of the project runs, no session is created and no
+  handler is called, so recording this cannot change what the test around it observes. A class of the application layer
+  that guards some of its public methods guards all of them, because an authorization annotation is the whole of what
+  decides who may call one, and a method added beside guarded siblings and left unannotated is reached by every caller
+  the container admits while looking exactly like the methods around it. A class guarding none of them is passed over,
+  having taken on no obligation, and so is a controller, whose callers are settled by the filter chain and read from the
+  running application by the rule above. A method the container invokes itself, a schedule, a lifecycle callback, an
+  event listener or an override, is passed over too: no principal is in scope on the thread one runs on, so a guard
+  there denies every invocation, and an override may carry its guard on the method it overrides. Where reaching a method
+  without a role is what was meant, `@PreAuthorize("permitAll()")` says so, that being the annotation the prePostEnabled
+  configuration every project has already reads, where the JSR-250 `@PermitAll` is honoured only by a project that
+  enabled that family beside it. A redirect or a forward whose whole target is a value the request carried is refused,
+  because the link that carried it chose where the reader goes and the sign-in they passed on the way makes the
+  destination read as the next step of the flow. A prefix carrying a path of its own puts the value in a segment beneath
+  this application and is left alone, a path variable is not read as a value the caller sent since the mapping declared
+  the path it is a segment of, and a value handed to a call of the project's own is read as one the handler worked out,
+  which is also the repair. A fragment the module's markup declares is read against everything in the module that could
+  reach it, which is a fragment call in that markup and, because a view name is as often assembled from constants as
+  returned as a literal, the plain occurrence of the name inside a string the module's Java writes. A fragment neither
+  of those mentions is dead markup that parses, is held to the argument cap, is passed over by the rule about calls
+  because it is the callee rather than a caller, and is rendered by nothing, so it is reported where it was declared; a
+  fragment merely mentioned anywhere, tests included, is left alone, which trades a dead fragment somebody happened to
+  name for never accusing one a handler reaches by a name it builds.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
@@ -170,7 +183,12 @@ Airness governs all of the following domains:
   configuration file and the published metadata, because the test profile satisfies it in every test while an
   environment starting from the base file refuses to start; a module shipping no base file is passed over. A lazy
   repository bootstrap is refused, because every repository query is parsed against the entity model when the
-  repository is built, and a lazy one is built on its first call.
+  repository is built, and a lazy one is built on its first call. Three settings are refused for what they
+  hand out: an actuator publishing an endpoint that carries a credential or stops the application, which the
+  wildcard rule beside it does not reach when the endpoint is named outright; an environment endpoint
+  returning its values in full, including whatever a placeholder resolved a credential to; and a session
+  cookie the page can read, which turns anything injected into one page from something acting inside the
+  session into something holding it.
 - **Repository assurance:** secret scanning, Qodana analysis, the ceiling on how many suppressions the repository
   holds, complete Git history, commit-message policy, commit typography, linear history, and history-wide
   compliance.

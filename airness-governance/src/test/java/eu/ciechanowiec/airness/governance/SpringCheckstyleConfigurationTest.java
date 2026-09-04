@@ -115,6 +115,45 @@ class SpringCheckstyleConfigurationTest {
                 """,
             "AirnessSpringRunnerStatesItsOrder",
             2
+        ),
+        new Fixture(
+            "Sessions.java",
+            """
+                package example;
+                final class Sessions {
+                    void chain(HttpSecurity http) throws Exception {
+                        http.sessionManagement(session -> session.sessionFixation().none());
+                    }
+                }
+                """,
+            "AirnessSpringSecuritySessionFixationIsPrevented",
+            4
+        ),
+        new Fixture(
+            "Ledger.java",
+            """
+                package example;
+                final class Ledger {
+                    Object owing(EntityManager entities, String reference) {
+                        return entities.createQuery("select p from Payment p where p.reference = " + reference);
+                    }
+                }
+                """,
+            "AirnessSpringStatementIsNotAssembled",
+            4
+        ),
+        new Fixture(
+            "Stored.java",
+            """
+                package example;
+                final class Stored {
+                    String encoded(String password) {
+                        return "{noop}" + password;
+                    }
+                }
+                """,
+            "AirnessSpringSecurityPasswordEncoderIsStrong",
+            4
         )
     );
     private static final Fixture CONTROLS = new Fixture(
@@ -160,6 +199,20 @@ class SpringCheckstyleConfigurationTest {
             final class Seeding implements ApplicationRunner {
                 @Override
                 public void run(ApplicationArguments arguments) {
+                }
+            }
+            final class Ledgers {
+                Object owing(EntityManager entities, UUID reference) {
+                    return entities.createQuery("select p from Payment p").setParameter("id", reference);
+                }
+                Object rows(JdbcTemplate template, UUID reference) {
+                    return template.query("select * from payment where id = ?", reference);
+                }
+                void chain(HttpSecurity http) throws Exception {
+                    http.sessionManagement(session -> session.sessionFixation().migrateSession());
+                }
+                PasswordEncoder encoder() {
+                    return new BCryptPasswordEncoder(12);
                 }
             }
             final class Admitting implements CommandLineRunner, Ordered {

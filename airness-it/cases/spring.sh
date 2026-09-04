@@ -423,6 +423,116 @@ expect_exit spring_narrow 'spring: a ready test-only context is not application 
 expect_match spring_narrow 'spring: narrowed evidence names the missing production source' \
     'contains no current run that reached ready with this production application'
 
+# A class that guards some of its public methods has taken on the obligation, so one added beside them
+# and left unannotated is reached by every caller the container admits. The class that guards none of
+# them is passed over in the same run, which is what keeps the rule off a bean nobody guarded.
+spring_guards="$scratch/spring-guards"
+clone_tree "$spring_app" "$spring_guards"
+cat > "$spring_guards/src/main/java/com/example/Ledger.java" <<'JAVA'
+package com.example;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+
+/**
+ * A service that guards one of its methods and not the other.
+ */
+@Service
+public class Ledger {
+
+    /**
+     * Answers only an administrator.
+     *
+     * @return the answer
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    public String settled() {
+        return "settled";
+    }
+
+    /**
+     * Answers whoever asks, which nobody decided.
+     *
+     * @return the answer
+     */
+    public String owing() {
+        return "owing";
+    }
+}
+JAVA
+cat > "$spring_guards/src/main/java/com/example/Unobliged.java" <<'JAVA'
+package com.example;
+
+import org.springframework.stereotype.Service;
+
+/**
+ * A service that guards nothing, and so owes nothing.
+ */
+@Service
+public class Unobliged {
+
+    /**
+     * Answers whoever asks.
+     *
+     * @return the answer
+     */
+    public String first() {
+        return "first";
+    }
+
+    /**
+     * Answers whoever asks.
+     *
+     * @return the answer
+     */
+    public String second() {
+        return "second";
+    }
+}
+JAVA
+git -C "$spring_guards" add --all
+run_maven spring_guards spring "$spring_guards" airness:spring-source
+expect_exit spring_guards 'spring: a public method left unguarded beside guarded siblings fails the source goal' 1
+expect_match spring_guards 'spring: the offence names the class and the method it left unguarded' \
+    'Ledger guards other public methods with an authorization annotation and owing carries none'
+expect_no_match spring_guards 'spring: a class that guards none of them is passed over' \
+    'Unobliged guards other public methods'
+
+# The whole of a redirect target taken from a value the request carried is an address the caller chose,
+# and the sign-in the reader passed on the way is what makes it read as the next step of the flow.
+spring_redirect="$scratch/spring-redirect"
+clone_tree "$spring_app" "$spring_redirect"
+cat > "$spring_redirect/src/main/java/com/example/Onward.java" <<'JAVA'
+package com.example;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+/**
+ * A controller sending a reader wherever a link says.
+ */
+@Controller
+public class Onward {
+
+    /**
+     * Sends the reader on to whatever the link named.
+     *
+     * @param to where the link says to go
+     * @return the target
+     */
+    @GetMapping("/onward")
+    public String onward(@RequestParam(name = "to", required = false) String to) {
+        return "redirect:" + to;
+    }
+}
+JAVA
+git -C "$spring_redirect" add --all
+run_maven spring_redirect spring "$spring_redirect" airness:spring-source
+expect_exit spring_redirect 'spring: a redirect built from a value the caller sent fails the source goal' 1
+expect_match spring_redirect 'spring: the offence names the value the target was built from' \
+    'the whole of this redirect target is built from to'
+
 # A role named in a guard is a string the engine compares with what a caller holds, and one no enum
 # declares is granted to nobody. The build refuses it rather than waiting for the request that finds out.
 spring_roles="$scratch/spring-roles"
