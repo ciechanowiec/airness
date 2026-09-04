@@ -30,10 +30,6 @@ final class MarkupResources {
      * @return the markup files, in the order git reports them
      */
     static List<Path> of(Path root, Collection<Path> resourceRoots) {
-        List<Path> resolved = resourceRoots.stream().map(root::resolve).map(Path::normalize).toList();
-        return Repository.trackedFiles(root).stream()
-            .filter(file -> file.getFileName().toString().endsWith(SUFFIX))
-            .filter(file -> resolved.stream().anyMatch(file::startsWith))
-            .toList();
+        return ModuleResources.of(root, resourceRoots, SUFFIX);
     }
 }

@@ -55,4 +55,28 @@ HTML
     expect_exit template_enforcement 'templates: a representative installed-goal finding fails enforcement' 1
     expect_match template_enforcement 'templates: enforcement names the fragment fixture and offence' \
         'fragments[.]html.*takes 6 arguments'
+
+    new_consumer message-parity
+    parity_consumer="$consumer_directory"
+    mkdir -p "$parity_consumer/src/main/resources"
+    cat > "$parity_consumer/src/main/resources/messages.properties" <<'PROPERTIES'
+room.name=Name
+room.code=Code
+room.name=Name again
+PROPERTIES
+    cat > "$parity_consumer/src/main/resources/messages_pl.properties" <<'PROPERTIES'
+room.name=Nazwa
+PROPERTIES
+
+    run_maven parity_report_only templates "$parity_consumer" airness:message-parity -Dairness.enforce=false
+    expect_exit parity_report_only 'templates: a bundle divergence reports without failing' 0
+    expect_match parity_report_only 'templates: the divergence names the language that lacks the name' \
+        'messages_pl[.]properties: room[.]code is declared by messages[.]properties'
+    expect_match parity_report_only 'templates: a name declared twice names the line it repeats on' \
+        'messages[.]properties:3: room[.]name is declared again here'
+
+    run_maven parity_enforcement templates "$parity_consumer" airness:message-parity
+    expect_exit parity_enforcement 'templates: a bundle divergence fails enforcement' 1
+    expect_match parity_enforcement 'templates: enforcement names the language that lacks the name' \
+        'messages_pl[.]properties: room[.]code'
 }
