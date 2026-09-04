@@ -161,6 +161,16 @@
                     as undeclared. Both halves of that are what a starter is for, so both are named here
                     rather than left to be worked around per project.
 
+                    The third list is the same fact read from the test tree. A Spring type only a test
+                    names, such as a status code a test asserts before any controller exists, arrives
+                    through the same starter, and the analyzer then reports the artifact as compile scoped
+                    but used by tests alone. A project can answer that neither way: declared at test scope
+                    the artifact leaves the runtime classpath, because a direct declaration outranks the
+                    transitive one, and declared at compile scope it is reported as unused. So the
+                    test-only check ignores the two groups the undeclared check already ignores. The
+                    plugin's own default for that list is written out beside them, because a written list
+                    replaces the default rather than adding to it.
+
                     The children are appended rather than written over the inherited list, which is what
                     keeps the airness-annotations exemption airness-parent declares.
                 -->
@@ -178,6 +188,11 @@
                         <ignoredUsedUndeclaredDependency>org.springframework:*</ignoredUsedUndeclaredDependency>
                         <ignoredUsedUndeclaredDependency>org.springframework.boot:*</ignoredUsedUndeclaredDependency>
                     </ignoredUsedUndeclaredDependencies>
+                    <ignoredNonTestScopedDependencies combine.children="append">
+                        <ignoredNonTestScopedDependency>org.springframework:*</ignoredNonTestScopedDependency>
+                        <ignoredNonTestScopedDependency>org.springframework.boot:*</ignoredNonTestScopedDependency>
+                        <ignoredNonTestScopedDependency>org.slf4j:slf4j-simple::</ignoredNonTestScopedDependency>
+                    </ignoredNonTestScopedDependencies>
                 </configuration>
             </plugin>
             <plugin>
