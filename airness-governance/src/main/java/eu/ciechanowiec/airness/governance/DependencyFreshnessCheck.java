@@ -13,6 +13,12 @@ import java.util.Optional;
  * <p>The registry read can fail, and when it does the check fails with it. A dependency whose latest
  * release could not be read is not a dependency known to be current, so passing on missing data would
  * turn an outage into a green build, which is the one outcome this check must not have.
+ *
+ * <p>The bound stops short of a newest release the blocklist refuses. A coordinate that turned non-open
+ * at a known release is still measured, but never past the last release a project may declare, because
+ * failing a project for not upgrading into a release another check would then refuse would leave it no
+ * green state at all. The update report still lists the release, with a note saying why the bound
+ * passed it by.
  */
 public final class DependencyFreshnessCheck {
 
@@ -75,6 +81,15 @@ public final class DependencyFreshnessCheck {
     }
 
     /**
+     * Every newest release the blocklist refuses, which the bound does not demand, one note each.
+     *
+     * @return the notes, in declaration order
+     */
+    public List<String> refusedLatest() {
+        return this.updates.stream().map(DependencyFreshnessCheck::refusedNote).flatMap(Optional::stream).toList();
+    }
+
+    /**
      * Every dependency trailing by the bound, one per entry.
      *
      * @return the single verdict this check produces
@@ -83,7 +98,21 @@ public final class DependencyFreshnessCheck {
         return List.of(
             new Findings(
                 HEADLINE,
-                this.updates.stream().map(DependencyFreshnessRules::violation).flatMap(Optional::stream).toList()
+                this.updates.stream()
+                    .filter(update -> refusedNote(update).isEmpty())
+                    .map(DependencyFreshnessRules::violation)
+                    .flatMap(Optional::stream)
+                    .toList()
+            )
+        );
+    }
+
+    private static Optional<String> refusedNote(VersionUpdate update) {
+        DeclaredCoordinate declared = update.declared().coordinate();
+        DeclaredCoordinate newest = new DeclaredCoordinate(declared.groupId(), declared.artifactId(), update.latest());
+        return Blocklist.coordinate(newest).map(
+            refusal -> "[%s] %s:%s: the newest release %s is refused (%s), so freshness stops short of it".formatted(
+                update.declared().owner(), declared.groupId(), declared.artifactId(), update.latest(), refusal.reason()
             )
         );
     }
