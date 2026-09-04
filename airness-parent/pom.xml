@@ -645,6 +645,7 @@
                             <goal>template-links</goal>
                             <goal>template-calls</goal>
                             <goal>template-output</goal>
+                            <goal>message-parity</goal>
                             <goal>suppression-budget</goal>
                             <goal>tree-verify</goal>
                         </goals>
