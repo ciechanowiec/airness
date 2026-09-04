@@ -51,12 +51,15 @@ final class TemplateCallRules {
     );
 
     /**
-     * Every fragment expression written in one attribute value.
+     * Every fragment expression written at the top of one attribute value.
      *
      * <p>A value carries more than one when it chooses between them, and carries one written without
-     * its braces when an attribute takes nothing else. An expression nested inside another is part of
-     * that one's argument list rather than a call of its own, so the scan goes on after the expression
-     * it kept rather than into it.
+     * its braces when an attribute takes nothing else. An expression nested inside another is one
+     * argument of that one rather than a member of this list, so the scan goes on after the expression
+     * it kept rather than into it. That is what a caller reading a view name needs, since a view name
+     * nests nothing and a reading that descended would answer a question about one name with a verdict
+     * over several. A caller holding a nested call to the rules the call containing it answers to reads
+     * {@link #every(String)} instead.
      *
      * @param value the value of one attribute
      * @return what each of them names, leaving out every one that names nothing readable
@@ -67,31 +70,48 @@ final class TemplateCallRules {
     }
 
     /**
+     * Every fragment call one attribute value makes, however deeply it is written.
+     *
+     * <p>{@link #calls(String)} answers what a value calls at the top, which is what a view name is
+     * read as. A call written inside another call's argument list is a call all the same. It names a
+     * fragment of a template, hands it a positional list, and is resolved by the engine at the moment
+     * the call containing it is put in place, so a reading that stopped at the top left the whole
+     * nested half of a layout-driven project held to nothing. A page handing its own controls to a
+     * shared header writes one of these on every page of such a project.
+     *
+     * <p>A call reaching a whole template is kept here rather than dropped, because a caller resolving
+     * the template half has a question to ask about one, and a caller wanting fragment names alone
+     * drops it in a line.
+     *
+     * @param value the value of one attribute
+     * @return what each of them names, at any depth, leaving out every one that names nothing readable
+     */
+    static List<FragmentCall> every(String value) {
+        List<FragmentCall> found = new ArrayList<>();
+        gather(value, found);
+        return List.copyOf(found);
+    }
+
+    /**
      * Every fragment name a value reaches, however deeply it is written.
      *
-     * <p>{@link #calls(String)} answers the calls a value makes, and a fragment written inside another
-     * call's argument list is not one of those. It is handed over rather than called, and where it is
-     * finally put in place is a variable, so the rule over calls is right to pass it by. It is a reach
-     * all the same, and a rule about a fragment nothing reaches has to see it, or a page handing its own
-     * controls to a shared header would report the controls of every page in the project.
+     * <p>A call reaching a whole template names no fragment to hold anything to, so it contributes
+     * nothing here. What is left is the name, which is all a rule about a fragment nothing reaches has
+     * to see, or a page handing its own controls to a shared header would report the controls of every
+     * page in the project.
      *
      * @param value the value of one attribute
      * @return every fragment name written in it, at any depth
      */
     static List<String> reached(String value) {
-        List<String> found = new ArrayList<>();
-        gather(value, found);
-        return List.copyOf(found);
+        return every(value).stream().filter(call -> !call.whole()).map(FragmentCall::fragment).toList();
     }
 
     // Each descent strips one pair of braces, and a content carrying none is not descended into, which
     // is what stops a value written without braces being read as its own argument for ever.
-    private static void gather(String value, Collection<String> found) {
+    private static void gather(String value, Collection<FragmentCall> found) {
         for (String written : expressions(value)) {
-            parsed(written).stream()
-                .filter(call -> !call.whole())
-                .map(FragmentCall::fragment)
-                .forEach(found::add);
+            found.addAll(parsed(written));
             if (written.contains(OPENS_FRAGMENT)) {
                 gather(written, found);
             }

@@ -24,10 +24,16 @@ import java.util.Optional;
  * declaration takes. A call handed too few arguments is not repaired by widening the declaration,
  * since every other caller then hands it too few as well.
  *
- * <p>What a call cannot be resolved to is passed over rather than guessed at. An expression that
- * builds the name it reaches, and a selector that reaches an element rather than a declaration, are
- * both left alone by {@link TemplateCallRules}, which is what keeps a layout mechanism that hands a
- * page its own body from reading as a call on nothing.
+ * <p>A call is read wherever it is written, including inside another call's argument list. A page
+ * that hands its own controls to a shared header writes a call there, and that call names a fragment
+ * of a template and hands it a positional list exactly as one written on its own does. Reading the
+ * outer call alone left every such site held to neither rule, which in a layout-driven project is
+ * most of the calls the project makes.
+ *
+ * <p>What a call cannot be resolved to is passed over rather than guessed at, at whatever depth it
+ * was written. An expression that builds the name it reaches, and a selector that reaches an element
+ * rather than a declaration, are both left alone by {@link TemplateCallRules}, which is what keeps a
+ * layout mechanism handing a page its own body by selector from reading as a call on nothing.
  */
 public final class TemplateCallCheck {
 
@@ -140,7 +146,7 @@ public final class TemplateCallCheck {
         }
 
         private void resolve(String value, Placement placement) {
-            TemplateCallRules.calls(value).forEach(call -> this.reach(call, placement));
+            TemplateCallRules.every(value).forEach(call -> this.reach(call, placement));
         }
 
         private void reach(FragmentCall call, Placement placement) {
