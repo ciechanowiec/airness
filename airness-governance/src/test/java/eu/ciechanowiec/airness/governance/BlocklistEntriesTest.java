@@ -16,12 +16,17 @@ class BlocklistEntriesTest {
 
     private static final String WILDCARD = "*";
 
+    // Whether a row says both why it refuses and what to reach for instead.
+    private static boolean stated(String reason, String replacement) {
+        return !reason.isBlank() && !replacement.isBlank();
+    }
+
     @Test
     void namesAReasonAndAReplacementForEveryEntry() {
         boolean images = BlocklistEntries.images().stream()
-            .allMatch(entry -> !entry.reason().isBlank() && !entry.replacement().isBlank());
+            .allMatch(entry -> stated(entry.reason(), entry.replacement()));
         boolean coordinates = BlocklistEntries.coordinates().stream()
-            .allMatch(entry -> !entry.reason().isBlank() && !entry.replacement().isBlank());
+            .allMatch(entry -> stated(entry.reason(), entry.replacement()));
         assertTrue(
             images && coordinates, "a refusal without a replacement sends the reader to the search this table did"
         );

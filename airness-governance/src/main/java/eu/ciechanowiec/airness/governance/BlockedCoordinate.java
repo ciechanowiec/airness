@@ -17,12 +17,6 @@ record BlockedCoordinate(String group, String artifact, Optional<String> floor, 
         return new BlockedCoordinate(group, artifact, Optional.empty(), reason, replacement);
     }
 
-    BlockedCoordinate from(String firstRefused) {
-        return new BlockedCoordinate(
-            this.group, this.artifact, Optional.of(firstRefused), this.reason, this.replacement
-        );
-    }
-
     boolean matches(String groupId, String artifactId) {
         return NamePattern.matches(this.group, groupId) && NamePattern.matches(this.artifact, artifactId);
     }
