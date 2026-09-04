@@ -52,6 +52,12 @@ public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
             this.getLog().info("The following stable version updates are available:");
             check.updates().forEach(update -> this.getLog().info("  " + update.report()));
         }
+        if (!check.refusedLatest().isEmpty()) {
+            this.getLog().info(
+                "The following newest releases are refused by name, so the freshness bound stops short:"
+            );
+            check.refusedLatest().forEach(note -> this.getLog().info("  " + note));
+        }
     }
 
     private void reportContainers(ContainerFreshnessCheck check) {

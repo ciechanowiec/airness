@@ -71,7 +71,24 @@ Airness governs all of the following domains:
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
-  container tag-digest drift, and the maximum permitted coordinate freshness gap.
+  container tag-digest drift, and the maximum permitted coordinate freshness gap. Some software is refused by name
+  whatever license its own manifest declares, because the license that matters belongs to a server it exists to
+  reach, to a binary it downloads, or to a container image, which has no manifest at all: the MongoDB server and its
+  drivers, starters and embedded forms, Redis images from 7.4, the Elastic images from 7.11 with their clients and
+  APM agent, MinIO, LocalStack, the Bitnami catalogue, CockroachDB from 24.3, the HashiCorp tools under the Business
+  Source License, Redpanda, the Confluent services under the Confluent Community License, Couchbase, Camunda 8,
+  the Timescale images without an `-oss` tag, self-hosted Sentry from 23.11, the proprietary database servers and
+  brokers with the drivers that reach only them, Oracle JDK and Oracle GraalVM whether an image ships them, a
+  workflow or `.sdkmanrc` installs them, or the build runs on them, the Selenium images that ship Chrome or Edge,
+  the commercial Vaadin, Liquibase, Flyway and Hazelcast artifacts, the Develocity extension, iText, Ghostscript,
+  MuPDF, the Gatling Highcharts module, and the AGPL services with a permissive equivalent, among them the Grafana
+  stores, k6, Plausible, Metabase, Garage and Citus. The check reads the raw `pom.xml` of every module including
+  inactive profiles and build extensions, the resolved set, `.mvn/extensions.xml`, every Dockerfile, compose file,
+  workflow and composite action, and every Testcontainers literal in the sources, and a refusal names the
+  replacement. Where a project turned non-open at a known release the refusal starts there, a tag that cannot be
+  placed against that release is refused rather than guessed, and the freshness bound never demands an upgrade into
+  a refused release. Every container image the repository names is pinned to a tag or a digest: `latest` or no tag
+  lets what is pulled change without the repository changing. There is no setting that widens or narrows the list.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material.
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a

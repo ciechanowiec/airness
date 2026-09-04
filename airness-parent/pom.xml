@@ -622,6 +622,19 @@
                             <goal>coverage-evidence</goal>
                         </goals>
                     </execution>
+                    <!--
+                        Before the version check, so a coordinate refused by name is named before the
+                        freshness report that stops short of its newest release. At package rather than
+                        validate, because the goal asks Maven for the resolved set and a reactor sibling
+                        is not resolvable before it is built.
+                    -->
+                    <execution>
+                        <id>airness-blocklist</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>blocklist</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>airness-version-check</id>
                         <phase>package</phase>
