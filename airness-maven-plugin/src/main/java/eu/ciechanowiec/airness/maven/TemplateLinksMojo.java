@@ -7,8 +7,8 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
 /**
- * A link expression in a module's markup reaches for nothing the template engine refuses to read
- * inside one.
+ * A link expression or a fragment expression in a module's markup reaches for nothing the template
+ * engine refuses to read inside one.
  *
  * <p>This runs per module rather than once for the repository, for the same reason template-parse
  * does: the resources it reads are the module's own, and a module that declares no resource directory

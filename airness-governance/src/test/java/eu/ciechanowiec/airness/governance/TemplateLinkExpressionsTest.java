@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /**
- * How a link expression is read apart from any file that carries one.
+ * How a link expression and a fragment expression are read apart from any file that carries one.
  */
 class TemplateLinkExpressionsTest {
 
@@ -19,6 +19,24 @@ class TemplateLinkExpressionsTest {
     @Test
     void readsEveryLinkWrittenInOneValue() {
         assertEquals(List.of("/rooms", "/clients"), TemplateLinkCheck.links("@{/rooms} and @{/clients}"));
+    }
+
+    @Test
+    void readsEveryFragmentExpressionWrittenInOneValue() {
+        assertEquals(
+            List.of("fragments :: pill(${tone})", "fragments :: plain"),
+            TemplateLinkCheck.fragments("${wide} ? ~{fragments :: pill(${tone})} : ~{fragments :: plain}"),
+            "each fragment expression a value chooses between is read on its own"
+        );
+    }
+
+    @Test
+    void countsPastTheFragmentExpressionAnotherHandsOver() {
+        assertEquals(
+            List.of("layout/page :: page(${title}, ~{:: #body})"),
+            TemplateLinkCheck.fragments("~{layout/page :: page(${title}, ~{:: #body})}"),
+            "a nested fragment expression is read as part of the one enclosing it"
+        );
     }
 
     @Test
