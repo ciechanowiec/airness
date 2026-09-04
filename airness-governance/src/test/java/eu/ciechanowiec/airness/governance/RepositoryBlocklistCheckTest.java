@@ -26,6 +26,15 @@ class RepositoryBlocklistCheckTest {
                 with:
                   distribution: oracle
         """;
+    private static final String EXTENSIONS = """
+        <extensions>
+            <extension>
+                <groupId>com.gradle</groupId>
+                <artifactId>develocity-maven-extension</artifactId>
+                <version>1.23</version>
+            </extension>
+        </extensions>
+        """;
 
     private static List<String> offences(Path root, String runtime) {
         return Verdicts.offences(new RepositoryBlocklistCheck(root, runtime).findings(), HEADLINE);
@@ -75,17 +84,8 @@ class RepositoryBlocklistCheckTest {
 
     @Test
     void refusesACoreExtensionAndASdkmanVendor() {
-        String extensions = """
-            <extensions>
-                <extension>
-                    <groupId>com.gradle</groupId>
-                    <artifactId>develocity-maven-extension</artifactId>
-                    <version>1.23</version>
-                </extension>
-            </extensions>
-            """;
         Path root = new GitFixture("repository-tooling")
-            .write(".mvn/extensions.xml", extensions)
+            .write(".mvn/extensions.xml", EXTENSIONS)
             .write(".sdkmanrc", "# jdk\njava=25\njava=25.0.1-oracle\nmaven=3.9.16\n")
             .root();
         List<String> offences = offences(root, OPEN_RUNTIME);

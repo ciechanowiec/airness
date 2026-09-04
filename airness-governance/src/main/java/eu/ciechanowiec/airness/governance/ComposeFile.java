@@ -90,23 +90,13 @@ final class ComposeFile {
             .map(entry -> new Located<>(entry.line(), new PulledImage(service, entry.value().value())));
     }
 
-    // A '#' opens a comment only where blank space precedes it, which is what YAML says, and a quoted
-    // value is taken whole before that rule is applied to it.
-    private static String scalar(String value) {
-        String stripped = Quotes.stripped(value);
-        Matcher comment = COMMENTED.matcher(stripped);
-        boolean unquoted = stripped.equals(value.strip());
-        String literal = unquoted && comment.find() ? stripped.substring(0, comment.start()) : stripped;
-        return VariableDefaults.applied(literal.strip());
-    }
-
     /**
      * One service of a compose file and the image it pulls.
      *
      * @param service the service name
      * @param image   the image reference, with variable defaults applied
      */
-    record PulledImage(String service, String image) {
+    public record PulledImage(String service, String image) {
     }
 
     /**
@@ -117,6 +107,16 @@ final class ComposeFile {
      * @param value  the scalar after it, or nothing when the line opens a mapping
      */
     private record Entry(int indent, String key, String value) {
+
+        // A '#' opens a comment only where blank space precedes it, which is what YAML says, and a
+        // quoted value is taken whole before that rule is applied to it.
+        private static String scalar(String value) {
+            String stripped = Quotes.stripped(value);
+            Matcher comment = COMMENTED.matcher(stripped);
+            boolean unquoted = stripped.equals(value.strip());
+            String literal = unquoted && comment.find() ? stripped.substring(0, comment.start()) : stripped;
+            return VariableDefaults.applied(literal.strip());
+        }
 
         static Entry of(String raw) {
             String text = raw.strip();

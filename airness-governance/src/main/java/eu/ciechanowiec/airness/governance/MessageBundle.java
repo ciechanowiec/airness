@@ -129,6 +129,6 @@ final class MessageBundle {
      * @param name the name a runtime would answer a text under
      * @param line the line it was declared on, counted from one
      */
-    record Declaration(String name, int line) {
+    public record Declaration(String name, int line) {
     }
 }

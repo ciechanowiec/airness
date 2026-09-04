@@ -46,6 +46,7 @@ final class BlocklistEntries {
         = "Elastic binaries are Elastic License 2.0 or SSPL from 7.11, and this exists only to reach them";
     private static final String ELASTIC_APM
         = "the Elastic APM server is Elastic License 2.0 from 7.11, and this agent reports only to it";
+    private static final String ELASTIC_FLOOR = "7.11.0";
     private static final String OPENSEARCH_IMAGE
         = "opensearchproject/opensearch and opensearchproject/opensearch-dashboards";
     private static final String OPENSEARCH_CLIENT
@@ -270,11 +271,9 @@ final class BlocklistEntries {
             "org.springframework.boot", "spring-boot-starter-data-elasticsearch", ELASTIC, OPENSEARCH_CLIENT
         ),
         BlockedCoordinate.of("org.springframework.data", "spring-data-elasticsearch", ELASTIC, OPENSEARCH_CLIENT),
-        BlockedCoordinate.of("org.elasticsearch", ANY, ELASTIC, OPENSEARCH_CLIENT).from("7.11.0"),
-        BlockedCoordinate.of(
-            "org.elasticsearch.client", "elasticsearch-rest-high-level-client", ELASTIC, OPENSEARCH_CLIENT
-        ).from("7.11.0"),
-        BlockedCoordinate.of("org.elasticsearch.plugin", ANY, ELASTIC, OPENSEARCH_CLIENT).from("7.11.0"),
+        elastic("org.elasticsearch", ANY),
+        elastic("org.elasticsearch.client", "elasticsearch-rest-high-level-client"),
+        elastic("org.elasticsearch.plugin", ANY),
         BlockedCoordinate.of(TESTCONTAINERS, "elasticsearch", ELASTIC, OPENSEARCH_MODULE),
         BlockedCoordinate.of("co.elastic.apm", ANY, ELASTIC_APM, OPENTELEMETRY),
         BlockedCoordinate.of("com.oracle.database.*", ANY, PROPRIETARY_DATABASE, POSTGRES_STARTER),
@@ -398,6 +397,12 @@ final class BlocklistEntries {
 
     static List<BlockedCoordinate> coordinates() {
         return COORDINATES;
+    }
+
+    // Every Elastic coordinate turned at one release, so the floor is written here once rather than
+    // beside each of the three rows that carry it.
+    private static BlockedCoordinate elastic(String group, String artifact) {
+        return new BlockedCoordinate(group, artifact, Optional.of(ELASTIC_FLOOR), ELASTIC, OPENSEARCH_CLIENT);
     }
 
     private static Optional<BlockedName> named(List<BlockedName> entries, String name) {
