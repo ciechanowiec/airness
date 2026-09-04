@@ -120,7 +120,17 @@ Airness governs all of the following domains:
   declaration it needs, and an authority spelled out as a literal such as `"ROLE_ADMIN"` is refused in favour of the
   enum's own derivation. A path variable a handler names is read against the placeholders of its mapping, class-level
   and method-level paths joined, since a name the mapping never declares answers the route and fails on the first
-  request; a path or a name the source does not state is passed over.
+  request; a path or a name the source does not state is passed over. What the running application leaves open is read
+  from the ready context rather than from any file: every mapping the module declares is put to the security chain as
+  an anonymous caller, and one the chain admits is reported unless a `permitAll` matcher of the module names that exact
+  pattern. Which endpoints answer an unauthenticated caller is decided by a mapping in one file, a matcher in another
+  and a path the container composes from both, so no source states it and no rule reading source can find it. Naming
+  the pattern is the declaration that it is public; a matcher naming a prefix is not, because it admits whatever is
+  mapped under that prefix afterwards and widens without anybody rereading it. A handler carrying a method-security
+  annotation is passed over, since its decision is taken after the chain, and mappings the framework contributes, the
+  error controller and the actuator endpoints among them, belong to the rules already written about them. Nothing but
+  the authorization decision is exercised: no filter of the project runs, no session is created and no handler is
+  called, so recording this cannot change what the test around it observes.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts

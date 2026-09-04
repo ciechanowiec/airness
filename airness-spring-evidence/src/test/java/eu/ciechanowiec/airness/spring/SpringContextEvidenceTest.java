@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,19 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
 import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.mock.web.MockServletContext;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.FilterChainProxy;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.support.GenericWebApplicationContext;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 @ResourceLock(Resources.SYSTEM_PROPERTIES)
 class SpringContextEvidenceTest {
@@ -62,6 +75,38 @@ class SpringContextEvidenceTest {
             ),
             Files.readAllLines(evidence),
             "each ready run remains available to the Maven goal"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void recordsTheMappingsTheReadySecurityChainLeavesOpen() {
+        Path evidence = this.directory.resolve("open.evidence");
+
+        this.ready(new SpringApplication(ApplicationSource.class), evidence, this.web());
+
+        assertEquals(
+            List.of(ApplicationSource.class.getName(), "open GET /public"),
+            Files.readAllLines(evidence),
+            "the run records both that it started and what starting it exposed"
+        );
+    }
+
+    @Test
+    void namesNoRootForAnApplicationInTheDefaultPackage() {
+        assertEquals(
+            Set.of(),
+            SpringContextEvidence.roots(List.of("Application")),
+            "a source in the default package names no package a handler could sit under"
+        );
+    }
+
+    @Test
+    void namesTheRootOfEachApplicationSourceThatHasOne() {
+        assertEquals(
+            Set.of("com.example", "com.other"),
+            SpringContextEvidence.roots(List.of("com.example.Application", "com.other.Second", "Bare")),
+            "each source that declares a package contributes the package it declares"
         );
     }
 
@@ -121,14 +166,46 @@ class SpringContextEvidenceTest {
     }
 
     private void ready(SpringApplication application, Path evidence) {
+        this.ready(application, evidence, new GenericApplicationContext());
+    }
+
+    private void ready(
+        SpringApplication application, Path evidence, ConfigurableApplicationContext context
+    ) {
         Optional<String> previous = Optional.ofNullable(
             System.setProperty(DESTINATION, evidence.toString())
         );
-        try (GenericApplicationContext context = new GenericApplicationContext()) {
-            new SpringContextEvidence(application).ready(context, Duration.ZERO);
+        try (ConfigurableApplicationContext closing = context) {
+            new SpringContextEvidence(application).ready(closing, Duration.ZERO);
         } finally {
             restore(previous);
         }
+    }
+
+    /**
+     * A ready web application whose chain admits anyone to the one mapping it declares.
+     */
+    private ConfigurableApplicationContext web() {
+        GenericWebApplicationContext context = new GenericWebApplicationContext(new MockServletContext());
+        context.registerBean("mapping", RequestMappingHandlerMapping.class);
+        context.registerBean(
+            "springSecurityFilterChain", FilterChainProxy.class,
+            () -> new FilterChainProxy(
+                new DefaultSecurityFilterChain(
+                    AnyRequestMatcher.INSTANCE,
+                    new AuthorizationFilter(
+                        RequestMatcherDelegatingAuthorizationManager.builder()
+                            .add(
+                                AnyRequestMatcher.INSTANCE, (_, _) -> new AuthorizationDecision(true)
+                            )
+                            .build()
+                    )
+                )
+            )
+        );
+        context.registerBean(Public.class);
+        context.refresh();
+        return context;
     }
 
     private static void restore(Optional<String> previous) {
@@ -136,6 +213,15 @@ class SpringContextEvidenceTest {
             value -> System.setProperty(DESTINATION, value),
             () -> System.clearProperty(DESTINATION)
         );
+    }
+
+    @RestController
+    static class Public {
+
+        @GetMapping("/public")
+        String open() {
+            return "open";
+        }
     }
 
     private enum ApplicationSource {
