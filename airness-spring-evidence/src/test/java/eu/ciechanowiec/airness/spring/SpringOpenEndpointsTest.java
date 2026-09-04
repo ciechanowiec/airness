@@ -26,7 +26,7 @@ class SpringOpenEndpointsTest {
     );
 
     private static GenericWebApplicationContext application(FilterChainProxy proxy) {
-        return SpringEndpointFixtures.context(proxy, SpringEndpointFixtures.Endpoints.class);
+        return SpringEndpointFixtures.context(proxy, Endpoints.class);
     }
 
     private static List<String> reached(GenericWebApplicationContext context) {
@@ -35,7 +35,7 @@ class SpringOpenEndpointsTest {
 
     @Test
     void reportsEveryMappingAWildcardMatcherAdmits() {
-        try (GenericWebApplicationContext context = application(SpringEndpointFixtures.admitting("/**"))) {
+        try (GenericWebApplicationContext context = application(SpringEndpointFixtures.admitting())) {
             assertEquals(
                 EVERY_MAPPING, reached(context),
                 "every mapping a wildcard admits is reported by the pattern the container mapped"
@@ -54,7 +54,7 @@ class SpringOpenEndpointsTest {
 
     @Test
     void passesOverAMappingNoMatcherOfTheChainCovers() {
-        try (GenericWebApplicationContext context = application(SpringEndpointFixtures.covering("/named"))) {
+        try (GenericWebApplicationContext context = application(SpringEndpointFixtures.covering())) {
             assertTrue(
                 reached(context).isEmpty(),
                 "this platform denies a request no matcher covers, so an uncovered mapping is not open"
@@ -103,7 +103,7 @@ class SpringOpenEndpointsTest {
             GenericWebApplicationContext context = new GenericWebApplicationContext(new MockServletContext())
         ) {
             context.registerBean("mapping", RequestMappingHandlerMapping.class);
-            context.registerBean(SpringEndpointFixtures.Endpoints.class);
+            context.registerBean(Endpoints.class);
             context.refresh();
             assertTrue(
                 reached(context).isEmpty(), "a chain that was never built is not a chain this can read"

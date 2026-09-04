@@ -53,11 +53,7 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
      * builds no servlet web application, and one that builds a web application with no security chain,
      * both answer no and neither loads a class that would not resolve.
      */
-    private static final boolean SERVLET_SECURITY = present(
-        "org.springframework.security.web.FilterChainProxy",
-        "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping",
-        "org.springframework.mock.web.MockHttpServletRequest"
-    );
+    private static final boolean SERVLET_SECURITY = present();
 
     private final SpringApplication application;
 
@@ -131,9 +127,15 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
             .collect(Collectors.toUnmodifiableSet());
     }
 
-    private static boolean present(String... types) {
+    // The three types are named where they are read rather than handed in, because one caller asks this
+    // and a list it always passes the same way is the list this question is about.
+    private static boolean present() {
         ClassLoader loader = SpringContextEvidence.class.getClassLoader();
-        return Stream.of(types).allMatch(type -> ClassUtils.isPresent(type, loader));
+        return Stream.of(
+            "org.springframework.security.web.FilterChainProxy",
+            "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping",
+            "org.springframework.mock.web.MockHttpServletRequest"
+        ).allMatch(type -> ClassUtils.isPresent(type, loader));
     }
 
     private static void write(Path destination, Collection<String> lines) {

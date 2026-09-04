@@ -204,7 +204,7 @@ final class SpringOpenEndpoints {
             .flatMap(List::stream)
             .filter(AuthorizationFilter.class::isInstance)
             .map(AuthorizationFilter.class::cast)
-            .<AuthorizationManager<HttpServletRequest>>map(AuthorizationFilter::getAuthorizationManager)
+            .map(AuthorizationFilter::getAuthorizationManager)
             .findFirst();
     }
 

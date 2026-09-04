@@ -93,8 +93,7 @@ final class SpringRoleRules {
      */
     private static Set<String> constants(String code, int opening) {
         int closing = SpringMembers.matching(code, opening);
-        String body = code.substring(opening + 1, closing);
-        String flattened = body;
+        String flattened = code.substring(opening + 1, closing);
         while (GROUP.matcher(flattened).find()) {
             flattened = GROUP.matcher(flattened).replaceAll(" ");
         }
