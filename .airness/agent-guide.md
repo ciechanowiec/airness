@@ -127,8 +127,10 @@ Airness governs all of the following domains:
   an anonymous caller, and one the chain admits is reported unless a `permitAll` matcher of the module names that exact
   pattern. Which endpoints answer an unauthenticated caller is decided by a mapping in one file, a matcher in another
   and a path the container composes from both, so no source states it and no rule reading source can find it. Naming
-  the pattern is the declaration that it is public; a matcher naming a prefix is not, because it admits whatever is
-  mapped under that prefix afterwards and widens without anybody rereading it.
+  the pattern is the declaration that it is public, whether the matcher writes it out or names a string constant of
+  the module, bare from the same source or qualified by the type declaring it; a matcher naming a prefix is not,
+  because it admits whatever is mapped under that prefix afterwards and widens without anybody rereading it. An
+  argument that resolves to no written string, a call among them, states no pattern, so the mapping stays reported.
   A handler carrying a method-security
   annotation is passed over, since its decision is taken after the chain, and mappings the framework contributes, the
   error controller and the actuator endpoints among them, belong to the rules already written about them. Nothing but
