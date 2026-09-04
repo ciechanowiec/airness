@@ -130,7 +130,14 @@ Airness governs all of the following domains:
   annotation is passed over, since its decision is taken after the chain, and mappings the framework contributes, the
   error controller and the actuator endpoints among them, belong to the rules already written about them. Nothing but
   the authorization decision is exercised: no filter of the project runs, no session is created and no handler is
-  called, so recording this cannot change what the test around it observes.
+  called, so recording this cannot change what the test around it observes. A fragment the module's markup declares is
+  read against everything in the module that could reach it, which is a fragment call in that markup and, because a
+  view name is as often assembled from constants as returned as a literal, the plain occurrence of the name inside a
+  string the module's Java writes. A fragment neither of those mentions is dead markup that parses, is held to the
+  argument cap, is passed over by the rule about calls because it is the callee rather than a caller, and is rendered
+  by nothing, so it is reported where it was declared; a fragment merely mentioned anywhere, tests included, is left
+  alone, which trades a dead fragment somebody happened to name for never accusing one a handler reaches by a name it
+  builds.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts

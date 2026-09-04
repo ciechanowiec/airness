@@ -24,10 +24,15 @@ import java.util.stream.Collectors;
  * compiled together or they do not compile at all. A question that genuinely spans modules is asked by
  * {@link SpringReactorCheck} instead, which runs once for the whole build.
  *
- * <p>One rule here reaches past Java into the resource trees, because the profile a test activates is
+ * <p>Some rules here reach past Java into the resource trees, because the profile a test activates is
  * answered by a file rather than by a type. {@link SpringConfigurationCheck} reads what those files say
  * and this reads only which of them exist, so the two do not overlap: a profile file is a fact about
  * the module that a rule over Java needs, in the same way the entity list is.
+ *
+ * <p>The markup is read in both directions. {@link SpringViewRules} asks whether a name written in Java
+ * is answered by a document, and {@link SpringFragmentRules} asks whether a fragment written in a
+ * document is named by anything, so the two halves of one question are answered from one reading of
+ * each tree.
  */
 public final class SpringModuleCheck {
 
@@ -49,6 +54,8 @@ public final class SpringModuleCheck {
         = "Test profile files that nothing activates";
     private static final String UNRESOLVED_VIEWS
         = "View names that reach no template the module ships";
+    private static final String UNREACHED_FRAGMENTS
+        = "Fragments the module declares that nothing in it reaches";
     private static final String IMPLICIT_BEAN_CHOICES
         = "Injection points relying on an implicit choice among local beans";
     private static final String IMPLICIT_HIERARCHIES
@@ -121,6 +128,10 @@ public final class SpringModuleCheck {
             new Findings(UNREGISTERED_PROPERTIES, SpringWiringRules.unregisteredProperties(this.types)),
             new Findings(UNACTIVATED_PROFILES, SpringTestRules.unactivatedProfiles(this.types, this.tested)),
             new Findings(UNRESOLVED_VIEWS, SpringViewRules.unresolvedViews(this.types, this.markup)),
+            new Findings(
+                UNREACHED_FRAGMENTS,
+                SpringFragmentRules.unreachedFragments(this.types, this.markup)
+            ),
             new Findings(IMPLICIT_BEAN_CHOICES, SpringBeanChoiceRules.implicitChoices(this.types)),
             new Findings(
                 IMPLICIT_HIERARCHIES,

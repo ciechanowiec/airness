@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -63,6 +64,38 @@ final class TemplateCallRules {
     static List<FragmentCall> calls(String value) {
         List<String> written = expressions(value);
         return written.stream().map(TemplateCallRules::parsed).flatMap(List::stream).toList();
+    }
+
+    /**
+     * Every fragment name a value reaches, however deeply it is written.
+     *
+     * <p>{@link #calls(String)} answers the calls a value makes, and a fragment written inside another
+     * call's argument list is not one of those. It is handed over rather than called, and where it is
+     * finally put in place is a variable, so the rule over calls is right to pass it by. It is a reach
+     * all the same, and a rule about a fragment nothing reaches has to see it, or a page handing its own
+     * controls to a shared header would report the controls of every page in the project.
+     *
+     * @param value the value of one attribute
+     * @return every fragment name written in it, at any depth
+     */
+    static List<String> reached(String value) {
+        List<String> found = new ArrayList<>();
+        gather(value, found);
+        return List.copyOf(found);
+    }
+
+    // Each descent strips one pair of braces, and a content carrying none is not descended into, which
+    // is what stops a value written without braces being read as its own argument for ever.
+    private static void gather(String value, Collection<String> found) {
+        for (String written : expressions(value)) {
+            parsed(written).stream()
+                .filter(call -> !call.whole())
+                .map(FragmentCall::fragment)
+                .forEach(found::add);
+            if (written.contains(OPENS_FRAGMENT)) {
+                gather(written, found);
+            }
+        }
     }
 
     /**

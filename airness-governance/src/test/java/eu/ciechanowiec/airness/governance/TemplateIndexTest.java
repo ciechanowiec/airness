@@ -119,6 +119,15 @@ class TemplateIndexTest {
         assertFalse(index("index-documents", USUAL).documents().isEmpty(), "the documents are named");
     }
 
+    @Test
+    void namesWhereEachDeclarationWasWritten() {
+        assertEquals(
+            List.of(4, 5),
+            index("index-placed", USUAL).declarations().stream().map(FragmentDeclaration::line).toList(),
+            "each declaration carries the line it was written on"
+        );
+    }
+
     private static TemplateIndex index(String name, String where) {
         Path root = new GitFixture(name).write(where, DOCUMENT).root();
         return new TemplateIndex(root, RESOURCES);
