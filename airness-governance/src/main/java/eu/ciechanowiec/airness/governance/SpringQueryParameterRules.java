@@ -35,11 +35,11 @@ final class SpringQueryParameterRules {
     private static final Pattern SPEL = Pattern.compile("[?:]#\\{([^}]*)}");
     private static final Pattern REFERENCE = Pattern.compile("#([A-Za-z_][A-Za-z0-9_]*)");
     private static final Pattern LITERAL = Pattern.compile(
-        "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\""
+        "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n]++)*+\""
     );
     private static final Pattern QUERY_BLOCK_COMMENT = Pattern.compile("(?s)/\\*.*?\\*/");
     private static final Pattern QUERY_LINE_COMMENT = Pattern.compile("--[^\\n]*");
-    private static final Pattern QUERY_LITERAL = Pattern.compile("'(?:''|[^'])*'");
+    private static final Pattern QUERY_LITERAL = Pattern.compile("'(?:''|[^']++)*'");
     private static final Pattern NON_LINE_BREAK = Pattern.compile("[^\\n]");
     private static final Pattern INFRASTRUCTURE = Pattern.compile(
         "\\b(?:Pageable|Sort|Limit|ScrollPosition)\\b|\\bClass\\s*<"

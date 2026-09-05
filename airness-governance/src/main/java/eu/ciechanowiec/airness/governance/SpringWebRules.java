@@ -33,9 +33,10 @@ final class SpringWebRules {
     private static final Pattern METHOD_MAPPING = Pattern.compile(
         "@(?:Request|Get|Post|Put|Delete|Patch)Mapping\\b(\\s*\\()?"
     );
-    // An array of paths carries the braces of its own templates, so one level of nesting is read.
+    // An array of paths carries the braces of its own templates, so one level of nesting is read. The
+    // array is read in runs, so however many paths it lists costs the scan no depth.
     private static final Pattern MEMBER = Pattern.compile(
-        "\\b(?:path|value)\\s*=\\s*(\\{(?:[^{}]|\\{[^{}]*})*}|\"[^\"]*\"|[A-Z][A-Z0-9_]*)"
+        "\\b(?:path|value)\\s*=\\s*(\\{(?:[^{}]++|\\{[^{}]*+})*+}|\"[^\"]*\"|[A-Z][A-Z0-9_]*)"
     );
     private static final Pattern WRITTEN = Pattern.compile("\"[^\"]*\"|\\b[A-Z][A-Z0-9_]*\\b");
     private static final Pattern TEMPLATE = Pattern.compile("\\{(\\w+)(?::[^}]*)?}");

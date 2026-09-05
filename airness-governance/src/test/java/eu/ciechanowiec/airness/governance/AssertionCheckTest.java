@@ -4,10 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -17,7 +15,6 @@ import org.junit.jupiter.api.Test;
 class AssertionCheckTest {
 
     private static final List<Path> TESTS = List.of(Path.of("src/test/java"));
-    private static final int STACK = 512 * 1024;
     private static final int QUOTED_LINES = 400;
     private static final String SOURCE = "src/test/java/sample/SubjectTest.java";
     private static final String UNPROVEN = "reaches no assertion";
@@ -188,7 +185,8 @@ class AssertionCheckTest {
     @Test
     void readsALongSourceWithoutFollowingItsLengthOntoTheStack() {
         Path root = new GitFixture("assertion-long").write(SOURCE, quotingALongFixture()).root();
-        Optional<List<Findings>> findings = onABoundedStack(new AssertionCheck(root, TESTS));
+        AssertionCheck check = new AssertionCheck(root, TESTS);
+        Optional<List<Findings>> findings = BoundedStack.read(check::findings);
         assertTrue(
             findings.isPresent(),
             "a scan that costs stack by the character runs out of it on the longest source it is given"
@@ -235,19 +233,5 @@ class AssertionCheckTest {
                 }
             }
             """.formatted("        + \"a line of the source this fixture quotes\"\n".repeat(QUOTED_LINES));
-    }
-
-    /*
-     * The rules are read on a thread whose stack is a known size, rather than on whatever the runner
-     * happened to leave. A reader that outgrows it returns nothing, and the absent verdicts are what the
-     * test reports.
-     */
-    @SneakyThrows
-    private static Optional<List<Findings>> onABoundedStack(AssertionCheck check) {
-        List<List<Findings>> read = new ArrayList<>();
-        Thread reader = new Thread(null, () -> read.add(check.findings()), "bounded-stack", STACK);
-        reader.start();
-        reader.join();
-        return read.stream().findFirst();
     }
 }

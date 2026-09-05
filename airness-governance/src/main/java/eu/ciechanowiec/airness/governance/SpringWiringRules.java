@@ -92,11 +92,12 @@ final class SpringWiringRules {
      * The parameter list allows one level of nesting, because a parameter may carry an annotation that
      * takes arguments of its own. Stopping at the first closing bracket instead would cut the list short
      * at a @Value and pass over every parameter written after it, which is a miss rather than a report
-     * and so would go unnoticed.
+     * and so would go unnoticed. The list is read in runs, so a constructor declared over many lines
+     * costs a stack frame per parameter rather than one per character of the declaration.
      */
     private static Stream<String> injections(SpringTypes.Declared singleton, Collection<String> prototypes) {
         Pattern constructor = Pattern.compile(
-            "\\b" + Pattern.quote(singleton.name()) + "\\s*\\(((?:[^()]|\\([^()]*\\))*)\\)"
+            "\\b" + Pattern.quote(singleton.name()) + "\\s*\\(((?:[^()]++|\\([^()]*+\\))*+)\\)"
         );
         return constructor.matcher(singleton.code()).results()
             .filter(declared -> injects(declared.group(1), prototypes))

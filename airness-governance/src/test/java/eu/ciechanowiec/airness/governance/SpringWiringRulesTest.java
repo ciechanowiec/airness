@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 class SpringWiringRulesTest {
 
     private static final List<Path> SOURCES = List.of(Path.of("src"));
+    private static final int MANY = 800;
     private static final String NEIGHBOUR = "src/main/java/sample/Neighbour.java";
     private static final String CALLER = "src/main/java/sample/Caller.java";
     private static final String SESSION = "src/main/java/sample/Session.java";
@@ -135,6 +137,21 @@ class SpringWiringRulesTest {
         }
         """;
 
+    private static String takesItAfterManyOthers() {
+        return """
+            package sample;
+
+            @Service
+            class Holder {
+
+                Holder(
+            %s        Session session
+                ) {
+                }
+            }
+            """.formatted("        @Value(\"${retries}\") int retries,\n".repeat(MANY));
+    }
+
     private static SpringTypes types(GitFixture fixture) {
         Path root = fixture.root();
         return SpringTypes.over(root, JavaSources.under(root, SOURCES));
@@ -177,6 +194,20 @@ class SpringWiringRulesTest {
             List.of(), SpringWiringRules.instantiatedComponents(types),
             "the module declares no component, so nothing here was taken from the container"
         );
+    }
+
+    @Test
+    void readsAConstructorDeclaredOverManyLines() {
+        SpringTypes types = types(
+            new GitFixture("wiring-long").write(SESSION, PROTOTYPE).write(HOLDER, takesItAfterManyOthers())
+        );
+
+        Optional<List<String>> offences = BoundedStack.read(
+            () -> SpringWiringRules.prototypesWithoutProviders(types)
+        );
+
+        assertTrue(offences.isPresent(), "a parameter list is read in runs, so its length costs the scan no depth");
+        assertEquals(1, offences.orElseThrow().size(), "and the prototype declared last in it is still found");
     }
 
     @Test
