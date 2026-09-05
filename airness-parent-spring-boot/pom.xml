@@ -167,9 +167,22 @@
                     but used by tests alone. A project can answer that neither way: declared at test scope
                     the artifact leaves the runtime classpath, because a direct declaration outranks the
                     transitive one, and declared at compile scope it is reported as unused. So the
-                    test-only check ignores the two groups the undeclared check already ignores. The
+                    test-only check ignores the groups the undeclared check already ignores. The
                     plugin's own default for that list is written out beside them, because a written list
                     replaces the default rather than adding to it.
+
+                    Both lists name every group under org.springframework rather than only the two the
+                    framework and the container are published under, because the rest of the portfolio
+                    is published under groups of its own and every one of them arrives through a starter
+                    exactly as those two do. Spring Data is where a project meets this first: a method
+                    reference to a repository method the project inherits rather than declares, such as
+                    a fixture handing a delete over as accounts::delete, names the interface that
+                    declares it and puts spring-data-commons in the class file, while a direct call
+                    names the receiver's own interface and does not. So the same artifact is used or
+                    unused according to which of two spellings of one call a project wrote, one of the
+                    two spellings is the one PMD asks for, and the dead end above is what the project
+                    is then left holding. The same is true of Spring Security, Spring Session, Spring
+                    AMQP and the rest.
 
                     The children are appended rather than written over the inherited list, which is what
                     keeps the airness-annotations exemption airness-parent declares.
@@ -187,10 +200,12 @@
                     <ignoredUsedUndeclaredDependencies combine.children="append">
                         <ignoredUsedUndeclaredDependency>org.springframework:*</ignoredUsedUndeclaredDependency>
                         <ignoredUsedUndeclaredDependency>org.springframework.boot:*</ignoredUsedUndeclaredDependency>
+                        <ignoredUsedUndeclaredDependency>org.springframework.*:*</ignoredUsedUndeclaredDependency>
                     </ignoredUsedUndeclaredDependencies>
                     <ignoredNonTestScopedDependencies combine.children="append">
                         <ignoredNonTestScopedDependency>org.springframework:*</ignoredNonTestScopedDependency>
                         <ignoredNonTestScopedDependency>org.springframework.boot:*</ignoredNonTestScopedDependency>
+                        <ignoredNonTestScopedDependency>org.springframework.*:*</ignoredNonTestScopedDependency>
                         <ignoredNonTestScopedDependency>org.slf4j:slf4j-simple::</ignoredNonTestScopedDependency>
                     </ignoredNonTestScopedDependencies>
                 </configuration>

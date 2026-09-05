@@ -679,7 +679,19 @@
     <inspection_tool class="StaticFieldReferenceOnSubclass" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="StaticGuardedByInstance" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="StaticInheritance" enabled="true" level="WARNING" enabled_by_default="false" />
-    <inspection_tool class="StaticMethodOnlyUsedInOneClass" enabled="true" level="WARNING" enabled_by_default="true" />
+    <!--
+    A static method reached from one other class is worth moving to it, and a test is never that
+    class. The repair the finding names would move production code into the test tree, and the method
+    it names first in a Spring Boot project is the entry point: the container calls main reflectively,
+    so the only caller a static analyzer can see is the test that starts the application from a
+    command line the way a deployment does. A class holding nothing but main is passed over for
+    having no other member, so the finding appears the moment the application class is given a bean
+    of its own, which is a reason to move the bean and never a reason to move main. Reporting it
+    hands an agent working without review a repair that deletes the entry point of the artifact.
+    -->
+    <inspection_tool class="StaticMethodOnlyUsedInOneClass" enabled="true" level="WARNING" enabled_by_default="true">
+        <option name="ignoreTestClasses" value="true" />
+    </inspection_tool>
     <inspection_tool class="StaticNonFinalField" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="StaticVariableInitialization" enabled="true" level="WARNING" enabled_by_default="true">
         <option name="m_ignorePrimitives" value="false" />
