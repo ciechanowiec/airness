@@ -282,9 +282,19 @@
     <inspection_tool class="ExtendsUtilityClass" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="ExternalizableWithSerializationMethods" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="FieldAccessNotGuarded" enabled="true" level="WARNING" enabled_by_default="false" />
+    <!--
+    The cap counts state rather than vocabulary. Left at its default the inspection reads a static final
+    field as a constant only where the type is a primitive or a String, so a static final Duration,
+    Pattern, List or Map was counted as though the class carried one per instance. MagicNumber in
+    checkstyle.xml refuses a duration or a bound written inline and asks for exactly such a field, so the
+    two pulled against each other: extracting a literal into a named constant cost a field slot, and the
+    offence read as too many fields against a class that had gained none. TooManyFields in pmd.xml states
+    the same cap of seven and passes over every static final field, so this is also what makes the two
+    agree. What the cap refuses of a class that genuinely carries the state is unchanged.
+    -->
     <inspection_tool class="FieldCount" enabled="true" level="WARNING" enabled_by_default="true">
         <option name="m_countConstantFields" value="false" />
-        <option name="m_considerStaticFinalFieldsConstant" value="false" />
+        <option name="m_considerStaticFinalFieldsConstant" value="true" />
         <option name="myCountEnumConstants" value="false" />
         <option name="m_limit" value="7" />
     </inspection_tool>

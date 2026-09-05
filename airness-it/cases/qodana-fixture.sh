@@ -558,8 +558,164 @@ public final class Budget {
     }
 }
 JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/Soundings.java" <<'JAVA'
+package com.example;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.regex.Pattern;
+
+/**
+ * A run of soundings, holding six values of its own beside the bounds and tables it reads them
+ * against, every one of which is written out because no literal may stand in the body.
+ */
+public final class Soundings {
+
+    private static final Duration SHORTEST = Duration.ofSeconds(15);
+
+    private static final Duration LONGEST = Duration.ofMinutes(30);
+
+    private static final Pattern LABEL = Pattern.compile("[A-J]([1-9]|10)");
+
+    private static final List<String> LETTERS = List.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J");
+
+    private static final List<Integer> DEPTHS = List.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+
+    private final String vessel;
+
+    private final String station;
+
+    private final String label;
+
+    private final int depth;
+
+    private final long taken;
+
+    private final boolean confirmed;
+
+    /**
+     * Records one run.
+     *
+     * @param vessel    who took the soundings
+     * @param station   where they were taken
+     * @param label     which cell of the grid they name
+     * @param depth     how deep the water was
+     * @param taken     how long the run lasted, in seconds
+     * @param confirmed whether a second run agreed
+     */
+    public Soundings(String vessel, String station, String label, int depth, long taken, boolean confirmed) {
+        this.vessel = vessel;
+        this.station = station;
+        this.label = label;
+        this.depth = depth;
+        this.taken = taken;
+        this.confirmed = confirmed;
+    }
+
+    /**
+     * Answers whether this run is worth keeping, which is a labelled cell, a depth the table holds
+     * and a duration inside the two bounds.
+     *
+     * @return whether it is worth keeping
+     */
+    public boolean sound() {
+        Duration lasted = Duration.ofSeconds(this.taken);
+        return this.confirmed
+            && LABEL.matcher(this.label).matches()
+            && LETTERS.contains(this.label.substring(0, 1))
+            && DEPTHS.contains(this.depth)
+            && !lasted.minus(SHORTEST).isNegative()
+            && !lasted.minus(LONGEST).isPositive();
+    }
+
+    /**
+     * Answers where the run was taken.
+     *
+     * @return the vessel and the station it worked from
+     */
+    public String where() {
+        return this.vessel + " at " + this.station;
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/Consignment.java" <<'JAVA'
+package com.example;
+
+/**
+ * A consignment that carries eight values of its own, which is more state than one class may hold.
+ */
+public final class Consignment {
+
+    private final String name;
+
+    private final String version;
+
+    private final String vendor;
+
+    private final String licence;
+
+    private final String home;
+
+    private final String source;
+
+    private final String issues;
+
+    private final String checksum;
+
+    /**
+     * Records what was consigned.
+     *
+     * @param name     what it is called
+     * @param version  which release it is
+     * @param vendor   who published it
+     * @param licence  what it is published under
+     * @param home     where it is described
+     * @param source   where it is written
+     * @param issues   where it is reported
+     * @param checksum what it hashes to
+     */
+    public Consignment(
+        String name,
+        String version,
+        String vendor,
+        String licence,
+        String home,
+        String source,
+        String issues,
+        String checksum
+    ) {
+        this.name = name;
+        this.version = version;
+        this.vendor = vendor;
+        this.licence = licence;
+        this.home = home;
+        this.source = source;
+        this.issues = issues;
+        this.checksum = checksum;
+    }
+
+    /**
+     * Answers the consignment as one line.
+     *
+     * @return every value it carries, in order
+     */
+    public String line() {
+        return String.join(
+            " ",
+            this.name,
+            this.version,
+            this.vendor,
+            this.licence,
+            this.home,
+            this.source,
+            this.issues,
+            this.checksum
+        );
+    }
+}
+JAVA
     git -C "$qodana_consumer" add --all
     git -C "$qodana_consumer" commit --quiet \
         --message 'test(it): carry the shapes the dropped inspections reported' \
-        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class, a chart named in domain words, an enum of one constant and a budget counted in long units, so the profile has something to be read against.'
+        --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class, a chart named in domain words, an enum of one constant, a budget counted in long units, a run of soundings holding its bounds and tables as constants and a class carrying eight values of its own, so the profile has something to be read against.'
 }

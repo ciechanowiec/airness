@@ -31,6 +31,17 @@ run_qodana_profile() {
                 pass "qodana: ClassCoupling leaves $spared alone"
             fi
         done
+        if grep -q "'Consignment' has too many fields" "$qodana_sarif"; then
+            pass 'qodana: FieldCount still reports a class carrying too much state of its own'
+        else
+            fail 'qodana: FieldCount stopped reporting a class carrying too much state of its own'
+            sed -n '1,220p' "$qodana_log" >&2
+        fi
+        if grep -q "'Soundings' has too many fields" "$qodana_sarif"; then
+            fail 'qodana: FieldCount counted the constants a class holds as state of its own'
+        else
+            pass 'qodana: FieldCount leaves the bounds and tables a class holds as constants alone'
+        fi
         if grep -q "Class 'Tool' has only 'static' members" "$qodana_sarif"; then
             pass 'qodana: a static-only class with a main is still reported'
         else
