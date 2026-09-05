@@ -30,8 +30,8 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
 Airness governs all of the following domains:
 
 - **Toolchain and Maven model:** runtime versions, project and parent coordinates, package ownership, inherited plugin
-  ownership, raw-model anti-bypass checks, effective dependency convergence, the ordering of declared properties, and
-  valid Airness parameters.
+  ownership, raw-model anti-bypass checks, effective dependency convergence, the ordering and local use of declared
+  properties, and valid Airness parameters.
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
   instruction files; editor and Git configuration; and an unchanged committable tree during verification. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
@@ -365,6 +365,12 @@ Those six are the whole of what a project file may declare. Every other name und
 `maven.test.skip`, and `jacoco.dataFile`, is refused there, because each of them can decide a verdict. The refusal
 reads the file as written, so a name inside a profile that is never activated is refused too. Both
 `-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
+
+A property naming a version is refused where nothing in the same file reads it. The platform reaches a project as a
+bill of materials the parent imports rather than inherits, and an imported one resolves its own properties, so a
+`tomcat.version` written beside the settings above moves no version at all and leaves the file claiming a pin that is
+not there. Manage the artifact in a `dependencyManagement` block of the project's own and version it from the
+property, which is what makes the property the pin it reads as.
 
 Reach for the suppression file only when no upgrade answers an advisory. Keep it at
 `.airness/dependency-check-suppressions.xml`, which is the path the scan reads: the document's presence there is what

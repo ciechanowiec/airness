@@ -50,7 +50,7 @@ final class PomPropertyOrder {
         );
     }
 
-    private static Map<String, Integer> firstUses(
+    static Map<String, Integer> firstUses(
         Element root, Collection<String> names, Collection<Node> blocks
     ) {
         List<Element> sites = Stream.concat(Stream.of(root), elements(root))
@@ -100,7 +100,7 @@ final class PomPropertyOrder {
         return blocks.contains(node);
     }
 
-    private static List<String> propertyNames(Node block) {
+    static List<String> propertyNames(Node block) {
         return nodes(block.getChildNodes())
             .filter(node -> node.getNodeType() == Node.ELEMENT_NODE)
             .map(Element.class::cast)
