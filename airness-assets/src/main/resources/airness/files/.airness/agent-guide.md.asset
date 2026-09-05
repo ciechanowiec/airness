@@ -63,7 +63,12 @@ Airness governs all of the following domains:
   and what selects an element rather than naming a declaration, are passed over, since neither names a fragment that
   can be resolved. A call is read wherever it is written, including inside another call's argument list, because a
   page handing its own controls to a shared header calls a fragment there and hands it a positional list like any
-  other call. Markup writes nothing into a page unescaped and has no expression read a second time as an
+  other call. A call is written only where the engine evaluates one, which is inside a variable expression or a
+  selection expression, because everywhere else a standard expression reads a literal, a number, a token and the
+  operators between them. The two arms of a conditional may therefore be written out but may not be worked out, so a
+  page that turns a written-out word into a lookup moves the closing brace with it. Missing that is one character
+  wide and fails on the first request that draws the value. Markup writes nothing into a page unescaped and has no
+  expression read a second time as an
   expression. The first turns a stored value into markup and renders correctly for every value nobody chose to attack
   it with, and the second turns one into an expression the engine runs, whose reach is the engine's rather than the
   page's. Write the escaping form and keep markup out of what the model carries, and write the expression the
