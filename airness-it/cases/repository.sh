@@ -5,6 +5,7 @@ run_repository_cases() {
     run_tree_boundary
     run_report_only_boundaries
     run_artifact_boundaries
+    run_artifact_manifest_boundary
     run_coverage_boundary
     run_git_boundaries
     check_published_assets
@@ -169,6 +170,52 @@ XML
     expect_exit artifact_repackaged 'artifact: report-only permits inspection of the repackaged archive' 0
     expect_match artifact_repackaged 'artifact: the final repackaged archive is the one inspected' \
         'Source or development files packaged in the JAR'
+}
+
+# A versioned class that reaches the archive after its manifest was written. The plugin that packages
+# an ordinary archive declares a versioned class it can see, so the defect belongs to repackaging: a
+# shade writes a manifest of its own and says nothing about the versioned classes it copied in, and a
+# runtime then reads none of them.
+run_artifact_manifest_boundary() {
+    new_consumer artifact-manifest
+    manifest_consumer="$consumer_directory"
+    mkdir -p "$manifest_consumer/packaging"
+    printf 'bytecode\n' > "$manifest_consumer/packaging/Versioned.class"
+    manifest_block="$(cat <<'XML'
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>repackage</id>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                  <resource>META-INF/versions/17/com/example/Versioned.class</resource>
+                  <file>packaging/Versioned.class</file>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+XML
+)"
+    MANIFEST_BLOCK="$manifest_block" perl -0pi -e \
+        's{</project>}{$ENV{MANIFEST_BLOCK}."\n</project>"}e' "$manifest_consumer/pom.xml"
+    prepare_maven manifest_build repository "$manifest_consumer" --quiet clean package \
+        -DskipTests -Dairness.enforce=false
+    run_maven manifest_reject repository "$manifest_consumer" airness:artifact-content
+    expect_exit manifest_reject 'artifact: an undeclared versioned class is rejected' 1
+    expect_match manifest_reject 'artifact: the undeclared versioned class is named precisely' \
+        'Versioned classes the manifest does not declare|META-INF/versions/17/com/example/Versioned[.]class'
 }
 
 run_coverage_boundary() {
