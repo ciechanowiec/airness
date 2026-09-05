@@ -76,14 +76,6 @@ public final class TemplateExpressionCheck {
         return List.of(new Findings(HEADLINE, this.scan.offences(Unevaluated::new)));
     }
 
-    // Whether the attribute carries an expression at all. A fragment declaration is written the way a
-    // call is written and is a list of parameter names, so it is the one dialect attribute passed over.
-    private static boolean carries(String attribute) {
-        String spelled = attribute.toLowerCase(Locale.ROOT);
-        boolean dialect = spelled.startsWith(THYMELEAF) || spelled.startsWith(THYMELEAF_DATA);
-        return dialect && !TemplateFragmentCheck.declares(spelled);
-    }
-
     /**
      * Collects every call a document writes outside the expressions that would evaluate one.
      */
@@ -115,6 +107,15 @@ public final class TemplateExpressionCheck {
 
         private void report(String call, int line, int column) {
             this.offences.add("%s:%d:%d: %s(...) %s".formatted(this.named, line, column, call, REPAIR));
+        }
+
+        // Whether the attribute carries an expression at all. A fragment declaration is written the way
+        // a call is written and is a list of parameter names, so it is the one dialect attribute passed
+        // over.
+        private static boolean carries(String attribute) {
+            String spelled = attribute.toLowerCase(Locale.ROOT);
+            boolean dialect = spelled.startsWith(THYMELEAF) || spelled.startsWith(THYMELEAF_DATA);
+            return dialect && !TemplateFragmentCheck.declares(spelled);
         }
     }
 }
