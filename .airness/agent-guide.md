@@ -90,7 +90,8 @@ Airness governs all of the following domains:
   a refused release. Every container image the repository names is pinned to a tag or a digest: `latest` or no tag
   lets what is pulled change without the repository changing. There is no setting that widens or narrows the list.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
-  machine-local repository paths, or recognizable secret material.
+  machine-local repository paths, or recognizable secret material, and its manifest declares the versioned classes the
+  archive ships and the restricted native access the classes of the module reach for.
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
   settle, production-to-test boundaries, per-class line and branch coverage, current-build coverage evidence, and

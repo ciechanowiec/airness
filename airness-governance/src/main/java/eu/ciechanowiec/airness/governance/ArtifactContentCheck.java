@@ -36,10 +36,31 @@ import java.util.stream.Stream;
  * bytes: a library that ships its sources under {@code OSGI-OPT/src} and a library whose TLS code
  * carries a throwaway test key in a string constant are each reporting on the library.
  *
- * <p>The remaining three rules read every entry whatever supplied it. An entry name that escapes the
+ * <p>The remaining name rules read every entry whatever supplied it. An entry name that escapes the
  * extraction directory is dangerous whoever wrote it, an absolute path out of the machine that built
  * this archive cannot have reached a published dependency, and a duplicate name is a property of this
  * archive rather than of any one contributor to it.
+ *
+ * <p>Two further rules read the manifest rather than the entries, because two lines of it decide
+ * whether the archive behaves. A runtime reads a class under {@code META-INF/versions} only where the
+ * manifest declares the archive multi-release, so an archive shipping such a class undeclared carries
+ * bytes nothing will run, and the library that published the class goes on running the copy the
+ * versioned one was written to replace. The plugin that packages an ordinary archive declares the
+ * versioned classes it can see, which leaves repackaging as the place the declaration is lost: the
+ * versioned classes arrive from a dependency after the manifest was written, and the manifest the
+ * repackaging wrote says nothing about them. That reading covers every entry whatever supplied it,
+ * because the manifest of the shipped archive is the archive's own however the classes it leaves
+ * undeclared arrived in it.
+ *
+ * <p>The second manifest rule reads a runnable archive whose own classes reach the operating system
+ * through the foreign function interface. Such a call is restricted: undeclared, the runtime writes
+ * warnings of its own to standard error before the application has said anything, and a later release
+ * will refuse the call rather than warn about it. Only a runnable archive can carry the declaration,
+ * so a library is left alone and whoever launches it answers instead. The reading covers the bytes
+ * this module compiled and no others, for the reason the development rule and the secret rule are
+ * scoped that way. It names the two foreign-interface types a constant pool spells in full, and leaves
+ * aside the loaders of a native library, which a constant pool records as a bare method name that an
+ * ordinary method of the same name would match.
  */
 public final class ArtifactContentCheck {
 
@@ -49,6 +70,10 @@ public final class ArtifactContentCheck {
     private static final Set<String> DEVELOPMENT_DIRECTORIES = Set.of(
         ".git", ".github", ".idea", ".vscode"
     );
+    private static final Set<String> RESTRICTED_TYPES = Set.of(
+        "java/lang/foreign/Linker", "java/lang/foreign/SymbolLookup"
+    );
+    private static final String VERSIONED = "META-INF/versions/";
     private final Path artifact;
     private final ModuleOutput output;
     private final String repositoryPath;
@@ -96,6 +121,14 @@ public final class ArtifactContentCheck {
             new Findings(
                 "Recognizable secret material packaged in the JAR",
                 entries(offences, Kind.SECRET)
+            ),
+            new Findings(
+                "Versioned classes the manifest does not declare",
+                entries(offences, Kind.MULTI_RELEASE)
+            ),
+            new Findings(
+                "Restricted native access the manifest does not declare",
+                entries(offences, Kind.NATIVE_ACCESS)
             )
         );
     }
@@ -112,6 +145,7 @@ public final class ArtifactContentCheck {
             List<Content> entries = jar.stream().map(entry -> content(jar, entry)).toList();
             List<String> names = entries.stream().map(Content::name).toList();
             Stream<Content> files = entries.stream().filter(entry -> !entry.directory());
+            PackagedManifest manifest = PackagedManifest.of(jar);
             return Map.of(
                 Kind.UNSAFE, IntStream.range(0, names.size())
                     .filter(index -> unsafeEntry(names, index))
@@ -134,7 +168,9 @@ public final class ArtifactContentCheck {
                     .filter(entry -> !supplied.contains(entry.name()))
                     .filter(entry -> SensitiveContent.secret(entry.content()))
                     .map(Content::name)
-                    .toList()
+                    .toList(),
+                Kind.MULTI_RELEASE, undeclaredVersions(entries, manifest),
+                Kind.NATIVE_ACCESS, undeclaredNativeAccess(entries, manifest, main)
             );
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect artifact " + this.artifact, exception);
@@ -158,6 +194,45 @@ public final class ArtifactContentCheck {
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read dependency archive " + archive, exception);
         }
+    }
+
+    /*
+     * The versioned classes an archive ships without declaring them.
+     */
+    private static List<String> undeclaredVersions(
+        Collection<Content> entries, PackagedManifest manifest
+    ) {
+        if (manifest.multiRelease()) {
+            return List.of();
+        }
+        return entries.stream()
+            .filter(Content::file)
+            .map(Content::name)
+            .filter(name -> name.startsWith(VERSIONED))
+            .toList();
+    }
+
+    /*
+     * The classes of this module that reach the operating system in an archive whose manifest answers
+     * nothing about it. An archive naming no main class is answered for by whoever launches it, and
+     * one already carrying the declaration has answered.
+     */
+    private static List<String> undeclaredNativeAccess(
+        Collection<Content> entries, PackagedManifest manifest, Collection<String> compiled
+    ) {
+        if (!manifest.runnable() || manifest.nativeAccess()) {
+            return List.of();
+        }
+        return entries.stream()
+            .filter(Content::file)
+            .filter(entry -> compiled.contains(entry.name()))
+            .filter(entry -> restricted(entry.content()))
+            .map(Content::name)
+            .toList();
+    }
+
+    private static boolean restricted(String content) {
+        return RESTRICTED_TYPES.stream().anyMatch(content::contains);
     }
 
     private static Content content(JarFile jar, JarEntry entry) {
@@ -232,6 +307,8 @@ public final class ArtifactContentCheck {
 
         DEVELOPMENT,
         LOCAL_PATH,
+        MULTI_RELEASE,
+        NATIVE_ACCESS,
         SECRET,
         TEST,
         UNSAFE

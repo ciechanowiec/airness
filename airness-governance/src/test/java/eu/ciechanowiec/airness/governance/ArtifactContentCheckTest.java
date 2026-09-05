@@ -5,16 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
-import java.util.stream.Stream;
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -28,6 +22,7 @@ class ArtifactContentCheckTest {
     private static final String TESTS = "Test-only output packaged in the JAR";
     private static final String UNSAFE = "Duplicate or unsafe JAR entries";
     private static final String VALUE = "value";
+    private static final String BYTECODE = "bytecode";
 
     @TempDir
     private Path directory;
@@ -194,42 +189,15 @@ class ArtifactContentCheckTest {
         ).findings();
     }
 
-    @SneakyThrows
     private Path output(String name, String entry) {
-        Path file = this.directory.resolve(name).resolve(entry);
-        Files.createDirectories(file.getParent());
-        Files.writeString(file, "bytecode");
-        return this.directory.resolve(name);
+        return new ArchiveFixture(this.directory).output(name, entry, BYTECODE);
     }
 
-    @SneakyThrows
     private Path jar(Map<String, String> entries) {
-        Path jar = this.directory.resolve("artifact-" + this.entryCount() + ".jar");
-        try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(jar))) {
-            entries.forEach((name, content) -> writeEntry(output, name, content));
-        }
-        return jar;
-    }
-
-    @SneakyThrows
-    private static void writeEntry(JarOutputStream output, String name, String content) {
-        output.putNextEntry(new JarEntry(name));
-        output.write(content.getBytes(StandardCharsets.UTF_8));
-        output.closeEntry();
-    }
-
-    @SneakyThrows
-    private long entryCount() {
-        try (Stream<Path> paths = Files.list(this.directory)) {
-            return paths.count();
-        }
+        return new ArchiveFixture(this.directory).jar(entries);
     }
 
     private static List<String> offences(Collection<Findings> findings, String headline) {
-        return findings.stream()
-            .filter(finding -> headline.equals(finding.headline()))
-            .findFirst()
-            .orElseThrow()
-            .offences();
+        return ArchiveFixture.offences(findings, headline);
     }
 }
