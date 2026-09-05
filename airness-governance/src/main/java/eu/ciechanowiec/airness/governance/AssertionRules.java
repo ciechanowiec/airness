@@ -40,10 +40,17 @@ final class AssertionRules {
      * A name, a parameter list that may nest one level of parentheses, an optional throws clause, then
      * the brace that opens a body. The keywords are excluded because a control structure has the same
      * shape as a call and would otherwise be collected as a method named "if" or "for".
+     *
+     * The parameter list consumes runs rather than single characters, which is what keeps the scan off
+     * the stack. A matcher spends a frame on every turn of a group it repeats, so an alternation over one
+     * character at a time costs a frame per character read and overflows on a long source, whichever
+     * source happens to be the longest on the day. Written as runs, a turn costs one frame per token of
+     * the list instead, and the depth stops following the size of the file. The lexer of JavaCode is
+     * written the same way, for the same reason.
      */
     private static final Pattern SIGNATURE = Pattern.compile(
         "\\b(?!if\\b|for\\b|while\\b|switch\\b|catch\\b|synchronized\\b|do\\b|else\\b|return\\b|new\\b)"
-            + "(\\w+)\\s*\\((?:[^()]|\\([^()]*\\))*\\)\\s*(?:throws[^{;]*)?\\{"
+            + "(\\w+)\\s*\\((?:[^()]++|\\([^()]*+\\))*+\\)\\s*(?:throws[^{;]*)?\\{"
     );
     private static final Pattern ASSERTION = Pattern.compile("\\b(?:assert\\w*|fail|expect\\w*|verify\\w*)\\s*\\(");
     private static final Pattern CALL = Pattern.compile("\\b(\\w+)\\s*\\(");

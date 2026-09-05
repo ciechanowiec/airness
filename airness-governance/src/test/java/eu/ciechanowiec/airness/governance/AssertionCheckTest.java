@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -14,6 +17,8 @@ import org.junit.jupiter.api.Test;
 class AssertionCheckTest {
 
     private static final List<Path> TESTS = List.of(Path.of("src/test/java"));
+    private static final int STACK = 512 * 1024;
+    private static final int QUOTED_LINES = 400;
     private static final String SOURCE = "src/test/java/sample/SubjectTest.java";
     private static final String UNPROVEN = "reaches no assertion";
     private static final String SETTLED = "literals alone";
@@ -181,11 +186,68 @@ class AssertionCheckTest {
     }
 
     @Test
+    void readsALongSourceWithoutFollowingItsLengthOntoTheStack() {
+        Path root = new GitFixture("assertion-long").write(SOURCE, quotingALongFixture()).root();
+        Optional<List<Findings>> findings = onABoundedStack(new AssertionCheck(root, TESTS));
+        assertTrue(
+            findings.isPresent(),
+            "a scan that costs stack by the character runs out of it on the longest source it is given"
+        );
+        assertTrue(
+            findings.stream().allMatch(Verdicts::clean),
+            "and the source it read holds one test, which asserts what it produced"
+        );
+    }
+
+    @Test
     void readsAQuotedAssertionAsTextRatherThanAsOneItCouldReport() {
         Path root = new GitFixture("assertion-quoted").write(SOURCE, QUOTING_AN_ASSERTION).root();
         assertTrue(
             Verdicts.clean(new AssertionCheck(root, TESTS).findings()),
             "an assertion quoted inside a one-line literal is text, not an assertion this file makes"
         );
+    }
+
+    /*
+     * One argument spread over hundreds of lines, which is what a fixture quoting another source looks
+     * like once its literals are blanked: a long stretch of text inside an open parenthesis, holding no
+     * parenthesis of its own. A reader that walks such a stretch one character per turn of a repeated
+     * group spends a stack frame on each of them, so the depth follows the length of the source and the
+     * suite fails on whichever file grew last rather than on anything a rule found.
+     */
+    private static String quotingALongFixture() {
+        return """
+            package sample;
+
+            import static org.junit.jupiter.api.Assertions.assertEquals;
+
+            import org.junit.jupiter.api.Test;
+
+            class SubjectTest {
+
+                private static final String EXPECTED = normalized(
+                    ""
+            %s        );
+
+                @Test
+                void rendersTheFixtureItQuotes() {
+                    assertEquals(EXPECTED, new Subject().render());
+                }
+            }
+            """.formatted("        + \"a line of the source this fixture quotes\"\n".repeat(QUOTED_LINES));
+    }
+
+    /*
+     * The rules are read on a thread whose stack is a known size, rather than on whatever the runner
+     * happened to leave. A reader that outgrows it returns nothing, and the absent verdicts are what the
+     * test reports.
+     */
+    @SneakyThrows
+    private static Optional<List<Findings>> onABoundedStack(AssertionCheck check) {
+        List<List<Findings>> read = new ArrayList<>();
+        Thread reader = new Thread(null, () -> read.add(check.findings()), "bounded-stack", STACK);
+        reader.start();
+        reader.join();
+        return read.stream().findFirst();
     }
 }
