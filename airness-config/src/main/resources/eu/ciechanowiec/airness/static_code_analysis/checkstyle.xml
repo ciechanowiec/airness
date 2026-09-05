@@ -2295,7 +2295,7 @@
             <property name="query"
                       value="//INTERFACE_DEF[./IDENT[ends-with(@text,'Repository')]]//METHOD_DEF[./TYPE/IDENT[@text='List' or @text='Set' or @text='Collection' or @text='Stream'] and not(./PARAMETERS/PARAMETER_DEF/TYPE/IDENT[@text='Pageable' or @text='Limit'])]"/>
             <message key="matchxpath.match"
-                     value="A repository method returning an unbounded collection reads as many rows as the table holds. Take a Pageable."/>
+                     value="A repository method returning an unbounded collection reads as many rows as the table holds. Take a Pageable, or a Limit where only the bound is wanted."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringDataQueryIsBounded"/>
