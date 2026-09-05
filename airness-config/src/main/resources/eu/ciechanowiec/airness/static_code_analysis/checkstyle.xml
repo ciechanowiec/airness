@@ -267,6 +267,14 @@
                 by its constructor and stays final like anything else. Configuration classes are absent
                 because the rule below requires them to declare lite mode, which needs no subclass.
 
+                The list is the one AirnessSpringProxiedClassIsNotFinal reads, and the two are exact
+                complements: this filter stops Airness demanding final on a proxied bean and that rule
+                stops the bean declaring it anyway. An annotation named by one and not the other leaves a
+                bean with no shape that passes, since it is reported final and reported not final, and
+                the only way out of that is a suppression nobody should have to spend. Method security
+                is the case that proves it: a guarded application layer carries @PreAuthorize and often
+                nothing else, and the harness asks for that guard elsewhere.
+
                 The annotation is looked for anywhere inside the class rather than on it, because what
                 decides whether the container proxies a bean is whether any of its methods carries one.
                 A class annotated with nothing and holding a single transactional method is subclassed
@@ -278,7 +286,7 @@
             <property name="id" value="RequireFinalClass"/>
             <property name="files" value="${airness.checkstyle.spring.relaxed}"/>
             <property name="query"
-                      value="//CLASS_DEF[.//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='Retryable' or @text='Validated']]/descendant-or-self::node()"/>
+                      value="//CLASS_DEF[.//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]/descendant-or-self::node()"/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <!--
