@@ -76,6 +76,7 @@ class MavenModelBypassTest {
         String pom = """
             <project>
                 <properties><a.version>1</a.version><a.version>2</a.version></properties>
+                <use>${a.version}</use>
             </project>
             """;
         assertTrue(

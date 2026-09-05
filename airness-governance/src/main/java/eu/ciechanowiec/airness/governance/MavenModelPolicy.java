@@ -62,6 +62,7 @@ public final class MavenModelPolicy {
         Element root = Xml.parse(read(pom)).getDocumentElement();
         return Stream.of(
             ProjectProperties.problems(root),
+            VersionProperties.problems(root),
             PomPropertyOrder.problems(root).stream(),
             executionProblems(root),
             pluginConfigurationProblems(root),
