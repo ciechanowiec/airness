@@ -85,6 +85,18 @@
         -->
         <airness.checkstyle.spring.relaxed>^$</airness.checkstyle.spring.relaxed>
         <airness.checkstyle.spring.suppressed>.*</airness.checkstyle.spring.suppressed>
+        <!--
+            The Dependency-Check exceptions of a project. The profile at the end of this file activates on
+            that document existing and hands the scan this path, so keeping the document where the guide
+            says is the whole of what puts it in front of the scan. Left without a value, the scan is handed
+            an unresolved placeholder and fails while it initializes, naming neither the file nor the
+            property.
+
+            The activation names basedir because Maven decides activation before a project model exists.
+            This names project.basedir, the form the rest of the harness uses, because it is read as plugin
+            configuration.
+        -->
+        <airness.dependency-check.suppression.file>${project.basedir}/.airness/dependency-check-suppressions.xml</airness.dependency-check.suppression.file>
     </properties>
 
     <!-- Versions come from the root dependency management. These declarations supply the dependencies. -->
@@ -1067,6 +1079,19 @@
                                 <phase>validate</phase>
                                 <goals>
                                     <goal>require-full-history</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <!--
+                                    Beside the history preflight, because being offline is the other
+                                    way this profile reports clean having read nothing. Maven skips a
+                                    goal whose descriptor requires online mode, warns in one line, and
+                                    carries on, and the vulnerability scan below is such a goal.
+                                -->
+                                <id>airness-network-preflight</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>require-online</goal>
                                 </goals>
                             </execution>
                             <execution>

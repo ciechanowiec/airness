@@ -9,6 +9,11 @@ run_maven_cases() {
     expect_match profile_extended 'profiles: the inherited profile reaches preflight' \
         'airness:[^ ]+:required-profiles \(airness-preflight\)'
 
+    run_maven profile_extended_offline maven "$maven_consumer" validate -Pextended -o
+    expect_exit profile_extended_offline 'profiles: Extended verification refuses an offline build' 1
+    expect_match profile_extended_offline 'profiles: the offline refusal names the scan it protects' \
+        'offline, so Maven skips the vulnerability scan'
+
     run_maven profile_deactivated maven "$maven_consumer" validate '-P!format' -DskipTests
     expect_exit profile_deactivated 'profiles: the declared format profile can be deactivated' 0
 
