@@ -25,6 +25,23 @@ class CheckstyleConfigurationTest {
         = "airness-config/src/main/resources/eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml";
     private static final String SPRING_RELAXED = "airness.checkstyle.spring.relaxed";
     private static final String SPRING_SUPPRESSED = "airness.checkstyle.spring.suppressed";
+    private static final String FINAL_DEMANDED = "RequireFinalClass";
+    private static final String FINAL_REFUSED = "AirnessSpringProxiedClassIsNotFinal";
+    // Every annotation whose presence makes the container wrap the bean in a subclass. The two rules
+    // above are complements and both are read against this one list: an annotation named by only one
+    // of them leaves a bean with no shape that passes, reported final and reported not final at once.
+    private static final List<String> PROXIED = List.of(
+        "Transactional",
+        "Async",
+        "Cacheable",
+        "CachePut",
+        "CacheEvict",
+        "Retryable",
+        "Validated",
+        "PreAuthorize",
+        "PostAuthorize",
+        "Secured"
+    );
     private static final List<Fixture> SEMANTIC_FIXTURES = List.of(
         new Fixture(
             "Qualified.java",
@@ -310,6 +327,24 @@ class CheckstyleConfigurationTest {
 
     @Test
     @SneakyThrows
+    void exemptsFromTheFinalClassRuleEveryBeanTheContainerProxies(@TempDir Path directory) {
+        List<String> demanded = PROXIED.stream()
+            .filter(annotation -> reports(directory, bean(annotation, "", FINAL_DEMANDED), FINAL_DEMANDED))
+            .toList();
+        assertEquals(List.of(), demanded, "a proxied bean is subclassed, so none may be asked to be final");
+    }
+
+    @Test
+    @SneakyThrows
+    void reportsEveryProxiedBeanThatDeclaresItselfFinalAnyway(@TempDir Path directory) {
+        List<String> missed = PROXIED.stream()
+            .filter(annotation -> !reports(directory, bean(annotation, "final ", FINAL_REFUSED), FINAL_REFUSED))
+            .toList();
+        assertEquals(List.of(), missed, "a final proxied bean is one the container cannot subclass at all");
+    }
+
+    @Test
+    @SneakyThrows
     void loadsTheCheckedInConfigurationAndCustomQuliceChecks(@TempDir Path directory) {
         Fixture fixture = new Fixture(
             "Custom.java",
@@ -321,6 +356,26 @@ class CheckstyleConfigurationTest {
         assertTrue(
             findings.stream().anyMatch(finding -> finding.is("EmptyLineBeforeFirstMember")),
             "the QuLice check from the plugin classpath is configured and executes"
+        );
+    }
+
+    private static boolean reports(Path directory, Fixture fixture, String rule) {
+        return inspect(directory, fixture, true).stream().anyMatch(finding -> finding.is(rule));
+    }
+
+    private static Fixture bean(String annotation, String modifier, String rule) {
+        return new Fixture(
+            "Guarded.java",
+            """
+                package example;
+                %sclass Guarded {
+                    @%s
+                    void act() {
+                    }
+                }
+                """.formatted(modifier, annotation),
+            rule,
+            2
         );
     }
 
