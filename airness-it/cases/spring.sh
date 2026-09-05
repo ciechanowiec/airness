@@ -369,6 +369,95 @@ expect_match spring_open_prefix 'spring: the offence names the mapping the chain
 expect_match spring_open_prefix 'spring: the offence names the pattern the project would declare' \
     'requestMatchers\("/api/orders"\).permitAll\(\)'
 
+# A path the module maps under two methods is the shape a matcher naming the pattern alone cannot
+# declare. The line meant to open the post opens the get beside it, no rule reading a pattern sees the
+# difference, and a collection posted to by a guest and read back by its owner is the ordinary way a
+# project arrives here. The fixture adds the second mapping the two cases above never had.
+write_spring_posted_order() {
+    cat > "$1/src/main/java/com/example/Placements.java" <<'JAVA'
+package com.example;
+
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * The orders this application takes.
+ */
+@RestController
+public final class Placements {
+
+    /**
+     * Takes one order.
+     *
+     * @return what was taken
+     */
+    @PostMapping("/api/orders")
+    public String place() {
+        return "{}";
+    }
+}
+JAVA
+}
+write_spring_method_chain() {
+    cat > "$1/src/main/java/com/example/Security.java" <<'JAVA'
+package com.example;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+/**
+ * What this application asks of a caller.
+ */
+@Configuration(proxyBeanMethods = false)
+public class Security {
+
+    /**
+     * Builds the chain every request is decided by.
+     *
+     * @param http the chain under construction
+     * @return the built chain
+     * @throws Exception when the chain cannot be built
+     */
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+        return http
+            .authorizeHttpRequests(
+                registry -> registry
+                    .requestMatchers(HttpMethod.GET, "/api/orders").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+                    .anyRequest().authenticated()
+            )
+            .build();
+    }
+}
+JAVA
+}
+spring_open_bare="$scratch/spring-open-bare"
+clone_tree "$spring_app" "$spring_open_bare"
+write_spring_web_module "$spring_open_bare" '/api/orders'
+write_spring_posted_order "$spring_open_bare"
+git -C "$spring_open_bare" add --all
+run_maven spring_open_bare spring "$spring_open_bare" clean test airness:spring-context
+expect_exit spring_open_bare 'spring: a matcher naming no method over two mappings fails the context goal' 1
+expect_match spring_open_bare 'spring: the offence names the mapping the matcher never read' \
+    'POST /api/orders: the security chain let an unauthenticated request reach this mapping'
+expect_match spring_open_bare 'spring: the offence names the matcher that would declare that method' \
+    'requestMatchers\(HttpMethod.POST, "/api/orders"\).permitAll\(\)'
+
+# The same two mappings, declared one matcher each. This is the repair the offence above names, and it
+# is what keeps the rule from asking for something no project can write.
+spring_open_methods="$scratch/spring-open-methods"
+clone_tree "$spring_app" "$spring_open_methods"
+write_spring_web_module "$spring_open_methods" '/api/orders'
+write_spring_posted_order "$spring_open_methods"
+write_spring_method_chain "$spring_open_methods"
+git -C "$spring_open_methods" add --all
+run_maven spring_open_methods spring "$spring_open_methods" clean test airness:spring-context
+expect_exit spring_open_methods 'spring: a matcher per method over two mappings passes the context goal' 0
+
 # Reaching ready is not enough on its own. The source of that ready run must be the production
 # application, so an explicit test-only configuration cannot stand in for the component scan.
 spring_narrow="$scratch/spring-narrow"

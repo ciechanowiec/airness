@@ -31,6 +31,15 @@ import lombok.experimental.UtilityClass;
  * {@code requestMatchers("/**").permitAll()}. What an intermediate prefix admits stays invisible
  * until something asks the running container, and this asks it.
  *
+ * <p>A matcher states a method as readily as it states a pattern, and one that states none declares
+ * the pattern for every method mapped under it. That is the widening the paragraph above refuses,
+ * one dimension over: a project that opens a collection to a post and reads the same collection with
+ * a get has opened the read with the write, and the line that did it names only the path. So a
+ * matcher naming no method is read as the declaration of the mapping it opens for as long as that
+ * pattern opens one, and is asked for the method as soon as it opens two. A form drawn by a get and
+ * submitted by a post is the ordinary case of that, and the two matchers it is written as are the
+ * whole of what the rule costs.
+ *
  * <p>Comparison is by the pattern the container mapped against the pattern the matcher states, as
  * strings. Nothing here re-implements path matching: the evidence keeps the pattern as the mapping
  * declared it, so a project that names the same pattern in its matcher and its mapping is naming one
@@ -56,6 +65,22 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class SpringEndpointRules {
 
+    /**
+     * What stands for the method of a matcher that names none. It is no method a caller can send, so
+     * nothing the evidence reports is ever equal to it, and a mapping is covered by it only through
+     * the rule that reads it.
+     */
+    private static final String ANY = "*";
+
+    /**
+     * The methods a matcher can name, which are the ones the evidence reports. A token is read as one
+     * of these only after it has failed to resolve to a written string, so a constant of the module
+     * called GET that holds a path is still a path.
+     */
+    private static final Set<String> METHODS = Set.of(
+        "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"
+    );
+
     private static final Pattern OPEN = Pattern.compile("^open\\s+(\\S+)\\s+(\\S+)$");
     private static final Pattern MATCHERS = Pattern.compile("\\brequestMatchers\\s*\\(");
     private static final Pattern PERMITTED = Pattern.compile("^\\s*\\.\\s*permitAll\\s*\\(");
@@ -74,25 +99,50 @@ final class SpringEndpointRules {
      * @return one offence per open mapping the project never declared public
      */
     static List<String> undeclared(List<String> open, SpringTypes types) {
-        Set<String> named = permitted(types);
+        Set<Mapping> mappings = mappings(open);
+        Map<String, Set<String>> declared = permitted(types);
+        Map<String, Long> spread = spread(mappings);
+        return mappings.stream()
+            .flatMap(mapping -> offence(mapping, declared, spread).stream())
+            .sorted()
+            .toList();
+    }
+
+    /**
+     * The mappings the evidence reports, each read once however many times it was written.
+     *
+     * @param open the evidence lines
+     * @return the mapping each readable line states
+     */
+    private static Set<Mapping> mappings(List<String> open) {
         return open.stream()
             .map(OPEN::matcher)
             .filter(Matcher::matches)
-            .filter(line -> !named.contains(line.group(2)))
-            .map(line -> offence(line.group(1), line.group(2)))
-            .distinct()
-            .sorted()
-            .toList();
+            .map(line -> new Mapping(line.group(1), line.group(2)))
+            .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * How many methods each pattern is open under, which is what decides whether a matcher naming no
+     * method named this mapping or several.
+     *
+     * @param mappings the mappings the evidence reports
+     * @return each pattern with how many methods it is open under
+     */
+    private static Map<String, Long> spread(Set<Mapping> mappings) {
+        return mappings.stream()
+            .collect(Collectors.groupingBy(Mapping::pattern, Collectors.counting()));
     }
 
     /**
      * Every pattern a matcher of the module admits without asking anything of the caller.
      *
      * @param types the types of the module
-     * @return the literals written inside a {@code requestMatchers(...)} that {@code permitAll}
-     *         closes, taken from production sources only, a test being free to admit what it likes
+     * @return the methods named for each pattern written inside a {@code requestMatchers(...)} that
+     *         {@code permitAll} closes, taken from production sources only, a test being free to
+     *         admit what it likes
      */
-    private static Set<String> permitted(SpringTypes types) {
+    private static Map<String, Set<String>> permitted(SpringTypes types) {
         // The production filter runs before the index is built, which is the whole of what makes a
         // constant only a test declares admit nothing.
         List<MatcherReading> sources = types.all()
@@ -103,7 +153,11 @@ final class SpringEndpointRules {
         Map<String, String> qualified = qualified(sources);
         return sources.stream()
             .flatMap(source -> patterns(source, qualified))
-            .collect(Collectors.toUnmodifiableSet());
+            .collect(
+                Collectors.groupingBy(
+                    Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toUnmodifiableSet())
+                )
+            );
     }
 
     /**
@@ -125,7 +179,7 @@ final class SpringEndpointRules {
             );
     }
 
-    private static Stream<String> patterns(MatcherReading source, Map<String, String> qualified) {
+    private static Stream<Map.Entry<String, String>> patterns(MatcherReading source, Map<String, String> qualified) {
         String code = source.code();
         return MATCHERS.matcher(code).results()
             .filter(matcher -> permits(code, matcher))
@@ -144,23 +198,129 @@ final class SpringEndpointRules {
         return closes < code.length() && PERMITTED.matcher(code.substring(closes + 1)).find();
     }
 
-    private static Stream<String> named(MatcherReading source, Map<String, String> qualified, MatchResult matcher) {
+    private static Stream<Map.Entry<String, String>> named(
+        MatcherReading source, Map<String, String> qualified, MatchResult matcher
+    ) {
+        List<String> arguments = written(source, matcher);
+        String method = method(source, qualified, arguments);
+        return arguments.stream()
+            .flatMap(argument -> source.resolved(qualified, argument).stream())
+            .map(pattern -> Map.entry(pattern, method));
+    }
+
+    /**
+     * The arguments of one matcher as the source states them, before anything is made of any of them.
+     *
+     * @param source  the source the matcher is written in
+     * @param matcher the {@code requestMatchers(} that was found
+     * @return one token per argument the call names
+     */
+    private static List<String> written(MatcherReading source, MatchResult matcher) {
         String read = source.read();
         int opens = matcher.end() - 1;
         int closes = Math.min(SpringMembers.closing(source.code(), opens), read.length());
         return WRITTEN.matcher(read.substring(Math.min(opens + 1, closes), closes))
             .results()
-            .flatMap(written -> source.resolved(qualified, written.group()).stream());
+            .map(MatchResult::group)
+            .toList();
     }
 
-    private static String offence(String method, String pattern) {
-        return method + ' ' + pattern
+    /**
+     * The method one matcher names, and {@link #ANY} where it names none.
+     *
+     * <p>Resolution runs first, so an argument the module declares as a string is a pattern whatever
+     * it is called, and only what resolves to nothing is asked whether it is a method. That is what
+     * keeps a constant named GET holding a path from being read as a verb.
+     *
+     * @param source    the source the matcher is written in
+     * @param qualified the string constants of the module by their qualified name
+     * @param arguments the arguments of the matcher
+     * @return the method it names
+     */
+    private static String method(MatcherReading source, Map<String, String> qualified, List<String> arguments) {
+        return arguments.stream()
+            .filter(argument -> source.resolved(qualified, argument).isEmpty())
+            .map(SpringEndpointRules::verb)
+            .flatMap(Optional::stream)
+            .findFirst()
+            .orElse(ANY);
+    }
+
+    /**
+     * The method an argument names, read off the last segment of it, so that the qualified spelling
+     * and the statically imported one answer alike.
+     *
+     * @param written the argument as the source states it
+     * @return the method it names, or nothing where it names none
+     */
+    private static Optional<String> verb(String written) {
+        String bare = written.substring(written.lastIndexOf('.') + 1);
+        return METHODS.contains(bare) ? Optional.of(bare) : Optional.empty();
+    }
+
+    /**
+     * What one open mapping is reported as, and nothing at all where the module declared it.
+     *
+     * @param mapping  the open mapping
+     * @param declared the methods each pattern is named for
+     * @param spread   how many methods each pattern is open under
+     * @return the offence, or nothing where the module named this mapping
+     */
+    private static Optional<String> offence(
+        Mapping mapping, Map<String, Set<String>> declared, Map<String, Long> spread
+    ) {
+        Set<String> methods = declared.getOrDefault(mapping.pattern(), Set.of());
+        return covered(mapping, methods, spread)
+            ? Optional.empty()
+            : Optional.of(said(mapping, methods));
+    }
+
+    private static boolean covered(Mapping mapping, Set<String> methods, Map<String, Long> spread) {
+        return methods.contains(mapping.method()) || alone(mapping, methods, spread);
+    }
+
+    // A matcher naming no method declares the pattern for whatever is mapped under it, which names
+    // this mapping only for as long as this mapping is the one that pattern opens.
+    private static boolean alone(Mapping mapping, Set<String> methods, Map<String, Long> spread) {
+        return methods.contains(ANY) && 1L == spread.getOrDefault(mapping.pattern(), 0L);
+    }
+
+    private static String said(Mapping mapping, Set<String> methods) {
+        return methods.isEmpty() ? silence(mapping) : widened(mapping);
+    }
+
+    private static String silence(Mapping mapping) {
+        return mapping.line()
             + ": the security chain let an unauthenticated request reach this mapping, and no"
             + " permitAll matcher of this module names the pattern, so the endpoint answers whoever"
             + " asks and no source of the project says that was meant."
-            + " Name the pattern with requestMatchers(\"" + pattern + "\").permitAll() where it is"
-            + " genuinely public, writing it out or naming a constant of this module that holds that"
-            + " exact string, or cover it with a rule that requires something of the caller";
+            + " Name the pattern with requestMatchers(\"" + mapping.pattern() + "\").permitAll() where"
+            + " it is genuinely public, writing it out or naming a constant of this module that holds"
+            + " that exact string, or cover it with a rule that requires something of the caller";
+    }
+
+    private static String widened(Mapping mapping) {
+        return mapping.line()
+            + ": the security chain let an unauthenticated request reach this mapping, and the"
+            + " permitAll matchers of this module name the pattern without naming this method, so the"
+            + " line that opened it opened every method mapped under that path rather than the one"
+            + " its author read, and it will open the next one written there too."
+            + " Name the method with requestMatchers(HttpMethod." + mapping.method() + ", \""
+            + mapping.pattern() + "\").permitAll() where this method is genuinely public, and leave"
+            + " the methods that are not to the rule that follows";
+    }
+
+    /**
+     * One mapping the evidence reports open, which is a method and the pattern it is open under.
+     *
+     * @param method  the method a caller sends
+     * @param pattern the pattern the container mapped, written as the mapping declared it
+     */
+    private record Mapping(String method, String pattern) {
+
+        private String line() {
+            return this.method + ' ' + this.pattern;
+        }
     }
 
     /**
