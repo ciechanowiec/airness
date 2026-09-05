@@ -87,7 +87,7 @@ class ArtifactContentManifestTest {
 
     @Test
     void namesAClassOfThisModuleThatReachesTheOperatingSystemUndeclared() {
-        this.compiled(CLASS, REACHING);
+        this.compiled(REACHING);
         Path jar = this.jar(Map.of(MANIFEST, RUNNABLE, CLASS, REACHING));
         assertEquals(
             List.of(CLASS),
@@ -98,7 +98,7 @@ class ArtifactContentManifestTest {
 
     @Test
     void acceptsTheSameArchiveWhereTheManifestDeclaresNativeAccess() {
-        this.compiled(CLASS, REACHING);
+        this.compiled(REACHING);
         Path jar = this.jar(
             Map.of(MANIFEST, RUNNABLE + "Enable-Native-Access: ALL-UNNAMED\n", CLASS, REACHING)
         );
@@ -113,7 +113,7 @@ class ArtifactContentManifestTest {
      */
     @Test
     void leavesALibraryAloneBecauseItCannotCarryTheDeclaration() {
-        this.compiled(CLASS, REACHING);
+        this.compiled(REACHING);
         Path jar = this.jar(Map.of(MANIFEST, PLAIN, CLASS, REACHING));
         assertEquals(
             List.of(),
@@ -124,7 +124,7 @@ class ArtifactContentManifestTest {
 
     @Test
     void readsTheBytesThisModuleCompiledAndNotOnesADependencyPublished() {
-        this.compiled(CLASS, BYTECODE);
+        this.compiled(BYTECODE);
         Path jar = this.jar(
             Map.of(MANIFEST, RUNNABLE, CLASS, BYTECODE, "com/vendor/Reaching.class", REACHING)
         );
@@ -144,8 +144,8 @@ class ArtifactContentManifestTest {
         ).findings();
     }
 
-    private void compiled(String entry, String content) {
-        new ArchiveFixture(this.directory).output(MAIN, entry, content);
+    private void compiled(String content) {
+        new ArchiveFixture(this.directory).output(MAIN, CLASS, content);
     }
 
     private Path jar(Map<String, String> entries) {

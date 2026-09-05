@@ -99,14 +99,14 @@ final class TemplateExpressionRules {
     // A quoted literal is text, so a bracket, a brace or a mark written inside one opens nothing.
     private static String withoutQuotes(String written) {
         StringBuilder kept = new StringBuilder(written);
-        int opens = next(kept, 0, QUOTES);
+        int opens = next(kept, 0);
         while (opens >= 0) {
             int closes = kept.indexOf(String.valueOf(kept.charAt(opens)), opens + 1);
             if (closes < 0) {
                 return blanked(kept, opens, kept.length());
             }
             blank(kept, opens, closes + 1);
-            opens = next(kept, closes + 1, QUOTES);
+            opens = next(kept, closes + 1);
         }
         return kept.toString();
     }
@@ -168,9 +168,10 @@ final class TemplateExpressionRules {
         return -1;
     }
 
-    private static int next(CharSequence written, int from, String kinds) {
+    // Where the next quotation mark of either kind stands, and the end of the value where none does.
+    private static int next(CharSequence written, int from) {
         for (int index = from; index < written.length(); index++) {
-            if (kinds.indexOf(written.charAt(index)) >= 0) {
+            if (QUOTES.indexOf(written.charAt(index)) >= 0) {
                 return index;
             }
         }
