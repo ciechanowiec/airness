@@ -36,9 +36,15 @@ final class JavaCode {
      * The text block branch consumes its own escapes and allows one or two quotation marks that are not
      * a delimiter, so a block embedding its own delimiter stays a single token. Ending it early leaves
      * the rest of the block to be read as live code, which is the failure this class exists to prevent.
+     *
+     * Every branch reads runs rather than single characters, and reads them possessively. A matcher
+     * spends a stack frame on each turn of a group it repeats, so a branch spelled one character at a
+     * time costs a frame for every character of the literal it masks, and the depth of the scan comes to
+     * follow the length of the source. Every rule in this package reads its sources through here, so the
+     * limit that spelling sets would be the limit of all of them.
      */
     static final Pattern TOKEN = Pattern.compile(
-        "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
+        "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n]++)*+\"|'(?:\\\\.|[^'\\\\]++)*+'"
             + "|/\\*.*?\\*/|//[^\\n]*"
     );
     private static final String TEXT_BLOCK = "\"\"\"";

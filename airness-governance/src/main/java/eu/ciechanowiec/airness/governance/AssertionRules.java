@@ -63,13 +63,13 @@ final class AssertionRules {
      * it sits beside anything else, so the group belongs where its necessity is visible.
      */
     private static final String LITERAL
-        = "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|true|false|null|-?\\d[\\w.]*";
+        = "\"(?:[^\"\\\\]++|\\\\.)*+\"|'(?:[^'\\\\]++|\\\\.)*+'|true|false|null|-?\\d[\\w.]*";
     /*
      * A message argument may follow the operands, and only as a literal of its own. Allowing any third
      * argument would read the JUnit 4 order, where the message comes first, as a pair of settled
      * operands and report every assertion written that way.
      */
-    private static final String MESSAGE = "(?:\\s*,\\s*\"(?:[^\"\\\\]|\\\\.)*\")?\\s*\\)";
+    private static final String MESSAGE = "(?:\\s*,\\s*\"(?:[^\"\\\\]++|\\\\.)*+\")?\\s*\\)";
     private static final Pattern SETTLED = Pattern.compile(
         "\\bassertTrue\\s*\\(\\s*true" + MESSAGE
             + "|\\bassertFalse\\s*\\(\\s*false" + MESSAGE

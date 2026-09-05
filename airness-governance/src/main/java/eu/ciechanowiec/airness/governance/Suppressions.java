@@ -31,12 +31,15 @@ final class Suppressions {
      * parenthesis inside a justification is consumed by the literal that holds it. Ending the list at
      * the first parenthesis instead cut the arguments in half, and which half survived depended on
      * whether the reason had been written before or after the rules it explains.
+     *
+     * Each run is taken whole rather than a character at a time, so a justification written at the
+     * length these rules ask for costs one stack frame instead of one per character of the reason.
      */
     private static final Pattern DECLARATION = Pattern.compile(
-        "@Suppress(?:FB)?Warnings\\s*\\(((?:\"(?:[^\"\\\\]|\\\\.)*\"|[^)\"])*)\\)"
+        "@Suppress(?:FB)?Warnings\\s*\\(((?:\"(?:[^\"\\\\]++|\\\\.)*+\"|[^)\"]++)*+)\\)"
     );
     private static final Pattern JUSTIFICATION = Pattern.compile(
-        "justification\\s*=\\s*\"(?:[^\"\\\\]|\\\\.)*\"(?:\\s*\\+\\s*\"(?:[^\"\\\\]|\\\\.)*\")*"
+        "justification\\s*=\\s*\"(?:[^\"\\\\]++|\\\\.)*+\"(?:\\s*\\+\\s*\"(?:[^\"\\\\]++|\\\\.)*+\")*"
     );
     private static final Pattern RULE = Pattern.compile("\"([^\"]*)\"");
     private static final String SPACE = " ";

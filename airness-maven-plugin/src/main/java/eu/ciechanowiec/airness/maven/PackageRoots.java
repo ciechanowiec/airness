@@ -26,9 +26,12 @@ final class PackageRoots {
     );
     // A text block consumes its escapes, so a block embedding its own delimiter is masked whole. Ending
     // the token at the first three quotation marks leaves the rest of the block readable as code, and a
-    // package declaration quoted in a fixture would then answer for the file quoting it.
+    // package declaration quoted in a fixture would then answer for the file quoting it. Each branch
+    // reads runs rather than single characters, because a matcher spends a stack frame on each turn of a
+    // group it repeats and a text block is as long as its author made it. This is the spelling the lexer
+    // of airness-governance carries, and the two are meant to read a source the same way.
     private static final Pattern NON_CODE = Pattern.compile(
-        "(?s)\"\"\"(?:\\\\.|[^\\\\])*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\])*'"
+        "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n]++)*+\"|'(?:\\\\.|[^'\\\\]++)*+'"
             + "|/\\*.*?\\*/|//[^\\n]*"
     );
     private static final String JAVA = ".java";
