@@ -144,7 +144,9 @@ final class BlocklistEntries {
     private static final String UPSTREAM = "the upstream official image of the same service";
     private static final String CHROME
         = "this image ships Google Chrome or Microsoft Edge, which are proprietary binaries";
-    private static final String CHROMIUM = "selenium/standalone-chromium or selenium/standalone-firefox";
+    private static final String CHROMIUM
+        = "selenium/standalone-chromium, the same engine and driver, or selenium/standalone-firefox for a "
+            + "second engine, which no session can size below 500 pixels";
     private static final String NEO4J_ENTERPRISE = "Neo4j Enterprise Edition is proprietary";
     private static final String NEO4J_COMMUNITY = "a community tag of the neo4j image";
     private static final String SONARQUBE

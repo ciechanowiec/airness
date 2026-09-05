@@ -6,8 +6,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * The literal reader finds the image a Testcontainers call names, and nothing that merely looks like
- * one: not a comment, not a text block, not a constructor of the project's own, not a sentence.
+ * The reader finds the image a Testcontainers call names, whether the call writes it out or holds it
+ * in a constant of the same source, and nothing that merely looks like one: not a comment, not a text
+ * block, not a constructor of the project's own, not a sentence, not a name nothing declares.
  */
 class JavaImageLiteralsTest {
 
@@ -64,5 +65,57 @@ class JavaImageLiteralsTest {
             }
             """;
         assertEquals(List.of(), in(source), "a sentence and an upper-case name are not references");
+    }
+
+    @Test
+    void readsAnImageAConstantOfTheSameFileNames() {
+        String source = """
+            import org.testcontainers.containers.GenericContainer;
+            import org.testcontainers.utility.DockerImageName;
+
+            class Images {
+                private static final String CACHE_IMAGE = "redis:7.4.1";
+                private static final String STORE_IMAGE = "mongo:7";
+
+                static final GenericContainer<?> CACHE = new GenericContainer<>(CACHE_IMAGE);
+                static final DockerImageName STORE = DockerImageName.parse(STORE_IMAGE);
+            }
+            """;
+        assertEquals(List.of("redis:7.4.1", "mongo:7"), in(source), "a name lifted out of the call is followed");
+        assertEquals(
+            List.of(8, 9),
+            JavaImageLiterals.in(source).stream().map(Located::line).toList(),
+            "the line reported is the call that pulls the image rather than the declaration"
+        );
+    }
+
+    @Test
+    void ignoresAnIdentifierNoConstantOfTheFileDeclares() {
+        String source = """
+            import org.testcontainers.containers.GenericContainer;
+            import org.testcontainers.utility.DockerImageName;
+
+            class Images {
+                GenericContainer<?> of(String chosen) {
+                    DockerImageName.parse(Elsewhere.STORE_IMAGE);
+                    return new GenericContainer<>(chosen);
+                }
+            }
+            """;
+        assertEquals(List.of(), in(source), "a reader with no compiler follows no name this source declares");
+    }
+
+    @Test
+    void ignoresAConstantThatHoldsNoReference() {
+        String source = """
+            import org.testcontainers.containers.GenericContainer;
+
+            class Images {
+                private static final String NOTE = "some words here";
+
+                static final GenericContainer<?> CACHE = new GenericContainer<>(NOTE);
+            }
+            """;
+        assertEquals(List.of(), in(source), "a constant holding a sentence names no image");
     }
 }

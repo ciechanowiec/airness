@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The module half of the blocklist refuses a declared coordinate where it is written, a resolved one
- * by naming the resolved set, and an image a Testcontainers literal names by its line.
+ * by naming the resolved set, and an image a Testcontainers call names by its line, whether the call
+ * writes the reference out or holds it in a constant of the same source.
  */
 class BlocklistCheckTest {
 
@@ -66,6 +67,20 @@ class BlocklistCheckTest {
         }
         """;
 
+    private static final String CONSTANT_TEST = """
+        package sample;
+
+        import org.testcontainers.containers.GenericContainer;
+
+        class ConstantTest {
+            private static final String STORE_IMAGE = "mongo:7";
+            private static final String DATABASE_IMAGE = "postgres";
+
+            static final GenericContainer<?> STORE = new GenericContainer<>(STORE_IMAGE);
+            static final GenericContainer<?> DATABASE = new GenericContainer<>(DATABASE_IMAGE);
+        }
+        """;
+
     private static BlocklistCheck check(Path root, List<DeclaredCoordinate> resolved) {
         Path pom = root.resolve("pom.xml");
         return new BlocklistCheck(root, pom, ROOTS, ModuleCoordinates.of(pom, Map.of(), resolved));
@@ -111,5 +126,17 @@ class BlocklistCheckTest {
         assertEquals(2, offences.size(), "the refused image and the unpinned one: " + offences);
         assertTrue(offences.getFirst().startsWith("src/test/java/sample/ImageTest.java:6: mongo:7 - "));
         assertTrue(offences.getLast().contains("ImageTest.java:7: postgres - nothing pins"));
+    }
+
+    @Test
+    void refusesAnImageAConstantOfTheSameSourceNames() {
+        Path root = new GitFixture("blocklist-constant")
+            .write("pom.xml", CLEAN_POM)
+            .write("src/test/java/sample/ConstantTest.java", CONSTANT_TEST)
+            .root();
+        List<String> offences = Verdicts.offences(check(root, List.of()).findings(), HEADLINE);
+        assertEquals(2, offences.size(), "a name lifted out of the call hides nothing: " + offences);
+        assertTrue(offences.getFirst().startsWith("src/test/java/sample/ConstantTest.java:9: mongo:7 - "));
+        assertTrue(offences.getLast().contains("ConstantTest.java:10: postgres - nothing pins"));
     }
 }

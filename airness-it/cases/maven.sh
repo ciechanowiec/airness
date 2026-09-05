@@ -84,6 +84,10 @@ import org.testcontainers.utility.DockerImageName;
 final class ImageTest {
 
     static final DockerImageName STORE = DockerImageName.parse("mongo:7");
+
+    private static final String CACHE_IMAGE = "redis:7.4.1";
+
+    static final DockerImageName CACHE = DockerImageName.parse(CACHE_IMAGE);
 }
 JAVA
 
@@ -101,6 +105,8 @@ JAVA
         'build[.]yml:6: oracle - Oracle JDK'
     expect_match blocklist_report_only 'blocklist: the Testcontainers literal is named by line' \
         'ImageTest[.]java:7: mongo:7 - the MongoDB server is SSPL'
+    expect_match blocklist_report_only 'blocklist: an image a constant of the same source holds is read too' \
+        'ImageTest[.]java:11: redis:7[.]4[.]1 - Redis 7[.]4 onward'
     expect_match blocklist_report_only 'blocklist: every refusal names a replacement' \
         'use PostgreSQL through spring-boot-starter-data-jpa'
 
