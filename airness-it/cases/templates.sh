@@ -24,6 +24,7 @@ HTML
 <div th:replace="~{fragments :: panel(${@vocabulary.of(status)}, '2', '3', '4', '5', '6')}"></div>
 <span th:utext="${content}">Content</span>
 <span th:text="__${expression}__">Expression</span>
+<span th:text="${ready} ? words.of('yes') : 'no'">Choice</span>
 </body>
 </html>
 HTML
@@ -35,10 +36,11 @@ HTML
         airness:template-links \
         airness:template-calls \
         airness:template-output \
+        airness:template-expressions \
         -Dairness.enforce=false
     expect_exit template_report_only 'templates: compatible packaged goals share one report-only execution' 0
     expect_count template_report_only 'templates: every requested packaged goal executed exactly once' \
-        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output) \(default-cli\)' 6
+        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output|expressions) \(default-cli\)' 7
     expect_match template_report_only 'templates: fragment arity is visible at its fixture' \
         'fragments[.]html.*takes 6 arguments'
     expect_match template_report_only 'templates: discarded conditions stay visible at their fixture' \
@@ -53,6 +55,8 @@ HTML
         'page[.]html.*th:utext writes its value as markup'
     expect_match template_report_only 'templates: expression preprocessing stays visible at its fixture' \
         'page[.]html.*an expression is preprocessed'
+    expect_match template_report_only 'templates: a call nothing evaluates stays visible at its fixture' \
+        'page[.]html.*words[.]of[(][.][.][.][)] is written where nothing evaluates it'
 
     run_maven template_enforcement templates "$template_consumer" airness:template-fragments
     expect_exit template_enforcement 'templates: a representative installed-goal finding fails enforcement' 1
