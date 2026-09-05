@@ -15,9 +15,12 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
   managed files that the parent owns.
 - Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Default verification reads Maven Central and
   Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon
-  that can read the repository through a bind mount. On macOS with Colima, a repository under Downloads, Desktop or
-  Documents is unreadable inside a container until the terminal that starts Colima is granted access to that folder
-  under System Settings, Privacy and Security, Files and Folders, so keep the repository elsewhere or grant it.
+  that can read the repository through a bind mount. Extended verification refuses to start under `-o` or offline
+  mode, because Maven skips a goal whose descriptor requires online mode, the vulnerability scan is one of those,
+  and an offline run would otherwise report clean without having read a single advisory. On macOS with Colima, a
+  repository under Downloads, Desktop or Documents is unreadable inside a container until the terminal that starts
+  Colima is granted access to that folder under System Settings, Privacy and Security, Files and Folders, so keep
+  the repository elsewhere or grant it.
   Keep every production and test package under the `airness.package.root` declared in the root `pom.xml`.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.
@@ -269,7 +272,8 @@ it is published, only a fresh history satisfies the rule.
    its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
 5. Run `mvn clean verify -Pextended` before finishing. Extended verification includes Default verification and adds
    the known-vulnerability scan and the history, secret, and Qodana checks. Default verification alone never reads the
-   vulnerability database.
+   vulnerability database. Never pass `-o` to this command, which refuses an offline build outright. `-o` stays safe
+   on Default verification, where no goal Airness binds requires online mode.
 
 ## Layer 5: Exceptions and Repairs
 
@@ -355,7 +359,7 @@ spends a ceiling the next repair will need.
 | `airness.typography.excludes` | repository path prefixes the typography scan skips |
 | `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip |
 | `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
-| `airness.dependency-check.suppression.file` | a local OWASP suppression file, described below |
+| `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path below unless set |
 
 Those six are the whole of what a project file may declare. Every other name under `airness.`, and `skipTests`,
 `maven.test.skip`, and `jacoco.dataFile`, is refused there, because each of them can decide a verdict. The refusal
@@ -364,6 +368,7 @@ reads the file as written, so a name inside a profile that is never activated is
 
 Reach for the suppression file only when no upgrade answers an advisory. Keep it at
 `.airness/dependency-check-suppressions.xml`, which is the path the scan reads: the document's presence there is what
-puts it in front of the scan, so one kept elsewhere is never read. Every rule in it names the advisory it excuses,
-says in its `notes` why this project cannot reach the vulnerability, and carries a `YYYY-MM-DD` date. A rule that
-suppresses nothing fails the build, like every other exclusion that reaches nothing.
+puts it in front of the scan, so one kept elsewhere is never read and the setting itself needs no declaring. Every
+rule in it names the advisory it excuses, says in its `notes` why this project cannot reach the vulnerability, and
+carries a `YYYY-MM-DD` date. A rule that suppresses nothing fails the build, like every other exclusion that reaches
+nothing.
