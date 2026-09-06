@@ -23,6 +23,9 @@
          - ClassUnconnectedToPackage: a package may legitimately expose one independent API type
          - PackageWithTooManyClasses: many small single-purpose classes per package is the intended design
          - PackageWithTooFewClasses: a package may legitimately hold a single class
+         - SwitchStatement: rejects switch statements as a design heuristic even when they dispatch
+           actions with explicit cases and a default. Specific missing-default, fall-through and
+           complexity checks remain responsible for control-flow defects
          - IfCanBeAssertion: replacing a runtime check with an assert is unsafe (asserts are disabled by default)
          - ClassWithTooManyDependents: penalizes a widely-reused class; many dependents indicate reuse, not a smell
          - ClassWithTooManyDependencies: a second class-coupling cap beside ClassCoupling, and the one that
@@ -712,7 +715,7 @@
     <inspection_tool class="SuspiciousGetterSetter" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="SuspiciousLiteralUnderscore" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="SwitchExpressionCanBePushedDown" enabled="true" level="WARNING" enabled_by_default="true" editorAttributes="WARNING_ATTRIBUTES" />
-    <inspection_tool class="SwitchStatement" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="SwitchStatement" enabled="false" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="SwitchStatementsWithoutDefault" enabled="true" level="WARNING" enabled_by_default="true" editorAttributes="WARNING_ATTRIBUTES">
         <option name="m_ignoreFullyCoveredEnums" value="true" />
     </inspection_tool>
