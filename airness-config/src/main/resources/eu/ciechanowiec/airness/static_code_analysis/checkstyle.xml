@@ -1890,15 +1890,16 @@
         </module>
         <module name="MatchXpath">
             <!--
-                The statement runs against the database while the persistence context goes on holding the rows
-                it replaced. The next read in the same transaction then returns the value the statement just
-                changed, and nothing anywhere says the two disagree.
+                The statement changes the database while the persistence context still holds the old objects.
+                A later read can therefore return stale state. Naming clearAutomatically is not enough,
+                because false explicitly disables clearing. Require the literal true on that attribute,
+                whether the Spring annotation is imported or written with its full package name.
             -->
             <property name="id" value="AirnessSpringModifyingClearsThePersistenceContext"/>
             <property name="query"
-                      value="//ANNOTATION[./IDENT[@text='Modifying'] and not(.//IDENT[@text='clearAutomatically'])]"/>
+                      value="//ANNOTATION[(./IDENT[@text='Modifying'] or ./DOT[./IDENT[@text='Modifying'] and ./DOT[./IDENT[@text='repository'] and ./DOT[./IDENT[@text='jpa'] and ./DOT[./IDENT[@text='data'] and ./DOT[./IDENT[1][@text='org'] and ./IDENT[2][@text='springframework']]]]]]) and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='clearAutomatically'] and ./EXPR/LITERAL_TRUE])]"/>
             <message key="matchxpath.match"
-                     value="A bulk @Modifying statement leaves stale entities in the persistence context. Declare clearAutomatically = true, and flushAutomatically = true when the statement reads what was written before it."/>
+                     value="A bulk @Modifying statement leaves stale entities in the persistence context. Declare clearAutomatically = true using the literal true, and flushAutomatically = true when the statement reads what was written before it."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringModifyingClearsThePersistenceContext"/>

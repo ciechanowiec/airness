@@ -23,6 +23,10 @@
 
     <!--
     CODE STYLE
+
+    TooManyStaticImports counts each assertion-method import even when all come from one class.
+    Airness requires JUnit static imports, so that count can force a test into another file without
+    changing what it checks. Import formatting and the existing size and complexity rules remain.
     -->
     <rule ref="category/java/codestyle.xml/LongVariable">
         <properties>
@@ -63,6 +67,7 @@
         <exclude name="LocalVariableCouldBeFinal"/>
         <exclude name="MethodArgumentCouldBeFinal"/>
         <exclude name="OnlyOneReturn"/>
+        <exclude name="TooManyStaticImports"/>
     </rule>
 
     <!--
