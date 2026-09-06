@@ -49,6 +49,7 @@ run_maven_cases() {
         'airness:[^ ]+:blocklist \(airness-blocklist\)'
 
     run_blocklist_boundaries
+    run_license_alias_case
 }
 
 # The licence check reads what a pom says about itself, and none of these five says anything: the
@@ -125,4 +126,28 @@ JAVA
     expect_exit blocklist_unpinned 'blocklist: an open image nothing pins reports without failing' 0
     expect_match blocklist_unpinned 'blocklist: the missing pin is named' \
         'Dockerfile:1: postgres - nothing pins what this pulls'
+}
+
+# Adobe's published POM spells BSD-3-Clause differently from the other suppliers. The real license
+# goal must recognize that alias without a consumer-owned merge or an artifact-specific exemption.
+run_license_alias_case() {
+    new_consumer xmp-license-consumer
+    license_consumer="$consumer_directory"
+    license_dependency="$(cat <<'XML'
+  <dependencies>
+    <dependency>
+      <groupId>com.adobe.xmp</groupId>
+      <artifactId>xmpcore</artifactId>
+      <version>6.1.11</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+XML
+)"
+    LICENSE_DEPENDENCY="$license_dependency" perl -0pi -e \
+        's{</project>}{$ENV{LICENSE_DEPENDENCY}."\n</project>"}e' "$license_consumer/pom.xml"
+    run_maven license_bsd3_alias maven "$license_consumer" license:add-third-party
+    expect_exit license_bsd3_alias 'licenses: the published Adobe BSD3 alias is recognized' 0
+    expect_match license_bsd3_alias 'licenses: the installed license goal actually ran' \
+        'license:[^:]+:add-third-party'
 }
