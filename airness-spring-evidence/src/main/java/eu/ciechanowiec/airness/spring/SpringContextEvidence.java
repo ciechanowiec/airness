@@ -33,15 +33,18 @@ import org.springframework.util.ClassUtils;
  * Spring parent supplies the destination only to test JVMs, so an accidental runtime copy does nothing
  * and the evidence artifact never changes application behaviour outside verification.
  *
- * <p>Two facts are written. The primary source classes of the run, which say that the production
- * application was started at all, and the mappings its security chain leaves open to an anonymous
- * caller, which say what starting it exposed. Each open mapping is written on its own {@code open}
- * line, so a reader looking for an application class still finds one bare line per source and nothing
- * that could be mistaken for one.
+ * <p>Three facts are written. The primary source classes of the run, which say that the production
+ * application was started at all, the mappings its security chain leaves open to an anonymous caller,
+ * which say what starting it exposed, and the beans its security expressions name and the context
+ * cannot resolve, which say which guards would have thrown rather than decided. Each of the latter two
+ * is written on its own prefixed line, so a reader looking for an application class still finds one
+ * bare line per source and nothing that could be mistaken for one.
  *
  * <p>The second fact exists only where a servlet stack and a security chain are on the classpath, and
- * asking for it anywhere else would link classes that are not there. The question is therefore put
- * behind a presence test, and the class that puts it is loaded only once that test has passed.
+ * the third only where method security is, which an application with no web layer at all may still
+ * have. Asking for either anywhere else would link classes that are not there, so each question is put
+ * behind a presence test of its own and the class that puts it is loaded only once that test has
+ * passed.
  */
 public final class SpringContextEvidence implements SpringApplicationRunListener {
 
@@ -54,6 +57,12 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
      * both answer no and neither loads a class that would not resolve.
      */
     private static final boolean SERVLET_SECURITY = present();
+
+    /**
+     * Whether this JVM has the annotations whose expressions the guard evidence reads. A project that
+     * builds no method security at all answers no and loads no class that would not resolve.
+     */
+    private static final boolean METHOD_SECURITY = guarding();
 
     private final SpringApplication application;
 
@@ -81,14 +90,29 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
      * Everything this run proves, in the order a reader of the file meets it.
      *
      * @param context the ready context
-     * @return the source lines followed by the open-mapping lines, and nothing for a run that names
-     *         no class, which proves no production application and is therefore not evidence of anything
+     * @return the source lines followed by the open-mapping lines and the guard lines, and nothing
+     *         for a run that names no class, which proves no production application and is therefore
+     *         not evidence of anything
      */
     private List<String> evidence(ConfigurableApplicationContext context) {
         List<String> sources = this.sources();
         return sources.isEmpty()
             ? sources
-            : Stream.concat(sources.stream(), this.open(context, sources).stream()).toList();
+            : Stream.concat(sources.stream(), this.decided(context, sources).stream()).toList();
+    }
+
+    /**
+     * Everything the ready context decides that a reader of the source could not, which is what the
+     * two prefixed families of line carry.
+     *
+     * @param context the ready context
+     * @param sources the primary source class names of the run
+     * @return the open-mapping lines followed by the guard lines
+     */
+    private List<String> decided(ConfigurableApplicationContext context, Collection<String> sources) {
+        return Stream.concat(
+            this.open(context, sources).stream(), this.guards(context, sources).stream()
+        ).toList();
     }
 
     private List<String> sources() {
@@ -114,6 +138,18 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
     }
 
     /**
+     * The beans the security expressions of the application name and the context cannot resolve, asked
+     * for only where the annotations carrying those expressions are on the classpath.
+     *
+     * @param context the ready context
+     * @param sources the primary source class names of the run
+     * @return the evidence lines, and nothing where this application guards no method
+     */
+    private List<String> guards(ConfigurableApplicationContext context, Collection<String> sources) {
+        return METHOD_SECURITY ? SpringGuardBeans.unresolved(context, roots(sources)) : List.of();
+    }
+
+    /**
      * The package roots the run declares, which the handlers the application owns sit under.
      *
      * @param sources the primary source class names of the run
@@ -136,6 +172,16 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
             "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping",
             "org.springframework.mock.web.MockHttpServletRequest"
         ).allMatch(type -> ClassUtils.isPresent(type, loader));
+    }
+
+    // The annotation is named where it is read rather than handed in, for the reason the test above
+    // gives. Method security is a family rather than one class, and this is the one every project
+    // enabling it writes.
+    private static boolean guarding() {
+        return ClassUtils.isPresent(
+            "org.springframework.security.access.prepost.PreAuthorize",
+            SpringContextEvidence.class.getClassLoader()
+        );
     }
 
     private static void write(Path destination, Collection<String> lines) {

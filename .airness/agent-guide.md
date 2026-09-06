@@ -121,74 +121,79 @@ Airness governs all of the following domains:
   makes the security binding a declaration that survives a Java parameter rename instead of letting that refactor
   silently change what the expression reads. A reference with no such annotation behind it is therefore refused before
   it can resolve to an unintended value and make the guard decide something other than what it says. Retained Java
-  parameter names are fallback metadata rather than an external contract. A handler therefore annotates the source, name
-  and requiredness of every request value; a string repository query binds only named `@Param` values; and a bound model
-  or application request part states validation. Feature annotations are paired with the production annotation that
-  enables them, and an asynchronous or scheduled method names the infrastructure that runs it. Cache destinations,
-  configuration-property namespaces, transaction-bound event phases, pagination defaults and test SQL are written rather
-  than inherited from framework defaults. A listener that runs after its publisher has committed and writes under
-  `@Transactional` opens a transaction of its own with `REQUIRES_NEW`, because the one it would otherwise join has
-  already ended and a write made under it is flushed by nothing. A startup runner states its order with `@Order` or
-  `Ordered`, because the container runs a runner that states none wherever registration happened to put it, and a runner
-  that admits users before the bootstrap which writes the first administrator only into an empty user table inverts that
-  bootstrap in silence. Persistence mapping follows the same boundary: entity, table, column, join, sequence, access and
-  inheritance names stay stable when a Java declaration is renamed. A mapped value that may hold nothing is a deliberate
-  exception rather than an ordinary one, and is priced the way every deliberate exception here is: a field of a
-  persistent class or a component of a persistent record annotated `@Nullable` is reported until a suppression with its
-  reason sits beside it. Nullness at a boundary and nullness at rest are different things: a bound form holds nothing
-  because the framework read nothing into it, while a column holds nothing because somebody decided it may, which is
-  either a fact that is genuinely absent, such as the day an unissued document was issued, or two shapes flattened into
-  one table because the type system was never asked to tell them apart. Writing the reason is what separates the two,
-  since a reason that has to name which kind of row carries the value has written the missing type out by hand. A
-  constructor parameter is passed over, because a persistent record standing a default in for what a binder could not
-  build says nothing there about the column. A role a security annotation names is read against the enum implementing
-  `GrantedAuthority` that the production sources declare, with or without the `ROLE_` prefix, because a role nobody is
-  granted decides against every caller without a line in any log. A project naming a role while declaring no such enum
-  is refused rather than passed over, since a security rule that quietly checks nothing is worse than one asking for the
-  declaration it needs, and an authority spelled out as a literal such as `"ROLE_ADMIN"` is refused in favour of the
-  enum's own derivation. A path variable a handler names is read against the placeholders of its mapping, class-level
-  and method-level paths joined, since a name the mapping never declares answers the route and fails on the first
-  request; a path or a name the source does not state is passed over. What the running application leaves open is read
-  from the ready context rather than from any file: every mapping the module declares is put to the security chain as an
-  anonymous caller, and one the chain admits is reported unless a `permitAll` matcher of the module names that exact
-  pattern. Which endpoints answer an unauthenticated caller is decided by a mapping in one file, a matcher in another
-  and a path the container composes from both, so no source states it and no rule reading source can find it. Naming the
-  pattern is the declaration that it is public, whether the matcher writes it out or names a string constant of the
-  module, bare from the same source or qualified by the type declaring it; a matcher naming a prefix is not, because it
-  admits whatever is mapped under that prefix afterwards and widens without anybody rereading it. A matcher names a
-  method as readily as a pattern, and one that names none opens every method mapped under that path, so it declares the
-  mapping it opens only while that pattern opens one and is asked for the method as soon as it opens two. A collection
-  posted to by a guest and read back by its owner is one path and two mappings, and the line meant to open the write
-  opens the read beside it, which no rule reading a pattern alone can see. Write `requestMatchers(HttpMethod.POST,
-  PATH).permitAll()` for the method that is public and leave the one that is not to the rule below it, which is a form
-  drawn by a get and submitted by a post spelled as the two matchers it is. An argument that resolves to no written
-  string, a call among them, states no pattern, so the mapping stays reported. An argument is read as a method only
-  after it has failed to resolve to a string, so a constant of the module named for a verb and holding a path is still a
-  path. A handler carrying a method-security annotation is passed over, since its decision is taken after the chain, and
-  mappings the framework contributes, the error controller and the actuator endpoints among them, belong to the rules
-  already written about them. Nothing but the authorization decision is exercised: no filter of the project runs, no
-  session is created and no handler is called, so recording this cannot change what the test around it observes. A class
-  of the application layer that guards some of its public methods guards all of them, because an authorization
-  annotation is the whole of what decides who may call one, and a method added beside guarded siblings and left
-  unannotated is reached by every caller the container admits while looking exactly like the methods around it. A class
-  guarding none of them is passed over, having taken on no obligation, and so is a controller, whose callers are settled
-  by the filter chain and read from the running application by the rule above. A method the container invokes itself, a
-  schedule, a lifecycle callback, an event listener or an override, is passed over too: no principal is in scope on the
-  thread one runs on, so a guard there denies every invocation, and an override may carry its guard on the method it
-  overrides. Where reaching a method without a role is what was meant, `@PreAuthorize("permitAll()")` says so, that
-  being the annotation the prePostEnabled configuration every project has already reads, where the JSR-250 `@PermitAll`
-  is honoured only by a project that enabled that family beside it. A redirect or a forward whose whole target is a
-  value the request carried is refused, because the link that carried it chose where the reader goes and the sign-in
-  they passed on the way makes the destination read as the next step of the flow. A prefix carrying a path of its own
-  puts the value in a segment beneath this application and is left alone, a path variable is not read as a value the
-  caller sent since the mapping declared the path it is a segment of, and a value handed to a call of the project's own
-  is read as one the handler worked out, which is also the repair. A fragment the module's markup declares is read
-  against everything in the module that could reach it, which is a fragment call in that markup and, because a view name
-  is as often assembled from constants as returned as a literal, the plain occurrence of the name inside a string the
-  module's Java writes. A fragment neither of those mentions is dead markup that parses, is held to the argument cap, is
-  passed over by the rule about calls because it is the callee rather than a caller, and is rendered by nothing, so it
-  is reported where it was declared; a fragment merely mentioned anywhere, tests included, is left alone, which trades a
-  dead fragment somebody happened to name for never accusing one a handler reaches by a name it builds.
+  parameter names are fallback metadata rather than an external contract. A bean an authorization expression calls is
+  read against the beans the ready application holds, since which beans exist is settled by the classes of the module
+  together with every auto-configuration on the classpath and no source states it. A name nothing is declared under, and
+  a method the bean it names does not answer to, both parse and both compile and neither is resolved until a caller
+  arrives, so the guard raises instead of deciding and the method behind it answers nobody rather than refusing them. A
+  handler therefore annotates the source, name and requiredness of every request value; a string repository query binds
+  only named `@Param` values; and a bound model or application request part states validation. Feature annotations are
+  paired with the production annotation that enables them, and an asynchronous or scheduled method names the
+  infrastructure that runs it. Cache destinations, configuration-property namespaces, transaction-bound event phases,
+  pagination defaults and test SQL are written rather than inherited from framework defaults. A listener that runs after
+  its publisher has committed and writes under `@Transactional` opens a transaction of its own with `REQUIRES_NEW`,
+  because the one it would otherwise join has already ended and a write made under it is flushed by nothing. A startup
+  runner states its order with `@Order` or `Ordered`, because the container runs a runner that states none wherever
+  registration happened to put it, and a runner that admits users before the bootstrap which writes the first
+  administrator only into an empty user table inverts that bootstrap in silence. Persistence mapping follows the same
+  boundary: entity, table, column, join, sequence, access and inheritance names stay stable when a Java declaration is
+  renamed. A mapped value that may hold nothing is a deliberate exception rather than an ordinary one, and is priced the
+  way every deliberate exception here is: a field of a persistent class or a component of a persistent record annotated
+  `@Nullable` is reported until a suppression with its reason sits beside it. Nullness at a boundary and nullness at
+  rest are different things: a bound form holds nothing because the framework read nothing into it, while a column holds
+  nothing because somebody decided it may, which is either a fact that is genuinely absent, such as the day an unissued
+  document was issued, or two shapes flattened into one table because the type system was never asked to tell them
+  apart. Writing the reason is what separates the two, since a reason that has to name which kind of row carries the
+  value has written the missing type out by hand. A constructor parameter is passed over, because a persistent record
+  standing a default in for what a binder could not build says nothing there about the column. A role a security
+  annotation names is read against the enum implementing `GrantedAuthority` that the production sources declare, with or
+  without the `ROLE_` prefix, because a role nobody is granted decides against every caller without a line in any log. A
+  project naming a role while declaring no such enum is refused rather than passed over, since a security rule that
+  quietly checks nothing is worse than one asking for the declaration it needs, and an authority spelled out as a
+  literal such as `"ROLE_ADMIN"` is refused in favour of the enum's own derivation. A path variable a handler names is
+  read against the placeholders of its mapping, class-level and method-level paths joined, since a name the mapping
+  never declares answers the route and fails on the first request; a path or a name the source does not state is passed
+  over. What the running application leaves open is read from the ready context rather than from any file: every mapping
+  the module declares is put to the security chain as an anonymous caller, and one the chain admits is reported unless a
+  `permitAll` matcher of the module names that exact pattern. Which endpoints answer an unauthenticated caller is
+  decided by a mapping in one file, a matcher in another and a path the container composes from both, so no source
+  states it and no rule reading source can find it. Naming the pattern is the declaration that it is public, whether the
+  matcher writes it out or names a string constant of the module, bare from the same source or qualified by the type
+  declaring it; a matcher naming a prefix is not, because it admits whatever is mapped under that prefix afterwards and
+  widens without anybody rereading it. A matcher names a method as readily as a pattern, and one that names none opens
+  every method mapped under that path, so it declares the mapping it opens only while that pattern opens one and is
+  asked for the method as soon as it opens two. A collection posted to by a guest and read back by its owner is one path
+  and two mappings, and the line meant to open the write opens the read beside it, which no rule reading a pattern alone
+  can see. Write `requestMatchers(HttpMethod.POST, PATH).permitAll()` for the method that is public and leave the one
+  that is not to the rule below it, which is a form drawn by a get and submitted by a post spelled as the two matchers
+  it is. An argument that resolves to no written string, a call among them, states no pattern, so the mapping stays
+  reported. An argument is read as a method only after it has failed to resolve to a string, so a constant of the module
+  named for a verb and holding a path is still a path. A handler carrying a method-security annotation is passed over,
+  since its decision is taken after the chain, and mappings the framework contributes, the error controller and the
+  actuator endpoints among them, belong to the rules already written about them. Nothing but the authorization decision
+  is exercised: no filter of the project runs, no session is created and no handler is called, so recording this cannot
+  change what the test around it observes. A class of the application layer that guards some of its public methods
+  guards all of them, because an authorization annotation is the whole of what decides who may call one, and a method
+  added beside guarded siblings and left unannotated is reached by every caller the container admits while looking
+  exactly like the methods around it. A class guarding none of them is passed over, having taken on no obligation, and
+  so is a controller, whose callers are settled by the filter chain and read from the running application by the rule
+  above. A method the container invokes itself, a schedule, a lifecycle callback, an event listener or an override, is
+  passed over too: no principal is in scope on the thread one runs on, so a guard there denies every invocation, and an
+  override may carry its guard on the method it overrides. Where reaching a method without a role is what was meant,
+  `@PreAuthorize("permitAll()")` says so, that being the annotation the prePostEnabled configuration every project has
+  already reads, where the JSR-250 `@PermitAll` is honoured only by a project that enabled that family beside it. A
+  redirect or a forward whose whole target is a value the request carried is refused, because the link that carried it
+  chose where the reader goes and the sign-in they passed on the way makes the destination read as the next step of the
+  flow. A prefix carrying a path of its own puts the value in a segment beneath this application and is left alone, a
+  path variable is not read as a value the caller sent since the mapping declared the path it is a segment of, and a
+  value handed to a call of the project's own is read as one the handler worked out, which is also the repair. A
+  fragment the module's markup declares is read against everything in the module that could reach it, which is a
+  fragment call in that markup and, because a view name is as often assembled from constants as returned as a literal,
+  the plain occurrence of the name inside a string the module's Java writes. A fragment neither of those mentions is
+  dead markup that parses, is held to the argument cap, is passed over by the rule about calls because it is the callee
+  rather than a caller, and is rendered by nothing, so it is reported where it was declared; a fragment merely mentioned
+  anywhere, tests included, is left alone, which trades a dead fragment somebody happened to name for never accusing one
+  a handler reaches by a name it builds.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
