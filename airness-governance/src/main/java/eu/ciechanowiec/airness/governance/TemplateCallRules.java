@@ -138,11 +138,13 @@ final class TemplateCallRules {
         return found.isEmpty() ? bare(value) : List.copyOf(found);
     }
 
-    // An attribute that takes nothing but a fragment expression may write one without its braces, which
-    // the engine still reads as one. A value that builds what it names is not one of those.
+    // An attribute or a controller view name that takes nothing but a fragment expression may write
+    // one without its braces, which the engine still reads as one. Whether its template or fragment
+    // name is built is decided after the argument list has been parted from that name, so an argument
+    // expression does not hide a static name.
     private static List<String> bare(String value) {
         String written = value.trim();
-        return written.isEmpty() || builds(written) ? List.of() : List.of(written);
+        return written.isEmpty() ? List.of() : List.of(written);
     }
 
     private static List<FragmentCall> parsed(String expression) {
@@ -163,7 +165,14 @@ final class TemplateCallRules {
             return List.of();
         }
         String reached = SELF.equalsIgnoreCase(template) ? "" : template;
-        return List.of(new FragmentCall(reached, name, FragmentSignature.arguments(fragment)));
+        return List.of(
+            new FragmentCall(
+                reached,
+                name,
+                FragmentSignature.arguments(fragment),
+                FragmentSignature.listsArguments(fragment)
+            )
+        );
     }
 
     private static boolean builds(String written) {

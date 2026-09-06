@@ -29,6 +29,21 @@ class TemplateCallExpressionsTest {
     }
 
     @Test
+    void recordsThatANonemptyArgumentListWasWritten() {
+        assertTrue(only("~{layout/page :: page(a)}").argumentsListed(), "the list is explicit");
+    }
+
+    @Test
+    void recordsThatAnEmptyArgumentListWasWritten() {
+        assertTrue(only("~{layout/page :: page()}").argumentsListed(), "an empty list is still explicit");
+    }
+
+    @Test
+    void recordsThatABareFragmentWritesNoArgumentList() {
+        assertFalse(only("~{layout/page :: page}").argumentsListed(), "a bare name carries no list");
+    }
+
+    @Test
     void countsANestedExpressionAsOneArgument() {
         FragmentCall call = only("~{layout/page :: page('Rooms', 'rooms', ~{:: #page-body})}");
         assertEquals(3, call.arguments(), "an expression inside the list is one argument rather than a call");
@@ -70,8 +85,8 @@ class TemplateCallExpressionsTest {
     }
 
     @Test
-    void keepsACallWhoseArgumentsAreExpressions() {
-        assertEquals(1, TemplateCallRules.calls("~{a/b :: c(${one}, ${two})}").size(), "arguments may be built");
+    void keepsABareCallWhoseArgumentsAreExpressions() {
+        assertEquals(1, TemplateCallRules.calls("a/b :: c(${one}, ${two})").size(), "only its values are built");
     }
 
     @Test

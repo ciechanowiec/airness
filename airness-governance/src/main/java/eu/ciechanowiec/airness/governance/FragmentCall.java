@@ -7,11 +7,12 @@ package eu.ciechanowiec.airness.governance;
  * call that names no template reaches the document it was written in, and a call that names no
  * fragment reaches a whole template rather than a declaration inside one.
  *
- * @param template  the template the call reaches, and nothing when it reaches its own document
- * @param fragment  the fragment the call reaches, and nothing when it reaches a whole template
- * @param arguments how many arguments the call hands over
+ * @param template        the template the call reaches, and nothing when it reaches its own document
+ * @param fragment        the fragment the call reaches, and nothing when it reaches a whole template
+ * @param arguments       how many arguments the call hands over
+ * @param argumentsListed whether the call writes an argument list, including an empty one
  */
-record FragmentCall(String template, String fragment, int arguments) {
+record FragmentCall(String template, String fragment, int arguments, boolean argumentsListed) {
 
     /**
      * Whether the call reaches the document it was written in rather than another one.

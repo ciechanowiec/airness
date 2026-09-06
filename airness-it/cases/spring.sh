@@ -795,6 +795,65 @@ expect_exit spring_placeholder \
 expect_match spring_placeholder 'spring: the offence names the undeclared key alone' \
     'Clock.java: line 21: the placeholder reads example.greeting'
 
+# A controller fragment view uses the same explicit argument list as a call in markup. The template
+# and fragment both exist here, so only comparing the written list with the declaration finds the
+# defect before the first request renders it.
+spring_view_arguments="$scratch/spring-view-arguments"
+clone_tree "$spring_app" "$spring_view_arguments"
+mkdir -p "$spring_view_arguments/src/main/resources/templates/row"
+cat > "$spring_view_arguments/src/main/java/com/example/Rows.java" <<'JAVA'
+package com.example;
+
+import org.springframework.stereotype.Controller;
+
+/**
+ * Rows drawn through one fragment view.
+ */
+@Controller
+public final class Rows {
+
+    private static final String FRAGMENT = "row/list :: rows('one', 'two')";
+
+    /**
+     * Answers the rows fragment with an argument list too long for it.
+     *
+     * @return the fragment view name
+     */
+    public String rows() {
+        return FRAGMENT;
+    }
+}
+JAVA
+cat > "$spring_view_arguments/src/main/java/com/example/Failures.java" <<'JAVA'
+package com.example;
+
+import org.springframework.web.bind.annotation.ControllerAdvice;
+
+/**
+ * The failure boundary of the controller fixture.
+ */
+@ControllerAdvice
+public final class Failures {
+}
+JAVA
+cat > "$spring_view_arguments/src/main/resources/templates/row/list.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="rows(value)">
+    <span th:text="${value}">Value</span>
+</div>
+</body>
+</html>
+HTML
+git -C "$spring_view_arguments" add --all
+run_maven spring_view_arguments spring "$spring_view_arguments" airness:spring-module
+expect_exit spring_view_arguments \
+    'spring: an explicit controller fragment argument mismatch fails the module goal' 1
+expect_match spring_view_arguments \
+    'spring: the fragment view finding names both argument counts' \
+    'Rows.java.*hands 2 argument[(]s[)].*declared to take 1'
+
 # Both components compile and every source analyzer accepts them. The production context is the one
 # authority on the collision, and its own diagnostic names the derived bean name and both definitions.
 spring_collision="$scratch/spring-collision"
