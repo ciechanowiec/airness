@@ -714,6 +714,73 @@ public final class Consignment {
     }
 }
 JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/EventDispatch.java" <<'JAVA'
+package com.example;
+
+/**
+ * Dispatches events through an explicit switch whose branches perform actions.
+ */
+public final class EventDispatch {
+
+    private final Runnable action;
+
+    /**
+     * Keeps the action dispatched by an event.
+     *
+     * @param action the action to run
+     */
+    public EventDispatch(Runnable action) {
+        this.action = action;
+    }
+
+    /**
+     * Dispatches a known event and rejects every unknown event explicitly.
+     *
+     * @param event the event kind
+     * @throws IllegalArgumentException when the event kind is unknown
+     */
+    public void dispatch(int event) {
+        switch (event) {
+            case 1 -> this.action.run();
+            case 2 -> throw new IllegalArgumentException("The event was refused");
+            default -> throw new IllegalArgumentException("The event is unknown");
+        }
+    }
+}
+JAVA
+    cat > "$qodana_consumer/src/main/java/com/example/IncompleteDispatch.java" <<'JAVA'
+package com.example;
+
+/**
+ * Deliberately omits a default so the specific switch safety inspection has a negative control.
+ */
+public final class IncompleteDispatch {
+
+    private final Runnable action;
+
+    /**
+     * Keeps the action dispatched by an event.
+     *
+     * @param action the action to run
+     */
+    public IncompleteDispatch(Runnable action) {
+        this.action = action;
+    }
+
+    /**
+     * Deliberately leaves unknown events unhandled.
+     *
+     * @param event the event kind
+     * @throws IllegalArgumentException when the event kind is refused
+     */
+    public void dispatch(int event) {
+        switch (event) {
+            case 1 -> this.action.run();
+            case 2 -> throw new IllegalArgumentException("The event was refused");
+        }
+    }
+}
+JAVA
     git -C "$qodana_consumer" add --all
     git -C "$qodana_consumer" commit --quiet \
         --message 'test(it): carry the shapes the dropped inspections reported' \

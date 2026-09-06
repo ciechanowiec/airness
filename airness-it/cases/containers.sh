@@ -10,7 +10,7 @@ run_qodana_profile() {
         fail 'qodana: the run left no report to read'
         sed -n '1,220p' "$qodana_log" >&2
     else
-        for dropped in InnerClassOnInterface ClassWithTooManyDependencies Singleton MagicNumber; do
+        for dropped in InnerClassOnInterface ClassWithTooManyDependencies Singleton MagicNumber SwitchStatement; do
             reported="$(grep -c "\"ruleId\": \"$dropped\"" "$qodana_sarif" || true)"
             if [ "$reported" -eq 0 ]; then
                 pass "qodana: $dropped reports nothing on the fixture"
@@ -18,6 +18,9 @@ run_qodana_profile() {
                 fail "qodana: $dropped reported $reported finding(s)"
             fi
         done
+        expect_file_match "$qodana_sarif" \
+            'qodana: a switch without a default is still reported' \
+            '"ruleId": "SwitchStatementsWithoutDefault"'
         if grep -q "'CommandRouter' is overly coupled" "$qodana_sarif"; then
             pass 'qodana: ClassCoupling still reports an over-coupled class'
         else
