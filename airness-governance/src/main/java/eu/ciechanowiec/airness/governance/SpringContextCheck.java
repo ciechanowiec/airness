@@ -33,6 +33,8 @@ public final class SpringContextCheck {
     private static final String MISSING = "Spring application context not started by this build";
     private static final String OPEN = "Endpoints the security chain admits to an unauthenticated caller";
     private static final String OPENED = "open ";
+    private static final String UNKNOWN_BEANS = "Security expressions naming a bean this application does not declare";
+    private static final String UNKNOWN_CALLS = "Security expressions calling a method their bean does not have";
 
     private final Path evidence;
     private final long started;
@@ -89,7 +91,9 @@ public final class SpringContextCheck {
         List<String> recorded = this.recorded();
         return List.of(
             new Findings(MISSING, this.missing(recorded)),
-            new Findings(OPEN, SpringEndpointRules.undeclared(opened(recorded), this.types))
+            new Findings(OPEN, SpringEndpointRules.undeclared(opened(recorded), this.types)),
+            new Findings(UNKNOWN_BEANS, SpringGuardBeanRules.unknownBeans(recorded)),
+            new Findings(UNKNOWN_CALLS, SpringGuardBeanRules.unknownCalls(recorded))
         );
     }
 

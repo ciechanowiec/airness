@@ -512,6 +512,104 @@ expect_exit spring_narrow 'spring: a ready test-only context is not application 
 expect_match spring_narrow 'spring: narrowed evidence names the missing production source' \
     'contains no current run that reached ready with this production application'
 
+# A guard delegating to a bean is a string until a caller arrives, and the name inside it is resolved
+# against the beans the container assembled out of this module and every auto-configuration on its
+# classpath. No source states that set, so these three cases put the question to the ready context. The
+# first is the shape that must not be reported, which is the one that matters most: a rule guessing the
+# bean names out of source would accuse it the moment the bean came from a dependency.
+write_spring_guard_module() {
+    cat > "$1/src/main/java/com/example/Reach.java" <<'JAVA'
+package com.example;
+
+import org.springframework.stereotype.Service;
+
+/**
+ * What every guard of this application delegates its decision to.
+ */
+@Service
+public class Reach {
+
+    /**
+     * Answers whether the caller reaches the thing under the given reference.
+     *
+     * @param reference what the caller asked for
+     * @return whether they may
+     */
+    public boolean granted(String reference) {
+        return !reference.isEmpty();
+    }
+}
+JAVA
+    cat > "$1/src/main/java/com/example/Guards.java" <<'JAVA'
+package com.example;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+
+/**
+ * What turns the guards of this application on.
+ */
+@Configuration(proxyBeanMethods = false)
+@EnableMethodSecurity(prePostEnabled = true)
+public class Guards {
+}
+JAVA
+    cat > "$1/src/main/java/com/example/Ledgers.java" <<JAVA
+package com.example;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+
+/**
+ * A service whose guard delegates its decision to a bean.
+ */
+@Service
+public class Ledgers {
+
+    /**
+     * Answers the ledger under the given reference.
+     *
+     * @param reference the ledger asked for
+     * @return that ledger
+     */
+    @PreAuthorize("$2")
+    public String read(String reference) {
+        return reference;
+    }
+}
+JAVA
+}
+
+spring_guard_resolved="$scratch/spring-guard-resolved"
+clone_tree "$spring_app" "$spring_guard_resolved"
+write_spring_guard_module "$spring_guard_resolved" "@reach.granted('ledger')"
+git -C "$spring_guard_resolved" add --all
+run_maven spring_guard_resolved spring "$spring_guard_resolved" clean test airness:spring-context
+expect_exit spring_guard_resolved 'spring: a guard the container can evaluate passes the context goal' 0
+
+# The bean name misspelled. It parses, it compiles, and it is resolved only when somebody arrives, so
+# the guard raises instead of deciding and the method behind it answers nobody rather than refusing them.
+spring_guard_bean="$scratch/spring-guard-bean"
+clone_tree "$spring_app" "$spring_guard_bean"
+write_spring_guard_module "$spring_guard_bean" "@raech.granted('ledger')"
+git -C "$spring_guard_bean" add --all
+run_maven spring_guard_bean spring "$spring_guard_bean" clean test airness:spring-context
+expect_exit spring_guard_bean 'spring: a guard naming a bean nothing declares fails the context goal' 1
+expect_match spring_guard_bean 'spring: the offence names the bean and the method that asked for it' \
+    'com.example.Ledgers#read: the security expression calls @raech'
+expect_match spring_guard_bean 'spring: the offence says what the guard does instead of deciding' \
+    'declares no bean under that name'
+
+# The bean found and the method on it misspelled, which is the same failure one step further in.
+spring_guard_call="$scratch/spring-guard-call"
+clone_tree "$spring_app" "$spring_guard_call"
+write_spring_guard_module "$spring_guard_call" "@reach.grantd('ledger')"
+git -C "$spring_guard_call" add --all
+run_maven spring_guard_call spring "$spring_guard_call" clean test airness:spring-context
+expect_exit spring_guard_call 'spring: a guard calling a method its bean does not have fails the context goal' 1
+expect_match spring_guard_call 'spring: the offence names the whole reference that could not be resolved' \
+    'calls @reach.grantd'
+
 # A class that guards some of its public methods has taken on the obligation, so one added beside them
 # and left unannotated is reached by every caller the container admits. The class that guards none of
 # them is passed over in the same run, which is what keeps the rule off a bean nobody guarded.
