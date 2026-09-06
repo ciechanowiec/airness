@@ -270,6 +270,41 @@ class PmdConfigurationTest {
     }
 
     @Test
+    void acceptsSeveralAssertionImportsFromOneClass(@TempDir Path directory) {
+        Fixture fixture = new Fixture(
+            "AssertionImports.java",
+            """
+                package example;
+                import static org.junit.jupiter.api.Assertions.assertEquals;
+                import static org.junit.jupiter.api.Assertions.assertFalse;
+                import static org.junit.jupiter.api.Assertions.assertNotNull;
+                import static org.junit.jupiter.api.Assertions.assertThrows;
+                import static org.junit.jupiter.api.Assertions.assertTrue;
+                final class AssertionImports {
+                    void checks(String value, String expected) {
+                        assertNotNull(value);
+                        assertEquals(expected, value);
+                        assertFalse(value.isEmpty());
+                        assertTrue(value.contains(expected));
+                        assertThrows(NumberFormatException.class, () -> Integer.parseInt(value));
+                    }
+                }
+                """,
+            "TooManyStaticImports",
+            2
+        );
+        Report report = inspect(directory, fixture);
+        assertTrue(report.getProcessingErrors().isEmpty(), () -> "PMD errors: " + report.getProcessingErrors());
+        assertTrue(report.getConfigurationErrors().isEmpty(), () -> "PMD config: " + report.getConfigurationErrors());
+        assertTrue(
+            report.getViolations().stream().noneMatch(
+                violation -> fixture.rule().equals(violation.getRule().getName())
+            ),
+            () -> "assertion methods from one class must stay available, but reported " + describe(report)
+        );
+    }
+
+    @Test
     @SneakyThrows
     void detectsAndClearsDuplicationWithTheParentThreshold(@TempDir Path directory) {
         String duplicated = """
