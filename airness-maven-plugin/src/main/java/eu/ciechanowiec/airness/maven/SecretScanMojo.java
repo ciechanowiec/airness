@@ -26,9 +26,15 @@ public final class SecretScanMojo extends AbstractDockerCheckMojo {
         if (!Files.isRegularFile(config)) {
             throw new IOException("Secret scan configuration is missing: " + config);
         }
+        return dockerCommand(root, this.image());
+    }
+
+    static List<String> dockerCommand(Path root, String image) {
+        // Fixture exceptions belong in the governed configuration, never in an inline allow comment.
         return List.of(
-            "docker", "run", "--rm", "-v", root + ":/repo:ro", this.image(),
-            "git", "/repo", "--no-banner", "--redact", "--config", "/repo/.gitleaks.toml"
+            "docker", "run", "--rm", "-v", root + ":/repo:ro", image,
+            "git", "/repo", "--no-banner", "--redact", "--ignore-gitleaks-allow",
+            "--config", "/repo/.gitleaks.toml"
         );
     }
 
