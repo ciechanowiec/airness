@@ -113,7 +113,9 @@ Airness governs all of the following domains:
   unconditional wiring and the profiles active in the test, not a profile the test never activated. A view name a
   handler hands back is read against the markup the module ships, because nothing compiles that string and the template
   behind it is found only when a request is answered, so a template renamed or moved leaves every handler that named it
-  compiling and failing on the first request that reaches it. The name is read where it is written plainly, which is a
+  compiling and failing on the first request that reaches it. An explicit argument list on a view name selecting a
+  declared fragment is read against the list that fragment declares; a bare selector carries no list and is left alone.
+  The name is read where it is written plainly, which is a
   constant as readily as a literal. A name a handler builds is passed over, and so is a string returned by anything
   answering with a body rather than with a page, since neither states a template. What a redirect or a forward names is
   an address rather than a template and is left alone here. A parameter an authorization expression reads is named for

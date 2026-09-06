@@ -73,6 +73,20 @@ final class SpringViewRules {
             .toList();
     }
 
+    /**
+     * Every explicit argument list in a resolvable fragment view that differs from its declaration.
+     *
+     * @param types the module already read
+     * @param index the markup the module ships
+     * @return one offence per mismatched view name, by source and line
+     */
+    static List<String> miscountedViewArguments(SpringTypes types, TemplateIndex index) {
+        return types.all().stream()
+            .filter(SpringTypes.Declared::production)
+            .flatMap(source -> miscounted(source, index))
+            .toList();
+    }
+
     private static Stream<String> unresolved(SpringTypes.Declared source, TemplateIndex index) {
         String read = source.quoted();
         if (BODIED.matcher(read).find()) {
@@ -81,6 +95,17 @@ final class SpringViewRules {
         Map<String, String> constants = constants(read);
         return named(read).flatMap(
             found -> reported(source, index, constants, found)
+        );
+    }
+
+    private static Stream<String> miscounted(SpringTypes.Declared source, TemplateIndex index) {
+        String read = source.quoted();
+        if (BODIED.matcher(read).find()) {
+            return Stream.of();
+        }
+        Map<String, String> constants = constants(read);
+        return named(read).flatMap(
+            found -> argumentOffences(source, index, constants, found)
         );
     }
 
@@ -101,6 +126,36 @@ final class SpringViewRules {
             .filter(view -> !reaches(index, view))
             .map(view -> offence(source, found.start(), view))
             .stream();
+    }
+
+    private static Stream<String> argumentOffences(
+        SpringTypes.Declared source, TemplateIndex index, Map<String, String> constants, MatchResult found
+    ) {
+        return value(constants, found.group(1))
+            .filter(SpringViewRules::names)
+            .stream()
+            .flatMap(
+                view -> TemplateCallRules.calls(view)
+                    .stream()
+                    .filter(FragmentCall::argumentsListed)
+                    .flatMap(
+                        call -> declaredArguments(index, call)
+                            .filter(declared -> declared != call.arguments())
+                            .map(
+                                declared -> argumentOffence(
+                                    source,
+                                    found.start(),
+                                    new ArgumentMismatch(view, call, declared)
+                                )
+                            )
+                            .stream()
+                    )
+            );
+    }
+
+    private static Optional<Integer> declaredArguments(TemplateIndex index, FragmentCall call) {
+        return index.template(call.template())
+            .flatMap(template -> index.fragment(template, call.fragment()));
     }
 
     // What the written name says, which a literal says itself and a constant says where it was declared.
@@ -143,5 +198,16 @@ final class SpringViewRules {
         return source.source() + ": line " + JavaCode.lineOf(source.text(), at) + ": "
             + "the view name " + view + " reaches no template this module ships, so the handler that"
             + " returns it answers its first request with a template that could not be found";
+    }
+
+    private static String argumentOffence(SpringTypes.Declared source, int at, ArgumentMismatch mismatch) {
+        FragmentCall call = mismatch.call();
+        return source.source() + ": line " + JavaCode.lineOf(source.text(), at) + ": the view name "
+            + mismatch.view() + " hands " + call.arguments() + " argument(s) to the fragment " + call.fragment()
+            + ", which is declared to take " + mismatch.declared() + "; state the declaration's argument list"
+            + " in the returned fragment expression";
+    }
+
+    private record ArgumentMismatch(String view, FragmentCall call, int declared) {
     }
 }

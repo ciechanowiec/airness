@@ -57,6 +57,18 @@ final class FragmentSignature {
     }
 
     /**
+     * Whether the fragment writes an explicit, closed argument list.
+     *
+     * @param written a fragment as it was declared or called
+     * @return whether an argument list is written, including an empty one
+     */
+    static boolean listsArguments(String written) {
+        int opens = written.indexOf(OPENS);
+        int closes = written.lastIndexOf(CLOSES);
+        return opens >= 0 && closes > opens;
+    }
+
+    /**
      * The name a fragment is known by, which is everything before its argument list.
      *
      * @param written a fragment as it was declared or called

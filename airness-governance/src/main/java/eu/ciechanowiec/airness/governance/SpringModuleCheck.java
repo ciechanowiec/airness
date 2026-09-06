@@ -54,6 +54,8 @@ public final class SpringModuleCheck {
         = "Test profile files that nothing activates";
     private static final String UNRESOLVED_VIEWS
         = "View names that reach no template the module ships";
+    private static final String MISCOUNTED_VIEW_ARGUMENTS
+        = "Fragment views handed an argument list the declaration does not take";
     private static final String UNREACHED_FRAGMENTS
         = "Fragments the module declares that nothing in it reaches";
     private static final String IMPLICIT_BEAN_CHOICES
@@ -128,6 +130,10 @@ public final class SpringModuleCheck {
             new Findings(UNREGISTERED_PROPERTIES, SpringWiringRules.unregisteredProperties(this.types)),
             new Findings(UNACTIVATED_PROFILES, SpringTestRules.unactivatedProfiles(this.types, this.tested)),
             new Findings(UNRESOLVED_VIEWS, SpringViewRules.unresolvedViews(this.types, this.markup)),
+            new Findings(
+                MISCOUNTED_VIEW_ARGUMENTS,
+                SpringViewRules.miscountedViewArguments(this.types, this.markup)
+            ),
             new Findings(
                 UNREACHED_FRAGMENTS,
                 SpringFragmentRules.unreachedFragments(this.types, this.markup)
