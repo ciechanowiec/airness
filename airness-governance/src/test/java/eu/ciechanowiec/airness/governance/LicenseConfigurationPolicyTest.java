@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -34,6 +35,7 @@ class LicenseConfigurationPolicyTest {
         Map.entry("GPLv2+CE", "GPL-2.0-with-classpath-exception"),
         Map.entry("BSD 3-clause New License", "BSD-3-Clause"),
         Map.entry("Modified BSD", "BSD-3-Clause"),
+        Map.entry("GNU Lesser General Public License v3.0 or later", "LGPL-3.0"),
         Map.entry("LGPL-2.1-only", "LGPL-2.1"),
         Map.entry("LGPL-2.1-or-later", "LGPL-2.1"),
         Map.entry("MPL 2.0", "MPL-2.0"),
@@ -59,6 +61,13 @@ class LicenseConfigurationPolicyTest {
             .filter(pair -> !identifierOf(pair.getKey()).equals(Optional.of(pair.getValue())))
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         assertEquals(Map.of(), unreadable, "a package declaring one of these fails as unreadable");
+    }
+
+    @Test
+    void refusesACommercialLicenseOnItsOwn() {
+        String commercial = "Commercial License";
+        assertTrue(identifierOf(commercial).isEmpty());
+        assertFalse(allowlist().contains(commercial));
     }
 
     @Test

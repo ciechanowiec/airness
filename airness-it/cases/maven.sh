@@ -128,8 +128,8 @@ JAVA
         'Dockerfile:1: postgres - nothing pins what this pulls'
 }
 
-# Adobe's published POM spells BSD-3-Clause differently from the other suppliers. The real license
-# goal must recognize that alias without a consumer-owned merge or an artifact-specific exemption.
+# Published POMs spell allowed licenses differently. JobRunr also offers a commercial alternative.
+# The real goal must recognize the open license without a consumer merge or an artifact exemption.
 run_license_alias_case() {
     new_consumer xmp-license-consumer
     license_consumer="$consumer_directory"
@@ -141,6 +141,12 @@ run_license_alias_case() {
       <version>6.1.11</version>
       <scope>runtime</scope>
     </dependency>
+    <dependency>
+      <groupId>org.jobrunr</groupId>
+      <artifactId>jobrunr</artifactId>
+      <version>8.8.2</version>
+      <scope>runtime</scope>
+    </dependency>
   </dependencies>
 XML
 )"
@@ -150,4 +156,6 @@ XML
     expect_exit license_bsd3_alias 'licenses: the published Adobe BSD3 alias is recognized' 0
     expect_match license_bsd3_alias 'licenses: the installed license goal actually ran' \
         'license:[^:]+:add-third-party'
+    expect_match license_bsd3_alias 'licenses: JobRunr selects its allowed LGPL alternative' \
+        "Commercial License.*org.jobrunr:jobrunr.*also licensed under 'LGPL-3.0'"
 }
