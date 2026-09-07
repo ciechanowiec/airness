@@ -470,6 +470,8 @@
                         <exclude>**/*.otf</exclude>
                         <exclude>**/*.mp4</exclude>
                         <exclude>**/*.webm</exclude>
+                        <!-- RIFF audio has binary samples and no text line-ending requirements. -->
+                        <exclude>**/*.wav</exclude>
                         <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
                         <exclude>**/*.tsv</exclude>
                     </excludes>

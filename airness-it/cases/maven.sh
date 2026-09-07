@@ -50,6 +50,7 @@ run_maven_cases() {
 
     run_blocklist_boundaries
     run_license_alias_case
+    run_suppression_boundaries
 }
 
 # The licence check reads what a pom says about itself, and none of these five says anything: the
@@ -158,4 +159,47 @@ XML
         'license:[^:]+:add-third-party'
     expect_match license_bsd3_alias 'licenses: JobRunr selects its allowed LGPL alternative' \
         "Commercial License.*org.jobrunr:jobrunr.*also licensed under 'LGPL-3.0'"
+}
+
+run_suppression_boundaries() {
+    new_consumer suppression-policy
+    suppression_consumer="$consumer_directory"
+    suppression_document="$suppression_consumer/.airness/dependency-check-suppressions.xml"
+    cat > "$suppression_document" <<'XML'
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes>The affected parser is absent. Added 2026-09-07.</notes>
+        <packageUrl regex="true">^pkg:maven/org.example/library@.*$</packageUrl>
+        <cve>CVE-2020-27225</cve>
+    </suppress>
+</suppressions>
+XML
+    run_maven suppression_literal maven "$suppression_consumer" validate
+    expect_exit suppression_literal 'suppressions: preflight accepts named advisories and dependency patterns' 0
+    cat > "$suppression_document" <<'XML'
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes>The affected parser is absent. Added 2026-09-07.</notes>
+        <cve>CVE-2020-27225</cve>
+        <vulnerabilityName regex="true">.*</vulnerabilityName>
+    </suppress>
+</suppressions>
+XML
+    run_maven suppression_blanket maven "$suppression_consumer" validate
+    expect_exit suppression_blanket 'suppressions: a named CVE cannot hide a blanket exception' 1
+    expect_match suppression_blanket 'suppressions: the rejection asks for literal advisory names' 'literal advisory'
+    cat > "$suppression_document" <<'XML'
+<dc:suppressions xmlns:dc="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
+    <dc:suppressionGroup name="examples">
+        <dc:suppress>
+            <dc:notes>The affected parser is absent. Added 2026-09-07.</dc:notes>
+            <dc:cve>CVE-2020-27225</dc:cve>
+            <dc:cvssBelow>7</dc:cvssBelow>
+        </dc:suppress>
+    </dc:suppressionGroup>
+</dc:suppressions>
+XML
+    run_maven suppression_group maven "$suppression_consumer" validate
+    expect_exit suppression_group 'suppressions: groups and prefixes cannot hide a score threshold' 1
+    expect_match suppression_group 'suppressions: the rejection identifies the broad selector' 'replace cvssBelow'
 }

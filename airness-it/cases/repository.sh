@@ -2,6 +2,7 @@
 
 run_repository_cases() {
     run_formatting_boundaries
+    run_audio_formatting_boundary
     run_tree_boundary
     run_report_only_boundaries
     run_artifact_boundaries
@@ -37,6 +38,27 @@ CSS
     expect_exit formatting_after 'formatting: the rewritten consumer then passes the same phase' 0
     expect_no_match formatting_after 'formatting: no stale formatter finding survives the write' \
         'Incorrectly formatted file|Java sources that do not match'
+}
+
+run_audio_formatting_boundary() {
+    new_consumer audio-formatting
+    audio_consumer="$consumer_directory"
+    audio_fixture="$repository/airness-it/fixtures/silence.wav"
+    mkdir -p "$audio_consumer/src/main/resources"
+    cp "$audio_fixture" "$audio_consumer/src/main/resources/silence.wav"
+    run_maven audio_binary repository "$audio_consumer" validate editorconfig:check
+    expect_exit audio_binary 'formatting: valid WAV audio needs no final newline' 0
+    if cmp -s "$audio_fixture" "$audio_consumer/src/main/resources/silence.wav"; then
+        pass 'formatting: checking audio preserves its exact bytes'
+    else
+        fail 'formatting: checking audio preserves its exact bytes' 'the WAV fixture changed'
+    fi
+    printf 'Readable notes' > "$audio_consumer/src/main/resources/notes.txt"
+    run_maven audio_text repository "$audio_consumer" validate editorconfig:check
+    expect_exit audio_text 'formatting: ordinary text still needs its final newline' 1
+    expect_match audio_text 'formatting: the text file is the offending file' \
+        'notes[.]txt.*insert_final_newline'
+    expect_no_match audio_text 'formatting: audio stays outside the text finding' 'silence[.]wav@'
 }
 
 run_tree_boundary() {

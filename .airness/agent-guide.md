@@ -396,3 +396,9 @@ puts it in front of the scan, so one kept elsewhere is never read and the settin
 rule in it names the advisory it excuses, says in its `notes` why this project cannot reach the vulnerability, and
 carries a `YYYY-MM-DD` date. A rule that suppresses nothing fails the build, like every other exclusion that reaches
 nothing.
+
+Each exception names non-empty literal `cve` or `vulnerabilityName` values. Advisory-name regexes,
+product (`cpe`) and weakness (`cwe`) selectors, and CVSS score thresholds are refused, even beside a
+named advisory. Dependency selectors (`packageUrl`, `gav`, `filePath` and `sha1`) remain available,
+including their supported regex forms, and a dependency selector is not mandatory. Entries in groups
+and entries using namespace prefixes are checked too. Each entry carries its own explanation and date.
