@@ -58,6 +58,7 @@ fi
 . "$repository/airness-it/cases/analysis.sh"
 . "$repository/airness-it/cases/templates.sh"
 . "$repository/airness-it/cases/repository.sh"
+. "$repository/airness-it/cases/artifact-packaging.sh"
 . "$repository/airness-it/cases/spring.sh"
 . "$repository/airness-it/cases/qodana-fixture.sh"
 . "$repository/airness-it/cases/containers.sh"

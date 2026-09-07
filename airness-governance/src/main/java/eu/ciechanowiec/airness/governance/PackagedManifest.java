@@ -20,6 +20,7 @@ record PackagedManifest(Optional<Manifest> declared) {
     private static final String MULTI_RELEASE = "Multi-Release";
     private static final String MAIN_CLASS = "Main-Class";
     private static final String NATIVE_ACCESS = "Enable-Native-Access";
+    private static final String ALL_UNNAMED = "ALL-UNNAMED";
     private static final String DECLARED = "true";
 
     /**
@@ -57,7 +58,16 @@ record PackagedManifest(Optional<Manifest> declared) {
      * @return {@code true} when the archive declares native access
      */
     boolean nativeAccess() {
-        return this.attribute(NATIVE_ACCESS).isPresent();
+        return this.attribute(NATIVE_ACCESS).filter(ALL_UNNAMED::equals).isPresent();
+    }
+
+    /**
+     * Whether the native-access declaration has a value the executable JAR launcher refuses.
+     *
+     * @return whether a present value differs from the exact token the launcher accepts
+     */
+    boolean invalidNativeAccess() {
+        return this.attribute(NATIVE_ACCESS).filter(value -> !ALL_UNNAMED.equals(value)).isPresent();
     }
 
     private Optional<String> attribute(String name) {

@@ -29,23 +29,27 @@ class ArtifactContentCheckTest {
 
     @Test
     void acceptsProductionOutputAndOrdinaryMetadata() {
-        Path main = this.output(MAIN, "com/example/Example.class");
-        Path jar = this.jar(
-            Map.of(
-                "com/example/", "",
-                "com/example/Example.class", "bytecode",
-                "META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n"
-            )
-        );
-        assertTrue(this.check(jar, main, this.directory.resolve(TEST)).stream().allMatch(Findings::clean));
+        for (String prefix : List.of("", "BOOT-INF/classes/")) {
+            Path main = this.output(MAIN, "com/example/Example.class");
+            Path jar = this.jar(
+                Map.of(
+                    prefix + "com/example/", "",
+                    prefix + "com/example/Example.class", "bytecode",
+                    "META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n"
+                )
+            );
+            assertTrue(this.check(jar, main, this.directory.resolve(TEST)).stream().allMatch(Findings::clean));
+        }
     }
 
     @Test
     void rejectsUnsafeAndDevelopmentEntries() {
-        Path jar = this.jar(Map.of("../outside.txt", VALUE, ".idea/workspace.xml", VALUE));
-        List<Findings> findings = this.check(jar, this.directory.resolve(MAIN), this.directory.resolve(TEST));
-        assertEquals(List.of("../outside.txt"), offences(findings, UNSAFE));
-        assertEquals(List.of(".idea/workspace.xml"), offences(findings, DEVELOPMENT));
+        for (String prefix : List.of("", "BOOT-INF/classes/")) {
+            Path jar = this.jar(Map.of(prefix + "../outside.txt", VALUE, prefix + ".idea/workspace.xml", VALUE));
+            List<Findings> findings = this.check(jar, this.directory.resolve(MAIN), this.directory.resolve(TEST));
+            assertEquals(List.of(prefix + "../outside.txt"), offences(findings, UNSAFE));
+            assertEquals(List.of(prefix + ".idea/workspace.xml"), offences(findings, DEVELOPMENT));
+        }
     }
 
     @Test
@@ -69,12 +73,14 @@ class ArtifactContentCheckTest {
 
     @Test
     void rejectsOutputThatExistsOnlyInTheTestDirectory() {
-        Path test = this.output(TEST, "com/example/FixtureTest.class");
-        Path jar = this.jar(Map.of("com/example/FixtureTest.class", "bytecode"));
-        assertEquals(
-            List.of("com/example/FixtureTest.class"),
-            offences(this.check(jar, this.directory.resolve(MAIN), test), TESTS)
-        );
+        for (String prefix : List.of("", "BOOT-INF/classes/")) {
+            Path test = this.output(TEST, "com/example/FixtureTest.class");
+            Path jar = this.jar(Map.of(prefix + "com/example/FixtureTest.class", "bytecode"));
+            assertEquals(
+                List.of(prefix + "com/example/FixtureTest.class"),
+                offences(this.check(jar, this.directory.resolve(MAIN), test), TESTS)
+            );
+        }
     }
 
     @Test
@@ -113,10 +119,12 @@ class ArtifactContentCheckTest {
 
     @Test
     void doesNotTreatProductionOutputAsTestOnlyWhenBothDirectoriesContainIt() {
-        Path main = this.output("main-shared", "com/example/Shared.class");
-        Path test = this.output("test-shared", "com/example/Shared.class");
-        Path jar = this.jar(Map.of("com/example/Shared.class", "bytecode"));
-        assertTrue(offences(this.check(jar, main, test), TESTS).isEmpty());
+        for (String prefix : List.of("", "BOOT-INF/classes/")) {
+            Path main = this.output("main-shared", "com/example/Shared.class");
+            Path test = this.output("test-shared", "com/example/Shared.class");
+            Path jar = this.jar(Map.of(prefix + "com/example/Shared.class", "bytecode"));
+            assertTrue(offences(this.check(jar, main, test), TESTS).isEmpty());
+        }
     }
 
     @Test
