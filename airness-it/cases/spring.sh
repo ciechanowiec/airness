@@ -819,6 +819,7 @@ public final class Rows {
      *
      * @return the fragment view name
      */
+    @org.springframework.web.bind.annotation.GetMapping("/rows")
     public String rows() {
         return FRAGMENT;
     }
@@ -853,6 +854,70 @@ expect_exit spring_view_arguments \
 expect_match spring_view_arguments \
     'spring: the fragment view finding names both argument counts' \
     'Rows.java.*hands 2 argument[(]s[)].*declared to take 1'
+
+# Both HTML and response-body methods can live in one controller. Missing views in that controller
+# and in exception advice must each fail, while supplying the templates makes the same consumer pass.
+spring_view_handlers="$scratch/spring-view-handlers"
+clone_tree "$spring_app" "$spring_view_handlers"
+cat > "$spring_view_handlers/src/main/java/com/example/Pages.java" <<'JAVA'
+package com.example;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+@Controller
+public final class Pages {
+
+    private static final String PAGE = "room/list";
+    private static final String CONTENT = "payload";
+
+    @GetMapping("/rooms")
+    public String page() {
+        return PAGE;
+    }
+
+    @ResponseBody
+    @GetMapping("/content")
+    public String content() {
+        return CONTENT;
+    }
+}
+JAVA
+cat > "$spring_view_handlers/src/main/java/com/example/Failures.java" <<'JAVA'
+package com.example;
+
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+@ControllerAdvice
+public final class Failures {
+
+    private static final String PAGE = "room/failure";
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public String failure() {
+        return PAGE;
+    }
+}
+JAVA
+git -C "$spring_view_handlers" add --all
+run_maven spring_view_handlers spring "$spring_view_handlers" airness:spring-module
+expect_exit spring_view_handlers 'spring: mixed controllers and HTML advice cannot hide missing views' 1
+expect_match spring_view_handlers 'spring: the missing controller view names its return line' \
+    'Pages.java: line 15: the view name room/list'
+expect_match spring_view_handlers 'spring: the missing advice view names its return line' \
+    'Failures.java: line 13: the view name room/failure'
+mkdir -p "$spring_view_handlers/src/main/resources/templates/room"
+for page in list failure; do
+    cat > "$spring_view_handlers/src/main/resources/templates/room/$page.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en"><body><p>Room</p></body></html>
+HTML
+done
+git -C "$spring_view_handlers" add --all
+run_maven spring_view_handlers_repaired spring "$spring_view_handlers" airness:spring-module
+expect_exit spring_view_handlers_repaired 'spring: supplying both templates repairs the same consumer' 0
 
 # Both components compile and every source analyzer accepts them. The production context is the one
 # authority on the collision, and its own diagnostic names the derived bean name and both definitions.

@@ -113,7 +113,11 @@ Airness governs all of the following domains:
   unconditional wiring and the profiles active in the test, not a profile the test never activated. A view name a
   handler hands back is read against the markup the module ships, because nothing compiles that string and the template
   behind it is found only when a request is answered, so a template renamed or moved leaves every handler that named it
-  compiling and failing on the first request that reaches it. An explicit argument list on a view name selecting a
+  compiling and failing on the first request that reaches it. String view names are read from mapped controller
+  methods and from exception handlers in controllers or controller advice. Response-body annotations apply to the
+  class or method they mark, so a body-returning sibling cannot exempt an HTML handler. Model-attribute methods and
+  ordinary helpers do not declare string view names. An explicit `ModelAndView` names a view independently of those
+  string-return rules. An explicit argument list on a view name selecting a
   declared fragment is read against the list that fragment declares; a bare selector carries no list and is left alone.
   The name is read where it is written plainly, which is a
   constant as readily as a literal. A name a handler builds is passed over, and so is a string returned by anything

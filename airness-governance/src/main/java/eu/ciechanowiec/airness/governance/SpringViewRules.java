@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,21 +29,6 @@ import lombok.experimental.UtilityClass;
  */
 @UtilityClass
 final class SpringViewRules {
-
-    // Only a plain controller returns a view name. A REST controller and a body-annotated handler
-    // return what the response carries, and a string from one of those is content rather than a name.
-    private static final Pattern VIEWED = Pattern.compile("@Controller\\b");
-
-    private static final Pattern BODIED = Pattern.compile("@ResponseBody\\b");
-
-    // A returned string, written out or named by a constant. Anything else is built, and what a handler
-    // builds is not a fact about the source.
-    private static final Pattern RETURNED = Pattern.compile("return\\s+(\"[^\"]*\"|[A-Z][A-Z0-9_]*)\\s*;");
-
-    // The view a model and view is constructed around, which names a template wherever it is written.
-    private static final Pattern MODELLED = Pattern.compile(
-        "new\\s+ModelAndView\\s*\\(\\s*(\"[^\"]*\"|[A-Z][A-Z0-9_]*)"
-    );
 
     private static final Pattern CONSTANT = Pattern.compile(
         "static\\s+final\\s+String\\s+(\\w+)\\s*=\\s*\"([^\"]*)\""
@@ -89,49 +73,34 @@ final class SpringViewRules {
 
     private static Stream<String> unresolved(SpringTypes.Declared source, TemplateIndex index) {
         String read = source.quoted();
-        if (BODIED.matcher(read).find()) {
-            return Stream.of();
-        }
         Map<String, String> constants = constants(read);
-        return named(read).flatMap(
+        return SpringViewNames.in(source).stream().flatMap(
             found -> reported(source, index, constants, found)
         );
     }
 
     private static Stream<String> miscounted(SpringTypes.Declared source, TemplateIndex index) {
         String read = source.quoted();
-        if (BODIED.matcher(read).find()) {
-            return Stream.of();
-        }
         Map<String, String> constants = constants(read);
-        return named(read).flatMap(
+        return SpringViewNames.in(source).stream().flatMap(
             found -> argumentOffences(source, index, constants, found)
         );
     }
 
-    // Every place the source states a view name. A returned string is one only in a plain controller,
-    // while a model and view names a template wherever it is constructed.
-    private static Stream<MatchResult> named(String read) {
-        Stream<MatchResult> returned = VIEWED.matcher(read).find()
-            ? RETURNED.matcher(read).results()
-            : Stream.of();
-        return Stream.concat(returned, MODELLED.matcher(read).results());
-    }
-
     private static Stream<String> reported(
-        SpringTypes.Declared source, TemplateIndex index, Map<String, String> constants, MatchResult found
+        SpringTypes.Declared source, TemplateIndex index, Map<String, String> constants, SpringViewNames.Reference found
     ) {
-        return value(constants, found.group(1))
+        return value(constants, found.written())
             .filter(SpringViewRules::names)
             .filter(view -> !reaches(index, view))
-            .map(view -> offence(source, found.start(), view))
+            .map(view -> offence(source, found.offset(), view))
             .stream();
     }
 
     private static Stream<String> argumentOffences(
-        SpringTypes.Declared source, TemplateIndex index, Map<String, String> constants, MatchResult found
+        SpringTypes.Declared source, TemplateIndex index, Map<String, String> constants, SpringViewNames.Reference found
     ) {
-        return value(constants, found.group(1))
+        return value(constants, found.written())
             .filter(SpringViewRules::names)
             .stream()
             .flatMap(
@@ -144,7 +113,7 @@ final class SpringViewRules {
                             .map(
                                 declared -> argumentOffence(
                                     source,
-                                    found.start(),
+                                    found.offset(),
                                     new ArgumentMismatch(view, call, declared)
                                 )
                             )

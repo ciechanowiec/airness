@@ -82,6 +82,7 @@ class SpringViewArgumentRulesTest {
             @Controller
             class Rooms {
 
+                @GetMapping("/rooms")
                 String rows() {
                     return "room/list :: %s";
                 }

@@ -47,6 +47,7 @@ class SpringViewRulesTest {
                 private static final String REFUSED = "Give a seat count the center knows";
                 private static final String PATH = "/rooms";
 
+                @GetMapping("/rooms")
                 String list() {
                     %s
                 }
