@@ -41,7 +41,7 @@ import java.util.stream.Stream;
  * this archive cannot have reached a published dependency, and a duplicate name is a property of this
  * archive rather than of any one contributor to it.
  *
- * <p>Two further rules read the manifest rather than the entries, because two lines of it decide
+ * <p>Further rules read the manifest rather than the entries, because two lines of it decide
  * whether the archive behaves. A runtime reads a class under {@code META-INF/versions} only where the
  * manifest declares the archive multi-release, so an archive shipping such a class undeclared carries
  * bytes nothing will run, and the library that published the class goes on running the copy the
@@ -61,6 +61,8 @@ import java.util.stream.Stream;
  * scoped that way. It names the two foreign-interface types a constant pool spells in full, and leaves
  * aside the loaders of a native library, which a constant pool records as a bare method name that an
  * ordinary method of the same name would match.
+ * An invalid native-access declaration is rejected even without such a call, because the launcher
+ * refuses its value before starting the application.
  */
 public final class ArtifactContentCheck {
 
@@ -74,6 +76,7 @@ public final class ArtifactContentCheck {
         "java/lang/foreign/Linker", "java/lang/foreign/SymbolLookup"
     );
     private static final String VERSIONED = "META-INF/versions/";
+    private static final String BOOT_CLASSES = "BOOT-INF/classes/";
     private final Path artifact;
     private final ModuleOutput output;
     private final String repositoryPath;
@@ -129,6 +132,10 @@ public final class ArtifactContentCheck {
             new Findings(
                 "Restricted native access the manifest does not declare",
                 entries(offences, Kind.NATIVE_ACCESS)
+            ),
+            new Findings(
+                "Invalid native-access manifest declaration",
+                entries(offences, Kind.INVALID_NATIVE_ACCESS)
             )
         );
     }
@@ -170,7 +177,8 @@ public final class ArtifactContentCheck {
                     .map(Content::name)
                     .toList(),
                 Kind.MULTI_RELEASE, undeclaredVersions(entries, manifest),
-                Kind.NATIVE_ACCESS, undeclaredNativeAccess(entries, manifest, main)
+                Kind.NATIVE_ACCESS, undeclaredNativeAccess(entries, manifest, main),
+                Kind.INVALID_NATIVE_ACCESS, invalidNativeAccess(manifest)
             );
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect artifact " + this.artifact, exception);
@@ -220,12 +228,12 @@ public final class ArtifactContentCheck {
     private static List<String> undeclaredNativeAccess(
         Collection<Content> entries, PackagedManifest manifest, Collection<String> compiled
     ) {
-        if (!manifest.runnable() || manifest.nativeAccess()) {
+        if (!manifest.runnable() || manifest.nativeAccess() || manifest.invalidNativeAccess()) {
             return List.of();
         }
         return entries.stream()
             .filter(Content::file)
-            .filter(entry -> compiled.contains(entry.name()))
+            .filter(entry -> entry.compiledIn(compiled))
             .filter(entry -> restricted(entry.content()))
             .map(Content::name)
             .toList();
@@ -233,6 +241,12 @@ public final class ArtifactContentCheck {
 
     private static boolean restricted(String content) {
         return RESTRICTED_TYPES.stream().anyMatch(content::contains);
+    }
+
+    private static List<String> invalidNativeAccess(PackagedManifest manifest) {
+        return manifest.runnable() && manifest.invalidNativeAccess()
+            ? List.of("META-INF/MANIFEST.MF: Enable-Native-Access must be exactly ALL-UNNAMED")
+            : List.of();
     }
 
     private static Content content(JarFile jar, JarEntry entry) {
@@ -249,7 +263,7 @@ public final class ArtifactContentCheck {
     private static boolean testOnly(
         Content entry, Collection<String> main, Collection<String> test
     ) {
-        return test.contains(entry.name()) && !main.contains(entry.name());
+        return entry.compiledIn(test) && !entry.compiledIn(main);
     }
 
     private static boolean unsafe(String name) {
@@ -306,6 +320,7 @@ public final class ArtifactContentCheck {
     private enum Kind {
 
         DEVELOPMENT,
+        INVALID_NATIVE_ACCESS,
         LOCAL_PATH,
         MULTI_RELEASE,
         NATIVE_ACCESS,
@@ -315,6 +330,15 @@ public final class ArtifactContentCheck {
     }
 
     private record Content(String name, boolean directory, String content) {
+
+        // Boot relocates module output. Only output matching reads the relative name. Every archive
+        // safety check and diagnostic keeps the original name, including any unsafe path segments.
+        boolean compiledIn(Collection<String> output) {
+            boolean original = output.contains(this.name());
+            boolean relocated = this.name().startsWith(BOOT_CLASSES)
+                && output.contains(this.name().substring(BOOT_CLASSES.length()));
+            return original || relocated;
+        }
 
         boolean file() {
             return !this.directory;

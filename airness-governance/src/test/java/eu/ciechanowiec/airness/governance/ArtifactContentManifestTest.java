@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /*
- * The two rules that read the manifest of the finished archive rather than its entries. Each fixture
+ * The rules that read the manifest of the finished archive rather than its entries. Each fixture
  * writes its own manifest, because an archive stream writes none on its own, and every archive here is
  * a real one the check opens as it opens a shipped artifact.
  */
@@ -18,6 +18,7 @@ class ArtifactContentManifestTest {
 
     private static final String VERSIONS = "Versioned classes the manifest does not declare";
     private static final String NATIVE_ACCESS = "Restricted native access the manifest does not declare";
+    private static final String INVALID_NATIVE_ACCESS = "Invalid native-access manifest declaration";
     private static final String MAIN = "main";
     private static final String TEST = "test";
     private static final String MANIFEST = "META-INF/MANIFEST.MF";
@@ -87,24 +88,28 @@ class ArtifactContentManifestTest {
 
     @Test
     void namesAClassOfThisModuleThatReachesTheOperatingSystemUndeclared() {
-        this.compiled(REACHING);
-        Path jar = this.jar(Map.of(MANIFEST, RUNNABLE, CLASS, REACHING));
-        assertEquals(
-            List.of(CLASS),
-            offences(this.check(jar), NATIVE_ACCESS),
-            "an undeclared restricted call writes warnings before the application says anything"
-        );
+        for (String prefix : List.of("", "BOOT-INF/classes/")) {
+            this.compiled(REACHING);
+            Path jar = this.jar(Map.of(MANIFEST, RUNNABLE, prefix + CLASS, REACHING));
+            assertEquals(
+                List.of(prefix + CLASS),
+                offences(this.check(jar), NATIVE_ACCESS),
+                "an undeclared restricted call writes warnings before the application says anything"
+            );
+        }
     }
 
     @Test
     void acceptsTheSameArchiveWhereTheManifestDeclaresNativeAccess() {
-        this.compiled(REACHING);
-        Path jar = this.jar(
-            Map.of(MANIFEST, RUNNABLE + "Enable-Native-Access: ALL-UNNAMED\n", CLASS, REACHING)
-        );
-        assertEquals(
-            List.of(), offences(this.check(jar), NATIVE_ACCESS), "a declared archive answers"
-        );
+        for (String prefix : List.of("", "BOOT-INF/classes/")) {
+            this.compiled(REACHING);
+            Path jar = this.jar(
+                Map.of(MANIFEST, RUNNABLE + "Enable-Native-Access: ALL-UNNAMED\n", prefix + CLASS, REACHING)
+            );
+            assertEquals(
+                List.of(), offences(this.check(jar), NATIVE_ACCESS), "a declared archive answers"
+            );
+        }
     }
 
     /*
@@ -133,6 +138,49 @@ class ArtifactContentManifestTest {
             offences(this.check(jar), NATIVE_ACCESS),
             "a restricted call inside a vendored library is that library's own question"
         );
+    }
+
+    @Test
+    void refusesInvalidNativeDeclarationsWithoutRestrictedCalls() {
+        for (String value : List.of("", "false", "all-unnamed", " ALL-UNNAMED", "ALL-UNNAMED ")) {
+            this.compiled(BYTECODE);
+            Path jar = this.jar(Map.of(MANIFEST, RUNNABLE + "Enable-Native-Access: " + value + "\n", CLASS, BYTECODE));
+            List<Findings> findings = this.check(jar);
+            assertEquals(
+                List.of("META-INF/MANIFEST.MF: Enable-Native-Access must be exactly ALL-UNNAMED"),
+                offences(findings, INVALID_NATIVE_ACCESS)
+            );
+            assertEquals(List.of(), offences(findings, NATIVE_ACCESS));
+        }
+    }
+
+    @Test
+    void reportsAnInvalidDeclarationWithoutAlsoCallingItMissing() {
+        this.compiled(REACHING);
+        Path jar = this.jar(Map.of(MANIFEST, RUNNABLE + "Enable-Native-Access: false\n", CLASS, REACHING));
+        List<Findings> findings = this.check(jar);
+        assertEquals(1, offences(findings, INVALID_NATIVE_ACCESS).size());
+        assertEquals(List.of(), offences(findings, NATIVE_ACCESS));
+    }
+
+    @Test
+    void leavesALibraryDeclarationToItsLauncher() {
+        this.compiled(REACHING);
+        Path jar = this.jar(Map.of(MANIFEST, PLAIN + "Enable-Native-Access: false\n", CLASS, REACHING));
+        List<Findings> findings = this.check(jar);
+        assertEquals(List.of(), offences(findings, INVALID_NATIVE_ACCESS));
+        assertEquals(List.of(), offences(findings, NATIVE_ACCESS));
+    }
+
+    @Test
+    void doesNotTreatOtherArchiveLocationsAsModuleOutput() {
+        for (
+            String prefix : List.of("BOOT-INF/lib/", "other/BOOT-INF/classes/", "BOOT-INF/classes/BOOT-INF/classes/")
+        ) {
+            this.compiled(REACHING);
+            Path jar = this.jar(Map.of(MANIFEST, RUNNABLE, prefix + CLASS, REACHING));
+            assertEquals(List.of(), offences(this.check(jar), NATIVE_ACCESS));
+        }
     }
 
     private List<Findings> check(Path jar) {

@@ -99,7 +99,10 @@ Airness governs all of the following domains:
   lets what is pulled change without the repository changing. There is no setting that widens or narrows the list.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material, and its manifest declares the versioned classes the
-  archive ships and the restricted native access the classes of the module reach for.
+  archive ships and the restricted native access the classes of the module reach for. Production and test output
+  are recognized both at the archive root and under Spring Boot's `BOOT-INF/classes/`; diagnostics retain the
+  packaged path. An executable JAR declaring `Enable-Native-Access` must give it exactly `ALL-UNNAMED`, even
+  when no restricted call is detected, because the launcher refuses every other value before application startup.
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
   settle, production-to-test boundaries, per-class line and branch coverage, current-build coverage evidence, and

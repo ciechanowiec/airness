@@ -7,6 +7,7 @@ run_repository_cases() {
     run_report_only_boundaries
     run_artifact_boundaries
     run_artifact_manifest_boundary
+    run_packaged_output_boundary
     run_coverage_boundary
     run_git_boundaries
     check_published_assets
