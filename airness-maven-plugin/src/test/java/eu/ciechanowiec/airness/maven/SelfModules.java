@@ -73,6 +73,16 @@ final class SelfModules {
             .toList();
     }
 
+    /**
+     * Every declared module, including modules that publish resources without Java.
+     *
+     * @return module directories in reactor order
+     */
+    static List<Path> directories() {
+        Path root = repository();
+        return declared().stream().map(root::resolve).toList();
+    }
+
     @SneakyThrows
     private static List<String> declared() {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();

@@ -1,0 +1,7 @@
+/**
+ * Inputs recreated by the fixture build.
+ */
+@NullMarked
+package com.example.generated;
+
+import org.jspecify.annotations.NullMarked;

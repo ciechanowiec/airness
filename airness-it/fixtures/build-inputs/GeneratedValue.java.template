@@ -1,0 +1,16 @@
+package com.example.generated;
+
+/**
+ * A value compiled from an input produced by the build.
+ */
+public final class GeneratedValue {
+
+    /**
+     * Supplies the fixture value.
+     *
+     * @return the value
+     */
+    public int value() {
+        return 1;
+    }
+}
