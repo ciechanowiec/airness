@@ -609,6 +609,16 @@
                 <artifactId>airness-maven-plugin</artifactId>
                 <executions>
                     <execution>
+                        <id>airness-main-build-inputs</id>
+                        <phase>process-resources</phase>
+                        <goals><goal>build-inputs</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>airness-test-build-inputs</id>
+                        <phase>process-test-resources</phase>
+                        <goals><goal>build-inputs</goal></goals>
+                    </execution>
+                    <execution>
                         <id>airness-source-formatting</id>
                         <phase>process-resources</phase>
                         <goals>
@@ -624,6 +634,7 @@
                             <goal>check-parameters</goal>
                             <goal>assets-check</goal>
                             <goal>editorconfig-excludes</goal>
+                            <goal>build-inputs</goal>
                         </goals>
                     </execution>
                     <execution>

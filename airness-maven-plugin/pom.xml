@@ -55,6 +55,7 @@
             the two-major bound is what would fail. This value moves when the Maven baseline moves.
         -->
         <maven-resolver.version>1.9.27</maven-resolver.version>
+        <plexus-xml.version>3.0.2</plexus-xml.version>
     </properties>
 
     <!--
@@ -179,6 +180,12 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>1.0.3</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>net.revelc.code.formatter</groupId>
             <artifactId>formatter-maven-plugin</artifactId>
             <version>${formatter-maven-plugin.version}</version>
@@ -199,6 +206,11 @@
                 Java path, so it is resolved rather than excluded even though it is the oldest thing here.
             -->
             <exclusions>
+                <!-- The Jakarta 1.x coordinate supplies the same javax.inject API. -->
+                <exclusion>
+                    <groupId>javax.inject</groupId>
+                    <artifactId>javax.inject</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>net.revelc.code.formatter</groupId>
                     <artifactId>jsdt-core</artifactId>
@@ -262,6 +274,12 @@
             <artifactId>maven-core</artifactId>
             <version>${maven.api.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.inject</groupId>
+                    <artifactId>javax.inject</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!--
             Reached directly by this module's own source rather than through the artifact that happens to
@@ -280,6 +298,17 @@
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
             <version>${maven.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-utils</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-xml</artifactId>
+            <version>${plexus-xml.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

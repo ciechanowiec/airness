@@ -36,6 +36,14 @@ Airness governs all of the following domains:
   instruction files; editor and Git configuration; and an unchanged committable tree during verification. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
   rather than reported: build output and a tool's scratch are not content this style governs.
+  Ignored files selected as Java or resource inputs are different: Maven can consume them locally
+  while a checkout omits them. The per-module `build-inputs` preflight rejects that mismatch at
+  `validate`, `process-resources` and `process-test-resources`, using Maven's roots and file filters.
+  Track an intended repository input, including a vendored distribution file hidden by an ignore
+  pattern, or generate it beneath a reactor project's configured Maven build directory. Generated
+  inputs there and ordinary non-ignored new files remain valid. No project allowlist is provided,
+  and report-only mode does not excuse a preflight failure. Arbitrary custom-tool file reads are
+  outside this check, so it does not establish general provenance for everything a build can read.
 - **Source:** formatting, imports, modernization recipes, compilation with retained formal parameter names,
   nullness, static analysis, documentation
   comments, source comments, typography, banned substitutes, banned generated members, and cycles among the

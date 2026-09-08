@@ -44,7 +44,13 @@ public final class EditorconfigExcludesMojo extends AbstractPreflightMojo {
     }
 
     private Path target() {
-        return Path.of(this.project().getBuild().getDirectory(), DIRECTORY, FILE);
+        Path directory = Path.of(this.project().getBuild().getDirectory(), DIRECTORY);
+        try {
+            Files.createDirectories(directory);
+            return directory.resolve(FILE);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not create the linter exclusions directory: " + directory, exception);
+        }
     }
 
     // Written whether or not the module has anything ignored under it, because the linter reports an
@@ -52,7 +58,6 @@ public final class EditorconfigExcludesMojo extends AbstractPreflightMojo {
     // nothing is the ordinary case rather than a reason to leave the file out.
     private static void write(Path file, String document) {
         try {
-            Files.createDirectories(file.getParent());
             Files.writeString(file, document);
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not write the linter exclusions to " + file, exception);

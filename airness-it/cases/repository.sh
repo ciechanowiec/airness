@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
 run_repository_cases() {
+    run_build_input_cases
     run_formatting_boundaries
     run_binary_formatting_boundary
     run_tree_boundary
