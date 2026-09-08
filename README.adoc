@@ -139,9 +139,6 @@ mvn airness:assets-sync
 
 |===
 
-[[build-inputs-goal]]
-. The `airness:build-inputs` goal rejects ignored files selected from a module's Java or resource input directories. It runs at `validate`, `process-resources`, and `process-test-resources`, including through the Spring Boot parent. Selections follow Maven's input roots and inclusion and exclusion patterns. An intended repository input must be tracked, while generated inputs belong beneath a reactor project's configured Maven build directory. Non-ignored new files remain valid before staging. The goal follows the preflight contract, so report-only mode does not excuse its findings. It checks declared compiler and resource inputs, not arbitrary file reads made by custom tools.
-
 . System properties change the behavior of a xref:#verification-commands[verification command]. They don't enable more checks.
 +
 [cols="2,3,5"]
