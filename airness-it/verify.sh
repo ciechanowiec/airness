@@ -61,6 +61,7 @@ fi
 . "$repository/airness-it/cases/build-inputs.sh"
 . "$repository/airness-it/cases/artifact-packaging.sh"
 . "$repository/airness-it/cases/spring.sh"
+. "$repository/airness-it/cases/template-messages.sh"
 . "$repository/airness-it/cases/qodana-fixture.sh"
 . "$repository/airness-it/cases/containers.sh"
 
@@ -83,6 +84,7 @@ case "$selected_domain" in
         run_template_cases
         run_repository_cases
         run_spring_cases
+        run_template_message_cases
         run_container_cases
         ;;
     maven)
@@ -99,6 +101,7 @@ case "$selected_domain" in
         ;;
     spring)
         run_spring_cases
+        run_template_message_cases
         ;;
     containers)
         run_container_cases
