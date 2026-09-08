@@ -2,7 +2,7 @@
 
 run_repository_cases() {
     run_formatting_boundaries
-    run_audio_formatting_boundary
+    run_binary_formatting_boundary
     run_tree_boundary
     run_report_only_boundaries
     run_artifact_boundaries
@@ -41,25 +41,37 @@ CSS
         'Incorrectly formatted file|Java sources that do not match'
 }
 
-run_audio_formatting_boundary() {
+run_binary_formatting_boundary() {
     new_consumer audio-formatting
     audio_consumer="$consumer_directory"
     audio_fixture="$repository/airness-it/fixtures/silence.wav"
+    document_fixtures="$repository/airness-it/fixtures/document-binaries"
     mkdir -p "$audio_consumer/src/main/resources"
     cp "$audio_fixture" "$audio_consumer/src/main/resources/silence.wav"
+    cp "$document_fixtures/module.wasm" "$audio_consumer/src/main/resources/module.wasm"
+    cp "$document_fixtures/font.pfb" "$audio_consumer/src/main/resources/font.pfb"
+    cp "$document_fixtures/map.bcmap" "$audio_consumer/src/main/resources/map.bcmap"
     run_maven audio_binary repository "$audio_consumer" validate editorconfig:check
-    expect_exit audio_binary 'formatting: valid WAV audio needs no final newline' 0
+    expect_exit audio_binary 'formatting: audio, WebAssembly, fonts and character maps are binary' 0
     if cmp -s "$audio_fixture" "$audio_consumer/src/main/resources/silence.wav"; then
         pass 'formatting: checking audio preserves its exact bytes'
     else
         fail 'formatting: checking audio preserves its exact bytes' 'the WAV fixture changed'
     fi
+    for binary_name in module.wasm font.pfb map.bcmap; do
+        if cmp -s "$document_fixtures/$binary_name" "$audio_consumer/src/main/resources/$binary_name"; then
+            pass "formatting: checking preserves $binary_name bytes"
+        else
+            fail "formatting: checking preserves $binary_name bytes" 'the binary fixture changed'
+        fi
+    done
     printf 'Readable notes' > "$audio_consumer/src/main/resources/notes.txt"
     run_maven audio_text repository "$audio_consumer" validate editorconfig:check
     expect_exit audio_text 'formatting: ordinary text still needs its final newline' 1
     expect_match audio_text 'formatting: the text file is the offending file' \
         'notes[.]txt.*insert_final_newline'
-    expect_no_match audio_text 'formatting: audio stays outside the text finding' 'silence[.]wav@'
+    expect_no_match audio_text 'formatting: binaries stay outside the text finding' \
+        'silence[.]wav@|module[.]wasm@|font[.]pfb@|map[.]bcmap@'
 }
 
 run_tree_boundary() {

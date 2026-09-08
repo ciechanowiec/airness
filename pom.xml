@@ -806,6 +806,10 @@
                         <exclude>**/*.webm</exclude>
                         <!-- RIFF audio has binary samples and no text line-ending requirements. -->
                         <exclude>**/*.wav</exclude>
+                        <!-- WebAssembly, binary Type 1 fonts and compressed character maps carry bytes, not lines. -->
+                        <exclude>**/*.wasm</exclude>
+                        <exclude>**/*.pfb</exclude>
+                        <exclude>**/*.bcmap</exclude>
                         <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
                         <exclude>**/*.tsv</exclude>
                         <!--
