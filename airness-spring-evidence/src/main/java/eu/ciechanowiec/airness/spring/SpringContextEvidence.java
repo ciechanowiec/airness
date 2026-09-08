@@ -33,10 +33,11 @@ import org.springframework.util.ClassUtils;
  * Spring parent supplies the destination only to test JVMs, so an accidental runtime copy does nothing
  * and the evidence artifact never changes application behaviour outside verification.
  *
- * <p>Three facts are written. The primary source classes of the run, which say that the production
+ * <p>Four facts are written. The primary source classes of the run, which say that the production
  * application was started at all, the mappings its security chain leaves open to an anonymous caller,
  * which say what starting it exposed, and the beans its security expressions name and the context
- * cannot resolve, which say which guards would have thrown rather than decided. Each of the latter two
+ * cannot resolve, which say which guards would have thrown rather than decided. Template message assessments are also
+ * recorded when the Maven manifest is present. Each additional fact
  * is written on its own prefixed line, so a reader looking for an application class still finds one
  * bare line per source and nothing that could be mistaken for one.
  *
@@ -83,22 +84,24 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
         Optional.ofNullable(System.getProperty(DESTINATION))
             .filter(configured -> !configured.isBlank())
             .map(Path::of)
-            .ifPresent(destination -> write(destination, this.evidence(context)));
+            .ifPresent(destination -> write(destination, this.evidence(context, destination)));
     }
 
     /**
      * Everything this run proves, in the order a reader of the file meets it.
      *
-     * @param context the ready context
+     * @param context     the ready context
+     * @param destination the evidence destination
      * @return the source lines followed by the open-mapping lines and the guard lines, and nothing
      *         for a run that names no class, which proves no production application and is therefore
      *         not evidence of anything
      */
-    private List<String> evidence(ConfigurableApplicationContext context) {
+    private List<String> evidence(ConfigurableApplicationContext context, Path destination) {
         List<String> sources = this.sources();
         return sources.isEmpty()
             ? sources
-            : Stream.concat(sources.stream(), this.decided(context, sources).stream()).toList();
+            : Stream.of(sources, this.decided(context, sources), messages(context, sources, destination))
+                .flatMap(Collection::stream).toList();
     }
 
     /**
@@ -113,6 +116,16 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
         return Stream.concat(
             this.open(context, sources).stream(), this.guards(context, sources).stream()
         ).toList();
+    }
+
+    private static List<String> messages(
+        ConfigurableApplicationContext context, Collection<String> sources, Path destination
+    ) {
+        boolean available = ClassUtils.isPresent(
+            "org.thymeleaf.spring6.SpringTemplateEngine",
+            SpringContextEvidence.class.getClassLoader()
+        );
+        return available ? SpringTemplateMessages.evidence(context, sources, destination) : List.of();
     }
 
     private List<String> sources() {

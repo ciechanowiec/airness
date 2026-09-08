@@ -83,6 +83,15 @@ public final class SpringContextCheck {
     }
 
     /**
+     * Names the production applications whose ready contexts may supply runtime checks.
+     *
+     * @return their qualified class names
+     */
+    public List<String> applicationNames() {
+        return List.copyOf(this.applications);
+    }
+
+    /**
      * The startup-evidence rule, the open-endpoint rule, and what each of them found.
      *
      * @return the verdict

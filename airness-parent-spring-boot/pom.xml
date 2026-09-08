@@ -261,6 +261,7 @@
                             <goal>spring-configuration</goal>
                             <goal>spring-module</goal>
                             <goal>spring-reactor</goal>
+                            <goal>spring-template-message-inputs</goal>
                         </goals>
                     </execution>
                     <!--
@@ -272,6 +273,7 @@
                         <phase>prepare-package</phase>
                         <goals>
                             <goal>spring-context</goal>
+                            <goal>spring-template-messages</goal>
                         </goals>
                     </execution>
                 </executions>

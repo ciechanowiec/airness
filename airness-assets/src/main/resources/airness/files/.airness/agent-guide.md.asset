@@ -115,6 +115,18 @@ Airness governs all of the following domains:
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
   settle, production-to-test boundaries, per-class line and branch coverage, current-build coverage evidence, and
   current-build evidence that a framework-assembled production application reached ready.
+- **Thymeleaf message keys in Spring Boot applications:** literal `#{key}` references in production HTML
+  `th:*` and `data-th-*` processing attributes must resolve through the message source used by the application's
+  template engine during its existing startup tests. Bare or quoted keys may contain ASCII letters, digits, dots,
+  underscores and hyphens, with optional arguments. The lookup checks the base messages with `Locale.ROOT`;
+  message parity continues to own translation completeness. Computed keys, quoted examples, fragment declarations,
+  inline text and JavaScript, and application-code lookups are outside this check. Assessment covers a single standard
+  Spring template engine with a standard classpath HTML resolver and a parentless `ResourceBundleMessageSource` whose
+  base bundles are available, including dependency bundles, or an empty parentless `DelegatingMessageSource`.
+  Custom engines, resolvers, message sources and external templates are explicitly reported as unassessed.
+  Current-build evidence binds the production application and reference inventory to the startup test run;
+  missing or stale evidence and missing keys fail verification, and a passing context cannot erase another
+  supported context's failure. Evidence records keys and source locations, never translated values.
 - **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container accepts and
   then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the web layer,
   security configuration, asynchrony and scheduling, and test context handling; the runtime settings an
