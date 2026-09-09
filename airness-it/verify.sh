@@ -56,6 +56,7 @@ fi
 . "$repository/airness-it/support.sh"
 . "$repository/airness-it/cases/maven.sh"
 . "$repository/airness-it/cases/analysis.sh"
+. "$repository/airness-it/cases/lifecycle.sh"
 . "$repository/airness-it/cases/templates.sh"
 . "$repository/airness-it/cases/repository.sh"
 . "$repository/airness-it/cases/build-inputs.sh"

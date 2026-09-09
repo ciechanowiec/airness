@@ -109,4 +109,6 @@ JAVA
     expect_exit cpd_enforcement 'cpd: packaged duplication wiring fails enforcement' 1
     expect_match cpd_enforcement 'cpd: enforcement reports the duplicated pair' \
         'has found [0-9]+ duplication'
+    run_analysis_lifecycle
+
 }

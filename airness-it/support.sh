@@ -142,6 +142,20 @@ expect_no_match() {
     fi
 }
 
+expect_before() {
+    assertion_execution="$1"
+    assertion_label="$2"
+    if awk -v earlier_pattern="$3" -v later_pattern="$4" '
+        $0 ~ earlier_pattern && !earlier { earlier = NR }
+        $0 ~ later_pattern && !later { later = NR }
+        END { exit !(earlier && later && earlier < later) }
+    ' "$(execution_log "$assertion_execution")"; then
+        pass "$assertion_label"
+    else
+        fail "$assertion_label" "execution $assertion_execution did not run /$3/ before /$4/"
+    fi
+}
+
 expect_count() {
     assertion_execution="$1"
     assertion_label="$2"

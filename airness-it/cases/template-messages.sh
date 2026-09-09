@@ -39,19 +39,22 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * A real application whose template is intentionally not rendered by its test.
  */
-@SpringBootApplication
-public class Application {
+@SpringBootApplication(proxyBeanMethods = false)
+public final class Application {
     /**
      * Starts the application whose ready context supplies message evidence.
      *
      * @param arguments the startup arguments
      */
-    public static void main(String[] arguments) {
+    static void main(String[] arguments) {
         SpringApplication.run(Application.class, arguments);
     }
 }
 JAVA
     cat > "$message_app/src/main/java/com/example/package-info.java" <<'JAVA'
+/**
+ * A real application supplying template-message evidence.
+ */
 @NullMarked
 package com.example;
 
@@ -60,11 +63,12 @@ JAVA
     cat > "$message_app/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
 package com.example;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.boot.availability.ApplicationAvailability;
+import org.springframework.boot.availability.ReadinessState;
 import org.springframework.test.context.TestConstructor;
 
 @SpringBootTest(
@@ -74,15 +78,15 @@ import org.springframework.test.context.TestConstructor;
 )
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class ApplicationTest {
-    private final ConfigurableApplicationContext context;
+    private final ApplicationAvailability availability;
 
-    ApplicationTest(ConfigurableApplicationContext context) {
-        this.context = context;
+    ApplicationTest(ApplicationAvailability availability) {
+        this.availability = availability;
     }
 
     @Test
     void reachesReadyWithoutRenderingTheTemplate() {
-        assertTrue(this.context.isActive());
+        assertEquals(ReadinessState.ACCEPTING_TRAFFIC, this.availability.getReadinessState());
     }
 }
 JAVA

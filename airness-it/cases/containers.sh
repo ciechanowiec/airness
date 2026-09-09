@@ -91,6 +91,7 @@ run_extended_consumer() {
         'Qodana - Detailed summary|Analysis results:'
     expect_match extended_profile 'extended: report-only keeps the history finding visible' \
         'Commit messages that break the policy'
+    expect_analysis_before_qodana extended_profile
 }
 
 run_secret_scanner_control() {
@@ -122,8 +123,13 @@ run_spring_qodana() {
     if [ -z "${spring_app-}" ] || [ ! -d "$spring_app" ]; then
         run_spring_cases
     fi
-    run_maven spring_qodana containers "$spring_app" airness:qodana
-    expect_exit spring_qodana 'spring: the conforming Spring Boot application passes Qodana' 0
+    run_maven spring_qodana containers "$spring_app" clean verify -Pextended
+    expect_exit spring_qodana 'spring: the conforming Spring Boot application passes Extended verification' 0
+    expect_analysis_before_qodana spring_qodana
+    expect_match spring_qodana 'spring: real Qodana analysis completes without findings' \
+        'Analysis results: 0 problem detected'
+    expect_before spring_qodana 'spring: final archive inspection follows repackaging' \
+        '--- spring-boot:[^ ]+:repackage' '--- airness:[^ ]+:artifact-content'
     spring_sarif="$spring_app/target/qodana/qodana.sarif.json"
     expect_file_no_match "$spring_sarif" \
         'spring: the package-private Boot entry point is not read as a utility class' \
