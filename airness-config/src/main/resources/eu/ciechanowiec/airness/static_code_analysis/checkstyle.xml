@@ -253,7 +253,7 @@
             <property name="query"
                       value="//CLASS_DEF[not(./MODIFIERS/FINAL) and not(./MODIFIERS/ABSTRACT) and not(parent::OBJBLOCK/parent::INTERFACE_DEF) and not(parent::OBJBLOCK/parent::ANNOTATION_DEF)]"/>
             <message key="matchxpath.match"
-                     value="A concrete class must be final (or abstract). Only test classes (*Test/*IT) are exempt."/>
+                     value="A concrete class must be final unless a declared framework or test exception applies."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <!-- Test classes need not be final (Checkstyle MatchXpath has no string fns, so exempt by file). -->
@@ -287,6 +287,22 @@
             <property name="files" value="${airness.checkstyle.spring.relaxed}"/>
             <property name="query"
                       value="//CLASS_DEF[.//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]/descendant-or-self::node()"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <!--
+                A direct Spring repository in a scope with no superclass or interfaces can require a subclass
+                proxy for persistence exception translation. Permit that class to remain open in a
+                Spring Boot consumer. Match the actual stereotype, not an unrelated Repository
+                annotation, and exempt only the annotated class itself, not its nested classes.
+
+                This does not prohibit final repositories: proxy activation and interface-based
+                proxies are runtime choices. The existing application startup check catches a final
+                class when the configured container actually needs to subclass it.
+            -->
+            <property name="id" value="RequireFinalClass"/>
+            <property name="files" value="${airness.checkstyle.spring.relaxed}"/>
+            <property name="query"
+                      value="//CLASS_DEF[not(ancestor-or-self::*/EXTENDS_CLAUSE) and not(ancestor-or-self::*/IMPLEMENTS_CLAUSE) and ./MODIFIERS/ANNOTATION[(./DOT[./IDENT[@text='Repository'] and ./DOT[./IDENT[@text='stereotype'] and ./DOT[./IDENT[@text='org'] and ./IDENT[@text='springframework']]]]) or (./IDENT[@text='Repository'] and ancestor::COMPILATION_UNIT/IMPORT/DOT[./IDENT[@text='Repository'] and ./DOT[./IDENT[@text='stereotype'] and ./DOT[./IDENT[@text='org'] and ./IDENT[@text='springframework']]]] and not(ancestor::COMPILATION_UNIT/ANNOTATION_DEF/IDENT[@text='Repository']) and not(ancestor::OBJBLOCK/ANNOTATION_DEF/IDENT[@text='Repository']))]]"/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <!--
@@ -564,7 +580,10 @@
         <module name="UnusedLocalVariable"/>
         <module name="UnusedTryResourceShouldBeUnnamed"/>
         <module name="UseEnhancedSwitch"/>
-        <module name="VariableDeclarationUsageDistance"/>
+        <module name="VariableDeclarationUsageDistance">
+            <!-- Final locals are forbidden above, so neither exempt them nor recommend that modifier. -->
+            <property name="ignoreFinal" value="false"/>
+        </module>
         <module name="WhenShouldBeUsed"/>
         <!--
             ExpressionOverBlockLambda from Checkstyle 14.1.0 is not used: it reads a block lambda written
