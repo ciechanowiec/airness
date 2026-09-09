@@ -286,6 +286,8 @@ else
     fail 'spring: the ready production application left no exact runtime evidence'
 fi
 
+run_repository_proxy_cases
+
 # What a running application leaves open is only visible from the ready context, so these two cases are
 # the only place the probe is exercised against a real container. The endpoints, the advice and the chain
 # are added together because a module with controllers owes an advice, and the two consumers differ by

@@ -109,6 +109,52 @@ JAVA
     expect_exit cpd_enforcement 'cpd: packaged duplication wiring fails enforcement' 1
     expect_match cpd_enforcement 'cpd: enforcement reports the duplicated pair' \
         'has found [0-9]+ duplication'
+    run_variable_distance_cases
     run_analysis_lifecycle
 
+}
+
+run_variable_distance_cases() {
+    new_consumer variable-distance
+    variable_distance="$consumer_directory"
+    cat > "$variable_distance/src/main/java/com/example/Reading.java" <<'JAVA'
+package com.example;
+
+/**
+ * Holds a value across several operations to exercise the distance diagnostic.
+ */
+final class Reading {
+
+    String before(StringBuilder content) {
+        String remembered = content.toString();
+        content.append('a');
+        content.append('b');
+        content.append('c');
+        content.append('d');
+        return remembered;
+    }
+}
+JAVA
+    run_maven variable_distance_refused analysis "$variable_distance" checkstyle:check
+    expect_exit variable_distance_refused 'analysis: a distant local still fails the packaged distance check' 1
+    expect_match variable_distance_refused 'analysis: the distance finding names the local and its rule' \
+        'Reading[.]java:.*remembered.*VariableDeclarationUsageDistance'
+    expect_no_match variable_distance_refused 'analysis: the distance diagnostic never recommends final' \
+        'making that variable final'
+
+    perl -0pi -e 's/String remembered =/final String remembered =/' \
+        "$variable_distance/src/main/java/com/example/Reading.java"
+    run_maven variable_distance_final analysis "$variable_distance" checkstyle:check
+    expect_exit variable_distance_final 'analysis: final locals remain forbidden' 1
+    expect_match variable_distance_final 'analysis: the final-local prohibition remains explicit' \
+        'Local variables must not be declared final'
+    expect_match variable_distance_final 'analysis: final no longer exempts a distant local from its check' \
+        'Reading[.]java:.*remembered.*VariableDeclarationUsageDistance'
+    expect_no_match variable_distance_final 'analysis: a final local receives no advice to add final' \
+        'making that variable final'
+
+    perl -0pi -e 's/        final String remembered = content.toString\(\);\n//; s/        return remembered;/        String remembered = content.toString();\n        return remembered;/' \
+        "$variable_distance/src/main/java/com/example/Reading.java"
+    run_maven variable_distance_nearby analysis "$variable_distance" checkstyle:check
+    expect_exit variable_distance_nearby 'analysis: a local declared beside its use passes' 0
 }

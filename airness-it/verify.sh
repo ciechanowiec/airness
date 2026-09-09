@@ -62,6 +62,7 @@ fi
 . "$repository/airness-it/cases/build-inputs.sh"
 . "$repository/airness-it/cases/artifact-packaging.sh"
 . "$repository/airness-it/cases/spring.sh"
+. "$repository/airness-it/cases/repository-proxies.sh"
 . "$repository/airness-it/cases/template-messages.sh"
 . "$repository/airness-it/cases/qodana-fixture.sh"
 . "$repository/airness-it/cases/containers.sh"
