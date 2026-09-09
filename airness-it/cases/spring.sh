@@ -18,7 +18,28 @@ cat > "$spring_app/pom.xml" <<'POM'
     <properties>
         <airness.coverage.excluded.classes>com.example.Application</airness.coverage.excluded.classes>
         <airness.package.root>com.example</airness.package.root>
+        <tomcat.version>11.0.25</tomcat.version>
     </properties>
+    <!-- The Extended lifecycle must use a Tomcat release beyond the advisories on Boot's 11.0.24 pin. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <!--
             Declared because the module is repackaged, which is what the model goal asks of a deployed
@@ -241,6 +262,13 @@ git -C "$spring_app" commit --quiet \
 run_maven spring_verify spring "$spring_app" clean verify
 expect_exit spring_verify 'spring: a conforming Spring Boot application verifies' 0
 expect_match spring_verify 'spring: the conforming lifecycle reaches a build verdict' 'BUILD SUCCESS'
+# The startup evidence must pass before the isolated source-formatting violation is reached.
+spring_static_failure="$scratch/spring-static-failure"
+clone_tree "$spring_app" "$spring_static_failure"
+perl -0pi -e 's/\n}\n$/\n\n}\n/' "$spring_static_failure/src/test/java/com/example/ContextTest.java"
+expect_static_refusal "$spring_static_failure" spring_checkstyle_order \
+    'Empty lines before a closing brace are not allowed'
+
 expect_no_match spring_verify 'spring: a Spring type only a test names is not reported as test only' \
     'Non-test scoped test only dependencies found'
 # The model goal is bound rather than invoked, so this is where that binding is proven. Every other case
