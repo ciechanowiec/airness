@@ -230,6 +230,25 @@ Airness governs all of the following domains:
   rather than a caller, and is rendered by nothing, so it is reported where it was declared; a fragment merely mentioned
   anywhere, tests included, is left alone, which trades a dead fragment somebody happened to name for never accusing one
   a handler reaches by a name it builds.
+- **Spring MVC streaming timeouts:** registered production handlers returning `StreamingResponseBody`
+  directly or inside `ResponseEntity` require a production timeout declaration and an effective MVC
+  timeout choice in the existing ready-context tests. Declare `spring.mvc.async.request-timeout` in
+  loaded production configuration, optionally through a deployment placeholder, or call
+  `setDefaultTimeout` on the supplied argument of a straight-line `configureAsyncSupport` callback
+  in an active named production `WebMvcConfigurer`. Ordinary fluent calls are supported. Airness
+  sets no duration: finite deadlines and explicit no-deadline values are application decisions.
+  Test-only settings, inactive beans and calls on a different object do not establish production
+  policy. Conditional, delegated, anonymous or otherwise unverifiable callbacks and custom MVC
+  dispatch that cannot be assessed fail the check. The supported runtime is standard Spring Boot
+  MVC or `@EnableWebMvc`, with the standard request adapter and streaming return-value handling.
+  The listener inspects this setup without invoking application handlers or replaying callbacks.
+  Input fingerprints and the Maven invocation bind the assessment to production sources and copied
+  configuration. Missing, stale, malformed and unsupported evidence fail, and a passing context
+  cannot erase another context's failure. Assessment covers tested ready contexts and registered
+  handlers, not inactive deployment profiles. Plain Java, non-MVC applications and contexts without
+  production streaming handlers require no timeout policy. The Spring parent prepares inputs at
+  `process-classes` and enforces `spring-streaming-timeouts` at `prepare-package`; neither goal adds
+  a runtime dependency to the application archive.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
   those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
