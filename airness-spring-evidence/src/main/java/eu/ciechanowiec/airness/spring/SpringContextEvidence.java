@@ -100,7 +100,10 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
         List<String> sources = this.sources();
         return sources.isEmpty()
             ? sources
-            : Stream.of(sources, this.decided(context, sources), messages(context, sources, destination))
+            : Stream.of(
+                sources, this.decided(context, sources), messages(context, sources, destination),
+                streaming(context, sources, destination)
+            )
                 .flatMap(Collection::stream).toList();
     }
 
@@ -126,6 +129,17 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
             SpringContextEvidence.class.getClassLoader()
         );
         return available ? SpringTemplateMessages.evidence(context, sources, destination) : List.of();
+    }
+
+    private static List<String> streaming(
+        ConfigurableApplicationContext context,
+        Collection<String> sources, Path destination
+    ) {
+        boolean available = ClassUtils.isPresent(
+            "org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody",
+            SpringContextEvidence.class.getClassLoader()
+        );
+        return available ? SpringStreamingTimeouts.evidence(context, sources, destination) : List.of();
     }
 
     private List<String> sources() {

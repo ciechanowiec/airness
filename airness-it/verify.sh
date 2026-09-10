@@ -64,6 +64,7 @@ fi
 . "$repository/airness-it/cases/spring.sh"
 . "$repository/airness-it/cases/repository-proxies.sh"
 . "$repository/airness-it/cases/request-maps.sh"
+. "$repository/airness-it/cases/streaming-timeouts.sh"
 . "$repository/airness-it/cases/template-messages.sh"
 . "$repository/airness-it/cases/qodana-fixture.sh"
 . "$repository/airness-it/cases/containers.sh"
@@ -87,6 +88,7 @@ case "$selected_domain" in
         run_template_cases
         run_repository_cases
         run_spring_cases
+        run_streaming_timeout_cases
         run_template_message_cases
         run_container_cases
         ;;
@@ -104,6 +106,7 @@ case "$selected_domain" in
         ;;
     spring)
         run_spring_cases
+        run_streaming_timeout_cases
         run_template_message_cases
         ;;
     containers)

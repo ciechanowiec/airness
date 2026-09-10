@@ -262,6 +262,7 @@
                             <goal>spring-module</goal>
                             <goal>spring-reactor</goal>
                             <goal>spring-template-message-inputs</goal>
+                            <goal>spring-streaming-timeout-inputs</goal>
                         </goals>
                     </execution>
                     <!--
@@ -274,6 +275,7 @@
                         <goals>
                             <goal>spring-context</goal>
                             <goal>spring-template-messages</goal>
+                            <goal>spring-streaming-timeouts</goal>
                         </goals>
                     </execution>
                 </executions>
