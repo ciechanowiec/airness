@@ -155,8 +155,15 @@ Airness governs all of the following domains:
   together with every auto-configuration on the classpath and no source states it. A name nothing is declared under, and
   a method the bean it names does not answer to, both parse and both compile and neither is resolved until a caller
   arrives, so the guard raises instead of deciding and the method behind it answers nobody rather than refusing them. A
-  handler therefore annotates the source, name and requiredness of every request value; a string repository query binds
-  only named `@Param` values; and a bound model or application request part states validation. Feature annotations are
+  handler therefore annotates the source, name and requiredness of each individual request value.
+  Spring's whole-request `@RequestParam Map` and `MultiValueMap` forms deliberately omit the name,
+  and their resolver ignores individual-value requiredness and defaults. Airness recognizes the
+  standard library interfaces through qualified names or unshadowed explicit imports, with an
+  omitted name or an empty string literal. An ambiguous inherited or local name, a wrapper, an
+  array, a custom subtype or a name supplied by a constant retains the ordinary checks. This
+  exception does not validate the map's contents: the application still validates the fields it
+  needs. A string repository query binds only named `@Param` values, and a bound model or
+  application request part states validation. Feature annotations are
   paired with the production annotation that enables them, and an asynchronous or scheduled method names the
   infrastructure that runs it. Cache destinations, configuration-property namespaces, transaction-bound event phases,
   pagination defaults and test SQL are written rather than inherited from framework defaults. A listener that runs after

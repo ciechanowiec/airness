@@ -24,7 +24,7 @@ record TemplateMessageEvidence(String application, String context, String status
     static List<TemplateMessageEvidence> read(Path path, TemplateMessageInputs inputs) {
         String prefix = "messages " + inputs.started() + " " + inputs.digest() + " ";
         try {
-            return Files.isRegularFile(path) ? Files.readAllLines(path, StandardCharsets.UTF_8).stream()
+            return Files.isRegularFile(path) ? Files.readAllLines(path).stream()
                 .filter(line -> line.startsWith(prefix)).map(line -> parse(line.substring(prefix.length())))
                 .filter(result -> inputs.applications().contains(result.application())).toList() : List.of();
         } catch (IOException exception) {
