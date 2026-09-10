@@ -65,7 +65,7 @@ public record TemplateMessageInputs(
     public void write(Path destination) {
         try {
             Files.createDirectories(destination.toAbsolutePath().getParent());
-            Files.writeString(destination, this.content(), StandardCharsets.UTF_8);
+            Files.writeString(destination, this.content());
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not write template message inputs " + destination, exception);
         }
@@ -79,7 +79,7 @@ public record TemplateMessageInputs(
      */
     public boolean matches(Path path) {
         try {
-            return Files.isRegularFile(path) && Files.readString(path, StandardCharsets.UTF_8).equals(this.content());
+            return Files.isRegularFile(path) && Files.readString(path).equals(this.content());
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read template message inputs " + path, exception);
         }

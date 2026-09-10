@@ -385,6 +385,8 @@ git -C "$spring_open_named" add --all
 run_maven spring_open_named spring "$spring_open_named" clean test airness:spring-context
 expect_exit spring_open_named 'spring: an endpoint whose pattern the chain names passes the context goal' 0
 
+run_request_map_cases
+
 # The same application, opened by a prefix instead. Airness already refuses anyRequest().permitAll() and
 # a "/**" matcher, so this is the spelling that survives every rule reading source: it admits an endpoint
 # the project never named, and only the running container says so.
