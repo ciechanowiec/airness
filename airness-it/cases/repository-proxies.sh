@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 
 run_repository_proxy_cases() {
-    repository_proxy_app="$scratch/repository-proxy-app"
-    clone_tree "$spring_app" "$repository_proxy_app"
+    repository_proxy_app="${scratch}/repository-proxy-app"
+    clone_tree "${spring_app}" "${repository_proxy_app}"
     # Exception translation is exercised only by these real-context tests, not by the application.
-    perl -0pi -e 's|^    </dependencies>|        <dependency>\n            <groupId>org.springframework</groupId>\n            <artifactId>spring-tx</artifactId>\n            <scope>test</scope>\n        </dependency>\n    </dependencies>|m' "$repository_proxy_app/pom.xml"
-    cat > "$repository_proxy_app/src/main/java/com/example/Catalogue.java" <<'JAVA'
+    perl -0pi -e 's|^    </dependencies>|        <dependency>\n            <groupId>org.springframework</groupId>\n            <artifactId>spring-tx</artifactId>\n            <scope>test</scope>\n        </dependency>\n    </dependencies>|m' "${repository_proxy_app}/pom.xml"
+    cat > "${repository_proxy_app}/src/main/java/com/example/Catalogue.java" <<'JAVA'
 package com.example;
 
 import org.springframework.stereotype.Repository;
@@ -27,7 +27,7 @@ public class Catalogue {
     }
 }
 JAVA
-    cat > "$repository_proxy_app/src/test/java/com/example/RepositoryRuntimeTest.java" <<'JAVA'
+    cat > "${repository_proxy_app}/src/test/java/com/example/RepositoryRuntimeTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -116,28 +116,28 @@ class RepositoryRuntimeTest {
     }
 }
 JAVA
-    git -C "$repository_proxy_app" add --all
-    run_maven repository_proxy_verify spring "$repository_proxy_app" clean verify
+    git -C "${repository_proxy_app}" add --all
+    run_maven repository_proxy_verify spring "${repository_proxy_app}" clean verify
     expect_exit repository_proxy_verify 'spring: a concrete repository verifies with the installed finality exemption' 0
     expect_match repository_proxy_verify 'spring: all real repository proxy controls execute successfully' \
         'Tests run: 4, Failures: 0, Errors: 0, Skipped: 0.*RepositoryRuntimeTest'
     expect_match repository_proxy_verify 'spring: the repository consumer reaches the full verification verdict' \
         'BUILD SUCCESS'
 
-    repository_component="$scratch/repository-component"
-    clone_tree "$spring_app" "$repository_component"
-    sed 's/Repository/Component/g' "$repository_proxy_app/src/main/java/com/example/Catalogue.java" \
-        > "$repository_component/src/main/java/com/example/Catalogue.java"
-    run_maven repository_component_final spring "$repository_component" checkstyle:check
+    repository_component="${scratch}/repository-component"
+    clone_tree "${spring_app}" "${repository_component}"
+    sed 's/Repository/Component/g' "${repository_proxy_app}/src/main/java/com/example/Catalogue.java" \
+        > "${repository_component}/src/main/java/com/example/Catalogue.java"
+    run_maven repository_component_final spring "${repository_component}" checkstyle:check
     expect_exit repository_component_final 'spring: an ordinary component still needs to be final' 1
     expect_match repository_component_final 'spring: the ordinary component reports the finality rule' \
         'Catalogue[.]java:.*RequireFinalClass'
 
     new_consumer repository-plain
-    repository_plain="$consumer_directory"
-    cp "$repository_proxy_app/src/main/java/com/example/Catalogue.java" \
-        "$repository_plain/src/main/java/com/example/Catalogue.java"
-    run_maven repository_plain_final spring "$repository_plain" checkstyle:check
+    repository_plain="${consumer_directory}"
+    cp "${repository_proxy_app}/src/main/java/com/example/Catalogue.java" \
+        "${repository_plain}/src/main/java/com/example/Catalogue.java"
+    run_maven repository_plain_final spring "${repository_plain}" checkstyle:check
     expect_exit repository_plain_final 'spring: the repository exemption is absent under the plain Java parent' 1
     expect_match repository_plain_final 'spring: the plain Java consumer reports the finality rule' \
         'Catalogue[.]java:.*RequireFinalClass'

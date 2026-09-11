@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 
 run_request_map_cases() {
-    request_map_app="$scratch/request-map-app"
-    clone_tree "$spring_open_named" "$request_map_app"
-    rm "$request_map_app/src/main/java/com/example/Orders.java"
-    cat > "$request_map_app/src/main/java/com/example/Parameters.java" <<'JAVA'
+    request_map_app="${scratch}/request-map-app"
+    clone_tree "${spring_open_named}" "${request_map_app}"
+    rm "${request_map_app}/src/main/java/com/example/Orders.java"
+    cat > "${request_map_app}/src/main/java/com/example/Parameters.java" <<'JAVA'
 package com.example;
 
 import java.util.Map;
@@ -84,7 +84,7 @@ public final class Parameters {
     }
 }
 JAVA
-    cat > "$request_map_app/src/main/java/com/example/Security.java" <<'JAVA'
+    cat > "${request_map_app}/src/main/java/com/example/Security.java" <<'JAVA'
 package com.example;
 
 import lombok.SneakyThrows;
@@ -118,7 +118,7 @@ public final class Security {
     }
 }
 JAVA
-    cat > "$request_map_app/src/test/java/com/example/RequestMapsTest.java" <<'JAVA'
+    cat > "${request_map_app}/src/test/java/com/example/RequestMapsTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -188,17 +188,17 @@ class RequestMapsTest {
 }
 JAVA
     # Normalize generated fixture layout through the installed formatter before verifying it.
-    prepare_maven request_map_format spring "$request_map_app" process-resources -Pformat
-    git -C "$request_map_app" add --all
-    run_maven request_map_verify spring "$request_map_app" clean verify
+    prepare_maven request_map_format spring "${request_map_app}" process-resources -Pformat
+    git -C "${request_map_app}" add --all
+    run_maven request_map_verify spring "${request_map_app}" clean verify
     expect_exit request_map_verify 'spring: whole-request maps pass installed-parent verification' 0
     expect_match request_map_verify 'spring: the real HTTP request-map cases all execute' \
         'Tests run: 6, Failures: 0, Errors: 0, Skipped: 0.*RequestMapsTest'
     expect_match request_map_verify 'spring: whole-request maps reach a complete consumer verdict' 'BUILD SUCCESS'
 
-    request_scalar_app="$scratch/request-scalar-app"
-    clone_tree "$request_map_app" "$request_scalar_app"
-    cat > "$request_scalar_app/src/main/java/com/example/Parameters.java" <<'JAVA'
+    request_scalar_app="${scratch}/request-scalar-app"
+    clone_tree "${request_map_app}" "${request_scalar_app}"
+    cat > "${request_scalar_app}/src/main/java/com/example/Parameters.java" <<'JAVA'
 package com.example;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -223,17 +223,17 @@ public final class Parameters {
     }
 }
 JAVA
-    run_maven request_scalar_contract spring "$request_scalar_app" checkstyle:check
+    run_maven request_scalar_contract spring "${request_scalar_app}" checkstyle:check
     expect_exit request_scalar_contract 'spring: individual request values still fail without a contract' 1
     expect_match request_scalar_contract 'spring: individual values still require a name' 'AirnessSpringWebParameterIsNamed'
     expect_match request_scalar_contract 'spring: individual values still require requiredness' \
         'AirnessSpringWebParameterDeclaresRequiredness'
 
-    request_named_app="$scratch/request-named-app"
-    clone_tree "$request_map_app" "$request_named_app"
+    request_named_app="${scratch}/request-named-app"
+    clone_tree "${request_map_app}" "${request_named_app}"
     perl -0pi -e 's|@RequestParam\(name = "payload", required = true\)|@RequestParam(name = "payload")|' \
-        "$request_named_app/src/main/java/com/example/Parameters.java"
-    run_maven request_named_contract spring "$request_named_app" checkstyle:check
+        "${request_named_app}/src/main/java/com/example/Parameters.java"
+    run_maven request_named_contract spring "${request_named_app}" checkstyle:check
     expect_exit request_named_contract 'spring: named maps still require requiredness' 1
     expect_match request_named_contract 'spring: named-map requiredness keeps its diagnostic' \
         'AirnessSpringWebParameterDeclaresRequiredness'

@@ -25,6 +25,7 @@ final class DockerHub {
     );
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int PAGE_SIZE = 100;
+    private static final int ANONYMOUS_TAG_LIMIT = 1000;
     private static final int OK = 200;
 
     private final String base;
@@ -36,6 +37,9 @@ final class DockerHub {
     List<String> tags(DockerReference image) {
         String first = this.fetch(this.tagsUri(image, 1));
         int count = count(first);
+        if (count > ANONYMOUS_TAG_LIMIT) {
+            return RegistryTags.forHub(this.base).tags(image);
+        }
         int pages = Math.max(1, Math.ceilDiv(count, PAGE_SIZE));
         List<String> found = IntStream.rangeClosed(1, pages)
             .mapToObj(page -> page == 1 ? first : this.fetch(this.tagsUri(image, page)))

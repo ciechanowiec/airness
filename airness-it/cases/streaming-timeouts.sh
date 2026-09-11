@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 
 run_streaming_timeout_cases() {
-    streaming_app="$scratch/streaming-app"
-    clone_tree "$spring_open_named" "$streaming_app"
-    rm "$streaming_app/src/main/java/com/example/Orders.java"
-    cat > "$streaming_app/src/main/java/com/example/Streams.java" <<'JAVA'
+    streaming_app="${scratch}/streaming-app"
+    clone_tree "${spring_open_named}" "${streaming_app}"
+    rm "${streaming_app}/src/main/java/com/example/Orders.java"
+    cat > "${streaming_app}/src/main/java/com/example/Streams.java" <<'JAVA'
 package com.example;
 
 import java.io.OutputStream;
@@ -58,7 +58,7 @@ public final class Streams {
     }
 }
 JAVA
-    cat > "$streaming_app/src/main/java/com/example/Security.java" <<'JAVA'
+    cat > "${streaming_app}/src/main/java/com/example/Security.java" <<'JAVA'
 package com.example;
 
 import lombok.SneakyThrows;
@@ -88,7 +88,7 @@ public final class Security {
     }
 }
 JAVA
-    cat > "$streaming_app/src/test/java/com/example/StreamsTest.java" <<'JAVA'
+    cat > "${streaming_app}/src/test/java/com/example/StreamsTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -136,52 +136,52 @@ class StreamsTest {
     }
 }
 JAVA
-    mkdir -p "$streaming_app/src/main/resources" "$streaming_app/src/test/resources"
-    prepare_maven streaming_format spring "$streaming_app" process-resources -Pformat
-    git -C "$streaming_app" add --all
-    run_maven streaming_missing spring "$streaming_app" clean prepare-package
+    mkdir -p "${streaming_app}/src/main/resources" "${streaming_app}/src/test/resources"
+    prepare_maven streaming_format spring "${streaming_app}" process-resources -Pformat
+    git -C "${streaming_app}" add --all
+    run_maven streaming_missing spring "${streaming_app}" clean prepare-package
     expect_exit streaming_missing 'spring: streaming requires a production timeout policy' 1
     expect_match streaming_missing 'spring: missing streaming policy identifies the endpoint' 'Streams#direct'
     expect_match streaming_missing 'spring: an inherited container timeout is diagnosed' \
         'Streaming endpoints inheriting the servlet container timeout'
     expect_no_match streaming_missing 'spring: missing streaming policy stops before Qodana' 'qodana:.*:scan'
 
-    printf 'spring.mvc.async.request-timeout=0\n' > "$streaming_app/src/test/resources/application.properties"
-    run_maven streaming_test_only spring "$streaming_app" clean prepare-package
+    printf 'spring.mvc.async.request-timeout=0\n' > "${streaming_app}/src/test/resources/application.properties"
+    run_maven streaming_test_only spring "${streaming_app}" clean prepare-package
     expect_exit streaming_test_only 'spring: a test-only timeout cannot satisfy production policy' 1
     expect_match streaming_test_only 'spring: test settings are distinguished from production policy' \
         'Streaming endpoints without a production timeout policy'
     expect_no_match streaming_test_only 'spring: explicit test timeout is not called inherited' \
         'Streaming endpoints inheriting the servlet container timeout'
 
-    rm "$streaming_app/src/test/resources/application.properties"
-    printf 'spring.mvc.async.request-timeout=${STREAMING_TIMEOUT:30s}\n' \
-        > "$streaming_app/src/main/resources/application.properties"
-    run_maven streaming_property spring "$streaming_app" clean prepare-package
+    rm "${streaming_app}/src/test/resources/application.properties"
+    printf "spring.mvc.async.request-timeout=\${STREAMING_TIMEOUT:30s}\n" \
+        > "${streaming_app}/src/main/resources/application.properties"
+    run_maven streaming_property spring "${streaming_app}" clean prepare-package
     expect_exit streaming_property 'spring: a production placeholder supplies an explicit finite timeout' 0
     expect_match streaming_property 'spring: real HTTP exercises both streaming return types' \
         'Tests run: 3, Failures: 0, Errors: 0, Skipped: 0.*StreamsTest'
-    run_maven streaming_stale spring "$streaming_app" airness:spring-streaming-timeouts
+    run_maven streaming_stale spring "${streaming_app}" airness:spring-streaming-timeouts
     expect_exit streaming_stale 'spring: a new Maven run cannot reuse old streaming evidence' 1
     expect_match streaming_stale 'spring: stale evidence requires a current assessment' \
         'Streaming timeouts without a current runtime assessment'
 
-    printf 'spring.mvc.async.request-timeout=0\n' > "$streaming_app/src/main/resources/application-production.properties"
-    rm "$streaming_app/src/main/resources/application.properties"
-    run_maven streaming_profile spring "$streaming_app" clean prepare-package -Dspring.profiles.active=production
+    printf 'spring.mvc.async.request-timeout=0\n' > "${streaming_app}/src/main/resources/application-production.properties"
+    rm "${streaming_app}/src/main/resources/application.properties"
+    run_maven streaming_profile spring "${streaming_app}" clean prepare-package -Dspring.profiles.active=production
     expect_exit streaming_profile 'spring: a loaded production profile may explicitly disable the deadline' 0
-    run_maven streaming_inactive spring "$streaming_app" clean prepare-package
+    run_maven streaming_inactive spring "${streaming_app}" clean prepare-package
     expect_exit streaming_inactive 'spring: an inactive profile cannot supply a streaming policy' 1
-    rm "$streaming_app/src/main/resources/application-production.properties"
+    rm "${streaming_app}/src/main/resources/application-production.properties"
 
     write_streaming_configurer 'configurer.setDefaultTimeout(0).registerCallableInterceptors();'
-    prepare_maven streaming_java_format spring "$streaming_app" process-resources -Pformat
-    git -C "$streaming_app" add --all
-    run_maven streaming_java spring "$streaming_app" clean prepare-package
+    prepare_maven streaming_java_format spring "${streaming_app}" process-resources -Pformat
+    git -C "${streaming_app}" add --all
+    run_maven streaming_java spring "${streaming_app}" clean prepare-package
     expect_exit streaming_java 'spring: an active production callback may explicitly disable the deadline' 0
 
     write_streaming_configurer 'if (!Boolean.getBoolean("fixture.streaming.disabled")) { configurer.setDefaultTimeout(0); }'
-    cat > "$streaming_app/src/test/java/com/example/ConditionalCallbackTest.java" <<'JAVA'
+    cat > "${streaming_app}/src/test/java/com/example/ConditionalCallbackTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -211,15 +211,15 @@ class ConditionalCallbackTest {
     }
 }
 JAVA
-    prepare_maven streaming_conditional_format spring "$streaming_app" process-resources -Pformat
-    run_maven streaming_conditional spring "$streaming_app" clean prepare-package
+    prepare_maven streaming_conditional_format spring "${streaming_app}" process-resources -Pformat
+    run_maven streaming_conditional spring "${streaming_app}" clean prepare-package
     expect_exit streaming_conditional 'spring: conditional callbacks fail when their policy cannot be verified' 1
     expect_match streaming_conditional 'spring: unsupported callbacks are diagnosed explicitly' \
         'Streaming timeout configuration cannot be verified'
 
-    rm "$streaming_app/src/test/java/com/example/ConditionalCallbackTest.java"
+    rm "${streaming_app}/src/test/java/com/example/ConditionalCallbackTest.java"
     write_streaming_configurer 'applyTimeout(configurer);'
-    python3 - "$streaming_app/src/main/java/com/example/StreamingConfiguration.java" <<'PY'
+    python3 - "${streaming_app}/src/main/java/com/example/StreamingConfiguration.java" <<'PY'
 from pathlib import Path
 import sys
 path = Path(sys.argv[1])
@@ -232,13 +232,13 @@ path.write_text(text[:index] + '''
 }
 ''')
 PY
-    prepare_maven streaming_delegate_format spring "$streaming_app" process-resources -Pformat
-    run_maven streaming_delegate spring "$streaming_app" clean prepare-package
+    prepare_maven streaming_delegate_format spring "${streaming_app}" process-resources -Pformat
+    run_maven streaming_delegate spring "${streaming_app}" clean prepare-package
     expect_exit streaming_delegate 'spring: delegated timeout setup is not guessed safe' 1
     expect_match streaming_delegate 'spring: delegated setup remains visibly unsupported' \
         'Streaming timeout configuration cannot be verified'
 
-    cat > "$streaming_app/src/main/java/com/example/StreamingConfiguration.java" <<'JAVA'
+    cat > "${streaming_app}/src/main/java/com/example/StreamingConfiguration.java" <<'JAVA'
 package com.example;
 
 import org.springframework.context.annotation.Bean;
@@ -268,18 +268,18 @@ public final class StreamingConfiguration {
     }
 }
 JAVA
-    prepare_maven streaming_anonymous_format spring "$streaming_app" process-resources -Pformat
-    run_maven streaming_anonymous spring "$streaming_app" clean prepare-package
+    prepare_maven streaming_anonymous_format spring "${streaming_app}" process-resources -Pformat
+    run_maven streaming_anonymous spring "${streaming_app}" clean prepare-package
     expect_exit streaming_anonymous 'spring: anonymous timeout callbacks require an assessable declaration' 1
     expect_match streaming_anonymous 'spring: anonymous timeout setup is explicitly unsupported' \
         'Streaming timeout configuration cannot be verified'
 
     write_streaming_configurer 'configurer.setDefaultTimeout(0).registerCallableInterceptors();'
-    prepare_maven streaming_final_format spring "$streaming_app" process-resources -Pformat
-    git -C "$streaming_app" add --all
-    git -C "$streaming_app" commit --quiet --message 'test(it): exercise streaming timeout governance' \
+    prepare_maven streaming_final_format spring "${streaming_app}" process-resources -Pformat
+    git -C "${streaming_app}" add --all
+    git -C "${streaming_app}" commit --quiet --message 'test(it): exercise streaming timeout governance' \
         --message 'Real HTTP requests exercise direct and wrapped streaming with an explicit production timeout.'
-    run_maven streaming_extended spring "$streaming_app" clean verify -Pextended
+    run_maven streaming_extended spring "${streaming_app}" clean verify -Pextended
     expect_exit streaming_extended 'spring: streaming passes the complete Extended consumer lifecycle' 0
     expect_match streaming_extended 'spring: streaming Extended executes Qodana' 'Analysis results: 0 problem detected'
     expect_match streaming_extended 'spring: streaming Extended inspects the final packaged artifact' \
@@ -287,7 +287,7 @@ JAVA
 }
 
 write_streaming_configurer() {
-    cat > "$streaming_app/src/main/java/com/example/StreamingConfiguration.java" <<JAVA
+    cat > "${streaming_app}/src/main/java/com/example/StreamingConfiguration.java" <<JAVA
 package com.example;
 
 import org.springframework.context.annotation.Configuration;

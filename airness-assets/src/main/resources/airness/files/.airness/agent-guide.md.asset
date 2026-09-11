@@ -268,6 +268,14 @@ Airness governs all of the following domains:
 - **Repository assurance:** secret scanning, Qodana analysis, the ceiling on how many suppressions the repository
   holds, complete Git history, commit-message policy, commit typography, linear history, and history-wide
   compliance.
+- **Scripts and infrastructure:** Extended verification runs ShellCheck over supported shell entry points and their
+  sourced repository libraries. The declared shell determines the dialect. Default findings and the compatible
+  optional checks are errors. Checkov reads supported infrastructure and CI inputs through their own framework,
+  so application settings and analyzer configuration are not treated as cloud templates. The fleet policy keeps
+  security requirements and omits requirements for a particular deployment architecture, availability target,
+  commercial security service, or signing product. A CLI container needs no health endpoint. A release workflow
+  may declare manual inputs. Both checks run before Qodana.
+  Missing tools, unreadable inputs, incomplete reports and parsing failures fail verification.
 
 Do not treat a domain omitted from one command's output as ungoverned. The parent POM, bundled configurations, and
 Airness goals together define the executable contract.
@@ -394,6 +402,10 @@ it is published, only a fresh history satisfies the rule.
   suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
 - There is no setting that turns a check off. If a check is wrong for the project, that is an Airness bug to be
   fixed in Airness, not a local override.
+- ShellCheck and Checkov accept no project-owned suppression or replacement configuration. Their image pins
+  and policy are carried in the installed Airness artifacts, so even a command-line image override cannot replace
+  them. A ShellCheck source hint must identify the actual repository import, never an empty substitute. Report a
+  false finding to Airness.
 - For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
   the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
   baseline mechanism and keep the reason beside the entry.

@@ -21,6 +21,28 @@
     </description>
 
     <build>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/../scripts</directory>
+                <targetPath>eu/ciechanowiec/airness/scanners</targetPath>
+                <includes>
+                    <include>checkov-policy.py</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>eu/ciechanowiec/airness/scanners/tools.properties</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>eu/ciechanowiec/airness/scanners/tools.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <!--
                 Airness answers to the dependency rules it ships. The rules themselves live in the root

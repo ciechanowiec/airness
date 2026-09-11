@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Repository;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -222,5 +223,14 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while waiting for " + command.getFirst(), exception);
         }
+    }
+
+    static int executeScanner(
+        ScannerProcess process, String executable, List<String> arguments
+    ) throws IOException {
+        Path report = process.tree().directory().resolve("report.json");
+        ScannerCommand.run(process.probeCommand(), process.tree().directory().resolve("mount-probe.txt"));
+        Files.deleteIfExists(report);
+        return ScannerCommand.execute(process.command(executable, arguments), report);
     }
 }

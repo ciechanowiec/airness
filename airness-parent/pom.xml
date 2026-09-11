@@ -1127,6 +1127,14 @@
                                 </goals>
                             </execution>
                             <execution>
+                                <id>airness-shell-and-iac</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>shellcheck</goal>
+                                    <goal>checkov</goal>
+                                </goals>
+                            </execution>
+                            <execution>
                                 <id>airness-qodana</id>
                                 <phase>package</phase>
                                 <goals>

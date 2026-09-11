@@ -2,8 +2,8 @@
 
 run_analysis_cases() {
     new_consumer analysis-clean
-    analysis_clean="$consumer_directory"
-    run_maven analysis_clean analysis "$analysis_clean" checkstyle:check pmd:check pmd:cpd-check
+    analysis_clean="${consumer_directory}"
+    run_maven analysis_clean analysis "${analysis_clean}" checkstyle:check pmd:check pmd:cpd-check
     expect_exit analysis_clean 'analysis: clean packaged Checkstyle PMD and CPD configurations pass together' 0
     expect_match analysis_clean 'analysis: the Checkstyle goal actually executed' \
         'checkstyle:[^:]+:check'
@@ -13,8 +13,8 @@ run_analysis_cases() {
         'pmd:[^:]+:cpd-check'
 
     new_consumer analysis-findings
-    analysis_findings="$consumer_directory"
-    cat > "$analysis_findings/src/main/java/com/example/InferredLocal.java" <<'JAVA'
+    analysis_findings="${consumer_directory}"
+    cat > "${analysis_findings}/src/main/java/com/example/InferredLocal.java" <<'JAVA'
 package com.example;
 
 /** Carries the representative packaged-Checkstyle finding. */
@@ -26,7 +26,7 @@ final class InferredLocal {
     }
 }
 JAVA
-    cat > "$analysis_findings/src/main/java/com/example/BlankJustification.java" <<'JAVA'
+    cat > "${analysis_findings}/src/main/java/com/example/BlankJustification.java" <<'JAVA'
 package com.example;
 
 import eu.ciechanowiec.airness.Justification;
@@ -40,7 +40,7 @@ final class BlankJustification {
     }
 }
 JAVA
-    cat > "$analysis_findings/src/main/java/com/example/FirstScorer.java" <<'JAVA'
+    cat > "${analysis_findings}/src/main/java/com/example/FirstScorer.java" <<'JAVA'
 package com.example;
 
 import java.util.List;
@@ -76,10 +76,10 @@ final class FirstScorer {
 }
 JAVA
     sed 's/FirstScorer/SecondScorer/g' \
-        "$analysis_findings/src/main/java/com/example/FirstScorer.java" \
-        > "$analysis_findings/src/main/java/com/example/SecondScorer.java"
+        "${analysis_findings}/src/main/java/com/example/FirstScorer.java" \
+        > "${analysis_findings}/src/main/java/com/example/SecondScorer.java"
 
-    run_maven analysis_report_only analysis "$analysis_findings" \
+    run_maven analysis_report_only analysis "${analysis_findings}" \
         checkstyle:check pmd:check pmd:cpd-check -Dairness.enforce=false
     expect_exit analysis_report_only 'report-only: analyzer findings do not stop compatible goals' 0
     expect_match analysis_report_only 'checkstyle: the representative finding stays visible at its file' \
@@ -93,19 +93,19 @@ JAVA
     expect_match analysis_report_only 'analysis: report-only still executes CPD after PMD findings' \
         'pmd:[^:]+:cpd-check'
 
-    run_maven checkstyle_enforcement analysis "$analysis_findings" \
+    run_maven checkstyle_enforcement analysis "${analysis_findings}" \
         checkstyle:check '-Dcheckstyle.includes=**/InferredLocal.java'
     expect_exit checkstyle_enforcement 'checkstyle: a representative packaged finding fails enforcement' 1
     expect_match checkstyle_enforcement 'checkstyle: enforcement names the exact fixture' \
         'InferredLocal[.]java:.*Write the type'
 
-    run_maven pmd_enforcement analysis "$analysis_findings" pmd:check
+    run_maven pmd_enforcement analysis "${analysis_findings}" pmd:check
     expect_exit pmd_enforcement 'pmd: a representative packaged finding fails enforcement' 1
     expect_match pmd_enforcement 'pmd: enforcement names its rule ID' 'JustificationNeedsText'
 
-    rm "$analysis_findings/src/main/java/com/example/InferredLocal.java" \
-        "$analysis_findings/src/main/java/com/example/BlankJustification.java"
-    run_maven cpd_enforcement analysis "$analysis_findings" pmd:cpd-check
+    rm "${analysis_findings}/src/main/java/com/example/InferredLocal.java" \
+        "${analysis_findings}/src/main/java/com/example/BlankJustification.java"
+    run_maven cpd_enforcement analysis "${analysis_findings}" pmd:cpd-check
     expect_exit cpd_enforcement 'cpd: packaged duplication wiring fails enforcement' 1
     expect_match cpd_enforcement 'cpd: enforcement reports the duplicated pair' \
         'has found [0-9]+ duplication'
@@ -116,8 +116,8 @@ JAVA
 
 run_variable_distance_cases() {
     new_consumer variable-distance
-    variable_distance="$consumer_directory"
-    cat > "$variable_distance/src/main/java/com/example/Reading.java" <<'JAVA'
+    variable_distance="${consumer_directory}"
+    cat > "${variable_distance}/src/main/java/com/example/Reading.java" <<'JAVA'
 package com.example;
 
 /**
@@ -135,7 +135,7 @@ final class Reading {
     }
 }
 JAVA
-    run_maven variable_distance_refused analysis "$variable_distance" checkstyle:check
+    run_maven variable_distance_refused analysis "${variable_distance}" checkstyle:check
     expect_exit variable_distance_refused 'analysis: a distant local still fails the packaged distance check' 1
     expect_match variable_distance_refused 'analysis: the distance finding names the local and its rule' \
         'Reading[.]java:.*remembered.*VariableDeclarationUsageDistance'
@@ -143,8 +143,8 @@ JAVA
         'making that variable final'
 
     perl -0pi -e 's/String remembered =/final String remembered =/' \
-        "$variable_distance/src/main/java/com/example/Reading.java"
-    run_maven variable_distance_final analysis "$variable_distance" checkstyle:check
+        "${variable_distance}/src/main/java/com/example/Reading.java"
+    run_maven variable_distance_final analysis "${variable_distance}" checkstyle:check
     expect_exit variable_distance_final 'analysis: final locals remain forbidden' 1
     expect_match variable_distance_final 'analysis: the final-local prohibition remains explicit' \
         'Local variables must not be declared final'
@@ -154,7 +154,7 @@ JAVA
         'making that variable final'
 
     perl -0pi -e 's/        final String remembered = content.toString\(\);\n//; s/        return remembered;/        String remembered = content.toString();\n        return remembered;/' \
-        "$variable_distance/src/main/java/com/example/Reading.java"
-    run_maven variable_distance_nearby analysis "$variable_distance" checkstyle:check
+        "${variable_distance}/src/main/java/com/example/Reading.java"
+    run_maven variable_distance_nearby analysis "${variable_distance}" checkstyle:check
     expect_exit variable_distance_nearby 'analysis: a local declared beside its use passes' 0
 }
