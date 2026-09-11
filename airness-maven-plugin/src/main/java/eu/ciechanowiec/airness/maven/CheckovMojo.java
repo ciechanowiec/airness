@@ -62,12 +62,10 @@ public final class CheckovMojo extends AbstractRepositoryMojo {
         ScannerResources.copy("checkov-policy.py", output);
         Path expected = ScannerResources.copy("checkov-policy.tsv", output);
         int exit = AbstractDockerCheckMojo.executeScanner(
-            process, "python", List.of(
-                "/output/checkov-policy.py", "/output/rule-registry.txt", "/output/regenerated.tsv"
-            )
+            process, "python", List.of("/output/checkov-policy.py", "/output/rule-registry.txt")
         );
         ScannerJson.exit(exit, false, output);
-        Path regenerated = output.resolve("regenerated.tsv");
+        Path regenerated = Files.move(output.resolve("report.json"), output.resolve("regenerated.tsv"));
         if (Files.mismatch(expected, regenerated) != -1) {
             throw new IOException("The packaged Checkov policy differs from its declared generator");
         }

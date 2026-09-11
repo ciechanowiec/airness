@@ -20,6 +20,7 @@ class ScannerProcessTest {
             .command("shellcheck", List.of("--version"));
         assertTrue(command.contains("none"));
         assertTrue(command.contains("type=bind,source=" + tree.input() + ",target=/input,readonly"));
+        assertTrue(command.contains("type=bind,source=" + tree.directory() + ",target=/output,readonly"));
         assertFalse(command.contains("/var/run/docker.sock"));
         assertFalse(command.contains("--env-file"));
         assertTrue(new ScannerProcess(ScannerTools.image("shellcheck"), tree).probeCommand().contains("/bin/sh"));
