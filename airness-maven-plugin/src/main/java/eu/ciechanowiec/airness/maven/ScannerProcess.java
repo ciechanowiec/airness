@@ -7,6 +7,7 @@ import java.util.stream.Stream;
 
 /**
  * Executes a pinned scanner with isolated configuration and bounded process lifetime.
+ * The host captures tool output, so the container needs no writable bind mount.
  *
  * @param image immutable scanner image
  * @param tree  invocation inputs and output
@@ -21,7 +22,7 @@ record ScannerProcess(String image, ScannerTree tree) {
             List.of(
                 "docker", "run", "--rm", "--init", "--cap-drop=ALL", "--security-opt=no-new-privileges",
                 "--mount", "type=bind,source=" + this.tree.input() + ",target=/input,readonly",
-                "--mount", "type=bind,source=" + this.tree.directory() + ",target=/output",
+                "--mount", "type=bind,source=" + this.tree.directory() + ",target=/output,readonly",
                 "--workdir", "/input", "--entrypoint", executable
             )
         );

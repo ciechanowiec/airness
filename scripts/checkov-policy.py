@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate the fleet policy from the pinned Checkov --list output."""
+"""Print the fleet policy regenerated from the pinned Checkov --list output."""
 
 import argparse
 import re
@@ -85,9 +85,8 @@ def render(text):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("listing", type=Path)
-    parser.add_argument("output", type=Path)
     arguments = parser.parse_args()
-    arguments.output.write_text(render(arguments.listing.read_text()), encoding="utf-8")
+    print(render(arguments.listing.read_text(encoding="utf-8")), end="")
 
 
 if __name__ == "__main__":
