@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 
 run_spring_cases() {
-spring_app="$scratch/spring-app"
-mkdir -p "$spring_app/src/main/java/com/example" "$spring_app/src/test/java/com/example"
-cat > "$spring_app/pom.xml" <<'POM'
+spring_app="${scratch}/spring-app"
+mkdir -p "${spring_app}/src/main/java/com/example" "${spring_app}/src/test/java/com/example"
+cat > "${spring_app}/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
@@ -87,7 +87,7 @@ cat > "$spring_app/pom.xml" <<'POM'
     </build>
 </project>
 POM
-cat > "$spring_app/src/main/java/com/example/package-info.java" <<'JAVA'
+cat > "${spring_app}/src/main/java/com/example/package-info.java" <<'JAVA'
 /**
  * A Spring Boot application built against the harness.
  */
@@ -96,7 +96,7 @@ package com.example;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
-cat > "$spring_app/src/main/java/com/example/Application.java" <<'JAVA'
+cat > "${spring_app}/src/main/java/com/example/Application.java" <<'JAVA'
 package com.example;
 
 import org.springframework.boot.SpringApplication;
@@ -118,7 +118,7 @@ public final class Application {
     }
 }
 JAVA
-cat > "$spring_app/src/main/java/com/example/Greetings.java" <<'JAVA'
+cat > "${spring_app}/src/main/java/com/example/Greetings.java" <<'JAVA'
 package com.example;
 
 import org.springframework.stereotype.Component;
@@ -149,7 +149,7 @@ public final class Greetings {
     }
 }
 JAVA
-cat > "$spring_app/src/test/java/com/example/GreetingsTest.java" <<'JAVA'
+cat > "${spring_app}/src/test/java/com/example/GreetingsTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -174,30 +174,30 @@ class GreetingsTest {
     }
 }
 JAVA
-cat > "$spring_app/AGENTS.md" <<'INSTRUCTIONS'
+cat > "${spring_app}/AGENTS.md" <<'INSTRUCTIONS'
 # Consumer instructions
 
 Run the Maven verification before committing a change.
 INSTRUCTIONS
-git -C "$spring_app" init --quiet
-git -C "$spring_app" config user.name Fixture
-git -C "$spring_app" config user.email fixture@example.invalid
-prepare_maven spring_assets spring "$spring_app" --quiet airness:assets-sync
+git -C "${spring_app}" init --quiet
+git -C "${spring_app}" config user.name Fixture
+git -C "${spring_app}" config user.email fixture@example.invalid
+prepare_maven spring_assets spring "${spring_app}" --quiet airness:assets-sync
 # No format step, deliberately, and the fixture verifies without one. That is the guard on the Java 25
 # recipe set: spring-boot-starter-test carries Mockito transitively, and while the upstream migration
 # wired Mockito's agent into surefire, every Spring Boot project failed its first build until it had
 # accepted that wiring into its own project file. A format step here would absorb the same thing
 # silently if it ever came back.
-git -C "$spring_app" add --all
-git -C "$spring_app" commit --quiet \
+git -C "${spring_app}" add --all
+git -C "${spring_app}" commit --quiet \
     --message 'test(it): create a Spring Boot consumer fixture' \
     --message 'The fixture carries one bean and one entry point, so a consumer build has something to report on.'
 
-run_maven spring_unit_missing spring "$spring_app" clean verify
+run_maven spring_unit_missing spring "${spring_app}" clean verify
 expect_exit spring_unit_missing 'spring: unit tests alone do not prove application startup' 1
 expect_match spring_unit_missing 'spring: the missing current-run startup evidence is explicit' \
     'Spring application context not started by this build'
-run_maven spring_missing_report_only spring "$spring_app" \
+run_maven spring_missing_report_only spring "${spring_app}" \
     clean test airness:spring-context -Dairness.enforce=false
 expect_exit spring_missing_report_only \
     'spring: missing startup evidence remains visible in report-only mode' 0
@@ -208,7 +208,7 @@ expect_match spring_missing_report_only \
 # The marker is composed, so neither the test class nor the evidence goal has to name @SpringBootTest.
 # Its classes member deliberately names the real production application: an explicit source that still
 # performs the production component scan is valid, while the narrowed source case below is not.
-cat > "$spring_app/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
+cat > "${spring_app}/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
 package com.example;
 
 import java.lang.annotation.Documented;
@@ -233,7 +233,7 @@ import org.springframework.test.context.TestConstructor;
 public @interface ApplicationTest {
 }
 JAVA
-cat > "$spring_app/src/test/java/com/example/ContextTest.java" <<'JAVA'
+cat > "${spring_app}/src/test/java/com/example/ContextTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -255,18 +255,18 @@ class ContextTest {
     }
 }
 JAVA
-git -C "$spring_app" add --all
-git -C "$spring_app" commit --quiet \
+git -C "${spring_app}" add --all
+git -C "${spring_app}" commit --quiet \
     --message 'test(it): prove the Spring application reaches ready'
 
-run_maven spring_verify spring "$spring_app" clean verify
+run_maven spring_verify spring "${spring_app}" clean verify
 expect_exit spring_verify 'spring: a conforming Spring Boot application verifies' 0
 expect_match spring_verify 'spring: the conforming lifecycle reaches a build verdict' 'BUILD SUCCESS'
 # The startup evidence must pass before the isolated source-formatting violation is reached.
-spring_static_failure="$scratch/spring-static-failure"
-clone_tree "$spring_app" "$spring_static_failure"
-perl -0pi -e 's/\n}\n$/\n\n}\n/' "$spring_static_failure/src/test/java/com/example/ContextTest.java"
-expect_static_refusal "$spring_static_failure" spring_checkstyle_order \
+spring_static_failure="${scratch}/spring-static-failure"
+clone_tree "${spring_app}" "${spring_static_failure}"
+perl -0pi -e 's/\n}\n$/\n\n}\n/' "${spring_static_failure}/src/test/java/com/example/ContextTest.java"
+expect_static_refusal "${spring_static_failure}" spring_checkstyle_order \
     'Empty lines before a closing brace are not allowed'
 
 expect_no_match spring_verify 'spring: a Spring type only a test names is not reported as test only' \
@@ -275,12 +275,13 @@ expect_no_match spring_verify 'spring: a Spring type only a test names is not re
 # runs a goal from the command line, which says nothing about the phase a consumer would meet it at, and
 # this is the one consumer here that runs a whole lifecycle. It passing is the other half of the claim:
 # the fixture declares the actuator a repackaged module has to, so the rule is satisfiable as well as real.
-if grep -q 'airness-spring-model' "$(execution_log spring_verify)"; then
+spring_verify_log="$(execution_log spring_verify)"
+if grep -q 'airness-spring-model' "${spring_verify_log}"; then
     pass 'spring: the model goal runs from its validate binding rather than from a command line'
 else
     fail 'spring: the model goal never ran in a full consumer build'
 fi
-if grep -qx 'com.example.Application' "$spring_app/target/airness/spring-context.evidence"; then
+if grep -qx 'com.example.Application' "${spring_app}/target/airness/spring-context.evidence"; then
     pass 'spring: a composed context test records the production application source'
 else
     fail 'spring: the ready production application left no exact runtime evidence'
@@ -292,8 +293,8 @@ run_repository_proxy_cases
 # the only place the probe is exercised against a real container. The endpoints, the advice and the chain
 # are added together because a module with controllers owes an advice, and the two consumers differ by
 # one matcher: the one naming the pattern it opens, and the one opening a prefix it never reread.
-spring_open_named="$scratch/spring-open-named"
-clone_tree "$spring_app" "$spring_open_named"
+spring_open_named="${scratch}/spring-open-named"
+clone_tree "${spring_app}" "${spring_open_named}"
 write_spring_web_module() {
     cat > "$1/src/main/java/com/example/Orders.java" <<'JAVA'
 package com.example;
@@ -376,13 +377,13 @@ public class Security {
 }
 JAVA
 }
-write_spring_web_module "$spring_open_named" '/api/orders'
-git -C "$spring_open_named" add --all
+write_spring_web_module "${spring_open_named}" '/api/orders'
+git -C "${spring_open_named}" add --all
 # The goal is invoked after the test phase rather than reached through prepare-package, because the
 # fixture adds production classes that no consumer test covers and the coverage gate would stop the
 # build before the evidence goal ran. Everything the rule needs is in place by then: the governance
 # goals bound to process-classes have run, and the test phase has written the evidence this reads.
-run_maven spring_open_named spring "$spring_open_named" clean test airness:spring-context
+run_maven spring_open_named spring "${spring_open_named}" clean test airness:spring-context
 expect_exit spring_open_named 'spring: an endpoint whose pattern the chain names passes the context goal' 0
 
 run_request_map_cases
@@ -390,11 +391,11 @@ run_request_map_cases
 # The same application, opened by a prefix instead. Airness already refuses anyRequest().permitAll() and
 # a "/**" matcher, so this is the spelling that survives every rule reading source: it admits an endpoint
 # the project never named, and only the running container says so.
-spring_open_prefix="$scratch/spring-open-prefix"
-clone_tree "$spring_app" "$spring_open_prefix"
-write_spring_web_module "$spring_open_prefix" '/api/**'
-git -C "$spring_open_prefix" add --all
-run_maven spring_open_prefix spring "$spring_open_prefix" clean test airness:spring-context
+spring_open_prefix="${scratch}/spring-open-prefix"
+clone_tree "${spring_app}" "${spring_open_prefix}"
+write_spring_web_module "${spring_open_prefix}" '/api/**'
+git -C "${spring_open_prefix}" add --all
+run_maven spring_open_prefix spring "${spring_open_prefix}" clean test airness:spring-context
 expect_exit spring_open_prefix 'spring: an endpoint only a prefix admits fails the context goal' 1
 expect_match spring_open_prefix 'spring: the offence names the mapping the chain let through' \
     'GET /api/orders: the security chain let an unauthenticated request reach this mapping'
@@ -467,12 +468,12 @@ public class Security {
 }
 JAVA
 }
-spring_open_bare="$scratch/spring-open-bare"
-clone_tree "$spring_app" "$spring_open_bare"
-write_spring_web_module "$spring_open_bare" '/api/orders'
-write_spring_posted_order "$spring_open_bare"
-git -C "$spring_open_bare" add --all
-run_maven spring_open_bare spring "$spring_open_bare" clean test airness:spring-context
+spring_open_bare="${scratch}/spring-open-bare"
+clone_tree "${spring_app}" "${spring_open_bare}"
+write_spring_web_module "${spring_open_bare}" '/api/orders'
+write_spring_posted_order "${spring_open_bare}"
+git -C "${spring_open_bare}" add --all
+run_maven spring_open_bare spring "${spring_open_bare}" clean test airness:spring-context
 expect_exit spring_open_bare 'spring: a matcher naming no method over two mappings fails the context goal' 1
 expect_match spring_open_bare 'spring: the offence names the mapping the matcher never read' \
     'POST /api/orders: the security chain let an unauthenticated request reach this mapping'
@@ -481,20 +482,20 @@ expect_match spring_open_bare 'spring: the offence names the matcher that would 
 
 # The same two mappings, declared one matcher each. This is the repair the offence above names, and it
 # is what keeps the rule from asking for something no project can write.
-spring_open_methods="$scratch/spring-open-methods"
-clone_tree "$spring_app" "$spring_open_methods"
-write_spring_web_module "$spring_open_methods" '/api/orders'
-write_spring_posted_order "$spring_open_methods"
-write_spring_method_chain "$spring_open_methods"
-git -C "$spring_open_methods" add --all
-run_maven spring_open_methods spring "$spring_open_methods" clean test airness:spring-context
+spring_open_methods="${scratch}/spring-open-methods"
+clone_tree "${spring_app}" "${spring_open_methods}"
+write_spring_web_module "${spring_open_methods}" '/api/orders'
+write_spring_posted_order "${spring_open_methods}"
+write_spring_method_chain "${spring_open_methods}"
+git -C "${spring_open_methods}" add --all
+run_maven spring_open_methods spring "${spring_open_methods}" clean test airness:spring-context
 expect_exit spring_open_methods 'spring: a matcher per method over two mappings passes the context goal' 0
 
 # Reaching ready is not enough on its own. The source of that ready run must be the production
 # application, so an explicit test-only configuration cannot stand in for the component scan.
-spring_narrow="$scratch/spring-narrow"
-clone_tree "$spring_app" "$spring_narrow"
-cat > "$spring_narrow/src/test/java/com/example/NarrowConfiguration.java" <<'JAVA'
+spring_narrow="${scratch}/spring-narrow"
+clone_tree "${spring_app}" "${spring_narrow}"
+cat > "${spring_narrow}/src/test/java/com/example/NarrowConfiguration.java" <<'JAVA'
 package com.example;
 
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -517,7 +518,7 @@ public class NarrowConfiguration {
     }
 }
 JAVA
-cat > "$spring_narrow/src/test/java/com/example/ContextTest.java" <<'JAVA'
+cat > "${spring_narrow}/src/test/java/com/example/ContextTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -539,7 +540,7 @@ class ContextTest {
     }
 }
 JAVA
-run_maven spring_narrow spring "$spring_narrow" clean test airness:spring-context
+run_maven spring_narrow spring "${spring_narrow}" clean test airness:spring-context
 expect_exit spring_narrow 'spring: a ready test-only context is not application evidence' 1
 expect_match spring_narrow 'spring: narrowed evidence names the missing production source' \
     'contains no current run that reached ready with this production application'
@@ -612,20 +613,20 @@ public class Ledgers {
 JAVA
 }
 
-spring_guard_resolved="$scratch/spring-guard-resolved"
-clone_tree "$spring_app" "$spring_guard_resolved"
-write_spring_guard_module "$spring_guard_resolved" "@reach.granted('ledger')"
-git -C "$spring_guard_resolved" add --all
-run_maven spring_guard_resolved spring "$spring_guard_resolved" clean test airness:spring-context
+spring_guard_resolved="${scratch}/spring-guard-resolved"
+clone_tree "${spring_app}" "${spring_guard_resolved}"
+write_spring_guard_module "${spring_guard_resolved}" "@reach.granted('ledger')"
+git -C "${spring_guard_resolved}" add --all
+run_maven spring_guard_resolved spring "${spring_guard_resolved}" clean test airness:spring-context
 expect_exit spring_guard_resolved 'spring: a guard the container can evaluate passes the context goal' 0
 
 # The bean name misspelled. It parses, it compiles, and it is resolved only when somebody arrives, so
 # the guard raises instead of deciding and the method behind it answers nobody rather than refusing them.
-spring_guard_bean="$scratch/spring-guard-bean"
-clone_tree "$spring_app" "$spring_guard_bean"
-write_spring_guard_module "$spring_guard_bean" "@raech.granted('ledger')"
-git -C "$spring_guard_bean" add --all
-run_maven spring_guard_bean spring "$spring_guard_bean" clean test airness:spring-context
+spring_guard_bean="${scratch}/spring-guard-bean"
+clone_tree "${spring_app}" "${spring_guard_bean}"
+write_spring_guard_module "${spring_guard_bean}" "@raech.granted('ledger')"
+git -C "${spring_guard_bean}" add --all
+run_maven spring_guard_bean spring "${spring_guard_bean}" clean test airness:spring-context
 expect_exit spring_guard_bean 'spring: a guard naming a bean nothing declares fails the context goal' 1
 expect_match spring_guard_bean 'spring: the offence names the bean and the method that asked for it' \
     'com.example.Ledgers#read: the security expression calls @raech'
@@ -633,11 +634,11 @@ expect_match spring_guard_bean 'spring: the offence says what the guard does ins
     'declares no bean under that name'
 
 # The bean found and the method on it misspelled, which is the same failure one step further in.
-spring_guard_call="$scratch/spring-guard-call"
-clone_tree "$spring_app" "$spring_guard_call"
-write_spring_guard_module "$spring_guard_call" "@reach.grantd('ledger')"
-git -C "$spring_guard_call" add --all
-run_maven spring_guard_call spring "$spring_guard_call" clean test airness:spring-context
+spring_guard_call="${scratch}/spring-guard-call"
+clone_tree "${spring_app}" "${spring_guard_call}"
+write_spring_guard_module "${spring_guard_call}" "@reach.grantd('ledger')"
+git -C "${spring_guard_call}" add --all
+run_maven spring_guard_call spring "${spring_guard_call}" clean test airness:spring-context
 expect_exit spring_guard_call 'spring: a guard calling a method its bean does not have fails the context goal' 1
 expect_match spring_guard_call 'spring: the offence names the whole reference that could not be resolved' \
     'calls @reach.grantd'
@@ -645,9 +646,9 @@ expect_match spring_guard_call 'spring: the offence names the whole reference th
 # A class that guards some of its public methods has taken on the obligation, so one added beside them
 # and left unannotated is reached by every caller the container admits. The class that guards none of
 # them is passed over in the same run, which is what keeps the rule off a bean nobody guarded.
-spring_guards="$scratch/spring-guards"
-clone_tree "$spring_app" "$spring_guards"
-cat > "$spring_guards/src/main/java/com/example/Ledger.java" <<'JAVA'
+spring_guards="${scratch}/spring-guards"
+clone_tree "${spring_app}" "${spring_guards}"
+cat > "${spring_guards}/src/main/java/com/example/Ledger.java" <<'JAVA'
 package com.example;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -679,7 +680,7 @@ public class Ledger {
     }
 }
 JAVA
-cat > "$spring_guards/src/main/java/com/example/Unobliged.java" <<'JAVA'
+cat > "${spring_guards}/src/main/java/com/example/Unobliged.java" <<'JAVA'
 package com.example;
 
 import org.springframework.stereotype.Service;
@@ -709,8 +710,8 @@ public class Unobliged {
     }
 }
 JAVA
-git -C "$spring_guards" add --all
-run_maven spring_guards spring "$spring_guards" airness:spring-source
+git -C "${spring_guards}" add --all
+run_maven spring_guards spring "${spring_guards}" airness:spring-source
 expect_exit spring_guards 'spring: a public method left unguarded beside guarded siblings fails the source goal' 1
 expect_match spring_guards 'spring: the offence names the class and the method it left unguarded' \
     'Ledger guards other public methods with an authorization annotation and owing carries none'
@@ -719,9 +720,9 @@ expect_no_match spring_guards 'spring: a class that guards none of them is passe
 
 # The whole of a redirect target taken from a value the request carried is an address the caller chose,
 # and the sign-in the reader passed on the way is what makes it read as the next step of the flow.
-spring_redirect="$scratch/spring-redirect"
-clone_tree "$spring_app" "$spring_redirect"
-cat > "$spring_redirect/src/main/java/com/example/Onward.java" <<'JAVA'
+spring_redirect="${scratch}/spring-redirect"
+clone_tree "${spring_app}" "${spring_redirect}"
+cat > "${spring_redirect}/src/main/java/com/example/Onward.java" <<'JAVA'
 package com.example;
 
 import org.springframework.stereotype.Controller;
@@ -746,17 +747,17 @@ public class Onward {
     }
 }
 JAVA
-git -C "$spring_redirect" add --all
-run_maven spring_redirect spring "$spring_redirect" airness:spring-source
+git -C "${spring_redirect}" add --all
+run_maven spring_redirect spring "${spring_redirect}" airness:spring-source
 expect_exit spring_redirect 'spring: a redirect built from a value the caller sent fails the source goal' 1
 expect_match spring_redirect 'spring: the offence names the value the target was built from' \
     'the whole of this redirect target is built from to'
 
 # A role named in a guard is a string the engine compares with what a caller holds, and one no enum
 # declares is granted to nobody. The build refuses it rather than waiting for the request that finds out.
-spring_roles="$scratch/spring-roles"
-clone_tree "$spring_app" "$spring_roles"
-cat > "$spring_roles/src/main/java/com/example/Guarded.java" <<'JAVA'
+spring_roles="${scratch}/spring-roles"
+clone_tree "${spring_app}" "${spring_roles}"
+cat > "${spring_roles}/src/main/java/com/example/Guarded.java" <<'JAVA'
 package com.example;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -779,21 +780,21 @@ public class Guarded {
     }
 }
 JAVA
-git -C "$spring_roles" add --all
-run_maven spring_roles spring "$spring_roles" airness:spring-reactor
+git -C "${spring_roles}" add --all
+run_maven spring_roles spring "${spring_roles}" airness:spring-reactor
 expect_exit spring_roles 'spring: a guard naming a role no enum declares fails the reactor goal' 1
 expect_match spring_roles 'spring: the offence names the role and the missing enum' \
     "names the role 'NOBODY'.*enum implementing GrantedAuthority"
 
 # The test profile satisfies a placeholder in every test, so a key it alone declares ships missing.
-spring_placeholder="$scratch/spring-placeholder"
-clone_tree "$spring_app" "$spring_placeholder"
-mkdir -p "$spring_placeholder/src/main/resources"
-cat > "$spring_placeholder/src/main/resources/application.yml" <<'YAML'
+spring_placeholder="${scratch}/spring-placeholder"
+clone_tree "${spring_app}" "${spring_placeholder}"
+mkdir -p "${spring_placeholder}/src/main/resources"
+cat > "${spring_placeholder}/src/main/resources/application.yml" <<'YAML'
 example:
   zone: UTC
 YAML
-cat > "$spring_placeholder/src/main/java/com/example/Clock.java" <<'JAVA'
+cat > "${spring_placeholder}/src/main/java/com/example/Clock.java" <<'JAVA'
 package com.example;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -820,8 +821,8 @@ public class Clock {
     }
 }
 JAVA
-git -C "$spring_placeholder" add --all
-run_maven spring_placeholder spring "$spring_placeholder" airness:spring-configuration
+git -C "${spring_placeholder}" add --all
+run_maven spring_placeholder spring "${spring_placeholder}" airness:spring-configuration
 expect_exit spring_placeholder \
     'spring: a placeholder the base configuration does not declare fails the configuration goal' 1
 expect_match spring_placeholder 'spring: the offence names the undeclared key alone' \
@@ -830,10 +831,10 @@ expect_match spring_placeholder 'spring: the offence names the undeclared key al
 # A controller fragment view uses the same explicit argument list as a call in markup. The template
 # and fragment both exist here, so only comparing the written list with the declaration finds the
 # defect before the first request renders it.
-spring_view_arguments="$scratch/spring-view-arguments"
-clone_tree "$spring_app" "$spring_view_arguments"
-mkdir -p "$spring_view_arguments/src/main/resources/templates/row"
-cat > "$spring_view_arguments/src/main/java/com/example/Rows.java" <<'JAVA'
+spring_view_arguments="${scratch}/spring-view-arguments"
+clone_tree "${spring_app}" "${spring_view_arguments}"
+mkdir -p "${spring_view_arguments}/src/main/resources/templates/row"
+cat > "${spring_view_arguments}/src/main/java/com/example/Rows.java" <<'JAVA'
 package com.example;
 
 import org.springframework.stereotype.Controller;
@@ -857,7 +858,7 @@ public final class Rows {
     }
 }
 JAVA
-cat > "$spring_view_arguments/src/main/java/com/example/Failures.java" <<'JAVA'
+cat > "${spring_view_arguments}/src/main/java/com/example/Failures.java" <<'JAVA'
 package com.example;
 
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -869,7 +870,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 public final class Failures {
 }
 JAVA
-cat > "$spring_view_arguments/src/main/resources/templates/row/list.html" <<'HTML'
+cat > "${spring_view_arguments}/src/main/resources/templates/row/list.html" <<'HTML'
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <body>
@@ -879,8 +880,8 @@ cat > "$spring_view_arguments/src/main/resources/templates/row/list.html" <<'HTM
 </body>
 </html>
 HTML
-git -C "$spring_view_arguments" add --all
-run_maven spring_view_arguments spring "$spring_view_arguments" airness:spring-module
+git -C "${spring_view_arguments}" add --all
+run_maven spring_view_arguments spring "${spring_view_arguments}" airness:spring-module
 expect_exit spring_view_arguments \
     'spring: an explicit controller fragment argument mismatch fails the module goal' 1
 expect_match spring_view_arguments \
@@ -889,9 +890,9 @@ expect_match spring_view_arguments \
 
 # Both HTML and response-body methods can live in one controller. Missing views in that controller
 # and in exception advice must each fail, while supplying the templates makes the same consumer pass.
-spring_view_handlers="$scratch/spring-view-handlers"
-clone_tree "$spring_app" "$spring_view_handlers"
-cat > "$spring_view_handlers/src/main/java/com/example/Pages.java" <<'JAVA'
+spring_view_handlers="${scratch}/spring-view-handlers"
+clone_tree "${spring_app}" "${spring_view_handlers}"
+cat > "${spring_view_handlers}/src/main/java/com/example/Pages.java" <<'JAVA'
 package com.example;
 
 import org.springframework.stereotype.Controller;
@@ -916,7 +917,7 @@ public final class Pages {
     }
 }
 JAVA
-cat > "$spring_view_handlers/src/main/java/com/example/Failures.java" <<'JAVA'
+cat > "${spring_view_handlers}/src/main/java/com/example/Failures.java" <<'JAVA'
 package com.example;
 
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -933,32 +934,32 @@ public final class Failures {
     }
 }
 JAVA
-git -C "$spring_view_handlers" add --all
-run_maven spring_view_handlers spring "$spring_view_handlers" airness:spring-module
+git -C "${spring_view_handlers}" add --all
+run_maven spring_view_handlers spring "${spring_view_handlers}" airness:spring-module
 expect_exit spring_view_handlers 'spring: mixed controllers and HTML advice cannot hide missing views' 1
 expect_match spring_view_handlers 'spring: the missing controller view names its return line' \
     'Pages.java: line 15: the view name room/list'
 expect_match spring_view_handlers 'spring: the missing advice view names its return line' \
     'Failures.java: line 13: the view name room/failure'
-mkdir -p "$spring_view_handlers/src/main/resources/templates/room"
+mkdir -p "${spring_view_handlers}/src/main/resources/templates/room"
 for page in list failure; do
-    cat > "$spring_view_handlers/src/main/resources/templates/room/$page.html" <<'HTML'
+    cat > "${spring_view_handlers}/src/main/resources/templates/room/${page}.html" <<'HTML'
 <!DOCTYPE html>
 <html lang="en"><body><p>Room</p></body></html>
 HTML
 done
-git -C "$spring_view_handlers" add --all
-run_maven spring_view_handlers_repaired spring "$spring_view_handlers" airness:spring-module
+git -C "${spring_view_handlers}" add --all
+run_maven spring_view_handlers_repaired spring "${spring_view_handlers}" airness:spring-module
 expect_exit spring_view_handlers_repaired 'spring: supplying both templates repairs the same consumer' 0
 
 # Both components compile and every source analyzer accepts them. The production context is the one
 # authority on the collision, and its own diagnostic names the derived bean name and both definitions.
-spring_collision="$scratch/spring-collision"
-clone_tree "$spring_app" "$spring_collision"
-mkdir -p "$spring_collision/src/main/java/com/example/one" \
-    "$spring_collision/src/main/java/com/example/two"
+spring_collision="${scratch}/spring-collision"
+clone_tree "${spring_app}" "${spring_collision}"
+mkdir -p "${spring_collision}/src/main/java/com/example/one" \
+    "${spring_collision}/src/main/java/com/example/two"
 for feature in one two; do
-    cat > "$spring_collision/src/main/java/com/example/$feature/package-info.java" <<'JAVA'
+    cat > "${spring_collision}/src/main/java/com/example/${feature}/package-info.java" <<'JAVA'
 /**
  * A feature contributing one component to the collision fixture.
  */
@@ -967,10 +968,10 @@ package com.example.FEATURE;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
-    sed -i.bak "s/FEATURE/$feature/" \
-        "$spring_collision/src/main/java/com/example/$feature/package-info.java"
-    rm "$spring_collision/src/main/java/com/example/$feature/package-info.java.bak"
-    cat > "$spring_collision/src/main/java/com/example/$feature/Numbering.java" <<'JAVA'
+    sed -i.bak "s/FEATURE/${feature}/" \
+        "${spring_collision}/src/main/java/com/example/${feature}/package-info.java"
+    rm "${spring_collision}/src/main/java/com/example/${feature}/package-info.java.bak"
+    cat > "${spring_collision}/src/main/java/com/example/${feature}/Numbering.java" <<'JAVA'
 package com.example.FEATURE;
 
 import org.springframework.stereotype.Component;
@@ -982,49 +983,49 @@ import org.springframework.stereotype.Component;
 public final class Numbering {
 }
 JAVA
-    sed -i.bak "s/FEATURE/$feature/" \
-        "$spring_collision/src/main/java/com/example/$feature/Numbering.java"
-    rm "$spring_collision/src/main/java/com/example/$feature/Numbering.java.bak"
+    sed -i.bak "s/FEATURE/${feature}/" \
+        "${spring_collision}/src/main/java/com/example/${feature}/Numbering.java"
+    rm "${spring_collision}/src/main/java/com/example/${feature}/Numbering.java.bak"
 done
-run_maven spring_collision spring "$spring_collision" clean test
+run_maven spring_collision spring "${spring_collision}" clean test
 expect_exit spring_collision 'spring: colliding component names fail the real context test' 1
 expect_match spring_collision 'spring: the real context names both colliding bean definitions' \
     "ConflictingBeanDefinitionException.*bean name 'numbering'"
 
-spring_jar="$spring_app/target/spring-app-1.0.0.jar"
-if unzip -l "$spring_jar" 2>/dev/null | grep -q 'jspecify'; then
+spring_jar="${spring_app}/target/spring-app-1.0.0.jar"
+if unzip -l "${spring_jar}" 2>/dev/null | grep -q 'jspecify'; then
     pass 'spring: the repackaged archive carries the annotations the container reads'
 else
     fail 'spring: the repackaged archive omits the annotations the container reads'
 fi
-if unzip -l "$spring_jar" 2>/dev/null | grep -q 'airness-spring-evidence'; then
+if unzip -l "${spring_jar}" 2>/dev/null | grep -q 'airness-spring-evidence'; then
     fail 'spring: test-only context evidence leaked into the application archive'
 else
     pass 'spring: context evidence stays out of the application archive'
 fi
-spring_run="$scratch/spring-app-run.log"
+spring_run="${scratch}/spring-app-run.log"
 spring_started="$(date +%s)"
-java -jar "$spring_jar" --server.port=0 --spring.main.banner-mode=off > "$spring_run" 2>&1 &
+java -jar "${spring_jar}" --server.port=0 --spring.main.banner-mode=off > "${spring_run}" 2>&1 &
 spring_pid=$!
 spring_waited=0
-while [ "$spring_waited" -lt 90 ]; do
-    if grep -qE 'Started Application|Application run failed' "$spring_run" 2>/dev/null; then
+while [ "${spring_waited}" -lt 90 ]; do
+    if grep -qE 'Started Application|Application run failed' "${spring_run}" 2>/dev/null; then
         break
     fi
     sleep 1
     spring_waited=$((spring_waited + 1))
 done
-kill "$spring_pid" 2>/dev/null || true
-wait "$spring_pid" 2>/dev/null || true
+kill "${spring_pid}" 2>/dev/null || true
+wait "${spring_pid}" 2>/dev/null || true
 spring_seconds="$(($(date +%s) - spring_started))"
 physical_executions=$((physical_executions + 1))
-if grep -q 'Started Application' "$spring_run"; then
-    record_timing "$spring_seconds" spring spring_application 0 application java -jar "$spring_jar"
+if grep -q 'Started Application' "${spring_run}"; then
+    record_timing "${spring_seconds}" spring spring_application 0 application java -jar "${spring_jar}"
     pass 'spring: the repackaged archive starts from a package-private main'
 else
-    record_timing "$spring_seconds" spring spring_application 1 application java -jar "$spring_jar"
+    record_timing "${spring_seconds}" spring spring_application 1 application java -jar "${spring_jar}"
     fail 'spring: the repackaged archive did not start'
-    sed -n '1,220p' "$spring_run" >&2
+    sed -n '1,220p' "${spring_run}" >&2
 fi
 
 }

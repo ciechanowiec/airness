@@ -144,7 +144,9 @@ public final class ManagedVersions {
      */
     private static final List<String> IMAGE_PROPERTIES = List.of(
         "gitleaks.image",
-        "qodana.image"
+        "qodana.image",
+        "shellcheck.image",
+        "checkov.image"
     );
     private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(
         Stream.concat(

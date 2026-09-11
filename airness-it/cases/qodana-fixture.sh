@@ -2,8 +2,8 @@
 
 create_qodana_fixture() {
     new_consumer qodana-profile
-    qodana_consumer="$consumer_directory"
-    cat > "$qodana_consumer/src/main/java/com/example/CommandRequest.java" <<'JAVA'
+    qodana_consumer="${consumer_directory}"
+    cat > "${qodana_consumer}/src/main/java/com/example/CommandRequest.java" <<'JAVA'
 package com.example;
 
 /**
@@ -136,7 +136,7 @@ public sealed interface CommandRequest {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/Channel.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/Channel.java" <<'JAVA'
 package com.example;
 
 /**
@@ -150,7 +150,7 @@ public enum Channel {
     STANDARD_OUTPUT
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/OutputFormat.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/OutputFormat.java" <<'JAVA'
 package com.example;
 
 /**
@@ -179,7 +179,7 @@ public enum OutputFormat {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/ParseResult.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/ParseResult.java" <<'JAVA'
 package com.example;
 
 /**
@@ -190,7 +190,7 @@ package com.example;
 public record ParseResult(String name) {
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/SafePath.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/SafePath.java" <<'JAVA'
 package com.example;
 
 import java.nio.file.Path;
@@ -203,7 +203,7 @@ import java.nio.file.Path;
 public record SafePath(Path value) {
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/BrokenRunException.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/BrokenRunException.java" <<'JAVA'
 package com.example;
 
 /**
@@ -240,7 +240,7 @@ public final class BrokenRunException extends RuntimeException {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/CommandGrammar.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/CommandGrammar.java" <<'JAVA'
 package com.example;
 
 /**
@@ -259,7 +259,7 @@ public final class CommandGrammar {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/ProjectRepository.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/ProjectRepository.java" <<'JAVA'
 package com.example;
 
 import java.nio.file.Path;
@@ -294,7 +294,7 @@ public final class ProjectRepository {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/CommandRouter.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/CommandRouter.java" <<'JAVA'
 package com.example;
 
 /**
@@ -372,7 +372,7 @@ public final class CommandRouter {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/CommandRunner.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/CommandRunner.java" <<'JAVA'
 package com.example;
 
 /**
@@ -420,7 +420,7 @@ public final class CommandRunner {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/JdkHeavy.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/JdkHeavy.java" <<'JAVA'
 package com.example;
 
 import java.time.Duration;
@@ -470,7 +470,7 @@ public final class JdkHeavy {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/Tool.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/Tool.java" <<'JAVA'
 package com.example;
 
 /**
@@ -488,7 +488,7 @@ public final class Tool {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/Chart.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/Chart.java" <<'JAVA'
 package com.example;
 
 /**
@@ -529,7 +529,7 @@ public final class Chart {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/Budget.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/Budget.java" <<'JAVA'
 package com.example;
 
 /**
@@ -558,7 +558,7 @@ public final class Budget {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/Soundings.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/Soundings.java" <<'JAVA'
 package com.example;
 
 import java.time.Duration;
@@ -638,7 +638,7 @@ public final class Soundings {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/Consignment.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/Consignment.java" <<'JAVA'
 package com.example;
 
 /**
@@ -714,7 +714,7 @@ public final class Consignment {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/EventDispatch.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/EventDispatch.java" <<'JAVA'
 package com.example;
 
 /**
@@ -748,7 +748,7 @@ public final class EventDispatch {
     }
 }
 JAVA
-    cat > "$qodana_consumer/src/main/java/com/example/IncompleteDispatch.java" <<'JAVA'
+    cat > "${qodana_consumer}/src/main/java/com/example/IncompleteDispatch.java" <<'JAVA'
 package com.example;
 
 /**
@@ -781,8 +781,8 @@ public final class IncompleteDispatch {
     }
 }
 JAVA
-    git -C "$qodana_consumer" add --all
-    git -C "$qodana_consumer" commit --quiet \
+    git -C "${qodana_consumer}" add --all
+    git -C "${qodana_consumer}" commit --quiet \
         --message 'test(it): carry the shapes the dropped inspections reported' \
         --message 'The fixture holds a sealed hierarchy, an over-coupled class, a class inside the band that moved, a JDK-heavy class, a chart named in domain words, an enum of one constant, a budget counted in long units, a run of soundings holding its bounds and tables as constants and a class carrying eight values of its own, so the profile has something to be read against.'
 }

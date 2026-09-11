@@ -1,9 +1,13 @@
 #!/usr/bin/env sh
 
 expect_analysis_before_qodana() {
+    for scanner_goal in shellcheck checkov; do
+        expect_before "$1" "lifecycle: ${scanner_goal} precedes Qodana in $1" \
+            "--- airness:[^ ]+:${scanner_goal} " '--- airness:[^ ]+:qodana [(]airness-qodana[)]'
+    done
     for analysis_goal in 'checkstyle:[^ ]+:check' 'pmd:[^ ]+:check' 'pmd:[^ ]+:cpd-check'; do
-        expect_before "$1" "lifecycle: $analysis_goal precedes Qodana in $1" \
-            "--- $analysis_goal " '--- airness:[^ ]+:qodana [(]airness-qodana[)]'
+        expect_before "$1" "lifecycle: ${analysis_goal} precedes Qodana in $1" \
+            "--- ${analysis_goal} " '--- airness:[^ ]+:qodana [(]airness-qodana[)]'
     done
     expect_before "$1" "lifecycle: Checkstyle precedes PMD in $1" \
         '--- checkstyle:[^ ]+:check ' '--- pmd:[^ ]+:check '
@@ -21,12 +25,12 @@ expect_static_refusal() {
 
 run_analysis_lifecycle() {
     new_consumer lifecycle-checkstyle
-    perl -0pi -e 's/\n}\n$/\n\n}\n/' "$consumer_directory/src/test/java/com/example/ExampleTest.java"
-    expect_static_refusal "$consumer_directory" checkstyle_order \
+    perl -0pi -e 's/\n}\n$/\n\n}\n/' "${consumer_directory}/src/test/java/com/example/ExampleTest.java"
+    expect_static_refusal "${consumer_directory}" checkstyle_order \
         'Empty lines before a closing brace are not allowed'
 
     new_consumer lifecycle-pmd
-    cat > "$consumer_directory/src/test/java/com/example/ExampleTest.java" <<'JAVA'
+    cat > "${consumer_directory}/src/test/java/com/example/ExampleTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,11 +48,11 @@ class ExampleTest {
     }
 }
 JAVA
-    prepare_maven setup_lifecycle_pmd setup "$consumer_directory" --quiet process-resources -Pformat
-    expect_static_refusal "$consumer_directory" pmd_order 'Rule:AvoidLiteralsInIfCondition'
+    prepare_maven setup_lifecycle_pmd setup "${consumer_directory}" --quiet process-resources -Pformat
+    expect_static_refusal "${consumer_directory}" pmd_order 'Rule:AvoidLiteralsInIfCondition'
 
     new_consumer lifecycle-cpd
-    cat > "$consumer_directory/src/test/java/com/example/ExampleTest.java" <<'JAVA'
+    cat > "${consumer_directory}/src/test/java/com/example/ExampleTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -84,6 +88,6 @@ class ExampleTest {
     }
 }
 JAVA
-    prepare_maven setup_lifecycle_cpd setup "$consumer_directory" --quiet process-resources -Pformat
-    expect_static_refusal "$consumer_directory" cpd_order 'has found [0-9]+ duplication'
+    prepare_maven setup_lifecycle_cpd setup "${consumer_directory}" --quiet process-resources -Pformat
+    expect_static_refusal "${consumer_directory}" cpd_order 'has found [0-9]+ duplication'
 }
