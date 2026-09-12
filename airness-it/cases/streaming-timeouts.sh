@@ -89,11 +89,9 @@ public final class Security {
     @Bean
     @SneakyThrows
     SecurityFilterChain chain(HttpSecurity http) {
-        return http.authorizeHttpRequests(
-            registry -> registry
-                .requestMatchers("/stream/direct", "/stream/wrapped", "/stream/failure", "/error").permitAll()
-                .anyRequest().authenticated()
-        ).build();
+        return http.authorizeHttpRequests(registry -> registry
+            .requestMatchers("/stream/direct", "/stream/wrapped", "/stream/failure", "/error").permitAll()
+            .anyRequest().authenticated()).build();
     }
 }
 JAVA
@@ -146,6 +144,7 @@ class StreamsTest {
 }
 JAVA
     mkdir -p "${streaming_app}/src/main/resources" "${streaming_app}/src/test/resources"
+    prepare_maven streaming_format spring "${streaming_app}" process-resources -Pformat
     git -C "${streaming_app}" add --all
     run_maven streaming_missing spring "${streaming_app}" clean prepare-package
     expect_exit streaming_missing 'spring: streaming requires a production timeout policy' 1
@@ -183,13 +182,12 @@ JAVA
     rm "${streaming_app}/src/main/resources/application-production.properties"
 
     write_streaming_configurer 'configurer.setDefaultTimeout(0).registerCallableInterceptors();'
+    prepare_maven streaming_java_format spring "${streaming_app}" process-resources -Pformat
     git -C "${streaming_app}" add --all
     run_maven streaming_java spring "${streaming_app}" clean prepare-package
     expect_exit streaming_java 'spring: an active production callback may explicitly disable the deadline' 0
 
-    write_streaming_configurer 'if (!Boolean.getBoolean("fixture.streaming.disabled")) {
-            configurer.setDefaultTimeout(0);
-        }'
+    write_streaming_configurer 'if (!Boolean.getBoolean("fixture.streaming.disabled")) { configurer.setDefaultTimeout(0); }'
     cat > "${streaming_app}/src/test/java/com/example/ConditionalCallbackTest.java" <<'JAVA'
 package com.example;
 
@@ -220,6 +218,7 @@ class ConditionalCallbackTest {
     }
 }
 JAVA
+    prepare_maven streaming_conditional_format spring "${streaming_app}" process-resources -Pformat
     run_maven streaming_conditional spring "${streaming_app}" clean prepare-package
     expect_exit streaming_conditional 'spring: conditional callbacks fail when their policy cannot be verified' 1
     expect_match streaming_conditional 'spring: unsupported callbacks are diagnosed explicitly' \
@@ -240,6 +239,7 @@ path.write_text(text[:index] + '''
 }
 ''')
 PY
+    prepare_maven streaming_delegate_format spring "${streaming_app}" process-resources -Pformat
     run_maven streaming_delegate spring "${streaming_app}" clean prepare-package
     expect_exit streaming_delegate 'spring: delegated timeout setup is not guessed safe' 1
     expect_match streaming_delegate 'spring: delegated setup remains visibly unsupported' \
@@ -267,7 +267,6 @@ public final class StreamingConfiguration {
     @Bean
     WebMvcConfigurer timeoutPolicy() {
         return new WebMvcConfigurer() {
-
             @Override
             public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
                 configurer.setDefaultTimeout(0);
@@ -276,12 +275,14 @@ public final class StreamingConfiguration {
     }
 }
 JAVA
+    prepare_maven streaming_anonymous_format spring "${streaming_app}" process-resources -Pformat
     run_maven streaming_anonymous spring "${streaming_app}" clean prepare-package
     expect_exit streaming_anonymous 'spring: anonymous timeout callbacks require an assessable declaration' 1
     expect_match streaming_anonymous 'spring: anonymous timeout setup is explicitly unsupported' \
         'Streaming timeout configuration cannot be verified'
 
     write_streaming_configurer 'configurer.setDefaultTimeout(0).registerCallableInterceptors();'
+    prepare_maven streaming_final_format spring "${streaming_app}" process-resources -Pformat
     git -C "${streaming_app}" add --all
     git -C "${streaming_app}" commit --quiet --message 'test(it): exercise streaming timeout governance' \
         --message 'Real HTTP requests exercise direct and wrapped streaming with an explicit production timeout.'

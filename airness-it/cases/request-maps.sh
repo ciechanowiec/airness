@@ -187,6 +187,8 @@ class RequestMapsTest {
     }
 }
 JAVA
+    # Normalize generated fixture layout through the installed formatter before verifying it.
+    prepare_maven request_map_format spring "${request_map_app}" process-resources -Pformat
     git -C "${request_map_app}" add --all
     run_maven request_map_verify spring "${request_map_app}" clean verify
     expect_exit request_map_verify 'spring: whole-request maps pass installed-parent verification' 0

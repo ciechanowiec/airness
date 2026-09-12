@@ -41,7 +41,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(proxyBeanMethods = false)
 public final class Application {
-
     /**
      * Starts the application whose ready context supplies message evidence.
      *
@@ -67,9 +66,9 @@ package com.example;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.availability.ApplicationAvailability;
 import org.springframework.boot.availability.ReadinessState;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestConstructor;
 
 @SpringBootTest(
@@ -79,7 +78,6 @@ import org.springframework.test.context.TestConstructor;
 )
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class ApplicationTest {
-
     private final ApplicationAvailability availability;
 
     ApplicationTest(ApplicationAvailability availability) {
@@ -95,9 +93,7 @@ JAVA
     cat > "${message_app}/src/main/resources/templates/page.html" <<'HTML'
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-    <body>
-        <p th:text="#{browse.more}">More</p>
-    </body>
+<body><p th:text="#{browse.more}">More</p></body>
 </html>
 HTML
     printf 'browse.next=Next page\n' > "${message_app}/src/main/resources/messages.properties"
@@ -105,6 +101,7 @@ HTML
     git -C "${message_app}" config user.name Fixture
     git -C "${message_app}" config user.email fixture@example.invalid
     prepare_maven message_assets spring "${message_app}" --quiet airness:assets-sync
+    prepare_maven message_format spring "${message_app}" process-resources -Pformat
     git -C "${message_app}" add --all
     git -C "${message_app}" commit --quiet --message 'test(it): create a template message consumer' \
         --message 'The application starts but its template contains an undefined literal message key.'
