@@ -1,8 +1,15 @@
 #!/usr/bin/env sh
 
 run_streaming_timeout_cases() {
+    # Built here rather than cloned from the spring cases, so that the two can run in separate lanes.
+    # This is the same application the open-named case builds, minus the endpoint: the chain and the
+    # advice a web module owes stay, and streaming controllers take the place of the plain one. The
+    # endpoint is staged before it is removed, exactly as cloning that fixture used to leave it.
     streaming_app="${scratch}/streaming-app"
-    clone_tree "${spring_open_named}" "${streaming_app}"
+    build_spring_application "${streaming_app}" streaming_assets
+    build_spring_context_test "${streaming_app}"
+    write_spring_web_module "${streaming_app}" '/api/orders'
+    git -C "${streaming_app}" add --all
     rm "${streaming_app}/src/main/java/com/example/Orders.java"
     cat > "${streaming_app}/src/main/java/com/example/Streams.java" <<'JAVA'
 package com.example;

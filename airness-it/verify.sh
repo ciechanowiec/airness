@@ -21,6 +21,13 @@ case "${selected_domain}" in
         ;;
 esac
 
+# Lowered once here, before anything forks, because niceness is inherited: every lane and every Maven
+# process under it runs at this priority. On a workstation the suite is a background chore that must not
+# fight the editor or another build for the machine. It costs a dedicated runner nothing, since niceness
+# only decides who yields when something else wants the processor. Containers are outside this: they are
+# scheduled by the Docker daemon rather than by a child of this shell.
+renice 19 -p "$$" > /dev/null 2>&1 || true
+
 scratch="$(mktemp -d "${HOME}/.airness-it-XXXXXX")"
 started="$(date +%s)"
 failures=0
@@ -31,6 +38,9 @@ physical_executions=0
 result_domain=''
 consumer_template="${scratch}/.consumer-template"
 local_repository="${MAVEN_REPO_LOCAL:-${HOME}/.m2/repository}"
+lane_results="${scratch}/.lanes"
+exclusive_lock="${scratch}/.extended.lock"
+mkdir -p "${lane_results}"
 
 default_logs="${repository}/logs/airness-it"
 timings="${AIRNESS_IT_TIMINGS:-${default_logs}/timings.tsv}"
@@ -80,19 +90,28 @@ printf '  %sharness %s, installed-artifact and process boundaries%s\n' \
 if [ -n "${selected_domain}" ]; then
     printf '  %spartial domain: %s; this run cannot claim the full integration verdict%s\n' \
         "${style_dim}" "${selected_domain}" "${style_off}"
+else
+    printf '  %sthree lanes: repository and the short domains | spring and containers | streaming%s\n' \
+        "${style_dim}" "${style_off}"
+    printf '  %seach lane is replayed whole when it is joined; follow one live under %s%s\n' \
+        "${style_dim}" "${lane_results}" "${style_off}"
 fi
 
 case "${selected_domain}" in
     '')
-        run_maven_cases
-        run_analysis_cases
-        run_template_cases
-        run_repository_cases
-        run_spring_cases
-        run_streaming_timeout_cases
-        run_template_message_cases
-        run_container_cases
-        run_scanner_cases
+        # The consumer template is built once here rather than inside a lane, because every lane clones
+        # it. The partition is measured rather than chosen, and the one ordering it encodes is that the
+        # container cases read the fixture the spring cases build, so those two share a lane.
+        ensure_consumer_template
+        start_lane repository run_maven_cases run_analysis_cases run_template_cases \
+            run_repository_cases run_scanner_cases
+        start_lane spring run_spring_cases run_container_cases
+        start_lane streaming run_streaming_timeout_cases run_template_message_cases
+        # Joined shortest lane first, so the transcript arrives as lanes finish, and in an order where no
+        # lane's last heading repeats the next lane's first.
+        join_lane repository
+        join_lane spring
+        join_lane streaming
         ;;
     maven)
         run_maven_cases

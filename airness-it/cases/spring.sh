@@ -1,9 +1,12 @@
 #!/usr/bin/env sh
 
-run_spring_cases() {
-spring_app="${scratch}/spring-app"
-mkdir -p "${spring_app}/src/main/java/com/example" "${spring_app}/src/test/java/com/example"
-cat > "${spring_app}/pom.xml" <<'POM'
+# Writes the Spring Boot consumer fixture and commits it, naming its own assets execution so that two
+# lanes building a copy each do not write the same log. Two lanes need it: the spring cases assert
+# against this fixture, and the streaming cases start from the same application plus a web module.
+build_spring_application() {
+spring_fixture="$1"
+mkdir -p "${spring_fixture}/src/main/java/com/example" "${spring_fixture}/src/test/java/com/example"
+cat > "${spring_fixture}/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
@@ -87,7 +90,7 @@ cat > "${spring_app}/pom.xml" <<'POM'
     </build>
 </project>
 POM
-cat > "${spring_app}/src/main/java/com/example/package-info.java" <<'JAVA'
+cat > "${spring_fixture}/src/main/java/com/example/package-info.java" <<'JAVA'
 /**
  * A Spring Boot application built against the harness.
  */
@@ -96,7 +99,7 @@ package com.example;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
-cat > "${spring_app}/src/main/java/com/example/Application.java" <<'JAVA'
+cat > "${spring_fixture}/src/main/java/com/example/Application.java" <<'JAVA'
 package com.example;
 
 import org.springframework.boot.SpringApplication;
@@ -118,7 +121,7 @@ public final class Application {
     }
 }
 JAVA
-cat > "${spring_app}/src/main/java/com/example/Greetings.java" <<'JAVA'
+cat > "${spring_fixture}/src/main/java/com/example/Greetings.java" <<'JAVA'
 package com.example;
 
 import org.springframework.stereotype.Component;
@@ -149,7 +152,7 @@ public final class Greetings {
     }
 }
 JAVA
-cat > "${spring_app}/src/test/java/com/example/GreetingsTest.java" <<'JAVA'
+cat > "${spring_fixture}/src/test/java/com/example/GreetingsTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -174,41 +177,34 @@ class GreetingsTest {
     }
 }
 JAVA
-cat > "${spring_app}/AGENTS.md" <<'INSTRUCTIONS'
+cat > "${spring_fixture}/AGENTS.md" <<'INSTRUCTIONS'
 # Consumer instructions
 
 Run the Maven verification before committing a change.
 INSTRUCTIONS
-git -C "${spring_app}" init --quiet
-git -C "${spring_app}" config user.name Fixture
-git -C "${spring_app}" config user.email fixture@example.invalid
-prepare_maven spring_assets spring "${spring_app}" --quiet airness:assets-sync
+git -C "${spring_fixture}" init --quiet
+git -C "${spring_fixture}" config user.name Fixture
+git -C "${spring_fixture}" config user.email fixture@example.invalid
+prepare_maven "$2" spring "${spring_fixture}" --quiet airness:assets-sync
 # No format step, deliberately, and the fixture verifies without one. That is the guard on the Java 25
 # recipe set: spring-boot-starter-test carries Mockito transitively, and while the upstream migration
 # wired Mockito's agent into surefire, every Spring Boot project failed its first build until it had
 # accepted that wiring into its own project file. A format step here would absorb the same thing
 # silently if it ever came back.
-git -C "${spring_app}" add --all
-git -C "${spring_app}" commit --quiet \
+git -C "${spring_fixture}" add --all
+git -C "${spring_fixture}" commit --quiet \
     --message 'test(it): create a Spring Boot consumer fixture' \
     --message 'The fixture carries one bean and one entry point, so a consumer build has something to report on.'
+}
 
-run_maven spring_unit_missing spring "${spring_app}" clean verify
-expect_exit spring_unit_missing 'spring: unit tests alone do not prove application startup' 1
-expect_match spring_unit_missing 'spring: the missing current-run startup evidence is explicit' \
-    'Spring application context not started by this build'
-run_maven spring_missing_report_only spring "${spring_app}" \
-    clean test airness:spring-context -Dairness.enforce=false
-expect_exit spring_missing_report_only \
-    'spring: missing startup evidence remains visible in report-only mode' 0
-expect_match spring_missing_report_only \
-    'spring: report-only still names the missing current-run evidence' \
-    'Spring application context not started by this build'
-
+# Adds the composed context test the ready-application cases need. Separate from the fixture itself,
+# because the case that proves unit tests alone are not startup evidence has to run before it exists.
+build_spring_context_test() {
+spring_fixture="$1"
 # The marker is composed, so neither the test class nor the evidence goal has to name @SpringBootTest.
 # Its classes member deliberately names the real production application: an explicit source that still
 # performs the production component scan is valid, while the narrowed source case below is not.
-cat > "${spring_app}/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
+cat > "${spring_fixture}/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
 package com.example;
 
 import java.lang.annotation.Documented;
@@ -233,7 +229,7 @@ import org.springframework.test.context.TestConstructor;
 public @interface ApplicationTest {
 }
 JAVA
-cat > "${spring_app}/src/test/java/com/example/ContextTest.java" <<'JAVA'
+cat > "${spring_fixture}/src/test/java/com/example/ContextTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -255,46 +251,11 @@ class ContextTest {
     }
 }
 JAVA
-git -C "${spring_app}" add --all
-git -C "${spring_app}" commit --quiet \
+git -C "${spring_fixture}" add --all
+git -C "${spring_fixture}" commit --quiet \
     --message 'test(it): prove the Spring application reaches ready'
+}
 
-run_maven spring_verify spring "${spring_app}" clean verify
-expect_exit spring_verify 'spring: a conforming Spring Boot application verifies' 0
-expect_match spring_verify 'spring: the conforming lifecycle reaches a build verdict' 'BUILD SUCCESS'
-# The startup evidence must pass before the isolated source-formatting violation is reached.
-spring_static_failure="${scratch}/spring-static-failure"
-clone_tree "${spring_app}" "${spring_static_failure}"
-perl -0pi -e 's/\n}\n$/\n\n}\n/' "${spring_static_failure}/src/test/java/com/example/ContextTest.java"
-expect_static_refusal "${spring_static_failure}" spring_checkstyle_order \
-    'Empty lines before a closing brace are not allowed'
-
-expect_no_match spring_verify 'spring: a Spring type only a test names is not reported as test only' \
-    'Non-test scoped test only dependencies found'
-# The model goal is bound rather than invoked, so this is where that binding is proven. Every other case
-# runs a goal from the command line, which says nothing about the phase a consumer would meet it at, and
-# this is the one consumer here that runs a whole lifecycle. It passing is the other half of the claim:
-# the fixture declares the actuator a repackaged module has to, so the rule is satisfiable as well as real.
-spring_verify_log="$(execution_log spring_verify)"
-if grep -q 'airness-spring-model' "${spring_verify_log}"; then
-    pass 'spring: the model goal runs from its validate binding rather than from a command line'
-else
-    fail 'spring: the model goal never ran in a full consumer build'
-fi
-if grep -qx 'com.example.Application' "${spring_app}/target/airness/spring-context.evidence"; then
-    pass 'spring: a composed context test records the production application source'
-else
-    fail 'spring: the ready production application left no exact runtime evidence'
-fi
-
-run_repository_proxy_cases
-
-# What a running application leaves open is only visible from the ready context, so these two cases are
-# the only place the probe is exercised against a real container. The endpoints, the advice and the chain
-# are added together because a module with controllers owes an advice, and the two consumers differ by
-# one matcher: the one naming the pattern it opens, and the one opening a prefix it never reread.
-spring_open_named="${scratch}/spring-open-named"
-clone_tree "${spring_app}" "${spring_open_named}"
 write_spring_web_module() {
     cat > "$1/src/main/java/com/example/Orders.java" <<'JAVA'
 package com.example;
@@ -377,6 +338,61 @@ public class Security {
 }
 JAVA
 }
+
+run_spring_cases() {
+spring_app="${scratch}/spring-app"
+build_spring_application "${spring_app}" spring_assets
+
+run_maven spring_unit_missing spring "${spring_app}" clean verify
+expect_exit spring_unit_missing 'spring: unit tests alone do not prove application startup' 1
+expect_match spring_unit_missing 'spring: the missing current-run startup evidence is explicit' \
+    'Spring application context not started by this build'
+run_maven spring_missing_report_only spring "${spring_app}" \
+    clean test airness:spring-context -Dairness.enforce=false
+expect_exit spring_missing_report_only \
+    'spring: missing startup evidence remains visible in report-only mode' 0
+expect_match spring_missing_report_only \
+    'spring: report-only still names the missing current-run evidence' \
+    'Spring application context not started by this build'
+
+build_spring_context_test "${spring_app}"
+
+run_maven spring_verify spring "${spring_app}" clean verify
+expect_exit spring_verify 'spring: a conforming Spring Boot application verifies' 0
+expect_match spring_verify 'spring: the conforming lifecycle reaches a build verdict' 'BUILD SUCCESS'
+# The startup evidence must pass before the isolated source-formatting violation is reached.
+spring_static_failure="${scratch}/spring-static-failure"
+clone_tree "${spring_app}" "${spring_static_failure}"
+perl -0pi -e 's/\n}\n$/\n\n}\n/' "${spring_static_failure}/src/test/java/com/example/ContextTest.java"
+expect_static_refusal "${spring_static_failure}" spring_checkstyle_order \
+    'Empty lines before a closing brace are not allowed'
+
+expect_no_match spring_verify 'spring: a Spring type only a test names is not reported as test only' \
+    'Non-test scoped test only dependencies found'
+# The model goal is bound rather than invoked, so this is where that binding is proven. Every other case
+# runs a goal from the command line, which says nothing about the phase a consumer would meet it at, and
+# this is the one consumer here that runs a whole lifecycle. It passing is the other half of the claim:
+# the fixture declares the actuator a repackaged module has to, so the rule is satisfiable as well as real.
+spring_verify_log="$(execution_log spring_verify)"
+if grep -q 'airness-spring-model' "${spring_verify_log}"; then
+    pass 'spring: the model goal runs from its validate binding rather than from a command line'
+else
+    fail 'spring: the model goal never ran in a full consumer build'
+fi
+if grep -qx 'com.example.Application' "${spring_app}/target/airness/spring-context.evidence"; then
+    pass 'spring: a composed context test records the production application source'
+else
+    fail 'spring: the ready production application left no exact runtime evidence'
+fi
+
+run_repository_proxy_cases
+
+# What a running application leaves open is only visible from the ready context, so these two cases are
+# the only place the probe is exercised against a real container. The endpoints, the advice and the chain
+# are added together because a module with controllers owes an advice, and the two consumers differ by
+# one matcher: the one naming the pattern it opens, and the one opening a prefix it never reread.
+spring_open_named="${scratch}/spring-open-named"
+clone_tree "${spring_app}" "${spring_open_named}"
 write_spring_web_module "${spring_open_named}" '/api/orders'
 git -C "${spring_open_named}" add --all
 # The goal is invoked after the test phase rather than reached through prepare-package, because the
