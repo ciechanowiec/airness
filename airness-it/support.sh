@@ -340,7 +340,8 @@ JAVA
     git -C "${fixture_directory}" config user.name Fixture
     git -C "${fixture_directory}" config user.email fixture@example.invalid
     prepare_maven setup_assets setup "${fixture_directory}" --quiet airness:assets-sync
-    prepare_maven setup_format setup "${fixture_directory}" --quiet process-resources -Pformat -Dairness.enforce=false
+    # Fixtures are written in their accepted format. Their verification checks it, so setup needs no
+    # separate formatting lifecycle before every copied consumer runs the same checks again.
     rm -rf "${fixture_directory}/target"
     git -C "${fixture_directory}" add --all
     git -C "${fixture_directory}" commit --quiet \

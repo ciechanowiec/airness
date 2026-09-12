@@ -116,21 +116,6 @@ jobs:
           nohup xargs -n 1 docker pull --quiet < "$RUNNER_TEMP/images.txt" \
             > "$RUNNER_TEMP/image-pull.log" 2>&1 &
 
-      - name: 'Install Airness documentation tools'
-        if: steps.release_state.outputs.central_published != 'true'
-        env:
-          VALE_VERSION: '3.15.1'
-          VALE_SHA256: 'c024d9c157874fb043d4f24a055d60050d1bb18755251f590593eed5bace1857'
-        run: |
-          set -eu
-          sudo apt-get update
-          sudo apt-get install --yes asciidoctor poppler-utils tesseract-ocr
-          archive="$RUNNER_TEMP/vale.tar.gz"
-          curl --fail --location --silent --show-error --output "$archive" \
-            "https://github.com/vale-cli/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
-          echo "$VALE_SHA256  $archive" | sha256sum --check
-          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
-
       - name: 'Run Extended verification and install release artifacts'
         if: steps.release_state.outputs.central_published != 'true'
         run: mvn --batch-mode --no-transfer-progress clean install -Pextended
@@ -213,6 +198,16 @@ jobs:
       - name: 'Verify isolated consumers'
         if: steps.publish.outcome == 'success'
         run: sh airness-it/verify.sh
+
+      - name: 'Retain consumer execution timings'
+        if: always() && hashFiles('logs/airness-it/timings.tsv') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: airness-it-timings
+          path: logs/airness-it/timings.tsv
+          retention-days: 14
+          compression-level: 0
+          if-no-files-found: error
 
       - name: 'Create GitHub Release'
         if: >-
