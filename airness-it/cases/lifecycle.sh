@@ -48,6 +48,7 @@ class ExampleTest {
     }
 }
 JAVA
+    prepare_maven setup_lifecycle_pmd setup "${consumer_directory}" --quiet process-resources -Pformat
     expect_static_refusal "${consumer_directory}" pmd_order 'Rule:AvoidLiteralsInIfCondition'
 
     new_consumer lifecycle-cpd
@@ -87,5 +88,6 @@ class ExampleTest {
     }
 }
 JAVA
+    prepare_maven setup_lifecycle_cpd setup "${consumer_directory}" --quiet process-resources -Pformat
     expect_static_refusal "${consumer_directory}" cpd_order 'has found [0-9]+ duplication'
 }
