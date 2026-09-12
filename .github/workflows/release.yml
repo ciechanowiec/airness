@@ -104,6 +104,18 @@ jobs:
           fi
           echo 'central_published=false' >> "$GITHUB_OUTPUT"
 
+      - name: 'Pull the pinned check images while the build runs'
+        if: steps.release_state.outputs.central_published != 'true'
+        run: |
+          set -eu
+          sed -n 's|^ *<[a-z]*\.image>\(.*\)</[a-z]*\.image> *$|\1|p' pom.xml > "$RUNNER_TEMP/images.txt"
+          test -s "$RUNNER_TEMP/images.txt"
+          cat "$RUNNER_TEMP/images.txt"
+          # Detached on purpose: these have to outlive the step so that a multi-gigabyte pull happens
+          # while Maven compiles rather than when the first check asks for the image.
+          nohup xargs -n 1 docker pull --quiet < "$RUNNER_TEMP/images.txt" \
+            > "$RUNNER_TEMP/image-pull.log" 2>&1 &
+
       - name: 'Install Airness documentation tools'
         if: steps.release_state.outputs.central_published != 'true'
         env:
