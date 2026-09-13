@@ -2634,15 +2634,41 @@
                 It ties the handler to the servlet stack, makes it untestable without a container, and usually
                 hides a parameter that should have been declared. A filter or an interceptor is a different
                 thing and is not matched, because the rule asks for a controller around the signature.
+
+                One type to a rule, because the value each of them hides is reached by a different
+                declaration, and one message naming all three remedies leaves every reader to work out
+                which of them is theirs.
             -->
-            <property name="id" value="AirnessSpringWebSignatureIsNotServletTyped"/>
+            <property name="id" value="AirnessSpringWebSignatureIsNotRequestTyped"/>
             <property name="query"
-                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RestController' or @text='Controller']]//PARAMETER_DEF/TYPE/IDENT[@text='HttpServletRequest' or @text='HttpServletResponse' or @text='HttpSession']"/>
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RestController' or @text='Controller']]//PARAMETER_DEF/TYPE/IDENT[@text='HttpServletRequest']"/>
             <message key="matchxpath.match"
-                     value="A servlet type in a handler signature ties the controller to the container and hides the value it actually wanted. Declare that value as a parameter instead."/>
+                     value="A servlet request in a handler signature ties the controller to the container and hides the value it actually wanted. Declare that value with @RequestParam, @RequestHeader, @CookieValue or @PathVariable."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
-            <property name="id" value="AirnessSpringWebSignatureIsNotServletTyped"/>
+            <property name="id" value="AirnessSpringWebSignatureIsNotRequestTyped"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringWebSignatureIsNotResponseTyped"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RestController' or @text='Controller']]//PARAMETER_DEF/TYPE/IDENT[@text='HttpServletResponse']"/>
+            <message key="matchxpath.match"
+                     value="A servlet response in a handler signature ties the controller to the container and takes the answer out of the return type. Answer with a ResponseEntity instead."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebSignatureIsNotResponseTyped"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringWebSignatureIsNotSessionTyped"/>
+            <property name="query"
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='RestController' or @text='Controller']]//PARAMETER_DEF/TYPE/IDENT[@text='HttpSession']"/>
+            <message key="matchxpath.match"
+                     value="A servlet session in a handler signature ties the controller to the container and hides what the handler reads out of it. Read that value with @SessionAttribute and keep it with @SessionAttributes."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringWebSignatureIsNotSessionTyped"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
 
