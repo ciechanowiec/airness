@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -46,8 +48,15 @@ import org.springframework.web.util.ServletRequestPathUtils;
  * keeps it from being an inert word.
  *
  * <p>Only handlers the application itself declares are read. Mappings contributed by the framework,
- * the error controller and the actuator endpoints among them, belong to the rules already written
- * about them.
+ * the actuator endpoints among them, belong to the rules already written about them.
+ *
+ * <p>The error address is the one framework mapping asked about here, and it is asked as a question
+ * of its own rather than read as a mapping. A refusal leaves an application as a second dispatch of
+ * the same request, to that address, and the chain covers that dispatch as well as the first. Where
+ * it refuses that one, every refusal the application answers to a caller without an account becomes
+ * a redirect to wherever the chain sends a stranger, rather than the refusal the application chose.
+ * No reader of the source can settle it, because it is decided by a matcher written in one file and
+ * a dispatcher-type setting usually written nowhere at all.
  *
  * <p>A context that is not active is not a context this can ask, and nothing is recorded for one.
  * That silence cannot stand in for an answer: the rule reading this evidence is written beside the
@@ -68,6 +77,15 @@ final class SpringOpenEndpoints {
 
     private static final String ANONYMOUS = "anonymous";
     private static final String SEGMENT = "1";
+    private static final String ERROR_ADDRESS = "/error";
+    private static final String DISPATCHER_TYPES = "spring.security.filter.dispatcher-types";
+    private static final String ERROR_DISPATCH = "ERROR";
+
+    /**
+     * What Spring Boot filters when a deployment says nothing, which is every dispatch that can carry
+     * a refusal out of an application.
+     */
+    private static final Set<String> FILTERED = Set.of("ASYNC", ERROR_DISPATCH, "REQUEST");
 
     /**
      * Every mapping of the application that an anonymous request is allowed to reach.
@@ -85,6 +103,68 @@ final class SpringOpenEndpoints {
                 .map(proxy -> admitted(context, roots, proxy))
                 .orElseGet(List::of)
             : List.of();
+    }
+
+    /**
+     * Where this application draws the refusals it answers to a caller without an account.
+     *
+     * <p>It is asked only of a chain that has already admitted a mapping of the application, and for
+     * two reasons. An application admitting a caller without an account to nothing at all answers
+     * them no refusal of its own either, so the address those refusals are drawn at decides nothing.
+     * And a chain this has already put a request to is a chain it is known to be able to put a
+     * request to: a matcher that resolves the dispatcher's own context out of the servlet container
+     * answers nothing to a request assembled here, and asking it anyway would end the run that was
+     * being observed rather than record what it decided.
+     *
+     * @param context  the context Spring Boot made ready
+     * @param admitted the mappings of the application this chain was already found to admit
+     * @return one {@code error-dispatch} line reading {@code open} where the chain admits an
+     *         anonymous caller to the error address, {@code closed} where it refuses one, and
+     *         {@code unfiltered} where the chain does not cover that dispatch at all, and nothing
+     *         where this chain admits nobody to anything or is not a context that can be asked
+     */
+    static List<String> errorDispatch(ConfigurableApplicationContext context, Collection<String> admitted) {
+        return !admitted.isEmpty() && context.isActive()
+            ? context.getBeanProvider(FilterChainProxy.class)
+                .stream()
+                .findFirst()
+                .map(proxy -> List.of("error-dispatch " + verdict(context, proxy)))
+                .orElseGet(List::of)
+            : List.of();
+    }
+
+    /**
+     * What the chain does with the dispatch a refusal arrives on.
+     *
+     * @param context the ready context
+     * @param proxy   the built security chain of the application
+     * @return the verdict recorded for that address
+     */
+    private static String verdict(ConfigurableApplicationContext context, FilterChainProxy proxy) {
+        return covered(context) ? drawn(proxy) : "unfiltered";
+    }
+
+    private static String drawn(FilterChainProxy proxy) {
+        return open(proxy, new Probe("GET", ERROR_ADDRESS)) ? "open" : "closed";
+    }
+
+    /**
+     * Whether the chain runs on the dispatch a refusal arrives on at all.
+     *
+     * <p>A deployment that names the dispatch types without the error one has answered this question
+     * the other way, by leaving that dispatch to the application, and is asked nothing further. The
+     * setting is bound rather than read as text, because a deployment may write it as a list or as
+     * one comma-separated value and both say the same thing.
+     *
+     * @param context the ready context
+     * @return whether a refusal of this application passes through its security chain a second time
+     */
+    private static boolean covered(ConfigurableApplicationContext context) {
+        return Binder.get(context.getEnvironment())
+            .bind(DISPATCHER_TYPES, Bindable.setOf(String.class))
+            .orElse(FILTERED)
+            .stream()
+            .anyMatch(ERROR_DISPATCH::equalsIgnoreCase);
     }
 
     /**

@@ -78,15 +78,15 @@ class SpringContextEvidenceTest {
 
     @Test
     @SneakyThrows
-    void recordsTheMappingsTheReadySecurityChainLeavesOpen() {
+    void recordsWhatTheReadySecurityChainDecided() {
         Path evidence = this.directory.resolve("open.evidence");
 
         this.ready(new SpringApplication(ApplicationSource.class), evidence, this.web());
 
         assertEquals(
-            List.of(ApplicationSource.class.getName(), "open GET /public"),
+            List.of(ApplicationSource.class.getName(), "open GET /public", "error-dispatch open"),
             Files.readAllLines(evidence),
-            "the run records both that it started and what starting it exposed"
+            "the run records that it started, what starting it exposed, and where it draws a refusal"
         );
     }
 
