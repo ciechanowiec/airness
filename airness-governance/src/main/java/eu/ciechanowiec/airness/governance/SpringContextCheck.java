@@ -35,6 +35,7 @@ public final class SpringContextCheck {
     private static final String OPENED = "open ";
     private static final String UNKNOWN_BEANS = "Security expressions naming a bean this application does not declare";
     private static final String UNKNOWN_CALLS = "Security expressions calling a method their bean does not have";
+    private static final String REFUSALS = "Refusals this application cannot draw for a caller without an account";
 
     private final Path evidence;
     private final long started;
@@ -102,7 +103,8 @@ public final class SpringContextCheck {
             new Findings(MISSING, this.missing(recorded)),
             new Findings(OPEN, SpringEndpointRules.undeclared(opened(recorded), this.types)),
             new Findings(UNKNOWN_BEANS, SpringGuardBeanRules.unknownBeans(recorded)),
-            new Findings(UNKNOWN_CALLS, SpringGuardBeanRules.unknownCalls(recorded))
+            new Findings(UNKNOWN_CALLS, SpringGuardBeanRules.unknownCalls(recorded)),
+            new Findings(REFUSALS, SpringRefusalRules.undrawn(recorded))
         );
     }
 

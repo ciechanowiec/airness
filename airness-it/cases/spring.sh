@@ -331,6 +331,7 @@ public class Security {
             .authorizeHttpRequests(
                 registry -> registry
                     .requestMatchers("$2").permitAll()
+                    .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
             )
             .build();
@@ -477,6 +478,7 @@ public class Security {
                 registry -> registry
                     .requestMatchers(HttpMethod.GET, "/api/orders").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+                    .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
             )
             .build();
@@ -506,6 +508,57 @@ write_spring_method_chain "${spring_open_methods}"
 git -C "${spring_open_methods}" add --all
 run_maven spring_open_methods spring "${spring_open_methods}" clean test airness:spring-context
 expect_exit spring_open_methods 'spring: a matcher per method over two mappings passes the context goal' 0
+
+# Where an application draws its refusals is decided by the same chain and is visible from the same
+# ready context. This fixture is the passing one above with the error address taken back out, which is
+# what every chain looks like until somebody thinks of it: the endpoint it opens is answered, and every
+# refusal it decides on is answered by a redirect to the sign-in form instead.
+write_spring_refusing_chain() {
+    cat > "$1/src/main/java/com/example/Security.java" <<'JAVA'
+package com.example;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+/**
+ * What this application asks of a caller.
+ */
+@Configuration(proxyBeanMethods = false)
+public class Security {
+
+    /**
+     * Builds the chain every request is decided by.
+     *
+     * @param http the chain under construction
+     * @return the built chain
+     * @throws Exception when the chain cannot be built
+     */
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+        return http
+            .authorizeHttpRequests(
+                registry -> registry
+                    .requestMatchers("/api/orders").permitAll()
+                    .anyRequest().authenticated()
+            )
+            .build();
+    }
+}
+JAVA
+}
+spring_refusals="${scratch}/spring-refusals"
+clone_tree "${spring_app}" "${spring_refusals}"
+write_spring_web_module "${spring_refusals}" '/api/orders'
+write_spring_refusing_chain "${spring_refusals}"
+git -C "${spring_refusals}" add --all
+run_maven spring_refusals spring "${spring_refusals}" clean test airness:spring-context
+expect_exit spring_refusals 'spring: a chain that refuses the error address fails the context goal' 1
+expect_match spring_refusals 'spring: the offence names the dispatch a refusal arrives on' \
+    'a second dispatch of the same request, to /error'
+expect_match spring_refusals 'spring: the offence names the matcher that would draw the refusal' \
+    'requestMatchers\("/error"\).permitAll\(\)'
 
 # Reaching ready is not enough on its own. The source of that ready run must be the production
 # application, so an explicit test-only configuration cannot stand in for the component scan.

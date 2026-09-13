@@ -113,11 +113,11 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
      *
      * @param context the ready context
      * @param sources the primary source class names of the run
-     * @return the open-mapping lines followed by the guard lines
+     * @return the open-mapping lines and the refusal line, followed by the guard lines
      */
     private List<String> decided(ConfigurableApplicationContext context, Collection<String> sources) {
         return Stream.concat(
-            this.open(context, sources).stream(), this.guards(context, sources).stream()
+            this.chain(context, sources).stream(), this.guards(context, sources).stream()
         ).toList();
     }
 
@@ -153,15 +153,34 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
     }
 
     /**
-     * The mappings the ready context leaves open, asked for only where the stack that has them is on
-     * the classpath.
+     * What the built chain of the ready context decided, asked for only where the stack that decides
+     * it is on the classpath.
+     *
+     * <p>Both questions are asked under the one gate because both are answered by the same chain out
+     * of the same classes, and a gate apiece would be two ways of saying that this application does
+     * not build a web security chain.
      *
      * @param context the ready context
      * @param sources the primary source class names of the run
-     * @return the evidence lines, and nothing where this application builds no web security chain
+     * @return the mappings it leaves open and the address it draws a refusal at, and nothing where
+     *         this application builds no web security chain
      */
-    private List<String> open(ConfigurableApplicationContext context, Collection<String> sources) {
-        return SERVLET_SECURITY ? SpringOpenEndpoints.reached(context, roots(sources)) : List.of();
+    private List<String> chain(ConfigurableApplicationContext context, Collection<String> sources) {
+        return SERVLET_SECURITY ? asked(context, roots(sources)) : List.of();
+    }
+
+    /**
+     * Both questions the built chain answers, the second asked of what the first found.
+     *
+     * @param context the ready context
+     * @param roots   the package roots the handlers of the application sit under
+     * @return the mappings it leaves open and the address it draws a refusal at
+     */
+    private static List<String> asked(ConfigurableApplicationContext context, Set<String> roots) {
+        List<String> reached = SpringOpenEndpoints.reached(context, roots);
+        return Stream.concat(
+            reached.stream(), SpringOpenEndpoints.errorDispatch(context, reached).stream()
+        ).toList();
     }
 
     /**
