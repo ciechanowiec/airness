@@ -15,6 +15,12 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Runs Qodana once per reactor from a writable copy of a read-only repository mount.
+ *
+ * <p>The copy leaves out what the ignore files already exclude, rather than taking everything and
+ * deleting it a moment later. Build output carries a scanner's temporary tree, and a scanner deletes
+ * its report once it has read it, so a copy that walks that tree reaches an entry whose file is gone
+ * and ends the run under set -e. The clean below stays, as the answer for whatever the copy still
+ * brings.
  */
 @Mojo(name = "qodana", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class QodanaMojo extends AbstractDockerCheckMojo {
@@ -54,7 +60,8 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
             "--entrypoint", "/bin/sh", image, "-c",
             "set -eu; "
                 + "mkdir -p /data/project; "
-                + "cp -a /opt/project/. /data/project/; "
+                + "tar -C /opt/project --exclude-vcs-ignores -cf - . "
+                + "| tar -C /data/project -xf -; "
                 + "test \"$(git -C /data/project rev-parse --show-toplevel)\" = /data/project; "
                 + "git -C /data/project clean -dXff; "
                 + "mkdir -p /data/cache/.m2; "
