@@ -51,9 +51,23 @@ final class SpringBodyRules {
         "\\bboolean\\s+(?=equals\\s*\\()|\\bint\\s+(?=hashCode\\s*\\()"
     );
     private static final Pattern HANDLER = Pattern.compile("@ExceptionHandler\\b");
-    private static final Pattern ECHO = Pattern.compile(
-        "\\.\\s*(getMessage|getLocalizedMessage|getStackTrace|printStackTrace)\\s*\\("
-    );
+    /*
+     * The four names below are answered by things that are not exceptions at all, and the commonest of
+     * them is the message source a handler words its own refusal with. Read as a name alone, the marker
+     * refused that ordinary work, and the only way past it was to move the call one method out of the
+     * handler, which hides a genuine leak exactly as well. So the receiver is bound to a parameter the
+     * handler declares: what is read off the exception that was caught is the defect, and what is read
+     * off anything else is not this rule's business.
+     *
+     * Every parameter counts rather than the ones whose type reads like an exception, because a refusal
+     * of this library's own naming carries none of those words and a leak that goes unreported is worse
+     * than a rule that looks one parameter too wide. Nothing else a handler is handed answers these four.
+     *
+     * The chain in the middle is how a handler reaches a cause, the most specific cause of a data access
+     * failure being the text such a handler most often hands out.
+     */
+    private static final String ECHO = "\\s*\\.\\s*(?:\\w+\\s*\\([^()]*\\)\\s*\\.\\s*)*"
+        + "(getMessage|getLocalizedMessage|getStackTrace|printStackTrace)\\s*\\(";
 
     /**
      * Whether a bean assigns one of its own static fields, which is the container bypassed by hand.
@@ -108,7 +122,8 @@ final class SpringBodyRules {
     static List<String> echoedExceptions(CharSequence source) {
         String code = JavaCode.blanked(source);
         return SpringMembers.annotated(code, HANDLER).stream()
-            .flatMap(handler -> echoes(code, handler))
+            .flatMap(handler -> echoes(source, code, handler))
+            .sorted()
             .map(
                 at -> offence(
                     source, at,
@@ -124,8 +139,20 @@ final class SpringBodyRules {
             .filter(member -> reads(code, member, name));
     }
 
-    private static Stream<Integer> echoes(String code, SpringMembers.Member handler) {
-        return ECHO.matcher(code.substring(handler.start(), handler.end())).results()
+    private static Stream<Integer> echoes(CharSequence source, String code, SpringMembers.Member handler) {
+        return caught(source, code, handler).flatMap(name -> calls(code, handler, name));
+    }
+
+    private static Stream<String> caught(CharSequence source, String code, SpringMembers.Member handler) {
+        return SpringParameters.after(code, handler.declaration()).stream()
+            .flatMap(taken -> SpringParameters.in(source, code, taken).stream())
+            .map(SpringParameters.Parameter::name);
+    }
+
+    private static Stream<Integer> calls(String code, SpringMembers.Member handler, String name) {
+        return Pattern.compile("(?<![\\w.$])" + Pattern.quote(name) + ECHO)
+            .matcher(code.substring(handler.start(), handler.end()))
+            .results()
             .map(echo -> handler.start() + echo.start(1));
     }
 

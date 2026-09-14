@@ -237,6 +237,69 @@ class SpringBodyRulesTest {
         assertEquals(List.of(), SpringBodyRules.echoedExceptions("class Plain {}"), "there is no handler to read");
     }
 
+    // The receiver used to be ignored, so any call of these four names was refused wherever it stood. A
+    // handler wording its own refusal reads getMessage off the message source of the library, which is the
+    // ordinary way to answer one, and the marker took it for the exception that had been caught.
+    @Test
+    void acceptsAHandlerWordingItsAnswerThroughAMessageSource() {
+        String source = """
+            package com.example;
+
+            class Errors {
+
+                private final MessageSource messages;
+
+                @ExceptionHandler(Exception.class)
+                String handle(Exception failure, Locale locale) {
+                    return this.messages.getMessage("refused", null, locale);
+                }
+            }
+            """;
+
+        assertEquals(List.of(), SpringBodyRules.echoedExceptions(source), "the words are the library's own");
+    }
+
+    // A cause is the exception read one step further, and the most specific cause of a data access failure
+    // is the text a handler most often hands out, so binding the receiver may not lose it.
+    @Test
+    void reportsAHandlerCopyingTheCauseIntoTheResponse() {
+        String source = """
+            package com.example;
+
+            class Errors {
+
+                @ExceptionHandler(DataAccessException.class)
+                String handle(DataAccessException failure) {
+                    return failure.getMostSpecificCause().getMessage();
+                }
+            }
+            """;
+
+        List<String> offences = SpringBodyRules.echoedExceptions(source);
+
+        assertEquals(1, offences.size(), "the cause carries the same disclosure as the exception");
+        assertTrue(offences.getFirst().contains("reconnaissance"), "the offence names the risk");
+    }
+
+    @Test
+    void acceptsAHandlerThatCatchesNothingItCouldRead() {
+        String source = """
+            package com.example;
+
+            class Errors {
+
+                private final MessageSource messages;
+
+                @ExceptionHandler(RuntimeException.class)
+                String failed() {
+                    return this.messages.getMessage("refused", null, Locale.ENGLISH);
+                }
+            }
+            """;
+
+        assertEquals(List.of(), SpringBodyRules.echoedExceptions(source), "nothing was caught to read from");
+    }
+
     @Test
     void acceptsAStaticFieldTheBeanNeverAssigns() {
         String source = """
