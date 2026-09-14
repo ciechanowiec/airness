@@ -135,6 +135,12 @@
         and the Javadoc style here opens a paragraph without closing it. SingleUseConstantCheck is NOT
         used: MagicNumber sends a quantity used once into a named constant, which this check would then
         report as single-use, so no form satisfies both.
+        qulice 0.36.0 adds no check that can be named here. UnusedPackagePrivateClasses is package-private and
+        does not extend AbstractCheck: qulice runs it itself once Checkstyle has finished, because Checkstyle
+        serves an unchanged file from its cache and would answer a question about the whole package wrongly.
+        JavadocTagsCheck is NOT used either: it forbids @author and @version, which the two Regexp rules under
+        Javadoc below already do, and it demands a well-formed @since on every documented type besides, which
+        is a tag this codebase does not keep.
         -->
         <module name="com.qulice.checkstyle.BracketsStructureCheck"/>
         <module name="com.qulice.checkstyle.CurlyBracketsStructureCheck"/>
@@ -709,6 +715,27 @@
         -->
         <module name="RedundantModifier"/>
         <module name="ModifierOrder"/>
+        <!--
+            A test method is called by the engine that discovered it and by nothing else, so public states a
+            reach the method does not have and invites a reader to look for the caller that widened it. JUnit
+            rejects a private one outright, which leaves package-private as the only accurate answer; the
+            allowed value below is spelled package, although the diagnostic prints it as package-private.
+
+            The annotations are named in full because the setter replaces the default rather than adding to
+            it, and the list covers the parameterized and repeated forms a consuming project will reach for
+            even where this repository uses only @Test. A test written as a default method on an interface is
+            the one shape this cannot ask for, since an interface member cannot be package-private; none is
+            written here, and one would need a filter rather than a change to this rule.
+        -->
+        <module name="AnnotatedDeclarationVisibility">
+            <property name="id" value="AirnessTestMethodsAreNotPublic"/>
+            <property name="annotations"
+                      value="org.junit.jupiter.api.Test, org.junit.jupiter.params.ParameterizedTest, org.junit.jupiter.api.RepeatedTest, org.junit.jupiter.api.TestFactory, org.junit.jupiter.api.TestTemplate"/>
+            <property name="visibility" value="package"/>
+            <property name="tokens" value="METHOD_DEF"/>
+            <message key="annotated.visibility.modifier"
+                     value="A test method is reached by the engine alone, so it is package-private. Remove the visibility modifier."/>
+        </module>
 
         <!--
         Naming Conventions
@@ -795,10 +822,44 @@
         <!--
         Javadoc
         -->
+        <!--
+            @author and @version are forbidden below, so they are not ordered here. Naming them in this list
+            as well would report the same mistake twice, once for the tag and once for its position, and the
+            ordering message quotes the list back to the reader, which would advertise a tag the harness
+            refuses. A tag this list does not name is passed over rather than reported, so dropping them
+            changes nothing for the tags that remain.
+        -->
         <module name="AtclauseOrder">
             <property name="tagOrder"
-                      value="@author, @version, @param, @return, @throws, @exception, @deprecated, @since, @see, @serial, @serialField, @serialData"/>
+                      value="@param, @return, @throws, @exception, @deprecated, @since, @see, @serial, @serialField, @serialData"/>
             <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
+        <!--
+            @author names a person where the history already names everyone who touched the file, and it is
+            wrong the moment a second person does. @version restates what the build declares, with nothing
+            holding the two together. Both are written once and then read as true for years.
+
+            IllegalBlockTag is deliberately not used for this: it asks whether a tag's text matches a pattern
+            rather than whether the tag is there, and a ban is only reachable by giving it a pattern that
+            cannot match. Its tokens carry neither PACKAGE_DEF nor VARIABLE_DEF, so a tag in a package-info
+            file or over a field would pass, and this configuration requires a package-info in every package.
+            The Regexp form below reads the file rather than the tree and has no such gap. The leading
+            asterisk anchors the match to a Javadoc line, which JavadocBlockTagLocation above guarantees is
+            where a block tag sits, so prose naming a tag and a commented-out line are left alone.
+        -->
+        <module name="Regexp">
+            <property name="id" value="AirnessJavadocNamesNoAuthor"/>
+            <property name="format" value="^\s*\*\s*@author\b"/>
+            <property name="illegalPattern" value="true"/>
+            <property name="message"
+                      value="The @author tag names one person where the history names everyone who touched the file, and it goes stale as soon as a second person does. Delete it and let the history answer."/>
+        </module>
+        <module name="Regexp">
+            <property name="id" value="AirnessJavadocNamesNoVersion"/>
+            <property name="format" value="^\s*\*\s*@version\b"/>
+            <property name="illegalPattern" value="true"/>
+            <property name="message"
+                      value="The @version tag restates the version the build declares, and nothing keeps the two in step. Delete it and let the pom answer."/>
         </module>
         <!--
             A block tag that names a parameter, a return value or a thrown exception says nothing on a

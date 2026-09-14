@@ -15,8 +15,11 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 
 /**
  * Reads the latest stable version of a dependency from a registry's metadata. Pre-release versions
- * are ignored: the six forms the versions report ignores, spelled here as the same anchored patterns
- * so the two agree on what counts as stable, plus snapshots. Any unreachable registry, non-200
+ * are ignored: the seven forms the versions report ignores, spelled here as the same anchored patterns
+ * so the two agree on what counts as stable, plus snapshots. A release candidate is written with either
+ * separator, because both are in use and only the hyphen was read before. The last form is the
+ * Multi-Release JAR qualifier, which Maven orders above the plain release it repackages although its own
+ * maintainers say they do not intend to support the format. Any unreachable registry, non-200
  * response, or absence of a stable release throws, so the version check fails closed rather than
  * passing on missing data.
  *
@@ -31,7 +34,8 @@ final class MavenCentral {
     private static final String SLASH = "/";
     private static final String PROPERTY_OPEN = "${";
     private static final Pattern PRERELEASE = Pattern.compile(
-        "(?i).*alpha.*|.*beta.*|.*preview.*|.*snapshot.*|[0-9].+-m[0-9]+|[0-9].+\\.cr[0-9]+|[0-9].+-rc-?[0-9]*"
+        "(?i).*alpha.*|.*beta.*|.*preview.*|.*snapshot.*|[0-9].+-m[0-9]+|[0-9].+\\.cr[0-9]+"
+            + "|[0-9].+[.-]rc-?[0-9]*|[0-9].+\\.mr"
     );
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int OK = 200;

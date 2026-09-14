@@ -39,11 +39,24 @@
         <commons-beanutils.version>1.11.0</commons-beanutils.version>
         <commons-logging.version>1.4.0</commons-logging.version>
         <plexus-utils.version>4.1.0</plexus-utils.version>
+        <!--
+            Held at what the JDT the formatter brings asks for, rather than at the newest release. The
+            formatter-maven-plugin below carries org.eclipse.jdt.core 3.43.0, which names org.eclipse.text at
+            exactly 3.14.400, and the org.eclipse.core.runtime 3.34.0 it reaches through names
+            org.eclipse.equinox.common at exactly 3.20.200. Neither is a range, so these two values are the
+            JDT's own answer and not a version anyone here chose.
+
+            The update report names 3.21.0 and 3.14.800 every build and is right to: those belong to jdt.core
+            3.47.0, four service releases further on. Moving either alone would leave the formatter calling a
+            text API that the JDT beside it was not built against. These move when the formatter moves, and
+            they are pinned here at all because formatter-maven-plugin excludes org.eclipse.platform from what
+            it supplies.
+        -->
         <eclipse-equinox-common.version>3.20.200</eclipse-equinox-common.version>
         <eclipse-text.version>3.14.400</eclipse-text.version>
         <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
         <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
-        <maven-plugin-tools.version>3.15.2</maven-plugin-tools.version>
+        <maven-plugin-tools.version>3.16.0</maven-plugin-tools.version>
         <!--
             Held at what the Maven baseline supplies rather than at the newest release, because this is a
             provided dependency: the resolver on the classpath at run time is the one Maven brought, and
@@ -55,7 +68,15 @@
             the two-major bound is what would fail. This value moves when the Maven baseline moves.
         -->
         <maven-resolver.version>1.9.27</maven-resolver.version>
-        <plexus-xml.version>3.0.2</plexus-xml.version>
+        <!--
+            Held on the 3.x line for the same reason as the resolver above, and for a reason of its own: the
+            4.x line was rebuilt on Maven 4's maven-xml-api and functions only under Maven 4, which the
+            upstream readme states outright. Java 25 is not what stops it; the Maven lineage is.
+
+            The update report names 4.2.0 every build. 3.1.0 is the move that exists inside the supported
+            line, and is the one maven-plugin-tools made for itself when it went to 3.16.0.
+        -->
+        <plexus-xml.version>3.1.0</plexus-xml.version>
     </properties>
 
     <!--
@@ -179,6 +200,18 @@
             </exclusions>
             <scope>compile</scope>
         </dependency>
+        <!--
+            1.0.3 is a jakarta-branded artifact that still ships the javax.inject package, which is the one
+            Maven 3.9.16 brings as javax.inject-1.jar and the one its Sisu 1.0.0 and Guice 5.1.0 scan for.
+            The 2.x line renames that package to jakarta.inject. Nothing would fail to compile: the injection
+            points would simply stop being found, and a component that is never registered reads as a null
+            field far from here.
+
+            The update report names 2.0.1.MR and will now name 2.0.1 instead, the version check having been
+            taught that .MR is a Multi-Release JAR packaging experiment its own maintainers say they do not
+            intend to support. Both remain refused for the package rename. This version moves when the Maven
+            baseline moves.
+        -->
         <dependency>
             <groupId>jakarta.inject</groupId>
             <artifactId>jakarta.inject-api</artifactId>

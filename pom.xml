@@ -90,14 +90,14 @@
 
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
-        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
         <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
-        <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
+        <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
@@ -114,8 +114,8 @@
         -->
         <airness.test.timeout>30 s</airness.test.timeout>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
-        <extra-enforcer-rules.version>1.12.0</extra-enforcer-rules.version>
-        <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
+        <extra-enforcer-rules.version>1.12.1</extra-enforcer-rules.version>
+        <versions-maven-plugin.version>2.22.0</versions-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
         <prettier-maven-plugin.version>0.22</prettier-maven-plugin.version>
@@ -133,7 +133,7 @@
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <pmd.version>7.27.0</pmd.version>
-        <spotbugs-maven-plugin.version>4.10.4.0</spotbugs-maven-plugin.version>
+        <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
         <!--
             The field annotations NullAway treats as initializing a field it would otherwise call
             uninitialized: a value Maven, JUnit, picocli, or an injector writes rather than a
@@ -151,7 +151,7 @@
         <jspecify.version>1.0.1</jspecify.version>
         <spotbugs-annotations.version>4.10.4</spotbugs-annotations.version>
         <checkstyle.version>14.1.0</checkstyle.version>
-        <qulice-maven-plugin.version>0.35.1</qulice-maven-plugin.version>
+        <qulice-maven-plugin.version>0.36.0</qulice-maven-plugin.version>
     </properties>
 
     <build>
@@ -443,7 +443,11 @@
                                 </ignoreVersion>
                                 <ignoreVersion>
                                     <type>regex</type>
-                                    <version>(?i)[0-9].+-rc-?[0-9]*</version>
+                                    <version>(?i)[0-9].+[.-]rc-?[0-9]*</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i)[0-9].+\.MR</version>
                                 </ignoreVersion>
                             </ignoreVersions>
                         </ruleSet>
