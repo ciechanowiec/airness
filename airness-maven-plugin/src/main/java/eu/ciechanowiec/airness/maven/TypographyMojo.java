@@ -45,6 +45,8 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
                 "Typography exemption " + prefix + " left " + count + " file(s) unread"
             )
         );
+        this.getLog().info("Typography read " + check.scanned() + " tracked file(s)");
+        Scope.requireRead(check.scanned(), "files", this.exclusions());
         return check.findings();
     }
 

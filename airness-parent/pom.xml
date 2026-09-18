@@ -671,9 +671,26 @@
                             <goal>dependency-freshness</goal>
                         </goals>
                     </execution>
+                    <!--
+                        Bound at process-test-classes, the last phase before the tests run. Every goal here
+                        reads sources, resources, or the tracked tree, and none of them reads a class file:
+                        the cycle check parses the package and import lines out of the source text. So the
+                        floor is not compilation but registration. A source or resource root can be added as
+                        late as generate-test-resources, which is why build-inputs is bound twice, and the
+                        format profile rewrites at process-resources, so a check reading before either would
+                        judge a tree the build was about to replace.
+
+                        They run before the tests for the reason the Spring source checks run before package.
+                        These fifteen read the tree and answer in about a second, while the phases after them
+                        carry the analyzers, the whole test suite, and under the extended profile the
+                        vulnerability database and the inspection engine. Ordering them after it meant a
+                        banned code point in a document was reported only once every test had already run,
+                        and a child execution merges after the inherited ones, so the phase is the only place
+                        that order can be settled.
+                    -->
                     <execution>
-                        <id>airness-governance</id>
-                        <phase>package</phase>
+                        <id>airness-governance-sources</id>
+                        <phase>process-test-classes</phase>
                         <goals>
                             <goal>typography</goal>
                             <goal>entry-files</goal>
@@ -690,6 +707,18 @@
                             <goal>template-expressions</goal>
                             <goal>message-parity</goal>
                             <goal>suppression-budget</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        The tree check stays at package, where it sees every write the build made. It
+                        compares the tracked tree against the fingerprint the snapshot goal took at validate,
+                        so moving it beside the checks above would leave the compiler, Surefire, the coverage
+                        agent and the analyzers on the far side of the only rule that reads what they wrote.
+                    -->
+                    <execution>
+                        <id>airness-governance</id>
+                        <phase>package</phase>
+                        <goals>
                             <goal>tree-verify</goal>
                         </goals>
                     </execution>

@@ -66,6 +66,26 @@ public final class CoverageReport {
         return patterns.stream().filter(pattern -> !this.reaches(pattern)).toList();
     }
 
+    /**
+     * How many measured names no declared exclusion reaches, which a caller refuses when it is zero.
+     *
+     * <p>This is the opposite reading of the rule above, and the quieter one. A pattern that reaches
+     * nothing is reported, while patterns that between them reach everything are each doing their job,
+     * so nothing here objects. What they leave is a floor with no class under it, which the coverage
+     * tool passes because it has nothing left to weigh, on a build whose production code no test ran
+     * over. A class is offered under both spellings of its nesting, so this counts names rather than
+     * classes: the question a caller asks of it is whether anything at all survived.
+     *
+     * @param patterns the declared exclusion patterns
+     * @return the number of measured names the exclusions leave to the floor
+     */
+    public int beyond(Collection<String> patterns) {
+        List<Pattern> expressions = patterns.stream().map(CoverageReport::glob).toList();
+        return (int) this.measured.stream()
+            .filter(name -> expressions.stream().noneMatch(expression -> expression.matcher(name).matches()))
+            .count();
+    }
+
     private boolean reaches(CharSequence pattern) {
         Pattern expression = glob(pattern);
         return this.measured.stream().anyMatch(name -> expression.matcher(name).matches());

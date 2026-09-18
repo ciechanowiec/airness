@@ -49,6 +49,24 @@ class HarnessSupportTest {
     }
 
     @Test
+    void refusesAnEmptyScopeWhateverTheCheckReads() {
+        assertThrows(IllegalStateException.class, () -> Scope.requireRead(0, "files", "exemptions"));
+        assertDoesNotThrow(() -> Scope.requireRead(1, "files", "exemptions"));
+    }
+
+    @Test
+    void namesTheUnitTheCheckReadNoneOf() {
+        IllegalStateException refusal = assertThrows(
+            IllegalStateException.class, () -> Scope.requireRead(0, "measured classes", "the exclusions")
+        );
+        String reported = String.valueOf(refusal.getMessage());
+        assertTrue(
+            reported.startsWith("No measured classes were read"),
+            "a reader of the failure has to know which empty scope they reached: " + reported
+        );
+    }
+
+    @Test
     void namesEveryPackagingWhoseBuildLeavesAJar() {
         assertTrue(JarPackaging.produced("jar"), "the ordinary case");
         assertTrue(JarPackaging.produced("maven-plugin"), "a plugin is a jar with a descriptor in it");

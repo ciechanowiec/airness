@@ -119,6 +119,29 @@ class TypographyScanCheckTest {
     }
 
     @Test
+    void countsTheFilesItRead() {
+        Path root = new GitFixture("typography-scope")
+            .write(README, PLAIN)
+            .write(THEME, PLAIN)
+            .root();
+        assertEquals(
+            1, new TypographyScanCheck(root, VENDORED).scanned(),
+            "one of the two tracked files lies outside the exemption"
+        );
+    }
+
+    @Test
+    void reportsAnEmptyScopeRatherThanACleanTree() {
+        Path root = new GitFixture("typography-emptied").write(THEME, OFFENDING).root();
+        TypographyScanCheck check = new TypographyScanCheck(root, VENDORED);
+        assertEquals(0, check.scanned(), "an exemption covering the whole tree read nothing");
+        assertTrue(
+            Verdicts.clean(check.findings()),
+            "and so reports the same verdict as a clean tree, which is why the caller refuses a zero scope"
+        );
+    }
+
+    @Test
     @SneakyThrows
     void doesNotFollowASymbolicLinkOutsideTheRepository() {
         Path outside = Files.createTempFile("airness-typography-outside-", ".txt");

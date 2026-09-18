@@ -42,6 +42,15 @@ public final class TypographyScanCheck {
     }
 
     /**
+     * How many files the check read, which a caller refuses when it is zero.
+     *
+     * @return the number of tracked files in scope
+     */
+    public int scanned() {
+        return this.scan.scanned();
+    }
+
+    /**
      * The banned code points, and the exemptions that no longer exempt anything.
      *
      * @return one verdict per rule

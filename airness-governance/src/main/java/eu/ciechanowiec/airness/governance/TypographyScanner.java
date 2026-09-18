@@ -27,15 +27,17 @@ final class TypographyScanner {
      * @param root             the working tree root
      * @param excludedPrefixes repository-relative path prefixes to leave unread, matched whole segment by
      *                         whole segment
-     * @return the violations found, and how many files each prefix kept out
+     * @return the violations found, how many files each prefix kept out, and how many were read
      */
     static TypographyScan scan(Path root, Collection<String> excludedPrefixes) {
         List<Path> tracked = Repository.trackedFiles(root);
-        List<String> violations = tracked.stream()
+        List<Path> included = tracked.stream()
             .filter(file -> isIncluded(root, file, excludedPrefixes))
+            .toList();
+        List<String> violations = included.stream()
             .flatMap(file -> violationsFor(root, file).stream())
             .toList();
-        return new TypographyScan(violations, skipped(root, tracked, excludedPrefixes));
+        return new TypographyScan(violations, skipped(root, tracked, excludedPrefixes), included.size());
     }
 
     private static boolean isIncluded(Path root, Path file, Collection<String> excludedPrefixes) {
