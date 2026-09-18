@@ -22,9 +22,26 @@ final class Scope {
      * @throws IllegalStateException when nothing was read
      */
     static void requireJavaSources(long read, Object where) {
+        requireRead(read, "Java sources", where);
+    }
+
+    /**
+     * Fails when a check read none of whatever it reads, naming both the unit and what decided the scope.
+     *
+     * <p>A source root that names nothing is one way to reach an empty scope and an exemption list that
+     * names everything is another, and the two arrive at the same place: a verdict about nothing, worded
+     * exactly as a verdict about a clean repository. The unit is a parameter because the reader of the
+     * failure has to know which of them happened.
+     *
+     * @param read  how many units the check read
+     * @param unit  what the check reads, in the plural, as the failure names it
+     * @param where the parameter, path, or exemptions that decided the scope
+     * @throws IllegalStateException when nothing was read
+     */
+    static void requireRead(long read, String unit, Object where) {
         if (read == 0) {
             throw new IllegalStateException(
-                "No Java sources were read, so this check proved nothing. Its scope comes from " + where
+                "No " + unit + " were read, so this check proved nothing. Its scope comes from " + where
             );
         }
     }

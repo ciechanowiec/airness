@@ -36,6 +36,25 @@ class CoverageReportTest {
     private Path directory;
 
     @Test
+    void countsWhatTheExclusionsLeaveToTheFloor() {
+        assertEquals(
+            5, this.report().beyond(List.of()), "an empty exclusion list leaves every measured name"
+        );
+        assertEquals(
+            2, this.report().beyond(List.of("com.example.daemon.*")),
+            "one package excluded leaves the two names of the other, and takes both spellings of the nested one"
+        );
+    }
+
+    @Test
+    void reportsThatExclusionsReachingEverythingLeaveNothing() {
+        assertEquals(
+            0, this.report().beyond(List.of("*")),
+            "a pattern that reaches everything leaves a floor with no class under it, which reads as a pass"
+        );
+    }
+
+    @Test
     void readsEveryClassTheReportMeasured() {
         assertEquals(
             5, this.report().measured(),

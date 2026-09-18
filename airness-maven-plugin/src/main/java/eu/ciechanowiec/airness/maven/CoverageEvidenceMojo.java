@@ -52,10 +52,30 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
         List<String> offences = current ? List.of() : List.of(
             evidence + " is missing or predates this build; production code requires tests from this run"
         );
+        this.requireAFloorToStandOn();
         return List.of(
             new Findings("Missing current-build JaCoCo evidence", offences),
             new Findings("Coverage exclusions that name no class the report measured", this.unreached())
         );
+    }
+
+    /**
+     * Refuses an exclusion list that reaches every class the report measured.
+     *
+     * <p>The rule below reports a pattern that reaches nothing, and this refuses the opposite, which is
+     * the one that reads as success. Patterns that between them reach everything are each doing what
+     * they say, so no rule objects, and the coverage tool passes a build it had nothing left to weigh.
+     * A floor with no class under it is not a floor a green build can be read against.
+     */
+    private void requireAFloorToStandOn() {
+        List<String> declared = Sentinel.optional(this.excluded);
+        Path report = Path.of(this.reportFile());
+        if (declared.isEmpty() || !Files.isRegularFile(report)) {
+            return;
+        }
+        int remaining = new CoverageReport(report).beyond(declared);
+        this.getLog().info("Coverage exclusions left " + remaining + " measured name(s) to the floor");
+        Scope.requireRead(remaining, "measured classes", declared);
     }
 
     /**

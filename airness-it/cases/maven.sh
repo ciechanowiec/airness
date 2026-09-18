@@ -45,6 +45,12 @@ run_maven_cases() {
         'airness:[^ ]+:tree-snapshot \(airness-preflight\)'
     expect_match lifecycle_clean 'lifecycle: tree state is verified after work' \
         'airness:[^ ]+:tree-verify \(airness-governance\)'
+    expect_before lifecycle_clean 'lifecycle: the source checks report before the tests run' \
+        '--- airness:[^ ]+:typography [(]airness-governance-sources[)]' '--- surefire:[^ ]+:test '
+    expect_before lifecycle_clean 'lifecycle: the last source check still precedes the tests' \
+        '--- airness:[^ ]+:suppression-budget [(]airness-governance-sources[)]' '--- surefire:[^ ]+:test '
+    expect_before lifecycle_clean 'lifecycle: the tree check reads what the tests and analyzers wrote' \
+        '--- surefire:[^ ]+:test ' '--- airness:[^ ]+:tree-verify [(]airness-governance[)]'
     expect_match lifecycle_clean 'lifecycle: software refused by name is checked before the version check' \
         'airness:[^ ]+:blocklist \(airness-blocklist\)'
 

@@ -83,7 +83,10 @@ Airness governs all of the following domains:
   expression. The first turns a stored value into markup and renders correctly for every value nobody chose to attack
   it with, and the second turns one into an expression the engine runs, whose reach is the engine's rather than the
   page's. Write the escaping form and keep markup out of what the model carries, and write the expression the
-  preprocessing was building rather than composing a name out of a value.
+  preprocessing was building rather than composing a name out of a value. The attribute processor sets what an
+  attribute holds rather than what it is called, and it reads its argument as a comma-separated list of
+  assignments, so it carries neither a name holding a colon nor a value holding a comma. An attribute whose name
+  holds one, as the binding attributes of a front-end library do, is written on the element directly.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
@@ -435,8 +438,8 @@ spends a ceiling the next repair will need.
 | --- | --- |
 | `airness.package.root` | the prefix of every production and test package, and the only required key |
 | `airness.assets.unmanaged` | repository paths the project takes over from the harness |
-| `airness.typography.excludes` | repository path prefixes the typography scan skips |
-| `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip |
+| `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them |
+| `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip, never all of them |
 | `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
 | `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path below unless set |
 

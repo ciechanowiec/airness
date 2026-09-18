@@ -119,6 +119,14 @@
            that moves the root has no exception left to take, so the check would be unsatisfiable
            for a shape the harness governs. HtmlUnknownTag stays enabled and goes on naming a tag
            that does not exist
+         - XmlUnboundNsPrefix: reads a server-side template as XML, where a colon in an attribute name
+           separates a namespace prefix from a local name. A front-end library that binds through such
+           a name therefore fails on the markup it is written for: Alpine states x-bind:class and
+           x-on:click, and Vue states v-bind: and v-on:, none of which declares a namespace because
+           none is one. Scoping it off template roots is unavailable for the reason above, and a
+           project cannot substitute a profile, so its only repair is to declare the prefix on the
+           root element, which is served to every reader because nothing strips a declaration the
+           template engine does not own
     -->
 
     <option name="myName" value="HC" />
@@ -827,6 +835,7 @@
         <option name="SUGGEST_PACKAGE_LOCAL_FOR_TOP_CLASSES" value="true" />
         <option name="SUGGEST_PRIVATE_FOR_INNERS" value="false" />
     </inspection_tool>
+    <inspection_tool class="XmlUnboundNsPrefix" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="AnonymousInnerClass" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="CloneableImplementsClone" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="CloneDeclaresCloneNotSupported" enabled="false" level="WARNING" enabled_by_default="true" />
