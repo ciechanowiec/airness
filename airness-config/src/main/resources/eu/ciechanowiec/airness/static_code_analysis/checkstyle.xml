@@ -2846,6 +2846,73 @@
             <property name="id" value="AirnessSpringSecuritySessionFixationIsPrevented"/>
             <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
         </module>
+        <module name="MatchXpath">
+            <!--
+                The settings rule beside this one governs the cookie the container writes. This governs the
+                cookies the project writes itself, which nothing else reads: what a browser does with one is
+                decided by three flags, and a flag nobody states is a flag decided by a default that the
+                author never saw. Stating it is the whole requirement, as it is for a read-only transaction
+                or the requiredness of a parameter, so secure(false) satisfies this as readily as
+                secure(true) and leaves the reason in the code rather than in a comment beside it.
+
+                The whole builder is one expression, so the absence of a call is readable inside the subtree
+                the chain occupies. A builder held in a variable and completed in later statements is not
+                reached, and neither is a flag a call of the project's own supplies, because each would need
+                a reading that follows a value between statements. Those are misses rather than false
+                reports, and the servlet cookie, which is only ever written that way, is refused outright by
+                the rule below so that the misses cannot be reached deliberately.
+
+                One flag to a rule, because the question each of them answers is a different question and
+                one message naming all three leaves every reader to work out which of them is theirs.
+            -->
+            <property name="id" value="AirnessSpringSecurityCookieDeclaresHttpOnly"/>
+            <property name="query"
+                      value="//METHOD_CALL[./DOT/IDENT[@text='build'] and .//IDENT[@text='ResponseCookie'] and not(.//DOT/IDENT[@text='httpOnly'])]"/>
+            <message key="matchxpath.match"
+                     value="A cookie built here does not say whether the scripts running in a page may read it, so anything injected into one page takes the value rather than merely acting beside it. State it with httpOnly(true), or httpOnly(false) where a page is meant to read the value."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityCookieDeclaresHttpOnly"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringSecurityCookieDeclaresSecure"/>
+            <property name="query"
+                      value="//METHOD_CALL[./DOT/IDENT[@text='build'] and .//IDENT[@text='ResponseCookie'] and not(.//DOT/IDENT[@text='secure'])]"/>
+            <message key="matchxpath.match"
+                     value="A cookie built here does not say whether it may travel over plain HTTP, so whether it is exposed to whoever is carrying the traffic is decided by a default. State it with secure(true), or secure(false) where the deployment is served over HTTP and a cookie the browser then refuses to send back would leave the feature doing nothing."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityCookieDeclaresSecure"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AirnessSpringSecurityCookieDeclaresSameSite"/>
+            <property name="query"
+                      value="//METHOD_CALL[./DOT/IDENT[@text='build'] and .//IDENT[@text='ResponseCookie'] and not(.//DOT/IDENT[@text='sameSite'])]"/>
+            <message key="matchxpath.match"
+                     value="A cookie built here does not say whether it rides on a request another site caused, which is what decides whether somebody else's page can act as the reader. State it with sameSite, naming Lax, Strict or None."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityCookieDeclaresSameSite"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The servlet cookie carries its flags in setters written after it, so what it hands the
+                browser is settled somewhere other than where it is built and the rules above cannot read
+                it. Refusing the class is what keeps those rules from being sidestepped by choosing the
+                other API, and the builder states the same three flags in one expression.
+            -->
+            <property name="id" value="AirnessSpringSecurityCookieIsNotServletTyped"/>
+            <property name="query" value="//LITERAL_NEW[./IDENT[@text='Cookie']]"/>
+            <message key="matchxpath.match"
+                     value="A servlet cookie sets its flags in statements written after it, so what it hands the browser is decided away from where it is built. Build it with ResponseCookie, which states them in one expression."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringSecurityCookieIsNotServletTyped"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
         <module name="Regexp">
             <!--
                 The annotated half of this is already refused, and this is the half written as a call. A
