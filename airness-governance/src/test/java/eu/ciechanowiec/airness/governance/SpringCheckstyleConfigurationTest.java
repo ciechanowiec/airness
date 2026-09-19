@@ -154,6 +154,58 @@ class SpringCheckstyleConfigurationTest {
                 """,
             "AirnessSpringSecurityPasswordEncoderIsStrong",
             4
+        ),
+        new Fixture(
+            "Unread.java",
+            """
+                package example;
+                final class Unread {
+                    Object made() {
+                        return ResponseCookie.from("a", "b").secure(true).sameSite("Lax").build();
+                    }
+                }
+                """,
+            "AirnessSpringSecurityCookieDeclaresHttpOnly",
+            4
+        ),
+        new Fixture(
+            "Plain.java",
+            """
+                package example;
+                final class Plain {
+                    Object made() {
+                        return ResponseCookie.from("a", "b").httpOnly(true).sameSite("Lax").build();
+                    }
+                }
+                """,
+            "AirnessSpringSecurityCookieDeclaresSecure",
+            4
+        ),
+        new Fixture(
+            "Crossing.java",
+            """
+                package example;
+                final class Crossing {
+                    Object made() {
+                        return ResponseCookie.from("a", "b").httpOnly(true).secure(true).build();
+                    }
+                }
+                """,
+            "AirnessSpringSecurityCookieDeclaresSameSite",
+            4
+        ),
+        new Fixture(
+            "Servlets.java",
+            """
+                package example;
+                final class Servlets {
+                    Object made() {
+                        return new Cookie("a", "b");
+                    }
+                }
+                """,
+            "AirnessSpringSecurityCookieIsNotServletTyped",
+            4
         )
     );
     private static final Fixture CONTROLS = new Fixture(
@@ -213,6 +265,13 @@ class SpringCheckstyleConfigurationTest {
                 }
                 PasswordEncoder encoder() {
                     return new BCryptPasswordEncoder(12);
+                }
+                Object remembering() {
+                    return ResponseCookie.from("a", "b")
+                        .httpOnly(true)
+                        .secure(false)
+                        .sameSite("Lax")
+                        .build();
                 }
             }
             final class Admitting implements CommandLineRunner, Ordered {
