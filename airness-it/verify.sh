@@ -76,6 +76,7 @@ fi
 . "${repository}/airness-it/cases/request-maps.sh"
 . "${repository}/airness-it/cases/streaming-timeouts.sh"
 . "${repository}/airness-it/cases/template-messages.sh"
+. "${repository}/airness-it/cases/web-accessibility.sh"
 . "${repository}/airness-it/cases/qodana-fixture.sh"
 . "${repository}/airness-it/cases/containers.sh"
 . "${repository}/airness-it/cases/scanners.sh"
@@ -110,7 +111,7 @@ case "${selected_domain}" in
         # workstation running this a processor to answer its owner with.
         ensure_consumer_template
         start_lane spring run_spring_cases run_container_cases run_template_message_cases \
-            run_maven_cases run_analysis_cases run_template_cases
+            run_web_accessibility_cases run_maven_cases run_analysis_cases run_template_cases
         start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases
         # Joined in the order whose headings do not repeat across the seam.
         join_lane spring
@@ -132,6 +133,7 @@ case "${selected_domain}" in
         run_spring_cases
         run_streaming_timeout_cases
         run_template_message_cases
+        run_web_accessibility_cases
         ;;
     containers)
         run_container_cases

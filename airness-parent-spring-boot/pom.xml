@@ -71,6 +71,22 @@
             <artifactId>airness-spring-evidence</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+            The accessibility audit, and the rules it asks. Supplied here so that every Spring Boot
+            consumer asks the same question of a rendered page: the rules report a failure, a pass and
+            a verdict they could not reach, and a project reading only the first passes a page nobody
+            has checked. Kept out of the archive that ships.
+        -->
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-web-evidence</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>axe-core</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>

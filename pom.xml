@@ -48,6 +48,7 @@
         <module>airness-annotations</module>
         <module>airness-governance</module>
         <module>airness-spring-evidence</module>
+        <module>airness-web-evidence</module>
         <module>airness-maven-plugin</module>
         <module>airness-parent</module>
         <module>airness-parent-spring-boot</module>
@@ -146,6 +147,7 @@
         <error-prone.version>2.50.0</error-prone.version>
         <nullaway.version>0.14.1</nullaway.version>
         <junit.version>6.1.3</junit.version>
+        <axe-core.version>4.13.0</axe-core.version>
         <maven-artifact.version>3.9.16</maven-artifact.version>
         <attoparser.version>2.0.9.RELEASE</attoparser.version>
         <jspecify.version>1.0.1</jspecify.version>
@@ -363,6 +365,7 @@
                                 <excludes>
                                     <exclude>eu.ciechanowiec:airness-annotations</exclude>
                                     <exclude>eu.ciechanowiec:airness-spring-evidence</exclude>
+                                    <exclude>eu.ciechanowiec:airness-web-evidence</exclude>
                                 </excludes>
                                 <message>
                                     A released project resolves a snapshot, which no later build can
@@ -940,6 +943,21 @@
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-spring-evidence</artifactId>
                 <version>${airness.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-web-evidence</artifactId>
+                <version>${airness.version}</version>
+            </dependency>
+            <!--
+                The accessibility rules, as the script a browser is handed. Pinned here rather than in
+                each project, because the guideline binds the toolchain a check runs to an exact
+                version and three projects pinning it separately is three places for it to drift.
+            -->
+            <dependency>
+                <groupId>org.webjars.npm</groupId>
+                <artifactId>axe-core</artifactId>
+                <version>${axe-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven</groupId>

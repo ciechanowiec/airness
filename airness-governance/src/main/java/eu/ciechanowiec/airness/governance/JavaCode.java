@@ -73,9 +73,29 @@ final class JavaCode {
         return blank(source, JavaCode::quotesAnotherSource);
     }
 
+    /**
+     * The source with its comments blanked out and every literal left in place, a text block
+     * included.
+     *
+     * <p>It differs from {@link #withoutComments(CharSequence)} in the one case that method is
+     * deliberately blind to. A text block usually quotes some other language, so a rule about Java
+     * reads it as prose and blanks it. A rule about what a project writes into a text block cannot,
+     * because the text block is the thing it governs.
+     *
+     * @param source the source to read
+     * @return the source at its original width, carrying code and every literal it holds
+     */
+    static String withLiterals(CharSequence source) {
+        return blank(source, JavaCode::comments);
+    }
+
     private static boolean quotesAnotherSource(MatchResult token) {
+        return token.group().startsWith(TEXT_BLOCK) || comments(token);
+    }
+
+    private static boolean comments(MatchResult token) {
         String text = token.group();
-        return text.startsWith(TEXT_BLOCK) || text.startsWith(BLOCK_COMMENT) || text.startsWith(LINE_COMMENT);
+        return text.startsWith(BLOCK_COMMENT) || text.startsWith(LINE_COMMENT);
     }
 
     private static String blank(CharSequence source, Predicate<MatchResult> removed) {

@@ -697,6 +697,7 @@
                             <goal>comment-prose</goal>
                             <goal>javadoc-links</goal>
                             <goal>test-assertions</goal>
+                            <goal>web-accessibility</goal>
                             <goal>package-cycles</goal>
                             <goal>template-parse</goal>
                             <goal>template-fragments</goal>
@@ -844,12 +845,14 @@
                                 <sourceDirectory>${project.basedir}/../airness-governance/src/main/java</sourceDirectory>
                                 <sourceDirectory>${project.basedir}/../airness-maven-plugin/src/main/java</sourceDirectory>
                                 <sourceDirectory>${project.basedir}/../airness-spring-evidence/src/main/java</sourceDirectory>
+                                <sourceDirectory>${project.basedir}/../airness-web-evidence/src/main/java</sourceDirectory>
                             </sourceDirectories>
                             <testSourceDirectories>
                                 <testSourceDirectory>${project.basedir}/../airness-annotations/src/test/java</testSourceDirectory>
                                 <testSourceDirectory>${project.basedir}/../airness-governance/src/test/java</testSourceDirectory>
                                 <testSourceDirectory>${project.basedir}/../airness-maven-plugin/src/test/java</testSourceDirectory>
                                 <testSourceDirectory>${project.basedir}/../airness-spring-evidence/src/test/java</testSourceDirectory>
+                                <testSourceDirectory>${project.basedir}/../airness-web-evidence/src/test/java</testSourceDirectory>
                             </testSourceDirectories>
                         </configuration>
                     </execution>
