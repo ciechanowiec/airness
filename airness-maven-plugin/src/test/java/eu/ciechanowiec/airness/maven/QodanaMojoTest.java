@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -24,36 +23,8 @@ class QodanaMojoTest {
             "qodana:test"
         );
         assertTrue(command.contains(localRepository + ":/opt/maven-repository:ro"));
+        assertTrue(command.getLast().contains(QodanaSnapshot.SCRIPT));
         assertTrue(command.getLast().contains("cp -as"));
         assertTrue(command.getLast().contains("_remote.repositories"));
-    }
-
-    @Test
-    void copiesTheProjectWithoutWhatTheIgnoreFilesExclude(
-        @TempDir Path directory
-    ) {
-        List<String> command = QodanaMojo.dockerCommand(
-            new QodanaPaths(
-                directory.resolve("project"), directory.resolve("output"),
-                directory.resolve("profile.xml"),
-                new QodanaPaths.Environment(
-                    directory.resolve("roots.pem"), directory.resolve("repository")
-                )
-            ),
-            "qodana:test"
-        );
-        String script = command.getLast();
-        assertTrue(
-            script.contains("--exclude-vcs-ignores"),
-            "build output holds a scanner tree whose report is deleted once read, so it is never copied"
-        );
-        assertFalse(
-            script.contains("cp -a /opt/project"),
-            "a copy that takes everything reaches an entry whose file has gone and ends the run"
-        );
-        assertTrue(
-            script.contains("git -C /data/project clean -dXff"),
-            "the clean stays, as the answer for whatever the copy still brings"
-        );
     }
 }

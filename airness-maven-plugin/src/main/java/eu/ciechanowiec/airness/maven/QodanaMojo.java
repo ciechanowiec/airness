@@ -16,11 +16,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Runs Qodana once per reactor from a writable copy of a read-only repository mount.
  *
- * <p>The copy leaves out what the ignore files already exclude, rather than taking everything and
- * deleting it a moment later. Build output carries a scanner's temporary tree, and a scanner deletes
- * its report once it has read it, so a copy that walks that tree reaches an entry whose file is gone
- * and ends the run under set -e. The clean below stays, as the answer for whatever the copy still
- * brings.
+ * <p>Git selects the present committable working files before copying, including tracked files that
+ * match ignore patterns and ordinary untracked work. Ignored output is never traversed by the copy.
  */
 @Mojo(name = "qodana", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class QodanaMojo extends AbstractDockerCheckMojo {
@@ -38,6 +35,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
         Path root = this.repositoryRoot();
         Path output = root.resolve(OUTPUT);
         Files.createDirectories(output);
+        QodanaSnapshot.prepare(root, output);
         Path profile = output.resolve("inspection-profile.xml");
         try (InputStream resource = profile()) {
             Files.copy(resource, profile, StandardCopyOption.REPLACE_EXISTING);
@@ -58,12 +56,8 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
             "-v", paths.roots() + ":/opt/hostca.pem:ro",
             "-v", paths.localRepository() + ":/opt/maven-repository:ro",
             "--entrypoint", "/bin/sh", image, "-c",
-            "set -eu; "
-                + "mkdir -p /data/project; "
-                + "tar -C /opt/project --exclude-vcs-ignores -cf - . "
-                + "| tar -C /data/project -xf -; "
-                + "test \"$(git -C /data/project rev-parse --show-toplevel)\" = /data/project; "
-                + "git -C /data/project clean -dXff; "
+            "set -- /opt/project /data/project /data/results/source-files; "
+                + QodanaSnapshot.SCRIPT
                 + "mkdir -p /data/cache/.m2; "
                 + "cp -as /opt/maven-repository/. /data/cache/.m2/; "
                 + "find /data/cache/.m2 -type l \\( "
