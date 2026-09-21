@@ -80,6 +80,8 @@ public final class ManagedVersions {
         suppliedDependency("eu.ciechanowiec", "airness-config", "airness.version"),
         suppliedDependency("eu.ciechanowiec", "airness-governance", "airness.version"),
         suppliedDependency("eu.ciechanowiec", "airness-spring-evidence", "airness.version"),
+        suppliedDependency("eu.ciechanowiec", "airness-web-evidence", "airness.version"),
+        suppliedDependency("org.webjars.npm", "axe-core", "axe-core.version"),
         suppliedDependency("org.apache.maven", "maven-artifact", "maven-artifact.version"),
         suppliedDependency("org.attoparser", "attoparser", "attoparser.version"),
         suppliedDependency("org.jspecify", "jspecify", "jspecify.version"),

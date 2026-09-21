@@ -85,4 +85,29 @@ class JavaCodeTest {
             "and the comment sits on the third"
         );
     }
+
+    @Test
+    void keepsWhatATextBlockHoldsWhereTheRuleIsAboutTheTextBlock() {
+        String quoting = """
+            class Subject {
+                private static final String SCRIPT = \"""
+                    axe.run(document);
+                    \""";
+                // axe.run(document) named in a comment
+            }
+            """;
+        String readable = JavaCode.withLiterals(quoting);
+        assertTrue(
+            readable.contains("axe.run(document);"),
+            "a rule about what a project writes into a text block has to be able to read it"
+        );
+        assertFalse(
+            readable.contains("named in a comment"),
+            "while a comment is prose about the code rather than code"
+        );
+        assertFalse(
+            JavaCode.withoutComments(quoting).contains("axe.run(document);"),
+            "and the shared reader still blanks a text block, because it usually quotes another language"
+        );
+    }
 }
