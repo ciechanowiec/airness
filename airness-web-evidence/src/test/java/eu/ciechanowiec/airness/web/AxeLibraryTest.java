@@ -3,7 +3,9 @@ package eu.ciechanowiec.airness.web;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.InputStream;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +50,11 @@ class AxeLibraryTest {
     void saysWhatToDeclareWhenTheRulesAreNotOnTheClasspathAtAll() {
         IllegalStateException refused = assertThrows(
             IllegalStateException.class,
-            () -> AxeLibrary.stream("META-INF/resources/webjars/axe-core/0.0.0/axe.min.js"),
+            () -> {
+                try (InputStream _ = AxeLibrary.stream("META-INF/resources/webjars/axe-core/0.0.0/axe.min.js")) {
+                    fail("The missing accessibility rules unexpectedly supplied a stream");
+                }
+            },
             "rules nobody declared are a missing dependency rather than a clean page"
         );
         assertEquals(
