@@ -13,7 +13,7 @@ fi
 
 selected_domain="${1-}"
 case "${selected_domain}" in
-    ''|maven|analysis|templates|repository|spring|containers|scanners)
+    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners)
         ;;
     *)
         printf 'Unknown Airness integration domain: %s\n' "${selected_domain}" >&2
@@ -68,6 +68,7 @@ fi
 . "${repository}/airness-it/cases/analysis.sh"
 . "${repository}/airness-it/cases/lifecycle.sh"
 . "${repository}/airness-it/cases/templates.sh"
+. "${repository}/airness-it/cases/stylesheets.sh"
 . "${repository}/airness-it/cases/repository.sh"
 . "${repository}/airness-it/cases/build-inputs.sh"
 . "${repository}/airness-it/cases/artifact-packaging.sh"
@@ -112,7 +113,8 @@ case "${selected_domain}" in
         ensure_consumer_template
         start_lane spring run_spring_cases run_container_cases run_template_message_cases \
             run_web_accessibility_cases run_maven_cases run_analysis_cases run_template_cases
-        start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases
+        start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases \
+            run_stylesheet_cases
         # Joined in the order whose headings do not repeat across the seam.
         join_lane spring
         join_lane repository
@@ -125,6 +127,9 @@ case "${selected_domain}" in
         ;;
     templates)
         run_template_cases
+        ;;
+    stylesheets)
+        run_stylesheet_cases
         ;;
     repository)
         run_repository_cases

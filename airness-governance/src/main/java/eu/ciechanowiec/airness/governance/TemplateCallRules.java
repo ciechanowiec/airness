@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
 
@@ -179,6 +180,20 @@ final class TemplateCallRules {
         return BUILT.stream().anyMatch(written::contains);
     }
 
+    // The half of one expression that names what it reaches, where it reaches this document rather
+    // than another. A template written as the word for this document is the same as writing none,
+    // which is the reading the rule over calls already takes.
+    private static Optional<String> reaching(String expression) {
+        int separator = separator(expression);
+        if (separator < 0) {
+            return Optional.empty();
+        }
+        String template = expression.substring(0, separator).trim();
+        String reached = expression.substring(separator + SEPARATOR.length()).trim();
+        boolean local = template.isEmpty() || SELF.equalsIgnoreCase(template);
+        return local && !reached.isEmpty() ? Optional.of(reached) : Optional.empty();
+    }
+
     private static boolean selects(String fragment) {
         return !fragment.isEmpty() && SELECTS.contains(fragment.trim().charAt(0));
     }
@@ -229,5 +244,39 @@ final class TemplateCallRules {
      */
     static boolean caller(String attribute) {
         return CALLERS.contains(attribute.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Every fragment expression in the given value that reaches the document it was written in, as the
+     * half of it naming what is reached.
+     *
+     * <p>What comes back is the written half rather than a resolved element, because whether a selector
+     * can be resolved at all is the asking rule's question. An identifier names one element and a class
+     * or a tag names however many carry it, so a rule that has to know exactly what a document hands
+     * over can read the first and pass over a document carrying the second, and this reports both the
+     * same way so that it can tell them apart.
+     *
+     * <p>An expression naming a template is left out. It reaches another document, so whatever it
+     * reaches is not part of this one, and the rule that resolves those is the one over calls.
+     *
+     * @param value the attribute value as the document wrote it
+     * @return what each local expression reaches, in the order the value writes them
+     */
+    static List<String> selectors(String value) {
+        List<String> found = new ArrayList<>();
+        select(value, found);
+        return List.copyOf(found);
+    }
+
+    // At whatever depth it was written, for the reason the rule over calls gathers at any depth too: a
+    // layout is handed the parts of a page inside the very expression that reaches the layout, so a
+    // reading that stopped at the top level would find the call and none of what it carries.
+    private static void select(String value, Collection<String> found) {
+        for (String written : expressions(value)) {
+            reaching(written).ifPresent(found::add);
+            if (written.contains(OPENS_FRAGMENT)) {
+                select(written, found);
+            }
+        }
     }
 }

@@ -58,7 +58,15 @@ Airness governs all of the following domains:
   parse, and a fragment is held to the argument cap a callable is held to, because a fragment is invoked by name
   with a positional list like any other callable. An element a fragment replaces carries nothing else the dialect
   reads, because the replacement discards the element and everything written on it, which no other check reaches:
-  the markup parses, the page renders, and the condition beside the replacement decided nothing. A link expression
+  the markup parses, the page renders, and the condition beside the replacement decided nothing. Markup a page
+  writes outside the parts it hands a layout reaches no reader at all, because the element carrying the replacement
+  is the whole document and only what was handed over survives it. That is the same silence one step wider: the
+  document parses, every expression in it resolves, the page renders, and the part nobody was handed is simply
+  missing from it, so a suite of any size passes while asserting what came back rather than what ought to have. An
+  element is reached by being handed over, by holding something that is, or by declaring a fragment or holding one,
+  since a fragment is reached by its name from wherever that name is written. A page handing over what cannot be
+  named this way, such as a class or a tag, is passed over whole rather than reported against a set of parts known
+  to be incomplete. A link expression
   reaches for nothing the engine refuses to read inside one, because what a link carries ends up in an address a
   browser follows and is evaluated under a rule that turns away a bean, a static class and an instantiation. That
   expression compiles and fails on the first request that draws it, so what the link needs is asked for beside it
@@ -86,7 +94,13 @@ Airness governs all of the following domains:
   preprocessing was building rather than composing a name out of a value. The attribute processor sets what an
   attribute holds rather than what it is called, and it reads its argument as a comma-separated list of
   assignments, so it carries neither a name holding a colon nor a value holding a comma. An attribute whose name
-  holds one, as the binding attributes of a front-end library do, is written on the element directly.
+  holds one, as the binding attributes of a front-end library do, is written on the element directly. A selector in
+  a stylesheet the project wrote selects what it names, whatever line it was wrapped onto. The space between two
+  parts of one is a combinator, so a chain of refusals broken across lines refuses one thing about an element and
+  another about whatever that element holds, which is valid, formats, and paints something other than what was
+  written. The formatter joins the halves back onto one line and keeps the space, which leaves the mistake reading
+  like a decision, so what is read is the join rather than the length of a line. A group written inside something is
+  ordinary and is left alone, and a stylesheet somebody else published is not read at all.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
@@ -383,6 +397,10 @@ it is published, only a fresh history satisfies the rule.
   bound record that names every value the request left out, keyed by the same property path a constraint violation
   would carry, which whatever gathers the refusals then merges with what the binder could not read and what the
   remaining rules refuse. The constraints that bound a value which is present stay where they are.
+- Repair markup a layout discards by moving it inside a part the layout is handed, rather than by widening what the
+  layout takes. A shell is held to the argument cap a callable is held to, so a page wanting a fifth thing from one
+  is a page asking the shell to know something about it. Markup that genuinely belongs to no part of the page is
+  markup to delete.
 - Write a multi-line annotation with its arguments on their own lines and its closing bracket alone, which is what
   the paired-brackets rule asks of every construct whose brackets span lines. An annotation whose argument is a
   text block always spans lines, so the shape is not optional there: open the bracket, start the text block on the
