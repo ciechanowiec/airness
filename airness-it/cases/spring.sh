@@ -316,7 +316,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * What this application asks of a caller.
  */
 @Configuration(proxyBeanMethods = false)
-public class Security {
+public final class Security {
 
     /**
      * Builds the chain every request is decided by.
@@ -462,7 +462,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * What this application asks of a caller.
  */
 @Configuration(proxyBeanMethods = false)
-public class Security {
+public final class Security {
 
     /**
      * Builds the chain every request is decided by.
@@ -526,7 +526,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * What this application asks of a caller.
  */
 @Configuration(proxyBeanMethods = false)
-public class Security {
+public final class Security {
 
     /**
      * Builds the chain every request is decided by.
@@ -575,7 +575,7 @@ import org.springframework.boot.test.context.TestConfiguration;
  */
 @EnableAutoConfiguration
 @TestConfiguration(proxyBeanMethods = false)
-public class NarrowConfiguration {
+public final class NarrowConfiguration {
 
     /**
      * Identifies this deliberately narrow configuration.
@@ -629,7 +629,7 @@ import org.springframework.stereotype.Service;
  * What every guard of this application delegates its decision to.
  */
 @Service
-public class Reach {
+public final class Reach {
 
     /**
      * Answers whether the caller reaches the thing under the given reference.
@@ -653,7 +653,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
  */
 @Configuration(proxyBeanMethods = false)
 @EnableMethodSecurity(prePostEnabled = true)
-public class Guards {
+public final class Guards {
 }
 JAVA
     cat > "$1/src/main/java/com/example/Ledgers.java" <<JAVA

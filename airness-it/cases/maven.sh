@@ -49,6 +49,10 @@ run_maven_cases() {
         '--- airness:[^ ]+:typography [(]airness-governance-sources[)]' '--- surefire:[^ ]+:test '
     expect_before lifecycle_clean 'lifecycle: the last source check still precedes the tests' \
         '--- airness:[^ ]+:suppression-budget [(]airness-governance-sources[)]' '--- surefire:[^ ]+:test '
+    expect_before lifecycle_clean 'lifecycle: Checkstyle reports before the tests run' \
+        '--- checkstyle:[^ ]+:check ' '--- surefire:[^ ]+:test '
+    expect_before lifecycle_clean 'lifecycle: the heavier analyzers still report after the tests' \
+        '--- surefire:[^ ]+:test ' '--- pmd:[^ ]+:check '
     expect_before lifecycle_clean 'lifecycle: the tree check reads what the tests and analyzers wrote' \
         '--- surefire:[^ ]+:test ' '--- airness:[^ ]+:tree-verify [(]airness-governance[)]'
     expect_match lifecycle_clean 'lifecycle: software refused by name is checked before the version check' \
