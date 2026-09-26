@@ -29,6 +29,15 @@ run_web_accessibility_cases() {
     </dependencies>
 </project>
 POM
+    cat > "${audit_app}/src/main/java/com/example/package-info.java" <<'JAVA'
+/**
+ * Isolated consumer types used to exercise the inherited harness.
+ */
+@NullMarked
+package com.example;
+
+import org.jspecify.annotations.NullMarked;
+JAVA
     cat > "${audit_app}/src/main/java/com/example/Application.java" <<'JAVA'
 package com.example;
 
@@ -45,7 +54,7 @@ public final class Application {
      *
      * @param arguments what the command line carried
      */
-    public static void main(String[] arguments) {
+    static void main(String[] arguments) {
         SpringApplication.run(Application.class, arguments);
     }
 }

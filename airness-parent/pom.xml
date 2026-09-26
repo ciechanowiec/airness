@@ -814,27 +814,39 @@
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                 </configuration>
                 <!--
-                    Compilation and tests have finished at prepare-package. Running source analysis here
-                    makes Checkstyle, PMD and CPD fail before the package-bound Qodana execution, even
-                    when Maven merges inherited and profile executions into an earlier plugin.
+                    Bound at process-test-classes, the last phase before the tests run, for the reason the
+                    governance goals above are bound there. Checkstyle reads source text and answers in
+                    seconds, while the phases after it carry the whole test suite and, under the extended
+                    profile, the vulnerability database and the inspection engine. Ordering it after them
+                    meant a missing blank line in a comment was reported only once every test had already
+                    run, which on a project whose tests start containers is minutes spent to learn about
+                    a line.
+
+                    It is the only analyzer moved here. Every phase before the tests is also a phase a
+                    plain mvn test reaches, so what is bound here is charged to the narrow test run an
+                    agent uses to ask one question. Checkstyle is cheap enough to be worth that and PMD,
+                    CPD and SpotBugs are not, which is why they stay behind the tests.
+
+                    It still precedes the package-bound Qodana execution, and a child execution merges
+                    after the inherited ones, so the phase is the only place that order can be settled.
                 -->
                 <executions>
                     <execution>
-                        <phase>prepare-package</phase>
+                        <phase>process-test-classes</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
                     </execution>
                     <!--
                         Earlier reactor modules have already built the configuration and governance
-                        artifacts by the time this parent reaches prepare-package.
-                        The ordinary inherited execution sees no Java here because this is a POM
-                        project. This non-inherited execution instead checks the implementation modules
-                        that produce the harness, without leaking their paths into consumers.
+                        artifacts before this parent reaches any phase of its own, because it is built
+                        after them. The ordinary inherited execution sees no Java here because this is a
+                        POM project. This non-inherited execution instead checks the implementation
+                        modules that produce the harness, without leaking their paths into consumers.
                     -->
                     <execution>
                         <id>airness-self-checkstyle</id>
-                        <phase>prepare-package</phase>
+                        <phase>process-test-classes</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
@@ -890,6 +902,13 @@
                     <minimumTokens>100</minimumTokens>
                 </configuration>
                 <executions>
+                    <!--
+                        Left at prepare-package, behind the tests, unlike the Checkstyle executions
+                        above. Every phase before the tests is also a phase that a plain mvn test
+                        reaches, and PMD and CPD together cost about a minute on a codebase of any
+                        size, which is a minute added to the narrow test run an agent uses to ask one
+                        question. Checkstyle answers in seconds and is worth that trade. These are not.
+                    -->
                     <execution>
                         <phase>prepare-package</phase>
                         <goals>
@@ -918,6 +937,11 @@
                     <threshold>Low</threshold>
                 </configuration>
                 <executions>
+                    <!--
+                        Left at package, for the reason PMD is left at prepare-package. This one reads
+                        class files rather than source text and is the slowest of the four, so it is the
+                        last of them a build reaches.
+                    -->
                     <execution>
                         <phase>package</phase>
                         <goals>
