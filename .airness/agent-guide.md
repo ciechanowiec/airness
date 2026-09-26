@@ -66,7 +66,14 @@ Airness governs all of the following domains:
   element is reached by being handed over, by holding something that is, or by declaring a fragment or holding one,
   since a fragment is reached by its name from wherever that name is written. A page handing over what cannot be
   named this way, such as a class or a tag, is passed over whole rather than reported against a set of parts known
-  to be incomplete. A link expression
+  to be incomplete. A fragment binds every name it reads, or reads none that is bound above it, because a request
+  for a fragment alone is answered by processing the element it is declared on and everything under it and nothing
+  over it, so an attribute binding a name above the fragment runs when the whole page is drawn and not when the
+  fragment is. That silence is the same one again and the most complete of the three: an unbound name is no error
+  to the engine, a condition reading one decides against and a value writing one writes nothing, so the request is
+  answered with markup that parses and renders, while a suite reading the whole page reads the draw in which the
+  binding did run. A name bound again at the fragment or inside it is read rather than reported, and so is one the
+  fragment declares as a parameter, since each of those arrives however the fragment was reached. A link expression
   reaches for nothing the engine refuses to read inside one, because what a link carries ends up in an address a
   browser follows and is evaluated under a rule that turns away a bean, a static class and an instantiation. That
   expression compiles and fails on the first request that draws it, so what the link needs is asked for beside it
@@ -401,6 +408,10 @@ it is published, only a fresh history satisfies the rule.
   layout takes. A shell is held to the argument cap a callable is held to, so a page wanting a fifth thing from one
   is a page asking the shell to know something about it. Markup that genuinely belongs to no part of the page is
   markup to delete.
+- Repair a fragment reading a name bound above it by binding the name on the fragment as well, which is one line and
+  is never wrong, since a binding written there runs whenever the fragment does and whenever the whole page does.
+  Moving the binding down rather than repeating it is the same repair where nothing above the fragment reads the
+  name. Taking the name as a parameter is the repair where the callers already differ about what it should be.
 - Write a multi-line annotation with its arguments on their own lines and its closing bracket alone, which is what
   the paired-brackets rule asks of every construct whose brackets span lines. An annotation whose argument is a
   text block always spans lines, so the shape is not optional there: open the bracket, start the text block on the

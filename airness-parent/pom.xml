@@ -707,6 +707,7 @@
                             <goal>template-output</goal>
                             <goal>template-expressions</goal>
                             <goal>template-reach</goal>
+                            <goal>template-scope</goal>
                             <goal>stylesheet-selectors</goal>
                             <goal>message-parity</goal>
                             <goal>suppression-budget</goal>
