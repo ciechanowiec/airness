@@ -28,6 +28,15 @@ HTML
 </body>
 </html>
 HTML
+    cat > "${template_consumer}/src/main/resources/templates/drawn.html" <<'HTML'
+<!DOCTYPE html>
+<html th:replace="~{fragments :: panel(~{:: #body}, '2', '3', '4', '5', '6')}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div id="body">What the layout is handed</div>
+<div id="toast">What nobody receives</div>
+</body>
+</html>
+HTML
 
     run_maven template_report_only templates "${template_consumer}" \
         airness:template-parse \
@@ -37,10 +46,11 @@ HTML
         airness:template-calls \
         airness:template-output \
         airness:template-expressions \
+        airness:template-reach \
         -Dairness.enforce=false
     expect_exit template_report_only 'templates: compatible packaged goals share one report-only execution' 0
     expect_count template_report_only 'templates: every requested packaged goal executed exactly once' \
-        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output|expressions) \(default-cli\)' 7
+        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output|expressions|reach) \(default-cli\)' 8
     expect_match template_report_only 'templates: fragment arity is visible at its fixture' \
         'fragments[.]html.*takes 6 arguments'
     expect_match template_report_only 'templates: discarded conditions stay visible at their fixture' \
@@ -55,6 +65,10 @@ HTML
         'page[.]html.*th:utext writes its value as markup'
     expect_match template_report_only 'templates: expression preprocessing stays visible at its fixture' \
         'page[.]html.*an expression is preprocessed'
+    expect_match template_report_only 'templates: markup the layout discards stays visible at its fixture' \
+        'drawn[.]html.*is handed to no fragment expression'
+    expect_no_match template_report_only 'templates: markup the layout is handed is not reported' \
+        'drawn[.]html:4'
     expect_match template_report_only 'templates: a call nothing evaluates stays visible at its fixture' \
         'page[.]html.*words[.]of[(][.][.][.][)] is written where nothing evaluates it'
 
@@ -67,6 +81,11 @@ HTML
     expect_exit template_links_enforcement 'templates: a forbidden fragment reach fails enforcement' 1
     expect_match template_links_enforcement 'templates: enforcement names the fragment reach and its repair' \
         'page[.]html.*inside a fragment expression.*Ask for it in a th:with beside this'
+
+    run_maven template_reach_enforcement templates "${template_consumer}" airness:template-reach
+    expect_exit template_reach_enforcement 'templates: markup nobody receives fails enforcement' 1
+    expect_match template_reach_enforcement 'templates: enforcement names the discarded markup and its repair' \
+        'drawn[.]html.*is handed to no fragment expression.*Put it inside one the layout is given'
 
     new_consumer message-parity
     parity_consumer="${consumer_directory}"

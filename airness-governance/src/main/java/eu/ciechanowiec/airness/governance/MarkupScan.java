@@ -128,17 +128,45 @@ final class MarkupScan {
         public void handleOpenElement(
             String element, @Nullable Map<String, String> attributes, int line, int column
         ) {
+            this.reader.opened(element, line, column);
+            this.hand(attributes, line, column);
+        }
+
+        // An element the document never wrote, which the parser supplies because the markup around it
+        // cannot stand without one. It opens like any other and is counted like any other, or a rule
+        // about shape would read a document the parser built differently from the one it reads.
+        @Override
+        public void handleAutoOpenElement(
+            String element, @Nullable Map<String, String> attributes, int line, int column
+        ) {
+            this.reader.opened(element, line, column);
             this.hand(attributes, line, column);
         }
 
         // The list is attoparser's rather than this code's, which is why the parameter cap passes over
         // an override. Declining it would leave the reader uncalled for an element that closes itself,
-        // and whatever was written on one unread.
+        // and whatever was written on one unread. It is opened and closed in one breath, because an
+        // element that closes itself holds nothing and a count that only opened it would never come
+        // back down.
         @Override
         public void handleStandaloneElement(
             String element, @Nullable Map<String, String> attributes, boolean minimized, int line, int column
         ) {
+            this.reader.opened(element, line, column);
             this.hand(attributes, line, column);
+            this.reader.closed(element);
+        }
+
+        @Override
+        public void handleCloseElement(String element, int line, int column) {
+            this.reader.closed(element);
+        }
+
+        // The close a document did not write, which the parser reports where what follows cannot sit
+        // inside what is open. It closes the element as surely as a closing tag does.
+        @Override
+        public void handleAutoCloseElement(String element, int line, int column) {
+            this.reader.closed(element);
         }
 
         // The list is attoparser's here too, and for the same reason the cap passes over it. The text

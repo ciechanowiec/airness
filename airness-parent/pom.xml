@@ -681,7 +681,7 @@
                         judge a tree the build was about to replace.
 
                         They run before the tests for the reason the Spring source checks run before package.
-                        These fifteen read the tree and answer in about a second, while the phases after them
+                        These read the tree and answer in about a second between them, while the phases after them
                         carry the analyzers, the whole test suite, and under the extended profile the
                         vulnerability database and the inspection engine. Ordering them after it meant a
                         banned code point in a document was reported only once every test had already run,
@@ -706,6 +706,8 @@
                             <goal>template-calls</goal>
                             <goal>template-output</goal>
                             <goal>template-expressions</goal>
+                            <goal>template-reach</goal>
+                            <goal>stylesheet-selectors</goal>
                             <goal>message-parity</goal>
                             <goal>suppression-budget</goal>
                         </goals>

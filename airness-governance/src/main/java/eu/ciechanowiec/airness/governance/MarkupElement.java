@@ -35,4 +35,36 @@ interface MarkupElement {
     default void text(String content, int line, int column) {
         // A rule about attributes has nothing to ask of the text, and says so by not overriding this.
     }
+
+    /**
+     * Reads the name of an element the moment it opens.
+     *
+     * <p>Where an element sits is not something it carries, so no attribute can answer it. A rule about
+     * the shape of a document has to count what opens and what closes, and this and its pair are what
+     * let it, rather than a second reading of the same file that could fall out of step with this one.
+     *
+     * <p>Doing nothing is the default because a rule about what an element carries has no question to
+     * ask about where it sits, and the checks written before this one ask none.
+     *
+     * @param element the name of the element, as the document spells it
+     * @param line    the line the element was written on
+     * @param column  the column the element was written at
+     */
+    default void opened(String element, int line, int column) {
+        // A rule about attributes has no question about shape, and says so by not overriding this.
+    }
+
+    /**
+     * Reads the name of an element the moment it closes, however the document closed it.
+     *
+     * <p>A document closes an element by writing the closing tag, and it closes one just as surely by
+     * writing something that cannot sit inside it, which the parser reports as a close of its own. Both
+     * arrive here, because a count answering only the first would drift on the ordinary markup a list of
+     * items is written in.
+     *
+     * @param element the name of the element, as the document spells it
+     */
+    default void closed(String element) {
+        // A rule about attributes has no question about shape, and says so by not overriding this.
+    }
 }
