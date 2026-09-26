@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
 
@@ -77,6 +79,31 @@ final class FragmentSignature {
     static String name(String written) {
         int opens = written.indexOf(OPENS);
         return (opens < 0 ? written : written.substring(0, opens)).trim();
+    }
+
+    /**
+     * The names a fragment declares its arguments under, in the order it declares them.
+     *
+     * <p>A declaration writes plain names where a call writes values, so this reads a declaration and
+     * would make nothing of a call. What it answers is what the fragment binds for whoever draws it,
+     * which is what lets a rule about where a name is bound tell a parameter apart from a name reached
+     * from somewhere above.
+     *
+     * @param written a fragment as it was declared, such as {@code field(label, name)}
+     * @return the argument names, and none for a fragment that writes no list at all
+     */
+    static List<String> names(String written) {
+        int opens = written.indexOf(OPENS);
+        int closes = written.lastIndexOf(CLOSES);
+        boolean listed = opens >= 0 && closes > opens;
+        return listed ? declared(written.substring(opens + 1, closes)) : List.of();
+    }
+
+    private static List<String> declared(String list) {
+        return Arrays.stream(list.split(String.valueOf(SEPARATOR)))
+            .map(String::trim)
+            .filter(name -> !name.isEmpty())
+            .toList();
     }
 
     // What is left once every literal and every group has been taken out is the list itself, so the

@@ -28,6 +28,16 @@ HTML
 </body>
 </html>
 HTML
+    cat > "${template_consumer}/src/main/resources/templates/scoped.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:with="ordered=${room.editable()}">
+    <section th:fragment="rows"><a th:if="${ordered}">Move up</a></section>
+</div>
+</body>
+</html>
+HTML
     cat > "${template_consumer}/src/main/resources/templates/drawn.html" <<'HTML'
 <!DOCTYPE html>
 <html th:replace="~{fragments :: panel(~{:: #body}, '2', '3', '4', '5', '6')}" xmlns:th="http://www.thymeleaf.org">
@@ -47,10 +57,11 @@ HTML
         airness:template-output \
         airness:template-expressions \
         airness:template-reach \
+        airness:template-scope \
         -Dairness.enforce=false
     expect_exit template_report_only 'templates: compatible packaged goals share one report-only execution' 0
     expect_count template_report_only 'templates: every requested packaged goal executed exactly once' \
-        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output|expressions|reach) \(default-cli\)' 8
+        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output|expressions|reach|scope) \(default-cli\)' 9
     expect_match template_report_only 'templates: fragment arity is visible at its fixture' \
         'fragments[.]html.*takes 6 arguments'
     expect_match template_report_only 'templates: discarded conditions stay visible at their fixture' \
@@ -71,6 +82,8 @@ HTML
         'drawn[.]html:4'
     expect_match template_report_only 'templates: a call nothing evaluates stays visible at its fixture' \
         'page[.]html.*words[.]of[(][.][.][.][)] is written where nothing evaluates it'
+    expect_match template_report_only 'templates: a name bound above a fragment stays visible at its fixture' \
+        'scoped[.]html.*the fragment reads ordered'
 
     run_maven template_enforcement templates "${template_consumer}" airness:template-fragments
     expect_exit template_enforcement 'templates: a representative installed-goal finding fails enforcement' 1
@@ -86,6 +99,11 @@ HTML
     expect_exit template_reach_enforcement 'templates: markup nobody receives fails enforcement' 1
     expect_match template_reach_enforcement 'templates: enforcement names the discarded markup and its repair' \
         'drawn[.]html.*is handed to no fragment expression.*Put it inside one the layout is given'
+
+    run_maven template_scope_enforcement templates "${template_consumer}" airness:template-scope
+    expect_exit template_scope_enforcement 'templates: a name bound above a fragment fails enforcement' 1
+    expect_match template_scope_enforcement 'templates: enforcement names the unbound name and its repair' \
+        'scoped[.]html.*the fragment reads ordered.*Bind it on the fragment as well'
 
     new_consumer message-parity
     parity_consumer="${consumer_directory}"

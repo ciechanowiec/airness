@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.governance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -20,6 +21,24 @@ class FragmentSignatureTest {
             4, FragmentSignature.arguments("header('Room', ${name}, |Code ${code}, ${floor}|, ~{:: actions})"),
             "a substitution the engine composes is one value, and the comma in it is part of the sentence"
         );
+    }
+
+    @Test
+    void readsTheNamesAFragmentDeclaresItsArgumentsUnder() {
+        assertEquals(
+            List.of("label", "name", "control"), FragmentSignature.names("field(label, name, control)"),
+            "a fragment binds what it declares, in the order it declares it"
+        );
+    }
+
+    @Test
+    void readsNoNamesForAFragmentThatDeclaresNoList() {
+        assertEquals(List.of(), FragmentSignature.names("rooms"), "a fragment taking nothing binds nothing");
+    }
+
+    @Test
+    void readsNoNamesForAFragmentWhoseListIsEmpty() {
+        assertEquals(List.of(), FragmentSignature.names("rooms()"), "an empty list declares no name at all");
     }
 
     @Test
