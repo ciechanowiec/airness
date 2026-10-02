@@ -189,6 +189,19 @@ class CheckstyleConfigurationTest {
             3
         ),
         new Fixture(
+            "Crowded.java",
+            """
+                package example;
+                record Crowded(
+                    String first, String second, String third, String fourth,
+                    String fifth, String sixth, String seventh, String eighth
+                ) {
+                }
+                """,
+            "RecordComponentNumber",
+            2
+        ),
+        new Fixture(
             "Branched.java",
             """
                 package example;

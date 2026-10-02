@@ -819,6 +819,43 @@
                         <exclude>**/*.wasm</exclude>
                         <exclude>**/*.pfb</exclude>
                         <exclude>**/*.bcmap</exclude>
+                        <!--
+                            What the linter's own suffix list does not reach. That list belongs to a dependency and
+                            answers for the formats it knew about, which is why a committed .jpg passes and a
+                            committed .jpeg does not. The gap closes a suffix at a time and no project can close it
+                            from inside itself, so what a gap actually buys is a workaround invented locally, and a
+                            media file committed as encoded text is worse than the finding it answered. The suffixes
+                            above are kept even where that list already names them, because a list carried by a
+                            dependency can change underneath this one and a policy worth having is stated here.
+                        -->
+                        <exclude>**/*.jpeg</exclude>
+                        <exclude>**/*.heic</exclude>
+                        <exclude>**/*.heif</exclude>
+                        <exclude>**/*.psd</exclude>
+                        <exclude>**/*.svgz</exclude>
+                        <!-- Encoded sound: samples rather than lines, and none of them a line ending. -->
+                        <exclude>**/*.mp3</exclude>
+                        <exclude>**/*.m4a</exclude>
+                        <exclude>**/*.aac</exclude>
+                        <exclude>**/*.ogg</exclude>
+                        <exclude>**/*.oga</exclude>
+                        <exclude>**/*.opus</exclude>
+                        <exclude>**/*.flac</exclude>
+                        <exclude>**/*.wma</exclude>
+                        <!-- Moving pictures, beside the two forms above them that a browser plays. -->
+                        <exclude>**/*.mov</exclude>
+                        <exclude>**/*.m4v</exclude>
+                        <exclude>**/*.avi</exclude>
+                        <exclude>**/*.mkv</exclude>
+                        <exclude>**/*.wmv</exclude>
+                        <exclude>**/*.flv</exclude>
+                        <!-- Compressed archives and a loadable object, which carry bytes rather than lines. -->
+                        <exclude>**/*.tgz</exclude>
+                        <exclude>**/*.bz2</exclude>
+                        <exclude>**/*.xz</exclude>
+                        <exclude>**/*.7z</exclude>
+                        <exclude>**/*.zst</exclude>
+                        <exclude>**/*.dylib</exclude>
                         <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
                         <exclude>**/*.tsv</exclude>
                         <!--

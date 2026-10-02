@@ -47,20 +47,25 @@ run_binary_formatting_boundary() {
     audio_consumer="${consumer_directory}"
     audio_fixture="${repository}/airness-it/fixtures/silence.wav"
     document_fixtures="${repository}/airness-it/fixtures/document-binaries"
+    media_fixtures="${repository}/airness-it/fixtures/media-binaries"
     mkdir -p "${audio_consumer}/src/main/resources"
     cp "${audio_fixture}" "${audio_consumer}/src/main/resources/silence.wav"
     cp "${document_fixtures}/module.wasm" "${audio_consumer}/src/main/resources/module.wasm"
     cp "${document_fixtures}/font.pfb" "${audio_consumer}/src/main/resources/font.pfb"
     cp "${document_fixtures}/map.bcmap" "${audio_consumer}/src/main/resources/map.bcmap"
+    cp "${media_fixtures}/tone.mp3" "${audio_consumer}/src/main/resources/tone.mp3"
+    cp "${media_fixtures}/clip.mov" "${audio_consumer}/src/main/resources/clip.mov"
     run_maven audio_binary repository "${audio_consumer}" validate editorconfig:check
-    expect_exit audio_binary 'formatting: audio, WebAssembly, fonts and character maps are binary' 0
+    expect_exit audio_binary 'formatting: audio, video, WebAssembly, fonts and character maps are binary' 0
     if cmp -s "${audio_fixture}" "${audio_consumer}/src/main/resources/silence.wav"; then
         pass 'formatting: checking audio preserves its exact bytes'
     else
         fail 'formatting: checking audio preserves its exact bytes' 'the WAV fixture changed'
     fi
-    for binary_name in module.wasm font.pfb map.bcmap; do
-        if cmp -s "${document_fixtures}/${binary_name}" "${audio_consumer}/src/main/resources/${binary_name}"; then
+    for binary_source in "${document_fixtures}/module.wasm" "${document_fixtures}/font.pfb" \
+        "${document_fixtures}/map.bcmap" "${media_fixtures}/tone.mp3" "${media_fixtures}/clip.mov"; do
+        binary_name="${binary_source##*/}"
+        if cmp -s "${binary_source}" "${audio_consumer}/src/main/resources/${binary_name}"; then
             pass "formatting: checking preserves ${binary_name} bytes"
         else
             fail "formatting: checking preserves ${binary_name} bytes" 'the binary fixture changed'
@@ -72,7 +77,7 @@ run_binary_formatting_boundary() {
     expect_match audio_text 'formatting: the text file is the offending file' \
         'notes[.]txt.*insert_final_newline'
     expect_no_match audio_text 'formatting: binaries stay outside the text finding' \
-        'silence[.]wav@|module[.]wasm@|font[.]pfb@|map[.]bcmap@'
+        'silence[.]wav@|module[.]wasm@|font[.]pfb@|map[.]bcmap@|tone[.]mp3@|clip[.]mov@'
 }
 
 run_tree_boundary() {
