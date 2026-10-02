@@ -439,8 +439,15 @@ it is published, only a fresh history satisfies the rule.
   them. A ShellCheck source hint must identify the actual repository import, never an empty substitute. Report a
   false finding to Airness.
 - For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
-  the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
-  baseline mechanism and keep the reason beside the entry.
+  the identifier the analyzer accepts in a suppression, which is not always the identifier it reported. For a tool
+  without source suppressions, use its Airness-owned configuration or baseline mechanism and keep the reason beside
+  the entry.
+- The Qodana inspections that measure the size or the coupling of a type report one name and accept another, so the
+  reported name suppresses nothing and is then itself reported as a suppression of nothing. A wrong identifier
+  therefore costs two full runs rather than one, because the second failure reads like a new finding. `ClassCoupling`
+  is suppressed as `OverlyCoupledClass`, `MethodCoupling` as `OverlyCoupledMethod`, and `FieldCount` as
+  `ClassWithTooManyFields`. Where a reported name suppresses nothing and no other name is known, report it to
+  Airness rather than leaving a suppression that holds nothing back.
 
 ### Change Requests
 

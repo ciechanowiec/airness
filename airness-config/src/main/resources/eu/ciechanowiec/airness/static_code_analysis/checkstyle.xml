@@ -1039,6 +1039,24 @@
             <property name="max" value="50"/>
         </module>
         <module name="OuterTypeNumber"/>
+        <module name="RecordComponentNumber">
+            <!--
+                The field cap this configuration states elsewhere, said where a record can hear it. A component
+                is a field, so seven is the number already governing one, and both of the tools that count
+                fields say seven. Neither of them reaches a record, though: the parameter cap below reads a
+                constructor and a record header is not one, and the field rule of the other analyser matches a
+                class and not a record. So a record of eleven components passed every check a project runs
+                before its tests and was refused only by the analysis that runs after all of them, which is the
+                same verdict arriving an order of magnitude later, and late enough that an agent reading the
+                rules first concluded there was no cap and wrote that down.
+
+                Seven rather than the four the parameter cap names, because a wide record is accepted here
+                deliberately and the inspection profile says so where it turns the constructor cap off. A
+                module contradicting that would be this harness disagreeing with itself in two files. Only the
+                moment of the verdict moves. The number is the one that was already in force.
+            -->
+            <property name="max" value="7"/>
+        </module>
         <module name="ParameterNumber">
             <property name="max" value="4"/>
             <!--
