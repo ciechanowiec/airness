@@ -96,6 +96,285 @@
     <module name="TreeWalker">
         <!-- Enable usage of @SuppressWarnings -->
         <module name="SuppressWarningsHolder"/>
+        <!-- Early counterparts of the retained slow Java analyzers. -->
+        <!-- Original rules stay enabled. The test inventory records each supported subset. -->
+        <module name="MatchXpath">
+            <property name="id" value="NullThrown"/>
+            <property name="query" value="//LITERAL_THROW/EXPR/LITERAL_NULL"/>
+            <message key="matchxpath.match" value="Throw an exception that explains the failure, never null."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="InstanceofThis"/>
+            <property name="query" value="//LITERAL_INSTANCEOF/LITERAL_THIS"/>
+            <message key="matchxpath.match" value="An instance should not inspect its own runtime type. Put the behavior on the appropriate type."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="ValueOfIncrementOrDecrementUsed"/>
+            <property name="query" value="//LITERAL_RETURN/EXPR/*[self::INC or self::DEC or self::POST_INC or self::POST_DEC]"/>
+            <message key="matchxpath.match" value="Separate the increment or decrement from the expression using its value."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="ConstantDeclaredInAbstractClass"/>
+            <property name="query" value="//CLASS_DEF[MODIFIERS/ABSTRACT]/OBJBLOCK/VARIABLE_DEF[MODIFIERS/LITERAL_PUBLIC and MODIFIERS/LITERAL_STATIC and MODIFIERS/FINAL]"/>
+            <message key="matchxpath.match" value="Keep a public constant on the concrete type or interface that owns its meaning."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PublicConstructorInNonPublicClass"/>
+            <property name="query" value="//CLASS_DEF[not(MODIFIERS/LITERAL_PUBLIC or MODIFIERS/LITERAL_PROTECTED) and not(parent::OBJBLOCK/parent::INTERFACE_DEF or parent::OBJBLOCK/parent::ANNOTATION_DEF)]/OBJBLOCK/CTOR_DEF[MODIFIERS/LITERAL_PUBLIC and PARAMETERS/PARAMETER_DEF]"/>
+            <message key="matchxpath.match" value="A constructor need not be public when its class is not public or protected."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="ClassWithTooManyFields"/>
+            <property name="query" value="(//CLASS_DEF | //ENUM_DEF | //LITERAL_NEW[OBJBLOCK])[not(MODIFIERS/ANNOTATION[(IDENT|DOT/IDENT)[last()][@text=('UtilityClass','FieldDefaults')]])][count(OBJBLOCK/VARIABLE_DEF[not(MODIFIERS/LITERAL_STATIC and MODIFIERS/FINAL)]) &gt; 7]"/>
+            <message key="matchxpath.match" value="This type holds more than seven non-constant fields. Split the state into focused values."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="ClassWithTooManyConstructors"/>
+            <property name="query" value="(//CLASS_DEF | //ENUM_DEF | //RECORD_DEF)[count(OBJBLOCK/CTOR_DEF | OBJBLOCK/COMPACT_CTOR_DEF) &gt; 5]"/>
+            <message key="matchxpath.match" value="This type declares more than five constructors. Reduce the construction variants."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="InnerClassTooDeeplyNested"/>
+            <property name="query" value="(//CLASS_DEF | //INTERFACE_DEF | //ENUM_DEF | //ANNOTATION_DEF | //RECORD_DEF)[count(ancestor::*[self::CLASS_DEF or self::INTERFACE_DEF or self::ENUM_DEF or self::ANNOTATION_DEF or self::RECORD_DEF or self::LITERAL_NEW[OBJBLOCK] or self::ENUM_CONSTANT_DEF[OBJBLOCK]]) &gt; 2]"/>
+            <message key="matchxpath.match" value="This type is nested more than two levels inside other types. Give it a shallower home."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="NestedConditionalExpression"/>
+            <property name="query" value="//QUESTION[ancestor::QUESTION and not(ancestor::LAMBDA or ancestor::LITERAL_NEW[OBJBLOCK]) ]"/>
+            <message key="matchxpath.match" value="Extract the nested conditional expression into a named operation."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="ChainedEqualityComparisons"/>
+            <property name="query" value="(//EQUAL | //NOT_EQUAL)[EQUAL or NOT_EQUAL][not(LPAREN or RPAREN or parent::EQUAL or parent::NOT_EQUAL)]"/>
+            <message key="matchxpath.match" value="Compare each pair explicitly instead of chaining equality operators."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="IfStatementWithTooManyBranches"/>
+            <property name="query" value="//LITERAL_IF[not(parent::LITERAL_ELSE)][LITERAL_ELSE/LITERAL_IF/LITERAL_ELSE/LITERAL_IF/LITERAL_ELSE]"/>
+            <message key="matchxpath.match" value="This if statement has more than three branches. Extract the dispatch into focused operations."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="MethodWithMultipleLoops"/>
+            <property name="query" value="(//METHOD_DEF | //CTOR_DEF)[count(.//*[self::LITERAL_FOR or self::LITERAL_WHILE or self::LITERAL_DO][not(ancestor::OBJBLOCK[parent::LITERAL_NEW or parent::ENUM_CONSTANT_DEF])]) &gt; 1]"/>
+            <message key="matchxpath.match" value="This callable contains more than one loop. Extract each traversal into a focused operation."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="MethodWithMoreThanThreeNegations"/>
+            <property name="query" value="(//METHOD_DEF[not(IDENT[@text='equals'])] | //CTOR_DEF)[count(.//*[self::LNOT or self::NOT_EQUAL][not(ancestor::OBJBLOCK[parent::LITERAL_NEW or parent::ENUM_CONSTANT_DEF])]) &gt; 3]"/>
+            <message key="matchxpath.match" value="This callable contains more than three negations. Name the positive conditions."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="QuestionableName"/>
+            <property name="query" value="//*[self::VARIABLE_DEF or self::PARAMETER_DEF or self::PATTERN_VARIABLE_DEF or self::RECORD_COMPONENT_DEF or self::ENUM_CONSTANT_DEF or self::METHOD_DEF or self::CTOR_DEF or self::CLASS_DEF or self::INTERFACE_DEF or self::ENUM_DEF or self::RECORD_DEF or self::ANNOTATION_DEF or self::TYPE_PARAMETER]/IDENT[@text=('aa','abc','bad','baz','baz1','baz2','baz3','bb','blah','bogus','bool','cc','dd','defau1t','dummy','dummy2','ee','fa1se','ff','foo','foo1','foo2','foo3','foobar','fred','fred1','fred2','gg','hh','hello','hello1','hello2','hello3','ii','nu11','silly','silly2','string','whi1e','var')]"/>
+            <message key="matchxpath.match" value="This declaration uses a placeholder name from the Qodana profile. Name the concept it represents."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.SuppressionNeedsJustification"/>
+            <property name="query" value="//ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='SuppressWarnings']][not(../ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='Justification']])]"/>
+            <message key="matchxpath.match" value="A suppression must carry a Justification explaining why the rule does not apply."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.JustificationNeedsSuppression"/>
+            <property name="query" value="//ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='Justification']][not(../ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='SuppressWarnings']])]"/>
+            <message key="matchxpath.match" value="Remove the justification when its suppression is removed."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.JustificationNeedsText"/>
+            <property name="query" value="//ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='Justification']][(EXPR|ANNOTATION_MEMBER_VALUE_PAIR/EXPR)/STRING_LITERAL[matches(@text, '^\s*$')]]"/>
+            <message key="matchxpath.match" value="A Justification must contain non-whitespace text."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UninitializedLocalVariable"/>
+            <property name="query" value="//VARIABLE_DEF[not(parent::OBJBLOCK or parent::FOR_EACH_CLAUSE) and not(ASSIGN)]"/>
+            <message key="matchxpath.match" value="Initialize a local at its declaration, or return directly from the branches."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.NoThrowsInTestClass"/>
+            <property name="query" value="(//METHOD_DEF | //CTOR_DEF)[LITERAL_THROWS and ancestor::*[self::CLASS_DEF or self::INTERFACE_DEF][IDENT[ends-with(@text, 'Test')]]]"/>
+            <message key="matchxpath.match" value="A test class must not declare throws. Use SneakyThrows when the test calls a checked API."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.NoAbbreviatedNames"/>
+            <property name="query" value="//*[self::VARIABLE_DEF or self::PARAMETER_DEF or self::PATTERN_VARIABLE_DEF or self::RECORD_COMPONENT_DEF or self::ENUM_CONSTANT_DEF]/IDENT[matches(@text, '^((acc|arg|arr|attr|attrs|btn|buf|cb|cfg|cmd|conf|ctx|cur|curr|db|decl|decls|def|dep|deps|dest|dev|dir|dirs|dist|doc|docs|dst|e|el|elem|elems|env|envs|err|ev|evt|expr|exprs|ext|exts|fn|func|i|ident|idents|idx|j|len|lib|mod|msg|num|obj|opts|param|params|perf|pkg|prev|prod|prop|props|proto|ref|refs|rel|req|res|ret|retval|sep|src|stdDev|stmt|stmts|str|tbl|temp|tit|tmp|util|utils|val|var|vars|ver)([A-Z0-9].*)?|.*[a-z0-9](Acc|Arg|Arr|Attr|Attrs|Btn|Buf|Cb|Cfg|Cmd|Conf|Ctx|Cur|Curr|Db|Decl|Decls|Def|Dep|Deps|Dest|Dev|Dir|Dirs|Dist|Doc|Docs|Dst|E|El|Elem|Elems|Env|Envs|Err|Ev|Evt|Expr|Exprs|Ext|Exts|Fn|Func|I|Ident|Idents|Idx|J|Len|Lib|Mod|Msg|Num|Obj|Opts|Param|Params|Perf|Pkg|Prev|Prod|Prop|Props|Proto|Ref|Refs|Rel|Req|Res|Ret|Retval|Sep|Src|StdDev|Stmt|Stmts|Str|Tbl|Temp|Tit|Tmp|Util|Utils|Val|Var|Vars|Ver)([A-Z0-9].*)?)$')] | //METHOD_DEF[not(MODIFIERS/ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='Override']])]/IDENT[matches(@text, '^((acc|arg|arr|attr|attrs|btn|buf|cb|cfg|cmd|conf|ctx|cur|curr|db|decl|decls|def|dep|deps|dest|dev|dir|dirs|dist|doc|docs|dst|e|el|elem|elems|env|envs|err|ev|evt|expr|exprs|ext|exts|fn|func|i|ident|idents|idx|j|len|lib|mod|msg|num|obj|opts|param|params|perf|pkg|prev|prod|prop|props|proto|ref|refs|rel|req|res|ret|retval|sep|src|stdDev|stmt|stmts|str|tbl|temp|tit|tmp|util|utils|val|var|vars|ver)([A-Z0-9].*)?|.*[a-z0-9](Acc|Arg|Arr|Attr|Attrs|Btn|Buf|Cb|Cfg|Cmd|Conf|Ctx|Cur|Curr|Db|Decl|Decls|Def|Dep|Deps|Dest|Dev|Dir|Dirs|Dist|Doc|Docs|Dst|E|El|Elem|Elems|Env|Envs|Err|Ev|Evt|Expr|Exprs|Ext|Exts|Fn|Func|I|Ident|Idents|Idx|J|Len|Lib|Mod|Msg|Num|Obj|Opts|Param|Params|Perf|Pkg|Prev|Prod|Prop|Props|Proto|Ref|Refs|Rel|Req|Res|Ret|Retval|Sep|Src|StdDev|Stmt|Stmts|Str|Tbl|Temp|Tit|Tmp|Util|Utils|Val|Var|Vars|Ver)([A-Z0-9].*)?)$')]"/>
+            <message key="matchxpath.match" value="Spell out the abbreviated word in this declaration."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.NativeQueryNeedsJustification"/>
+            <property name="query" value="//METHOD_DEF[MODIFIERS/ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='Query']]//ANNOTATION_MEMBER_VALUE_PAIR[IDENT[@text='nativeQuery']]/EXPR/LITERAL_TRUE]"/>
+            <message key="matchxpath.match" value="A native query needs a justified suppression stating why JPQL cannot answer."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.NullablePersistentValueNeedsJustification"/>
+            <property name="query" value="(//VARIABLE_DEF[parent::OBJBLOCK][ancestor::*[self::CLASS_DEF or self::INTERFACE_DEF][MODIFIERS/ANNOTATION[(IDENT|DOT/IDENT)[last()][@text=('Entity','Embeddable','MappedSuperclass')]]]] | //RECORD_COMPONENT_DEF[ancestor::RECORD_DEF[MODIFIERS/ANNOTATION[(IDENT|DOT/IDENT)[last()][@text=('Entity','Embeddable','MappedSuperclass')]]]])[.//ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='Nullable']]]"/>
+            <message key="matchxpath.match" value="A nullable persistent value needs a justified suppression explaining why absence belongs to the data."/>
+        </module>
+        <module name="eu.ciechanowiec.airness.governance.PairedConditionCheck">
+            <property name="id" value="PMD.PairedConditionParentheses"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.AvoidSynchronizedAtMethodLevel"/>
+            <property name="query" value="//METHOD_DEF[MODIFIERS/LITERAL_SYNCHRONIZED]"/>
+            <message key="matchxpath.match" value="Avoid method-level synchronization; make the required synchronization explicit."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.AvoidSynchronizedStatement"/>
+            <property name="query" value="//LITERAL_SYNCHRONIZED[not(parent::MODIFIERS)]"/>
+            <message key="matchxpath.match" value="Avoid synchronized statements; use the concurrency abstraction that owns the operation."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.AvoidUsingVolatile"/>
+            <property name="query" value="//VARIABLE_DEF[parent::OBJBLOCK][MODIFIERS/LITERAL_VOLATILE]"/>
+            <message key="matchxpath.match" value="Replace volatile shared state with an explicit concurrency abstraction."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.ForLoopVariableCount"/>
+            <property name="query" value="//FOR_INIT[count(VARIABLE_DEF) &gt; 1]"/>
+            <message key="matchxpath.match" value="A for loop should declare at most one control variable."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.DoNotThrowExceptionInFinally"/>
+            <property name="query" value="//LITERAL_FINALLY[.//LITERAL_THROW]"/>
+            <message key="matchxpath.match" value="Throwing from finally can hide the original failure."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.ReturnFromFinallyBlock"/>
+            <property name="query" value="//LITERAL_RETURN[ancestor::LITERAL_FINALLY][not(ancestor::LAMBDA or ancestor::METHOD_DEF[ancestor::LITERAL_FINALLY])]"/>
+            <message key="matchxpath.match" value="A return from finally can discard an exception or an earlier return."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.ForLoopShouldBeWhileLoop"/>
+            <property name="query" value="//LITERAL_FOR[FOR_INIT[not(*)] and FOR_ITERATOR[not(*)] and FOR_CONDITION/EXPR]"/>
+            <message key="matchxpath.match" value="Use while when a for loop has neither initialization nor update."/>
+        </module>
+        <module name="eu.ciechanowiec.airness.governance.EnclosingTypeNameCheck">
+            <property name="id" value="PMD.MethodWithSameNameAsEnclosingClass"/>
+            <property name="tokens" value="METHOD_DEF"/>
+        </module>
+        <module name="eu.ciechanowiec.airness.governance.EnclosingTypeNameCheck">
+            <property name="id" value="PMD.AvoidFieldNameMatchingTypeName"/>
+            <property name="tokens" value="VARIABLE_DEF"/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.LongVariable"/>
+            <property name="query" value="//*[self::VARIABLE_DEF or self::PARAMETER_DEF or self::PATTERN_VARIABLE_DEF or self::RECORD_COMPONENT_DEF or self::ENUM_CONSTANT_DEF]/IDENT[string-length(@text) &gt; 30]"/>
+            <message key="matchxpath.match" value="This variable name exceeds the configured thirty-character limit."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.ShortClassName"/>
+            <property name="query" value="(//CLASS_DEF|//INTERFACE_DEF)/IDENT[string-length(@text) &lt; 3]"/>
+            <message key="matchxpath.match" value="A class or interface name must contain at least three characters."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.ShortMethodName"/>
+            <property name="query" value="//METHOD_DEF/IDENT[string-length(@text) &lt; 2]"/>
+            <message key="matchxpath.match" value="A method name must contain at least two characters."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.SimplifiedTernary"/>
+            <property name="query" value="//QUESTION[(LITERAL_TRUE or LITERAL_FALSE) and not(LITERAL_NULL)]"/>
+            <message key="matchxpath.match" value="Simplify the conditional expression containing a boolean literal."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.LogicInversion"/>
+            <property name="query" value="//LNOT[*[self::EQUAL or self::NOT_EQUAL]]"/>
+            <message key="matchxpath.match" value="Invert the equality operator instead of negating the comparison."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UnconditionalIfStatement"/>
+            <property name="query" value="//LITERAL_IF/EXPR[LITERAL_TRUE or LITERAL_FALSE]"/>
+            <message key="matchxpath.match" value="This if condition is a literal. Remove the unreachable choice."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.AvoidMultipleUnaryOperators"/>
+            <property name="query" value="//*[self::LNOT or self::BNOT or self::UNARY_MINUS or self::UNARY_PLUS or self::INC or self::DEC or self::POST_INC or self::POST_DEC][*[self::LNOT or self::BNOT or self::UNARY_MINUS or self::UNARY_PLUS or self::INC or self::DEC or self::POST_INC or self::POST_DEC]][not(parent::*[self::LNOT or self::BNOT or self::UNARY_MINUS or self::UNARY_PLUS or self::INC or self::DEC or self::POST_INC or self::POST_DEC])]"/>
+            <message key="matchxpath.match" value="Simplify consecutive unary operators so the intended operation is clear."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.EqualsNull"/>
+            <property name="query" value="//METHOD_CALL[(IDENT|DOT/IDENT)[last()][@text='equals']][ELIST[count(EXPR)=1]/EXPR/LITERAL_NULL]"/>
+            <message key="matchxpath.match" value="Calling equals with null is not an absence check."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UseNotifyAllInsteadOfNotify"/>
+            <property name="query" value="//METHOD_CALL[(IDENT|DOT/IDENT)[last()][@text='notify']][ELIST[not(EXPR)]]"/>
+            <message key="matchxpath.match" value="Use notifyAll so every waiter can reconsider its condition."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.AvoidThreadGroup"/>
+            <property name="query" value="//METHOD_CALL[(IDENT|DOT/IDENT)[last()][@text='getThreadGroup']]"/>
+            <message key="matchxpath.match" value="Avoid ThreadGroup; use an executor or an explicit task-lifetime abstraction."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.InstantiationToGetClass"/>
+            <property name="query" value="//METHOD_CALL[DOT/IDENT[@text='getClass'] and DOT/LITERAL_NEW]"/>
+            <message key="matchxpath.match" value="Use a class literal instead of allocating an instance to call getClass."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UseShortArrayInitializer"/>
+            <property name="query" value="//VARIABLE_DEF[TYPE/ARRAY_DECLARATOR]/ASSIGN/EXPR/LITERAL_NEW[ARRAY_INIT]"/>
+            <message key="matchxpath.match" value="Use the short array initializer when the declaration already states the array type."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.ProtectedMemberInFinalClass"/>
+            <property name="query" value="//CLASS_DEF[MODIFIERS/FINAL]/OBJBLOCK/*[MODIFIERS/LITERAL_PROTECTED and not(self::METHOD_DEF)] | //CLASS_DEF[MODIFIERS/FINAL and not(EXTENDS_CLAUSE)]/OBJBLOCK/METHOD_DEF[MODIFIERS/LITERAL_PROTECTED and not(IDENT[@text='finalize' or @text='clone']) and not(MODIFIERS/ANNOTATION[(IDENT|DOT/IDENT)[last()][@text='Override']])]"/>
+            <message key="matchxpath.match" value="A final class has no subclasses that need a protected member."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="AnonymousInnerClassWithTooManyMethods"/>
+            <property name="query" value="//LITERAL_NEW[OBJBLOCK][count(OBJBLOCK/METHOD_DEF) &gt; 15]"/>
+            <message key="matchxpath.match" value="This anonymous class declares more than fifteen methods. Extract a focused named type."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.AvoidUsingOctalValues"/>
+            <property name="query" value="(//NUM_INT|//NUM_LONG)[matches(@text, '^0+[1-7][0-7]+[lL]?$')]"/>
+            <message key="matchxpath.match" value="Use an explicit decimal or hexadecimal value instead of a confusing octal literal."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.NullAssignment"/>
+            <property name="query" value="//ASSIGN[INDEX_OP and LITERAL_NULL]"/>
+            <message key="matchxpath.match" value="Represent absence explicitly instead of assigning null."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.CollapsibleIfStatements"/>
+            <property name="query" value="//LITERAL_IF[not(LITERAL_ELSE)]/SLIST[count(*[not(self::RCURLY or self::SINGLE_LINE_COMMENT or self::BLOCK_COMMENT_BEGIN)])=1]/LITERAL_IF[not(LITERAL_ELSE)]"/>
+            <message key="matchxpath.match" value="Combine the nested conditions when the outer block contains only that if statement."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UnnecessaryReturn"/>
+            <property name="query" value="//METHOD_DEF[TYPE/LITERAL_VOID]/SLIST/LITERAL_RETURN[not(EXPR) and following-sibling::*[1][self::RCURLY]]"/>
+            <message key="matchxpath.match" value="Remove the final return from this void method."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="OverlyComplexClass"/>
+            <property name="query" value="//CLASS_DEF[count(OBJBLOCK/METHOD_DEF/SLIST//LITERAL_IF[not(ancestor::OBJBLOCK[parent::LITERAL_NEW or parent::ENUM_CONSTANT_DEF])]) &gt; 80]"/>
+            <message key="matchxpath.match" value="The type exceeds the configured class complexity limit of eighty. Split its responsibilities."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.ShortVariable"/>
+            <property name="query" value="//VARIABLE_DEF[not(parent::FOR_INIT or parent::FOR_EACH_CLAUSE)]/IDENT[string-length(@text) &lt; 2 and @text != '_'] | //PARAMETER_DEF[not(parent::LITERAL_CATCH or parent::PARAMETERS/parent::LAMBDA)]/IDENT[string-length(@text) &lt; 2 and @text != '_'] | //RECORD_COMPONENT_DEF/IDENT[string-length(@text) &lt; 2 and @text != '_']"/>
+            <message key="matchxpath.match" value="Use at least two characters for the variable name."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.TypeParameterNamingConventions"/>
+            <property name="query" value="//TYPE_PARAMETER/IDENT[not(matches(@text, '^([A-Z]|AdapterType)$'))]"/>
+            <message key="matchxpath.match" value="Name a type parameter with one uppercase letter, or the configured AdapterType exception."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UseUnderscoresInNumericLiterals"/>
+            <property name="query" value="(//NUM_INT|//NUM_LONG)[matches(@text, '^[1-9][0-9]{4,}[lL]?$')][not(ancestor::VARIABLE_DEF[IDENT[@text='serialVersionUID']])]"/>
+            <message key="matchxpath.match" value="Separate the groups in this decimal literal with underscores."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UncommentedEmptyMethodBody"/>
+            <property name="query" value="//METHOD_DEF/SLIST[count(*) = 1 and RCURLY]"/>
+            <message key="matchxpath.match" value="Explain why this method body is deliberately empty."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="id" value="PMD.UncommentedEmptyConstructor"/>
+            <property name="query" value="//CTOR_DEF[not(MODIFIERS/LITERAL_PRIVATE or MODIFIERS/ANNOTATION)]/SLIST[count(*) = 1 and RCURLY]"/>
+            <message key="matchxpath.match" value="Explain why this constructor body is deliberately empty."/>
+        </module>
+        <!-- End early counterparts. -->
 
         <!--
         Custom AST checks supplied by qulice-maven-plugin on the plugin classpath (see pom.xml).

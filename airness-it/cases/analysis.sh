@@ -111,6 +111,7 @@ JAVA
         'has found [0-9]+ duplication'
     run_variable_distance_cases
     run_analysis_lifecycle
+    run_early_analysis_lifecycle
 
 }
 

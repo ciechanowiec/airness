@@ -49,8 +49,10 @@ final class CheckstyleRule {
     ) {
         DefaultConfiguration walkerConfiguration = new DefaultConfiguration("TreeWalker");
         walkerConfiguration.addChild(ruleConfiguration);
+        walkerConfiguration.addChild(new DefaultConfiguration("SuppressWarningsHolder"));
         DefaultConfiguration checkerConfiguration = new DefaultConfiguration("Checker");
         checkerConfiguration.addChild(walkerConfiguration);
+        checkerConfiguration.addChild(new DefaultConfiguration("SuppressWarningsFilter"));
         Checker checker = new Checker();
         checker.setModuleClassLoader(CheckstyleRule.class.getClassLoader());
         try {

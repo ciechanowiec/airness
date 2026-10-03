@@ -2,6 +2,7 @@
 
 run_qodana_profile() {
     create_qodana_fixture
+    add_early_qodana_sources "${qodana_consumer}"
     run_maven qodana_profile containers "${qodana_consumer}" airness:qodana
     qodana_log="$(execution_log qodana_profile)"
     expect_exit qodana_profile 'qodana: the intended negative control fails enforcement' 1
@@ -10,6 +11,7 @@ run_qodana_profile() {
         fail 'qodana: the run left no report to read'
         sed -n '1,220p' "${qodana_log}" >&2
     else
+        verify_early_qodana_findings "${qodana_sarif}"
         for dropped in InnerClassOnInterface ClassWithTooManyDependencies Singleton MagicNumber SwitchStatement; do
             reported="$(grep -c "\"ruleId\": \"${dropped}\"" "${qodana_sarif}" || true)"
             if [ "${reported}" -eq 0 ]; then
