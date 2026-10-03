@@ -127,6 +127,10 @@
            project cannot substitute a profile, so its only repair is to declare the prefix on the
            root element, which is served to every reader because nothing strips a declaration the
            template engine does not own
+         - EditorConfigNoMatchingFiles: reports a section of .editorconfig that matches no file of the
+           project. The pinned .editorconfig is shared with ploaness and adocent byte for byte, and it
+           carries sections for script and JSON files that a Java project usually has none of. A
+           project cannot drop a section from a pinned file, so the finding has no repair
     -->
 
     <option name="myName" value="HC" />
@@ -271,6 +275,7 @@
     <inspection_tool class="DesignForExtension" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="RedundantExplicitVariableType" enabled="false" level="INFORMATION" enabled_by_default="false" />
     <inspection_tool class="DivideByZeroJS" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="EditorConfigNoMatchingFiles" enabled="false" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="EmptyClass" enabled="true" level="WARNING" enabled_by_default="true">
         <option name="ignorableAnnotations">
             <value />
