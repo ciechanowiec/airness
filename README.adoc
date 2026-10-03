@@ -156,6 +156,9 @@ mvn airness:assets-sync
 +
 For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#extended-verification[] in xref:#report-only-mode[]. Use xref:#skip-tests[`mvn package -DskipTests`] only when the build needs to produce an artifact without running _airness_ checks.
 
+. Checkstyle runs at `process-test-classes`, before the tests. It also reports source-visible findings from retained Qodana and PMD rules, so those violations stop a build before its slower checks run. Every original rule remains enabled. A successful Extended run still performs the complete analysis. Some counterparts cover only a proven subset of the original rule. The original analyzer checks the remaining cases.
+. The link:airness-governance/src/test/resources/analysis-coverage.tsv[Java analysis inventory] records the pinned analyzers' rules, existing early coverage, new counterparts, and retained analysis. `existing` means overlapping prevention, not identical complete predicates. `full` and `partial` describe the new counterparts. `retained` means no validated new counterpart is enabled. The link:airness-governance/src/test/resources/early-analysis.xml[shared examples] state each counterpart's boundary and its violation and control cases. PMD examples run in the governance tests; Qodana examples join the existing container integration run. New counterparts use the original suppression identifier where supported, with the existing justification and suppression-budget requirements.
+
 [[managed-files]]
 == Managed Files
 

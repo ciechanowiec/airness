@@ -1,0 +1,639 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<early-analysis>
+    <rule tool="Qodana" name="NullThrown" id="NullThrown" coverage="full">
+        <boundary>Literal null, including parentheses; casts and computed values are outside the original predicate.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect() { throw (null); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() { throw new IllegalStateException(); } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="InstanceofThis" id="InstanceofThis" coverage="partial">
+        <boundary>Source-visible cases; the original analyzer retains semantic and generated-member analysis.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect() { return this instanceof Runnable; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(Object value) { return value instanceof Runnable; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="IncrementDecrementUsedAsExpression" id="ValueOfIncrementOrDecrementUsed" coverage="partial">
+        <boundary>Direct return operands only: excludes void lambdas, field initializers and for initializers where the inspection cannot offer its replacement.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect(int value) { return value++; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect(int value) { value++; return value; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { Runnable inspect(int[] values) { return () -&gt; values[0]++; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect(int value) { for(int start=value++; start&lt;value; start++) {} return value; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="ConstantDeclaredInAbstractClass" id="ConstantDeclaredInAbstractClass" coverage="full">
+        <boundary>Public static final fields of explicit abstract classes; interfaces and enums are excluded.</boundary>
+        <case findings="1">
+            <source>package example;&#10;abstract class Sample { public static final int LIMIT = 1; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;abstract class Sample { private static final int LIMIT = 1; }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="PublicConstructorInNonPublicClass" id="PublicConstructorInNonPublicClass" coverage="partial">
+        <boundary>Constructors with parameters only; leaves Externalizable no-argument constructors and implicit public interface members alone.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { public Sample(String value) {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { Sample(String value) {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;interface Sample { class Nested { public Nested(String value) {} } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="FieldCount" id="ClassWithTooManyFields" coverage="partial">
+        <boundary>Counts explicitly written fields, excluding static-final fields and enum constants. Generated fields remain with Qodana; records already have RecordComponentNumber. UtilityClass and FieldDefaults declarations stay with Qodana because Lombok can change field modifiers.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private int value0; private int value1; private int value2; private int value3; private int value4; private int value5; private int value6; private int value7; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private int value0; private int value1; private int value2; private int value3; private int value4; private int value5; private int value6; private static final int value7 = 1; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;interface Sample { int VALUE0 = 0; int VALUE1 = 1; int VALUE2 = 2; int VALUE3 = 3; int VALUE4 = 4; int VALUE5 = 5; int VALUE6 = 6; int VALUE7 = 7; int VALUE8 = 8; int VALUE9 = 9; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private int value0; private int value1; private int value2; private int value3; private int value4; private int value5; private int value6; class Nested { private int another; } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private int first, second, third, fourth, fifth, sixth, seventh, eighth; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;enum Sample { FIRST,SECOND,THIRD,FOURTH,FIFTH,SIXTH,SEVENTH,EIGHTH }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;@lombok.experimental.UtilityClass class Sample { private final int value0 = 0; private final int value1 = 1; private final int value2 = 2; private final int value3 = 3; private final int value4 = 4; private final int value5 = 5; private final int value6 = 6; private final int value7 = 7; }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="ConstructorCount" id="ClassWithTooManyConstructors" coverage="partial">
+        <boundary>Explicit constructors, including deprecated ones; implicit and generated constructors remain with Qodana.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { Sample() {} Sample(int value0) {} Sample(int value0, int value1) {} Sample(int value0, int value1, int value2) {} Sample(int value0, int value1, int value2, int value3) {} Sample(int value0, int value1, int value2, int value3, int value4) {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { Sample() {} Sample(int value0) {} Sample(int value0, int value1) {} Sample(int value0, int value1, int value2) {} Sample(int value0, int value1, int value2, int value3) {}  }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="ClassNestingDepth" id="InnerClassTooDeeplyNested" coverage="partial">
+        <boundary>Named type declarations; counts anonymous enclosing classes too. Anonymous-class reporting remains with Qodana.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { class Second { class Third { class Fourth {} } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { class Second { class Third {} } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="NestedConditionalExpression" id="NestedConditionalExpression" coverage="partial">
+        <boundary>Nested conditional expressions outside lambdas and anonymous classes, avoiding callable-boundary differences.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect(boolean first, boolean second) { return first ? 1 : second ? 2 : 3; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect(boolean first) { return first ? 1 : 2; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { java.util.function.IntSupplier inspect(boolean first, boolean second) { return first ? () -&gt; second ? 1 : 2 : () -&gt; 3; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="ChainedEquality" id="ChainedEqualityComparisons" coverage="partial">
+        <boundary>Direct equality chains; the original inspection also decides parenthesized expression structure.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect(boolean first, boolean second, boolean third) { return first == second == third; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(boolean first, boolean second) { return first == second; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(boolean first,boolean second,boolean third) { return (first == second) == third; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="IfStatementWithTooManyBranches" id="IfStatementWithTooManyBranches" coverage="full">
+        <boundary>The initial branch, each else-if and the final else each count once; threshold is three.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect(int value) { if(value == 0) { return 0; } else if(value == 1) { return 1; } else if(value == 2) { return 2; } else { return 3; } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect(int value) { if(value == 0) { return 0; } else if(value == 1) { return 1; } else { return 2; } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="MethodWithMultipleLoops" id="MethodWithMultipleLoops" coverage="partial">
+        <boundary>Written methods and constructors; anonymous-class loops are excluded, including when the callable itself is anonymous.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { while(ready) { break; } do { break; } while(ready); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { while(ready) { break; } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="ThreeNegationsPerMethod" id="MethodWithMoreThanThreeNegations" coverage="partial">
+        <boundary>Counts ! and != including assertions; conservatively leaves every equals-named method and anonymous-class body to Qodana.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect(boolean first, boolean second, boolean third, boolean fourth) { return !first &amp;&amp; !second &amp;&amp; !third &amp;&amp; !fourth; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(boolean first, boolean second, boolean third) { return !first &amp;&amp; !second &amp;&amp; !third; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="QuestionableName" id="QuestionableName" coverage="partial">
+        <boundary>Exact case-sensitive profile list on written named declarations; inferred lambda parameters and generated members remain with Qodana.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect(int foo) { return foo; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect(int bar) { return bar; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect(int Foo, int food, int then) { return Foo + food + then; } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { java.util.function.IntUnaryOperator inspect() { return (int foo) -&gt; foo; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="SuppressionNeedsJustification" id="PMD.SuppressionNeedsJustification" coverage="full">
+        <boundary>Matches the original simple-name and sibling-annotation predicate.</boundary>
+        <case findings="1">
+            <source>package example;&#10;@SuppressWarnings("unchecked") class Sample {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;@Justification("The caller owns the type") @SuppressWarnings("unchecked") class Sample {}&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;@java.lang.SuppressWarnings("unchecked") class Sample {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;@eu.ciechanowiec.airness.Justification("Explicit conversion") @java.lang.SuppressWarnings("unchecked") class Sample {}&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="JustificationNeedsSuppression" id="PMD.JustificationNeedsSuppression" coverage="full">
+        <boundary>Matches the original simple-name and sibling-annotation predicate.</boundary>
+        <case findings="1">
+            <source>package example;&#10;@Justification("The caller owns the type") class Sample {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;@Justification("The caller owns the type") @SuppressWarnings("unchecked") class Sample {}&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="JustificationNeedsText" id="PMD.JustificationNeedsText" coverage="partial">
+        <boundary>Direct empty or whitespace-only string literals. Escaped strings, text blocks and constant expressions remain with PMD.</boundary>
+        <case findings="1">
+            <source>package example;&#10;@Justification("  ") @SuppressWarnings("unchecked") class Sample {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;@Justification("The caller owns the type") @SuppressWarnings("unchecked") class Sample {}&#10;</source>
+        </case>
+        <case findings="0" original="1">
+            <source>package example;&#10;@Justification("\t") class Sample {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;@Justification(" "+"reason") class Sample {}&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UninitializedLocalVariable" id="PMD.UninitializedLocalVariable" coverage="full">
+        <boundary>Uninitialized local declarations, excluding enhanced-for variables.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect() { int value; value = 1; return value; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect() { int value = 1; return value; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(String[] values) { for(String value:values) { System.out.println(value); } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="NoThrowsInTestClass" id="PMD.NoThrowsInTestClass" coverage="full">
+        <boundary>The original matches class/interface names ending in Test, including declarations nested inside them.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class SampleTest { void inspect() throws Exception {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class SampleTest { void inspect() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class SampleIT { void inspect() throws Exception {} }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class SampleTest { class Nested { Nested() throws Exception {} } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="NoAbbreviatedNames" id="PMD.NoAbbreviatedNames" coverage="partial">
+        <boundary>Copies the PMD abbreviation expression and Override exemption. Inferred lambda parameters remain with PMD.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect(int cfg) { return cfg; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect(int configuration) { return configuration; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { @Override public String toString() { return "stated"; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { @Override public String getCfg() { return "stated"; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="NativeQueryNeedsJustification" id="PMD.NativeQueryNeedsJustification" coverage="full">
+        <boundary>Same method, simple annotation name, member name and boolean literal as the PMD predicate.</boundary>
+        <case findings="1">
+            <source>package example;&#10;interface Sample { @Query(value="select 1", nativeQuery=true) long inspect(); }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;interface Sample { @Query(value="select 1", nativeQuery=false) long inspect(); }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;interface Sample { @org.springframework.data.jpa.repository.Query(value="select 1", nativeQuery=true) long inspect(); }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="NullablePersistentValueNeedsJustification" id="PMD.NullablePersistentValueNeedsJustification" coverage="full">
+        <boundary>Same annotated enclosing class/record and field/component scope; constructors are not inspected.</boundary>
+        <case findings="1">
+            <source>package example;&#10;@Entity class Sample { @Nullable private String value; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { @Nullable private String value; }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;@jakarta.persistence.Entity class Sample { private java.util.List&lt;@org.jspecify.annotations.Nullable String&gt; value; }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;@Entity record Sample(@Nullable String value) {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;@Entity class Sample { Sample(@Nullable String value) {} }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="PairedConditionParentheses" id="PMD.PairedConditionParentheses" coverage="full">
+        <boundary>Custom token-position check preserves the PMD statement/condition/body line predicate.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect(boolean ready) { if (ready&#10;) { return true; } return false; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(boolean ready) { if (&#10;ready&#10;) { return true; } return false; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { while(ready) { break; } } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { while(ready&#10;) { break; } } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { while(&#10;ready) { break; } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { while(&#10;ready&#10;) { break; } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(ready) { System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(&#10;ready) { System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(ready&#10;&amp;&amp; ready&#10;) { System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(&#10;ready&#10;&amp;&amp; ready&#10;) { System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(ready)&#10;{ System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { do { System.nanoTime(); } while(ready); } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="AvoidSynchronizedAtMethodLevel" id="PMD.AvoidSynchronizedAtMethodLevel" coverage="full">
+        <boundary>Explicit synchronized method modifier.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { synchronized void inspect() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() {} }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="AvoidSynchronizedStatement" id="PMD.AvoidSynchronizedStatement" coverage="full">
+        <boundary>Every synchronized statement.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(Object lock) { synchronized(lock) { System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(Object lock) { System.nanoTime(); } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="AvoidUsingVolatile" id="PMD.AvoidUsingVolatile" coverage="full">
+        <boundary>Explicit volatile fields.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private volatile int value; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private final int value = 1; }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="ForLoopVariableCount" id="PMD.ForLoopVariableCount" coverage="full">
+        <boundary>The default maximumVariables is one; counts declarations in a traditional for initializer.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect() { for(int first=0, second=0; first&lt;1; first++) {} } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() { for(int first=0; first&lt;1; first++) {} } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="DoNotThrowExceptionInFinally" id="PMD.DoNotThrowExceptionInFinally" coverage="full">
+        <boundary>Preserves the original descendant predicate, which includes nested declarations.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect() { try { System.nanoTime(); } finally { throw new IllegalStateException(); } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() { try { throw new IllegalStateException(); } finally { System.nanoTime(); } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="ReturnFromFinallyBlock" id="PMD.ReturnFromFinallyBlock" coverage="partial">
+        <boundary>Returns within finally, excluding nested methods and lambdas; conservatively excludes enclosing lambdas too.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect() { try { return 1; } finally { return 2; } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect() { try { return 1; } finally { Runnable action = () -&gt; { return; }; action.run(); } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="ForLoopShouldBeWhileLoop" id="PMD.ForLoopShouldBeWhileLoop" coverage="full">
+        <boundary>Traditional for statements with a condition and empty initializer/update.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { for(;ready;) { break; } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() { for(int value=0;value&lt;1;value++) {} } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="MethodWithSameNameAsEnclosingClass" id="PMD.MethodWithSameNameAsEnclosingClass" coverage="full">
+        <boundary>Matches the original class/interface ancestor-name predicate; constructors are excluded.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void Sample() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { Sample() {} }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { class Nested { void Sample() {} } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void sample() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;record Sample(int value) { void Sample() {} }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="AvoidFieldNameMatchingTypeName" id="PMD.AvoidFieldNameMatchingTypeName" coverage="full">
+        <boundary>Case-insensitive field-name comparison against the nearest class/interface declaration.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private int sample; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private int value; }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private int SAMPLE; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() { int sample=1; System.out.println(sample); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { class Nested { private int sample; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="LongVariable" id="PMD.LongVariable" coverage="partial">
+        <boundary>Written variable declarations; inferred lambda parameters remain with PMD.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private int aVariableNameThatIsLongerThanThirtyCharacters; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private int meaningfulName; }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="ShortClassName" id="PMD.ShortClassName" coverage="full">
+        <boundary>The configured minimum is three; PMD ClassDeclaration excludes records, enums and annotation types.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Ab {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample {}&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="ShortMethodName" id="PMD.ShortMethodName" coverage="full">
+        <boundary>The configured minimum is two; constructors are excluded.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void a() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() {} }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="SimplifiedTernary" id="PMD.SimplifiedTernary" coverage="full">
+        <boundary>Direct boolean-literal children of a conditional expression, except expressions containing a direct null literal.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect(boolean ready) { return ready ? true : false; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(boolean ready) { return ready; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="LogicInversion" id="PMD.LogicInversion" coverage="partial">
+        <boundary>Equality and inequality only; relational comparisons can involve floating-point NaN semantics.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect(int first,int second) { return !(first == second); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(int first,int second) { return first != second; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UnconditionalIfStatement" id="PMD.UnconditionalIfStatement" coverage="partial">
+        <boundary>Literal boolean conditions only; inferred local values remain with PMD.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect() { if(true) { System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(ready) { System.nanoTime(); } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="AvoidMultipleUnaryOperators" id="PMD.AvoidMultipleUnaryOperators" coverage="full">
+        <boundary>Reports the outermost unary expression containing another unary expression.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect(boolean ready) { return !!ready; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(boolean ready) { return !ready; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="EqualsNull" id="PMD.EqualsNull" coverage="full">
+        <boundary>Like the original predicate, this matches method name and literal argument, without resolving the method.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { boolean inspect(Object value) { return value.equals(null); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { boolean inspect(Object value,Object other) { return value.equals(other); } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UseNotifyAllInsteadOfNotify" id="PMD.UseNotifyAllInsteadOfNotify" coverage="full">
+        <boundary>Like PMD, matches the zero-argument method name without type resolution.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect() { notify(); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() { notifyAll(); } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="AvoidThreadGroup" id="PMD.AvoidThreadGroup" coverage="partial">
+        <boundary>The name-only method-call branch of the original XPath; constructor type resolution remains with PMD.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { Object inspect(Thread thread) { return thread.getThreadGroup(); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { Object inspect(Thread thread) { return thread; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="InstantiationToGetClass" id="PMD.InstantiationToGetClass" coverage="full">
+        <boundary>Direct constructor-call receiver, matching the original name-only predicate.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { Class&lt;?&gt; inspect() { return new Object().getClass(); } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { Class&lt;?&gt; inspect() { return Object.class; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UseShortArrayInitializer" id="PMD.UseShortArrayInitializer" coverage="partial">
+        <boundary>Explicit array types on ordinary declarations; inferred variables and creation without an initializer are excluded.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private int[] values = new int[] {1}; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private int[] values = {1}; }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="ProtectedMemberInFinalClass" id="PMD.ProtectedMemberInFinalClass" coverage="partial">
+        <boundary>Written protected non-method members and methods without an explicit superclass; skips possible Object overrides.</boundary>
+        <case findings="1">
+            <source>package example;&#10;final class Sample { protected int value; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;final class Sample { private int value; }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;final class Sample { protected void inspect() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;final class Sample extends Base { @Override protected void inspect() {} } class Base { protected void inspect() {} }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="AnonymousClassMethodCount" id="AnonymousInnerClassWithTooManyMethods" coverage="partial">
+        <boundary>Explicit methods of anonymous classes; generated members and enum-constant bodies remain with Qodana.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { Object inspect() { return new Object() { void method0() {} void method1() {} void method2() {} void method3() {} void method4() {} void method5() {} void method6() {} void method7() {} void method8() {} void method9() {} void method10() {} void method11() {} void method12() {} void method13() {} void method14() {} void method15() {} }; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { Object inspect() { return new Object() { void inspect() {} }; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="AvoidUsingOctalValues" id="PMD.AvoidUsingOctalValues" coverage="partial">
+        <boundary>Underscore-free octal values above seven, preserving PMD strict=false; other literal spellings remain with PMD.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { int inspect() { return 010; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { int inspect() { return 007; } }&#10;</source>
+        </case>
+        <case findings="1">
+            <source>package example;&#10;class Sample { long inspect() { return 010L; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="NullAssignment" id="PMD.NullAssignment" coverage="partial">
+        <boundary>Array-element assignments only. Named-reference assignments require the original symbol analysis to preserve its final-variable exemption.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(Object[] values) { values[0] = null; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(Object[] values,Object replacement) { values[0] = replacement; } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="CollapsibleIfStatements" id="PMD.CollapsibleIfStatements" coverage="partial">
+        <boundary>Braced nested if statements with no else or other body statement. Comments do not count as statements.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean first,boolean second) { if(first) { if(second) { System.nanoTime(); } } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean first,boolean second) { if(first &amp;&amp; second) { System.nanoTime(); } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UnnecessaryReturn" id="PMD.UnnecessaryReturn" coverage="partial">
+        <boundary>Direct trailing return in a void method only; nested control flow and lambdas remain with PMD.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect() { System.nanoTime(); return; } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(ready) { return; } System.nanoTime(); } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="Qodana" name="ClassComplexity" id="OverlyComplexClass" coverage="partial">
+        <boundary>A proven lower bound: more than eighty if statements in written direct methods, excluding anonymous-class bodies. The complete metric remains with Qodana.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } if(ready) { System.nanoTime(); } } }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect(boolean ready) { if(ready) { System.nanoTime(); } } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="ShortVariable" id="PMD.ShortVariable" coverage="partial">
+        <boundary>Written ordinary declarations; preserves loop/catch/lambda and unnamed-variable exceptions.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private int x; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private int value; }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="TypeParameterNamingConventions" id="PMD.TypeParameterNamingConventions" coverage="partial">
+        <boundary>The exact configured typeParameterNamePattern, anchored as in Pattern.matches.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample&lt;Value&gt; {}&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample&lt;AdapterType&gt; {}&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UseUnderscoresInNumericLiterals" id="PMD.UseUnderscoresInNumericLiterals" coverage="partial">
+        <boundary>Decimal integer literals longer than four digits without separators; preserves serialVersionUID exemption.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { private static final int LIMIT = 12345; }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private static final int LIMIT = 12_345; }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UncommentedEmptyMethodBody" id="PMD.UncommentedEmptyMethodBody" coverage="partial">
+        <boundary>Empty method bodies without a comment; abstract methods have no body.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { void inspect() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { void inspect() { /* Intentionally empty. */ } }&#10;</source>
+        </case>
+    </rule>
+    <rule tool="PMD" name="UncommentedEmptyConstructor" id="PMD.UncommentedEmptyConstructor" coverage="partial">
+        <boundary>Unannotated non-private empty constructors. All annotated constructors remain with PMD to preserve injection-annotation resolution.</boundary>
+        <case findings="1">
+            <source>package example;&#10;class Sample { Sample() {} }&#10;</source>
+        </case>
+        <case findings="0">
+            <source>package example;&#10;class Sample { private Sample() {} }&#10;</source>
+        </case>
+    </rule>
+</early-analysis>
