@@ -17,9 +17,6 @@ import org.jspecify.annotations.Nullable;
 public final class TypographyMojo extends AbstractRepositoryMojo {
 
     private static final List<String> SELF_FIXTURES = List.of(
-        ".vale/styles/LanguageNeutral/NoCurlyQuotes.yml",
-        ".vale/styles/LanguageNeutral/NoDashes.yml",
-        ".vale/styles/LanguageNeutral/NoUnicodeEllipsis.yml",
         "airness-it/typography-fixture.txt"
     );
 
