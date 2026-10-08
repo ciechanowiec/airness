@@ -104,8 +104,7 @@ final class SpringFileRules {
                         + " the caller's own origin back instead of a wildcard, so that form is accepted"
                         + " and admits every site there is"
                 )
-            )
-            .stream()
+            ).stream()
             .toList();
     }
 

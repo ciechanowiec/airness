@@ -149,8 +149,7 @@ public final class SpringSourceCheck {
                 source -> Repository.readText(source).stream()
                     .flatMap(text -> rule.offences(text).stream())
                     .map(offence -> "%s: %s".formatted(this.root.relativize(source), offence))
-            )
-            .toList();
+            ).toList();
     }
 
     /**

@@ -41,8 +41,7 @@ final class MavenExtensions {
                     Xml.text(node, "artifactId").orElse(""),
                     Xml.text(node, "version").orElse("")
                 )
-            )
-            .filter(coordinate -> !coordinate.artifactId().isEmpty())
+            ).filter(coordinate -> !coordinate.artifactId().isEmpty())
             .toList();
     }
 }

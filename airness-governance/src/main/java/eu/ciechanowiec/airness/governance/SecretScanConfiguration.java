@@ -117,8 +117,7 @@ public final class SecretScanConfiguration {
             .map(
                 entry -> "line " + entry.number() + ": an exception needs both " + TARGET_RULES
                     + " and " + DESCRIPTION + ", so it says which rule it excuses and why"
-            )
-            .forEach(problems::add);
+            ).forEach(problems::add);
         return List.copyOf(problems);
     }
 
@@ -131,8 +130,7 @@ public final class SecretScanConfiguration {
                     statement.key()
                         + " excuses a whole file, change or class of words rather than one value"
                 )
-            )
-            .forEach(problems::add);
+            ).forEach(problems::add);
         this.statements.stream()
             .filter(statement -> statement.is(ALLOWLISTS, "regexes"))
             .flatMap(
@@ -141,8 +139,7 @@ public final class SecretScanConfiguration {
                         value -> inexactness(value).stream()
                             .map(reason -> statement.at('"' + value + "\" " + reason))
                     )
-            )
-            .forEach(problems::add);
+            ).forEach(problems::add);
         return List.copyOf(problems);
     }
 
@@ -226,8 +223,7 @@ public final class SecretScanConfiguration {
                         hit.group(2), Objects.requireNonNullElse(hit.group(3), "")
                     )
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     /**

@@ -195,8 +195,7 @@ class SpringContextEvidenceTest {
                         RequestMatcherDelegatingAuthorizationManager.builder()
                             .add(
                                 AnyRequestMatcher.INSTANCE, (_, _) -> new AuthorizationDecision(true)
-                            )
-                            .build()
+                            ).build()
                     )
                 )
             )

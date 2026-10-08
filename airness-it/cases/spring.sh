@@ -333,8 +333,7 @@ public final class Security {
                     .requestMatchers("$2").permitAll()
                     .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
-            )
-            .build();
+            ).build();
     }
 }
 JAVA
@@ -480,8 +479,7 @@ public final class Security {
                     .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
                     .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
-            )
-            .build();
+            ).build();
     }
 }
 JAVA
@@ -542,8 +540,7 @@ public final class Security {
                 registry -> registry
                     .requestMatchers("/api/orders").permitAll()
                     .anyRequest().authenticated()
-            )
-            .build();
+            ).build();
     }
 }
 JAVA

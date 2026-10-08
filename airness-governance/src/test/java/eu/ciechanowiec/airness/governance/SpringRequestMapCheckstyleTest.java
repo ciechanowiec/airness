@@ -26,8 +26,7 @@ class SpringRequestMapCheckstyleTest {
             annotation -> assertTrue(
                 RequestMapSources.findings(
                     directory, RequestMapSources.source(annotation, RequestMapSources.MAP), true
-                )
-                    .isEmpty()
+                ).isEmpty()
             )
         );
     }
@@ -41,8 +40,7 @@ class SpringRequestMapCheckstyleTest {
             annotation -> assertTrue(
                 RequestMapSources.findings(
                     directory, RequestMapSources.source(annotation, RequestMapSources.MAP), true
-                )
-                    .isEmpty()
+                ).isEmpty()
             )
         );
     }

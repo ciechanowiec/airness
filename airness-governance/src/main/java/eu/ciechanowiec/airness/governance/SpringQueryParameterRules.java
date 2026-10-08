@@ -62,8 +62,7 @@ final class SpringQueryParameterRules {
             .flatMap(
                 text -> POSITIONAL.matcher(plain(text.value())).results()
                     .map(found -> offence(source, text.offset() + found.start(), "binds a parameter by position"))
-            )
-            .toList();
+            ).toList();
     }
 
     /**

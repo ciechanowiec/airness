@@ -116,8 +116,7 @@ final class SpringViewRules {
                                     found.offset(),
                                     new ArgumentMismatch(view, call, declared)
                                 )
-                            )
-                            .stream()
+                            ).stream()
                     )
             );
     }

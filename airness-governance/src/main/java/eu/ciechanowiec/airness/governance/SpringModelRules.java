@@ -57,8 +57,7 @@ final class SpringModelRules {
                         + " travel into the artifact this module publishes and into everything that"
                         + " depends on it"
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     /**

@@ -144,8 +144,7 @@ class ProjectBuildInputsTest {
     private Set<String> selected(MavenProject project, String kind) {
         return new ProjectBuildInputs(
             project, List.of(this.directory.resolve("target")), this.directory, Set.of("compile")
-        )
-            .selections().stream().filter(input -> input.kind().endsWith(kind))
+        ).selections().stream().filter(input -> input.kind().endsWith(kind))
             .map(BuildInput::selected).flatMap(Set::stream).collect(Collectors.toUnmodifiableSet());
     }
 

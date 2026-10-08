@@ -110,9 +110,42 @@ JAVA
     expect_match cpd_enforcement 'cpd: enforcement reports the duplicated pair' \
         'has found [0-9]+ duplication'
     run_variable_distance_cases
+    run_detached_chain_dot_cases
     run_analysis_lifecycle
     run_early_analysis_lifecycle
 
+}
+
+run_detached_chain_dot_cases() {
+    new_consumer detached-chain-dot
+    detached_chain_dot="${consumer_directory}"
+    cat > "${detached_chain_dot}/src/main/java/com/example/JoinedValues.java" <<'JAVA'
+package com.example;
+
+import java.util.List;
+
+/**
+ * Joins the supplied values into one readable line.
+ */
+final class JoinedValues {
+
+    String read(List<String> values) {
+        return String.join(
+            ",", values
+        )
+        .strip();
+    }
+}
+JAVA
+    run_maven detached_chain_dot_refused analysis "${detached_chain_dot}" checkstyle:check
+    expect_exit detached_chain_dot_refused 'analysis: a detached chained dot fails packaged Checkstyle' 1
+    expect_match detached_chain_dot_refused 'analysis: the finding names the source and repair' \
+        'JoinedValues[.]java:.*Join this dot.*AirnessDetachedChainDot'
+
+    perl -0pi -e 's/\)\n        \.strip/).strip/' \
+        "${detached_chain_dot}/src/main/java/com/example/JoinedValues.java"
+    run_maven detached_chain_dot_joined analysis "${detached_chain_dot}" checkstyle:check
+    expect_exit detached_chain_dot_joined 'analysis: joining the dot to the closing parenthesis passes' 0
 }
 
 run_variable_distance_cases() {

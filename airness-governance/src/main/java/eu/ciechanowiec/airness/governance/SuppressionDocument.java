@@ -91,8 +91,7 @@ public final class SuppressionDocument {
                 entry -> children(entry).noneMatch(
                     element -> ADVISORY.contains(name(element)) && !text(element).isEmpty()
                 )
-            )
-            .map(entry -> problem(entry, "name the advisory it excuses, not only the package it sits in"))
+            ).map(entry -> problem(entry, "name the advisory it excuses, not only the package it sits in"))
             .toList();
     }
 

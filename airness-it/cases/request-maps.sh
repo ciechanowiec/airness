@@ -113,8 +113,7 @@ public final class Security {
                 registry -> registry
                     .requestMatchers("/parameters", "/repeated", "/ignored", "/named", "/failure", "/error").permitAll()
                     .anyRequest().authenticated()
-            )
-            .build();
+            ).build();
     }
 }
 JAVA

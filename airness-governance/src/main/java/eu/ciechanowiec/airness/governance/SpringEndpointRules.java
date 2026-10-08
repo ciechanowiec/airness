@@ -173,8 +173,7 @@ final class SpringEndpointRules {
                     .entrySet()
                     .stream()
                     .map(constant -> Map.entry(source.name() + '.' + constant.getKey(), constant.getValue()))
-            )
-            .collect(
+            ).collect(
                 Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (first, _) -> first)
             );
     }

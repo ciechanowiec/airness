@@ -156,8 +156,7 @@ final class CommentProseRules {
             .mapToObj(
                 open -> closing(masked, open).stream()
                     .mapToObj(close -> new Region(open, close))
-            )
-            .flatMap(Function.identity())
+            ).flatMap(Function.identity())
             .toList();
     }
 
@@ -167,8 +166,7 @@ final class CommentProseRules {
                 index -> tokens.stream().anyMatch(token -> inside(token, index))
                     ? SPACE
                     : String.valueOf(source.charAt(index))
-            )
-            .collect(Collectors.joining());
+            ).collect(Collectors.joining());
     }
 
     private static boolean inside(MatchResult token, int index) {

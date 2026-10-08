@@ -32,8 +32,7 @@ final class CheckstyleRule {
                 (_, _) -> {
                     throw new IllegalStateException("Several modules matched " + rule);
                 }
-            )
-            .orElseThrow(() -> new IllegalStateException("No module matched " + rule));
+            ).orElseThrow(() -> new IllegalStateException("No module matched " + rule));
         DefaultConfiguration ruleConfiguration = new DefaultConfiguration(module.getAttribute("name"));
         Xml.children(module, "property").forEach(
             property -> ruleConfiguration.addProperty(
@@ -74,8 +73,7 @@ final class CheckstyleRule {
                 (_, _) -> {
                     throw new IllegalStateException("Several queries matched " + rule + " and " + queryMarker);
                 }
-            )
-            .orElseThrow(() -> new IllegalStateException("No query matched " + rule + " and " + queryMarker));
+            ).orElseThrow(() -> new IllegalStateException("No query matched " + rule + " and " + queryMarker));
     }
 
     @SneakyThrows

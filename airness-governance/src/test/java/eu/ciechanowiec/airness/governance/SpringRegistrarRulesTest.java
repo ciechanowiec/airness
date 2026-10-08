@@ -71,8 +71,7 @@ class SpringRegistrarRulesTest {
                     import org.springframework.beans.factory.BeanRegistrar;
                     import org.springframework.stereotype.Component;
                     """
-            )
-            .replace("final class SampleRegistrar", "@Component\nfinal class SampleRegistrar");
+            ).replace("final class SampleRegistrar", "@Component\nfinal class SampleRegistrar");
         GitFixture fixture = new GitFixture("registrar-component").write(REGISTRAR, component);
         List<Findings> findings = findings(fixture, MAIN);
 

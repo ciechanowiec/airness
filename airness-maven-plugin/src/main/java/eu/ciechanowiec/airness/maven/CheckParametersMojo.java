@@ -119,8 +119,7 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
         return Optional.of(
             "airness.version (" + configured + ") does not match the inherited "
                 + "airness-parent version (" + parent + ")"
-        )
-            .filter(_ -> !Objects.equals(configured, parent));
+        ).filter(_ -> !Objects.equals(configured, parent));
     }
 
     static Optional<String> airnessParentVersion(MavenProject project) {

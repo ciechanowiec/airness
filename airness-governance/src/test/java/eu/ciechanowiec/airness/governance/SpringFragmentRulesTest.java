@@ -179,8 +179,7 @@ class SpringFragmentRulesTest {
                     </body>
                     </html>
                     """
-            )
-            .write(PAGE, page("th:replace=\"~{fragments/parts :: modal('Sure?')}\""))
+            ).write(PAGE, page("th:replace=\"~{fragments/parts :: modal('Sure?')}\""))
             .write(SOURCE, source(NOTHING))
             .root();
         List<String> offences = Verdicts.offences(verdicts(root), UNREACHED);

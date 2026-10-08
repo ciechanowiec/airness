@@ -54,8 +54,7 @@ class SpringMessageSetupTest {
             context.refresh();
             SpringMessageResolution resolution = SpringMessageSetup.inspect(
                 context.getBean(SpringTemplateEngine.class), loader
-            )
-                .resolution().orElseThrow();
+            ).resolution().orElseThrow();
             List<SpringMessageResult> result = resolution.assess(
                 List.of(
                     reference("caption"), reference("missing"),
@@ -78,8 +77,7 @@ class SpringMessageSetupTest {
             context.refresh();
             SpringMessageResolution resolution = SpringMessageSetup.inspect(
                 context.getBean(SpringTemplateEngine.class), loader
-            )
-                .resolution().orElseThrow();
+            ).resolution().orElseThrow();
             assertTrue(
                 resolution.assess(List.of(reference("missing"))).stream()
                     .anyMatch(value -> "missing".equals(value.status()))

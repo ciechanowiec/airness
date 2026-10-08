@@ -122,8 +122,7 @@ class TemplateNestedCallTest {
                     </body>
                     </html>
                     """
-            )
-            .root();
+            ).root();
         assertTrue(
             Verdicts.clean(new TemplateCallCheck(root, RESOURCES).findings()),
             "a call handed over and naming no template reaches the document that wrote it"
@@ -142,8 +141,7 @@ class TemplateNestedCallTest {
                     <body><div th:replace="%s"></div></body>
                     </html>
                     """.formatted(expression)
-            )
-            .root();
+            ).root();
         return Verdicts.offences(new TemplateCallCheck(root, RESOURCES).findings(), rule);
     }
 }

@@ -70,8 +70,7 @@ public final class DeclaredCoordinates {
                 node -> coordinate(
                     node, properties(root, node, effectiveProperties), MAVEN_PLUGIN_GROUP
                 )
-            )
-            .flatMap(Optional::stream);
+            ).flatMap(Optional::stream);
         Stream<DeclaredCoordinate> parents = Xml.firstChild(root, "parent").stream()
             .map(node -> coordinate(node, properties(root, node, effectiveProperties), ""))
             .flatMap(Optional::stream);

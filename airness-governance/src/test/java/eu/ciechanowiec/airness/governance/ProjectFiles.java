@@ -164,8 +164,7 @@ final class ProjectFiles {
                 Optional.of(from),
                 (node, tag) -> node.flatMap(parent -> Xml.firstChild(parent, tag)),
                 (_, second) -> second
-            )
-            .orElseThrow(() -> new IllegalStateException("no " + String.join("/", path) + " under " + from));
+            ).orElseThrow(() -> new IllegalStateException("no " + String.join("/", path) + " under " + from));
     }
 
     /**

@@ -72,8 +72,7 @@ final class SpringFeatureRules {
             family(types, PRE_POST, enablers, "prePostEnabled"),
             family(types, SECURED, enablers, "securedEnabled"),
             family(types, JSR250, enablers, "jsr250Enabled")
-        )
-            .flatMap(List::stream)
+        ).flatMap(List::stream)
             .toList();
     }
 
@@ -92,8 +91,7 @@ final class SpringFeatureRules {
                                 + " @EnableMethodSecurity(" + flag + " = true)"
                         )
                     )
-                )
-                .toList();
+                ).toList();
     }
 
     private static boolean explicit(String arguments, String flag) {
