@@ -88,8 +88,7 @@ final class SpringBodyRules {
                     "a bean assigning its own static field holds itself somewhere the container does not"
                         + " manage, and that slot outlives the context in a test"
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     /**
@@ -109,8 +108,7 @@ final class SpringBodyRules {
                     "equality read from a generated identifier changes the moment the row is written, so an"
                         + " entity put in a set before saving cannot be found in it afterwards"
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     /**
@@ -130,8 +128,7 @@ final class SpringBodyRules {
                     "an exception copied into the response tells the caller which table and which constraint"
                         + " failed, which is reconnaissance handed to whoever asked"
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     private static Stream<SpringMembers.Member> equality(String code, String name) {

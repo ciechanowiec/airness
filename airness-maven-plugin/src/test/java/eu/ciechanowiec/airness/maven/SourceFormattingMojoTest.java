@@ -148,6 +148,31 @@ class SourceFormattingMojoTest {
         assertTrue(SourceFormattingMojo.formatted(formatter, source));
     }
 
+    @Test
+    @SneakyThrows
+    void keepsAChainedDotBesideTheMultilineCallsClosingParenthesis(@TempDir Path directory) {
+        String held = """
+            package example;
+
+            final class Example {
+
+                Object read() {
+                    return values.or(
+                        () -> this.atTopLevel(RULES, identifier.toString())
+                            .map(entry -> entry.get(declared.name()))
+                    ).map(JsonNode::asInt);
+                }
+            }
+            """;
+        Path source = directory.resolve("Example.java");
+        Files.writeString(source, held);
+        JavaFormatter formatter = SourceFormattingMojo.formatter(
+            new SystemStreamLog(), directory.resolve("target").toString()
+        );
+
+        assertEquals(held, SourceFormattingMojo.formattedSource(formatter, source));
+    }
+
     private static String source(String name, String imports) {
         return "package example;\n\n" + imports + "\nfinal class " + name + " {\n\n"
             + "    List<Map<String, String>> held() {\n        return List.of();\n    }\n}\n";

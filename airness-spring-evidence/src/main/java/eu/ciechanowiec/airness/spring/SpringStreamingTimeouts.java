@@ -71,12 +71,11 @@ final class SpringStreamingTimeouts {
             .collect(Collectors.joining(", "));
         return Stream.of(
             javaPolicy.failures().stream(), missing.stream(), SpringStreamingAdapter.inspect(context, handlers).stream()
-        )
-            .flatMap(stream -> stream).map(
-                result -> new SpringStreamingResult(
-                    result.status(),
-                    locations + ": " + result.detail()
-                )
-            ).toList();
+        ).flatMap(stream -> stream).map(
+            result -> new SpringStreamingResult(
+                result.status(),
+                locations + ": " + result.detail()
+            )
+        ).toList();
     }
 }

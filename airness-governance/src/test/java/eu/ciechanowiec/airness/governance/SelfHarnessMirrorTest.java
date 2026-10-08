@@ -111,8 +111,7 @@ class SelfHarnessMirrorTest {
                 pom -> required.stream()
                     .filter(id -> !executionIds(pom).contains(id))
                     .map(id -> ProjectFiles.moduleName(pom) + " is missing " + id)
-            )
-            .toList();
+            ).toList();
     }
 
     private static List<String> executionIds(Path pom) {

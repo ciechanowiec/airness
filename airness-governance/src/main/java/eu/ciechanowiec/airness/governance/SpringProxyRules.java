@@ -47,8 +47,7 @@ final class SpringProxyRules {
                 call -> offence(
                     source, call, "never passes the proxy, so the annotation on it is not honoured"
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     /**
@@ -66,8 +65,7 @@ final class SpringProxyRules {
                 call -> offence(
                     source, call, "runs before the proxy exists, so the annotation on it is not honoured"
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     private static List<MatchResult> calls(String code, List<SpringMembers.Member> proxied) {

@@ -103,8 +103,7 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
             : Stream.of(
                 sources, this.decided(context, sources), messages(context, sources, destination),
                 streaming(context, sources, destination)
-            )
-                .flatMap(Collection::stream).toList();
+            ).flatMap(Collection::stream).toList();
     }
 
     /**

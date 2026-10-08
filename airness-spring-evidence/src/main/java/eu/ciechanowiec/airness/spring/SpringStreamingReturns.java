@@ -42,8 +42,7 @@ final class SpringStreamingReturns {
     private static boolean standard(List<HandlerMethodReturnValueHandler> values, HandlerMethod method) {
         return values.stream().filter(
             handler -> !framework(handler) || handler.supportsReturnType(method.getReturnType())
-        )
-            .findFirst().filter(handler -> handler.getClass() == StreamingResponseBodyReturnValueHandler.class)
+        ).findFirst().filter(handler -> handler.getClass() == StreamingResponseBodyReturnValueHandler.class)
             .isPresent();
     }
 

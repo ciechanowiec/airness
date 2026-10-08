@@ -86,7 +86,6 @@ public final class SpringReactorCheck {
                     + ": a second class carrying @SpringBootApplication, so which application starts is"
                     + " decided by whichever the search finds first, and a test can boot one the artifact"
                     + " does not ship"
-            )
-            .toList();
+            ).toList();
     }
 }

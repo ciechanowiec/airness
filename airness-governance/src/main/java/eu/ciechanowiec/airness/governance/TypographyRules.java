@@ -48,8 +48,7 @@ final class TypographyRules {
                 index -> new TypographyViolation(
                     lineNumber, line.codePointCount(0, index) + 1, line.codePointAt(index)
                 )
-            )
-            .toList();
+            ).toList();
     }
 
     private static boolean codePointStartsAt(CharSequence line, int index) {

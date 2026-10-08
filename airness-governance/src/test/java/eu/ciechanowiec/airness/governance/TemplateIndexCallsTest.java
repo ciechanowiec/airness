@@ -86,8 +86,7 @@ class TemplateIndexCallsTest {
                     <body><div %s>Listed</div></body>
                     </html>
                     """.formatted(call)
-            )
-            .root();
+            ).root();
         return new TemplateIndex(root, RESOURCES);
     }
 }

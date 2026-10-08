@@ -101,15 +101,13 @@ class SpringStreamingAdapterTest {
             assertEquals(
                 UNSUPPORTED, SpringStreamingReturns.inspect(
                     adapter, SpringStreamingEndpoints.registered(context, inputs)
-                )
-                    .orElseThrow().status()
+                ).orElseThrow().status()
             );
             adapter.setReturnValueHandlers(List.of());
             assertEquals(
                 UNSUPPORTED, SpringStreamingReturns.inspect(
                     adapter, SpringStreamingEndpoints.registered(context, inputs)
-                )
-                    .orElseThrow().status()
+                ).orElseThrow().status()
             );
         }
     }

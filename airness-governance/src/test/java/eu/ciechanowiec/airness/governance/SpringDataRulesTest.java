@@ -154,8 +154,7 @@ class SpringDataRulesTest {
             .write(
                 "src/main/java/com/example/one/Numbering.java",
                 component.replace("PLACEHOLDER", "com.example.one")
-            )
-            .write(
+            ).write(
                 "src/main/java/com/example/two/Numbering.java",
                 component.replace("PLACEHOLDER", "com.example.two")
             );

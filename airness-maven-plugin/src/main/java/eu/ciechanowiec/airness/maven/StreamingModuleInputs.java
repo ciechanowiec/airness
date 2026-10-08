@@ -35,8 +35,7 @@ final class StreamingModuleInputs {
             .flatMap(
                 directory -> new InputSelection(directory, List.of("**/*.java"), List.of(), true)
                     .files(List.of()).stream().map(directory::resolve)
-            )
-            .flatMap(source -> StreamingJavaIndex.read(source, this.location(source), this.origins()).stream());
+            ).flatMap(source -> StreamingJavaIndex.read(source, this.location(source), this.origins()).stream());
     }
 
     private List<String> origins() {

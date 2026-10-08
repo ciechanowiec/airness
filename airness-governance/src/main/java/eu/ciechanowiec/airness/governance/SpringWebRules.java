@@ -62,8 +62,7 @@ final class SpringWebRules {
                 base -> METHOD_MAPPING.matcher(code).results()
                     .filter(mapping -> mapping.start() > type)
                     .flatMap(mapping -> unbound(reading, base, mapping))
-            )
-            .toList();
+            ).toList();
     }
 
     private static Optional<Set<String>> shared(Readings reading, int type) {

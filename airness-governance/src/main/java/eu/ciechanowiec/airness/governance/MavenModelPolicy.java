@@ -112,8 +112,7 @@ public final class MavenModelPolicy {
             .map(
                 element -> "Remove child " + element.getTagName()
                     + " combine.self=override; it discards inherited Airness configuration"
-            )
-            .distinct();
+            ).distinct();
     }
 
     private static Stream<String> protectedConfigurationProblems(Node plugin) {

@@ -131,8 +131,7 @@ public final class SpringContextCheck {
             .map(
                 application -> application + ": " + this.evidence
                     + " contains no current run that reached ready with this production application"
-            )
-            .toList();
+            ).toList();
     }
 
     private boolean current() {

@@ -40,7 +40,6 @@ final class Verdicts {
                 (_, _) -> {
                     throw new IllegalStateException("More than one verdict matches " + fragment);
                 }
-            )
-            .orElseThrow(() -> new IllegalStateException("No verdict matches " + fragment));
+            ).orElseThrow(() -> new IllegalStateException("No verdict matches " + fragment));
     }
 }

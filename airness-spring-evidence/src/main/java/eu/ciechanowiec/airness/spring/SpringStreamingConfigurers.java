@@ -26,8 +26,7 @@ record SpringStreamingConfigurers(boolean declared, List<SpringStreamingResult> 
     static SpringStreamingConfigurers inspect(ConfigurableListableBeanFactory beans, SpringStreamingInputs inputs) {
         List<SpringStreamingResult> results = Arrays.stream(
             beans.getBeanNamesForType(WebMvcConfigurer.class, true, false)
-        )
-            .map(name -> inspect(beans, name, inputs)).flatMap(Optional::stream).toList();
+        ).map(name -> inspect(beans, name, inputs)).flatMap(Optional::stream).toList();
         boolean declared = results.stream().anyMatch(result -> "declaration".equals(result.status()));
         return new SpringStreamingConfigurers(
             declared,

@@ -139,8 +139,7 @@ final class SpringBeanChoiceRules {
                 declaration -> new SpringParameters.Range(
                     declaration.end() - 1, SpringMembers.closing(code, declaration.end() - 1)
                 )
-            )
-            .flatMap(range -> SpringParameters.in(source.text(), code, range).stream())
+            ).flatMap(range -> SpringParameters.in(source.text(), code, range).stream())
             .map(parameter -> injection(source, parameter))
             .forEach(found::add);
         SpringMembers.annotated(code, BEAN).stream()

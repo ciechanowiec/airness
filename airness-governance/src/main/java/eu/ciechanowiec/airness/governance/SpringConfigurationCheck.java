@@ -111,10 +111,8 @@ public final class SpringConfigurationCheck {
                         .flatMap(
                             text -> SpringPlaceholderRules.undeclaredPlaceholders(text, base, this.metadata)
                                 .stream()
-                        )
-                        .map(offence -> this.root.relativize(source) + ": " + offence)
-                )
-                .toList();
+                        ).map(offence -> this.root.relativize(source) + ": " + offence)
+                ).toList();
     }
 
     private List<String> stated(Collection<Parsed> read, MetadataRule rule) {
@@ -132,8 +130,7 @@ public final class SpringConfigurationCheck {
                         new SpringConfiguration(file.getFileName().toString(), text)
                     )
                 )
-            )
-            .orElseGet(List::of);
+            ).orElseGet(List::of);
     }
 
     private static List<Path> configurations(Path root, Collection<Path> resourceRoots) {

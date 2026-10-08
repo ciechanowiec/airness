@@ -42,8 +42,7 @@ class SpringMessageDependencyTest {
             context.refresh();
             SpringMessageResolution resolution = SpringMessageSetup.inspect(
                 context.getBean(SpringTemplateEngine.class), loader
-            )
-                .resolution().orElseThrow();
+            ).resolution().orElseThrow();
             assertFalse(new SpringMessageLookup(resolution.source()).missing("caption"));
         }
     }

@@ -141,7 +141,6 @@ public final class SpringModelCheck {
                     .flatMap(
                         content -> SpringFactoriesRules.unsupported(root.relativize(file), content).stream()
                     )
-            )
-            .toList();
+            ).toList();
     }
 }

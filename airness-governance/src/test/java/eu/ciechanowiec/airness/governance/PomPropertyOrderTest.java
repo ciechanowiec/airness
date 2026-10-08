@@ -138,8 +138,7 @@ class PomPropertyOrderTest {
             .flatMap(
                 path -> PomPropertyOrder.problems(read(path)).stream()
                     .map(problem -> root.relativize(path) + ": " + problem)
-            )
-            .sorted()
+            ).sorted()
             .toList();
         assertEquals(List.of(), findings);
     }

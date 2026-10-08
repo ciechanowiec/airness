@@ -49,8 +49,7 @@ record SpringStreamingInputs(
             address -> this.declarations.stream()
                 .filter(
                     input -> "type".equals(input.kind()) && input.name().equals(type.getName()) && input.at(address)
-                )
-                .findFirst()
+                ).findFirst()
         );
     }
 

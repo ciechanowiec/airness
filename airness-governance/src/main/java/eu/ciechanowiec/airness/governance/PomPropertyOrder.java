@@ -63,8 +63,7 @@ final class PomPropertyOrder {
                     .findFirst()
                     .stream()
                     .mapToObj(index -> Map.entry(name, index))
-            )
-            .collect(
+            ).collect(
                 // A property block may declare one name twice, which is well-formed XML that Maven
                 // accepts by taking the last value. Keeping the first use of such a name reports the
                 // ordering the reader sees, where refusing the duplicate key would end every model rule

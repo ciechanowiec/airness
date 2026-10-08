@@ -45,8 +45,7 @@ public final class PublicationMetadataMojo extends AbstractPublicationMojo {
             .map(
                 declared -> "parent " + declared.getGroupId() + ':' + declared.getArtifactId()
                     + ':' + declared.getVersion()
-            )
-            .stream();
+            ).stream();
         Stream<String> project = Stream.of(this.project().getVersion())
             .filter(PublicationMetadataMojo::snapshot)
             .map(version -> "project " + version);

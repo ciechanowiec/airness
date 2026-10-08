@@ -44,8 +44,7 @@ record RegistryTags(String registry, String authorization) {
         );
         String token = AUTHORIZATION_VALUE.matcher(this.fetch(tokenUri, "").body()).results().map(
             match -> match.group(1)
-        )
-            .findFirst().orElseThrow(() -> new IllegalStateException("Registry supplied no anonymous pull token"));
+        ).findFirst().orElseThrow(() -> new IllegalStateException("Registry supplied no anonymous pull token"));
         URI first = URI.create(this.registry + "/v2/" + repository + "/tags/list?n=" + PAGE_SIZE);
         List<String> names = new ArrayList<>();
         Set<URI> visited = new HashSet<>();

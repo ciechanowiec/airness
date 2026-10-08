@@ -1409,6 +1409,9 @@
                       value="COLON, EQUAL, NOT_EQUAL, DIV, PLUS, MINUS, STAR, MOD, SR, BSR, GE, GT, SL, LE, LT, BXOR, BOR, LOR, BAND, LAND, TYPE_EXTENSION_AND, LITERAL_INSTANCEOF"/>
         </module>
         <module name="ParenPad"/>
+        <module name="eu.ciechanowiec.airness.governance.DetachedChainDotCheck">
+            <property name="id" value="AirnessDetachedChainDot"/>
+        </module>
         <module name="SeparatorWrap">
             <property name="tokens" value="COMMA, SEMI"/>
         </module>
