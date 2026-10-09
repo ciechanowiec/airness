@@ -125,9 +125,11 @@ This section describes the layout of a xref:#governed-repository[governed reposi
 . A tool-specific xref:#instruction-file[instruction file] contains only a reference to `AGENTS.md`. A xref:#check[check] rejects any other content and any instruction reference, command, or path that doesn't resolve.
 
 [[production-imports]]
-=== Production Imports
+=== Production Boundaries
 
-Production code imports neither test code nor development-only dependencies. A xref:#check[check] walks every import of production code and fails on either kind.
+. Production code imports neither test code nor development-only dependencies. A xref:#check[check] walks every import of production code and fails on either kind.
+. Non-production identities have no production permissions. Tests use isolated data and credentials, so a test account can't access production data.
+. Production accepts neither development credentials nor default privileged credentials.
 
 [[generated-files]]
 === Generated Files
@@ -173,7 +175,12 @@ This section describes the state of the source code: its size, its types, its na
 
 . Where the programming language or platform provides a static type checker, the type checker is one of the xref:#check[checks].
 . A xref:#callable[callable] doesn't return null and doesn't accept null where the programming language offers an optional or result type instead. A missing value is expressed as a typed value, such as an empty optional.
+
+[[error-handling]]
+=== Error Handling
+
 . A xref:#callable[callable] that can't do its job fails immediately with an error that says what went wrong. The callable doesn't fall back silently to a default.
+. An error response to an untrusted caller omits internal diagnostics, such as stack traces and private paths. Internal diagnostics retain the cause and a reference that connects the failure to the reported error.
 
 [[explicitness]]
 === Explicitness
@@ -227,6 +234,38 @@ This section describes the state of the source code: its size, its types, its na
 . The following characters are banned: the em dash, the en dash, typographic quotation marks, and the single-character ellipsis. The plain equivalents - the hyphen, the straight quotation mark, and three periods - stand in their place.
 . The banned characters are absent from every commit message and from every tracked file the xref:#governed-repository[governed repository] doesn't exclude by xref:#file-role[file role]. A xref:#check[check] scans those files by code point and fails on the first finding.
 
+[[security]]
+== Security
+
+These rules govern access, authentication, audit events, and data handling wherever the software implements those capabilities.
+
+[[authorization]]
+=== Authorization
+
+. Each protected operation verifies the caller's permission for the target resource at a boundary the caller can't bypass.
+. A protected operation runs only when access is explicitly permitted. If permission can't be established, the operation is denied. Operations available without authentication are declared explicitly.
+
+[[authentication]]
+=== Authentication
+
+. Interactive authenticated sessions have a declared lifetime. The component that validates access enforces expiry and logout, so a saved session credential can't restore a terminated session.
+. Account disablement, permission removal, and credential revocation take effect within declared time limits. Existing sessions and credentials obey those limits.
+. A declared policy limits repeated authentication failures and specifies recovery conditions. The software enforces that policy.
+. Login and account-recovery failures reveal neither the existence of a private account nor which credential component was correct.
+
+[[audit-events]]
+=== Audit Events
+
+. Software records authentication outcomes, account and permission changes, and privileged operations that it performs. Each event identifies the actor where known, action, target, outcome, and an unambiguous timestamp.
+. Access controls protect audit records against unauthorized reading, alteration, and deletion.
+
+[[input-and-stored-data]]
+=== Input and Stored Data
+
+. Software validates untrusted input against the types, sizes, ranges, and domain constraints required by the operation. For example, an order quantity that must be positive rejects zero and negative values.
+. Every supported write path preserves the domain's rules for identity, uniqueness, relationships, and required values. Storage constraints enforce those rules where the storage system supports them.
+. Commands and expressions receive untrusted values as data rather than executable text.
+
 [[dependencies]]
 == Dependencies
 
@@ -272,6 +311,12 @@ This section describes the state of the test suite and what it proves.
 . A xref:#check[check] fails on the construction of a xref:#substitute[substitute] in test code. The check names the libraries and framework declarations of the programming language or platform that install a substitute in place of a xref:#real-component[real component]. The check binds xref:#substitute-criterion[the substitute criterion] and not a name, so a local component stays available however its library is named.
 . A test-only imitation of a framework's web layer is a xref:#substitute[substitute] under xref:#substitute-criterion[the substitute criterion]. It skips the server, the serialization, the filter ordering, and the error handling a real request passes through, so a test written against it proves the handler ran rather than that the endpoint works. The framework's own request pipeline isn't an imitation. It's the code a live request runs, so an endpoint driven through it in the process under test is driven against a xref:#real-component[real component]. Driving that pipeline in process reaches neither the socket nor whatever the server wraps around it. At least one test therefore starts the real application on a local port, because a suite that never starts it can pass an application that doesn't start.
 . Test code passes the same xref:#check[static-analysis checks] as production code.
+
+[[security-tests]]
+=== Security Tests
+
+. Tests exercise permitted and denied access to protected operations. They assert that denied operations disclose no protected data and make no unauthorized state changes. For example, the owner can read a private document, while a caller without permission can't read or change it.
+. Tests cover the applicable rules of the section xref:#security[] through xref:#real-component[real components]. They exercise security failures, session termination, credential expiry, revoked access, rejected input, and recorded audit events for the features the software implements.
 
 [[coverage]]
 === Coverage
