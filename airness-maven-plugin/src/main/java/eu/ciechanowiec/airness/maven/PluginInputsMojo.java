@@ -21,9 +21,9 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.project.MavenProject;
 import org.eclipse.aether.artifact.Artifact;
-import org.eclipse.aether.graph.DependencyNode;
+import org.eclipse.aether.resolution.ArtifactResult;
+import org.eclipse.aether.resolution.DependencyResult;
 import org.eclipse.aether.util.filter.ScopeDependencyFilter;
-import org.eclipse.aether.util.graph.visitor.PreorderNodeListGenerator;
 
 /**
  * Supplies the vulnerability scanner with the plugin dependencies Maven actually resolves.
@@ -66,7 +66,7 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
         Map<String, Path> artifacts = projects.stream().flatMap(this::artifacts)
             .collect(
                 Collectors.toUnmodifiableMap(
-                    Artifact::toString, artifact -> Objects.requireNonNull(artifact.getFile()).toPath(),
+                    Artifact::toString, artifact -> Objects.requireNonNull(artifact.getPath()),
                     (first, _) -> first
                 )
             );
@@ -111,14 +111,13 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
         Artifact root = this.resolver.resolve(
             plugin, project.getRemotePluginRepositories(), this.session().getRepositorySession()
         );
-        DependencyNode resolved = this.resolver.resolve(
+        DependencyResult resolved = this.resolver.resolvePluginAndFlatten(
             plugin, root, new ScopeDependencyFilter("provided", "test"), project.getRemotePluginRepositories(),
             this.session().getRepositorySession()
         );
-        PreorderNodeListGenerator files = new PreorderNodeListGenerator();
-        resolved.accept(files);
-        this.getLog().debug("Resolved " + plugin.getId() + ": " + files.getArtifacts(false));
-        return files.getArtifacts(false).stream();
+        List<Artifact> artifacts = resolved.getArtifactResults().stream().map(ArtifactResult::getArtifact).toList();
+        this.getLog().debug("Resolved " + plugin.getId() + ": " + artifacts);
+        return artifacts.stream();
     }
 
     private static Object task(String goal) {

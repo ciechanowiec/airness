@@ -58,7 +58,7 @@ class ManagedVersionsPolicyTest {
             () -> assertEquals(ManagedVersions.protectedProperties(), Set.copyOf(owned)),
             () -> assertEquals(owned.size(), Set.copyOf(owned).size(), "no property is declared twice"),
             () -> assertTrue(governedProperties(parent).findAny().isEmpty()),
-            () -> assertEquals("[3.9.16,)", Xml.text(mavenRule, VERSION).orElse("")),
+            () -> assertEquals("[3.10.0,)", Xml.text(mavenRule, VERSION).orElse("")),
             () -> assertEquals("[25,26)", Xml.text(javaRule, VERSION).orElse(""))
         );
     }

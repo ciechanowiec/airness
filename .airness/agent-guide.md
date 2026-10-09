@@ -13,7 +13,7 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
   That choice is the only place a project states which kind it is, and it is what decides which rules apply.
   Do not weaken, replace, duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or
   managed files that the parent owns.
-- Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Default verification reads Maven Central and
+- Use exactly Java 25, Maven 3.10.0 or later, and a Git working tree. Default verification reads Maven Central and
   Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon
   that can read the repository through a bind mount. Extended verification refuses to start under `-o` or offline
   mode, because Maven skips a goal whose descriptor requires online mode, the vulnerability scan is one of those,

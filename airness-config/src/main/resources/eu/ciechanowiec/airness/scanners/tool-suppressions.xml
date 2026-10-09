@@ -5,7 +5,7 @@
         <notes><![CDATA[
             Added 2026-10-09. These advisories concern Checkstyle engines before 8.29 and 8.18,
             respectively, not the independently versioned Maven wrapper. The wrapper delegates to the
-            separately scanned com.puppycrawl.tools:checkstyle engine, pinned by Airness to 14.1.0.
+            separately scanned com.puppycrawl.tools:checkstyle engine, pinned by Airness to 14.3.0.
             No wrapper upgrade fixes an engine-to-wrapper product match.
             https://checkstyle.org/releasenotes.html#Release_8.29
             https://checkstyle.org/releasenotes.html#Release_8.18
@@ -18,7 +18,7 @@
         <notes><![CDATA[
             Added 2026-10-09. These advisories concern PMD engines through 5.8.1 and before 7.22.0,
             respectively, not the independently versioned Maven wrapper. Airness pins the separately
-            scanned engine to 7.27.0. No wrapper upgrade fixes this product mismatch.
+            scanned engine to 7.28.0. No wrapper upgrade fixes this product mismatch.
             https://github.com/pmd/pmd/issues/1650
             https://github.com/pmd/pmd/security/advisories/GHSA-8rr6-2qw5-pc7r
         ]]></notes>

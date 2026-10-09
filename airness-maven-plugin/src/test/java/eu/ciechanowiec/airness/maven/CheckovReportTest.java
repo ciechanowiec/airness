@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 class CheckovReportTest {
 
     private static final String CLEAN = """
-        {"check_type":"dockerfile","summary":{"checkov_version":"3.3.17","passed":0,"failed":0,
+        {"check_type":"dockerfile","summary":{"checkov_version":"3.3.26","passed":0,"failed":0,
           "skipped":0,"parsing_errors":0},"results":{"passed_checks":[],"failed_checks":[],
           "skipped_checks":[],"parsing_errors":[]}}
         """;
@@ -24,7 +24,7 @@ class CheckovReportTest {
     @SneakyThrows
     void acceptsTheNativeZeroSummaryOnlyWithAnExplicitFrameworkAndCompleteZeroCounts(@TempDir Path directory) {
         String summary = """
-            {"passed":0,"failed":0,"skipped":0,"parsing_errors":0,"resource_count":0,"checkov_version":"3.3.17"}
+            {"passed":0,"failed":0,"skipped":0,"parsing_errors":0,"resource_count":0,"checkov_version":"3.3.26"}
             """;
         Path report = Files.writeString(directory.resolve("report.json"), summary);
         assertEquals(Set.of("kubernetes"), CheckovReport.read(report, "kubernetes").frameworks());
@@ -48,7 +48,7 @@ class CheckovReportTest {
         Path report = directory.resolve("report.json");
         for (
             String malformed : List.of(
-                CLEAN.replace("dockerfile", "secrets"), CLEAN.replace("3.3.17", "0.0.0"),
+                CLEAN.replace("dockerfile", "secrets"), CLEAN.replace("3.3.26", "0.0.0"),
                 CLEAN.replace("\"skipped_checks\":[]", "\"skipped_checks\":[{}]"),
                 CLEAN.replace("\"skipped\":0", "\"skipped\":1"),
                 CLEAN.replace("\"passed\":0", "\"passed\":1")

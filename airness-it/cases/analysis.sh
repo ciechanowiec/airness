@@ -113,7 +113,49 @@ JAVA
     run_detached_chain_dot_cases
     run_analysis_lifecycle
     run_early_analysis_lifecycle
+    run_jspecify_annotation_locations
 
+}
+
+run_jspecify_annotation_locations() {
+    new_consumer jspecify-locations
+    jspecify_consumer="${consumer_directory}"
+    cat > "${jspecify_consumer}/src/main/java/com/example/Nullness.java" <<'JAVA'
+package com.example;
+
+import org.jspecify.annotations.Nullable;
+
+public final class Nullness {
+
+    private Nullness() {
+    }
+
+    public static @Nullable int value() {
+        return 1;
+    }
+
+    public static String @Nullable [] values() {
+        return new String[] {"value"};
+    }
+}
+JAVA
+    run_maven jspecify_invalid analysis "${jspecify_consumer}" clean compiler:compile
+    expect_exit jspecify_invalid 'nullness: an annotation on a primitive fails compilation' 1
+    expect_match jspecify_invalid 'nullness: the new checker names the meaningless annotation' \
+        'JSpecifyUnrecognizedAnnotationLocation.*|nullness annotation on a primitive type'
+    expect_match jspecify_invalid 'nullness: the compiler locates the invalid return annotation' \
+        'Nullness[.]java:.*10'
+
+    run_maven jspecify_report analysis "${jspecify_consumer}" clean compiler:compile -Dairness.enforce=false
+    expect_exit jspecify_report 'nullness: report-only compilation preserves its established behavior' 0
+    expect_match jspecify_report 'nullness: report-only still reports the new checker' \
+        'JSpecifyUnrecognizedAnnotationLocation'
+
+    perl -0pi -e 's/\@Nullable int/int/' "${jspecify_consumer}/src/main/java/com/example/Nullness.java"
+    run_maven jspecify_repaired analysis "${jspecify_consumer}" clean compiler:compile
+    expect_exit jspecify_repaired 'nullness: a valid array annotation and repaired primitive compile' 0
+    expect_no_match jspecify_repaired 'nullness: the repaired source carries no annotation-location finding' \
+        '\[JSpecifyUnrecognizedAnnotationLocation\]'
 }
 
 run_detached_chain_dot_cases() {

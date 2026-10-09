@@ -89,6 +89,7 @@ YAML
     for scanner_framework in terraform kubernetes helm kustomize; do
         expect_match checkov_frameworks "scanners: ${scanner_framework} is actually invoked" "Checkov ${scanner_framework}:"
     done
+    run_scanner_zone_identity
     printf 'resource "aws_s3_bucket" "unsafe" {\n  bucket = "airness-scanner-fixture"\n}\n' \
         > "${scanner_consumer}/infra/terraform/main.tf"
     run_maven checkov_terraform scanners "${scanner_consumer}" airness:checkov
@@ -98,4 +99,32 @@ YAML
     run_maven checkov_parse scanners "${scanner_consumer}" airness:checkov -Dairness.enforce=false
     expect_exit checkov_parse 'scanners: an IaC parse failure is never report-only success' 1
     rm -rf "${scanner_consumer}/infra"
+}
+
+run_scanner_zone_identity() {
+    cat > "${scanner_consumer}/infra/terraform/main.tf" <<'HCL'
+data "aws_availability_zones" "selected" {
+  state = "available"
+  filter {
+    name   = "opt-in-status"
+    values = ["opt-in-not-required"]
+  }
+}
+HCL
+    run_maven checkov_zones_open scanners "${scanner_consumer}" airness:checkov
+    expect_exit checkov_zones_open 'scanners: an attribute filter still permits silent zone expansion' 1
+    expect_match checkov_zones_open 'scanners: the new availability-zone rule is enforced' 'CKV_AWS_394'
+
+    cat > "${scanner_consumer}/infra/terraform/main.tf" <<'HCL'
+data "aws_availability_zones" "selected" {
+  state = "available"
+  filter {
+    name   = "zone-id"
+    values = ["euc1-az1", "euc1-az2"]
+  }
+}
+HCL
+    run_maven checkov_zones_pinned scanners "${scanner_consumer}" airness:checkov
+    expect_exit checkov_zones_pinned 'scanners: explicitly selected zone identities pass' 0
+    expect_no_match checkov_zones_pinned 'scanners: pinned identities clear the availability-zone finding' 'CKV_AWS_394'
 }

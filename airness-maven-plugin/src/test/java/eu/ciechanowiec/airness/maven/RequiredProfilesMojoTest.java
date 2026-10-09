@@ -57,6 +57,7 @@ class RequiredProfilesMojoTest {
     void delegatesRequiredAndOptionalProfileSemanticsToMavenFour() {
         assertAll(
             () -> assertFalse(RequiredProfilesMojo.nativeValidation("3.9.16")),
+            () -> assertFalse(RequiredProfilesMojo.nativeValidation("3.10.0")),
             () -> assertTrue(RequiredProfilesMojo.nativeValidation("4.0.0-rc-6"))
         );
     }
