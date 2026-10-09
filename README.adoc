@@ -40,10 +40,11 @@ endif::[]
 
 :airness-version: 1.0.7-SNAPSHOT
 
-[cols=">.^1,<.^1"]
+// This metadata table pairs each event with its timestamp and needs no column headers.
+[cols=">.^1,<.^1",adocent-disable-next-line="Structure.TableHeaders"]
 |===
-| *Document last modified:* | {docdatetime}
-| *Document generated:* | {localdatetime}
+| Document last modified | {docdatetime}
+| Document generated | {localdatetime}
 |===
 
 [[overview]]
@@ -84,7 +85,7 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
     </properties>
 </project>
 ----
-. [[package-root,airness.package.root]]`airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`.
+. [[package-root]]`airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`.
 
 . A Spring Boot project names `airness-parent-spring-boot` as its parent instead. Everything above still applies, and the parent additionally supplies the Spring Boot platform and the rules that only a Spring Boot project can break:
 +
@@ -101,7 +102,7 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 [[managed-file-setup]]
 === Managed File Setup
 
-. Run the [[asset-sync-goal,sync goal]]sync goal to create or update the xref:#managed-files[managed files]. No other command in the adoption flow writes these files:
+. Run the [[asset-sync-goal]]sync goal to create or update the xref:#managed-files[managed files]. No other command in the adoption flow writes these files:
 +
 [source,bash]
 ----
@@ -112,25 +113,25 @@ mvn airness:assets-sync
 [[build-commands]]
 == Build Commands
 
-. _airness_ provides [[verification-commands,verification commands]]verification commands and xref:#source-formatting[].
+. _airness_ provides [[verification-commands]]verification commands and xref:#source-formatting[source formatting].
 +
 [cols="2,3,5"]
 |===
 | Purpose | Command | Behavior
 
-| [[source-formatting,source formatting]]Source formatting
+| [[source-formatting]]Source formatting
 | `mvn process-resources -Pformat`
 | Formats and rewrites Java code.
 
-| [[default-verification,default verification]]Default verification
+| [[default-verification]]Default verification
 | `mvn clean verify`
-| Runs the default verification suite. Verify rather than package, because a project that repackages its archive produces the archive that ships during package, and the artifact-content check reads that archive afterwards.
+| Runs the default verification suite. Verify rather than package, because a project that repackages its archive produces the archive that ships during package, and the artifact-content check reads that archive afterward.
 
-| [[extended-verification,extended verification]]Extended verification
+| [[extended-verification]]Extended verification
 | `mvn clean verify -Pextended`
-| Runs the xref:#default-verification[] plus additional checks.
+| Runs the xref:#default-verification[default verification] plus additional checks.
 
-| [[release-publication,release publication]]Release publication
+| [[release-publication]]Release publication
 | `mvn clean deploy -Prelease -DskipTests`
 | Checks the publication files, signs them, and sends them to the configured Maven Central server.
 
@@ -142,19 +143,19 @@ mvn airness:assets-sync
 |===
 | Flag | Use with | Behavior
 
-| [[report-only-mode,report-only mode]]`-Dairness.enforce=false`
-| xref:#default-verification[] or xref:#extended-verification[]
+| [[report-only-mode]]`-Dairness.enforce=false`
+| xref:#default-verification[default verification] or xref:#extended-verification[extended verification]
 | Reports rule violations without failing the build.
 
-| [[skip-tests,skipTests]]`-DskipTests`
-| xref:#default-verification[] or xref:#extended-verification[]
+| [[skip-tests]]`-DskipTests`
+| xref:#default-verification[default verification] or xref:#extended-verification[extended verification]
 | Skips tests and all _airness_ checks.
 |===
 +
-For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#extended-verification[] in xref:#report-only-mode[]. Use xref:#skip-tests[`mvn package -DskipTests`] only when the build needs to produce an artifact without running _airness_ checks.
+For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#extended-verification[extended verification] in xref:#report-only-mode[report-only mode]. Use xref:#skip-tests[`mvn package -DskipTests`] only when the build needs to produce an artifact without running _airness_ checks.
 
 . Checkstyle runs at `process-test-classes`, before the tests. It also reports source-visible findings from retained Qodana and PMD rules, so those violations stop a build before its slower checks run. Every original rule remains enabled. A successful Extended run still performs the complete analysis. Some counterparts cover only a proven subset of the original rule. The original analyzer checks the remaining cases.
-. The link:airness-governance/src/test/resources/analysis-coverage.tsv[Java analysis inventory] records the pinned analyzers' rules, existing early coverage, new counterparts, and retained analysis. `existing` means overlapping prevention, not identical complete predicates. `full` and `partial` describe the new counterparts. `retained` means no validated new counterpart is enabled. The link:airness-governance/src/test/resources/early-analysis.xml[shared examples] state each counterpart's boundary and its violation and control cases. PMD examples run in the governance tests; Qodana examples join the existing container integration run. New counterparts use the original suppression identifier where supported, with the existing justification and suppression-budget requirements.
+. The link:airness-governance/src/test/resources/analysis-coverage.tsv[Java analysis inventory^] records the pinned analyzers' rules, existing early coverage, new counterparts, and retained analysis. `existing` means overlapping prevention, not identical complete predicates. `full` and `partial` describe the new counterparts. `retained` means no validated new counterpart is enabled. The link:airness-governance/src/test/resources/early-analysis.xml[shared examples^] state each counterpart's boundary and its violation and control cases. PMD examples run in the governance tests. Qodana examples join the existing container integration run. New counterparts use the original suppression identifier where supported, with the existing justification and suppression-budget requirements.
 
 [[managed-files]]
 == Managed Files
@@ -165,32 +166,32 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 |===
 | Policy | Files | Behavior
 
-| [[managed-section,managed section]]Managed section
+| [[managed-section]]Managed section
 | `AGENTS.md`
 | _airness_ owns the marked section at the top. The project owns the text below it.
 
-| [[pinned-file,pinned file]]Pinned
+| [[pinned-file]]Pinned
 | `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `CLAUDE.md`, `lombok.config`, `qodana.yaml`, `README-guideline-software-project.adoc`
 | The file must match the active _airness_ version.
 
-| [[seed-file,seed file]]Seed
+| [[seed-file]]Seed
 | `.dockerignore`, `.gitignore`, `.gitleaks.toml`
 | The file must exist. The xref:#asset-sync-goal[`assets-sync` goal] creates it whenever it's missing, and the project owns its contents.
 
-| [[forbidden-file,forbidden file]]Forbidden
+| [[forbidden-file]]Forbidden
 | `rewrite.yml`, `qodana/profile.xml`
-| _airness_ supplies these configurations elsewhere. The files must be absent. The xref:#default-verification[] reports but doesn't delete them.
+| _airness_ supplies these configurations elsewhere. The files must be absent. The xref:#default-verification[default verification] reports but doesn't delete them.
 |===
 
-. The xref:#managed-section[] in `AGENTS.md` is enclosed by `BEGIN AIRNESS MANAGED INSTRUCTIONS` and `END AIRNESS MANAGED INSTRUCTIONS`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or updates this section while preserving the project text below it.
-. The xref:#default-verification[] fails when a xref:#pinned-file[] is missing or outdated or when a xref:#seed-file[] is missing. It also fails if a build plugin modifies a project file during the build.
+. The xref:#managed-section[managed section] in `AGENTS.md` is enclosed by `BEGIN AIRNESS MANAGED INSTRUCTIONS` and `END AIRNESS MANAGED INSTRUCTIONS`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or updates this section while preserving the project text below it.
+. The xref:#default-verification[default verification] fails when a xref:#pinned-file[pinned file] is missing or outdated or when a xref:#seed-file[seed file] is missing. It also fails if a build plugin modifies a project file during the build.
 . Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a xref:#verification-commands[verification command]:
 +
 [source,bash]
 ----
 mvn airness:assets-sync
 ----
-. To let the project own a xref:#pinned-file[], xref:#seed-file[], or xref:#forbidden-file[], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path.
+. To let the project own a xref:#pinned-file[pinned file], xref:#seed-file[seed file], or xref:#forbidden-file[forbidden file], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path.
 
 [[configuration]]
 == Configuration
@@ -216,17 +217,21 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 | empty
 | Path prefixes excluded from typography checks. For example, `docs` matches `docs/guide.adoc` but not `docs-old/guide.adoc`.
 
-| [[airness-assets-unmanaged,airness.assets.unmanaged]]`airness.assets.unmanaged`
+| [[airness-assets-unmanaged]]`airness.assets.unmanaged`
 | empty
 | Repository paths managed by the project itself. The section xref:#managed-files[] lists the paths that can use this setting.
 
 | `airness.coverage.excluded.classes`
 | empty
-| Class patterns excluded from instruction and branch test coverage checks. A pattern is written against the qualified name of a class, the way the source writes it: `com.example.cli.Example` names one class and `++com.example.cli.*Command++` names a group. A path written with slashes belongs to a different setting and matches nothing here. Each pattern must name at least one measured class, since one that reaches nothing excludes nothing and would otherwise read as though it worked.
+| Class patterns excluded from instruction and branch test coverage checks. A pattern is written against the qualified name of a class, the way the source writes it: `com.example.cli.Example` names one class and `++com.example.cli.*Command++` names a group. A path written with slashes belongs to a different setting and matches nothing here. Each pattern must name at least one measured class, because an unmatched pattern has no effect and would otherwise appear to work.
 
-| [[airness-dependency-check-suppression-file,airness.dependency-check.suppression.file]]`airness.dependency-check.suppression.file`
+| [[airness-dependency-check-suppression-file]]`airness.dependency-check.suppression.file`
 | `.airness/dependency-check-suppressions.xml`
-| Local path of an OWASP Dependency-Check XML suppression file. A project that keeps its document at the default path declares nothing, because the exceptions are read from a document that exists there rather than from a key that names one. Naming another path without also leaving a document at the default one therefore leaves the exceptions unread. A path rather than a URL, because a document read over the network would make a verdict depend on a host rather than on the repository. Create it from the HTML report and follow the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^]. Use a suppression only when no upgrade answers the advisory. Name the advisory, state in the rule's `notes` element why this project can't reach the vulnerability, record the date the entry was made, and remove the entry once it no longer matches. Each of those is checked: every entry, including one in a group, needs its own non-empty `notes` element carrying a `YYYY-MM-DD` date and literal `cve` or `vulnerabilityName` values. Advisory-name regexes, product and weakness selectors, and CVSS score thresholds are refused, even beside a named advisory. Dependency selectors and their supported regex forms remain available, but a dependency selector is not mandatory.
+a| Local path of an Open Worldwide Application Security Project (OWASP) Dependency-Check XML suppression file. A project that keeps its document at the default path declares nothing, because the exceptions are read from a document that exists there rather than from a key that names one. Naming another path without also leaving a document at the default one therefore leaves the exceptions unread. A path rather than a URL, because a document read over the network would make a verdict depend on a host rather than on the repository.
+
+Create it from the HTML report and follow the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^]. Use a suppression only when no upgrade answers the advisory. Name the advisory, state in the rule's `notes` element why this project can't reach the vulnerability, record the date the entry was made, and remove the entry once it no longer matches.
+
+Each of those is checked: every entry, including one in a group, needs its own non-empty `notes` element carrying a `YYYY-MM-DD` date and literal `cve` or `vulnerabilityName` values. Advisory-name regular expressions, product and weakness selectors, and Common Vulnerability Scoring System (CVSS) score thresholds are refused, even beside a named advisory. Dependency selectors and their supported regular expressions remain available, but a dependency selector isn't mandatory.
 
 | `airness.test.timeout`
 | `30 s`
