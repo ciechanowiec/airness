@@ -32,10 +32,10 @@
     </prerequisites>
 
     <properties>
-        <maven.api.version>3.9.16</maven.api.version>
-        <jackson.version>2.22.2</jackson.version>
+        <maven.api.version>3.10.0</maven.api.version>
+        <jackson.version>2.22.3</jackson.version>
         <javaparser.version>3.28.2</javaparser.version>
-        <guava.version>33.7.1-jre</guava.version>
+        <guava.version>33.7.2-jre</guava.version>
         <commons-beanutils.version>1.11.0</commons-beanutils.version>
         <commons-logging.version>1.4.0</commons-logging.version>
         <plexus-utils.version>4.1.0</plexus-utils.version>
@@ -58,19 +58,14 @@
         <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
         <maven-plugin-tools.version>3.16.0</maven-plugin-tools.version>
         <!--
-            Held at what the Maven baseline supplies rather than at the newest release, because this is a
-            provided dependency: the resolver on the classpath at run time is the one Maven brought, and
-            Maven 3.9.16 brings 1.9.27. The 2.x line belongs to Maven 4. Compiling against it would leave
-            the plugin calling an API that is not there in any build a consumer runs today, and nothing
-            here would notice until one did.
-
-            The update report names 2.0.21 every build and is right to: it reports rather than fails, and
-            the two-major bound is what would fail. This value moves when the Maven baseline moves.
+            This is a provided dependency, so its API must match the resolver Maven supplies at runtime.
+            Maven 3.10.0 brings Resolver 2.0.24, sharing the 2.x line with Maven 4. The Maven prerequisite
+            moves with this pin so a consumer cannot load it under Maven 3.9's Resolver 1.x.
         -->
-        <maven-resolver.version>1.9.27</maven-resolver.version>
+        <maven-resolver.version>2.0.24</maven-resolver.version>
         <!--
-            Held on the 3.x line for the same reason as the resolver above, and for a reason of its own: the
-            4.x line was rebuilt on Maven 4's maven-xml-api and functions only under Maven 4, which the
+            Held on the 3.x line because the 4.x line was rebuilt on Maven 4's maven-xml-api and functions
+            only under Maven 4, which the
             upstream readme states outright. Java 25 is not what stops it; the Maven lineage is.
 
             The update report names 4.2.0 every build. 3.1.0 is the move that exists inside the supported
@@ -203,15 +198,13 @@
         </dependency>
         <!--
             1.0.3 is a jakarta-branded artifact that still ships the javax.inject package, which is the one
-            Maven 3.9.16 brings as javax.inject-1.jar and the one its Sisu 1.0.0 and Guice 5.1.0 scan for.
+            Maven 3.10.0 brings as javax.inject-1.jar and the one its Sisu 1.1.0 and Guice 5.1.0 scan for.
             The 2.x line renames that package to jakarta.inject. Nothing would fail to compile: the injection
             points would simply stop being found, and a component that is never registered reads as a null
             field far from here.
 
-            The update report names 2.0.1.MR and will now name 2.0.1 instead, the version check having been
-            taught that .MR is a Multi-Release JAR packaging experiment its own maintainers say they do not
-            intend to support. Both remain refused for the package rename. This version moves when the Maven
-            baseline moves.
+            The update report names 2.0.1. It remains incompatible with the supported Maven runtime;
+            this pin moves only when Maven's injection package changes too.
         -->
         <dependency>
             <groupId>jakarta.inject</groupId>
@@ -318,6 +311,14 @@
                 <exclusion>
                     <groupId>javax.inject</groupId>
                     <artifactId>javax.inject</artifactId>
+                </exclusion>
+                <!--
+                    Maven's HTTP transport supplies this bridge in its own runtime. The formatter's
+                    commons-logging dependency already owns these classes on the plugin classpath.
+                -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

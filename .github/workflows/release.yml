@@ -28,7 +28,7 @@ jobs:
     environment: maven-central
     steps:
       - name: 'Checkout complete history'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -69,16 +69,29 @@ jobs:
           test -n "$MAVEN_GPG_PASSPHRASE" || { echo 'GPG_PASSPHRASE is missing.' >&2; exit 1; }
 
       - name: 'Set up Temurin and Maven Central credentials from .java-version'
-        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07 # v4
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version-file: '.java-version'
           cache: 'maven'
           server-id: central
-          server-username: MAVEN_CENTRAL_USERNAME
-          server-password: MAVEN_CENTRAL_PASSWORD
+          server-username-env-var: MAVEN_CENTRAL_USERNAME
+          server-password-env-var: MAVEN_CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+          gpg-passphrase-env-var: MAVEN_GPG_PASSPHRASE
+
+      - name: 'Install Maven 3.10.0'
+        run: |
+          set -eu
+          archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
+          curl --fail --silent --show-error --location \
+            'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
+            --output "$archive"
+          printf '%s  %s\n' \
+            '908b1501bfb420bf7c8affb855534a9c407fd6099367bfb9f2f2dcb8e9799102bffb84518cde74c679bd76870247c6528683abdd620581bffa90f95d92d175aa' \
+            "$archive" | sha512sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.10.0/bin" >> "$GITHUB_PATH"
 
       - name: 'Validate release version and availability'
         id: release_state

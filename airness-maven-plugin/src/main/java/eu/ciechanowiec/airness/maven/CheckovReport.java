@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  */
 record CheckovReport(List<String> findings, Set<String> files, Set<String> frameworks) {
 
-    private static final String VERSION = "3.3.17";
+    private static final String VERSION = "3.3.26";
     private static final String VERSION_FIELD = "checkov_version";
     private static final String SKIPPED = "skipped";
     private static final String PARSING_ERRORS = "parsing_errors";

@@ -1215,6 +1215,9 @@
         <module name="JavadocThrowsOrder">
             <property name="violateExecutionOnNonTightHtml" value="false"/>
         </module>
+        <module name="JavadocSeeTagOrder">
+            <property name="violateExecutionOnNonTightHtml" value="false"/>
+        </module>
         <module name="NonEmptyAtclauseDescription">
             <property name="javadocTokens"
                       value="PARAM_BLOCK_TAG, RETURN_BLOCK_TAG, THROWS_BLOCK_TAG, EXCEPTION_BLOCK_TAG, DEPRECATED_BLOCK_TAG"/>
@@ -1425,6 +1428,9 @@
         </module>
         <module name="TypecastParenPad"/>
         <module name="WhitespaceAfter"/>
+        <module name="WhitespaceAfter">
+            <property name="tokens" value="SINGLE_LINE_COMMENT"/>
+        </module>
         <module name="WhitespaceAround"/>
         <module name="WhitespaceBeforeEmptyBody"/>
 

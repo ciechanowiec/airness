@@ -36,7 +36,7 @@ final class VersionCoordinates {
 
     static List<OwnedCoordinate> from(MavenSession session) {
         Path repository = session.getRepositorySession().getLocalRepositoryManager()
-            .getRepository().getBasedir().toPath();
+            .getRepository().getBasePath();
         return from(session.getAllProjects(), repository);
     }
 

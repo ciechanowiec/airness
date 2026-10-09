@@ -13,6 +13,13 @@
     UnnecessaryWarningSuppression, which makes "a suppression is never useless" a check rather
     than a wish: a @SuppressWarnings that suppresses nothing fails the build.
     -->
+    <rule ref="category/java/bestpractices.xml/OnDemandImport">
+        <properties>
+            <!-- Explicit imports apply to assertion methods as well as production types. -->
+            <property name="allowStaticImportsFrom" value=""/>
+            <property name="allowTypeImportsFrom" value=""/>
+        </properties>
+    </rule>
     <rule ref="category/java/bestpractices.xml">
         <exclude name="ConstantsInInterface"/>
         <exclude name="DoubleBraceInitialization"/>
