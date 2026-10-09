@@ -133,6 +133,8 @@ jobs:
             airness-assets/pom.xml \
             airness-config/pom.xml \
             airness-governance/pom.xml \
+            airness-spring-evidence/pom.xml \
+            airness-web-evidence/pom.xml \
             airness-maven-plugin/pom.xml \
             airness-parent/pom.xml \
             airness-parent-spring-boot/pom.xml; do

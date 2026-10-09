@@ -809,6 +809,15 @@
                                 <groupId>com.puppycrawl.tools</groupId>
                                 <artifactId>checkstyle</artifactId>
                             </exclusion>
+                            <!-- Only the AST checks are used; QuLice's compiler is never invoked. -->
+                            <exclusion>
+                                <groupId>com.google.errorprone</groupId>
+                                <artifactId>error_prone_core</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>com.google.errorprone</groupId>
+                                <artifactId>error_prone_check_api</artifactId>
+                            </exclusion>
                         </exclusions>
                     </dependency>
                     <!--
@@ -1142,6 +1151,12 @@
                             <nvdDatafeedUrl>https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz</nvdDatafeedUrl>
                             <nvdValidForHours>24</nvdValidForHours>
                             <autoUpdate>true</autoUpdate>
+                            <suppressionFiles>
+                                <suppressionFile>${project.build.directory}/airness/plugin-inputs/eclipse-suppressions.xml</suppressionFile>
+                                <suppressionFile>${project.build.directory}/airness/plugin-inputs/tool-suppressions.xml</suppressionFile>
+                                <suppressionFile>${project.build.directory}/airness/plugin-inputs/self-tool-suppressions.xml</suppressionFile>
+                                <suppressionFile>${project.build.directory}/airness/plugin-inputs/spring-tool-suppressions.xml</suppressionFile>
+                            </suppressionFiles>
                             <failBuildOnCVSS>${airness.dependency-check.fail-build-on-cvss}</failBuildOnCVSS>
                             <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
                             <skip>${skipTests}</skip>
@@ -1226,6 +1241,7 @@
                                 <id>airness-shell-and-iac</id>
                                 <phase>prepare-package</phase>
                                 <goals>
+                                    <goal>plugin-inputs</goal>
                                     <goal>shellcheck</goal>
                                     <goal>checkov</goal>
                                 </goals>
@@ -1291,7 +1307,7 @@
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
                         <configuration>
-                            <suppressionFiles>
+                            <suppressionFiles combine.children="append">
                                 <suppressionFile>${airness.dependency-check.suppression.file}</suppressionFile>
                             </suppressionFiles>
                         </configuration>

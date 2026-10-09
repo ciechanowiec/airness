@@ -22,13 +22,13 @@ CKV2_AWS_21	enable	Portable security requirement.	Ensure that all IAM users are 
 CKV2_AWS_22	enable	Portable security requirement.	Ensure an IAM User does not have access to the console
 CKV2_AWS_23	enable	Portable security requirement.	Route53 A Record has Attached Resource
 CKV2_AWS_27	enable	Portable security requirement.	Ensure Postgres RDS as aws_rds_cluster has Query Logging enabled
-CKV2_AWS_28	enable	Portable security requirement.	Ensure public facing ALB are protected by WAF
-CKV2_AWS_29	enable	Portable security requirement.	Ensure public API gateway are protected by WAF
+CKV2_AWS_28	exclude	Provisioning a WAF is an architecture decision.	Ensure public facing ALB are protected by WAF
+CKV2_AWS_29	exclude	Provisioning a WAF is an architecture decision.	Ensure public API gateway are protected by WAF
 CKV2_AWS_3	exclude	A paid security service is not mandatory for every deployment.	Ensure GuardDuty is enabled to specific org/region
 CKV2_AWS_30	enable	Portable security requirement.	Ensure Postgres RDS as aws_db_instance has Query Logging enabled
 CKV2_AWS_31	enable	Portable security requirement.	Ensure WAF2 has a Logging Configuration
 CKV2_AWS_32	enable	Portable security requirement.	Ensure CloudFront distribution has a response headers policy attached
-CKV2_AWS_33	enable	Portable security requirement.	Ensure AppSync is protected by WAF
+CKV2_AWS_33	exclude	Provisioning a WAF is an architecture decision.	Ensure AppSync is protected by WAF
 CKV2_AWS_34	enable	Portable security requirement.	AWS SSM Parameter should be Encrypted
 CKV2_AWS_35	enable	Portable security requirement.	AWS NAT Gateways should be utilized for the default route
 CKV2_AWS_36	enable	Portable security requirement.	Ensure terraform is not sending SSM secrets to untrusted domains over HTTP
@@ -429,7 +429,7 @@ CKV_AWS_253	enable	Portable security requirement.	Ensure DLM cross region events
 CKV_AWS_254	exclude	Encryption does not require a particular key ownership model.	Ensure DLM cross region events are encrypted with Customer Managed Key
 CKV_AWS_255	enable	Portable security requirement.	Ensure DLM cross region schedules are encrypted
 CKV_AWS_256	exclude	Encryption does not require a particular key ownership model.	Ensure DLM cross region schedules are encrypted using a Customer Managed Key
-CKV_AWS_257	enable	Portable security requirement.	Ensure CodeCommit branch changes have at least 2 approvals
+CKV_AWS_257	exclude	The fleet merges agent work without mandatory human review.	Ensure CodeCommit branch changes have at least 2 approvals
 CKV_AWS_258	enable	Portable security requirement.	Ensure that Lambda function URLs AuthType is not None
 CKV_AWS_259	enable	Portable security requirement.	Ensure CloudFront response header policy enforces Strict Transport Security
 CKV_AWS_26	enable	Portable security requirement.	Ensure all data stored in the SNS topic is encrypted
@@ -672,8 +672,8 @@ CKV_AZURE_117	enable	Portable security requirement.	Ensure that AKS uses disk en
 CKV_AZURE_118	enable	Portable security requirement.	Ensure that Network Interfaces disable IP forwarding
 CKV_AZURE_119	enable	Portable security requirement.	Ensure that Network Interfaces don't use public IPs
 CKV_AZURE_12	enable	Portable security requirement.	Ensure that Network Security Group Flow Log retention period is 'greater than 90 days'
-CKV_AZURE_120	enable	Portable security requirement.	Ensure that Application Gateway enables WAF
-CKV_AZURE_121	enable	Portable security requirement.	Ensure that Azure Front Door enables WAF
+CKV_AZURE_120	exclude	Provisioning a WAF is an architecture decision.	Ensure that Application Gateway enables WAF
+CKV_AZURE_121	exclude	Provisioning a WAF is an architecture decision.	Ensure that Azure Front Door enables WAF
 CKV_AZURE_122	enable	Portable security requirement.	Ensure that Application Gateway uses WAF in "Detection" or "Prevention" modes
 CKV_AZURE_123	enable	Portable security requirement.	Ensure that Azure Front Door uses WAF in "Detection" or "Prevention" modes
 CKV_AZURE_124	enable	Portable security requirement.	Ensure that Azure Cognitive Search disables public network access

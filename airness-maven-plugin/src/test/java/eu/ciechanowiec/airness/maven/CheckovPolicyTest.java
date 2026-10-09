@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,22 @@ class CheckovPolicyTest {
         assertTrue(
             CheckovScan.arguments("dockerfile").containsAll(List.of("--skip-download", "--config-file", "--framework"))
         );
+    }
+
+    @Test
+    @SneakyThrows
+    void excludesArchitectureMandatesButKeepsExistingFirewallProtections() {
+        Set<String> excluded = CheckovPolicy.rows().stream()
+            .filter(row -> "exclude".equals(row.get(1)))
+            .map(List::getFirst)
+            .collect(Collectors.toUnmodifiableSet());
+        assertTrue(
+            excluded.containsAll(
+                Set.of("CKV2_AWS_28", "CKV2_AWS_29", "CKV2_AWS_33", "CKV_AZURE_120", "CKV_AZURE_121", "CKV_AWS_257")
+            )
+        );
+        assertFalse(excluded.contains("CKV_AWS_175"));
+        assertFalse(excluded.contains("CKV_AWS_176"));
     }
 
     @Test

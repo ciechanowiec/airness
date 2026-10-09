@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Advisories that Dependency-Check reports against the harness and that no upgrade answers, because
+    the report is a name collision rather than a finding. Every entry names its advisory, says why the named
+    packages cannot contain it, and records the date it was added.
+
+    The plugin runs with failBuildOnUnusedSuppressionRule, so a rule that stops matching fails the build
+    rather than outliving what it was written for. Nothing here raises the CVSS threshold: the threshold
+    stays at zero and each exception is written out one advisory at a time.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-08-23; reviewed and narrowed 2026-10-09. CVE-2020-27225 affects the Eclipse
+            Help Subsystem's unauthenticated livehelp endpoint. The named runtime bundles contain no
+            help web server or livehelp servlet. The selector excludes every org.eclipse.help bundle,
+            including help.base, help.ui and help.webapp, so those components remain scanned.
+
+            Dependency-Check maps the independent bundle versions to the Eclipse Platform product
+            version. No upgrade of these runtime bundles fixes that product mismatch.
+            https://bugs.eclipse.org/bugs/show_bug.cgi?id=569855
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.eclipse\.platform/org\.eclipse\.(core\.(commands|contenttype|expressions|filesystem|jobs|resources|runtime)|equinox\.(app|common|preferences|registry)|text)@[^?]+(?:\?type=jar)?$</packageUrl>
+        <cve>CVE-2020-27225</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-08-23. CVE-2014-125035 is cross-site scripting in a web application plugin
+            named "jobs-plugin". It is matched here against org.eclipse.platform:org.eclipse.core.jobs,
+            which is the Eclipse background-job scheduler and shares nothing with it but the word "jobs".
+            The two are unrelated products, so no version of this package is affected and no upgrade
+            applies.
+            https://github.com/mrbobbybryant/Jobs-Plugin/pull/2
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.eclipse\.platform/org\.eclipse\.core\.jobs@.*$</packageUrl>
+        <cve>CVE-2014-125035</cve>
+    </suppress>
+</suppressions>

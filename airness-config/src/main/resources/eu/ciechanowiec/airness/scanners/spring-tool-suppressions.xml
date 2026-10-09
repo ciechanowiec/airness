@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-10-09. CVE-2022-31691 concerns YAML editors in Spring Tools for Eclipse and
+            VSCode extensions. spring-boot-loader-tools is the executable-archive packaging library,
+            not an IDE extension, and contains none of those YAML editors. The scanner confuses the
+            independent Spring Boot version with the Spring Tools product version. No upgrade of the
+            packaging library fixes this product mismatch; SnakeYAML dependencies remain scanned.
+            https://spring.io/security/cve-2022-31691/
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/spring-boot-loader-tools@4\.1\.1(?:\?type=jar)?$</packageUrl>
+        <cve>CVE-2022-31691</cve>
+    </suppress>
+</suppressions>

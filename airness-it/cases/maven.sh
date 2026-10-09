@@ -61,6 +61,8 @@ run_maven_cases() {
     run_blocklist_boundaries
     run_license_alias_case
     run_suppression_boundaries
+    run_sbom_cases
+    run_plugin_vulnerability_cases
 }
 
 # The licence check reads what a pom says about itself, and none of these five says anything: the
