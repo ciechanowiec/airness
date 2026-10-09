@@ -41,6 +41,10 @@ class ManagedVersionsTest {
                         <artifactId>dependency-check-maven</artifactId>
                     </plugin>
                     <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
                         <artifactId>unrelated-plugin</artifactId>
                         <version>1</version>
                     </plugin>
@@ -75,6 +79,7 @@ class ManagedVersionsTest {
         List<String> problems = this.problems(CHILD_POM);
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("jacoco-maven-plugin")));
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("dependency-check-maven")));
+        assertTrue(problems.stream().anyMatch(problem -> problem.contains("cyclonedx-maven-plugin")));
         assertTrue(problems.stream().anyMatch(problem -> problem.contains("lombok")));
     }
 

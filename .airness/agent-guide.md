@@ -17,7 +17,9 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
   Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon
   that can read the repository through a bind mount. Extended verification refuses to start under `-o` or offline
   mode, because Maven skips a goal whose descriptor requires online mode, the vulnerability scan is one of those,
-  and an offline run would otherwise report clean without having read a single advisory. On macOS with Colima, a
+  and an offline run would otherwise report clean without having read a single advisory. Packaging also requires
+  online Maven mode because Maven otherwise skips SBOM generation, including with `-DskipTests`.
+  On macOS with Colima, a
   repository under Downloads, Desktop or Documents is unreadable inside a container until the terminal that starts
   Colima is granted access to that folder under System Settings, Privacy and Security, Files and Folders, so keep
   the repository elsewhere or grant it.
@@ -129,6 +131,13 @@ Airness governs all of the following domains:
   placed against that release is refused rather than guessed, and the freshness bound never demands an upgrade into
   a refused release. Every container image the repository names is pinned to a tag or a digest: `latest` or no tag
   lets what is pulled change without the repository changing. There is no setting that widens or narrows the list.
+- **Software bill of materials:** every module generates `target/bom.json` during `package`, using CycloneDX 1.6
+  JSON and the configured build directory. It lists direct and transitive compile, provided and runtime dependencies,
+  including optional dependencies, and excludes test dependencies. Maven installs and deploys it with the `cyclonedx`
+  classifier. POM modules generate their own inventory too. No timestamp or serial number varies between builds.
+  Generation and its prerequisites remain mandatory with `-DskipTests` and report-only mode. Native skip flags and
+  child replacement configuration cannot disable the SBOM. This is the Maven dependency graph, not a container or
+  distribution-file inventory. Publication checks include the SBOM beside the POM and any required JARs.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material, and its manifest declares the versioned classes the
   archive ships and the restricted native access the classes of the module reach for. Production and test output
@@ -371,8 +380,13 @@ it is published, only a fresh history satisfies the rule.
    its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
 5. Run `mvn clean verify -Pextended` before finishing. Extended verification includes Default verification and adds
    the known-vulnerability scan and the history, secret, and Qodana checks. Default verification alone never reads the
-   vulnerability database. Never pass `-o` to this command, which refuses an offline build outright. `-o` stays safe
-   on Default verification, where no goal Airness binds requires online mode.
+   vulnerability database. Maven resolves effective plugin dependencies from the clean and deploy lifecycles,
+   requested goals, and project build extensions, including plugin dependency overrides. Unused lifecycle defaults
+   enter the scan when requested. A full Airness reactor build collects its own plugin inputs in the parent module.
+   Confirmed incorrect product or version matches have narrowly scoped, dated harness exceptions; project exceptions append
+   to them, and unused exceptions fail verification. Never pass `-o` to this command, which refuses an offline build outright. Default verification
+   also needs online Maven mode from `prepare-package` onward to generate its SBOM; earlier phases retain their
+   existing offline behavior.
 
 ## Layer 5: Exceptions and Repairs
 

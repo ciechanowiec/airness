@@ -42,6 +42,7 @@ public final class ManagedVersions {
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-shade-plugin", "maven-shade-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-source-plugin", "maven-source-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-javadoc-plugin", "maven-javadoc-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-site-plugin", "maven-site-plugin.version"),
         allowedPlugin("org.codehaus.mojo", "exec-maven-plugin", "exec-maven-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-gpg-plugin", "maven-gpg-plugin.version"),
         allowedPlugin(
@@ -62,6 +63,7 @@ public final class ManagedVersions {
         ),
         suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),
         suppliedPlugin("org.owasp", "dependency-check-maven", "dependency-check-maven.version"),
+        suppliedPlugin("org.cyclonedx", "cyclonedx-maven-plugin", "cyclonedx-maven-plugin.version"),
         suppliedPlugin("org.openrewrite.maven", "rewrite-maven-plugin", "rewrite-maven-plugin.version"),
         suppliedPlugin("eu.ciechanowiec", "airness-maven-plugin", "airness.version"),
         suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-checkstyle-plugin", "maven-checkstyle-plugin.version"),

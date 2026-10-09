@@ -41,6 +41,9 @@ public final class ProjectProperties {
      * {@link ManagedVersions} owns every airness.* name it protects, so nothing there is repeated here.
      */
     private static final Set<String> RESERVED = Set.of(
+        "cyclonedx.skip",
+        "cyclonedx.skipAttach",
+        "cyclonedx.skipNotDeployed",
         "jacoco.dataFile",
         "jacoco.reportFile",
         "maven.compiler.parameters",

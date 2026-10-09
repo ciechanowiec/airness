@@ -13,9 +13,9 @@ import org.apache.maven.plugins.annotations.Mojo;
  * the profile notices, because a scan that never ran leaves no finding to disagree with. This runs at
  * {@code validate} so the build stops before the profile can speak for advisories nobody read.
  *
- * <p>Only Extended verification is held to this. No goal that Default verification binds requires online
- * mode, so an offline Default build runs everything it claims to run, which is what makes the fast loop
- * worth keeping.
+ * <p>This preflight belongs to Extended verification. The inherited packaging prerequisites separately
+ * require online mode for SBOM generation, including when publication skips tests. Earlier Default
+ * phases can still run offline.
  *
  * <p>What is read is the offline flag the build was started with rather than a network that happens to be
  * unreachable. A scan that runs and cannot reach its feed fails on its own and names the reason, while a

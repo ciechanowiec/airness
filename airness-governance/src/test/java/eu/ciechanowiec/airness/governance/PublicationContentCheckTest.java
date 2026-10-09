@@ -55,6 +55,26 @@ class PublicationContentCheckTest {
 
     @Test
     @SneakyThrows
+    void inspectsPublishedSbomContentAndReportsMissingSboms() {
+        Path sbom = this.directory.resolve("bom.json");
+        assertEquals(
+            List.of(sbom.toString()),
+            offences(new PublicationContentCheck(List.of(sbom), this.directory).findings(), MISSING)
+        );
+        Files.writeString(sbom, "{\"path\":\"" + this.directory + "\"}");
+        assertEquals(
+            List.of(sbom.toString()),
+            offences(new PublicationContentCheck(List.of(sbom), this.directory).findings(), LOCAL)
+        );
+        Files.writeString(sbom, "{\"credential\":\"" + String.join("", "AKIA", "1234567890123456") + "\"}");
+        assertEquals(
+            List.of(sbom.toString()),
+            offences(new PublicationContentCheck(List.of(sbom), this.directory).findings(), SECRETS)
+        );
+    }
+
+    @Test
+    @SneakyThrows
     void findsALocalPathInAPomWhenTheRootCarriesNonAsciiCharacters() {
         Path root = Files.createDirectory(this.directory.resolve("prosjektmappe-æøå"));
         Path pom = Files.writeString(root.resolve("artifact.pom"), root.toString());

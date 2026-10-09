@@ -60,7 +60,7 @@
             pluginManagement above, because this pom is an ancestor of every consumer and a suppression
             path resolved against a consumer's tree would name a file that is not there.
         -->
-        <airness.self.suppression.file>${maven.multiModuleProjectDirectory}/.airness/dependency-check-suppressions.xml</airness.self.suppression.file>
+        <airness.self.suppression.file>${maven.multiModuleProjectDirectory}/airness-config/src/main/resources/eu/ciechanowiec/airness/scanners/eclipse-suppressions.xml</airness.self.suppression.file>
         <!--
             The vulnerability scan is Extended verification for Airness exactly as it is for a consumer.
             A phase property rather than five profile blocks, the same shape airness.rewrite.apply.phase
@@ -78,6 +78,7 @@
             AbstractDockerCheckMojo refuses a value that carries no digest.
         -->
         <checkov.image>bridgecrew/checkov:3.3.17@sha256:41c4701c6a56d8952e5aba7a420f871c8b70b57da94eb4f142dcdf7295bb0be3</checkov.image>
+        <cyclonedx.skip>false</cyclonedx.skip>
         <gitleaks.image>zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f</gitleaks.image>
         <!--
             The one Java version this build targets. A project that inherits the harness is on 25
@@ -90,14 +91,17 @@
         <spring-boot.version>4.1.1</spring-boot.version>
 
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
+        <airness.plugin.plexus.version>4.1.0</airness.plugin.plexus.version>
         <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
+        <airness.plugin.plexus-legacy.version>3.6.2</airness.plugin.plexus-legacy.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
         <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
-        <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
-        <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
+        <maven-install-plugin.version>3.2.0</maven-install-plugin.version>
+        <maven-deploy-plugin.version>3.2.0</maven-deploy-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
         <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
@@ -108,6 +112,7 @@
         -->
         <skipTests>false</skipTests>
         <airness.enforce>true</airness.enforce>
+        <airness.plugin.beanutils.version>1.11.0</airness.plugin.beanutils.version>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <!--
             Mirrors airness-parent. Declared here too, because this pom does not inherit that one, and
@@ -120,9 +125,20 @@
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
         <prettier-maven-plugin.version>0.22</prettier-maven-plugin.version>
+        <airness.plugin.compress.version>1.28.0</airness.plugin.compress.version>
+        <airness.plugin.okio.version>3.18.2</airness.plugin.okio.version>
+        <airness.plugin.kotlin.version>2.4.21</airness.plugin.kotlin.version>
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
+        <airness.plugin.aircompressor.version>2.0.3</airness.plugin.aircompressor.version>
+        <airness.plugin.freemarker.version>2.3.35</airness.plugin.freemarker.version>
+        <airness.plugin.jena.version>5.6.0</airness.plugin.jena.version>
+        <airness.plugin.log4j.version>2.26.1</airness.plugin.log4j.version>
         <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
         <airness.dependency-check.fail-build-on-cvss>0</airness.dependency-check.fail-build-on-cvss>
+        <airness.plugin.httpclient.version>5.6.4</airness.plugin.httpclient.version>
+        <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
+        <airness.plugin.jackson.version>2.22.3</airness.plugin.jackson.version>
+        <airness.plugin.jackson-annotations.version>2.22</airness.plugin.jackson-annotations.version>
         <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
         <airness.version>1.0.7-SNAPSHOT</airness.version>
@@ -132,6 +148,8 @@
         <rewrite-static-analysis.version>2.41.1</rewrite-static-analysis.version>
         <rewrite-testing-frameworks.version>3.44.0</rewrite-testing-frameworks.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <airness.plugin.lang3.version>3.21.0</airness.plugin.lang3.version>
+        <airness.plugin.snappy.version>0.5</airness.plugin.snappy.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <pmd.version>7.27.0</pmd.version>
         <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
@@ -168,11 +186,25 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
                     <version>${maven-clean-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-resources-plugin</artifactId>
                     <version>${maven-resources-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus-legacy.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -210,6 +242,11 @@
                     <version>${maven-javadoc-plugin.version}</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <version>${maven-site-plugin.version}</version>
+                </plugin>
+                <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
                     <version>${exec-maven-plugin.version}</version>
@@ -244,6 +281,13 @@
                             </ignoredUnusedDeclaredDependency>
                         </ignoredUnusedDeclaredDependencies>
                     </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>commons-beanutils</groupId>
+                            <artifactId>commons-beanutils</artifactId>
+                            <version>${airness.plugin.beanutils.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -460,6 +504,13 @@
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.ec4j.maven</groupId>
@@ -470,6 +521,28 @@
                     <groupId>com.hubspot.maven.plugins</groupId>
                     <artifactId>prettier-maven-plugin</artifactId>
                     <version>${prettier-maven-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.commons</groupId>
+                            <artifactId>commons-compress</artifactId>
+                            <version>${airness.plugin.compress.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>com.squareup.okio</groupId>
+                            <artifactId>okio</artifactId>
+                            <version>${airness.plugin.okio.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>com.squareup.okio</groupId>
+                            <artifactId>okio-jvm</artifactId>
+                            <version>${airness.plugin.okio.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.jetbrains.kotlin</groupId>
+                            <artifactId>kotlin-stdlib</artifactId>
+                            <version>${airness.plugin.kotlin.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
@@ -554,6 +627,43 @@
                             <licenseMerge>Public Domain|Public Domain, per Creative Commons CC0|CC0-1.0|CC0 1.0 Universal|Public domain|CC0|Public domain, Sun Microsoystems</licenseMerge>
                         </licenseMerges>
                     </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>io.airlift</groupId>
+                            <artifactId>aircompressor</artifactId>
+                            <version>${airness.plugin.aircompressor.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.freemarker</groupId>
+                            <artifactId>freemarker</artifactId>
+                            <version>${airness.plugin.freemarker.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.jena</groupId>
+                            <artifactId>jena-core</artifactId>
+                            <version>${airness.plugin.jena.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-api</artifactId>
+                            <version>${airness.plugin.log4j.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>commons-beanutils</groupId>
+                            <artifactId>commons-beanutils</artifactId>
+                            <version>${airness.plugin.beanutils.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-to-slf4j</artifactId>
+                            <version>${airness.plugin.log4j.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.owasp</groupId>
@@ -582,6 +692,14 @@
                         <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
                         <skip>${skipTests}</skip>
                         <skipTestScope>false</skipTestScope>
+                        <!-- Native plugin scanning ignores Maven dependency overrides. Read resolved inputs instead. -->
+                        <scanPlugins>false</scanPlugins>
+                        <scanSet>
+                            <fileSet><directory>${project.basedir}/src/main/resources</directory></fileSet>
+                            <fileSet><directory>${project.basedir}/src/main/filters</directory></fileSet>
+                            <fileSet><directory>${project.basedir}/src/main/webapp</directory></fileSet>
+                            <fileSet><directory>${project.build.directory}/airness/plugin-inputs</directory></fileSet>
+                        </scanSet>
                         <!--
                             The .NET assembly analyzer is off because this harness governs Java and Maven,
                             and because leaving it on makes the verdict depend on the machine. The archive
@@ -599,6 +717,62 @@
                         <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
                         <versionCheckEnabled>false</versionCheckEnabled>
                     </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.httpcomponents.client5</groupId>
+                            <artifactId>httpclient5</artifactId>
+                            <version>${airness.plugin.httpclient.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.httpcomponents.client5</groupId>
+                            <artifactId>httpclient5-cache</artifactId>
+                            <version>${airness.plugin.httpclient.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.cyclonedx</groupId>
+                    <artifactId>cyclonedx-maven-plugin</artifactId>
+                    <version>${cyclonedx-maven-plugin.version}</version>
+                    <configuration>
+                        <schemaVersion>1.6</schemaVersion>
+                        <projectType>library</projectType>
+                        <outputFormat>json</outputFormat>
+                        <outputName>bom</outputName>
+                        <outputDirectory>${project.build.directory}</outputDirectory>
+                        <outputTimestamp>0</outputTimestamp>
+                        <includeBomSerialNumber>false</includeBomSerialNumber>
+                        <includeLicenseText>false</includeLicenseText>
+                        <includeCompileScope>true</includeCompileScope>
+                        <includeProvidedScope>true</includeProvidedScope>
+                        <includeRuntimeScope>true</includeRuntimeScope>
+                        <includeTestScope>false</includeTestScope>
+                        <includeSystemScope>false</includeSystemScope>
+                        <!-- An explicit empty array prevents native excludeTypes from narrowing the inventory. -->
+                        <excludeTypes combine.self="override"/>
+                        <detectUnusedForOptionalScope>false</detectUnusedForOptionalScope>
+                        <classifier>cyclonedx</classifier>
+                        <skip>false</skip>
+                        <skipAttach>false</skipAttach>
+                        <skipNotDeployed>false</skipNotDeployed>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.fasterxml.jackson.core</groupId>
+                            <artifactId>jackson-databind</artifactId>
+                            <version>${airness.plugin.jackson.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>com.fasterxml.jackson.core</groupId>
+                            <artifactId>jackson-core</artifactId>
+                            <version>${airness.plugin.jackson.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>com.fasterxml.jackson.core</groupId>
+                            <artifactId>jackson-annotations</artifactId>
+                            <version>${airness.plugin.jackson-annotations.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.openrewrite.maven</groupId>
@@ -648,6 +822,31 @@
                             <artifactId>rewrite-testing-frameworks</artifactId>
                             <version>${rewrite-testing-frameworks.version}</version>
                         </dependency>
+                        <dependency>
+                            <groupId>org.jetbrains.kotlin</groupId>
+                            <artifactId>kotlin-compiler-embeddable</artifactId>
+                            <version>${airness.plugin.kotlin.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.jetbrains.kotlin</groupId>
+                            <artifactId>kotlin-daemon-embeddable</artifactId>
+                            <version>${airness.plugin.kotlin.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.jetbrains.kotlin</groupId>
+                            <artifactId>kotlin-reflect</artifactId>
+                            <version>${airness.plugin.kotlin.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.jetbrains.kotlin</groupId>
+                            <artifactId>kotlin-script-runtime</artifactId>
+                            <version>${airness.plugin.kotlin.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.jetbrains.kotlin</groupId>
+                            <artifactId>kotlin-stdlib</artifactId>
+                            <version>${airness.plugin.kotlin.version}</version>
+                        </dependency>
                     </dependencies>
                 </plugin>
                 <plugin>
@@ -659,6 +858,23 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
                     <version>${maven-checkstyle-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.commons</groupId>
+                            <artifactId>commons-lang3</artifactId>
+                            <version>${airness.plugin.lang3.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.iq80.snappy</groupId>
+                            <artifactId>snappy</artifactId>
+                            <version>${airness.plugin.snappy.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -695,6 +911,21 @@
                             <artifactId>airness-config</artifactId>
                             <version>${airness.version}</version>
                         </dependency>
+                        <dependency>
+                            <groupId>commons-beanutils</groupId>
+                            <artifactId>commons-beanutils</artifactId>
+                            <version>${airness.plugin.beanutils.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.iq80.snappy</groupId>
+                            <artifactId>snappy</artifactId>
+                            <version>${airness.plugin.snappy.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus.version}</version>
+                        </dependency>
                     </dependencies>
                     <configuration>
                         <rulesets>
@@ -723,6 +954,11 @@
                             <artifactId>airness-config</artifactId>
                             <version>${airness.version}</version>
                         </dependency>
+                        <dependency>
+                            <groupId>org.iq80.snappy</groupId>
+                            <artifactId>snappy</artifactId>
+                            <version>${airness.plugin.snappy.version}</version>
+                        </dependency>
                     </dependencies>
                     <configuration>
                         <excludeFilterFile>eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml</excludeFilterFile>
@@ -735,6 +971,24 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <!--
+                Packaging produces the SBOM even when release publication skips tests. Unlike the
+                self-analysis bindings, this external plugin can be inherited once by both the reactor
+                and consumers without a dependency on the Airness plugin being built.
+            -->
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-sbom</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>makeBom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <!--
                 Runtime compatibility is unconditional and inherited. It protects Airness itself and
                 every consumer even when tests or report enforcement are disabled. The closed Java
@@ -763,6 +1017,48 @@
                                     <version>[25,26)</version>
                                     <message>The harness requires exactly JDK 25</message>
                                 </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>airness-sbom-prerequisites</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <fail>true</fail>
+                            <rules combine.self="override">
+                                <requireProperty>
+                                    <property>session.offline</property>
+                                    <regex>false</regex>
+                                    <regexMessage>SBOM generation requires online Maven mode; run packaging without -o.</regexMessage>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>cyclonedx.skip</property>
+                                    <regex>false</regex>
+                                    <regexMessage>Airness packaging requires an SBOM; remove cyclonedx.skip.</regexMessage>
+                                </requireProperty>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>airness-sbom-output</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <fail>true</fail>
+                            <rules combine.self="override">
+                                <requireFilesExist>
+                                    <files>
+                                        <file>${project.build.directory}/bom.json</file>
+                                    </files>
+                                    <message>Missing SBOM; run package before installing or publishing.</message>
+                                </requireFilesExist>
                             </rules>
                         </configuration>
                     </execution>

@@ -19,6 +19,8 @@ import org.w3c.dom.Node;
 
 class ManagedVersionsPolicyTest {
 
+    private static final String VERSION = "version";
+
     @Test
     void policyClassifiesEveryHarnessCoordinate() {
         Set<String> expected = ManagedVersions.coordinates().stream()
@@ -56,8 +58,8 @@ class ManagedVersionsPolicyTest {
             () -> assertEquals(ManagedVersions.protectedProperties(), Set.copyOf(owned)),
             () -> assertEquals(owned.size(), Set.copyOf(owned).size(), "no property is declared twice"),
             () -> assertTrue(governedProperties(parent).findAny().isEmpty()),
-            () -> assertEquals("[3.9.16,)", Xml.text(mavenRule, "version").orElse("")),
-            () -> assertEquals("[25,26)", Xml.text(javaRule, "version").orElse(""))
+            () -> assertEquals("[3.9.16,)", Xml.text(mavenRule, VERSION).orElse("")),
+            () -> assertEquals("[25,26)", Xml.text(javaRule, VERSION).orElse(""))
         );
     }
 
@@ -66,7 +68,7 @@ class ManagedVersionsPolicyTest {
         List<String> versioned = sourcePoms()
             .flatMap(root -> elements(root, "plugin"))
             .filter(plugin -> !hasAncestor(plugin, "pluginManagement"))
-            .filter(plugin -> Xml.firstChild(plugin, "version").isPresent())
+            .filter(plugin -> Xml.firstChild(plugin, VERSION).isPresent())
             .map(ManagedVersionsPolicyTest::coordinate)
             .toList();
         assertEquals(List.of(), versioned);
@@ -77,7 +79,7 @@ class ManagedVersionsPolicyTest {
         List<String> versioned = sourcePoms()
             .flatMap(root -> Xml.firstChild(root, "dependencies").stream())
             .flatMap(dependencies -> Xml.children(dependencies, "dependency").stream())
-            .filter(dependency -> Xml.firstChild(dependency, "version").isPresent())
+            .filter(dependency -> Xml.firstChild(dependency, VERSION).isPresent())
             .map(ManagedVersionsPolicyTest::coordinate)
             .toList();
         assertEquals(List.of(), versioned);
@@ -102,19 +104,41 @@ class ManagedVersionsPolicyTest {
             .flatMap(pom -> elements(pom, declaration))
             .filter(element -> hasAncestor(element, management))
             .filter(coordinate::matches)
-            .map(element -> Xml.text(element, "version").orElse(""))
+            .map(element -> Xml.text(element, VERSION).orElse(""))
             .anyMatch(expected::equals);
         assertTrue(pinned, coordinate.key());
     }
 
     private static void assertExplicitOwnedVersion(Node declaration) {
+        if (pluginOverride(declaration)) {
+            // Tool-specific patches do not make these libraries supplied application dependencies.
+            String version = Xml.text(declaration, VERSION).orElseThrow();
+            String property = version.substring(2, version.length() - 1);
+            Element properties = Xml.firstChild(parse(repository().resolve("pom.xml")), "properties").orElseThrow();
+            assertTrue(Xml.text(properties, property).filter(value -> !value.isBlank()).isPresent(), property);
+            Element child = Xml.parse(
+                "<project><properties><%s>1</%s></properties></project>"
+                    .formatted(property, property)
+            ).getDocumentElement();
+            assertEquals(
+                List.of("Remove child property " + property + "; it can bypass the Airness verdict"),
+                ProjectProperties.problems(child).toList()
+            );
+            return;
+        }
         ManagedVersions.Coordinate coordinate = ManagedVersions.coordinates().stream()
             .filter(candidate -> candidate.kind() == ManagedVersions.Kind.DEPENDENCY)
             .filter(candidate -> candidate.matches(declaration))
             .findFirst()
             .orElseThrow();
         String expected = "${" + coordinate.property() + '}';
-        assertEquals(expected, Xml.text(declaration, "version").orElse(""), coordinate.key());
+        assertEquals(expected, Xml.text(declaration, VERSION).orElse(""), coordinate.key());
+    }
+
+    private static boolean pluginOverride(Node declaration) {
+        return hasAncestor(declaration, "plugin")
+            && Xml.text(declaration, VERSION).filter(version -> version.startsWith("${airness.plugin."))
+                .filter(version -> version.endsWith("}")).isPresent();
     }
 
     private static Stream<Element> isolatedClasspathEntries(Element root) {
@@ -129,7 +153,8 @@ class ManagedVersionsPolicyTest {
         Stream<String> dependencies = Stream.concat(
             elements(root, "dependency"),
             elements(root, "path")
-        ).map(element -> key(ManagedVersions.Kind.DEPENDENCY, element));
+        ).filter(element -> !pluginOverride(element))
+            .map(element -> key(ManagedVersions.Kind.DEPENDENCY, element));
         return Stream.concat(plugins, dependencies);
     }
 
@@ -183,13 +208,9 @@ class ManagedVersionsPolicyTest {
             .map(Element.class::cast);
     }
 
-    private static Element parse(Path pom) {
-        return Xml.parse(read(pom)).getDocumentElement();
-    }
-
     @SneakyThrows
-    private static String read(Path path) {
-        return Files.readString(path);
+    private static Element parse(Path pom) {
+        return Xml.parse(Files.readString(pom)).getDocumentElement();
     }
 
     private static Path repository() {
