@@ -188,20 +188,7 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 ----
 mvn airness:assets-sync
 ----
-. To let the project own a xref:#pinned-file[pinned file], xref:#seed-file[seed file], or xref:#forbidden-file[forbidden file], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path. The xref:#repository-routing[repository routing files] remain mandatory under this setting.
-
-[[repository-routing]]
-== Maven Repository Routing
-
-. _airness_ restricts Maven dependency and plugin downloads to Maven Central. Dependencies can't add another download destination. The xref:#managed-files[managed files] `.mvn/maven.config` and `.mvn/settings.xml` establish the mirror at Maven startup, before parent and plugin resolution. Locally installed snapshots and the local Maven cache remain available. Remote snapshots and artifacts absent from Central are outside this policy.
-. The mandatory `repository-policy` preflight checks the startup files, the selected global settings and the effective mirror and resolver. It fails even with xref:#skip-tests[`skipTests`], xref:#report-only-mode[report-only mode] or an xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] entry for these files. User settings retain credentials and proxies but can't add or replace mirrors. Deployment destinations are separate from download mirrors.
-. The xref:#asset-sync-goal[sync goal] installs the startup configuration. Restart Maven after synchronization so that the next invocation reads it. If missing startup settings prevent Maven from starting, restore them with this explicit repair command, then resume the ordinary build without the override:
-+
-[source,bash]
-----
-mvn -gs '${maven.conf}/settings.xml' airness:assets-sync
-----
-. The preflight runs when the lifecycle reaches `validate`. It can't undo downloads made before that point when startup settings were overridden. Initial adoption, explicit repair and standalone third-party goals don't provide an _airness_ verdict.
+. To let the project own a xref:#pinned-file[pinned file], xref:#seed-file[seed file], or xref:#forbidden-file[forbidden file], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path.
 
 [[configuration]]
 == Configuration
