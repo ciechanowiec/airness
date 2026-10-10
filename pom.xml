@@ -137,6 +137,8 @@
         <airness.dependency-check.fail-build-on-cvss>0</airness.dependency-check.fail-build-on-cvss>
         <airness.plugin.httpclient.version>5.6.4</airness.plugin.httpclient.version>
         <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
+        <airness.plugin.cyclonedx-core.version>13.2.0</airness.plugin.cyclonedx-core.version>
+        <airness.plugin.commons-io.version>2.22.0</airness.plugin.commons-io.version>
         <airness.plugin.jackson.version>2.22.3</airness.plugin.jackson.version>
         <airness.plugin.jackson-annotations.version>2.22</airness.plugin.jackson-annotations.version>
         <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
@@ -383,8 +385,8 @@
                             <!--
                                 Repository declarations in a project change where coordinates are
                                 resolved and can make the same pom produce different bytes under a
-                                different mirror setup. Repository policy belongs in Maven settings,
-                                outside the source tree and under the operator's control.
+                                different mirror setup. Airness supplies the download policy through
+                                managed Maven startup settings and verifies the effective mirror at preflight.
                             -->
                             <requireNoRepositories>
                                 <banRepositories>true</banRepositories>
@@ -766,6 +768,22 @@
                         <skipNotDeployed>false</skipNotDeployed>
                     </configuration>
                     <dependencies>
+                        <!--
+                            Plugin 2.9.3 still uses core 9.0.5, whose JSON validator does not recognize
+                            the CycloneDX schema's annotation keywords (upstream issue #564). Use the
+                            released core fix while retaining the 1.6 inventory contract above.
+                        -->
+                        <dependency>
+                            <groupId>org.cyclonedx</groupId>
+                            <artifactId>cyclonedx-core-java</artifactId>
+                            <version>${airness.plugin.cyclonedx-core.version}</version>
+                        </dependency>
+                        <!-- Core 13.2 no longer supplies Commons IO, which the plugin itself calls. -->
+                        <dependency>
+                            <groupId>commons-io</groupId>
+                            <artifactId>commons-io</artifactId>
+                            <version>${airness.plugin.commons-io.version}</version>
+                        </dependency>
                         <dependency>
                             <groupId>com.fasterxml.jackson.core</groupId>
                             <artifactId>jackson-databind</artifactId>

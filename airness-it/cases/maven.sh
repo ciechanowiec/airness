@@ -62,6 +62,7 @@ run_maven_cases() {
     run_license_alias_case
     run_suppression_boundaries
     run_sbom_cases
+    run_repository_routing_cases
     run_plugin_vulnerability_cases
 }
 

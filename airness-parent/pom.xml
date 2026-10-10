@@ -666,6 +666,7 @@
                         <id>airness-preflight</id>
                         <phase>validate</phase>
                         <goals>
+                            <goal>repository-policy</goal>
                             <goal>required-profiles</goal>
                             <goal>tree-snapshot</goal>
                             <goal>check-parameters</goal>

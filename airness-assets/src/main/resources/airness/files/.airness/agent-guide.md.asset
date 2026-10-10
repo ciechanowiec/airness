@@ -110,6 +110,20 @@ Airness governs all of the following domains:
   written. The formatter joins the halves back onto one line and keeps the space, which leaves the mistake reading
   like a decision, so what is read is the join rather than the length of a line. A group written inside something is
   ordinary and is left alone, and a stylesheet somebody else published is not read at all.
+- **Maven repository routing:** Airness owns `.mvn/maven.config` and `.mvn/settings.xml`. The startup
+  configuration loads the latter as Maven's global settings and mirrors every remote repository to
+  Maven Central, including repositories introduced by dependency POMs and plugin POM inspection.
+  The local Maven cache and locally installed snapshots remain available. Remote snapshots and
+  artifacts absent from Central are not supported by this policy. Deployment destinations are separate
+  from download mirrors. User settings retain credentials and proxies, but may not add or replace mirrors.
+  The mandatory `repository-policy` preflight checks both files, the selected global settings and the
+  effective mirror and resolver. Neither `-DskipTests`, report-only mode nor `airness.assets.unmanaged`
+  exempts these files or this check. Run `mvn airness:assets-sync` to adopt an update, then restart Maven.
+  If missing startup settings prevent Maven from starting, run
+  `mvn -gs '${maven.conf}/settings.xml' airness:assets-sync` to restore them, then remove the override.
+  The managed startup files apply before parent and plugin resolution. Preflight detects overrides
+  when the lifecycle reaches `validate`; it cannot undo earlier downloads in an overridden invocation.
+  Initial adoption, explicit repair and standalone third-party goals do not provide an Airness verdict.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
   declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
