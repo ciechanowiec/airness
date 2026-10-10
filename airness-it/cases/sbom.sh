@@ -5,6 +5,8 @@ run_sbom_cases() {
     run_maven sbom_install maven "${sbom_consumer}" clean install -DskipTests
     expect_exit sbom_install 'sbom: packaging and installation generate an attached inventory when tests are skipped' 0
     expect_match sbom_install 'sbom: the inherited generator runs once' 'cyclonedx:2[.]9[.]3:makeBom [(]airness-sbom[)]'
+    expect_no_match sbom_install 'sbom: JSON schema validation recognizes the schema annotation keywords' \
+        'Unknown keyword'
     if python3 "${repository}/airness-it/sbom-check.py" "${sbom_consumer}/target/bom.json" sbom-consumer \
         "${sbom_consumer}"; then
         pass 'sbom: JSON inventory preserves dependency scopes, relationships and privacy'
