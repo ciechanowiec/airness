@@ -64,6 +64,7 @@ run_maven_cases() {
     run_sbom_cases
     run_repository_routing_cases
     run_plugin_vulnerability_cases
+    run_managed_plugin_cases
 }
 
 # The licence check reads what a pom says about itself, and none of these five says anything: the

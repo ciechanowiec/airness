@@ -119,6 +119,23 @@ class StreamingTimeoutScopeTest {
         );
     }
 
+    @Test
+    void keepsTheInventoryStableWhenPackagingAssignsTheMainArtifact() {
+        MavenProject project = this.application();
+        project.getBuild().setFinalName("runtime");
+        this.resource(project, "application.properties", SETTINGS);
+        StreamingTimeoutScope scope = new StreamingTimeoutScope(this.directory, project, List.of(project), 1);
+        StreamingTimeoutInputs prepared = scope.inputs();
+        assertTrue(
+            prepared.declarations().stream()
+                .anyMatch(input -> input.origin().endsWith("runtime.jar!/application.properties"))
+        );
+        project.getArtifact().setFile(this.directory.resolve("target/classes").toFile());
+        assertEquals(prepared, scope.inputs());
+        project.getArtifact().setFile(this.directory.resolve("target/runtime.jar").toFile());
+        assertEquals(prepared, scope.inputs());
+    }
+
     @SneakyThrows
     private MavenProject application() {
         Process git = new ProcessBuilder("git", "init", "--quiet", this.directory.toString()).start();

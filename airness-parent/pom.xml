@@ -283,6 +283,7 @@
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <configuration>
                     <skip>${airness.coverage.skip}</skip>
+                    <append>true</append>
                 </configuration>
                 <executions>
                     <execution>
@@ -293,14 +294,15 @@
                     </execution>
                     <execution>
                         <id>airness-coverage-report</id>
-                        <phase>test</phase>
+                        <!-- Both test JVMs append to the same evidence before this final report. -->
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
                     </execution>
                     <execution>
                         <id>airness-coverage-check</id>
-                        <phase>prepare-package</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
@@ -684,7 +686,7 @@
                     </execution>
                     <execution>
                         <id>airness-coverage-evidence</id>
-                        <phase>prepare-package</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>coverage-evidence</goal>
                         </goals>
@@ -752,14 +754,14 @@
                         </goals>
                     </execution>
                     <!--
-                        The tree check stays at package, where it sees every write the build made. It
+                        The tree check runs at verify, after both unit and integration tests. It
                         compares the tracked tree against the fingerprint the snapshot goal took at validate,
-                        so moving it beside the checks above would leave the compiler, Surefire, the coverage
-                        agent and the analyzers on the far side of the only rule that reads what they wrote.
+                        so moving it beside the checks above would leave the test runners, coverage agent
+                        and analyzers on the far side of the only rule that reads what they wrote.
                     -->
                     <execution>
                         <id>airness-governance</id>
-                        <phase>package</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>tree-verify</goal>
                         </goals>
@@ -1017,6 +1019,15 @@
                 <airness.dependency-check.fail-build-on-cvss>11</airness.dependency-check.fail-build-on-cvss>
             </properties>
             <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-failsafe-plugin</artifactId>
+                            <configuration><testFailureIgnore>true</testFailureIgnore></configuration>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
