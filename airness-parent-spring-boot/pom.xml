@@ -136,6 +136,19 @@
     <build>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <configuration>
+                        <!-- A repackaged Boot JAR stores application classes beneath BOOT-INF/classes. -->
+                        <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+                        <systemPropertyVariables>
+                            <airness.spring.context.evidence.file>
+                                ${project.build.directory}/airness/spring-context.evidence
+                            </airness.spring.context.evidence.file>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
                 <!--
                     Version only, and no execution. Repackaging is what turns a module into an executable
                     archive, and which module that is belongs to the project: a reactor holding one
@@ -169,7 +182,7 @@
             <plugin>
                 <!--
                     The test-scope listener writes to this fixed module-local path. The governance goal
-                    reads the same path after Surefire, and the raw-model policy prevents a child from
+                    reads the same path after both test phases, and the raw-model policy prevents a child from
                     replacing this one property while leaving other test system properties available.
                 -->
                 <groupId>org.apache.maven.plugins</groupId>
@@ -294,12 +307,12 @@
                         </goals>
                     </execution>
                     <!--
-                        Runtime evidence exists only after Surefire. This execution therefore sits beside
-                        coverage-evidence at prepare-package rather than beside the source checks above.
+                        Runtime evidence can arrive from Surefire or Failsafe. Verify reads both test phases
+                        after the integration tests finish, beside the final coverage evidence.
                     -->
                     <execution>
                         <id>airness-spring-context</id>
-                        <phase>prepare-package</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>spring-context</goal>
                             <goal>spring-template-messages</goal>

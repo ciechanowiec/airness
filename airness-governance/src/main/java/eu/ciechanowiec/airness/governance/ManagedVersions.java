@@ -40,10 +40,15 @@ public final class ManagedVersions {
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-install-plugin", "maven-install-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-deploy-plugin", "maven-deploy-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-shade-plugin", "maven-shade-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-assembly-plugin", "maven-assembly-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-source-plugin", "maven-source-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-javadoc-plugin", "maven-javadoc-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-site-plugin", "maven-site-plugin.version"),
         allowedPlugin("org.codehaus.mojo", "exec-maven-plugin", "exec-maven-plugin.version"),
+        allowedPlugin("org.codehaus.mojo", "build-helper-maven-plugin", "build-helper-maven-plugin.version"),
+        allowedPlugin(
+            "io.github.download-maven-plugin", "download-maven-plugin", "download-maven-plugin.version"
+        ),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-gpg-plugin", "maven-gpg-plugin.version"),
         allowedPlugin(
             "org.sonatype.central",
@@ -52,6 +57,7 @@ public final class ManagedVersions {
         ),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-dependency-plugin", "maven-dependency-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-surefire-plugin", "maven-surefire-plugin.version"),
+        allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-failsafe-plugin", "maven-surefire-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-enforcer-plugin", "maven-enforcer-plugin.version"),
         allowedPlugin("org.codehaus.mojo", "versions-maven-plugin", "versions-maven-plugin.version"),
         suppliedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco-maven-plugin.version"),
@@ -168,7 +174,8 @@ public final class ManagedVersions {
      */
     public static List<String> problems(Path pom) {
         Element root = Xml.parse(read(pom)).getDocumentElement();
-        return Stream.concat(coordinateProblems(root), propertyProblems(root)).sorted().toList();
+        return Stream.of(coordinateProblems(root), propertyProblems(root), relocatedPlugins(root))
+            .flatMap(problems -> problems).sorted().toList();
     }
 
     /**
@@ -195,6 +202,17 @@ public final class ManagedVersions {
     private static Stream<String> coordinateProblems(Element root, Coordinate coordinate) {
         List<Node> declarations = declarations(root, coordinate).toList();
         return declarations.isEmpty() ? Stream.empty() : declarationProblems(coordinate, declarations);
+    }
+
+    private static Stream<String> relocatedPlugins(Element root) {
+        return DeclaredCoordinates.plugins(root)
+            .filter(plugin -> "com.googlecode.maven-download-plugin".equals(Xml.text(plugin, "groupId").orElse("")))
+            .filter(plugin -> "download-maven-plugin".equals(Xml.text(plugin, "artifactId").orElse("")))
+            .map(
+                _ -> "Replace com.googlecode.maven-download-plugin:download-maven-plugin with "
+                    + "io.github.download-maven-plugin:download-maven-plugin; remove the child version and "
+                    + "download-maven-plugin.version property because Airness owns the patched plugin"
+            ).distinct();
     }
 
     private static Stream<String> declarationProblems(Coordinate coordinate, Collection<Node> declarations) {

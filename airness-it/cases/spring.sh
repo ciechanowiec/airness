@@ -395,7 +395,7 @@ spring_open_named="${scratch}/spring-open-named"
 clone_tree "${spring_app}" "${spring_open_named}"
 write_spring_web_module "${spring_open_named}" '/api/orders'
 git -C "${spring_open_named}" add --all
-# The goal is invoked after the test phase rather than reached through prepare-package, because the
+# The goal is invoked after the test phase rather than reached through verify, because the
 # fixture adds production classes that no consumer test covers and the coverage gate would stop the
 # build before the evidence goal ran. Everything the rule needs is in place by then: the governance
 # goals bound to process-classes have run, and the test phase has written the evidence this reads.

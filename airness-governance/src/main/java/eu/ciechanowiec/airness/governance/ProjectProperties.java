@@ -46,9 +46,11 @@ public final class ProjectProperties {
         "cyclonedx.skipNotDeployed",
         "jacoco.dataFile",
         "jacoco.reportFile",
+        "it.test",
         "maven.compiler.parameters",
         "maven.test.skip",
-        "skipTests"
+        "skipTests",
+        "skipITs"
     );
 
     /**

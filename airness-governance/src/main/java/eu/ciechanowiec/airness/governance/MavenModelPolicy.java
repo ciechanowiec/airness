@@ -31,6 +31,12 @@ import org.w3c.dom.Node;
 public final class MavenModelPolicy {
 
     private static final String MAVEN_PLUGINS = "org.apache.maven.plugins";
+    private static final Set<String> TEST_CONFIGURATION = Set.of(
+        "airness.spring.context.evidence.file", "configurationParameters", "excludedGroups", "excludes",
+        "excludesFile", "failIfNoSpecifiedTests", "failIfNoTests", "groups", "includes", "includesFile",
+        "skip", "skipAfterFailureCount", "skipExec", "skipITs", "skipTests", "suiteXmlFiles",
+        "summaryFile", "summaryFiles", "test", "testFailureIgnore"
+    );
     private static final Map<String, Set<String>> PROTECTED_PLUGIN_CONFIGURATION = Map.of(
         "maven-compiler-plugin",
         Set.of(
@@ -38,12 +44,9 @@ public final class MavenModelPolicy {
             "release", "source", "target"
         ),
         "maven-surefire-plugin",
-        Set.of(
-            "airness.spring.context.evidence.file",
-            "configurationParameters", "excludedGroups", "excludes", "failIfNoSpecifiedTests",
-            "failIfNoTests", "groups", "includes", "skip", "skipExec", "skipTests", "suiteXmlFiles",
-            "test", "testFailureIgnore"
-        ),
+        TEST_CONFIGURATION,
+        "maven-failsafe-plugin",
+        TEST_CONFIGURATION,
         "maven-enforcer-plugin",
         Set.of("fail", "failFast", "rules", "rulesToExecute", "rulesToSkip", "skip")
     );

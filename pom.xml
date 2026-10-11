@@ -98,10 +98,16 @@
         <maven-install-plugin.version>3.2.0</maven-install-plugin.version>
         <maven-deploy-plugin.version>3.2.0</maven-deploy-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
+        <airness.plugin.shade-plexus.version>3.6.2</airness.plugin.shade-plexus.version>
+        <maven-assembly-plugin.version>3.8.0</maven-assembly-plugin.version>
+        <airness.plugin.aircompressor.version>2.0.3</airness.plugin.aircompressor.version>
+        <airness.plugin.lang3.version>3.21.0</airness.plugin.lang3.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
         <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
         <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
+        <build-helper-maven-plugin.version>3.6.2</build-helper-maven-plugin.version>
+        <download-maven-plugin.version>2.1.0</download-maven-plugin.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
@@ -128,7 +134,6 @@
         <airness.plugin.okio.version>3.18.2</airness.plugin.okio.version>
         <airness.plugin.kotlin.version>2.4.21</airness.plugin.kotlin.version>
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
-        <airness.plugin.aircompressor.version>2.0.3</airness.plugin.aircompressor.version>
         <airness.plugin.freemarker.version>2.3.35</airness.plugin.freemarker.version>
         <airness.plugin.jena.version>6.2.0</airness.plugin.jena.version>
         <airness.plugin.jena-iri.version>5.6.0</airness.plugin.jena-iri.version>
@@ -150,7 +155,6 @@
         <rewrite-static-analysis.version>2.41.1</rewrite-static-analysis.version>
         <rewrite-testing-frameworks.version>3.44.0</rewrite-testing-frameworks.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-        <airness.plugin.lang3.version>3.21.0</airness.plugin.lang3.version>
         <airness.plugin.snappy.version>0.5</airness.plugin.snappy.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <pmd.version>7.28.0</pmd.version>
@@ -232,6 +236,37 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
                     <version>${maven-shade-plugin.version}</version>
+                    <dependencies>
+                        <!-- Preserve Shade's Plexus XML API while fixing CVE-2025-67030. -->
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.shade-plexus.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>${maven-assembly-plugin.version}</version>
+                    <!-- Keep the archive tool's dependency graph on patched library releases. -->
+                    <dependencies>
+                        <dependency>
+                            <groupId>io.airlift</groupId>
+                            <artifactId>aircompressor</artifactId>
+                            <version>${airness.plugin.aircompressor.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.commons</groupId>
+                            <artifactId>commons-lang3</artifactId>
+                            <version>${airness.plugin.lang3.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -252,6 +287,34 @@
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
                     <version>${exec-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>${build-helper-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>io.github.download-maven-plugin</groupId>
+                    <artifactId>download-maven-plugin</artifactId>
+                    <version>${download-maven-plugin.version}</version>
+                    <!-- The plugin's current release still resolves vulnerable archive dependencies. -->
+                    <dependencies>
+                        <dependency>
+                            <groupId>io.airlift</groupId>
+                            <artifactId>aircompressor</artifactId>
+                            <version>${airness.plugin.aircompressor.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.commons</groupId>
+                            <artifactId>commons-lang3</artifactId>
+                            <version>${airness.plugin.lang3.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.codehaus.plexus</groupId>
+                            <artifactId>plexus-utils</artifactId>
+                            <version>${airness.plugin.plexus.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -309,6 +372,36 @@
                             </configurationParameters>
                         </properties>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                    <!-- A versionless child declaration opts into both integration-test lifecycle goals. -->
+                    <configuration>
+                        <skip>${skipTests}</skip>
+                        <skipITs>${skipTests}</skipITs>
+                        <testFailureIgnore>false</testFailureIgnore>
+                        <failIfNoTests>true</failIfNoTests>
+                        <properties>
+                            <configurationParameters>
+                                junit.jupiter.execution.timeout.default = ${airness.test.timeout}
+                                junit.jupiter.testclass.order.default = org.junit.jupiter.api.ClassOrderer$Random
+                                junit.jupiter.testmethod.order.default = org.junit.jupiter.api.MethodOrderer$Random
+                                junit.jupiter.execution.order.random.seed = 42
+                            </configurationParameters>
+                        </properties>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>airness-integration-tests</id>
+                            <goals><goal>integration-test</goal></goals>
+                        </execution>
+                        <execution>
+                            <id>airness-integration-verify</id>
+                            <goals><goal>verify</goal></goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

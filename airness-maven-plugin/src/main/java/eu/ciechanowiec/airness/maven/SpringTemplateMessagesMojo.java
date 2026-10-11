@@ -12,7 +12,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * Requires current-run evidence that literal template names resolve from base messages.
  */
 @Mojo(
-    name = "spring-template-messages", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true,
+    name = "spring-template-messages", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true,
     requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME
 )
 public final class SpringTemplateMessagesMojo extends AbstractGovernanceMojo {

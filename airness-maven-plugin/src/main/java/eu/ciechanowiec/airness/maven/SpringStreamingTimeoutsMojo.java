@@ -12,7 +12,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * Binds streaming timeout declarations to the production application's startup evidence.
  */
 @Mojo(
-    name = "spring-streaming-timeouts", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true,
+    name = "spring-streaming-timeouts", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true,
     requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME
 )
 public final class SpringStreamingTimeoutsMojo extends AbstractGovernanceMojo {

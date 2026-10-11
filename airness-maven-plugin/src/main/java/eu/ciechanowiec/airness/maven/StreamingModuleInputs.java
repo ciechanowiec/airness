@@ -39,11 +39,22 @@ final class StreamingModuleInputs {
     }
 
     private List<String> origins() {
-        return Stream.concat(
-            Stream.of(this.output().toUri().toString()),
+        return Stream.of(
+            Stream.of(this.output().toUri().toString()), this.packagedOrigin().stream(),
             Optional.ofNullable(this.project.getArtifact()).flatMap(artifact -> Optional.ofNullable(artifact.getFile()))
                 .map(file -> file.toPath().toAbsolutePath().normalize().toUri().toString()).stream()
-        ).distinct().toList();
+        ).flatMap(origins -> origins).distinct().toList();
+    }
+
+    // Maven assigns the archive after packaging. Its final path is already known before either test
+    // phase, so including it now keeps packaging from changing the current-build input fingerprint.
+    private Optional<String> packagedOrigin() {
+        return Optional.ofNullable(this.project.getBuild().getFinalName()).flatMap(
+            name -> Optional.ofNullable(this.project.getArtifact()).map(
+                artifact -> this.path(this.project.getBuild().getDirectory())
+                    .resolve(name + '.' + artifact.getArtifactHandler().getExtension()).toUri().toString()
+            )
+        );
     }
 
     private Stream<StreamingInput> resources(Resource resource) {

@@ -134,6 +134,70 @@ class ManagedVersionsTest {
     }
 
     @Test
+    void acceptsAnUnversionedDownloadPluginWithProjectConfiguration() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <groupId>io.github.download-maven-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+                <executions><execution><goals><goal>wget</goal></goals></execution></executions>
+                <configuration><url>http://localhost/model</url></configuration>
+            </plugin></plugins></build></project>
+            """;
+        assertTrue(this.problems(pom).isEmpty());
+    }
+
+    @Test
+    void rejectsAChildDownloadPluginVersion() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <groupId>io.github.download-maven-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+                <version>2.0.0</version>
+            </plugin></plugins></build></project>
+            """;
+        assertEquals(
+            List.of(
+                "Remove child <version> from io.github.download-maven-plugin:download-maven-plugin; "
+                    + "Airness owns this version"
+            ),
+            this.problems(pom)
+        );
+    }
+
+    @Test
+    void rejectsTheLegacyDownloadPluginInAnInactiveProfile() {
+        String pom = """
+            <project><profiles><profile><id>inactive</id><build><plugins><plugin>
+                <groupId>com.googlecode.maven-download-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+            </plugin></plugins></build></profile></profiles></project>
+            """;
+        assertEquals(
+            List.of(
+                "Replace com.googlecode.maven-download-plugin:download-maven-plugin with "
+                    + "io.github.download-maven-plugin:download-maven-plugin; remove the child version and "
+                    + "download-maven-plugin.version property because Airness owns the patched plugin"
+            ),
+            this.problems(pom)
+        );
+    }
+
+    @Test
+    void ignoresLegacyCoordinatesInsidePluginConfiguration() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <groupId>com.googlecode.maven-download-plugin</groupId>
+                <artifactId>unrelated-plugin</artifactId>
+                <configuration><plugin>
+                    <groupId>com.googlecode.maven-download-plugin</groupId>
+                    <artifactId>download-maven-plugin</artifactId>
+                </plugin></configuration>
+            </plugin></plugins></build></project>
+            """;
+        assertTrue(this.problems(pom).isEmpty());
+    }
+
+    @Test
     void ignoresCoordinatesThatBelongToPluginConfiguration() {
         String pom = """
             <project>

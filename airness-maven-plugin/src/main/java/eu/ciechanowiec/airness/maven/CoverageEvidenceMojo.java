@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
  * Requires current-build coverage evidence whenever a module has production Java sources, and requires
  * every declared coverage exclusion to name something that evidence measured.
  */
-@Mojo(name = "coverage-evidence", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true)
+@Mojo(name = "coverage-evidence", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
 
     @Parameter(property = "jacoco.dataFile", defaultValue = "${project.build.directory}/jacoco.exec")

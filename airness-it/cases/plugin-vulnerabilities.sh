@@ -6,7 +6,8 @@ run_plugin_vulnerability_cases() {
     prepare_vulnerability_feed
     prepare_vulnerability_scan
     run_maven plugin_vulnerability maven "${vulnerability_consumer}" \
-        install:help airness:plugin-inputs org.owasp:dependency-check-maven:check
+        install:help shade:help download:help assembly:help build-helper:help failsafe:help \
+        airness:plugin-inputs org.owasp:dependency-check-maven:check
     expect_exit plugin_vulnerability 'vulnerabilities: a finding reachable only through a plugin fails the scan' 1
     expect_match plugin_vulnerability 'vulnerabilities: the fixed advisory reaches the failure gate' 'CVE-2021-44228'
     if python3 "${repository}/airness-it/plugin-scan-check.py" \
@@ -18,7 +19,8 @@ run_plugin_vulnerability_cases() {
     perl -0pi -e 's{<version>2.14.1</version>}{<version>2.26.1</version>}' \
         "${vulnerability_consumer}/pom.xml"
     run_maven plugin_scan_control maven "${vulnerability_consumer}" \
-        install:help airness:plugin-inputs org.owasp:dependency-check-maven:check
+        install:help shade:help download:help assembly:help build-helper:help failsafe:help \
+        airness:plugin-inputs org.owasp:dependency-check-maven:check
     expect_exit plugin_scan_control 'vulnerabilities: a patched plugin override replaces the vulnerable version' 0
     expect_file_no_match "${vulnerability_consumer}/target/dependency-check-report.json" \
         'vulnerabilities: replaced plugin versions leave no stale scan inputs' 'log4j-core-2[.]14[.]1'
@@ -47,6 +49,14 @@ PY
 prepare_vulnerability_scan() {
     vulnerability_plugins="$(cat <<'XML'
     <build><plugins>
+        <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+        </plugin>
+        <plugin>
+            <groupId>io.github.download-maven-plugin</groupId>
+            <artifactId>download-maven-plugin</artifactId>
+        </plugin>
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-install-plugin</artifactId>

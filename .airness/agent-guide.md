@@ -162,6 +162,12 @@ Airness governs all of the following domains:
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
   settle, production-to-test boundaries, per-class line and branch coverage, current-build coverage evidence, and
   current-build evidence that a framework-assembled production application reached ready.
+  Failsafe, Build Helper and Assembly are optional managed plugins: declare a plugin without a version
+  in the module that uses it. Failsafe supplies `integration-test` and `verify` executions for the
+  standard `IT*`, `*IT` and `*ITCase` names, shares Surefire's timeout and ordering, and fails when the
+  opted-in module has no integration tests. Run through `verify`: coverage combines both test phases,
+  Spring runtime evidence reads both, and the final tree check includes integration-test writes.
+  Build Helper's source and resource roots and Assembly's distribution descriptors belong to the project.
 - **Thymeleaf message keys in Spring Boot applications:** literal `#{key}` references in production HTML
   `th:*` and `data-th-*` processing attributes must resolve through the message source used by the application's
   template engine during its existing startup tests. Bare or quoted keys may contain ASCII letters, digits, dots,
@@ -294,7 +300,7 @@ Airness governs all of the following domains:
   cannot erase another context's failure. Assessment covers tested ready contexts and registered
   handlers, not inactive deployment profiles. Plain Java, non-MVC applications and contexts without
   production streaming handlers require no timeout policy. The Spring parent prepares inputs at
-  `process-classes` and enforces `spring-streaming-timeouts` at `prepare-package`; neither goal adds
+  `process-classes` and enforces `spring-streaming-timeouts` at `verify`; neither goal adds
   a runtime dependency to the application archive.
 - **Spring Boot configuration keys:** every key a settings file declares is read against the
   `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key

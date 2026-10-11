@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
  * Spring Boot's run lifecycle, so this goal neither starts a second context nor prescribes a test
  * annotation.
  */
-@Mojo(name = "spring-context", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true)
+@Mojo(name = "spring-context", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public final class SpringContextMojo extends AbstractGovernanceMojo {
 
     @Parameter(

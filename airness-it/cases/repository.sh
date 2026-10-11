@@ -115,7 +115,7 @@ XML
     TREE_PROFILE="${tree_profile}" perl -0pi -e \
         's{</project>}{$ENV{TREE_PROFILE}."\n</project>"}e' "${tree_consumer}/pom.xml"
     prepare_maven tree_fixture_format repository "${tree_consumer}" validate editorconfig:format
-    run_maven tree_mutation repository "${tree_consumer}" clean package -Ptree-drift
+    run_maven tree_mutation repository "${tree_consumer}" clean verify -Ptree-drift
     expect_exit tree_mutation 'tree: a mutation after the same lifecycle snapshot fails verification' 1
     expect_match tree_mutation 'tree: the changed tracked file is named' \
         'Committable files changed during the build|working tree content differs|AGENTS[.]md'
@@ -132,7 +132,7 @@ final class Broken {
 }
 JAVA
     run_maven compilation_report_only repository "${compilation_consumer}" \
-        clean package -Dairness.enforce=false
+        clean verify -Dairness.enforce=false
     expect_exit compilation_report_only 'report-only: compilation failure remains fatal' 1
     expect_match compilation_report_only 'report-only: the fatal compiler failure is visible' \
         'COMPILATION ERROR|BUILD FAILURE'
@@ -154,7 +154,7 @@ class ExampleTest {
     }
 }
 JAVA
-    run_maven test_report_only repository "${test_consumer}" clean package -Dairness.enforce=false
+    run_maven test_report_only repository "${test_consumer}" clean verify -Dairness.enforce=false
     expect_exit test_report_only 'report-only: a test finding remains reportable without stopping later checks' 0
     expect_match test_report_only 'report-only: the failed test remains visible' 'Failures: 1'
     expect_match test_report_only 'report-only: later current-build evidence still executes' \
@@ -263,13 +263,13 @@ run_coverage_boundary() {
     new_consumer coverage-current-build
     coverage_consumer="${consumer_directory}"
     rm "${coverage_consumer}/src/test/java/com/example/ExampleTest.java"
-    run_maven coverage_missing repository "${coverage_consumer}" clean package
+    run_maven coverage_missing repository "${coverage_consumer}" clean verify
     expect_exit coverage_missing 'coverage: a production module with no current test evidence fails' 1
     expect_match coverage_missing 'coverage: the current-build evidence failure is explicit' \
         'Missing current-build JaCoCo evidence'
 
     run_maven coverage_report_only repository "${coverage_consumer}" \
-        clean package -Dairness.enforce=false
+        clean verify -Dairness.enforce=false
     expect_exit coverage_report_only 'coverage: missing current evidence remains visible in report-only mode' 0
     expect_match coverage_report_only 'coverage: report-only does not hide the current-build finding' \
         'Missing current-build JaCoCo evidence'
