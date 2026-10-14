@@ -41,7 +41,8 @@ class StaticMutableStateFactoryCheckstyleTest {
             final class Context {
                 private static final ThreadLocal<Map<String, String>> BY_LAMBDA
                     = ThreadLocal.withInitial(() -> new HashMap<>());
-                private static final ThreadLocal<Map<String, String>> BY_REFERENCE = ThreadLocal.withInitial(HashMap::new);
+                private static final ThreadLocal<Map<String, String>> BY_REFERENCE
+                    = ThreadLocal.withInitial(HashMap::new);
             }
             """;
 
