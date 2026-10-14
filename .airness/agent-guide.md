@@ -521,10 +521,11 @@ Earlier report pairs are removed only after a complete replacement has been rend
   factory that returns mutable state: `Collections.synchronized*`, `Collections.newSetFromMap`,
   `ConcurrentHashMap.newKeySet`, `ThreadLocal.withInitial`, `Executors.new*`, the Guava `Lists.new*`, `Sets.new*`,
   `Maps.new*`, `Queues.new*` and `CacheBuilder`, and `Caffeine.newBuilder()`. A `new` inside a lambda, a method
-  reference or an anonymous class body, and one wrapped by `Collections.unmodifiable*` or a `copyOf`, are not
-  reported. Bound the state or scope it to a unit of work. A deliberate cache is not banned: suppress the rule on
-  that field with a `@Justification` that states its bound, for example "keyed by an enum, so bounded by its
-  constants".
+  reference or an anonymous class body, one wrapped by `Collections.unmodifiable*` or a `copyOf`, and one that is
+  only the receiver of a method call, whose result is what the field stores, are not reported. A receiver whose call
+  returns a live view of it, such as `keySet`, `values`, `entrySet` or `subList`, is still reported. Bound the
+  state or scope it to a unit of work. A deliberate cache is not banned: suppress the rule on that field with a
+  `@Justification` that states its bound, for example "keyed by an enum, so bounded by its constants".
 
 ### Change Requests
 
