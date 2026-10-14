@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The table is well formed: every entry says why and what instead, every image repository is written
- * in the one spelling the parser produces, every floor is a version, and nothing names OpenRewrite.
+ * in the one spelling the parser produces, every floor is a version, and the source-rewriting engines are refused.
  */
 class BlocklistEntriesTest {
 
@@ -67,11 +68,23 @@ class BlocklistEntriesTest {
     }
 
     @Test
-    void namesNoOpenRewriteOrModerneArtifact() {
-        boolean untouched = BlocklistEntries.coordinates().stream()
-            .map(BlockedCoordinate::group)
-            .noneMatch(group -> group.startsWith("org.openrewrite") || group.startsWith("io.moderne"));
-        assertTrue(untouched, "OpenRewrite is outside this rule by decision");
+    void refusesEveryOpenRewriteAndModerneArtifact() {
+        assertAll(
+            Stream.of(
+                List.of("org.openrewrite.maven", "rewrite-maven-plugin"),
+                List.of("org.openrewrite.recipe", "rewrite-static-analysis"),
+                List.of("org.openrewrite", "rewrite-java"),
+                List.of("io.moderne", "moderne-maven-plugin")
+            ).map(
+                coordinate -> () -> assertTrue(
+                    BlocklistEntries.coordinate(coordinate.getFirst(), coordinate.getLast()).isPresent(),
+                    () -> coordinate + " is refused"
+                )
+            )
+        );
+        assertTrue(
+            BlocklistEntries.coordinate("org.openrewritten", "tool").isEmpty(), "only the named groups are refused"
+        );
     }
 
     @Test

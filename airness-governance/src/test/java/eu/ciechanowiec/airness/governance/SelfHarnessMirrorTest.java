@@ -45,7 +45,6 @@ class SelfHarnessMirrorTest {
         Map.entry(LICENCES, List.of("includedLicenses", "licenseMerges"))
     );
     private static final List<String> WITH_PRODUCTION_JAVA = List.of(
-        "airness-self-rewrite-verify",
         "airness-self-pmd",
         "airness-self-spotbugs",
         "airness-self-coverage-agent",

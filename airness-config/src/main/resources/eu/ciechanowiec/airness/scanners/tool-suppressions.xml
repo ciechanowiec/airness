@@ -26,17 +26,4 @@
         <cve>CVE-2019-7722</cve>
         <cve>CVE-2026-28338</cve>
     </suppress>
-    <suppress>
-        <notes><![CDATA[
-            Added 2026-10-09. These advisories concern Jenkins Recipe Plugin through 1.2 and its
-            HTTP endpoints. OpenRewrite's rewrite-jenkins is a source transformation library from a
-            different supplier; it contains none of those Jenkins endpoints. No upgrade applies to
-            this name collision.
-            https://www.jenkins.io/security/advisory/2022-06-30/#SECURITY-2000
-        ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.openrewrite\.recipe/rewrite-jenkins@0\.37\.1(?:\?type=jar)?$</packageUrl>
-        <cve>CVE-2022-34792</cve>
-        <cve>CVE-2022-34793</cve>
-        <cve>CVE-2022-34794</cve>
-    </suppress>
 </suppressions>

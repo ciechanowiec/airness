@@ -128,6 +128,11 @@ final class BlocklistEntries {
         = "Develocity is under the Gradle Terms of Use, which are not open source, and this extension exists only to "
             + "reach it";
     private static final String NO_EXTENSION = "nothing; Maven's own build is what Airness verifies";
+    private static final String OPENREWRITE
+        = "OpenRewrite's recipe modules are under the Moderne Source Available License, which is not open source, "
+            + "and a second engine rewriting sources competes with the formatter and the analyzers Airness runs";
+    private static final String NO_REWRITE
+        = "nothing; the rules the parent's analyzers apply already cover these requirements";
     private static final String LIQUIBASE = "Liquibase Pro is under an end-user licence agreement";
     private static final String LIQUIBASE_CORE = "org.liquibase:liquibase-core";
     private static final String ORACLE_JDK
@@ -334,6 +339,8 @@ final class BlocklistEntries {
         BlockedCoordinate.of(VAADIN_GROUP, "collaboration-engine*", VAADIN, VAADIN_CORE),
         BlockedCoordinate.of(VAADIN_GROUP, "vaadin-copilot*", VAADIN, VAADIN_CORE),
         BlockedCoordinate.of("com.gradle", ANY, DEVELOCITY, NO_EXTENSION),
+        BlockedCoordinate.of("org.openrewrite*", ANY, OPENREWRITE, NO_REWRITE),
+        BlockedCoordinate.of("io.moderne*", ANY, OPENREWRITE, NO_REWRITE),
         BlockedCoordinate.of("org.liquibase", "liquibase-commercial", LIQUIBASE, LIQUIBASE_CORE),
         BlockedCoordinate.of("org.liquibase.pro", ANY, LIQUIBASE, LIQUIBASE_CORE),
         BlockedCoordinate.of(

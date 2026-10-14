@@ -281,7 +281,7 @@
                     </execution>
                     <!--
                         Bound at process-classes, the first phase at which the sources are the ones the
-                        build will keep. The format profile rewrites and reformats at process-resources,
+                        build will keep. The format profile reformats at process-resources,
                         so a check reading earlier would judge a tree the build was about to replace, and
                         target/classes exists by then, which is where a project that declares settings of
                         its own has the metadata for them written.

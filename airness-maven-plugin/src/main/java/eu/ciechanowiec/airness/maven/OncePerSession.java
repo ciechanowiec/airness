@@ -15,7 +15,7 @@ import org.eclipse.aether.SessionData;
  * lifecycle reaches it.
  *
  * <p>Running once per project is not enough, which is easy to miss. A plugin may fork a lifecycle of
- * its own, and OpenRewrite does exactly that to parse the sources, so every phase up to
+ * its own, as a goal that needs compiled sources often does, so every phase up to
  * {@code process-test-classes} is executed twice in one command. Guarding on the top-level project
  * alone leaves a repository-wide check reporting each of its findings twice, and a reader who has seen
  * a finding once stops reading the repeat, which is where a second finding hides.

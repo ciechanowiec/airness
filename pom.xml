@@ -39,11 +39,13 @@
     <!--
         airness-config is first so that every module after it can carry the analyzer configurations on an
         isolated plugin classpath. A module built before it cannot resolve the artifact from the reactor,
-        which is why airness-annotations once bound no analyzer at all. None of the first three modules
+        which is why airness-annotations once bound no analyzer at all. airness-error-prone follows it,
+        because every later module compiles with the checks it ships. None of the first four modules
         depends on another, so declaration order alone decides, and SelfHarnessMirrorTest holds it here.
     -->
     <modules>
         <module>airness-config</module>
+        <module>airness-error-prone</module>
         <module>airness-assets</module>
         <module>airness-annotations</module>
         <module>airness-governance</module>
@@ -63,7 +65,7 @@
         <airness.self.suppression.file>${maven.multiModuleProjectDirectory}/airness-config/src/main/resources/eu/ciechanowiec/airness/scanners/eclipse-suppressions.xml</airness.self.suppression.file>
         <!--
             The vulnerability scan is Extended verification for Airness exactly as it is for a consumer.
-            A phase property rather than five profile blocks, the same shape airness.rewrite.apply.phase
+            A phase property rather than five profile blocks, the same shape airness.prettier.goal
             already uses: 'none' binds the execution to no phase at all.
         -->
         <airness.self.vulnerabilities.phase>none</airness.self.vulnerabilities.phase>
@@ -146,14 +148,8 @@
         <airness.plugin.commons-io.version>2.22.0</airness.plugin.commons-io.version>
         <airness.plugin.jackson.version>2.22.3</airness.plugin.jackson.version>
         <airness.plugin.jackson-annotations.version>2.22</airness.plugin.jackson-annotations.version>
-        <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
         <airness.version>1.0.7-SNAPSHOT</airness.version>
-        <rewrite-apache.version>2.30.0</rewrite-apache.version>
-        <rewrite-logging-frameworks.version>3.32.0</rewrite-logging-frameworks.version>
-        <rewrite-migrate-java.version>3.42.1</rewrite-migrate-java.version>
-        <rewrite-static-analysis.version>2.41.1</rewrite-static-analysis.version>
-        <rewrite-testing-frameworks.version>3.44.0</rewrite-testing-frameworks.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <airness.plugin.snappy.version>0.5</airness.plugin.snappy.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
@@ -904,81 +900,6 @@
                     </dependencies>
                 </plugin>
                 <plugin>
-                    <groupId>org.openrewrite.maven</groupId>
-                    <artifactId>rewrite-maven-plugin</artifactId>
-                    <version>${rewrite-maven-plugin.version}</version>
-                    <!--
-                        Mirrors what airness-parent binds as airness-rewrite-verify. The recipes come from
-                        airness-config, which is why that module is first in the reactor: a module built
-                        before it cannot put it on an isolated plugin classpath. Only dryRun is bound for
-                        Airness's own modules, so a recipe that would change a source fails the build and
-                        writes its patch under target rather than reshaping the committed tree.
-                    -->
-                    <configuration>
-                        <rewriteSkip>${skipTests}</rewriteSkip>
-                        <activeRecipes>
-                            <recipe>eu.ciechanowiec.airness.Modernization</recipe>
-                        </activeRecipes>
-                    </configuration>
-                    <dependencies>
-                        <dependency>
-                            <groupId>eu.ciechanowiec</groupId>
-                            <artifactId>airness-config</artifactId>
-                            <version>${airness.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.openrewrite.recipe</groupId>
-                            <artifactId>rewrite-apache</artifactId>
-                            <version>${rewrite-apache.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.openrewrite.recipe</groupId>
-                            <artifactId>rewrite-logging-frameworks</artifactId>
-                            <version>${rewrite-logging-frameworks.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.openrewrite.recipe</groupId>
-                            <artifactId>rewrite-migrate-java</artifactId>
-                            <version>${rewrite-migrate-java.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.openrewrite.recipe</groupId>
-                            <artifactId>rewrite-static-analysis</artifactId>
-                            <version>${rewrite-static-analysis.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.openrewrite.recipe</groupId>
-                            <artifactId>rewrite-testing-frameworks</artifactId>
-                            <version>${rewrite-testing-frameworks.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.jetbrains.kotlin</groupId>
-                            <artifactId>kotlin-compiler-embeddable</artifactId>
-                            <version>${airness.plugin.kotlin.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.jetbrains.kotlin</groupId>
-                            <artifactId>kotlin-daemon-embeddable</artifactId>
-                            <version>${airness.plugin.kotlin.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.jetbrains.kotlin</groupId>
-                            <artifactId>kotlin-reflect</artifactId>
-                            <version>${airness.plugin.kotlin.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.jetbrains.kotlin</groupId>
-                            <artifactId>kotlin-script-runtime</artifactId>
-                            <version>${airness.plugin.kotlin.version}</version>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.jetbrains.kotlin</groupId>
-                            <artifactId>kotlin-stdlib</artifactId>
-                            <version>${airness.plugin.kotlin.version}</version>
-                        </dependency>
-                    </dependencies>
-                </plugin>
-                <plugin>
                     <groupId>eu.ciechanowiec</groupId>
                     <artifactId>airness-maven-plugin</artifactId>
                     <version>${airness.version}</version>
@@ -1347,6 +1268,11 @@
                             <artifactId>nullaway</artifactId>
                             <version>${nullaway.version}</version>
                         </path>
+                        <path>
+                            <groupId>eu.ciechanowiec</groupId>
+                            <artifactId>airness-error-prone</artifactId>
+                            <version>${airness.version}</version>
+                        </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
@@ -1389,6 +1315,11 @@
             <dependency>
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-annotations</artifactId>
+                <version>${airness.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-error-prone</artifactId>
                 <version>${airness.version}</version>
             </dependency>
             <dependency>
@@ -1480,31 +1411,6 @@
                 <groupId>com.qulice</groupId>
                 <artifactId>qulice-maven-plugin</artifactId>
                 <version>${qulice-maven-plugin.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.openrewrite.recipe</groupId>
-                <artifactId>rewrite-apache</artifactId>
-                <version>${rewrite-apache.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.openrewrite.recipe</groupId>
-                <artifactId>rewrite-logging-frameworks</artifactId>
-                <version>${rewrite-logging-frameworks.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.openrewrite.recipe</groupId>
-                <artifactId>rewrite-migrate-java</artifactId>
-                <version>${rewrite-migrate-java.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.openrewrite.recipe</groupId>
-                <artifactId>rewrite-static-analysis</artifactId>
-                <version>${rewrite-static-analysis.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.openrewrite.recipe</groupId>
-                <artifactId>rewrite-testing-frameworks</artifactId>
-                <version>${rewrite-testing-frameworks.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.codehaus.mojo</groupId>

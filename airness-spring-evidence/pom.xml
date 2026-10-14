@@ -151,22 +151,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.openrewrite.maven</groupId>
-                <artifactId>rewrite-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>airness-self-rewrite-verify</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>dryRunNoFork</goal>
-                        </goals>
-                        <configuration>
-                            <failOnDryRunResults>${airness.enforce}</failOnDryRunResults>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
                 <executions>
