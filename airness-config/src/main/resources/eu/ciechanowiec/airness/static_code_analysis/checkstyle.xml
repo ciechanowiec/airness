@@ -11,7 +11,7 @@
         <property name="files" value="[/\\]src[/\\]test[/\\]"/>
     </module>
     <module name="SuppressionSingleFilter">
-        <!-- OpenRewrite canonicalizes F and D suffixes to uppercase, while this check also guards prefixes/infixes. -->
+        <!-- AirnessFloatingSuffixIsUpperCase asks for F and D, while this check also guards prefixes and infixes. -->
         <property name="checks" value="NumericalPrefixesInfixesSuffixesCharacterCase"/>
         <property name="message" value="^Numerical suffix should be in lowercase[.]$"/>
     </module>
@@ -61,7 +61,7 @@
         AsciidoctorJ registers a Java tree processor through Treeprocessor and its process(Document) hook.
         -->
         <property name="format"
-                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo|AbstractSimpleMarkupHandler|TreeScanner|Treeprocessor|AbstractCheck)\b)\w+[^{]*\{"/>
+                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo|AbstractSimpleMarkupHandler|TreeScanner|BugChecker|Treeprocessor|AbstractCheck)\b)\w+[^{]*\{"/>
         <property name="message"
                   value="Inheritance is allowed only for explicitly specified cases."/>
     </module>
@@ -923,6 +923,77 @@
         -->
 
         <!--
+            Each rule below names a form of Java that has a shorter or sounder spelling, read from the shape of
+            the source alone. Forms whose verdict needs resolved types are Error Prone checks in
+            airness-error-prone instead.
+        -->
+        <module name="MatchXpath">
+            <!-- Only a subclass can call a constructor of an abstract class, so public promises nothing more. -->
+            <property name="id" value="AirnessAbstractConstructorIsNotPublic"/>
+            <property name="query" value="//CLASS_DEF[MODIFIERS/ABSTRACT]/OBJBLOCK/CTOR_DEF[MODIFIERS/LITERAL_PUBLIC]"/>
+            <message key="matchxpath.match"
+                     value="A constructor of an abstract class is reached only by a subclass, so declare it protected rather than public."/>
+        </module>
+        <module name="MatchXpath">
+            <!-- A static method is never overridden, so final on it only hides that it cannot be. -->
+            <property name="id" value="AirnessStaticMethodIsNotFinal"/>
+            <property name="query" value="//METHOD_DEF[MODIFIERS/LITERAL_STATIC][MODIFIERS/FINAL]"/>
+            <message key="matchxpath.match"
+                     value="A static method cannot be overridden, so final adds nothing to it; remove the final modifier."/>
+        </module>
+        <module name="eu.ciechanowiec.airness.governance.LoopStepInHeaderCheck">
+            <!--
+                A counter the loop declares and steps as the last statement of its body belongs in the update
+                clause, where a reader of the header sees the whole iteration and a continue cannot skip it.
+            -->
+            <property name="id" value="AirnessLoopStepsInItsHeader"/>
+        </module>
+        <module name="eu.ciechanowiec.airness.governance.LoopBoundOrderingCheck">
+            <!--
+                A counter stepped by one and compared for inequality runs forever as soon as a step skips the
+                bound, while an ordering comparison stops however the bound is passed.
+            -->
+            <property name="id" value="AirnessLoopBoundIsAnOrdering"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                A block lambda holding one statement that yields or performs one expression says the same as
+                the expression on its own. Comments inside the block are not statements and do not count.
+            -->
+            <property name="id" value="AirnessLambdaBodyIsAnExpression"/>
+            <property name="query"
+                      value="//LAMBDA/SLIST[count(*[not(self::SINGLE_LINE_COMMENT or self::BLOCK_COMMENT_BEGIN)]) = 2 and LITERAL_RETURN/EXPR or count(*[not(self::SINGLE_LINE_COMMENT or self::BLOCK_COMMENT_BEGIN)]) = 3 and *[not(self::SINGLE_LINE_COMMENT or self::BLOCK_COMMENT_BEGIN)][1][self::EXPR] and *[not(self::SINGLE_LINE_COMMENT or self::BLOCK_COMMENT_BEGIN)][2][self::SEMI]]"/>
+            <message key="matchxpath.match"
+                     value="The lambda body is a block holding one expression; write the expression itself as the body."/>
+        </module>
+        <module name="MatchXpath">
+            <!-- UpperEll answers the long suffix; a lowercase f or d reads as a digit just as easily. -->
+            <property name="id" value="AirnessFloatingSuffixIsUpperCase"/>
+            <property name="query" value="//NUM_FLOAT[ends-with(@text, 'f')] | //NUM_DOUBLE[ends-with(@text, 'd')]"/>
+            <message key="matchxpath.match"
+                     value="Write the floating-point literal suffix in upper case, as F or D."/>
+        </module>
+        <module name="MatchXpath">
+            <!-- PMD reads hashcode and equal; this is the third misspelling of an Object method. -->
+            <property name="id" value="AirnessToStringIsSpelledOut"/>
+            <property name="query"
+                      value="//METHOD_DEF[IDENT[@text = 'tostring']][PARAMETERS[not(PARAMETER_DEF)]][TYPE[IDENT[@text = 'String']]]"/>
+            <message key="matchxpath.match"
+                     value="The method looks like toString with the wrong case and overrides nothing; name it toString."/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                The platform MBean server refuses an MXBean interface it cannot reach, which it reports only
+                when the bean is registered. The suffix or the annotation is what makes an interface one.
+            -->
+            <property name="id" value="AirnessMXBeanIsPublic"/>
+            <property name="query"
+                      value="//INTERFACE_DEF[not(MODIFIERS/LITERAL_PUBLIC)][MODIFIERS/ANNOTATION[IDENT[@text = 'MXBean']][not(.//LITERAL_FALSE)] or IDENT[ends-with(@text, 'MXBean')] and not(MODIFIERS/ANNOTATION[IDENT[@text = 'MXBean']])]"/>
+            <message key="matchxpath.match"
+                     value="An MXBean interface is read by the MBean server, which reaches only a public one; declare it public."/>
+        </module>
+
+        <!--
         Imports
         -->
         <module name="AvoidStarImport"/>
@@ -1055,11 +1126,11 @@
         <module name="AnnotatedDeclarationVisibility">
             <property name="id" value="AirnessTestMethodsAreNotPublic"/>
             <property name="annotations"
-                      value="org.junit.jupiter.api.Test, org.junit.jupiter.params.ParameterizedTest, org.junit.jupiter.api.RepeatedTest, org.junit.jupiter.api.TestFactory, org.junit.jupiter.api.TestTemplate"/>
+                      value="org.junit.jupiter.api.Test, org.junit.jupiter.params.ParameterizedTest, org.junit.jupiter.api.RepeatedTest, org.junit.jupiter.api.TestFactory, org.junit.jupiter.api.TestTemplate, org.junit.jupiter.api.BeforeEach, org.junit.jupiter.api.AfterEach, org.junit.jupiter.api.BeforeAll, org.junit.jupiter.api.AfterAll"/>
             <property name="visibility" value="package"/>
             <property name="tokens" value="METHOD_DEF"/>
             <message key="annotated.visibility.modifier"
-                     value="A test method is reached by the engine alone, so it is package-private. Remove the visibility modifier."/>
+                     value="A test or lifecycle method is reached by the engine alone, so it is package-private. Remove the visibility modifier."/>
         </module>
 
         <!--
