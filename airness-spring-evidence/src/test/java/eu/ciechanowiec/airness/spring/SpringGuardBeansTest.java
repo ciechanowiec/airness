@@ -27,17 +27,20 @@ class SpringGuardBeansTest {
         return context;
     }
 
+    private static GenericApplicationContext closed(GenericApplicationContext context) {
+        context.close();
+        return context;
+    }
+
     private static List<String> unresolved(GenericApplicationContext context) {
         return SpringGuardBeans.unresolved(context, Set.of(SpringEndpointFixtures.ROOT));
     }
 
     @Test
     void readsNothingOutOfAContextThatIsNotActive() {
-        try (GenericApplicationContext context = delegating(Misdirected.class)) {
-            context.close();
+        try (GenericApplicationContext context = closed(delegating(Misdirected.class))) {
             assertTrue(
-                unresolved(context).isEmpty(),
-                "a context that is not active is not a context anything can be asked of"
+                unresolved(context).isEmpty(), "a context that is not active is not a context anything can be asked of"
             );
         }
     }

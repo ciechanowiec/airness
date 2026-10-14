@@ -101,9 +101,13 @@ class SpringErrorDispatchTest {
 
     @Test
     void recordsNothingForAContextThatIsNoLongerActive() {
-        try (GenericWebApplicationContext context = application(SpringEndpointFixtures.deciding())) {
-            context.close();
+        try (GenericWebApplicationContext context = closed(application(SpringEndpointFixtures.deciding()))) {
             assertTrue(errorDispatch(context).isEmpty(), "a closed context is not a context this can ask");
         }
+    }
+
+    private static GenericWebApplicationContext closed(GenericWebApplicationContext context) {
+        context.close();
+        return context;
     }
 }

@@ -47,7 +47,7 @@ class LicenseMetadataTest {
         LicenseMetadata metadata = fixture(List.of());
         metadata.verify(archive, List.of());
         assertThrows(IllegalStateException.class, () -> metadata.verify(archive, List.of("Proprietary")));
-        Files.writeString(archive, CONTENT + "changed");
+        Files.writeString(archive, CONTENT + " changed");
         assertThrows(IllegalStateException.class, () -> metadata.verify(archive, List.of()));
     }
 

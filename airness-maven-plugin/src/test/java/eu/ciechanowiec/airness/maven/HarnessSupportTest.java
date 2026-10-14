@@ -10,6 +10,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
@@ -59,7 +60,7 @@ class HarnessSupportTest {
         IllegalStateException refusal = assertThrows(
             IllegalStateException.class, () -> Scope.requireRead(0, "measured classes", "the exclusions")
         );
-        String reported = String.valueOf(refusal.getMessage());
+        String reported = Objects.requireNonNull(refusal.getMessage());
         assertTrue(
             reported.startsWith("No measured classes were read"),
             "a reader of the failure has to know which empty scope they reached: " + reported
