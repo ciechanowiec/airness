@@ -675,6 +675,7 @@
                     -->
                     <configuration>
                         <includedScopes>compile,runtime,provided,test</includedScopes>
+                        <acceptPomPackaging>true</acceptPomPackaging>
                         <skipAddThirdParty>${skipTests}</skipAddThirdParty>
                         <failOnBlacklist>${airness.enforce}</failOnBlacklist>
                         <failOnMissing>${airness.enforce}</failOnMissing>
@@ -796,6 +797,7 @@
                         <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
                         <skip>${skipTests}</skip>
                         <skipTestScope>false</skipTestScope>
+                        <formats><format>HTML</format><format>JSON</format></formats>
                         <!-- Native plugin scanning ignores Maven dependency overrides. Read resolved inputs instead. -->
                         <scanPlugins>false</scanPlugins>
                         <scanSet>
@@ -1508,6 +1510,27 @@
     <profiles>
         <profile>
             <id>extended</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>license-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>airness-license-evidence</id>
+                                <phase>package</phase>
+                                <goals><goal>add-third-party</goal></goals>
+                                <configuration>
+                                    <fileTemplate>${maven.multiModuleProjectDirectory}/.airness/license-inventory.ftl</fileTemplate>
+                                    <outputDirectory>${project.build.directory}/airness/compliance</outputDirectory>
+                                    <thirdPartyFilename>licenses.json</thirdPartyFilename>
+                                    <force>true</force>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
             <properties>
                 <!-- Binds airness-self-known-vulnerabilities, which is unbound in Default verification. -->
                 <airness.self.vulnerabilities.phase>package</airness.self.vulnerabilities.phase>

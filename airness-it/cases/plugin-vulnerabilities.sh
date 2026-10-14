@@ -24,6 +24,7 @@ run_plugin_vulnerability_cases() {
     expect_exit plugin_scan_control 'vulnerabilities: a patched plugin override replaces the vulnerable version' 0
     expect_file_no_match "${vulnerability_consumer}/target/dependency-check-report.json" \
         'vulnerabilities: replaced plugin versions leave no stale scan inputs' 'log4j-core-2[.]14[.]1'
+    run_compliance_report_cases
 }
 
 prepare_vulnerability_feed() {
@@ -73,8 +74,10 @@ prepare_vulnerability_scan() {
             <artifactId>dependency-check-maven</artifactId>
             <configuration>
                 <dataDirectory>${project.build.directory}/advisory-database</dataDirectory>
-                <nvdDatafeedUrl>file://${project.basedir}/feed/nvdcve-{0}.json.gz</nvdDatafeedUrl>
+                <nvdDatafeedUrl>file://${maven.multiModuleProjectDirectory}/feed/nvdcve-{0}.json.gz</nvdDatafeedUrl>
                 <nvdValidForHours>24</nvdValidForHours>
+                <!-- The fixed feed contains none of the advisories excused by the harness. -->
+                <suppressionFiles combine.self="override"/>
                 <hostedSuppressionsEnabled>false</hostedSuppressionsEnabled>
                 <knownExploitedEnabled>false</knownExploitedEnabled>
                 <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>

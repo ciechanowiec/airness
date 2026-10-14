@@ -18,6 +18,8 @@ Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java
 
 ## Build, Test, and Development Commands
 
+- `sh airness-it/report-browser.sh` installs the pinned Chromium used by report tests. Add `--with-deps` on Linux
+  to install its system libraries. Run this as toolchain setup before the first build.
 - `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, enforces
   the two-major freshness bound, and installs all reactor modules for consumer tests. Version checking
   requires Maven Central and Docker Hub; container-image updates have no failure threshold.

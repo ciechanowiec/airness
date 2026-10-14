@@ -2,3 +2,7 @@ airness
 Qodana
 PMD
 [Tt]oolchain
+Chromium
+CycloneDX
+SBOM
+EUR

@@ -20,6 +20,7 @@ import org.apache.maven.plugin.internal.PluginDependenciesResolver;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuilder;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.resolution.ArtifactResult;
 import org.eclipse.aether.resolution.DependencyResult;
@@ -40,17 +41,23 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
 
     private final LifecycleExecutionPlanCalculator plans;
     private final PluginDependenciesResolver resolver;
+    private final ProjectBuilder builder;
 
     /**
      * Uses the same planning and resolution components as Maven's plugin loader.
      *
      * @param plans    Maven's execution planner
      * @param resolver Maven's plugin dependency resolver
+     * @param builder  Maven's effective model builder
      */
     @Inject
-    public PluginInputsMojo(LifecycleExecutionPlanCalculator plans, PluginDependenciesResolver resolver) {
+    public PluginInputsMojo(
+        LifecycleExecutionPlanCalculator plans, PluginDependenciesResolver resolver,
+        ProjectBuilder builder
+    ) {
         this.plans = plans;
         this.resolver = resolver;
+        this.builder = builder;
     }
 
     @Override
@@ -63,7 +70,10 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
     List<String> problems() {
         boolean self = RepositoryProjects.selfBuild(this.session().getTopLevelProject(), this.project());
         List<MavenProject> projects = self ? this.session().getProjects() : List.of(this.project());
-        Map<String, Path> artifacts = projects.stream().flatMap(this::artifacts)
+        List<PluginResolution> resolutions = projects.stream().flatMap(this::artifacts).toList();
+        List<Artifact> resolved = resolutions.stream().flatMap(resolution -> resolution.artifacts().stream())
+            .distinct().toList();
+        Map<String, Path> artifacts = resolved.stream()
             .collect(
                 Collectors.toUnmodifiableMap(
                     Artifact::toString, artifact -> Objects.requireNonNull(artifact.getPath()),
@@ -73,6 +83,10 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
         Path directory = this.project().getBasedir().toPath().resolve(this.project().getBuild().getDirectory())
             .resolve("airness/plugin-inputs");
         new PluginScanFiles(directory).write(artifacts);
+        PluginReportInputs.write(
+            directory, resolutions,
+            new MavenReportArtifacts(this.builder, this.session().getProjectBuildingRequest())
+        );
         ScannerResources.copy("eclipse-suppressions.xml", directory);
         ScannerResources.copy("tool-suppressions.xml", directory);
         policy(self, "self-tool-suppressions.xml", directory);
@@ -93,7 +107,7 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
     }
 
     @SneakyThrows
-    private Stream<Artifact> artifacts(MavenProject project) {
+    private Stream<PluginResolution> artifacts(MavenProject project) {
         List<Object> tasks = Stream.concat(Stream.of("clean", "deploy"), this.session().getGoals().stream())
             .distinct().map(PluginInputsMojo::task).toList();
         List<MojoExecution> executions = this.plans.calculateExecutionPlan(this.session(), project, tasks, false)
@@ -103,11 +117,11 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
             project.getBuildPlugins().stream().filter(Plugin::isExtensions)
         );
         return Stream.concat(active, project.getBuildExtensions().stream().map(PluginInputsMojo::extension))
-            .distinct().flatMap(plugin -> this.artifacts(project, plugin));
+            .distinct().map(plugin -> this.artifacts(project, plugin));
     }
 
     @SneakyThrows
-    private Stream<Artifact> artifacts(MavenProject project, Plugin plugin) {
+    private PluginResolution artifacts(MavenProject project, Plugin plugin) {
         Artifact root = this.resolver.resolve(
             plugin, project.getRemotePluginRepositories(), this.session().getRepositorySession()
         );
@@ -117,7 +131,10 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
         );
         List<Artifact> artifacts = resolved.getArtifactResults().stream().map(ArtifactResult::getArtifact).toList();
         this.getLog().debug("Resolved " + plugin.getId() + ": " + artifacts);
-        return artifacts.stream();
+        return new PluginResolution(
+            project.getId(), root, artifacts,
+            ReportGraph.resolved(resolved.getRoot(), artifacts)
+        );
     }
 
     private static Object task(String goal) {

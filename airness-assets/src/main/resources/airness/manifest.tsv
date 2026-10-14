@@ -17,3 +17,5 @@ README-guideline-software-project.adoc	PINNED
 .gitleaks.toml	SEED
 rewrite.yml	FORBIDDEN
 qodana/profile.xml	FORBIDDEN
+
+.airness/license-inventory.ftl	PINNED

@@ -70,7 +70,7 @@ run_late_build_inputs() {
     cat > "${input_consumer}/input-build.xml" <<XML
     <build><plugins><plugin>
         <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId><version>3.6.1</version>
+        <artifactId>build-helper-maven-plugin</artifactId>
         <executions><execution><id>register-input</id><phase>$1</phase>
             <goals><goal>$2</goal></goals>
             <configuration><resources><resource><directory>late/build</directory></resource></resources></configuration>
@@ -141,7 +141,7 @@ generated_input_build() {
                 </execution></executions>
             </plugin>
             <plugin><groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.6.1</version><executions><execution>
+                <executions><execution>
                     <id>generated-source-root</id><phase>generate-sources</phase>
                     <goals><goal>add-source</goal></goals><configuration><sources>
                         <source>${project.build.directory}/generated-sources</source>
