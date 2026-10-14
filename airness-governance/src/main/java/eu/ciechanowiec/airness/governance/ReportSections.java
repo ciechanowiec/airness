@@ -66,17 +66,17 @@ record ReportSections(ComplianceReport report) {
             + ReportMarkup.paragraph(
                 "Copyleft classification identifies dependencies for review. The report "
                     + "records declarations and shipped notices; it does not establish how a product is distributed."
-            );
+            ) + ReportTables.licenseEvidence(this.report.inventory());
     }
 
     String notices() {
         List<ReportPackage> production = this.report.inventory().packages().stream()
             .filter(ReportPackage::production).toList();
-        List<String> missing = production.stream().filter(entry -> entry.notices().isEmpty())
+        List<String> missing = production.stream().filter(entry -> entry.archiveNotices().isEmpty())
             .map(ReportPackage::coordinate).toList();
         Map<String, List<String>> grouped = production.stream()
             .flatMap(
-                entry -> entry.notices().entrySet().stream()
+                entry -> entry.archiveNotices().entrySet().stream()
                     .map(notice -> Map.entry(notice.getValue(), entry.coordinate() + " / " + notice.getKey()))
             ).collect(
                 Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList()))

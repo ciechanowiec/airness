@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class ComplianceReportTest {
 
+    private static final String ROOT_MODULE = "root";
     private static final String MIT = "MIT";
     private static final String DIRECT = "Direct";
     private static final String COMMIT = "a12345678901234567890123456789012345678901";
@@ -19,6 +20,36 @@ class ComplianceReportTest {
         Set.of(MIT, "MPL-2.0"),
         Map.of("MIT License", MIT)
     );
+
+    @Test
+    void attributesVerifiedToolLicensesWithoutInventingArchiveNotices() {
+        String source = "https://example.test/release?name=\"license\"";
+        ReportPackage entry = new ReportPackage(
+            "group:tool:jar:1", List.of(MIT), List.of(new ReportUse(ROOT_MODULE, "build", DIRECT)),
+            Map.of(
+                ReportPackage.LICENSE_EVIDENCE_PREFIX + source, "Supplier declaration: Missing\n<script>unsafe</script>"
+            )
+        );
+        assertTrue(entry.archiveNotices().isEmpty());
+        String html = ComplianceReportHtml.render(report(List.of(entry), List.of()));
+        assertTrue(html.contains("Verified license evidence"));
+        assertTrue(html.contains("Supplier declaration: Missing"));
+        assertTrue(html.contains("href=\"https://example.test/release?name=&quot;license&quot;\""));
+        assertTrue(html.contains("&lt;script&gt;unsafe&lt;/script&gt;"));
+        assertFalse(html.contains("<script>unsafe</script>"));
+    }
+
+    @Test
+    void keepsProductionArchiveAbsencesVisibleDespiteSupplementalEvidence() {
+        ReportPackage entry = new ReportPackage(
+            "group:library:jar:1", List.of(MIT), List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)),
+            Map.of(ReportPackage.LICENSE_EVIDENCE_PREFIX + "javascript:alert(1)", "Reviewed upstream source")
+        );
+        String html = ComplianceReportHtml.render(report(List.of(entry), List.of()));
+        assertFalse(html.contains("href=\"javascript:"));
+        assertFalse(html.contains("Every production artifact supplies a license or notice file."));
+        assertTrue(html.contains("Reviewed upstream source"));
+    }
 
     @Test
     void classifiesOnlyAliasesTheBuildActuallyDeclares() {
@@ -81,7 +112,7 @@ class ComplianceReportTest {
         ReportPackage entry = new ReportPackage(
             "group:library:jar:1", List.of("MIT License"),
             List.of(
-                new ReportUse("root", "runtime", DIRECT),
+                new ReportUse(ROOT_MODULE, "runtime", DIRECT),
                 new ReportUse("other", "test\" onmouseover=\"alert(1)", "Transitive")
             ), Map.of("META-INF/LICENSE", "<script>alert(1)</script>")
         );
@@ -106,7 +137,7 @@ class ComplianceReportTest {
             Map.of("Artifact", "group:unsafe:1")
         );
         ReportPackage missing = new ReportPackage(
-            "group:library:jar:1", List.of(), List.of(new ReportUse("root", "compile", DIRECT)), Map.of()
+            "group:library:jar:1", List.of(), List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)), Map.of()
         );
         String failing = ComplianceReportHtml.render(report(List.of(missing), List.of(advisory)));
         assertTrue(failing.contains("Not declared"));
@@ -118,7 +149,7 @@ class ComplianceReportTest {
     @Test
     void rendersCleanReportsWithSeparateDevelopmentTotals() {
         ReportPackage entry = new ReportPackage(
-            "group:test:jar:1", List.of(MIT), List.of(new ReportUse("root", "test", DIRECT)), Map.of()
+            "group:test:jar:1", List.of(MIT), List.of(new ReportUse(ROOT_MODULE, "test", DIRECT)), Map.of()
         );
         ComplianceReport original = report(List.of(entry), List.of());
         ComplianceReport clean = new ComplianceReport(
@@ -141,7 +172,8 @@ class ComplianceReportTest {
     void doesNotTreatProvidedOrTestArtifactsAsShippedProductionNotices() {
         ReportPackage entry = new ReportPackage(
             "group:test:jar:1", List.of(MIT),
-            List.of(new ReportUse("root", "provided", DIRECT), new ReportUse("root", "test", DIRECT)), Map.of()
+            List.of(new ReportUse(ROOT_MODULE, "provided", DIRECT), new ReportUse(ROOT_MODULE, "test", DIRECT)), Map
+                .of()
         );
         assertFalse(entry.production());
         assertTrue(dependency(MIT).production());
@@ -150,7 +182,7 @@ class ComplianceReportTest {
     private static ReportPackage dependency(String license) {
         return new ReportPackage(
             "group:library:jar:1", List.of(license),
-            List.of(new ReportUse("root", "compile", DIRECT)), Map.of()
+            List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)), Map.of()
         );
     }
 

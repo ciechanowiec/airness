@@ -66,6 +66,7 @@ run_maven_cases() {
 
     run_blocklist_boundaries
     run_license_alias_case
+    run_license_metadata_cases
     run_suppression_boundaries
     run_sbom_cases
     run_repository_routing_cases

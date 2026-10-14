@@ -685,6 +685,13 @@
                         </goals>
                     </execution>
                     <execution>
+                        <id>airness-license-metadata</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>license-metadata</goal>
+                        </goals>
+                    </execution>
+                    <execution>
                         <id>airness-coverage-evidence</id>
                         <phase>verify</phase>
                         <goals>

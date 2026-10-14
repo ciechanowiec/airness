@@ -27,8 +27,113 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ReportMavenInputsTest {
 
+    private static final String ARCHIVE_TYPE = "jar";
+
     @TempDir
     private Path directory;
+
+    @Test
+    @SneakyThrows
+    void suppliesTheNativeCheckWithOnlyVerifiedMissingDeclarations() {
+        Path local = this.directory.resolve("repository/example/library/1.0");
+        Files.createDirectories(local);
+        Files.writeString(
+            local.resolve("library-1.0.pom"), """
+                <project><modelVersion>4.0.0</modelVersion><groupId>example</groupId><artifactId>library</artifactId>
+                <version>1.0</version></project>
+                """
+        );
+        Artifact artifact = artifact();
+        String content = "reviewed fixture artifact";
+        artifact.setFile(Files.writeString(local.resolve("library-1.0.jar"), content).toFile());
+        MavenProject project = this.project();
+        project.setResolvedArtifacts(Set.of(artifact));
+        LicenseMetadata entry = new LicenseMetadata(
+            MavenReportArtifacts.identity(artifact), ReportJson.hash(content), "Apache-2.0",
+            new LicenseEvidence(List.of(), "https://example.test/release", "Missing POM metadata", Map.of())
+        );
+        try (ReportMavenFixture fixture = new ReportMavenFixture(this.directory)) {
+            new MavenLicenseMetadata(fixture.builder(), fixture.request(), List.of(entry)).prepare(project);
+        }
+        Path output = Path.of(project.getBuild().getDirectory()).resolve("airness/licenses/THIRD-PARTY.properties");
+        assertTrue(Files.readString(output).contains("example--library--1.0=Apache-2.0"));
+    }
+
+    @Test
+    @SneakyThrows
+    void refusesAlteredBytesBeforeWritingNativeLicenseCorrections() {
+        Path local = this.directory.resolve("repository/xalan/serializer/2.7.3");
+        Files.createDirectories(local);
+        Files.writeString(
+            local.resolve("serializer-2.7.3.pom"), """
+                <project><modelVersion>4.0.0</modelVersion><groupId>xalan</groupId><artifactId>serializer</artifactId>
+                <version>2.7.3</version></project>
+                """
+        );
+        Artifact artifact = new DefaultArtifact(
+            "xalan", "serializer", "2.7.3", "test", ARCHIVE_TYPE, "", new DefaultArtifactHandler(ARCHIVE_TYPE)
+        );
+        artifact.setFile(Files.writeString(local.resolve("serializer-2.7.3.jar"), "altered bytes").toFile());
+        MavenProject project = this.project();
+        project.setResolvedArtifacts(Set.of(artifact));
+        try (ReportMavenFixture fixture = new ReportMavenFixture(this.directory)) {
+            MavenLicenseMetadata metadata = new MavenLicenseMetadata(fixture.builder(), fixture.request());
+            IllegalStateException failure = assertThrows(IllegalStateException.class, () -> metadata.prepare(project));
+            assertTrue(failure.toString().contains("checksum mismatch"));
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void refusesCorrectionsThatTheNativeFormatWouldApplyToAnotherClassifier() {
+        MavenProject project = this.project();
+        Artifact ordinary = new DefaultArtifact(
+            "xalan", "serializer", "2.7.3", "test", ARCHIVE_TYPE, "", new DefaultArtifactHandler(ARCHIVE_TYPE)
+        );
+        Artifact classified = new DefaultArtifact(
+            "xalan", "serializer", "2.7.3", "test", ARCHIVE_TYPE, "tests", new DefaultArtifactHandler(ARCHIVE_TYPE)
+        );
+        project.setResolvedArtifacts(Set.of(ordinary, classified));
+        try (ReportMavenFixture fixture = new ReportMavenFixture(this.directory)) {
+            MavenLicenseMetadata metadata = new MavenLicenseMetadata(fixture.builder(), fixture.request());
+            assertThrows(IllegalStateException.class, () -> metadata.prepare(project));
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void clearsStaleCorrectionsAndLeavesUnknownArtifactsUncorrected() {
+        MavenProject project = this.project();
+        project.setResolvedArtifacts(Set.of(artifact()));
+        Path output = Path.of(project.getBuild().getDirectory()).resolve("airness/licenses/THIRD-PARTY.properties");
+        Files.createDirectories(output.getParent());
+        Files.writeString(output, "example--library--1.0=MIT\n");
+        try (ReportMavenFixture fixture = new ReportMavenFixture(this.directory)) {
+            new MavenLicenseMetadata(fixture.builder(), fixture.request()).prepare(project);
+        }
+        assertFalse(Files.readString(output).contains("example--library"));
+        assertTrue(MavenLicenseMetadata.verified(artifact(), List.of()).isEmpty());
+    }
+
+    @Test
+    @SneakyThrows
+    void readsLicenseUrlsWithoutGuessingAnIdentifierForEmptyMetadata() {
+        Path local = this.directory.resolve("repository/example/library/1.0");
+        Files.createDirectories(local);
+        Files.writeString(
+            local.resolve("library-1.0.pom"), """
+                <project><modelVersion>4.0.0</modelVersion><groupId>example</groupId><artifactId>library</artifactId>
+                <version>1.0</version><licenses><license><name> </name><url>https://example.test/license</url></license>
+                <license/></licenses></project>
+                """
+        );
+        try (ReportMavenFixture fixture = new ReportMavenFixture(this.directory)) {
+            assertEquals(
+                List.of("https://example.test/license", "Unknown"),
+                new MavenLicenseMetadata(fixture.builder(), fixture.request()).declarations(artifact())
+            );
+        }
+    }
 
     @Test
     @SneakyThrows
@@ -94,8 +199,8 @@ class ReportMavenInputsTest {
         assertEquals("Direct", packages.getFirst().uses().getFirst().relation());
         assertThrows(IllegalStateException.class, () -> MavenReportArtifacts.dependencies(project, Map.of()));
         Artifact classified = new DefaultArtifact(
-            "example", "library", "1.0", "test", "jar", "tests",
-            new DefaultArtifactHandler("jar")
+            "example", "library", "1.0", "test", ARCHIVE_TYPE, "tests",
+            new DefaultArtifactHandler(ARCHIVE_TYPE)
         );
         assertEquals("example:library:jar:tests:1.0", MavenReportArtifacts.identity(classified));
     }
@@ -190,7 +295,9 @@ class ReportMavenInputsTest {
     }
 
     private static Artifact artifact() {
-        return new DefaultArtifact("example", "library", "1.0", "test", "jar", "", new DefaultArtifactHandler("jar"));
+        return new DefaultArtifact(
+            "example", "library", "1.0", "test", ARCHIVE_TYPE, "", new DefaultArtifactHandler(ARCHIVE_TYPE)
+        );
     }
 
     private static Dependency declaration(String coordinate) {

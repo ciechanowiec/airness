@@ -10,12 +10,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.SneakyThrows;
+import java.util.stream.Stream;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
-import org.apache.maven.model.License;
-import org.apache.maven.model.building.ModelBuildingRequest;
-import org.apache.maven.project.DefaultProjectBuildingRequest;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
@@ -28,18 +25,14 @@ import org.apache.maven.project.ProjectBuildingRequest;
  */
 record MavenReportArtifacts(ProjectBuilder builder, ProjectBuildingRequest request) {
 
-    @SneakyThrows
     ReportPackage tool(Artifact artifact, String module) {
-        ProjectBuildingRequest settings = new DefaultProjectBuildingRequest(this.request);
-        settings.setProcessPlugins(false);
-        settings.setResolveDependencies(false);
-        // Dependency POMs describe suppliers. Their build declarations are not this project's build contract.
-        settings.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL);
-        MavenProject model = this.builder.build(artifact, settings).getProject();
-        List<String> licenses = model.getLicenses().stream().map(MavenReportArtifacts::license).toList();
+        List<String> licenses = new MavenLicenseMetadata(this.builder, this.request).declarations(artifact);
+        Optional<LicenseMetadata> metadata = MavenLicenseMetadata.verified(artifact, licenses);
         return new ReportPackage(
-            identity(artifact), licenses, List.of(new ReportUse(module, "build", "Transitive")),
-            Map.of()
+            identity(artifact), metadata.map(entry -> List.of(entry.license())).orElse(licenses),
+            List.of(new ReportUse(module, "build", "Transitive")), metadata.map(LicenseMetadata::notices).orElse(
+                Map.of()
+            )
         );
     }
 
@@ -80,6 +73,7 @@ record MavenReportArtifacts(ProjectBuilder builder, ProjectBuildingRequest reque
         String coordinate = gav(artifact);
         List<String> declarations = Optional.ofNullable(licenses.get(coordinate))
             .orElseThrow(() -> new IllegalStateException("License inventory omitted " + coordinate));
+        Optional<LicenseMetadata> metadata = MavenLicenseMetadata.verified(artifact, declarations);
         String scope = Optional.ofNullable(artifact.getScope()).orElseThrow();
         boolean direct = project.getDependencies().stream().anyMatch(
             dependency -> artifact.getGroupId().equals(dependency.getGroupId()) && artifact.getArtifactId().equals(
@@ -91,15 +85,16 @@ record MavenReportArtifacts(ProjectBuilder builder, ProjectBuildingRequest reque
         Path file = Objects.requireNonNull(artifact.getFile(), "Unresolved dependency archive").toPath();
         Map<String, String> notices = List.of("compile", "runtime").contains(scope) ? ReportNotices.read(file) : Map
             .of();
-        return new ReportPackage(identity(artifact), declarations, List.of(use), notices);
+        Map<String, String> complete = Stream.concat(
+            notices.entrySet().stream(), metadata.stream().flatMap(entry -> entry.notices().entrySet().stream())
+        ).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+        return new ReportPackage(
+            identity(artifact), metadata.map(entry -> List.of(entry.license())).orElse(declarations), List.of(use),
+            complete
+        );
     }
 
-    private static String gav(Artifact artifact) {
+    static String gav(Artifact artifact) {
         return artifact.getGroupId() + ':' + artifact.getArtifactId() + ':' + artifact.getVersion();
-    }
-
-    private static String license(License license) {
-        return Optional.ofNullable(license.getName()).filter(value -> !value.isBlank())
-            .orElseGet(() -> Optional.ofNullable(license.getUrl()).orElse("Unknown"));
     }
 }

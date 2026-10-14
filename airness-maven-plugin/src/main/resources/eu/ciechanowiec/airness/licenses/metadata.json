@@ -1,0 +1,44 @@
+[
+  {
+    "coordinate": "com.github.jtidy:jtidy:jar:1.0.5",
+    "sha256": "7cea4360710adb44c588e13afdcdc0171fc1a3e61cc4562703ddb1f0a36f0ca4",
+    "license": "HTMLTIDY",
+    "evidence": {
+      "declared": [
+        "Java HTML Tidy License"
+      ],
+      "source": "https://raw.githubusercontent.com/jtidy/jtidy/d2f8dd407899c005c12a9df1b5db807bbc0c79c8/LICENSE.txt",
+      "reason": "The release license matches SPDX HTMLTIDY. The JAR omits its license text, which is retained from the release source.",
+      "texts": {
+        "Release LICENSE.txt": "jtidy-LICENSE.txt"
+      }
+    }
+  },
+  {
+    "coordinate": "org.codehaus.plexus:plexus-i18n:jar:1.0-beta-10",
+    "sha256": "b87f25b512ffafcafbf4a05ab943812e9c6915291370c6b46016eb3836886c41",
+    "license": "Apache-2.0",
+    "evidence": {
+      "declared": [],
+      "source": "https://raw.githubusercontent.com/codehaus-plexus/plexus-i18n/d5aaf49970fc3e95408f4f9cd1b856fa72be130f/src/main/java/org/codehaus/plexus/i18n/DefaultI18N.java",
+      "reason": "The effective POM has no license. Source headers at the exact release commit declare Apache License 2.0.",
+      "texts": {
+        "Release source license header": "plexus-license-header.txt"
+      }
+    }
+  },
+  {
+    "coordinate": "xalan:serializer:jar:2.7.3",
+    "sha256": "5f6804bacdfdb3ccc52d2538536fab8986696d61559b081054a420c653806667",
+    "license": "Apache-2.0",
+    "evidence": {
+      "declared": [],
+      "source": "https://archive.apache.org/dist/xalan/xalan-j/binaries/xalan-j_2_7_3-bin.zip",
+      "reason": "The POM has no license. The official release contains this identical serializer JAR. The retained LICENSE excerpt includes the complete Apache License 2.0 terms and the explicit attribution to serializer.jar; NOTICE names the serializer separately.",
+      "texts": {
+        "Distribution LICENSE.txt (Apache-2.0 and serializer attribution excerpt)": "xalan-LICENSE.txt",
+        "Distribution NOTICE.txt": "xalan-NOTICE.txt"
+      }
+    }
+  }
+]

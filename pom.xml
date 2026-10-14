@@ -676,6 +676,11 @@
                     <configuration>
                         <includedScopes>compile,runtime,provided,test</includedScopes>
                         <acceptPomPackaging>true</acceptPomPackaging>
+                        <!-- Airness validates exact bytes before supplying these missing POM declarations. -->
+                        <useMissingFile>true</useMissingFile>
+                        <missingFile>${project.build.directory}/airness/licenses/THIRD-PARTY.properties</missingFile>
+                        <useRepositoryMissingFiles>false</useRepositoryMissingFiles>
+                        <deployMissingFile>false</deployMissingFile>
                         <skipAddThirdParty>${skipTests}</skipAddThirdParty>
                         <failOnBlacklist>${airness.enforce}</failOnBlacklist>
                         <failOnMissing>${airness.enforce}</failOnMissing>
@@ -684,6 +689,7 @@
                             <includedLicense>MIT</includedLicense>
                             <includedLicense>MIT-0</includedLicense>
                             <includedLicense>ISC</includedLicense>
+                            <includedLicense>HTMLTIDY</includedLicense>
                             <includedLicense>0BSD</includedLicense>
                             <includedLicense>BSD-2-Clause</includedLicense>
                             <includedLicense>BSD-3-Clause</includedLicense>
@@ -703,6 +709,7 @@
                             <includedLicense>JDOM License</includedLicense>
                         </includedLicenses>
                         <licenseMerges>
+                            <licenseMerge>HTMLTIDY|Java HTML Tidy License|HTML Tidy License</licenseMerge>
                             <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License Version 2.0|Apache License 2.0|Apache 2.0|Apache 2|Apache License 2|Apache License, 2.0|Apache License, version 2.0|Apache License version 2.0|Apache License v2.0|Apache License, Version 2|Apache Software License - Version 2.0|Apache Software License, version 2.0|Apache Software License 2.0|Apache Software Licenses|Apache Public License 2.0|Apache 2.0 License|Apache v2|ALv2|ASL2|ASF 2.0|AL 2.0|APL2|the Apache License, ASL Version 2.0|Apache Software License, Version 2.0|Apache License v2|ASLv2|ASF|(Apache-2.0 OR EPL-2.0)|Apache License</licenseMerge>
                             <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)|MIT license|MIT-style|MIT License (MIT)|MIT X11 License</licenseMerge>
                             <licenseMerge>MIT-0|MIT No Attribution</licenseMerge>
