@@ -102,4 +102,17 @@
     <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.List; class C { static final List<String> EMPTY_LIST = List.of(); List<String> m() { return EMPTY_LIST; } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.*; class C { Comparator<String> m() { return Collections.reverseOrder(); } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="1"><![CDATA[class C { java.util.Map<String, String> m() { return java.util.Collections.EMPTY_MAP; } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[class C { String m(Exception e) { return String.valueOf(e.getMessage()); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[import java.util.regex.*; class C { String m(Matcher m) { return String.valueOf(m.group(1)); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[import java.util.*; class C { String m(Map<String, String> m) { return String.valueOf(m.get("k")); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[import java.util.*; class C { String m(Map<String, String> m) { String v = m.get("k"); return String.valueOf(v); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[import java.lang.annotation.*; class C { @Target(ElementType.TYPE_USE) @interface Nullable { } String m(@Nullable String a) { return String.valueOf(a); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[import java.lang.annotation.*; class C { @Target(ElementType.TYPE_USE) @interface Nullable { } @Nullable String f; String m() { return String.valueOf(this.f); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[import java.lang.annotation.*; class C { @Target(ElementType.TYPE_USE) @interface Nullable { } @Nullable String n() { return null; } String m() { return String.valueOf(n()); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="1"><![CDATA[class C { String n() { return "x"; } String m() { return String.valueOf(n()); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="1"><![CDATA[class C { private final String f = "x"; String m() { return String.valueOf(this.f); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="1"><![CDATA[class C { String m() { String v = "x"; return String.valueOf(v); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="1"><![CDATA[class C { String m(String a) { return String.valueOf("x" + a); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="1"><![CDATA[class C { String m() { return String.valueOf("x"); } }]]></edge>
+    <edge check="AirnessValueOfStringIsTheString" findings="0"><![CDATA[class C { String m(Object a) { return String.valueOf(a.toString()).strip(); } }]]></edge>
 </edges>
