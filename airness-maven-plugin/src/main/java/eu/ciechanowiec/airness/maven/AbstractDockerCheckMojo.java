@@ -24,23 +24,6 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private static final int SUCCESS = 0;
     private static final List<String> DOCKER_INFO = List.of("docker", "info");
-    private static final String MOUNT = "/repo";
-    /**
-     * Read inside the image the check itself runs, from the mount the check itself takes. The listing
-     * proves the directory can be walked, the Git pointer proves a file can be opened whether .git is a
-     * directory or the file a worktree leaves behind, and the top-level files prove it was not one lucky
-     * file. The shell is the POSIX one, because the gitleaks image carries busybox and the Qodana image
-     * carries dash.
-     */
-    private static final String PROBE = "set -e; cd /repo; ls -A . > /dev/null;"
-        + " if [ -d .git ]; then cat .git/HEAD > /dev/null; else cat .git > /dev/null; fi;"
-        + " find . -maxdepth 1 -type f -exec cat {} + > /dev/null";
-    private static final String UNREADABLE = " cannot be read inside a container, so this"
-        + " check would report on nothing. Docker mounted it read-only and a shell in the image could not list"
-        + " it or read its files. On macOS with Colima this is the privacy protection of Downloads, Desktop and"
-        + " Documents: grant the terminal that starts Colima access to the folder under System Settings,"
-        + " Privacy and Security, Files and Folders, then restart Colima, or keep the repository outside those"
-        + " folders.";
     /**
      * A repository, an optional tag, and a digest. The digest is what makes this a pin: a tag can be
      * republished against different bytes, so an image named by tag alone lets an upstream release change
@@ -74,6 +57,19 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     abstract boolean findingsExit(int exit);
 
     /**
+     * Host directories besides the repository that the check mounts read-only and needs populated.
+     *
+     * <p>Each is read inside the image before the check starts, so that a mount the host does not serve
+     * fails with its path rather than as a check that runs on nothing.
+     *
+     * @return the directories, none for a check that reads only the repository
+     * @throws MojoExecutionException when a directory cannot be resolved on the host
+     */
+    List<Path> mountedInputs() throws MojoExecutionException {
+        return List.of();
+    }
+
+    /**
      * The findings this check can name from the report it leaves behind.
      *
      * <p>A check that writes no machine-readable report names none, and its failure message says only that
@@ -103,7 +99,13 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     private void check() throws MojoExecutionException, MojoFailureException {
         this.requirePinnedImage();
         this.requireDocker();
-        this.requireReadableRepository();
+        Path root = this.repositoryRoot();
+        this.requireReadable(
+            MountProbe.repositoryCommand(root, this.image()), root, MountProbe.unreadableRepository(root)
+        );
+        for (Path input : this.mountedInputs()) {
+            this.requireReadable(MountProbe.inputCommand(input, this.image()), input, MountProbe.emptyInput(input));
+        }
         int exit = this.runCheck();
         if (exit != 0) {
             this.fail(exit);
@@ -188,27 +190,17 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     }
 
     /**
-     * The daemon answering is not the daemon seeing the files. A bind mount the host refuses to serve
-     * arrives inside the container as a tree whose every open fails, and a scanner reading such a tree
-     * reports on nothing or exits the way it exits for a finding. So one shell in the same image reads
-     * the same mount before the check is trusted with it.
+     * One shell in the same image reads the same mount before the check is trusted with it. See
+     * {@link MountProbe} for what each probe proves.
      */
-    private void requireReadableRepository() throws MojoExecutionException {
-        Path root = this.repositoryRoot();
+    private void requireReadable(List<String> probe, Path mount, String unreadable) throws MojoExecutionException {
         try {
-            if (this.run(probeCommand(root, this.image()), ProcessBuilder.Redirect.DISCARD) != SUCCESS) {
-                throw new MojoExecutionException("The repository at " + root + UNREADABLE);
+            if (this.run(probe, ProcessBuilder.Redirect.DISCARD) != SUCCESS) {
+                throw new MojoExecutionException(unreadable);
             }
         } catch (IOException exception) {
-            throw new MojoExecutionException("Could not start the container that reads " + root, exception);
+            throw new MojoExecutionException("Could not start the container that reads " + mount, exception);
         }
-    }
-
-    static List<String> probeCommand(Path root, String image) {
-        return List.of(
-            "docker", "run", "--rm", "-v", root + ":" + MOUNT + ":ro",
-            "--entrypoint", "/bin/sh", image, "-c", PROBE
-        );
     }
 
     private int run(List<String> command, ProcessBuilder.Redirect streams) throws IOException {
