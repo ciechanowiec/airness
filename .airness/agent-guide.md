@@ -482,6 +482,11 @@ it is published, only a fresh history satisfies the rule.
   is suppressed as `OverlyCoupledClass`, `MethodCoupling` as `OverlyCoupledMethod`, and `FieldCount` as
   `ClassWithTooManyFields`. Where a reported name suppresses nothing and no other name is known, report it to
   Airness rather than leaving a suppression that holds nothing back.
+- A static field created with `new` of a mutable container, an `Atomic*`, a `ThreadLocal`, a `StringBuilder` or an
+  array is reported as `AirnessStaticStateIsBounded` even when it is `private static final`, because `final` fixes
+  the reference and not the contents. Bound the state or scope it to a unit of work. A deliberate cache is not
+  banned: suppress the rule on that field with a `@Justification` that states its bound, for example "keyed by an
+  enum, so bounded by its constants".
 
 ### Change Requests
 

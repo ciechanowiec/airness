@@ -625,6 +625,38 @@
             <message key="matchxpath.match"
                      value="A utility class must use Lombok @UtilityClass instead of a hand-written private constructor."/>
         </module>
+        <module name="MatchXpath">
+            <!--
+                A record with no components, no implemented interface and no instance method has no value to
+                carry and no contract to fulfil: it is a namespace for static methods, the same construct the
+                class rule above answers, written so that the class rule cannot see it.
+            -->
+            <property name="id" value="AirnessRecordUtilityIsUtilityClass"/>
+            <property name="query"
+                      value="//RECORD_DEF[not(RECORD_COMPONENTS/RECORD_COMPONENT_DEF) and not(IMPLEMENTS_CLAUSE) and not(OBJBLOCK/METHOD_DEF[not(MODIFIERS/LITERAL_STATIC)])]"/>
+            <message key="matchxpath.match"
+                     value="A record without components that holds only static methods is a utility class; declare it as a Lombok @UtilityClass."/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+                final fixes the reference, not the contents. PMD MutableStaticState reports only a non-final
+                field and SpotBugs MS_* only a non-private one, so a private static final map created with new
+                passes both while it gathers state for the whole life of the process, shared by every caller
+                and every test.
+
+                Only a new of a mutable container is read: a Map, List, Set, Queue or Deque implementation, an
+                Atomic*, a ThreadLocal, a StringBuilder or an array. An immutable factory such as List.of,
+                Map.of or copyOf, a constant and an instance field are not reported.
+
+                This is not a ban on caches. A deliberate cache is answered by a suppression whose
+                justification states its bound, for example "keyed by an enum, so bounded by its constants".
+            -->
+            <property name="id" value="AirnessStaticStateIsBounded"/>
+            <property name="query"
+                      value="//VARIABLE_DEF[MODIFIERS/LITERAL_STATIC]/ASSIGN/EXPR/LITERAL_NEW[ARRAY_DECLARATOR or ARRAY_INIT or (IDENT | DOT/IDENT[last()])[last()][matches(@text, '(Map|List|Set|Queue|Deque)$') or starts-with(@text, 'Atomic') or @text = ('ThreadLocal', 'InheritableThreadLocal', 'StringBuilder')]]"/>
+            <message key="matchxpath.match"
+                     value="A static field holding mutable state lives for the whole process; bound it or scope it to a unit of work, or suppress this rule with a justification that states why it is bounded."/>
+        </module>
         <module name="InnerTypeLast"/>
         <module name="InterfaceIsType"/>
         <module name="MutableException"/>
