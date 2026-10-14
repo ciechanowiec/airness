@@ -70,7 +70,7 @@ class RecordUtilityCheckstyleTest {
     }
 
     @Test
-    void passesOverAComponentlessRecordWithAnInstanceMethod(@TempDir Path directory) {
+    void reportsAComponentlessRecordWithInstanceMethods(@TempDir Path directory) {
         String source = """
             record Clock() {
                 long now() { return System.nanoTime(); }
@@ -78,7 +78,53 @@ class RecordUtilityCheckstyleTest {
             }
             """;
 
-        assertEquals(0, findings(directory, source), "an instance method gives the instance behaviour");
+        assertEquals(1, findings(directory, source), "an instance method of an empty record is a static call");
+    }
+
+    @Test
+    void reportsANestedComponentlessRecordWithAnInstanceMethod(@TempDir Path directory) {
+        String source = """
+            final class Outer {
+                record Facade() {
+                    String greet(String name) { return "Hello " + name; }
+                }
+            }
+            """;
+
+        assertEquals(1, findings(directory, source), "a nested facade record is the same construct");
+    }
+
+    @Test
+    void reportsAGenericComponentlessRecord(@TempDir Path directory) {
+        String source = """
+            record Box<T>() {
+                T none() { return null; }
+            }
+            """;
+
+        assertEquals(1, findings(directory, source), "a type parameter gives the record no state of its own");
+    }
+
+    @Test
+    void passesOverAGenericRecordWithAComponent(@TempDir Path directory) {
+        String source = """
+            record Box<T>(T value) {
+                T get() { return value; }
+            }
+            """;
+
+        assertEquals(0, findings(directory, source), "a generic component is still a value the record carries");
+    }
+
+    @Test
+    void passesOverAComponentlessRecordWithInstanceMethodsThatImplementsAnInterface(@TempDir Path directory) {
+        String source = """
+            record Greeter() implements java.util.function.UnaryOperator<String> {
+                public String apply(String name) { return "Hello " + name; }
+            }
+            """;
+
+        assertEquals(0, findings(directory, source), "an interface needs instances for polymorphic dispatch");
     }
 
     @Test

@@ -512,11 +512,16 @@ Earlier report pairs are removed only after a complete replacement has been rend
   is suppressed as `OverlyCoupledClass`, `MethodCoupling` as `OverlyCoupledMethod`, and `FieldCount` as
   `ClassWithTooManyFields`. Where a reported name suppresses nothing and no other name is known, report it to
   Airness rather than leaving a suppression that holds nothing back.
-- A static field created with `new` of a mutable container, an `Atomic*`, a `ThreadLocal`, a `StringBuilder` or an
-  array is reported as `AirnessStaticStateIsBounded` even when it is `private static final`, because `final` fixes
-  the reference and not the contents. Bound the state or scope it to a unit of work. A deliberate cache is not
-  banned: suppress the rule on that field with a `@Justification` that states its bound, for example "keyed by an
-  enum, so bounded by its constants".
+- A static field whose initializer creates mutable state is reported as `AirnessStaticStateIsBounded` even when it
+  is `private static final`, because `final` fixes the reference and not the contents. That covers a `new` of a
+  mutable container, an `Atomic*`, a `ThreadLocal`, a `StringBuilder` or an array anywhere in the initializer, and a
+  factory that returns mutable state: `Collections.synchronized*`, `Collections.newSetFromMap`,
+  `ConcurrentHashMap.newKeySet`, `ThreadLocal.withInitial`, `Executors.new*`, the Guava `Lists.new*`, `Sets.new*`,
+  `Maps.new*`, `Queues.new*` and `CacheBuilder`, and `Caffeine.newBuilder()`. A `new` inside a lambda, a method
+  reference or an anonymous class body, and one wrapped by `Collections.unmodifiable*` or a `copyOf`, are not
+  reported. Bound the state or scope it to a unit of work. A deliberate cache is not banned: suppress the rule on
+  that field with a `@Justification` that states its bound, for example "keyed by an enum, so bounded by its
+  constants".
 
 ### Change Requests
 

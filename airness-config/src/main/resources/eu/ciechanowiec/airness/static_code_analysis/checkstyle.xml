@@ -627,15 +627,17 @@
         </module>
         <module name="MatchXpath">
             <!--
-                A record with no components, no implemented interface and no instance method has no value to
-                carry and no contract to fulfil: it is a namespace for static methods, the same construct the
-                class rule above answers, written so that the class rule cannot see it.
+                A record with no components and no implemented interface carries no state and fulfils no
+                contract, so every instance of it is the same. Its instance methods can reach only static state,
+                which makes new X().method() a static call in disguise: it is a namespace for static methods, the
+                same construct the class rule above answers, written so that the class rule cannot see it. A
+                record that implements an interface is exempt, because polymorphic dispatch needs its instances.
             -->
             <property name="id" value="AirnessRecordUtilityIsUtilityClass"/>
             <property name="query"
-                      value="//RECORD_DEF[not(RECORD_COMPONENTS/RECORD_COMPONENT_DEF) and not(IMPLEMENTS_CLAUSE) and not(OBJBLOCK/METHOD_DEF[not(MODIFIERS/LITERAL_STATIC)])]"/>
+                      value="//RECORD_DEF[not(RECORD_COMPONENTS/RECORD_COMPONENT_DEF) and not(IMPLEMENTS_CLAUSE)]"/>
             <message key="matchxpath.match"
-                     value="A record without components that holds only static methods is a utility class; declare it as a Lombok @UtilityClass."/>
+                     value="A record without components or interfaces carries nothing to instantiate; declare it as a Lombok @UtilityClass with static methods."/>
         </module>
         <module name="MatchXpath">
             <!--
@@ -644,16 +646,27 @@
                 passes both while it gathers state for the whole life of the process, shared by every caller
                 and every test.
 
-                Only a new of a mutable container is read: a Map, List, Set, Queue or Deque implementation, an
-                Atomic*, a ThreadLocal, a StringBuilder or an array. An immutable factory such as List.of,
-                Map.of or copyOf, a constant and an instance field are not reported.
+                The initializer of a static field is read whole. It is reported when anywhere in it there is a
+                new of a mutable container (a Map, List, Set, Queue or Deque implementation, an Atomic*, a
+                ThreadLocal, a StringBuilder or an array), or a factory that returns mutable state: the JDK
+                Collections.synchronized* and Collections.newSetFromMap, ConcurrentHashMap.newKeySet,
+                ThreadLocal.withInitial and Executors.new*, the Guava Lists.new*, Sets.new*, Maps.new*,
+                Queues.new* and CacheBuilder, and a Caffeine.newBuilder() chain. The field is reported once
+                however many of these it holds.
+
+                A new inside a lambda, a method reference or an anonymous class body runs once per call, not
+                once per process, so it is not static state; ThreadLocal.withInitial is still reported through
+                its factory. A new wrapped by an unmodifiable view or copy (Collections.unmodifiable*,
+                List.copyOf, Set.copyOf, Map.copyOf or a Guava Immutable*.copyOf) is not reachable for change.
+                An immutable factory such as List.of or Map.of, a constant and an instance field are not
+                reported.
 
                 This is not a ban on caches. A deliberate cache is answered by a suppression whose
                 justification states its bound, for example "keyed by an enum, so bounded by its constants".
             -->
             <property name="id" value="AirnessStaticStateIsBounded"/>
             <property name="query"
-                      value="//VARIABLE_DEF[MODIFIERS/LITERAL_STATIC]/ASSIGN/EXPR/LITERAL_NEW[ARRAY_DECLARATOR or ARRAY_INIT or (IDENT | DOT/IDENT[last()])[last()][matches(@text, '(Map|List|Set|Queue|Deque)$') or starts-with(@text, 'Atomic') or @text = ('ThreadLocal', 'InheritableThreadLocal', 'StringBuilder')]]"/>
+                      value="for $field in //VARIABLE_DEF[MODIFIERS/LITERAL_STATIC] return $field[ASSIGN/EXPR/descendant-or-self::*[(self::LITERAL_NEW[ARRAY_DECLARATOR or ARRAY_INIT or (IDENT | DOT/IDENT[last()])[last()][matches(@text, '(Map|List|Set|Queue|Deque)$') or starts-with(@text, 'Atomic') or @text = ('ThreadLocal', 'InheritableThreadLocal', 'StringBuilder')]] or self::METHOD_CALL[DOT[((*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = 'Collections'] and IDENT[last()][starts-with(@text, 'synchronized') or @text = 'newSetFromMap']) or ((*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = 'ConcurrentHashMap'] and IDENT[last()][@text = 'newKeySet']) or ((*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = 'ThreadLocal'] and IDENT[last()][@text = 'withInitial']) or ((*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = ('Executors', 'Lists', 'Sets', 'Maps', 'Queues')] and IDENT[last()][starts-with(@text, 'new')]) or (*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = 'CacheBuilder'] or ((*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = 'Caffeine'] and IDENT[last()][@text = 'newBuilder'])]]) and not(ancestor::*[self::LAMBDA or self::METHOD_REF or self::OBJBLOCK or self::METHOD_CALL[DOT[((*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = 'Collections'] and IDENT[last()][starts-with(@text, 'unmodifiable')]) or ((*[1][self::IDENT] | *[1][self::DOT]/IDENT[last()])[@text = ('List', 'Set', 'Map') or starts-with(@text, 'Immutable')] and IDENT[last()][@text = 'copyOf'])]]][count(ancestor::*) &gt; count($field/ancestor::*)])]]/IDENT"/>
             <message key="matchxpath.match"
                      value="A static field holding mutable state lives for the whole process; bound it or scope it to a unit of work, or suppress this rule with a justification that states why it is bounded."/>
         </module>
