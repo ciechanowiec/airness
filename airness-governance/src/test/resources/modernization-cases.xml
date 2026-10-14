@@ -1,0 +1,1240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modernization>
+    <rule tool="Checkstyle" id="AirnessAbstractConstructorIsNotPublic" kind="new">
+        <case name="abspub1" flagged="true" scope="main">
+            <source><![CDATA[package example.abspub1;
+
+abstract class C { public C() { } }
+]]></source>
+        </case>
+        <case name="abspub2" flagged="false" scope="main">
+            <source><![CDATA[package example.abspub2;
+
+abstract class C { protected C() { } }
+]]></source>
+        </case>
+        <case name="abspub3" flagged="false" scope="main">
+            <source><![CDATA[package example.abspub3;
+
+class C { public C() { } }
+]]></source>
+        </case>
+        <case name="rabs1" flagged="true" scope="main">
+            <source><![CDATA[package example.rabs1;
+
+public abstract class C { public C() { } }
+]]></source>
+        </case>
+        <case name="rabs2" flagged="false" scope="main">
+            <source><![CDATA[package example.rabs2;
+
+public abstract class C { protected C(int a) { } public static C of() { return null; } }
+]]></source>
+        </case>
+        <case name="rabs3" flagged="true" scope="main">
+            <source><![CDATA[package example.rabs3;
+
+class O { public abstract static class C { public C(int a) { } } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessFloatingSuffixIsUpperCase" kind="new">
+        <case name="ucls2" flagged="true" scope="main">
+            <source><![CDATA[package example.ucls2;
+
+class C { float a = 1f; }
+]]></source>
+        </case>
+        <case name="ucls3" flagged="true" scope="main">
+            <source><![CDATA[package example.ucls3;
+
+class C { double a = 1d; }
+]]></source>
+        </case>
+        <case name="ucls4" flagged="false" scope="main">
+            <source><![CDATA[package example.ucls4;
+
+class C { long a = 1L; float b = 1F; double c = 1D; int d = 0x1f; }
+]]></source>
+        </case>
+        <case name="ucls5" flagged="true" scope="main">
+            <source><![CDATA[package example.ucls5;
+
+class C { double a = 1e3d; float b = 0x1p3f; }
+]]></source>
+        </case>
+        <case name="rucls1" flagged="true" scope="main">
+            <source><![CDATA[package example.rucls1;
+
+class C { double a = 1.5d; float b = 2.5f; }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessLambdaBodyIsAnExpression" kind="new">
+        <case name="lbte1" flagged="true" scope="main">
+            <source><![CDATA[package example.lbte1;
+
+import java.util.function.Function; class C { Function<Integer, Integer> m() { return x -> { return x + 1; }; } }
+]]></source>
+        </case>
+        <case name="lbte2" flagged="false" scope="main">
+            <source><![CDATA[package example.lbte2;
+
+import java.util.function.Function; class C { Function<Integer, Integer> m() { return x -> x + 1; } }
+]]></source>
+        </case>
+        <case name="lbte3" flagged="true" scope="main">
+            <source><![CDATA[package example.lbte3;
+
+class C { Runnable m() { return () -> { m(); }; } }
+]]></source>
+        </case>
+        <case name="lbte4" flagged="false" scope="main">
+            <source><![CDATA[package example.lbte4;
+
+import java.util.function.Function; class C { Function<Integer, Integer> m() { return x -> { int y = x; return y; }; } }
+]]></source>
+        </case>
+        <case name="lbte5" flagged="false" scope="main">
+            <source><![CDATA[package example.lbte5;
+
+class C { Runnable m() { return () -> { throw new IllegalStateException(); }; } }
+]]></source>
+        </case>
+        <case name="lbte6" flagged="true" scope="main">
+            <source><![CDATA[package example.lbte6;
+
+import java.util.function.Function; class C { Function<Integer, Integer> m() { return x -> { /* note */ return x + 1; }; } }
+]]></source>
+        </case>
+        <case name="rlbe1" flagged="true" scope="main">
+            <source><![CDATA[package example.rlbe1;
+
+import java.util.function.Function; class C { Function<Integer, Integer> m() { return x -> {
+            // note
+            return x + 1;
+        }; } }
+]]></source>
+        </case>
+        <case name="rlbe2" flagged="true" scope="main">
+            <source><![CDATA[package example.rlbe2;
+
+import java.util.function.Consumer; class C { Consumer<String> m() { return s -> { s.length(); }; } }
+]]></source>
+        </case>
+        <case name="rlbe3" flagged="false" scope="main">
+            <source><![CDATA[package example.rlbe3;
+
+class C { Runnable m() { return () -> { }; } }
+]]></source>
+        </case>
+        <case name="rlbe4" flagged="false" scope="main">
+            <source><![CDATA[package example.rlbe4;
+
+class C { Runnable m() { return () -> { int x = 1; }; } }
+]]></source>
+        </case>
+        <case name="rlbe5" flagged="true" scope="main">
+            <source><![CDATA[package example.rlbe5;
+
+import java.util.concurrent.Callable; class C { Callable<String> m() { return () -> { return "x"; }; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessLoopBoundIsAnOrdering" kind="new">
+        <case name="feq1" flagged="true" scope="main">
+            <source><![CDATA[package example.feq1;
+
+class C { void m() { for (int i = 0; i != 10; i++) { m(); } } }
+]]></source>
+        </case>
+        <case name="feq2" flagged="false" scope="main">
+            <source><![CDATA[package example.feq2;
+
+class C { void m() { for (int i = 0; i == 0; i++) { m(); } } }
+]]></source>
+        </case>
+        <case name="feq3" flagged="false" scope="main">
+            <source><![CDATA[package example.feq3;
+
+class C { void m(Object o) { for (Object i = o; i != null; i = null) { m(i); } } }
+]]></source>
+        </case>
+        <case name="rfeq1" flagged="true" scope="main">
+            <source><![CDATA[package example.rfeq1;
+
+class C { void m() { for (int i = 10; i != 0; i--) { m(); } } }
+]]></source>
+        </case>
+        <case name="rfeq2" flagged="false" scope="main">
+            <source><![CDATA[package example.rfeq2;
+
+class C { void m(int n) { for (int i = 0; n != 10; i++) { m(n); } } }
+]]></source>
+        </case>
+        <case name="rfeq3" flagged="true" scope="main">
+            <source><![CDATA[package example.rfeq3;
+
+class C { void m() { for (int i = 0; 10 != i; i++) { m(); } } }
+]]></source>
+        </case>
+        <case name="rfeq4" flagged="false" scope="main">
+            <source><![CDATA[package example.rfeq4;
+
+class C { void m() { for (int i = 0; i != 10; i += 2) { m(); } } }
+]]></source>
+        </case>
+        <case name="rfeq5" flagged="true" scope="main">
+            <source><![CDATA[package example.rfeq5;
+
+class C { void m() { int i; for (i = 0; i != 10; i++) { m(); } } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessLoopStepsInItsHeader" kind="new">
+        <case name="forinc1" flagged="true" scope="main">
+            <source><![CDATA[package example.forinc1;
+
+class C { void m() { for (int i = 0; i < 10;) { m(); i++; } } }
+]]></source>
+        </case>
+        <case name="forinc2" flagged="false" scope="main">
+            <source><![CDATA[package example.forinc2;
+
+class C { void m() { for (int i = 0; i < 10; i++) { m(); } } }
+]]></source>
+        </case>
+        <case name="forinc3" flagged="false" scope="main">
+            <source><![CDATA[package example.forinc3;
+
+class C { void m() { for (int i = 0; i < 10;) { i++; m(); } } }
+]]></source>
+        </case>
+        <case name="rfin1" flagged="false" scope="main">
+            <source><![CDATA[package example.rfin1;
+
+class C { void m() { for (int i = 0; i < 10;) { m(); i += 1; } } }
+]]></source>
+        </case>
+        <case name="rfin2" flagged="true" scope="main">
+            <source><![CDATA[package example.rfin2;
+
+class C { void m() { for (int i = 0; i < 10;) { m(); ++i; } } }
+]]></source>
+        </case>
+        <case name="rfin3" flagged="true" scope="main">
+            <source><![CDATA[package example.rfin3;
+
+class C { void m(boolean b) { for (int i = 0; i < 10;) { if (b) { continue; } i++; } } }
+]]></source>
+        </case>
+        <case name="rfin4" flagged="false" scope="main">
+            <source><![CDATA[package example.rfin4;
+
+class C { void m() { int i = 0; for (; i < 10;) { m(); i++; } } }
+]]></source>
+        </case>
+        <case name="rfin5" flagged="true" scope="main">
+            <source><![CDATA[package example.rfin5;
+
+class C { void m() { for (int i = 0, j = 0; i < 10;) { m(); i++; } } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessMXBeanIsPublic" kind="new">
+        <case name="mxb1" flagged="true" scope="main">
+            <source><![CDATA[package example.mxb1;
+
+interface CMXBean { int getX(); }
+]]></source>
+        </case>
+        <case name="mxb2" flagged="false" scope="main">
+            <source><![CDATA[package example.mxb2;
+
+public interface CMXBean { int getX(); }
+]]></source>
+        </case>
+        <case name="rmxb1" flagged="true" scope="main">
+            <source><![CDATA[package example.rmxb1;
+
+import javax.management.MXBean; @MXBean interface Probe { int getX(); }
+]]></source>
+        </case>
+        <case name="rmxb2" flagged="false" scope="main">
+            <source><![CDATA[package example.rmxb2;
+
+import javax.management.MXBean; @MXBean(false) interface ProbeMXBean { int getX(); }
+]]></source>
+        </case>
+        <case name="rmxb3" flagged="false" scope="main">
+            <source><![CDATA[package example.rmxb3;
+
+class O { public interface CMXBean { int getX(); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessStaticMethodIsNotFinal" kind="new">
+        <case name="smf1" flagged="true" scope="main">
+            <source><![CDATA[package example.smf1;
+
+class C { static final void m() { } }
+]]></source>
+        </case>
+        <case name="smf2" flagged="false" scope="main">
+            <source><![CDATA[package example.smf2;
+
+class C { static void m() { } final void n() { } }
+]]></source>
+        </case>
+        <case name="rsmf1" flagged="true" scope="main">
+            <source><![CDATA[package example.rsmf1;
+
+public final class C { public static final void m() { } private C() { } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessTestMethodsAreNotPublic" kind="reuse">
+        <case name="tnp2" flagged="true" scope="test">
+            <source><![CDATA[package example.tnp2;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test public void t() { assertTrue(f()); } boolean f() { return true; } }
+]]></source>
+        </case>
+        <case name="tnp4" flagged="true" scope="test">
+            <source><![CDATA[package example.tnp4;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @BeforeEach public void s() { } @Test void t() { assertTrue(true == f()); } boolean f() { return true; } }
+]]></source>
+        </case>
+        <case name="lnp1" flagged="true" scope="test">
+            <source><![CDATA[package example.lnp1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @BeforeEach private void s() { } @Test void t() { assertTrue(true == f()); } boolean f() { return true; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AirnessToStringIsSpelledOut" kind="new">
+        <case name="hcn3" flagged="true" scope="main">
+            <source><![CDATA[package example.hcn3;
+
+class C { public String tostring() { return ""; } }
+]]></source>
+        </case>
+        <case name="hcn4" flagged="false" scope="main">
+            <source><![CDATA[package example.hcn4;
+
+class C { public boolean equal(C o) { return false; } }
+]]></source>
+        </case>
+        <case name="hcn5" flagged="false" scope="main">
+            <source><![CDATA[package example.hcn5;
+
+class C { int hashcode(int x) { return x; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="ArrayTypeStyle" kind="reuse">
+        <case name="arr1" flagged="true" scope="main">
+            <source><![CDATA[package example.arr1;
+
+class C { int a[]; }
+]]></source>
+        </case>
+        <case name="arr2" flagged="true" scope="main">
+            <source><![CDATA[package example.arr2;
+
+class C { void m(String a[]) { } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="AvoidDoubleBraceInitialization" kind="reuse">
+        <case name="dbi3" flagged="true" scope="main">
+            <source><![CDATA[package example.dbi3;
+
+import java.util.*; class C { Map<String, String> f = new HashMap<>() {{ put("a", "b"); }}; }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="CovariantEquals" kind="reuse">
+        <case name="coveq1" flagged="true" scope="main">
+            <source><![CDATA[package example.coveq1;
+
+class C { public boolean equals(C o) { return o == this; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="DefaultComesLast" kind="reuse">
+        <case name="defl1" flagged="true" scope="main">
+            <source><![CDATA[package example.defl1;
+
+class C { int m(int x) { switch (x) { default: return 0; case 1: return 1; } } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="EmptyBlock" kind="reuse">
+        <case name="empt1" flagged="true" scope="main">
+            <source><![CDATA[package example.empt1;
+
+class C { void m(boolean x) { if (x) { } } }
+]]></source>
+        </case>
+        <case name="empt4" flagged="true" scope="main">
+            <source><![CDATA[package example.empt4;
+
+class C { void m(boolean x) { if (x) { m(x); } else { } } }
+]]></source>
+        </case>
+        <case name="empt5" flagged="true" scope="main">
+            <source><![CDATA[package example.empt5;
+
+class C { static { } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="EmptyStatement|UnnecessarySemicolonAfterOuterTypeDeclaration|UnnecessarySemicolonAfterTypeMemberDeclaration|UnnecessarySemicolonInEnumeration|UnnecessarySemicolonInTryWithResources" kind="reuse">
+        <case name="semi1" flagged="true" scope="main">
+            <source><![CDATA[package example.semi1;
+
+class C { void m() { m();; } }
+]]></source>
+        </case>
+        <case name="semi2" flagged="true" scope="main">
+            <source><![CDATA[package example.semi2;
+
+class C { void m() { } ; }
+]]></source>
+        </case>
+        <case name="semi3" flagged="true" scope="main">
+            <source><![CDATA[package example.semi3;
+
+enum C { A; ; }
+]]></source>
+        </case>
+        <case name="semi4" flagged="true" scope="main">
+            <source><![CDATA[package example.semi4;
+
+import java.io.*; class C { void m() throws IOException { try (InputStream i = new ByteArrayInputStream(new byte[0]);) { i.read(); } } }
+]]></source>
+        </case>
+        <case name="semi5" flagged="true" scope="main">
+            <source><![CDATA[package example.semi5;
+
+class C { };
+]]></source>
+        </case>
+        <case name="semi6" flagged="true" scope="main">
+            <source><![CDATA[package example.semi6;
+
+enum C { A, B; }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="ExplicitInitialization" kind="reuse">
+        <case name="expl1" flagged="true" scope="main">
+            <source><![CDATA[package example.expl1;
+
+class C { private int a = 0; int m() { return a; } }
+]]></source>
+        </case>
+        <case name="expl2" flagged="true" scope="main">
+            <source><![CDATA[package example.expl2;
+
+class C { private Object a = null; Object m() { return a; } }
+]]></source>
+        </case>
+        <case name="expl4" flagged="true" scope="main">
+            <source><![CDATA[package example.expl4;
+
+class C { private boolean a = false; boolean m() { return a; } }
+]]></source>
+        </case>
+        <case name="expl5" flagged="true" scope="main">
+            <source><![CDATA[package example.expl5;
+
+class C { private static int a = 0; int m() { return a; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="FallThrough" kind="reuse">
+        <case name="fall1" flagged="true" scope="main">
+            <source><![CDATA[package example.fall1;
+
+class C { int m(int x) { int r = 0; switch (x) { case 1: r = 1; case 2: r = 2; break; default: r = 3; } return r; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="FinalClass" kind="reuse">
+        <case name="fcls1" flagged="true" scope="main">
+            <source><![CDATA[package example.fcls1;
+
+class C { private C() { } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="ModifierOrder" kind="reuse">
+        <case name="mod1" flagged="true" scope="main">
+            <source><![CDATA[package example.mod1;
+
+class C { final static int A = 1; }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="MultipleVariableDeclarations" kind="reuse">
+        <case name="mvd1" flagged="true" scope="main">
+            <source><![CDATA[package example.mvd1;
+
+class C { int a, b; }
+]]></source>
+        </case>
+        <case name="mvd2" flagged="true" scope="main">
+            <source><![CDATA[package example.mvd2;
+
+class C { void m() { int a = 1, b = 2; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="NeedBraces" kind="reuse">
+        <case name="brace1" flagged="true" scope="main">
+            <source><![CDATA[package example.brace1;
+
+class C { void m(boolean x) { if (x) m(x); } }
+]]></source>
+        </case>
+        <case name="brace2" flagged="true" scope="main">
+            <source><![CDATA[package example.brace2;
+
+class C { void m(int x) { while (x > 0) x--; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="NoFinalizer" kind="reuse">
+        <case name="fin1" flagged="true" scope="main">
+            <source><![CDATA[package example.fin1;
+
+class C { @Override protected void finalize() { } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="RedundantModifier" kind="reuse">
+        <case name="nens1" flagged="true" scope="main">
+            <source><![CDATA[package example.nens1;
+
+class C { static enum E { A } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="RequireFinalField" kind="reuse">
+        <case name="fpf1" flagged="true" scope="main">
+            <source><![CDATA[package example.fpf1;
+
+class C { private int a; C(int a) { this.a = a; } int m() { return a; } }
+]]></source>
+        </case>
+        <case name="fpf3" flagged="true" scope="main">
+            <source><![CDATA[package example.fpf3;
+
+class C { private String a = "x"; String m() { return a; } }
+]]></source>
+        </case>
+        <case name="fpf8" flagged="true" scope="main">
+            <source><![CDATA[package example.fpf8;
+
+class C { private static int a = 1; int m() { return a; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="SimplifyBooleanExpression|PMD.AvoidMultipleUnaryOperators" kind="reuse">
+        <case name="sbe1" flagged="true" scope="main">
+            <source><![CDATA[package example.sbe1;
+
+class C { boolean m(boolean a) { return a == true; } }
+]]></source>
+        </case>
+        <case name="sbe2" flagged="true" scope="main">
+            <source><![CDATA[package example.sbe2;
+
+class C { boolean m(boolean a) { return !!a; } }
+]]></source>
+        </case>
+        <case name="sbe3" flagged="true" scope="main">
+            <source><![CDATA[package example.sbe3;
+
+class C { boolean m(boolean a) { return a && true; } }
+]]></source>
+        </case>
+        <case name="sbe4" flagged="true" scope="main">
+            <source><![CDATA[package example.sbe4;
+
+class C { boolean m(boolean a) { return !(!a); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="StringLiteralEquality" kind="reuse">
+        <case name="sle1" flagged="true" scope="main">
+            <source><![CDATA[package example.sle1;
+
+class C { boolean m(String s) { return s == "x"; } }
+]]></source>
+        </case>
+        <case name="sle2" flagged="true" scope="main">
+            <source><![CDATA[package example.sle2;
+
+class C { boolean m(String s) { return "x" != s; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="SuperFinalize" kind="reuse">
+        <case name="fsup1" flagged="true" scope="main">
+            <source><![CDATA[package example.fsup1;
+
+class C { @Override protected void finalize() throws Throwable { m(); } void m() { } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="UnnecessaryNullCheckWithInstanceOf" kind="reuse">
+        <case name="nci1" flagged="true" scope="main">
+            <source><![CDATA[package example.nci1;
+
+class C { boolean m(Object o) { return o != null && o instanceof String; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="UnnecessaryParentheses" kind="reuse">
+        <case name="upar1" flagged="true" scope="main">
+            <source><![CDATA[package example.upar1;
+
+class C { int m(int a) { return (a); } }
+]]></source>
+        </case>
+        <case name="upar2" flagged="true" scope="main">
+            <source><![CDATA[package example.upar2;
+
+class C { int m(int a) { int b = (a + 1); return b; } }
+]]></source>
+        </case>
+        <case name="upar4" flagged="true" scope="main">
+            <source><![CDATA[package example.upar4;
+
+class C { boolean m(int a) { if ((a == 1)) { return true; } return false; } }
+]]></source>
+        </case>
+        <case name="upar5" flagged="true" scope="main">
+            <source><![CDATA[package example.upar5;
+
+class C { int m(int a) { a = (a + 1); return a; } }
+]]></source>
+        </case>
+        <case name="upar6" flagged="true" scope="main">
+            <source><![CDATA[package example.upar6;
+
+import java.util.function.IntUnaryOperator; class C { IntUnaryOperator m() { return (x) -> x; } }
+]]></source>
+        </case>
+        <case name="upar8" flagged="true" scope="main">
+            <source><![CDATA[package example.upar8;
+
+class C { int m(int a) { return a + (1); } }
+]]></source>
+        </case>
+        <case name="upar9" flagged="true" scope="main">
+            <source><![CDATA[package example.upar9;
+
+class C { String m() { return ("x"); } }
+]]></source>
+        </case>
+        <case name="upar11" flagged="true" scope="main">
+            <source><![CDATA[package example.upar11;
+
+class C { int m(int[] a) { return (a)[0]; } }
+]]></source>
+        </case>
+        <case name="upar12" flagged="true" scope="main">
+            <source><![CDATA[package example.upar12;
+
+class C { boolean m(boolean a) { return !(a); } }
+]]></source>
+        </case>
+        <case name="upar13" flagged="true" scope="main">
+            <source><![CDATA[package example.upar13;
+
+class C { int m(int a) { return (a) + 1; } }
+]]></source>
+        </case>
+        <case name="upar14" flagged="true" scope="main">
+            <source><![CDATA[package example.upar14;
+
+class C { int m(int a) { a += (1 + a); return a; } }
+]]></source>
+        </case>
+        <case name="upar17" flagged="true" scope="main">
+            <source><![CDATA[package example.upar17;
+
+class C { int m(boolean a) { return (a) ? 1 : 0; } }
+]]></source>
+        </case>
+        <case name="upar18" flagged="true" scope="main">
+            <source><![CDATA[package example.upar18;
+
+class C { int m(boolean a) { return a ? (1) : 0; } }
+]]></source>
+        </case>
+        <case name="upar19" flagged="true" scope="main">
+            <source><![CDATA[package example.upar19;
+
+class C { void m(boolean a) { while ((a)) { a = false; } } }
+]]></source>
+        </case>
+        <case name="upar20" flagged="true" scope="main">
+            <source><![CDATA[package example.upar20;
+
+class C { int m(int a) { return -(a); } }
+]]></source>
+        </case>
+        <case name="upar23" flagged="true" scope="main">
+            <source><![CDATA[package example.upar23;
+
+class C { void m() { n((1)); } void n(int x) { } }
+]]></source>
+        </case>
+        <case name="upar24" flagged="true" scope="main">
+            <source><![CDATA[package example.upar24;
+
+class C { boolean m(Object o) { return (o instanceof String); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="UpperEll" kind="reuse">
+        <case name="ucls1" flagged="true" scope="main">
+            <source><![CDATA[package example.ucls1;
+
+class C { long a = 1l; }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="Checkstyle" id="UseEnhancedSwitch" kind="reuse">
+        <case name="yta1" flagged="true" scope="main">
+            <source><![CDATA[package example.yta1;
+
+class C { int m(int x) { return switch (x) { case 1: yield 1; default: yield 2; }; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="AddEmptyString" kind="reuse">
+        <case name="scvo1" flagged="true" scope="main">
+            <source><![CDATA[package example.scvo1;
+
+class C { String m(int a) { return "" + a; } }
+]]></source>
+        </case>
+        <case name="scvo4" flagged="true" scope="main">
+            <source><![CDATA[package example.scvo4;
+
+class C { String m(Object a) { return "" + a; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="AvoidRethrowingException" kind="reuse">
+        <case name="crt1" flagged="true" scope="main">
+            <source><![CDATA[package example.crt1;
+
+import java.io.IOException; class C { void m() throws IOException { try { r(); } catch (IOException e) { throw e; } } void r() throws IOException { } }
+]]></source>
+        </case>
+        <case name="crt4" flagged="true" scope="main">
+            <source><![CDATA[package example.crt4;
+
+class C { void m() { try { r(); } catch (RuntimeException e) { throw e; } } void r() { } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="AvoidUsingOctalValues" kind="reuse">
+        <case name="oct1" flagged="true" scope="main">
+            <source><![CDATA[package example.oct1;
+
+class C { int a = 010; }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="ForLoopShouldBeWhileLoop" kind="reuse">
+        <case name="wif1" flagged="true" scope="main">
+            <source><![CDATA[package example.wif1;
+
+class C { void m(boolean b) { for (; b;) { b = false; } } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="InefficientStringBuffering" kind="reuse">
+        <case name="chain1" flagged="true" scope="main">
+            <source><![CDATA[package example.chain1;
+
+class C { String m(String a) { StringBuilder b = new StringBuilder(); b.append("x" + a); return b.toString(); } }
+]]></source>
+        </case>
+        <case name="chain3" flagged="true" scope="main">
+            <source><![CDATA[package example.chain3;
+
+class C { String m(String a, String c) { StringBuilder b = new StringBuilder(); b.append(a + c); return b.toString(); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="JUnitJupiterTestShouldBePackagePrivate" kind="reuse">
+        <case name="tnp1" flagged="true" scope="test">
+            <source><![CDATA[package example.tnp1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; public class C { @Test void t() { assertTrue(f()); } boolean f() { return true; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="LambdaCanBeMethodReference" kind="reuse">
+        <case name="lmr1" flagged="true" scope="main">
+            <source><![CDATA[package example.lmr1;
+
+import java.util.function.Function; class C { Function<String, Integer> m() { return s -> s.length(); } }
+]]></source>
+        </case>
+        <case name="lmr8" flagged="true" scope="main">
+            <source><![CDATA[package example.lmr8;
+
+import java.util.function.Consumer; class C { Consumer<String> m() { return s -> System.out.println(s); } }
+]]></source>
+        </case>
+        <case name="lmr10" flagged="true" scope="main">
+            <source><![CDATA[package example.lmr10;
+
+import java.util.function.Predicate; import java.util.Objects; class C { Predicate<Object> m() { return o -> Objects.nonNull(o); } }
+]]></source>
+        </case>
+        <case name="lmr12" flagged="true" scope="main">
+            <source><![CDATA[package example.lmr12;
+
+import java.util.function.Function; class C { Function<C, String> m() { return c -> c.n(); } String n() { return ""; } }
+]]></source>
+        </case>
+        <case name="lmr13" flagged="true" scope="main">
+            <source><![CDATA[package example.lmr13;
+
+import java.util.function.Supplier; class C { Supplier<String> m() { return () -> this.n(); } String n() { return ""; } }
+]]></source>
+        </case>
+        <case name="rlmr7" flagged="true" scope="main">
+            <source><![CDATA[package example.rlmr7;
+
+import java.util.function.Predicate; class C { Predicate<String> m() { return s -> s.isEmpty(); } }
+]]></source>
+        </case>
+        <case name="rlmr9" flagged="true" scope="main">
+            <source><![CDATA[package example.rlmr9;
+
+import java.util.function.BiFunction; class C { BiFunction<String, String, Boolean> m() { return (a, b) -> a.equals(b); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="LiteralsFirstInComparisons" kind="reuse">
+        <case name="eqan1" flagged="true" scope="main">
+            <source><![CDATA[package example.eqan1;
+
+class C { boolean m(String s) { return s.equals("x"); } }
+]]></source>
+        </case>
+        <case name="eqan2" flagged="true" scope="main">
+            <source><![CDATA[package example.eqan2;
+
+class C { boolean m(String s) { return s.equalsIgnoreCase("x"); } }
+]]></source>
+        </case>
+        <case name="eqan5" flagged="true" scope="main">
+            <source><![CDATA[package example.eqan5;
+
+class C { static final String K = "k"; boolean m(String s) { return s.equals(K); } }
+]]></source>
+        </case>
+        <case name="eqan6" flagged="true" scope="main">
+            <source><![CDATA[package example.eqan6;
+
+class C { boolean m(String s) { return s.contentEquals("x"); } }
+]]></source>
+        </case>
+        <case name="eqan7" flagged="true" scope="main">
+            <source><![CDATA[package example.eqan7;
+
+class C { boolean m(Object s) { return s.equals("x"); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="LogicInversion" kind="reuse">
+        <case name="bcni1" flagged="true" scope="main">
+            <source><![CDATA[package example.bcni1;
+
+class C { boolean m(int a, int b) { return !(a == b); } }
+]]></source>
+        </case>
+        <case name="bcni2" flagged="true" scope="main">
+            <source><![CDATA[package example.bcni2;
+
+class C { boolean m(int a, int b) { return !(a < b); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="PrimitiveWrapperInstantiation" kind="reuse">
+        <case name="pwc1" flagged="true" scope="main">
+            <source><![CDATA[package example.pwc1;
+
+class C { Integer m(int a) { return new Integer(a); } }
+]]></source>
+        </case>
+        <case name="pwc2" flagged="true" scope="main">
+            <source><![CDATA[package example.pwc2;
+
+class C { Boolean m() { return new Boolean("true"); } }
+]]></source>
+        </case>
+        <case name="pwc3" flagged="true" scope="main">
+            <source><![CDATA[package example.pwc3;
+
+class C { Character m() { return new Character('a'); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="SimplifiableTestAssertion" kind="reuse">
+        <case name="atn1" flagged="true" scope="test">
+            <source><![CDATA[package example.atn1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertTrue(!f()); } boolean f() { return false; } }
+]]></source>
+        </case>
+        <case name="afn1" flagged="true" scope="test">
+            <source><![CDATA[package example.afn1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertFalse(!f()); } boolean f() { return true; } }
+]]></source>
+        </case>
+        <case name="ate1" flagged="true" scope="test">
+            <source><![CDATA[package example.ate1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertTrue("a".equals(s())); } String s() { return "a"; } }
+]]></source>
+        </case>
+        <case name="atc1" flagged="true" scope="test">
+            <source><![CDATA[package example.atc1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertTrue(1 == i()); } int i() { return 1; } }
+]]></source>
+        </case>
+        <case name="afe1" flagged="true" scope="test">
+            <source><![CDATA[package example.afe1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertFalse("a".equals(s())); } String s() { return "b"; } }
+]]></source>
+        </case>
+        <case name="afn2" flagged="true" scope="test">
+            <source><![CDATA[package example.afn2;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertFalse(s() == null); } String s() { return ""; } }
+]]></source>
+        </case>
+        <case name="atn2" flagged="true" scope="test">
+            <source><![CDATA[package example.atn2;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertTrue(s() == null); } String s() { return null; } }
+]]></source>
+        </case>
+        <case name="aeb1" flagged="true" scope="test">
+            <source><![CDATA[package example.aeb1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertEquals(true, f()); } boolean f() { return true; } }
+]]></source>
+        </case>
+        <case name="anb1" flagged="true" scope="test">
+            <source><![CDATA[package example.anb1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertNotEquals(false, f()); } boolean f() { return true; } }
+]]></source>
+        </case>
+        <case name="uas1" flagged="true" scope="test">
+            <source><![CDATA[package example.uas1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { Object a = o(); assertTrue(a == o()); } Object o() { return this; } }
+]]></source>
+        </case>
+        <case name="uas2" flagged="true" scope="test">
+            <source><![CDATA[package example.uas2;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertTrue(o() == o()); } Object o() { return this; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="SimplifyBooleanReturns" kind="reuse">
+        <case name="sbr1" flagged="true" scope="main">
+            <source><![CDATA[package example.sbr1;
+
+class C { boolean m(boolean a) { if (a) { return true; } else { return false; } } }
+]]></source>
+        </case>
+        <case name="sbr2" flagged="true" scope="main">
+            <source><![CDATA[package example.sbr2;
+
+class C { boolean m(boolean a) { if (a) { return true; } return false; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="StringBufferInstantiationWithChar" kind="reuse">
+        <case name="sbch1" flagged="true" scope="main">
+            <source><![CDATA[package example.sbch1;
+
+class C { StringBuilder m() { return new StringBuilder('a'); } }
+]]></source>
+        </case>
+        <case name="sbch3" flagged="true" scope="main">
+            <source><![CDATA[package example.sbch3;
+
+class C { StringBuffer m() { return new StringBuffer('a'); } }
+]]></source>
+        </case>
+        <case name="sbch4" flagged="true" scope="main">
+            <source><![CDATA[package example.sbch4;
+
+class C { StringBuilder m(char c) { return new StringBuilder(c); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="StringToString" kind="reuse">
+        <case name="tsts1" flagged="true" scope="main">
+            <source><![CDATA[package example.tsts1;
+
+class C { String m(String a) { return a.toString(); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="SuspiciousHashcodeMethodName|SuspiciousEqualsMethodName" kind="reuse">
+        <case name="hcn1" flagged="true" scope="main">
+            <source><![CDATA[package example.hcn1;
+
+class C { public int hashcode() { return 1; } }
+]]></source>
+        </case>
+        <case name="hcn2" flagged="true" scope="main">
+            <source><![CDATA[package example.hcn2;
+
+class C { public boolean equal(Object o) { return false; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="SystemPrintln" kind="reuse">
+        <case name="io1" flagged="true" scope="main">
+            <source><![CDATA[package example.io1;
+
+class C { void m() { System.out.println("x"); } }
+]]></source>
+        </case>
+        <case name="io2" flagged="true" scope="main">
+            <source><![CDATA[package example.io2;
+
+class C { void m() { System.out.print("x"); } }
+]]></source>
+        </case>
+        <case name="io4" flagged="true" scope="main">
+            <source><![CDATA[package example.io4;
+
+class C { void m() { System.out.println(); } }
+]]></source>
+        </case>
+        <case name="io7" flagged="true" scope="main">
+            <source><![CDATA[package example.io7;
+
+class C { void m(char[] c) { System.out.println(c); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="TooFewBranchesForSwitch" kind="reuse">
+        <case name="msc1" flagged="true" scope="main">
+            <source><![CDATA[package example.msc1;
+
+class C { int m(int x) { switch (x) { case 1: return 1; default: return 0; } } }
+]]></source>
+        </case>
+        <case name="msc3" flagged="true" scope="main">
+            <source><![CDATA[package example.msc3;
+
+class C { int m(String x) { switch (x) { case "a": return 1; } return 0; } }
+]]></source>
+        </case>
+        <case name="msc5" flagged="true" scope="main">
+            <source><![CDATA[package example.msc5;
+
+class C { enum E { A, B } int m(E x) { switch (x) { case A: return 1; default: return 0; } } }
+]]></source>
+        </case>
+        <case name="msc6" flagged="true" scope="main">
+            <source><![CDATA[package example.msc6;
+
+class C { int m(int x) { switch (x) { case 1 -> { return 1; } default -> { return 0; } } } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="UnnecessaryBooleanAssertion" kind="reuse">
+        <case name="alb1" flagged="true" scope="test">
+            <source><![CDATA[package example.alb1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertTrue(false); } }
+]]></source>
+        </case>
+        <case name="alb2" flagged="true" scope="test">
+            <source><![CDATA[package example.alb2;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertFalse(true, "x"); } }
+]]></source>
+        </case>
+        <case name="alr1" flagged="true" scope="test">
+            <source><![CDATA[package example.alr1;
+
+import org.junit.jupiter.api.*; import static org.junit.jupiter.api.Assertions.*; class C { @Test void t() { assertTrue(true); assertNotNull(""); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="UnnecessaryCaseChange" kind="reuse">
+        <case name="ccase1" flagged="true" scope="main">
+            <source><![CDATA[package example.ccase1;
+
+class C { boolean m(String a, String b) { return a.toLowerCase().equalsIgnoreCase(b); } }
+]]></source>
+        </case>
+        <case name="ccase2" flagged="true" scope="main">
+            <source><![CDATA[package example.ccase2;
+
+class C { boolean m(String a, String b) { return a.equalsIgnoreCase(b.toUpperCase()); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="UnnecessaryReturn" kind="reuse">
+        <case name="jmp1" flagged="true" scope="main">
+            <source><![CDATA[package example.jmp1;
+
+class C { void m() { m(); return; } }
+]]></source>
+        </case>
+        <case name="ura1" flagged="true" scope="main">
+            <source><![CDATA[package example.ura1;
+
+class C { void m(boolean b) { if (b) { m(b); } else { return; } } }
+]]></source>
+        </case>
+        <case name="ura2" flagged="true" scope="main">
+            <source><![CDATA[package example.ura2;
+
+class C { void m() { m(); return; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="UseCollectionIsEmpty" kind="reuse">
+        <case name="isempt1" flagged="true" scope="main">
+            <source><![CDATA[package example.isempt1;
+
+import java.util.List; class C { boolean m(List<String> l) { return l.size() == 0; } }
+]]></source>
+        </case>
+        <case name="isempt2" flagged="true" scope="main">
+            <source><![CDATA[package example.isempt2;
+
+import java.util.List; class C { boolean m(List<String> l) { return l.size() != 0; } }
+]]></source>
+        </case>
+        <case name="isempt3" flagged="true" scope="main">
+            <source><![CDATA[package example.isempt3;
+
+import java.util.List; class C { boolean m(List<String> l) { return 0 == l.size(); } }
+]]></source>
+        </case>
+        <case name="isempt4" flagged="true" scope="main">
+            <source><![CDATA[package example.isempt4;
+
+import java.util.List; class C { boolean m(List<String> l) { return l.size() > 0; } }
+]]></source>
+        </case>
+        <case name="isempt5" flagged="true" scope="main">
+            <source><![CDATA[package example.isempt5;
+
+import java.util.List; class C { boolean m(List<String> l) { return l.size() < 1; } }
+]]></source>
+        </case>
+        <case name="isempt6" flagged="true" scope="main">
+            <source><![CDATA[package example.isempt6;
+
+import java.util.List; class C { boolean m(List<String> l) { return l.size() >= 1; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="UseDiamondOperator" kind="reuse">
+        <case name="diam1" flagged="true" scope="main">
+            <source><![CDATA[package example.diam1;
+
+import java.util.*; class C { List<String> m() { return new ArrayList<String>(); } }
+]]></source>
+        </case>
+        <case name="diam2" flagged="true" scope="main">
+            <source><![CDATA[package example.diam2;
+
+import java.util.*; class C { List<String> f = new ArrayList<String>(); }
+]]></source>
+        </case>
+        <case name="diam5" flagged="true" scope="main">
+            <source><![CDATA[package example.diam5;
+
+import java.util.*; class C { void m() { List<String> l = new ArrayList<String>(); n(l); } void n(List<String> l) { } }
+]]></source>
+        </case>
+        <case name="diam6" flagged="true" scope="main">
+            <source><![CDATA[package example.diam6;
+
+import java.util.*; class C { void m() { n(new ArrayList<String>()); } void n(List<String> l) { } void n(Set<Integer> l) { } }
+]]></source>
+        </case>
+        <case name="diam7" flagged="true" scope="main">
+            <source><![CDATA[package example.diam7;
+
+import java.util.*; class C { void m() { n(new ArrayList<String>()); } void n(List<String> l) { } }
+]]></source>
+        </case>
+        <case name="diam8" flagged="true" scope="main">
+            <source><![CDATA[package example.diam8;
+
+import java.util.*; class C { List<String> m() { return new ArrayList<String>() { }; } }
+]]></source>
+        </case>
+        <case name="diam9" flagged="true" scope="main">
+            <source><![CDATA[package example.diam9;
+
+import java.util.*; class C { List<String> m() { List<String> l; l = new ArrayList<String>(); return l; } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="UseTryWithResources" kind="reuse">
+        <case name="twr1" flagged="true" scope="main">
+            <source><![CDATA[package example.twr1;
+
+import java.io.*; class C { void m() throws IOException { InputStream i = new FileInputStream("x"); try { i.read(); } finally { i.close(); } } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="UselessStringValueOf" kind="reuse">
+        <case name="vos2" flagged="true" scope="main">
+            <source><![CDATA[package example.vos2;
+
+class C { String m(int a) { return "x" + String.valueOf(a); } }
+]]></source>
+        </case>
+    </rule>
+    <rule tool="PMD" id="VariableCanBeInlined" kind="reuse">
+        <case name="inl1" flagged="true" scope="main">
+            <source><![CDATA[package example.inl1;
+
+class C { int m(int a) { int r = a + 1; return r; } }
+]]></source>
+        </case>
+        <case name="inl3" flagged="true" scope="main">
+            <source><![CDATA[package example.inl3;
+
+class C { void m(int a) { RuntimeException r = new RuntimeException(); throw r; } }
+]]></source>
+        </case>
+    </rule>
+</modernization>

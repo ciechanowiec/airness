@@ -27,7 +27,8 @@ final class CheckstyleRule {
 
     static int findings(Path directory, String source, String rule) {
         Element module = ProjectFiles.descendants(configuration(), "module")
-            .filter(candidate -> rule.equals(property(candidate, "id")))
+            .filter(candidate -> !candidate.getAttribute("name").startsWith("Suppression"))
+            .filter(candidate -> rule.equals(property(candidate, "id")) || unnamedModule(candidate, rule))
             .reduce(
                 (_, _) -> {
                     throw new IllegalStateException("Several modules matched " + rule);
@@ -61,6 +62,10 @@ final class CheckstyleRule {
         } finally {
             checker.destroy();
         }
+    }
+
+    private static boolean unnamedModule(Element module, String name) {
+        return property(module, "id").isEmpty() && name.equals(module.getAttribute("name"));
     }
 
     private static String query(String rule, String queryMarker) {
