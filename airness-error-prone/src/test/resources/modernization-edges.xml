@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges>
+    <edge check="AirnessArraysAsListTakesElements" findings="0"><![CDATA[import java.util.*; class C { List<String> m() { return Arrays.asList(new String[3]); } }]]></edge>
+    <edge check="AirnessArraysAsListTakesElements" findings="0"><![CDATA[import java.util.*; class C { List<String> m() { return Arrays.asList(new String[] {}); } }]]></edge>
+    <edge check="AirnessArraysAsListTakesElements" findings="0"><![CDATA[import java.util.*; class C { List<String> m() { return Arrays.asList("a", "b"); } }]]></edge>
+    <edge check="AirnessArraysAsListTakesElements" findings="0"><![CDATA[import java.util.*; class C { List<Object> m() { return List.of(new Object[] {1}); } }]]></edge>
+    <edge check="AirnessToArrayIsTyped" findings="0"><![CDATA[import java.util.*; class C { Object m(List<String> l) { return (Object) l.toArray(); } }]]></edge>
+    <edge check="AirnessToArrayIsTyped" findings="0"><![CDATA[import java.util.*; class C { String[] m(List<String> l) { return (String[]) l.toArray(); } }]]></edge>
+    <edge check="AirnessToArrayIsTyped" findings="0"><![CDATA[import java.util.*; class C { String[] m(Object o) { return (String[]) o; } }]]></edge>
+    <edge check="AirnessToArrayIsTyped" findings="1"><![CDATA[import java.util.*; class C { String[] m() { return (String[]) (Arrays.asList("a").toArray()); } }]]></edge>
+    <edge check="AirnessEnumGuardIsALabel" findings="1"><![CDATA[class C { enum E { A } int m(Object o) { return switch (o) { case E e when E.A == e -> 1; default -> 2; }; } }]]></edge>
+    <edge check="AirnessEnumGuardIsALabel" findings="0"><![CDATA[class C { enum E { A } int m(Object o) { return switch (o) { case E e when e != E.A -> 1; default -> 2; }; } }]]></edge>
+    <edge check="AirnessEnumGuardIsALabel" findings="0"><![CDATA[class C { enum E { A } int m(Object o) { return switch (o) { case E e when e.ordinal() == 0 -> 1; default -> 2; }; } }]]></edge>
+    <edge check="AirnessEnumGuardIsALabel" findings="0"><![CDATA[class C { enum E { A } int m(Object o, E f) { return switch (o) { case E e when f == E.A -> 1; default -> 2; }; } }]]></edge>
+    <edge check="AirnessEnumGuardIsALabel" findings="0"><![CDATA[class C { int m(Object o) { return switch (o) { case String s -> 1; default -> 2; }; } }]]></edge>
+    <edge check="AirnessEnumGuardIsALabel" findings="0"><![CDATA[class C { int m(int x) { return switch (x) { case 1, 2 -> 1; default -> 2; }; } }]]></edge>
+    <edge check="AirnessEnumGuardIsALabel" findings="0"><![CDATA[class C { int m(Object o) { return switch (o) { case Integer i when i == 3 -> 1; default -> 2; }; } }]]></edge>
+    <edge check="AirnessClassLiteralIsInstanceof" findings="0"><![CDATA[class C { boolean m(Object o) throws Exception { return Class.forName("x").isInstance(o); } }]]></edge>
+    <edge check="AirnessClassLiteralIsInstanceof" findings="0"><![CDATA[class C { static class K { boolean isInstance(Object o) { return true; } } boolean m(Object o) { return new K().isInstance(o); } }]]></edge>
+    <edge check="AirnessClassLiteralIsInstanceof" findings="0"><![CDATA[class C { boolean m(Object o) { return String.class.isAssignableFrom(o.getClass()); } }]]></edge>
+    <edge check="AirnessWrapperIsNotBoxedForConversion" findings="0"><![CDATA[class C { int m(int a) { return Integer.valueOf(a).hashCode(); } }]]></edge>
+    <edge check="AirnessWrapperIsNotBoxedForConversion" findings="0"><![CDATA[class C { String m(Integer a) { return a.toString(); } }]]></edge>
+    <edge check="AirnessWrapperIsNotBoxedForConversion" findings="0"><![CDATA[class C { String m(Object a) { return String.valueOf(a).toString(); } }]]></edge>
+    <edge check="AirnessWrapperIsNotBoxedForConversion" findings="0"><![CDATA[class C { String m(String a) { return Integer.valueOf(a).toString(); } }]]></edge>
+    <edge check="AirnessWrapperIsNotBoxedForConversion" findings="0"><![CDATA[class C { String m(String a) { return Integer.valueOf(a, 16).toString(); } }]]></edge>
+    <edge check="AirnessWrapperIsNotBoxedForConversion" findings="1"><![CDATA[class C { int m(char a, Character b) { return Character.valueOf(a).compareTo(b); } }]]></edge>
+    <edge check="AirnessExternalizableHasNoArgConstructor" findings="0"><![CDATA[import java.io.*; interface C extends Externalizable { }]]></edge>
+    <edge check="AirnessExternalizableHasNoArgConstructor" findings="0"><![CDATA[import java.io.*; class C implements Externalizable { private static final int K = 1; public C() { } public void writeExternal(ObjectOutput o) { } public void readExternal(ObjectInput i) { } }]]></edge>
+    <edge check="AirnessExternalizableHasNoArgConstructor" findings="1"><![CDATA[import java.io.*; class C implements Externalizable { private static final int K; static { K = 1; } private final int v = 2; C(int v) { } public void writeExternal(ObjectOutput o) { } public void readExternal(ObjectInput i) { } }]]></edge>
+    <edge check="AirnessExternalizableHasNoArgConstructor" findings="0"><![CDATA[import java.io.*; class C implements Serializable { private int v; C(int v) { this.v = v; } }]]></edge>
+    <edge check="AirnessExternalizableHasNoArgConstructor" findings="0"><![CDATA[import java.io.*; enum C implements Serializable { A }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="1"><![CDATA[class C { int m(Object o) { return o instanceof String && ((String) o).isEmpty() ? 1 : 0; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="1"><![CDATA[class C { int m(Object o) { if (((o instanceof String))) { return ((String) o).length(); } return 0; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { int m(Object o) { if (o instanceof String) { return 0; } else { return ((String) o).length(); } } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { boolean m(Object o) { return o instanceof String || ((String) o).isEmpty(); } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { Object o() { return null; } int m() { if (o() instanceof String) { return ((String) o()).length(); } return 0; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { int m(Object o, Object p) { if (o instanceof String) { return ((String) p).length(); } return 0; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { int m(Object o) { if (o instanceof String) { return ((Integer) o).intValue(); } return 0; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { boolean m(Object o) { boolean b = o instanceof String; return b; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { void m(Object o) { while (o instanceof String) { o = ((String) o).trim(); } } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Function; class C { Function<String, StringBuilder> m() { return s -> { return new StringBuilder(s); }; } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.BiFunction; class C { record P(String a, String b) { } BiFunction<String, String, P> m() { return (a, b) -> new P(b, a); } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="1"><![CDATA[import java.util.function.BiFunction; class C { record P(String a, String b) { } BiFunction<String, String, P> m() { return (a, b) -> new P(a, b); } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Function; class C { Function<String, StringBuilder> m() { return s -> new StringBuilder(); } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Function; class C { Object f; Function<Object, String> m() { return o -> (String) f; } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="1"><![CDATA[import java.util.function.Predicate; class C { Predicate<Object> m() { return o -> null != o; } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Predicate; class C { Object f; Predicate<Object> m() { return o -> f == null; } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Predicate; class C { Predicate<Object> m() { return o -> o == o; } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Predicate; class C { Predicate<Integer> m() { return o -> o > 0; } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Predicate; class C { Predicate<Object> m() { return o -> o instanceof String s && s.isEmpty(); } }]]></edge>
+    <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.BiPredicate; class C { BiPredicate<Object, Object> m() { return (a, b) -> a instanceof String; } }]]></edge>
+    <edge check="AirnessMapIteratesEntries" findings="0"><![CDATA[import java.util.*; class C { void m(List<String> l, Map<String, Integer> m) { for (String k : l) { n(m.get(k)); } } void n(Integer v) { } }]]></edge>
+    <edge check="AirnessMapIteratesEntries" findings="0"><![CDATA[import java.util.*; class C { Map<String, Integer> o() { return Map.of(); } void m() { for (String k : o().keySet()) { n(o().get(k)); } } void n(Integer v) { } }]]></edge>
+    <edge check="AirnessMapIteratesEntries" findings="0"><![CDATA[import java.util.*; class C { void m(Map<String, Integer> m) { for (String k : m.keySet()) { n(m.get(k)); k = "x"; } } void n(Integer v) { } }]]></edge>
+    <edge check="AirnessMapIteratesEntries" findings="0"><![CDATA[import java.util.*; class C { void m(Map<String, Integer> m) { for (String k : m.keySet()) { n(m.get(k)); m = new HashMap<>(); } } void n(Integer v) { } }]]></edge>
+    <edge check="AirnessMapIteratesEntries" findings="0"><![CDATA[import java.util.*; class C { void m(Map<String, Integer> m) { for (String k : m.keySet()) { n(m.get(k)); Object o = new Object() { }; } } void n(Integer v) { } }]]></edge>
+    <edge check="AirnessMapIteratesEntries" findings="1"><![CDATA[import java.util.*; class C { void m(Map<String, Integer> m) { int s = 0; for (String k : m.keySet()) { n(m.get(k)); s = s + 1; } } void n(Integer v) { } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.io.*; class C { Object m(String s) { StringReader r = new StringReader(s); return r; } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.io.*; class C { Reader m(String s) { return new StringReader(s) { }; } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.io.*; class C { Reader m() { return new InputStreamReader(System.in); } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="1"><![CDATA[import java.io.*; class C { void m(String s) { Reader r = new StringReader(s); n(r); } void n(Reader r) { } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.nio.file.*; class C { String m(Path p) throws Exception { return Files.readString(p); } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="1"><![CDATA[import java.nio.file.*; import java.nio.charset.StandardCharsets; class C { Object m(Path p) throws Exception { return Files.lines(p, StandardCharsets.UTF_8); } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="1"><![CDATA[import java.nio.file.*; import java.util.List; import static java.nio.charset.StandardCharsets.UTF_8; class C { void m(Path p) throws Exception { Files.write(p, List.of("a"), UTF_8); } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.nio.file.*; import java.nio.charset.Charset; class C { void m(Path p, Charset c) throws Exception { Files.readAllLines(p, c); } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.nio.file.*; class C { void m(Path p) throws Exception { Files.write(p, new byte[0]); } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.nio.file.*; class C { long m(Path p) throws Exception { return Files.size(p); } }]]></edge>
+    <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[class C { static String readString(Object p, Object c) { return ""; } String m() { return readString(null, java.nio.charset.StandardCharsets.UTF_8); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.lang3.StringUtils; class C { boolean m(String s) { return StringUtils.isAlpha(s); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.io.FileUtils; import java.io.File; class C { long m(File f) { return FileUtils.sizeOf(f); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.codec.binary.Base64; class C { boolean m(byte[] b) { return Base64.isBase64(b); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.codec.binary.Base64; class C { byte[] m(byte[] b) { return new Base64().encode(b); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="1"><![CDATA[import org.apache.commons.codec.binary.Base64; class C { byte[] m(String b) { return Base64.decodeBase64(b); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[class C { static String trim(String s) { return s; } String m(String s) { return trim(s); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="1"><![CDATA[import org.apache.commons.io.FileUtils; import java.io.File; class C { void m(File f) throws Exception { FileUtils.forceDelete(f); } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.api.*; class C { static class D { @Test void t() { } } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.api.*; class C { @Nested class D { @Test void t() { } } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.api.*; class C { class D { void t() { } } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.api.io.TempDir; import java.nio.file.Path; class C { @TempDir Path dir; final Path other = null; }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import static org.junit.jupiter.api.Assertions.*; class C { void m() { try { r(); } catch (Exception e) { fail(); } finally { r2(); } } void r() throws Exception { } void r2() { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import static org.junit.jupiter.api.Assertions.*; class C { void m() { try { r(); } catch (java.io.IOException e) { fail(); } catch (Exception e) { fail(); } } void r() throws Exception { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[class C { void m() { try { r(); } catch (Exception e) { throw new IllegalStateException(e); } } void r() throws Exception { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import static org.junit.jupiter.api.Assertions.*; class C { void m() { try { r(); } catch (Exception e) { fail(); r(); } } void r() { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.api.*; class C { @Test void t() throws Exception { } void testHelper() { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.api.*; class C { @Test void testsReadTheValue() { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.params.*; import org.junit.jupiter.params.provider.*; class C { @ParameterizedTest @CsvSource({"a"}) void t(String s, String u) { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="1"><![CDATA[import org.junit.jupiter.params.*; import org.junit.jupiter.params.provider.*; class C { @ParameterizedTest @CsvSource("a") void t(String s) { } }]]></edge>
+    <edge check="AirnessJupiterTestIsWellFormed" findings="0"><![CDATA[import org.junit.jupiter.params.*; import org.junit.jupiter.params.provider.*; class C { @ParameterizedTest @CsvSource(value = {"a"}, nullValues = "x") void t(String s) { } }]]></edge>
+    <edge check="AirnessJupiterAssertionIsDirect" findings="0"><![CDATA[import static org.junit.jupiter.api.Assertions.*; class C { void m(int a) { assertEquals(1, a, "a message"); } }]]></edge>
+    <edge check="AirnessJupiterAssertionIsDirect" findings="1"><![CDATA[import static org.junit.jupiter.api.Assertions.*; class C { void m(long a) { assertEquals(1L, a, 0.0); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import java.util.logging.Logger; class C { private static final Logger LOG = Logger.getLogger("x"); }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger("name"); private final Logger other = LoggerFactory.getLogger(C.class); }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { if (LOG.isDebugEnabled()) { LOG.debug("a {}", e()); } else { m(a); } } String e() { return ""; } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { if (LOG.isDebugEnabled()) { LOG.debug("a {}", e()); m(a); } } String e() { return ""; } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { if (LOG.isDebugEnabled()) { LOG.debug("a {}", e()); } } String e() { return ""; } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="1"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { if (LOG.isDebugEnabled()) LOG.debug("a {}", a); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { if (a > 0) { LOG.info("a {}", a); } } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m() { LOG.error("a {}", e()); LOG.info("a" + "b"); } String e() { return ""; } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.jboss.logging.Logger; class C { void m(Logger l) { l.info("x"); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m() { if (LOG.isWarnEnabled()) { LOG.warn("x"); } } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[class C { static void info(String m) { } void m(String a) { info("a" + a); } }]]></edge>
+    <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.List; class C { static final List<String> EMPTY_LIST = List.of(); List<String> m() { return EMPTY_LIST; } }]]></edge>
+    <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.*; class C { Comparator<String> m() { return Collections.reverseOrder(); } }]]></edge>
+    <edge check="AirnessEmptyCollectionIsTyped" findings="1"><![CDATA[class C { java.util.Map<String, String> m() { return java.util.Collections.EMPTY_MAP; } }]]></edge>
+</edges>

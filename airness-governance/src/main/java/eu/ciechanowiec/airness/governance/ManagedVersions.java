@@ -32,6 +32,10 @@ public final class ManagedVersions {
 
     private static final String MAVEN_PLUGIN_GROUP = "org.apache.maven.plugins";
 
+    private static final String AIRNESS_GROUP = "eu.ciechanowiec";
+
+    private static final String AIRNESS_VERSION = "airness.version";
+
     private static final List<Coordinate> COORDINATES = List.of(
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-clean-plugin", "maven-clean-plugin.version"),
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-resources-plugin", "maven-resources-plugin.version"),
@@ -70,8 +74,7 @@ public final class ManagedVersions {
         suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),
         suppliedPlugin("org.owasp", "dependency-check-maven", "dependency-check-maven.version"),
         suppliedPlugin("org.cyclonedx", "cyclonedx-maven-plugin", "cyclonedx-maven-plugin.version"),
-        suppliedPlugin("org.openrewrite.maven", "rewrite-maven-plugin", "rewrite-maven-plugin.version"),
-        suppliedPlugin("eu.ciechanowiec", "airness-maven-plugin", "airness.version"),
+        suppliedPlugin(AIRNESS_GROUP, "airness-maven-plugin", AIRNESS_VERSION),
         suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-checkstyle-plugin", "maven-checkstyle-plugin.version"),
         suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-pmd-plugin", "maven-pmd-plugin.version"),
         suppliedPlugin(
@@ -84,11 +87,12 @@ public final class ManagedVersions {
         suppliedDependency("org.junit.jupiter", "junit-jupiter-api", "junit.version"),
         suppliedDependency("org.junit.jupiter", "junit-jupiter-engine", "junit.version"),
         suppliedDependency("org.junit.jupiter", "junit-jupiter-params", "junit.version"),
-        suppliedDependency("eu.ciechanowiec", "airness-annotations", "airness.version"),
-        suppliedDependency("eu.ciechanowiec", "airness-config", "airness.version"),
-        suppliedDependency("eu.ciechanowiec", "airness-governance", "airness.version"),
-        suppliedDependency("eu.ciechanowiec", "airness-spring-evidence", "airness.version"),
-        suppliedDependency("eu.ciechanowiec", "airness-web-evidence", "airness.version"),
+        suppliedDependency(AIRNESS_GROUP, "airness-annotations", AIRNESS_VERSION),
+        suppliedDependency(AIRNESS_GROUP, "airness-error-prone", AIRNESS_VERSION),
+        suppliedDependency(AIRNESS_GROUP, "airness-config", AIRNESS_VERSION),
+        suppliedDependency(AIRNESS_GROUP, "airness-governance", AIRNESS_VERSION),
+        suppliedDependency(AIRNESS_GROUP, "airness-spring-evidence", AIRNESS_VERSION),
+        suppliedDependency(AIRNESS_GROUP, "airness-web-evidence", AIRNESS_VERSION),
         suppliedDependency("org.webjars.npm", "axe-core", "axe-core.version"),
         suppliedDependency("org.apache.maven", "maven-artifact", "maven-artifact.version"),
         suppliedDependency("org.attoparser", "attoparser", "attoparser.version"),
@@ -106,27 +110,6 @@ public final class ManagedVersions {
         suppliedDependency("net.sourceforge.pmd", "pmd-javascript", "pmd.version"),
         suppliedDependency("net.sourceforge.pmd", "pmd-jsp", "pmd.version"),
         suppliedDependency("com.qulice", "qulice-maven-plugin", "qulice-maven-plugin.version"),
-        suppliedDependency("org.openrewrite.recipe", "rewrite-apache", "rewrite-apache.version"),
-        suppliedDependency(
-            "org.openrewrite.recipe",
-            "rewrite-logging-frameworks",
-            "rewrite-logging-frameworks.version"
-        ),
-        suppliedDependency(
-            "org.openrewrite.recipe",
-            "rewrite-migrate-java",
-            "rewrite-migrate-java.version"
-        ),
-        suppliedDependency(
-            "org.openrewrite.recipe",
-            "rewrite-static-analysis",
-            "rewrite-static-analysis.version"
-        ),
-        suppliedDependency(
-            "org.openrewrite.recipe",
-            "rewrite-testing-frameworks",
-            "rewrite-testing-frameworks.version"
-        ),
         suppliedDependency(
             "org.codehaus.mojo", "extra-enforcer-rules", "extra-enforcer-rules.version"
         ),

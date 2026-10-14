@@ -68,26 +68,6 @@
                 </executions>
             </plugin>
             <!--
-                The modernization recipes Airness ships, run against Airness's own sources. dryRun only:
-                the apply half is the format command's job and never a verification's.
-            -->
-            <plugin>
-                <groupId>org.openrewrite.maven</groupId>
-                <artifactId>rewrite-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>airness-self-rewrite-verify</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>dryRunNoFork</goal>
-                        </goals>
-                        <configuration>
-                            <failOnDryRunResults>${airness.enforce}</failOnDryRunResults>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--
                 This module has production Java, so it answers to the analyzers and the coverage floor the
                 harness holds every other module to. It could not before: airness-config supplies the rule
                 sets on an isolated plugin classpath, and this module used to be built before it.
