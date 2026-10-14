@@ -380,8 +380,11 @@ another. Neither check decides the question those two stand in for, which is whe
 the behaviour went missing. That half binds in prose: a test fails when the behaviour its name states is removed
 from the code under test. Write each test so that it would, and read it back that way before finishing.
 
-The search for an assertion stops at the file boundary, so a test that reaches one only through a helper in another
-type reports as unproven. Move the assertion into the test's own source rather than suppressing the finding.
+A test helper that asserts carries a name starting with `assert` or `verify`, such as `check.assertSingleAt(...)`.
+An assertion is recognized by that prefix wherever the helper is declared. A helper named otherwise is followed at
+most within its own file, so a test that reaches its assertion only through such a helper in another type reports
+as unproven. Rename the helper or move the assertion into the test's own source rather than suppressing the
+finding.
 
 ### History Shape
 
