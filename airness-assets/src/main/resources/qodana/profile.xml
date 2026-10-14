@@ -131,6 +131,12 @@
            project. The pinned .editorconfig is shared with ploaness and adocent byte for byte, and it
            carries sections for script and JSON files that a Java project usually has none of. A
            project cannot drop a section from a pinned file, so the finding has no repair
+         - TestMethodWithoutAssertion: recognizes an assertion only by the class that declares it, so a
+           test that asserts through a project helper such as check.assertSingleAt(...) is reported as
+           asserting nothing. Its method list pairs a class with a name pattern and matches a method only
+           where that class declares it, so no entry can accept a helper whatever type declares it.
+           PMD UnitTestShouldIncludeAssert and the Airness assertion check still report a test that
+           reaches no assertion, and both recognize a helper by its assert or verify prefix
     -->
 
     <option name="myName" value="HC" />
@@ -742,7 +748,7 @@
     <inspection_tool class="SystemSetSecurityManager" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="TestCaseWithNoTestMethods" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="TestInProductSource" enabled="true" level="WARNING" enabled_by_default="true" />
-    <inspection_tool class="TestMethodWithoutAssertion" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="TestMethodWithoutAssertion" enabled="false" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="TestOnlyProblems" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="ThisEscapedInConstructor" enabled="true" level="WARNING" enabled_by_default="false" />
     <inspection_tool class="ThreadDeathRethrown" enabled="true" level="WARNING" enabled_by_default="false" />
