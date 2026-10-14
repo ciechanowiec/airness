@@ -121,7 +121,7 @@ mvn airness:assets-sync
 
 | [[source-formatting]]Source formatting
 | `mvn process-resources -Pformat`
-| Formats and rewrites Java code.
+| Formats Java code and normalizes its imports.
 
 | [[default-verification]]Default verification
 | `mvn clean verify`
@@ -177,7 +177,7 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 
 | [[forbidden-file]]Forbidden
 | `rewrite.yml`, `qodana/profile.xml`
-| _airness_ supplies these configurations elsewhere. The files must be absent. The xref:#default-verification[default verification] reports but doesn't delete them.
+| _airness_ supplies the Qodana profile elsewhere and refuses source-rewriting engines, whose artifacts the blocklist names. The files must be absent. The xref:#default-verification[default verification] reports but doesn't delete them.
 |===
 
 . The xref:#managed-section[managed section] in `AGENTS.md` is enclosed by `BEGIN AIRNESS MANAGED INSTRUCTIONS` and `END AIRNESS MANAGED INSTRUCTIONS`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or updates this section while preserving the project text below it.

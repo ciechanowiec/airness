@@ -33,7 +33,9 @@ Airness governs all of the following domains:
 
 - **Toolchain and Maven model:** runtime versions, project and parent coordinates, package ownership, inherited plugin
   ownership, raw-model anti-bypass checks, effective dependency convergence, the ordering and local use of declared
-  properties, and valid Airness parameters.
+  properties, valid Airness parameters, and current build practices: no Java version below 25 stated in the project
+  file, no superseded coordinate, a version on every managed dependency, a groupId on every plugin, `project.`-prefixed
+  expressions, the documented order of pom elements, and Java 21 or later in every workflow's `setup-java`.
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
   instruction files; editor and Git configuration; and an unchanged committable tree during verification. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
@@ -46,7 +48,7 @@ Airness governs all of the following domains:
   inputs there and ordinary non-ignored new files remain valid. No project allowlist is provided,
   and report-only mode does not excuse a preflight failure. Arbitrary custom-tool file reads are
   outside this check, so it does not establish general provenance for everything a build can read.
-- **Source:** formatting, imports, modernization recipes, compilation with retained formal parameter names,
+- **Source:** formatting, imports, modernization rules, compilation with retained formal parameter names,
   nullness, static analysis, documentation
   comments, source comments, typography, banned substitutes, banned generated members, and cycles among the
   packages of a module. A generated member is refused where what it generates is a public API the type never
@@ -395,7 +397,7 @@ it is published, only a fresh history satisfies the rule.
 
 1. Read `airness.package.root` from the root `pom.xml` before adding or moving Java packages.
 2. Run `mvn airness:assets-sync` only to create or restore managed repository files, then review and commit its edits.
-3. Run `mvn process-resources -Pformat` to apply formatting and rewrite recipes, then review the resulting source.
+3. Run `mvn process-resources -Pformat` to apply formatting and import order, then review the resulting source.
 4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
    its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
 5. Run `mvn clean verify -Pextended` before finishing. Extended verification includes Default verification and adds
@@ -443,7 +445,8 @@ Earlier report pairs are removed only after a complete replacement has been rend
 - Fix a managed-file finding with `mvn airness:assets-sync`. A seed's contents belong to the project after creation,
   but its path remains mandatory. A project may take over an eligible path through `airness.assets.unmanaged` only
   when the assignment explicitly requires it and the project records the reason.
-- Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
+- Fix formatter findings with the format command. Modernization findings name the form to write, and no
+  command writes it for you. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
 - Read a resource the JAR carries by resolving `Class.getResource` through `Optional.ofNullable(...)` and
   `orElseThrow(...)` to a `URL`, and only then opening the stream in a plain try-with-resources. A stream opened
