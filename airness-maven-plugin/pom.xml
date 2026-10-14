@@ -54,6 +54,7 @@
         -->
         <eclipse-equinox-common.version>3.20.200</eclipse-equinox-common.version>
         <eclipse-text.version>3.14.400</eclipse-text.version>
+        <playwright.version>1.63.0</playwright.version>
         <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
         <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
         <maven-plugin-tools.version>3.16.0</maven-plugin-tools.version>
@@ -63,6 +64,7 @@
             moves with this pin so a consumer cannot load it under Maven 3.9's Resolver 1.x.
         -->
         <maven-resolver.version>2.0.24</maven-resolver.version>
+        <pdfbox.version>3.0.8</pdfbox.version>
         <!--
             Held on the 3.x line because the 4.x line was rebuilt on Maven 4's maven-xml-api and functions
             only under Maven 4, which the
@@ -121,6 +123,11 @@
                 <version>${javaparser.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>${error-prone.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
@@ -150,10 +157,25 @@
                 <artifactId>org.eclipse.text</artifactId>
                 <version>${eclipse-text.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>2.0.18</version>
+            </dependency>
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>2.7</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <!-- The Qodana check reads the SARIF report the container writes, so its failure names findings. -->
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -163,6 +185,12 @@
         <dependency>
             <groupId>com.github.javaparser</groupId>
             <artifactId>javaparser-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>${playwright.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -337,6 +365,15 @@
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
+            <artifactId>maven-model-builder</artifactId>
+            <version>${maven.api.version}</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion><groupId>javax.inject</groupId><artifactId>javax.inject</artifactId></exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
             <version>${maven.api.version}</version>
             <scope>provided</scope>
@@ -348,6 +385,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
             <scope>compile</scope>
@@ -357,6 +400,12 @@
             <artifactId>plexus-xml</artifactId>
             <version>${plexus-xml.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.cyclonedx</groupId>
+            <artifactId>cyclonedx-core-java</artifactId>
+            <version>${airness.plugin.cyclonedx-core.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
@@ -381,8 +430,16 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>2.7</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.sisu</groupId>
+            <artifactId>org.eclipse.sisu.plexus</artifactId>
+            <version>1.1.0</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion><groupId>javax.inject</groupId><artifactId>javax.inject</artifactId></exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

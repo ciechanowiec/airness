@@ -129,6 +129,15 @@ jobs:
           nohup xargs -n 1 docker pull --quiet < "$RUNNER_TEMP/images.txt" \
             > "$RUNNER_TEMP/image-pull.log" 2>&1 &
 
+      - name: 'Restore the pinned report browser cache'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: report-browser-${{ runner.os }}-${{ hashFiles('airness-maven-plugin/pom.xml') }}
+
+      - name: 'Install the pinned report browser and its system libraries'
+        run: sh airness-it/report-browser.sh --with-deps
+
       - name: 'Run Extended verification and install release artifacts'
         if: steps.release_state.outputs.central_published != 'true'
         run: mvn --batch-mode --no-transfer-progress clean install -Pextended

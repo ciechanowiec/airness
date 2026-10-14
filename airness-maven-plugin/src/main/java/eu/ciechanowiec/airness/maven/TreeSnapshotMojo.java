@@ -22,6 +22,9 @@ public final class TreeSnapshotMojo extends AbstractPreflightMojo {
         TreeState.snapshot(
             this.session().getRepositorySession().getData(), this.repositoryRoot(), this.scope()
         );
+        if (ReportProjects.extended(this.project())) {
+            ReportSession.begin(this.session().getRepositorySession().getData(), this.repositoryRoot());
+        }
         return List.of();
     }
 

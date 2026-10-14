@@ -1173,6 +1173,7 @@
                             <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
                             <skip>${skipTests}</skip>
                             <skipTestScope>false</skipTestScope>
+                            <formats><format>HTML</format><format>JSON</format></formats>
                             <!--
                                 The .NET assembly analyzer is off because this harness governs Java and Maven,
                                 and because leaving it on makes the verdict depend on the machine. The archive
@@ -1238,6 +1239,11 @@
                                 <goals>
                                     <goal>require-online</goal>
                                 </goals>
+                            </execution>
+                            <execution>
+                                <id>airness-compliance-report</id>
+                                <phase>verify</phase>
+                                <goals><goal>compliance-report-collect</goal></goals>
                             </execution>
                             <execution>
                                 <id>airness-governance-extended</id>

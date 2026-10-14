@@ -90,7 +90,7 @@ This section defines the terms the guideline uses and states the qualities requi
 === Check Qualities
 
 . The xref:#check[checks] run at the strictest settings their tools offer, relaxed only where a rule of this guideline declares a cap, a floor, an allowlist, or a xref:#suppressions[machine-readable suppression].
-. A xref:#check[check] is deterministic: on the same state of the xref:#governed-repository[governed repository] it reaches the same verdict on every run and on every machine. The exceptions are the two checks of the section xref:#dependencies[] that read a public package registry by design: the xref:#dependency-freshness[freshness check] and the xref:#dependency-vulnerabilities[vulnerability check].
+. A xref:#check[check] is deterministic: on the same state of the xref:#governed-repository[governed repository] it reaches the same verdict on every run and on every machine. The exceptions are the three checks of the section xref:#dependencies[] that read a public package registry by design: the xref:#dependency-freshness[freshness check], the xref:#dependency-vulnerabilities[vulnerability check], and the xref:#compliance-report[compliance report check].
 . The toolchain that the xref:#check[checks] run - every analyzer, every build plugin, and every container image - is pinned to an exact version. An upstream release therefore can't change a verdict while the xref:#governed-repository[governed repository] doesn't change.
 
 [[the-verification-command]]
@@ -289,6 +289,13 @@ These rules govern access, authentication, audit events, and data handling where
 . Every entry in the vulnerability allowlist suppresses a finding. An entry that suppresses none fails the xref:#check[check].
 . The vulnerability xref:#check[check] reads a public database, so its verdict can change while the xref:#governed-repository[governed repository] stays unchanged. The section xref:#check-qualities[] excludes the vulnerability check from determinism. An unreachable database fails the vulnerability check.
 
+[[compliance-report]]
+=== Compliance Report
+
+. Full verification writes a self-contained compliance report on the open source dependencies for a reviewer outside the project. A xref:#check[check] fails when the report can't be written.
+. The report names its source commit and is built from the data the license and vulnerability checks judge.
+. The report lists every package of the xref:#resolved-set[resolved set] with its license and use, every copyleft package, every known vulnerability with its allowlist entry, and the license files the product ships.
+
 [[dependency-freshness]]
 === Freshness
 
@@ -369,22 +376,35 @@ Masking them in the header parser closes the leak for every consumer.
 . The history is linear: no commit has more than one parent. A branch takes the work of another by a rebase or a cherry-pick.
 . A xref:#check[check] walks the commit history, back to and including the first commit. A commit with more than one parent fails the check.
 
+[[about-the-document]]
 == About the Document
 
 . The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
 . The source text of this document must follow the link:README-guideline-writing.adoc[Writing Guideline for Utilitarian Non-Fiction^]. The guideline is stored beside the source text in the same Git repository.
-. The https://github.com/ciechanowiec/adocent[`adocent`^] application lints and converts the source text of this document.
-. To lint the source text of this document, run this command from the directory containing the source text:
+. The https://github.com/ciechanowiec/adocent[`adocent`^] application lints, converts, and watches the source text of this document.
+. *Linting*
++
+To lint the source text of this document, run this command from the directory containing the source text:
 +
 [source,bash,subs="attributes+"]
 ----
 adocent lint "{docname}{docfilesuffix}"
 ----
-. To export this document to HTML, PDF, and DOCX, run this command from the directory containing the source text:
+. *Converting*
++
+To convert this document to HTML, PDF, and DOCX, run this command from the directory containing the source text:
 +
 [source,bash,subs="attributes+"]
 ----
 adocent convert "{docname}{docfilesuffix}" --to html --to pdf --to docx
+----
+. *Watching*
++
+To open a live HTML preview of this document, run this command from the directory containing the source text:
++
+[source,bash,subs="attributes+"]
+----
+adocent watch "{docname}{docfilesuffix}"
 ----
 
 ifdef::backend-html5[]

@@ -399,7 +399,7 @@ it is published, only a fresh history satisfies the rule.
 4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
    its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
 5. Run `mvn clean verify -Pextended` before finishing. Extended verification includes Default verification and adds
-   the known-vulnerability scan and the history, secret, and Qodana checks. Default verification alone never reads the
+   the known-vulnerability scan, the HTML/PDF compliance report, and the history, secret, and Qodana checks. Default verification alone never reads the
    vulnerability database. Maven resolves effective plugin dependencies from the clean and deploy lifecycles,
    requested goals, and project build extensions, including plugin dependency overrides. Unused lifecycle defaults
    enter the scan when requested. A full Airness reactor build collects its own plugin inputs in the parent module.
@@ -407,6 +407,36 @@ it is published, only a fresh history satisfies the rule.
    to them, and unused exceptions fail verification. Never pass `-o` to this command, which refuses an offline build outright. Default verification
    also needs online Maven mode from `prepare-package` onward to generate its SBOM; earlier phases retain their
    existing offline behavior.
+
+### Compliance Reports
+
+Extended verification writes one HTML and PDF compliance report for the participating reactor under the
+root project's configured build directory, in `compliance/`. The common filename is
+`oss-compliance-report-<root-artifactId>-<12-character-commit>`. Both formats are required, including
+for plain Java projects. Default verification produces no compliance report.
+
+Install the Chromium revision this Airness version pins with `mvn airness:report-browser-install`.
+Linux also needs Chromium's system libraries. The renderer uses this browser's separate cache, not the
+project's browser-test dependencies or a workstation's interactive Chrome profile. Report rendering
+reads no remote fonts or scripts. Missing browser tooling and incomplete evidence fail generation.
+
+Run `mvn -Pextended airness:compliance-report` to regenerate the prerequisite package-phase evidence
+and the report outside full verification. This command establishes the dependency-policy result, not
+an Extended verification pass. `-Dairness.compliance.output=<directory>` changes the destination only;
+it must be ignored by Git or outside the repository and may not traverse a symbolic link.
+
+The report names every resolved artifact and its declaring modules, native Maven scopes and direct or
+transitive use. It includes test dependencies and resolved build tools, the inherited license policy,
+copyleft and refused licenses, every scanner advisory with its applied exception, and textual license
+and notice entries from production dependency archives. Identical texts are grouped with their artifact
+attribution. Provided dependencies are identified separately from compile and runtime dependencies.
+
+The HTML embeds an aggregate CycloneDX inventory and a CSV inventory for download. Published per-module
+`bom.json` files retain their existing production dependency scope. The report records its source
+commit, working-tree fingerprint, evidence hashes and scan dates. It refuses missing or stale evidence
+and a tree that changes during generation. A dirty tree, selected reactor subset, policy failure or
+report-only invocation produces an explicit draft. `-DskipTests` produces no new report or verdict.
+Earlier report pairs are removed only after a complete replacement has been rendered.
 
 ## Layer 5: Exceptions and Repairs
 

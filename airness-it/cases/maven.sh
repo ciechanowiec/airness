@@ -58,6 +58,12 @@ run_maven_cases() {
     expect_match lifecycle_clean 'lifecycle: software refused by name is checked before the version check' \
         'airness:[^ ]+:blocklist \(airness-blocklist\)'
 
+    if [ ! -e "${maven_consumer}/target/compliance" ]; then
+        pass 'compliance: Default verification produces no report pair'
+    else
+        fail 'compliance: Default verification produces no report pair'
+    fi
+
     run_blocklist_boundaries
     run_license_alias_case
     run_suppression_boundaries
