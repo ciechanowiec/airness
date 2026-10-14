@@ -2,7 +2,6 @@ package eu.ciechanowiec.airness.spring;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -28,7 +27,7 @@ record SpringMessageInputs(
 
     static SpringMessageInputs read(Path path) {
         try {
-            return parse(Files.readAllLines(path, StandardCharsets.UTF_8));
+            return parse(Files.readAllLines(path));
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read template message inputs " + path, exception);
         }
