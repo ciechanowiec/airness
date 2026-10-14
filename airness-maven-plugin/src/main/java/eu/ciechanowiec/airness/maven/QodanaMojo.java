@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -42,8 +43,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
         }
         Path roots = output.resolve("trusted-roots.pem");
         this.trustedRoots(roots);
-        Path localRepository = this.session().getRequest().getLocalRepositoryPath().toPath().toRealPath();
-        QodanaPaths.Environment environment = new QodanaPaths.Environment(roots, localRepository);
+        QodanaPaths.Environment environment = new QodanaPaths.Environment(roots, this.localRepository());
         return dockerCommand(new QodanaPaths(root, output, profile, environment), this.image());
     }
 
@@ -69,6 +69,24 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
                 + "exec /opt/idea/bin/qodana scan --disable-update-checks "
                 + "--profile-path /opt/inspection-profile.xml"
         );
+    }
+
+    /**
+     * The scan resolves every library from this mount alone. Arriving empty, it leaves the IDE without the
+     * project's dependencies and on a fallback JDK and language level, so valid code is reported by the
+     * thousand instead of the scan failing.
+     */
+    @Override
+    List<Path> mountedInputs() throws MojoExecutionException {
+        try {
+            return List.of(this.localRepository());
+        } catch (IOException exception) {
+            throw new MojoExecutionException("Could not resolve the local Maven repository", exception);
+        }
+    }
+
+    private Path localRepository() throws IOException {
+        return this.session().getRequest().getLocalRepositoryPath().toPath().toRealPath();
     }
 
     private void trustedRoots(Path destination) throws IOException {
