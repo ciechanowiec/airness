@@ -107,7 +107,7 @@ run_sbom_reactor() {
     new_consumer sbom-reactor
     sbom_reactor="${consumer_directory}"
     perl -0pi -e \
-        's{<artifactId>consumer</artifactId>}{<artifactId>sbom-reactor</artifactId><packaging>pom</packaging>}; s{</project>}{<modules><module>plain</module><module>boot</module></modules></project>}' \
+        's{<artifactId>consumer</artifactId>}{<artifactId>sbom-reactor</artifactId><packaging>pom</packaging>}; s{(<version>9[.]4[.]2</version>)}{$1<modules><module>plain</module><module>boot</module></modules>}' \
         "${sbom_reactor}/pom.xml"
     for sbom_module in plain boot; do
         new_consumer "sbom-${sbom_module}"

@@ -158,7 +158,7 @@ run_reactor_build_inputs() {
     input_consumer="${consumer_directory}"
     mkdir -p "${input_consumer}/child/src/main/resources/build"
     printf 'Child runtime input\n' > "${input_consumer}/child/src/main/resources/build/value.txt"
-    perl -0pi -e 's{</project>}{<packaging>pom</packaging><modules><module>child</module></modules></project>}' \
+    perl -0pi -e 's{(<version>9[.]4[.]2</version>)}{$1<packaging>pom</packaging><modules><module>child</module></modules>}' \
         "${input_consumer}/pom.xml"
     cat > "${input_consumer}/child/pom.xml" <<'XML'
 <project xmlns="http://maven.apache.org/POM/4.0.0">

@@ -42,9 +42,9 @@ PYTHON
     expect_exit license_unknown 'licenses: unknown licenses still fail the native check' 1
     expect_match license_unknown 'licenses: the unknown artifact is identified' 'plexus-classworlds'
     perl -0pi -e \
-        's{<groupId>org.codehaus.plexus</groupId><artifactId>plexus-classworlds</artifactId><version>1.2-alpha-7</version>}{<groupId>org.openrewrite.recipe</groupId><artifactId>rewrite-apache</artifactId><version>2.30.0</version>}' \
+        's{<groupId>org.codehaus.plexus</groupId><artifactId>plexus-classworlds</artifactId><version>1.2-alpha-7</version>}{<groupId>org.elasticsearch</groupId><artifactId>elasticsearch</artifactId><version>8.15.0</version>}' \
         "${consumer_directory}/pom.xml"
     run_maven license_refused maven "${consumer_directory}" airness:license-metadata license:add-third-party
     expect_exit license_refused 'licenses: the correction mechanism does not admit source-available licenses' 1
-    expect_match license_refused 'licenses: the refused license is identified' 'Moderne Source Available License'
+    expect_match license_refused 'licenses: the refused license is identified' 'Elastic License 2.0|Server Side Public License'
 }

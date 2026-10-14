@@ -114,7 +114,7 @@ JAVA
     run_analysis_lifecycle
     run_early_analysis_lifecycle
     run_jspecify_annotation_locations
-
+    run_modernization_cases
 }
 
 run_jspecify_annotation_locations() {
@@ -233,4 +233,67 @@ JAVA
         "${variable_distance}/src/main/java/com/example/Reading.java"
     run_maven variable_distance_nearby analysis "${variable_distance}" checkstyle:check
     expect_exit variable_distance_nearby 'analysis: a local declared beside its use passes' 0
+}
+
+run_modernization_cases() {
+    new_consumer modernization-compiler
+    modernization_compiler="${consumer_directory}"
+    cat > "${modernization_compiler}/src/main/java/com/example/Draw.java" <<'JAVA'
+package com.example;
+
+/** Carries the representative Airness compiler finding. */
+final class Draw {
+
+    private Draw() {
+    }
+
+    static double next() {
+        return Math.random();
+    }
+}
+JAVA
+    run_maven modernization_compiler analysis "${modernization_compiler}" compile
+    expect_exit modernization_compiler 'error prone: an Airness compiler rule fails the compile' 1
+    expect_match modernization_compiler 'error prone: the finding names the Airness rule at its file' \
+        'Draw[.]java:.*AirnessJdkApiHasAModernForm'
+
+    run_maven modernization_compiler_report analysis "${modernization_compiler}" compile -Dairness.enforce=false
+    expect_exit modernization_compiler_report 'report-only: an Airness compiler finding does not stop the compile' 0
+    expect_match modernization_compiler_report 'report-only: the Airness compiler finding stays visible' \
+        'Draw[.]java:.*AirnessJdkApiHasAModernForm'
+
+    new_consumer modernization-test-source
+    modernization_test_source="${consumer_directory}"
+    cat > "${modernization_test_source}/src/test/java/com/example/RatioTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class RatioTest {
+
+    @Test
+    void halvesTheValue() {
+        assertEquals(0.5f, new Example().value() / 2.0F);
+    }
+}
+JAVA
+    run_maven modernization_test_source analysis "${modernization_test_source}" checkstyle:check
+    expect_exit modernization_test_source 'checkstyle: an Airness rule fails on test sources too' 1
+    expect_match modernization_test_source 'checkstyle: the test-source finding names its file' \
+        'RatioTest[.]java:.*floating-point literal suffix in upper case'
+
+    new_consumer build-practices
+    build_practices="${consumer_directory}"
+    sed 's|^    </properties>|    </properties>\
+    <url>https://example.com</url>|' "${build_practices}/pom.xml" > "${build_practices}/pom.xml.next"
+    mv "${build_practices}/pom.xml.next" "${build_practices}/pom.xml"
+    run_maven build_practices analysis "${build_practices}" validate
+    expect_exit build_practices 'build practices: a pom element out of order fails validation' 1
+    expect_match build_practices 'build practices: the finding names both elements' \
+        'url is written after properties'
+
+    run_maven build_practices_clean analysis "${modernization_test_source}" validate
+    expect_exit build_practices_clean 'build practices: the template consumer passes validation' 0
 }

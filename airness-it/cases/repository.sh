@@ -30,11 +30,11 @@ CSS
     run_maven formatting_before repository "${formatting_consumer}" process-resources
     expect_exit formatting_before 'formatting: unformatted source or stylesheet is rejected' 1
     expect_match formatting_before 'formatting: the check names formatting rather than compilation' \
-        'Incorrectly formatted file|Java sources that do not match|rewrite'
+        'Incorrectly formatted file|Java sources that do not match'
 
     run_maven formatting_write repository "${formatting_consumer}" \
         process-resources -Pformat -Dairness.enforce=false
-    expect_exit formatting_write 'formatting: the installed format profile rewrites both kinds' 0
+    expect_exit formatting_write 'formatting: the installed format profile reformats both kinds' 0
 
     run_maven formatting_after repository "${formatting_consumer}" process-resources
     expect_exit formatting_after 'formatting: the rewritten consumer then passes the same phase' 0
