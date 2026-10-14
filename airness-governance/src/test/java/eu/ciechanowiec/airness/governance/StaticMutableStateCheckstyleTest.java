@@ -104,6 +104,46 @@ class StaticMutableStateCheckstyleTest {
     }
 
     @Test
+    void passesOverAReceiverWhoseCallResultIsStored(@TempDir Path directory) {
+        String source = """
+            final class Grades {
+                private static final Map<String, Grade> BY_PATH = new GradeList(paths()).assembled();
+                private static final List<String> NAMES = new NameList().sorted().named();
+            }
+            """;
+
+        assertEquals(0, findings(directory, source), "the field holds what the call returns, not the receiver");
+    }
+
+    @Test
+    void reportsAReceiverWhoseCallReturnsALiveView(@TempDir Path directory) {
+        String source = """
+            final class Views {
+                private static final Set<String> KEYS = new ConcurrentHashMap<String, String>().keySet();
+                private static final List<String> HEAD = new ArrayList<>(names()).subList(0, 1);
+                private static final SortedMap<String, String> TAIL
+                    = new java.util.TreeMap<String, String>().tailMap("a");
+                private static final List<String> REVERSED = new ArrayList<>(names()).reversed();
+            }
+            """;
+
+        assertEquals(4, findings(directory, source), "a view keeps the new container alive and changes with it");
+    }
+
+    @Test
+    void reportsAReceiverPassedIntoAWrapper(@TempDir Path directory) {
+        String source = """
+            final class Wrapped {
+                private static final Registry VALUES = new Registry(new ConcurrentHashMap<String, String>().values());
+                private static final Map<String, Grade> SYNCED
+                    = Collections.synchronizedMap(new GradeList(paths()).assembled());
+            }
+            """;
+
+        assertEquals(2, findings(directory, source), "a view or a mutable wrapper is reported wherever it is nested");
+    }
+
+    @Test
     void passesOverImmutableFactories(@TempDir Path directory) {
         String source = """
             final class Fixed {
