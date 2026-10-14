@@ -47,6 +47,30 @@ final class ReportTables {
             );
     }
 
+    static String licenseEvidence(ReportInventory inventory) {
+        String entries = inventory.packages().stream().flatMap(
+            entry -> entry.notices().entrySet().stream()
+                .filter(notice -> notice.getKey().startsWith(ReportPackage.LICENSE_EVIDENCE_PREFIX))
+                .map(notice -> evidence(entry.coordinate(), notice))
+        ).collect(Collectors.joining());
+        return entries.isEmpty() ? "" : "<h3>Verified license evidence</h3>"
+            + ReportMarkup.paragraph(
+                "Airness verified these exact artifact bytes against upstream release evidence. "
+                    + "Missing POM licenses are supplemented only for the recorded version and checksum. "
+                    + "The inherited allowlist still decides whether the license is admitted."
+            ) + entries;
+    }
+
+    private static String evidence(String coordinate, Map.Entry<String, String> notice) {
+        String source = notice.getKey().substring(ReportPackage.LICENSE_EVIDENCE_PREFIX.length());
+        String link = source.startsWith("https://")
+            ? "<a href=\"" + ReportMarkup.escape(source) + "\">Upstream release evidence</a>"
+            : ReportMarkup.paragraph(source);
+        return "<article class=\"notice\"><h4>" + ReportMarkup.escape(coordinate) + "</h4>" + link
+            + "<div class=\"license-text\">" + notice.getValue().lines().map(ReportMarkup::paragraph)
+                .collect(Collectors.joining()) + "</div></article>";
+    }
+
     private static String advisory(ReportAdvisory advisory) {
         String evidence = advisory.evidence().entrySet().stream().sorted(Map.Entry.comparingByKey())
             .map(entry -> entry.getKey() + ": " + entry.getValue()).collect(Collectors.joining("\n"));

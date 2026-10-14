@@ -65,6 +65,7 @@ fi
 
 . "${repository}/airness-it/support.sh"
 . "${repository}/airness-it/cases/maven.sh"
+. "${repository}/airness-it/cases/license-metadata.sh"
 . "${repository}/airness-it/cases/sbom.sh"
 . "${repository}/airness-it/cases/repository-routing.sh"
 . "${repository}/airness-it/cases/plugin-vulnerabilities.sh"
