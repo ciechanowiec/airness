@@ -55,7 +55,7 @@ public final class AirnessValueOfStringIsTheString extends BugChecker implements
         boolean receiver = state.getPath().getParentPath().getLeaf() instanceof MemberSelectTree;
         return ofString && !receiver && VALUE_OF.matches(invocation, state)
             && nonNull(invocation.getArguments().getFirst(), state)
-            ? this.describeMatch(invocation) : Description.NO_MATCH;
+                ? this.describeMatch(invocation) : Description.NO_MATCH;
     }
 
     private static boolean nonNull(ExpressionTree argument, VisitorState state) {
