@@ -54,15 +54,17 @@ public final class AirnessValueOfStringIsTheString extends BugChecker implements
             ASTHelpers.getType(invocation.getArguments().getFirst()), state.getSymtab().stringType, state
         );
         boolean receiver = state.getPath().getParentPath().getLeaf() instanceof MemberSelectTree;
-        return ofString && !receiver && VALUE_OF.matches(invocation, state)
-            && nonNull(invocation.getArguments().getFirst(), state)
-                ? this.describeMatch(invocation) : Description.NO_MATCH;
+        boolean applicable = ofString && !receiver && VALUE_OF.matches(invocation, state);
+        return applicable && nonNull(invocation.getArguments().getFirst(), state)
+            ? this.describeMatch(invocation) : Description.NO_MATCH;
     }
 
     private static boolean nonNull(ExpressionTree argument, VisitorState state) {
         Nullness inferred = NullnessAnalysis.instance(state.context)
             .getNullness(new TreePath(state.getPath(), argument), state.context);
-        return inferred == Nullness.NONNULL || declaredNonNull(ASTHelpers.getSymbol(argument));
+        return inferred == Nullness.NONNULL || Optional.ofNullable(ASTHelpers.getSymbol(argument))
+            .filter(AirnessValueOfStringIsTheString::declaredNonNull)
+            .isPresent();
     }
 
     private static boolean declaredNonNull(Symbol symbol) {
