@@ -20,6 +20,7 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import java.io.Serial;
+import java.util.Optional;
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
 
@@ -65,12 +66,15 @@ public final class AirnessValueOfStringIsTheString extends BugChecker implements
     }
 
     private static boolean declaredNonNull(Symbol symbol) {
-        boolean declared = (symbol instanceof VarSymbol variable && variable.getKind() != ElementKind.LOCAL_VARIABLE)
-            || (symbol instanceof MethodSymbol method && compiled(method.enclClass()));
+        boolean member = symbol instanceof VarSymbol variable && variable.getKind() != ElementKind.LOCAL_VARIABLE;
+        boolean compiledResult = symbol instanceof MethodSymbol method && compiled(method.enclClass());
+        boolean declared = member || compiledResult;
         return declared && NullnessAnnotations.fromAnnotationsOn(symbol).orElse(Nullness.NONNULL) == Nullness.NONNULL;
     }
 
     private static boolean compiled(ClassSymbol owner) {
-        return owner.classfile != null && owner.classfile.getKind() == JavaFileObject.Kind.SOURCE;
+        return Optional.ofNullable(owner.classfile)
+            .filter(file -> file.getKind() == JavaFileObject.Kind.SOURCE)
+            .isPresent();
     }
 }
