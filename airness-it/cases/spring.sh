@@ -13,7 +13,7 @@ cat > "${spring_fixture}/pom.xml" <<'POM'
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-spring-boot</artifactId>
-        <version>1.0.7-SNAPSHOT</version>
+        <version>1.0.7</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>spring-app</artifactId>

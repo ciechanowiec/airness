@@ -38,7 +38,7 @@ ifndef::env-github[]
 endif::[]
 endif::[]
 
-:airness-version: 1.0.7-SNAPSHOT
+:airness-version: 1.0.7
 
 // This metadata table pairs each event with its timestamp and needs no column headers.
 [cols=">.^1,<.^1",adocent-disable-next-line="Structure.TableHeaders"]

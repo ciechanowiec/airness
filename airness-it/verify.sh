@@ -3,7 +3,7 @@
 set -eu
 
 repository="$(cd "$(dirname "$0")/.." && pwd)"
-harness_version='1.0.7-SNAPSHOT'
+harness_version='1.0.7'
 declared="$(sed -n 's|^ *<version>\(.*\)</version> *$|\1|p' "${repository}/pom.xml" | head -n 1)"
 if [ "${declared}" != "${harness_version}" ]; then
     printf '%s declares %s, and this suite is written for %s\n' \
