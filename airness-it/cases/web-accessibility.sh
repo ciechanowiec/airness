@@ -9,7 +9,7 @@ run_web_accessibility_cases() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-spring-boot</artifactId>
-        <version>1.0.7-SNAPSHOT</version>
+        <version>1.0.7</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>web-accessibility-app</artifactId>

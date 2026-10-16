@@ -6,7 +6,7 @@
 
     <groupId>eu.ciechanowiec</groupId>
     <artifactId>airness</artifactId>
-    <version>1.0.7-SNAPSHOT</version>
+    <version>1.0.7</version>
     <packaging>pom</packaging>
 
     <name>airness</name>
@@ -149,7 +149,7 @@
         <airness.plugin.jackson.version>2.22.3</airness.plugin.jackson.version>
         <airness.plugin.jackson-annotations.version>2.22</airness.plugin.jackson-annotations.version>
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
-        <airness.version>1.0.7-SNAPSHOT</airness.version>
+        <airness.version>1.0.7</airness.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <airness.plugin.snappy.version>0.5</airness.plugin.snappy.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
