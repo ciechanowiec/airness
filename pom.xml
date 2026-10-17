@@ -111,7 +111,7 @@
         <build-helper-maven-plugin.version>3.6.2</build-helper-maven-plugin.version>
         <download-maven-plugin.version>2.1.0</download-maven-plugin.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
-        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
+        <central-publishing-maven-plugin.version>0.12.0</central-publishing-maven-plugin.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <!--
             Mirrors airness-parent. Declared here too, because this pom does not inherit that one, and the
