@@ -43,8 +43,16 @@ if commit not in html or commit[:SHORT_COMMIT] not in html_file.name:
     raise SystemExit("The report does not identify its source commit")
 if hashlib.sha256(downloads["sbom"].encode("utf-8")).hexdigest() not in html:
     raise SystemExit("The embedded SBOM differs from the digest printed beside it")
-if "Draft report" not in html or "Report-only" not in html:
+if "This report is a draft" not in html or "Report-only" not in html:
     raise SystemExit("The report-only invocation is presented as release evidence")
+verdict_match = re.search(r'<ul class="statements verdict">(.*?)</ul>', html, re.S)
+verdict = verdict_match.group(1) if verdict_match else ""
+if not verdict or re.search("compliant", verdict, re.I):
+    raise SystemExit("The report opens without its verdict statements, or calls the project compliant")
+if ("satisfy the policy this report states" in html) != ('<li class="fail">' in verdict):
+    raise SystemExit("The draft banner and the verdict disagree about the policy")
+if html.find('class="statements verdict"') > html.find('id="toc"'):
+    raise SystemExit("The verdict does not precede the contents")
 if re.search(r'<(?:script|link)[^>]+(?:src|href)="https?://', html):
     raise SystemExit("The report loads an external script or stylesheet")
-print("HTML/PDF pair, inventory, licensing, source identity, draft status and embedded hashes passed")
+print("HTML/PDF pair, inventory, licensing, source identity, verdict, draft status and embedded hashes passed")

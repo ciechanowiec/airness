@@ -189,7 +189,7 @@ run_suppression_boundaries() {
     cat > "${suppression_document}" <<'XML'
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
     <suppress>
-        <notes>The affected parser is absent. Added 2026-09-07.</notes>
+        <notes>The affected parser is absent. Added 2026-09-07. Mitigation: Removed with the next upgrade.</notes>
         <packageUrl regex="true">^pkg:maven/org.example/library@.*$</packageUrl>
         <cve>CVE-2020-27225</cve>
     </suppress>
@@ -200,7 +200,7 @@ XML
     cat > "${suppression_document}" <<'XML'
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
     <suppress>
-        <notes>The affected parser is absent. Added 2026-09-07.</notes>
+        <notes>The affected parser is absent. Added 2026-09-07. Mitigation: Removed with the next upgrade.</notes>
         <cve>CVE-2020-27225</cve>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
@@ -213,7 +213,7 @@ XML
 <dc:suppressions xmlns:dc="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
     <dc:suppressionGroup name="examples">
         <dc:suppress>
-            <dc:notes>The affected parser is absent. Added 2026-09-07.</dc:notes>
+            <dc:notes>The affected parser is absent. Added 2026-09-07. Mitigation: Removed with the next upgrade.</dc:notes>
             <dc:cve>CVE-2020-27225</dc:cve>
             <dc:cvssBelow>7</dc:cvssBelow>
         </dc:suppress>
@@ -223,4 +223,15 @@ XML
     run_maven suppression_group maven "${suppression_consumer}" validate
     expect_exit suppression_group 'suppressions: groups and prefixes cannot hide a score threshold' 1
     expect_match suppression_group 'suppressions: the rejection identifies the broad selector' 'replace cvssBelow'
+    cat > "${suppression_document}" <<'XML'
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes>The affected parser is absent. Added 2026-09-07.</notes>
+        <cve>CVE-2020-27225</cve>
+    </suppress>
+</suppressions>
+XML
+    run_maven suppression_unplanned maven "${suppression_consumer}" validate
+    expect_exit suppression_unplanned 'suppressions: an exception without a mitigation plan is refused' 1
+    expect_match suppression_unplanned 'suppressions: the rejection asks for the mitigation plan' 'state a mitigation plan'
 }

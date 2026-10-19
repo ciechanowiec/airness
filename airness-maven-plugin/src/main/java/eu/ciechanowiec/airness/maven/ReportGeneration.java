@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.ComplianceReport;
 import eu.ciechanowiec.airness.governance.ComplianceReportHtml;
+import eu.ciechanowiec.airness.governance.ReportAdvisory;
 import eu.ciechanowiec.airness.governance.ReportEvidence;
 import eu.ciechanowiec.airness.governance.ReportInventory;
 import eu.ciechanowiec.airness.governance.ReportPackage;
@@ -71,7 +72,11 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
         List<ReportPackage> packages = ReportAggregation.packages(modules);
         ReportInventory inventory = new ReportInventory(
             packages,
-            modules.stream().flatMap(module -> module.advisories().stream()).distinct().toList(),
+            List.copyOf(
+                modules.stream().flatMap(module -> module.advisories().stream()).collect(
+                    Collectors.toMap(ReportAdvisory::key, advisory -> advisory, ReportAdvisory::merge)
+                ).values()
+            ),
             this.project.policy()
         );
         String sbom = ReportSbom.assemble(packages, modules);

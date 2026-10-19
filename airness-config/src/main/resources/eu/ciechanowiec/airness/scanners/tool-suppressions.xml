@@ -9,6 +9,10 @@
             No wrapper upgrade fixes an engine-to-wrapper product match.
             https://checkstyle.org/releasenotes.html#Release_8.29
             https://checkstyle.org/releasenotes.html#Release_8.18
+
+            Mitigation: The wrapper runs only during the build, and the Checkstyle engine it delegates to stays
+            scanned at its pinned version. The entry is removed once Dependency-Check stops matching the wrapper
+            to the engine, or with the wrapper upgrade after which it no longer does.
         ]]></notes>
         <packageUrl regex="true">^pkg:maven/org\.apache\.maven\.plugins/maven-checkstyle-plugin@3\.6\.0(?:\?type=jar)?$</packageUrl>
         <cve>CVE-2019-10782</cve>
@@ -21,6 +25,10 @@
             scanned engine to 7.28.0. No wrapper upgrade fixes this product mismatch.
             https://github.com/pmd/pmd/issues/1650
             https://github.com/pmd/pmd/security/advisories/GHSA-8rr6-2qw5-pc7r
+
+            Mitigation: The wrapper runs only during the build, and the PMD engine it delegates to stays scanned at
+            its pinned version. The entry is removed once Dependency-Check stops matching the wrapper to the
+            engine, or with the wrapper upgrade after which it no longer does.
         ]]></notes>
         <packageUrl regex="true">^pkg:maven/org\.apache\.maven\.plugins/maven-pmd-plugin@3\.28\.0(?:\?type=jar)?$</packageUrl>
         <cve>CVE-2019-7722</cve>

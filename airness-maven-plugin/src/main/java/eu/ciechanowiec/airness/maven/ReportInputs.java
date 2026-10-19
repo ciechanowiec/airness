@@ -51,7 +51,10 @@ final class ReportInputs {
         List<ReportPackage> packages = Stream.concat(dependencies.stream(), this.tools(project, build).stream())
             .toList();
         Path scan = build.resolve("dependency-check-report.json");
-        List<ReportAdvisory> advisories = ReportVulnerabilities.read(scan, this.started, project.getId());
+        List<ReportAdvisory> advisories = ReportVulnerabilities.read(
+            scan, this.started, project.getId(),
+            ReportVulnerabilities.harnessNotes(build.resolve("airness/plugin-inputs"))
+        );
         return new ReportModule(
             project.getId(), packages, advisories, Map.of(
                 "SBOM", sbom,

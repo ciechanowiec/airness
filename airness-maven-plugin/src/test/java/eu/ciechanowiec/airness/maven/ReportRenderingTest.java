@@ -13,9 +13,11 @@ import com.microsoft.playwright.Route;
 import com.microsoft.playwright.options.AriaRole;
 import eu.ciechanowiec.airness.governance.ComplianceReport;
 import eu.ciechanowiec.airness.governance.ComplianceReportHtml;
+import eu.ciechanowiec.airness.governance.ReportAdvisory;
 import eu.ciechanowiec.airness.governance.ReportEvidence;
 import eu.ciechanowiec.airness.governance.ReportInventory;
 import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
+import eu.ciechanowiec.airness.governance.ReportMitigation;
 import eu.ciechanowiec.airness.governance.ReportPackage;
 import eu.ciechanowiec.airness.governance.ReportSource;
 import eu.ciechanowiec.airness.governance.ReportUse;
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -37,7 +40,7 @@ import org.junit.jupiter.api.io.TempDir;
 class ReportRenderingTest {
 
     private static final int PACKAGES = 35;
-    private static final int SECTIONS = 7;
+    private static final int SECTIONS = 6;
 
     @TempDir
     private Path directory;
@@ -104,12 +107,12 @@ class ReportRenderingTest {
         Map<String, Integer> contents = ReportPdfContents.read(pdf);
         assertEquals(SECTIONS, contents.size());
         assertTrue(
-            Optional.ofNullable(contents.get("section-7")).orElseThrow()
+            Optional.ofNullable(contents.get("section-6")).orElseThrow()
                 > Optional.ofNullable(contents.get("section-1")).orElseThrow()
         );
         try (PDDocument document = Loader.loadPDF(pdf)) {
             String text = new PDFTextStripper().getText(document).replaceAll("\\s+", " ");
-            assertTrue(text.contains("Open Source Software Compliance Report"));
+            assertTrue(text.contains("Open Source Software Report"));
             assertTrue(text.replace(" ", "").contains("sample:dependency-34:jar:1.0"));
             assertFalse(text.contains("000"));
         }
@@ -162,12 +165,37 @@ class ReportRenderingTest {
                 )
             )
         ).toList();
+        ReportPackage copyleft = new ReportPackage(
+            "sample:parser:jar:2.0", List.of("MPL-2.0"),
+            List.of(new ReportUse("sample:application:jar:1.0", "test", "Transitive")), Map.of()
+        );
+        List<ReportAdvisory> advisories = List.of(
+            new ReportAdvisory(
+                "CVE-2026-1001", "HIGH", "pkg:maven/sample/dependency-1@1.0?type=jar",
+                List.of("sample:application:jar:1.0"), "A crafted archive exhausts the heap. It needs untrusted input.",
+                Optional.empty()
+            ),
+            new ReportAdvisory(
+                "CVE-2026-1002", "MEDIUM", "pkg:maven/sample/parser@2.0?type=jar",
+                List.of("sample:application:jar:1.0"), "Deeply nested input overflows the stack.", Optional.of(
+                    ReportMitigation.of(
+                        "Added 2026-10-13. The parser reads only the project's own test fixtures. Mitigation: "
+                            + "It never runs in the deployed application. The entry is removed once the parser "
+                            + "releases a fix.", true
+                    )
+                )
+            )
+        );
         ReportInventory inventory = new ReportInventory(
-            packages, List.of(), new ReportLicensePolicy(Set.of("MIT"), Map.of())
+            Stream.concat(packages.stream(), Stream.of(copyleft)).toList(),
+            advisories, new ReportLicensePolicy(Set.of("MIT", "MPL-2.0"), Map.of())
         );
         ReportEvidence evidence = new ReportEvidence(
             "{}", ReportJson.encode(Map.of("sbom", "{}", "csv", "inventory")),
-            Map.of("SBOM SHA-256", ReportJson.hash("{}"), "Modules", "sample:application:jar:1.0")
+            Map.of(
+                "SBOM SHA-256", ReportJson.hash("{}"), "Modules", "sample:application:jar:1.0",
+                "sample:application:jar:1.0 scan date", "2026-10-13T11:58:00Z"
+            )
         );
         return new ComplianceReport(
             "example-application", new ReportSource(

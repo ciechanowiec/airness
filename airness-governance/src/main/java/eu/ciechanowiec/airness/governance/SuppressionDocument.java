@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.w3c.dom.Document;
@@ -24,7 +23,10 @@ import org.w3c.dom.NodeList;
  * nobody wrote down is one nobody can retire: a later reader can tell that it still matches something,
  * and nothing else.
  *
- * <p>So an entry says why this project cannot reach the advisory, and says when it was decided. The date
+ * <p>So an entry says why this project cannot reach the advisory, states a mitigation plan after a
+ * {@code Mitigation:} marker, and says when it was decided. The plan is what an outside reviewer of the
+ * compliance report reads beside the advisory: what limits the risk now, and what will remove the
+ * vulnerable package. The date
  * is what turns a permanent exception into a dated one. An advisory a project could not reach in 2026 is
  * not thereby an advisory it cannot reach now, and without a date nothing in the file distinguishes a
  * judgement made last week from one made before the code around it was rewritten.
@@ -39,7 +41,6 @@ import org.w3c.dom.NodeList;
  */
 public final class SuppressionDocument {
 
-    private static final Pattern DATE = Pattern.compile("\\b\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])\\b");
     private static final Set<String> ADVISORY = Set.of("cve", "vulnerabilityName");
     private static final Set<String> BROAD = Set.of(
         "cpe", "cwe", "cvssBelow", "cvssV2Below", "cvssV3Below", "cvssV4Below"
@@ -64,7 +65,7 @@ public final class SuppressionDocument {
      * @return problems ordered by their message
      */
     public List<String> problems() {
-        return Stream.of(this.unexplained(), this.undated(), this.unnamed(), this.selectors())
+        return Stream.of(this.unexplained(), this.unplanned(), this.undated(), this.unnamed(), this.selectors())
             .flatMap(List::stream)
             .sorted()
             .toList();
@@ -72,15 +73,36 @@ public final class SuppressionDocument {
 
     private List<String> unexplained() {
         return this.entries.stream()
-            .filter(entry -> notes(entry).isEmpty())
+            .filter(entry -> noteText(entry).isEmpty())
             .map(entry -> problem(entry, "say why this project cannot reach the advisory"))
             .toList();
     }
 
+    /**
+     * The notes of every entry, normalized the way the report reads them.
+     *
+     * @return each entry's notes as one line
+     */
+    public List<String> notes() {
+        return this.entries.stream().map(entry -> SuppressionNotes.normalized(noteText(entry))).toList();
+    }
+
+    private List<String> unplanned() {
+        return this.entries.stream()
+            .filter(entry -> !noteText(entry).isEmpty())
+            .filter(entry -> SuppressionNotes.parse(noteText(entry)).mitigation().isEmpty())
+            .map(
+                entry -> problem(
+                    entry, "state a mitigation plan in notes after a " + SuppressionNotes.MARKER
+                        + " marker, saying what limits the risk now and what will remove the vulnerable package"
+                )
+            ).toList();
+    }
+
     private List<String> undated() {
         return this.entries.stream()
-            .filter(entry -> !notes(entry).isEmpty())
-            .filter(entry -> !DATE.matcher(notes(entry)).find())
+            .filter(entry -> !noteText(entry).isEmpty())
+            .filter(entry -> !SuppressionNotes.DATE.matcher(noteText(entry)).find())
             .map(entry -> problem(entry, "record the date the exception was made, as YYYY-MM-DD"))
             .toList();
     }
@@ -128,7 +150,7 @@ public final class SuppressionDocument {
             .orElse("an entry naming nothing at all");
     }
 
-    private static String notes(Node entry) {
+    private static String noteText(Node entry) {
         return children(entry).filter(element -> "notes".equals(name(element)))
             .map(SuppressionDocument::text).findFirst().orElse("");
     }

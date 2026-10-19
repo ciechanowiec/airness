@@ -35,8 +35,8 @@ public record ComplianceReport(
      * @return source qualifications followed by any policy failure
      */
     public List<String> draftReasons() {
-        Stream<String> policy = this.inventory.compliant() ? Stream.empty()
-            : Stream.of("The dependencies do not satisfy the policy this report states.");
+        Stream<String> policy = this.inventory.withinPolicy() ? Stream.empty()
+            : Stream.of("The dependencies don't satisfy the policy this report states.");
         return Stream.concat(this.source.draftReasons().stream(), policy).toList();
     }
 

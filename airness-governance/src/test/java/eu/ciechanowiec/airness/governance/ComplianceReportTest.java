@@ -1,5 +1,14 @@
 package eu.ciechanowiec.airness.governance;
 
+import static eu.ciechanowiec.airness.governance.ReportFixtures.COMMIT;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.DIRECT;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.MIT;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.POLICY;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.ROOT_MODULE;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.dependency;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.mitigated;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.open;
+import static eu.ciechanowiec.airness.governance.ReportFixtures.report;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -7,19 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ComplianceReportTest {
-
-    private static final String ROOT_MODULE = "root";
-    private static final String MIT = "MIT";
-    private static final String DIRECT = "Direct";
-    private static final String COMMIT = "a12345678901234567890123456789012345678901";
-    private static final ReportLicensePolicy POLICY = new ReportLicensePolicy(
-        Set.of(MIT, "MPL-2.0"),
-        Map.of("MIT License", MIT)
-    );
 
     @Test
     void attributesVerifiedToolLicensesWithoutInventingArchiveNotices() {
@@ -47,7 +48,7 @@ class ComplianceReportTest {
         );
         String html = ComplianceReportHtml.render(report(List.of(entry), List.of()));
         assertFalse(html.contains("href=\"javascript:"));
-        assertFalse(html.contains("Every production artifact supplies a license or notice file."));
+        assertFalse(html.contains("Every production artifact version ships a license file."));
         assertTrue(html.contains("Reviewed upstream source"));
     }
 
@@ -64,20 +65,17 @@ class ComplianceReportTest {
     @Test
     void keepsDraftStatusSeparateFromTheDependencyVerdict() {
         ComplianceReport report = report(List.of(dependency(MIT)), List.of());
-        assertTrue(report.inventory().compliant());
+        assertTrue(report.inventory().withinPolicy());
         assertEquals(List.of("Uncommitted sources"), report.draftReasons());
         assertEquals("oss-compliance-report-sample-a12345678901", report.fileStem());
     }
 
     @Test
-    void reportsPolicyFailuresWithoutLosingSuppressedFindings() {
-        ReportAdvisory excused = new ReportAdvisory(
-            "CVE-2026-1234", "HIGH", "Suppressed",
-            Map.of("Exception", "2026-10-13: unused feature")
-        );
-        assertTrue(report(List.of(dependency(MIT)), List.of(excused)).inventory().compliant());
-        ReportAdvisory unresolved = new ReportAdvisory("CVE-2026-1235", "HIGH", "Unresolved", Map.of());
-        assertFalse(report(List.of(dependency(MIT)), List.of(unresolved)).inventory().compliant());
+    void reportsPolicyFailuresWithoutLosingMitigatedFindings() {
+        ReportAdvisory excused = mitigated("CVE-2026-1234", "HIGH", false);
+        assertTrue(report(List.of(dependency(MIT)), List.of(excused)).inventory().withinPolicy());
+        ReportAdvisory unresolved = open("CVE-2026-1235", "HIGH");
+        assertFalse(report(List.of(dependency(MIT)), List.of(unresolved)).inventory().withinPolicy());
         assertTrue(
             report(List.of(dependency(MIT)), List.of(unresolved)).inventory().failures().getFirst()
                 .contains(unresolved.identity())
@@ -88,7 +86,7 @@ class ComplianceReportTest {
         );
         assertTrue(
             report(List.of(dependency("Unknown")), List.of()).draftReasons().stream()
-                .anyMatch(reason -> reason.contains("do not satisfy"))
+                .anyMatch(reason -> reason.contains("don't satisfy"))
         );
     }
 
@@ -130,19 +128,19 @@ class ComplianceReportTest {
     @Test
     void rendersAnEmptyInventoryAndUnknownAdvisorySeverityExplicitly() {
         String empty = ComplianceReportHtml.render(report(List.of(), List.of()));
-        assertTrue(empty.contains("No dependency requires copyleft"));
-        assertTrue(empty.contains("no known vulnerabilities"));
+        assertTrue(empty.contains("No dependency carries a weak copyleft license."));
+        assertTrue(empty.contains("No known vulnerability was reported."));
+        assertTrue(empty.contains("<li class=\"pass\">No known vulnerabilities.</li>"));
         ReportAdvisory advisory = new ReportAdvisory(
-            "ADVISORY-1", "Unrated", "Unresolved",
-            Map.of("Artifact", "group:unsafe:1")
+            "ADVISORY-1", "Unrated", "group:unsafe:1", List.of(ROOT_MODULE), "", Optional.empty()
         );
         ReportPackage missing = new ReportPackage(
             "group:library:jar:1", List.of(), List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)), Map.of()
         );
         String failing = ComplianceReportHtml.render(report(List.of(missing), List.of(advisory)));
         assertTrue(failing.contains("Not declared"));
-        assertTrue(failing.contains("Not compliant"));
-        assertTrue(failing.contains("Unrated"));
+        assertTrue(failing.contains("<li class=\"fail\">1 vulnerability (1 unrated) is open"));
+        assertTrue(failing.contains("<span class=\"sev sev-unrated\">unrated</span>"));
         assertTrue(failing.contains("group:unsafe:1"));
     }
 
@@ -157,9 +155,9 @@ class ComplianceReportTest {
             original.inventory(), original.evidence()
         );
         String html = ComplianceReportHtml.render(clean);
-        assertFalse(html.contains("Draft report"));
-        assertTrue(html.contains("<b>0</b><span>Production artifacts</span>"));
-        assertTrue(html.contains("<b>1</b><span>Development and build</span>"));
+        assertFalse(html.contains("is a draft"));
+        assertTrue(html.contains("1 artifact version is resolved, 0 on a production classpath and 1 used only"));
+        assertTrue(html.contains("Uncommitted changes</td><td>None"));
     }
 
     @Test
@@ -179,20 +177,35 @@ class ComplianceReportTest {
         assertTrue(dependency(MIT).production());
     }
 
-    private static ReportPackage dependency(String license) {
-        return new ReportPackage(
-            "group:library:jar:1", List.of(license),
-            List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)), Map.of()
+    @Test
+    void groupsSharedNoticesAndNamesProductionArtifactsWithoutOne() {
+        String text = "Copyright 2026 Example Authors.";
+        ReportPackage first = new ReportPackage(
+            "group:first:jar:1", List.of(MIT), List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)),
+            Map.of("META-INF/LICENSE", text)
         );
-    }
-
-    private static ComplianceReport report(List<ReportPackage> packages, List<ReportAdvisory> advisories) {
-        return new ComplianceReport(
-            "sample", new ReportSource(
-                COMMIT, "fingerprint", "2026-10-13T12:00:00Z",
-                List.of("Uncommitted sources")
-            ), new ReportInventory(packages, advisories, POLICY),
-            new ReportEvidence("{}", "{\"sbom\":\"{}\",\"csv\":\"header\"}", Map.of("SBOM SHA-256", "digest"))
+        ReportPackage second = new ReportPackage(
+            "group:second:jar:1", List.of(MIT), List.of(new ReportUse(ROOT_MODULE, "runtime", DIRECT)),
+            Map.of("META-INF/LICENSE.txt", text)
         );
+        ComplianceReport original = report(List.of(first, second, dependency(MIT)), List.of());
+        ComplianceReport dirty = new ComplianceReport(
+            original.project(), new ReportSource(COMMIT, "fingerprint", "now", List.of(ReportSource.DIRTY)),
+            original.inventory(), original.evidence()
+        );
+        String html = ComplianceReportHtml.render(dirty);
+        assertTrue(
+            html.contains(
+                "<p class=\"title\">group:first:jar:1, group:second:jar:1</p><p class=\"notice-packages\">"
+                    + "META-INF/LICENSE, META-INF/LICENSE.txt, shared by 2 artifact versions</p>"
+            )
+        );
+        assertTrue(html.contains("These production artifact versions ship no license file."));
+        assertTrue(html.contains("Uncommitted changes</td><td>Present, so this report is a draft"));
+        assertTrue(html.contains("<span class=\"digest\">digest</span>"));
+        assertTrue(dirty.source().dirty());
+        String empty = ComplianceReportHtml.render(report(List.of(), List.of()));
+        assertTrue(empty.contains("No production dependency ships a license file."));
+        assertTrue(empty.contains("Every production artifact version ships a license file."));
     }
 }

@@ -13,8 +13,22 @@ import java.util.List;
  */
 public record ReportSource(String commit, String fingerprint, String generatedAt, List<String> draftReasons) {
 
+    /**
+     * The draft reason a working tree with uncommitted changes carries.
+     */
+    public static final String DIRTY = "The working tree has uncommitted changes, so no commit describes this source.";
+
     public ReportSource {
         draftReasons = List.copyOf(draftReasons);
+    }
+
+    /**
+     * Whether the working tree had uncommitted changes when the report was generated.
+     *
+     * @return whether no commit describes the reported source
+     */
+    public boolean dirty() {
+        return this.draftReasons.contains(DIRTY);
     }
 
     /**
@@ -27,7 +41,7 @@ public record ReportSource(String commit, String fingerprint, String generatedAt
     public static ReportSource read(Path root, String generatedAt) {
         String commit = GitPlumbing.run(root, List.of("rev-parse", "HEAD")).strip();
         boolean dirty = !GitPlumbing.run(root, List.of("status", "--porcelain")).isBlank();
-        List<String> reasons = dirty ? List.of("The working tree has uncommitted changes.") : List.of();
+        List<String> reasons = dirty ? List.of(DIRTY) : List.of();
         return new ReportSource(commit, TreeFingerprint.from(root), generatedAt, reasons);
     }
 }

@@ -31,7 +31,7 @@ final class ReportAssets {
     }
 
     static String credits() {
-        return "<h3>Report typefaces</h3>" + Stream.of("source-serif-4", "playfair-display", "source-code-pro")
+        return Stream.of("source-serif-4", "playfair-display", "source-code-pro")
             .map(
                 name -> "<details><summary>" + name + " (Fontsource 5.3.0)</summary><pre>"
                     + ReportMarkup.escape(text(name + "-LICENSE.txt")) + "</pre></details>"

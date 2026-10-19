@@ -59,7 +59,13 @@ public record ReportLicensePolicy(Set<String> allowed, Map<String, String> alias
         return REFUSED.equals(this.classification(entry.licenses()));
     }
 
-    private static boolean copyleft(String license) {
+    /**
+     * Whether an admitted license carries a file-level or library-level copyleft condition.
+     *
+     * @param license an admitted identifier
+     * @return whether the license is admitted only for components used unmodified
+     */
+    static boolean copyleft(String license) {
         return Stream.of("LGPL-", "MPL-", "EPL-", "CPL-", "CDDL-", "GPL-")
             .anyMatch(license::startsWith);
     }

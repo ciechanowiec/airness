@@ -3,15 +3,16 @@ package eu.ciechanowiec.airness.maven;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import eu.ciechanowiec.airness.governance.ReportAdvisory;
+import eu.ciechanowiec.airness.governance.ReportMitigation;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,6 +20,12 @@ import org.junit.jupiter.api.io.TempDir;
 class ReportEvidenceTest {
 
     private static final Instant STARTED = Instant.parse("2026-10-13T12:00:00Z");
+    private static final String NAME = "name";
+    private static final String HARNESS_NOTES = """
+
+            Added 2026-10-13. Not reachable.
+            Mitigation: Removed with the next upgrade.
+        """;
 
     @TempDir
     private Path directory;
@@ -70,27 +77,66 @@ class ReportEvidenceTest {
     }
 
     @Test
-    void retainsBothUnresolvedAndActuallySuppressedScannerFindings() {
+    void retainsBothOpenAndActuallyMitigatedScannerFindings() {
         Path file = this.directory.resolve("scan.json");
         Map<String, Object> dependency = Map.of(
             "fileName", "library.jar", "packages", List.of(Map.of("id", "pkg:maven/a/b@1")),
-            "vulnerabilities", List.of(Map.of("name", "CVE-2026-1111", "severity", "HIGH")),
-            "suppressedVulnerabilities", List.of(Map.of("name", "CVE-2026-2222", "notes", "2026-10-13: not reachable"))
+            "vulnerabilities", List.of(Map.of(NAME, "CVE-2026-1111", "severity", "HIGH")),
+            "suppressedVulnerabilities", List.of(Map.of(NAME, "CVE-2026-2222", "notes", HARNESS_NOTES))
         );
         ReportJson.write(file, scan(List.of(dependency)));
         List<ReportAdvisory> findings = ReportVulnerabilities.read(file, STARTED, "module");
-        assertEquals(List.of("Unresolved", "Suppressed"), findings.stream().map(ReportAdvisory::status).toList());
-        assertEquals("pkg:maven/a/b@1", findings.getFirst().evidence().get("Artifact"));
-        assertTrue(findings.getLast().evidence().getOrDefault("Exception", "").contains("not reachable"));
+        assertEquals(List.of(true, false), findings.stream().map(ReportAdvisory::open).toList());
+        assertEquals("pkg:maven/a/b@1", findings.getFirst().artifact());
+        ReportMitigation mitigation = findings.getLast().mitigation().orElseThrow();
+        assertEquals("Not reachable.", mitigation.reason());
+        assertEquals("Removed with the next upgrade.", mitigation.plan());
+        assertEquals("2026-10-13", mitigation.addedOn());
+        assertFalse(mitigation.harness());
+    }
+
+    @Test
+    @SneakyThrows
+    void marksTheMitigationsAirnessAnswersFor() {
+        Path inputs = Files.createDirectories(this.directory.resolve("plugin-inputs"));
+        Files.writeString(
+            inputs.resolve("tool-suppressions.xml"), """
+                <suppressions><suppress><notes>
+                    Added 2026-10-13. Not reachable.
+                    Mitigation: Removed with the next upgrade.
+                </notes><cve>CVE-2026-2222</cve></suppress></suppressions>
+                """
+        );
+        Path file = this.directory.resolve("scan.json");
+        ReportJson.write(
+            file, scan(
+                List.of(
+                    Map.of(
+                        "fileName", "library.jar", "suppressedVulnerabilities", List.of(
+                            Map.of(NAME, "CVE-2026-2222", "notes", HARNESS_NOTES),
+                            Map.of(NAME, "CVE-2026-3333", "notes", "Added 2026-10-14. Mine. Mitigation: Mine.")
+                        )
+                    )
+                )
+            )
+        );
+        List<ReportAdvisory> findings = ReportVulnerabilities.read(
+            file, STARTED, "module", ReportVulnerabilities.harnessNotes(inputs)
+        );
+        assertEquals(
+            List.of(true, false),
+            findings.stream().map(finding -> finding.mitigation().orElseThrow().harness()).toList()
+        );
+        assertEquals(Set.of(), ReportVulnerabilities.harnessNotes(this.directory.resolve("absent")));
     }
 
     @Test
     void readsSuppressedSeverityFromTheScannersNestedCvssEvidence() {
         Path file = this.directory.resolve("scan.json");
         List<Map<String, Object>> findings = List.of(
-            Map.of("name", "CVE-2026-1111", "cvssv4", Map.of("baseSeverity", "CRITICAL")),
-            Map.of("name", "CVE-2026-2222", "cvssv3", Map.of("baseSeverity", "HIGH")),
-            Map.of("name", "CVE-2026-3333", "cvssv2", Map.of("severity", "MEDIUM"))
+            Map.of(NAME, "CVE-2026-1111", "cvssv4", Map.of("baseSeverity", "CRITICAL")),
+            Map.of(NAME, "CVE-2026-2222", "cvssv3", Map.of("baseSeverity", "HIGH")),
+            Map.of(NAME, "CVE-2026-3333", "cvssv2", Map.of("severity", "MEDIUM"))
         );
         ReportJson.write(file, scan(List.of(Map.of("fileName", "library.jar", "suppressedVulnerabilities", findings))));
         assertEquals(

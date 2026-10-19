@@ -2,7 +2,7 @@
 <!--
     Advisories that Dependency-Check reports against the harness and that no upgrade answers, because
     the report is a name collision rather than a finding. Every entry names its advisory, says why the named
-    packages cannot contain it, and records the date it was added.
+    packages cannot contain it, states its mitigation plan, and records the date it was added.
 
     The plugin runs with failBuildOnUnusedSuppressionRule, so a rule that stops matching fails the build
     rather than outliving what it was written for. Nothing here raises the CVSS threshold: the threshold
@@ -19,6 +19,11 @@
             Dependency-Check maps the independent bundle versions to the Eclipse Platform product
             version. No upgrade of these runtime bundles fixes that product mismatch.
             https://bugs.eclipse.org/bugs/show_bug.cgi?id=569855
+
+            Mitigation: These bundles run only inside the Eclipse JDT formatter during the build, never in a deployed
+            application, and the help components the advisory names stay scanned. The entry is removed once
+            Dependency-Check stops matching these bundles to the Eclipse Platform version, or once the
+            formatter no longer depends on them.
         ]]></notes>
         <packageUrl regex="true">^pkg:maven/org\.eclipse\.platform/org\.eclipse\.(core\.(commands|contenttype|expressions|filesystem|jobs|resources|runtime)|equinox\.(app|common|preferences|registry)|text)@[^?]+(?:\?type=jar)?$</packageUrl>
         <cve>CVE-2020-27225</cve>
@@ -31,6 +36,10 @@
             The two are unrelated products, so no version of this package is affected and no upgrade
             applies.
             https://github.com/mrbobbybryant/Jobs-Plugin/pull/2
+
+            Mitigation: The scheduler runs only inside the Eclipse JDT formatter during the build, never in a
+            deployed application. The entry is removed once Dependency-Check stops matching it to the unrelated
+            plugin, or once the formatter no longer depends on it.
         ]]></notes>
         <packageUrl regex="true">^pkg:maven/org\.eclipse\.platform/org\.eclipse\.core\.jobs@.*$</packageUrl>
         <cve>CVE-2014-125035</cve>

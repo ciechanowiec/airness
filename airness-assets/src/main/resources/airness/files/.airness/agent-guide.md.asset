@@ -430,11 +430,14 @@ and the report outside full verification. This command establishes the dependenc
 an Extended verification pass. `-Dairness.compliance.output=<directory>` changes the destination only;
 it must be ignored by Git or outside the repository and may not traverse a symbolic link.
 
-The report names every resolved artifact and its declaring modules, native Maven scopes and direct or
-transitive use. It includes test dependencies and resolved build tools, the inherited license policy,
-copyleft and refused licenses, every scanner advisory with its applied exception, and textual license
-and notice entries from production dependency archives. Identical texts are grouped with their artifact
-attribution. Provided dependencies are identified separately from compile and runtime dependencies.
+The first page states the verdict as checked or failed statements, without calling the project compliant, and
+lists the contents. The report then lists every vulnerability the scan read with its scope and status, open or
+mitigated, and prints a mitigation plan for each mitigated one from its suppression entry. It follows with the
+license classes, every weak copyleft or refused artifact with its uses, the inherited license policy, and the full
+inventory: every resolved artifact and its declaring modules, native Maven scopes and direct or transitive use,
+including test dependencies and resolved build tools. It ends with the textual license and notice entries from
+production dependency archives. Identical texts are grouped with their artifact attribution. Provided dependencies
+are identified separately from compile and runtime dependencies.
 
 The HTML embeds an aggregate CycloneDX inventory and a CSV inventory for download. Published per-module
 `bom.json` files retain their existing production dependency scope. The report records its source
@@ -574,12 +577,33 @@ property, which is what makes the property the pin it reads as.
 Reach for the suppression file only when no upgrade answers an advisory. Keep it at
 `.airness/dependency-check-suppressions.xml`, which is the path the scan reads: the document's presence there is what
 puts it in front of the scan, so one kept elsewhere is never read and the setting itself needs no declaring. Every
-rule in it names the advisory it excuses, says in its `notes` why this project cannot reach the vulnerability, and
-carries a `YYYY-MM-DD` date. A rule that suppresses nothing fails the build, like every other exclusion that reaches
-nothing.
+rule in it names the advisory it excuses and carries `notes` with three parts. The notes say why the vulnerability
+can't be exploited in this project: name the path that reaches the artifact, whether it runs in production or only in
+tests and the build, and why its input can't trigger the defect. After a `Mitigation:` marker they state the
+mitigation plan: what limits the risk now and what will remove the artifact, such as the upstream release or the
+dependent's upgrade it waits for. They carry a `YYYY-MM-DD` date. A rule that suppresses nothing fails the build, like
+every other exclusion that reaches nothing.
+
+```xml
+<suppress>
+    <notes><![CDATA[
+        Added 2026-01-15. example-parser is reached only through example-bundler, which parses the project's own
+        build configuration during the build. The defect needs attacker-supplied input, which that configuration isn't.
+
+        Mitigation: example-bundler never runs in the deployed application. The entry is removed once
+        example-bundler releases a version that drops example-parser.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.example/example-parser@.*$</packageUrl>
+    <cve>CVE-2026-0001</cve>
+</suppress>
+```
+
+The compliance report prints the reason and the mitigation plan to a reviewer outside the project, so write both
+as complete sentences that stand on their own.
 
 Each exception names non-empty literal `cve` or `vulnerabilityName` values. Advisory-name regexes,
 product (`cpe`) and weakness (`cwe`) selectors, and CVSS score thresholds are refused, even beside a
 named advisory. Dependency selectors (`packageUrl`, `gav`, `filePath` and `sha1`) remain available,
 including their supported regex forms, and a dependency selector is not mandatory. Entries in groups
-and entries using namespace prefixes are checked too. Each entry carries its own explanation and date.
+and entries using namespace prefixes are checked too. Each entry carries its own explanation, mitigation plan and
+date.

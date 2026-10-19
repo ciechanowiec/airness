@@ -8,6 +8,11 @@
             matches the new release line against the old r938 version bound. This exception names only
             the patched coordinate and version; the vulnerable net.sf.jtidy artifact remains blocked.
             https://github.com/jtidy/jtidy/releases/tag/jtidy-1.0.4
+
+            Mitigation: The patched parser runs only while the Airness build generates its plugin descriptors, never
+            in a published artifact's runtime code, and the vulnerable net.sf.jtidy artifact stays blocked. The
+            entry is removed once Dependency-Check stops matching the maintained release line, or once the
+            descriptor generator no longer depends on JTidy.
         ]]></notes>
         <packageUrl regex="true">^pkg:maven/com\.github\.jtidy/jtidy@1\.0\.5(?:\?type=jar)?$</packageUrl>
         <cve>CVE-2023-34623</cve>

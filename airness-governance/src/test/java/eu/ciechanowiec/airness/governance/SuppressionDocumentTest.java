@@ -16,21 +16,25 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class SuppressionDocumentTest {
 
-    private static final String COMPLETE = """
-        <suppressions>
-            <suppress>
-                <notes>The vulnerable code path is a servlet this project never deploys. Added 2026-08-23.</notes>
-                <cve>CVE-2020-27225</cve>
-            </suppress>
-        </suppressions>
-        """;
+    private static final String COMPLETE
+        = """
+            <suppressions>
+                <suppress>
+                    <notes>The vulnerable code path is a servlet this project never deploys. Added 2026-08-23.
+                    Mitigation: Removed with the next upgrade.</notes>
+                    <cve>CVE-2020-27225</cve>
+                </suppress>
+            </suppressions>
+            """;
 
     @TempDir
     private Path directory;
 
     @Test
     void acceptsAnEntryThatRecordsTheWholeDecision() {
-        assertEquals(List.of(), this.problems(COMPLETE), "a reason, a date and an advisory are the decision");
+        assertEquals(
+            List.of(), this.problems(COMPLETE), "a reason, a mitigation plan, a date and an advisory are the decision"
+        );
     }
 
     @Test
@@ -50,14 +54,16 @@ class SuppressionDocumentTest {
 
     @Test
     void rejectsAnEntryThatRecordsNoDate() {
-        String document = """
-            <suppressions>
-                <suppress>
-                    <notes>The vulnerable code path is a servlet this project never deploys.</notes>
-                    <cve>CVE-2020-27225</cve>
-                </suppress>
-            </suppressions>
-            """;
+        String document
+            = """
+                <suppressions>
+                    <suppress>
+                        <notes>The vulnerable code path is a servlet this project never deploys.
+                        Mitigation: Removed with the next upgrade.</notes>
+                        <cve>CVE-2020-27225</cve>
+                    </suppress>
+                </suppressions>
+                """;
         assertTrue(
             this.problems(document).getFirst().contains("record the date"),
             "a judgement with no date cannot be told from one made before the code was rewritten"
@@ -66,14 +72,16 @@ class SuppressionDocumentTest {
 
     @Test
     void rejectsAnEntryThatNamesOnlyAPackage() {
-        String document = """
-            <suppressions>
-                <suppress>
-                    <notes>This project never reaches it. Added 2026-08-23.</notes>
-                    <packageUrl regex="true">^pkg:maven/org\\.example/.*$</packageUrl>
-                </suppress>
-            </suppressions>
-            """;
+        String document
+            = """
+                <suppressions>
+                    <suppress>
+                        <notes>This project never reaches it. Added 2026-08-23.
+                        Mitigation: Removed with the next upgrade.</notes>
+                        <packageUrl regex="true">^pkg:maven/org\\.example/.*$</packageUrl>
+                    </suppress>
+                </suppressions>
+                """;
         assertTrue(
             this.problems(document).getFirst().contains("name the advisory it excuses"),
             "a package with no advisory excuses everything that will ever be published about it"
@@ -177,44 +185,50 @@ class SuppressionDocumentTest {
 
     @Test
     void validatesPrefixedAndGroupedEntries() {
-        String document = """
-            <dc:suppressions xmlns:dc="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
-                <dc:suppressionGroup name="examples">
-                    <dc:suppress>
-                        <dc:notes>The affected parser is absent. Added 2026-09-07.</dc:notes>
-                        <dc:vulnerabilityName regex="1">.*</dc:vulnerabilityName>
-                    </dc:suppress>
-                </dc:suppressionGroup>
-            </dc:suppressions>
-            """;
+        String document
+            = """
+                <dc:suppressions xmlns:dc="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
+                    <dc:suppressionGroup name="examples">
+                        <dc:suppress>
+                            <dc:notes>The affected parser is absent. Added 2026-09-07.
+                            Mitigation: Removed with the next upgrade.</dc:notes>
+                            <dc:vulnerabilityName regex="1">.*</dc:vulnerabilityName>
+                        </dc:suppress>
+                    </dc:suppressionGroup>
+                </dc:suppressions>
+                """;
         assertTrue(this.problems(document).stream().anyMatch(problem -> problem.contains("literal advisory")));
     }
 
     @Test
     void acceptsLiteralAdvisoriesInPrefixedGroups() {
-        String document = """
-            <dc:suppressions xmlns:dc="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
-                <dc:suppressionGroup name="examples">
-                    <dc:suppress>
-                        <dc:notes>The affected parser is absent. Added 2026-09-07.</dc:notes>
-                        <dc:cve>CVE-2020-27225</dc:cve>
-                    </dc:suppress>
-                </dc:suppressionGroup>
-            </dc:suppressions>
-            """;
+        String document
+            = """
+                <dc:suppressions xmlns:dc="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
+                    <dc:suppressionGroup name="examples">
+                        <dc:suppress>
+                            <dc:notes>The affected parser is absent. Added 2026-09-07.
+                            Mitigation: Removed with the next upgrade.</dc:notes>
+                            <dc:cve>CVE-2020-27225</dc:cve>
+                        </dc:suppress>
+                    </dc:suppressionGroup>
+                </dc:suppressions>
+                """;
         assertTrue(this.problems(document).isEmpty());
     }
 
     @Test
     void groupNotesCannotReplaceAnEntryReason() {
-        String document = """
-            <suppressions>
-                <suppressionGroup name="examples">
-                    <notes>The affected parser is absent. Added 2026-09-07.</notes>
-                    <suppress><cve>CVE-2020-27225</cve></suppress>
-                </suppressionGroup>
-            </suppressions>
-            """;
+        String document
+            = """
+                <suppressions>
+                    <suppressionGroup name="examples">
+                        <notes>The affected parser is absent. Added 2026-09-07.
+                        Mitigation: Removed with the next upgrade.</notes>
+                        <suppress><cve>CVE-2020-27225</cve></suppress>
+                    </suppressionGroup>
+                </suppressions>
+                """;
         assertTrue(this.problems(document).stream().anyMatch(problem -> problem.contains("say why")));
     }
 
@@ -230,11 +244,13 @@ class SuppressionDocumentTest {
             """
                 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
                     <suppress>
-                        <notes>The affected parser is absent. Added 2026-09-07.</notes>
+                        <notes>The affected parser is absent. Added 2026-09-07.
+                        Mitigation: Removed with the next upgrade.</notes>
                         %s
                     </suppress>
                 </suppressions>
-                """.formatted(selectors)
+                """
+                .formatted(selectors)
         );
     }
 

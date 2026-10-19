@@ -4,179 +4,120 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * The report's narrative, summaries, notice texts, and provenance.
+ * The report's notice texts and its provenance.
  *
  * @param report evaluated report
  */
 record ReportSections(ComplianceReport report) {
 
-    private static final int PERCENT = 100;
-    private static final List<String> SEVERITIES = List.of("CRITICAL", "HIGH", "MEDIUM", "LOW");
-
-    String opening() {
-        String verdict = this.report.inventory().compliant() ? "Compliant" : "Not compliant";
-        return ReportMarkup.paragraph("Project: " + this.report.project())
-            + "<p>Dependency policy verdict: <strong>" + verdict + "</strong>.</p>"
-            + ReportMarkup.paragraph("Generated " + this.report.source().generatedAt())
-            + (this.report.draftReasons().isEmpty() ? "" : "<aside class=\"draft-notice\"><strong>Draft report</strong>"
-                + ReportMarkup.list(this.report.draftReasons()) + "</aside>");
-    }
-
-    String summary() {
-        ReportInventory inventory = this.report.inventory();
-        String figures = figure(inventory.packages().size(), "Resolved artifact versions")
-            + figure(inventory.packages().stream().filter(ReportPackage::production).count(), "Production artifacts")
-            + figure(
-                inventory.packages().stream().filter(entry -> !entry.production()).count(), "Development and build"
-            )
-            + figure(
-                inventory.packages().stream().filter(
-                    entry -> "Weak copyleft".equals(
-                        inventory.policy().classification(entry.licenses())
-                    )
-                ).count(), "Weak copyleft artifacts"
-            )
-            + figure(
-                inventory.packages().stream().filter(inventory.policy()::refuses).count(),
-                "Outside license policy"
-            )
-            + figure(
-                inventory.advisories().stream().filter(advisory -> "Unresolved".equals(advisory.status())).count(),
-                "Unresolved advisories"
-            );
-        return ReportMarkup.paragraph(
-            "The figures below use the resolved dependencies and the evidence judged by "
-                + "the build. The verdict covers dependency policy; it is not a verdict on every Airness check."
-        )
-            + "<div class=\"figures\">" + figures + "</div>" + this.licenseChart() + this.commonLicenses()
-            + this.severityChart();
-    }
-
-    String policy() {
-        ReportLicensePolicy policy = this.report.inventory().policy();
-        List<String> permitted = policy.allowed().stream().sorted().toList();
-        return ReportMarkup.paragraph(
-            "This is the allowlist the inherited license check enforces. A supplier's "
-                + "declared spelling is normalized only by the same aliases that check reads. Unknown licenses fail."
-        )
-            + ReportMarkup.list(permitted)
-            + ReportMarkup.paragraph(
-                "Copyleft classification identifies dependencies for review. The report "
-                    + "records declarations and shipped notices; it does not establish how a product is distributed."
-            ) + ReportTables.licenseEvidence(this.report.inventory());
-    }
+    private static final String DIGEST = "SHA-256";
 
     String notices() {
         List<ReportPackage> production = this.report.inventory().packages().stream()
             .filter(ReportPackage::production).toList();
         List<String> missing = production.stream().filter(entry -> entry.archiveNotices().isEmpty())
             .map(ReportPackage::coordinate).toList();
-        Map<String, List<String>> grouped = production.stream()
-            .flatMap(
-                entry -> entry.archiveNotices().entrySet().stream()
-                    .map(notice -> Map.entry(notice.getValue(), entry.coordinate() + " / " + notice.getKey()))
-            ).collect(
-                Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList()))
-            );
-        return ReportMarkup.paragraph(
-            "These are the license and notice texts found in production dependency "
-                + "archives. Identical texts are grouped with every artifact and archive entry that carries them."
-        )
-            + "<h3>Packages without a license file</h3>"
-            + (missing.isEmpty() ? ReportMarkup.paragraph(
-                "Every production artifact supplies a license or notice file."
-            )
-                : ReportMarkup.list(missing))
-            + grouped.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(ReportSections::notice)
-                .collect(Collectors.joining()) + ReportAssets.credits();
+        // Identical texts are printed once. Most permissive licenses differ only in their copyright line,
+        // so the grouping is by the reflowed text rather than by the license name.
+        Map<String, List<Map.Entry<String, String>>> grouped = production.stream().flatMap(
+            entry -> entry.archiveNotices().entrySet().stream()
+                .map(
+                    notice -> Map.entry(
+                        ReportNoticeText.reflow(notice.getValue()), Map.entry(entry.coordinate(), notice.getKey())
+                    )
+                )
+        ).collect(
+            Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList()))
+        );
+        List<Map.Entry<String, List<Map.Entry<String, String>>>> groups = grouped.entrySet().stream()
+            .sorted(Comparator.comparing(group -> String.join(", ", coordinates(group)))).toList();
+        return ReportOutline.section(
+            "notices", ReportMarkup.paragraphs(
+                List.of(
+                    "This section reproduces the license and notice files shipped in the archive of each production "
+                        + "dependency.",
+                    "The words are unchanged. Only the fixed-width line breaks and the Markdown markers of the "
+                        + "original files are removed so the text reads as paragraphs.",
+                    "Identical texts are printed once with every artifact version that ships them.",
+                    "Test, provided and build dependencies aren&#39;t distributed with the application, so this "
+                        + "section doesn&#39;t reproduce them."
+                )
+            ) + ReportOutline.subheading("notices-missing") + (missing.isEmpty()
+                ? ReportMarkup.empty("Every production artifact version ships a license file.")
+                : ReportMarkup.paragraphs(
+                    List.of(
+                        "These production artifact versions ship no license file.",
+                        "Their declared license is listed in " + ReportOutline.reference("inventory")
+                            + ", and no text is invented for them."
+                    )
+                ) + ReportMarkup.idList(missing))
+                + ReportOutline.subheading("notices-texts") + (groups.isEmpty()
+                    ? ReportMarkup.empty("No production dependency ships a license file.")
+                    : IntStream.range(0, groups.size()).mapToObj(index -> notice(groups.get(index), index))
+                        .collect(Collectors.joining()))
+                + ReportOutline.subheading("notices-typefaces") + ReportAssets.credits()
+        );
     }
 
     String provenance() {
         ReportSource source = this.report.source();
-        Map<String, String> facts = Map.of(
-            "Source commit", source.commit(), "Source fingerprint (SHA-256)",
-            source.fingerprint(), "Report date", source.generatedAt(), "Regenerate",
-            "mvn -Pextended airness:compliance-report"
+        Stream<Map.Entry<String, String>> own = Stream.of(
+            Map.entry("Source commit", ReportMarkup.code(source.commit())),
+            Map.entry("Uncommitted changes", source.dirty() ? "Present, so this report is a draft" : "None"),
+            Map.entry("Source fingerprint (SHA-256)", ReportMarkup.digest(source.fingerprint())),
+            Map.entry("Report date", ReportMarkup.moment(source.generatedAt())),
+            Map.entry("Regenerate", ReportMarkup.code("mvn -Pextended airness:compliance-report"))
         );
-        return facts(facts) + facts(this.report.evidence().facts())
-            + ReportMarkup.paragraph(
-                "The aggregate SBOM covers the resolved Maven inputs listed here. "
-                    + "The separately published per-module SBOMs retain their production dependency scope. "
-                    + "Container operating-system packages and arbitrary distribution files "
-                    + "are outside this inventory. "
-                    + "Vulnerability findings describe the database available at the recorded scan time."
+        Stream<Map.Entry<String, String>> evidence = this.report.evidence().facts().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey()).map(
+                entry -> Map.entry(
+                    ReportMarkup.escape(entry.getKey()), entry.getKey().contains(DIGEST)
+                        ? ReportMarkup.digest(entry.getValue()) : ReportMarkup.escape(entry.getValue())
+                )
             );
-    }
-
-    private String licenseChart() {
-        ReportInventory inventory = this.report.inventory();
-        Map<String, Long> counts = inventory.packages().stream().collect(
-            Collectors.groupingBy(
-                entry -> inventory.policy().classification(entry.licenses()), Collectors.counting()
-            )
+        return ReportOutline.section(
+            "provenance", ReportMarkup.paragraphs(
+                List.of(
+                    "This report is generated by the build, not written by hand.",
+                    "It reads the same resolved dependencies, license policy and scanner findings that the license "
+                        + "and vulnerability checks of the build use to pass or fail, so the report and the verdict "
+                        + "can&#39;t disagree.",
+                    "Anyone with the repository can regenerate it from the commit below."
+                )
+            ) + ReportOutline.subheading("provenance-source")
+                + ReportMarkup.facts(Stream.concat(own, evidence).toList())
+                + ReportOutline.subheading("provenance-scope") + ReportMarkup.paragraphs(
+                    List.of(
+                        "The report covers every artifact the participating reactor modules resolve, in every Maven "
+                            + "scope, and the build tools their plugins resolve.",
+                        "A license is the one the artifact&#39;s published metadata declares, or the verified upstream "
+                            + "evidence listed in " + ReportOutline.reference("policy-evidence") + ".",
+                        "The aggregate SBOM covers the resolved Maven inputs listed here. The separately published "
+                            + "per-module SBOMs retain their production dependency scope. Container operating-system "
+                            + "packages and arbitrary distribution files are outside this inventory."
+                    )
+                )
         );
-        return "<h3>License classes</h3>" + chart(counts);
     }
 
-    private String severityChart() {
-        Map<String, Long> counts = this.report.inventory().advisories().stream()
-            .collect(Collectors.groupingBy(ReportAdvisory::severity, Collectors.counting()));
-        Map<String, Long> complete = Stream.concat(
-            counts.entrySet().stream(),
-            SEVERITIES.stream().map(severity -> Map.entry(severity, 0L))
-        ).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, Long::sum));
-        return "<h3>Advisories by severity</h3>" + chart(
-            complete,
-            Comparator.comparingInt(entry -> SEVERITIES.indexOf(entry.getKey()))
-        );
+    // The package is what a reader looks for, so it heads the entry. The file names follow, with the number
+    // of artifact versions that share the text when there is more than one.
+    private static String notice(Map.Entry<String, List<Map.Entry<String, String>>> group, int index) {
+        List<String> coordinates = coordinates(group);
+        List<String> files = group.getValue().stream().map(Map.Entry::getValue).distinct().sorted().toList();
+        String shared = coordinates.size() > 1
+            ? ", shared by " + ReportCounts.plural(coordinates.size(), "artifact version") : "";
+        return "<div class=\"notice\" id=\"notice-" + (index + 1) + "\"><p class=\"title\">"
+            + ReportMarkup.escape(String.join(", ", coordinates))
+            + "</p><p class=\"notice-packages\">" + ReportMarkup.escape(String.join(", ", files)) + shared
+            + "</p><div class=\"license-text\">" + ReportNoticeText.render(group.getKey()) + "</div></div>";
     }
 
-    private String commonLicenses() {
-        Map<String, Long> counts = this.report.inventory().packages().stream().collect(
-            Collectors.groupingBy(
-                ReportPackage::licenseSummary, Collectors.counting()
-            )
-        );
-        return "<h3>Declared licenses</h3>" + chart(counts);
-    }
-
-    private static String chart(Map<String, Long> counts) {
-        return chart(counts, Map.Entry.comparingByKey());
-    }
-
-    private static String chart(Map<String, Long> counts, Comparator<Map.Entry<String, Long>> order) {
-        long maximum = Math.max(1, counts.values().stream().mapToLong(Long::longValue).max().orElse(1));
-        return "<div class=\"bars\">" + counts.entrySet().stream().sorted(order)
-            .map(entry -> bar(entry, maximum)).collect(Collectors.joining()) + "</div>";
-    }
-
-    private static String bar(Map.Entry<String, Long> entry, long maximum) {
-        long width = entry.getValue() * PERCENT / maximum;
-        return "<span class=\"label\">" + ReportMarkup.escape(entry.getKey())
-            + "</span><span class=\"track\"><span class=\"fill fill-permissive\" style=\"width:" + width
-            + "%\"></span></span><span class=\"count\">" + entry.getValue() + "</span>";
-    }
-
-    private static String figure(long count, String label) {
-        return "<div class=\"figure\"><b>" + count + "</b><span>" + ReportMarkup.escape(label) + "</span></div>";
-    }
-
-    private static String notice(Map.Entry<String, List<String>> entry) {
-        return "<article class=\"notice\"><h3>License and notice text</h3>"
-            + ReportMarkup.list(entry.getValue().stream().sorted().toList())
-            + "<div class=\"license-text\">" + entry.getKey().lines().map(ReportMarkup::paragraph)
-                .collect(Collectors.joining()) + "</div></article>";
-    }
-
-    private static String facts(Map<String, String> facts) {
-        return ReportMarkup.table(
-            List.of("Evidence", "Value"), facts.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> "<tr>" + ReportMarkup.cells(List.of(entry.getKey(), entry.getValue())) + "</tr>")
-                .collect(Collectors.joining())
-        );
+    private static List<String> coordinates(Map.Entry<String, List<Map.Entry<String, String>>> group) {
+        return group.getValue().stream().map(Map.Entry::getKey).distinct().sorted().toList();
     }
 }

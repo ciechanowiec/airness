@@ -24,7 +24,9 @@ final class ReportPdfContents {
         try (PDDocument document = Loader.loadPDF(bytes)) {
             PDOutlineNode outline = Optional.ofNullable(document.getDocumentCatalog().getDocumentOutline())
                 .orElseThrow(() -> new IllegalStateException("The printed report has no PDF outline"));
-            return children(outline).filter(item -> item.getTitle().matches("^[0-9]+\\..*"))
+            // A section's bookmark reads "1.Vulnerabilities", and its subsections' read "1.1.All vulnerabilities"
+            // and are left out, since the printed contents list sections only.
+            return children(outline).filter(item -> item.getTitle().matches("^[0-9]+\\.(?![0-9]).*"))
                 .collect(
                     Collectors.toUnmodifiableMap(
                         item -> "section-" + item.getTitle().split("\\.", -1)[0],

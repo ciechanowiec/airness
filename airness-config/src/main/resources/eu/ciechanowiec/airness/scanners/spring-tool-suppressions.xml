@@ -8,6 +8,10 @@
             independent Spring Boot version with the Spring Tools product version. No upgrade of the
             packaging library fixes this product mismatch; SnakeYAML dependencies remain scanned.
             https://spring.io/security/cve-2022-31691/
+
+            Mitigation: The packaging library runs only during the build that repackages an executable archive, and
+            its SnakeYAML dependencies stay scanned. The entry is removed once Dependency-Check stops matching
+            the library to Spring Tools, or with the Spring Boot upgrade after which it no longer does.
         ]]></notes>
         <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/spring-boot-loader-tools@4\.1\.1(?:\?type=jar)?$</packageUrl>
         <cve>CVE-2022-31691</cve>
