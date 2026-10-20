@@ -85,7 +85,7 @@ class ReportEvidenceTest {
             "suppressedVulnerabilities", List.of(Map.of(NAME, "CVE-2026-2222", "notes", HARNESS_NOTES))
         );
         ReportJson.write(file, scan(List.of(dependency)));
-        List<ReportAdvisory> findings = ReportVulnerabilities.read(file, STARTED, "module");
+        List<ReportAdvisory> findings = ReportVulnerabilities.read(file, STARTED, "module", Set.of());
         assertEquals(List.of(true, false), findings.stream().map(ReportAdvisory::open).toList());
         assertEquals("pkg:maven/a/b@1", findings.getFirst().artifact());
         ReportMitigation mitigation = findings.getLast().mitigation().orElseThrow();
@@ -141,7 +141,7 @@ class ReportEvidenceTest {
         ReportJson.write(file, scan(List.of(Map.of("fileName", "library.jar", "suppressedVulnerabilities", findings))));
         assertEquals(
             List.of("CRITICAL", "HIGH", "MEDIUM"),
-            ReportVulnerabilities.read(file, STARTED, "module").stream().map(ReportAdvisory::severity).toList()
+            ReportVulnerabilities.read(file, STARTED, "module", Set.of()).stream().map(ReportAdvisory::severity).toList()
         );
     }
 
@@ -149,16 +149,16 @@ class ReportEvidenceTest {
     void distinguishesAnEmptySuccessfulScanFromMissingOrFailedEvidence() {
         Path file = this.directory.resolve("scan.json");
         ReportJson.write(file, scan(List.of()));
-        assertEquals(List.of(), ReportVulnerabilities.read(file, STARTED, "module"));
+        assertEquals(List.of(), ReportVulnerabilities.read(file, STARTED, "module", Set.of()));
         ReportJson.write(file, Map.of("projectInfo", Map.of("reportDate", STARTED.toString())));
-        assertThrows(IllegalStateException.class, () -> ReportVulnerabilities.read(file, STARTED, "module"));
+        assertThrows(IllegalStateException.class, () -> ReportVulnerabilities.read(file, STARTED, "module", Set.of()));
         ReportJson.write(
             file, Map.of(
                 "projectInfo", Map.of("reportDate", STARTED.toString()), "dependencies", List.of(),
                 "scanInfo", Map.of("analysisExceptions", List.of("database unavailable"))
             )
         );
-        assertThrows(IllegalStateException.class, () -> ReportVulnerabilities.read(file, STARTED, "module"));
+        assertThrows(IllegalStateException.class, () -> ReportVulnerabilities.read(file, STARTED, "module", Set.of()));
     }
 
     @Test

@@ -20,15 +20,8 @@ final class ReportMarkup {
 
     private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
         .withZone(ZoneOffset.UTC);
-    private static final Map<String, String> ICONS = Map.of(
-        "warning",
-        "M12 2.5 1.5 21h21L12 2.5Zm-1.1 6.5h2.2l-.35 6.6h-1.5L10.9 9Zm1.1 10a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z",
-        "ok",
-        "M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21Zm-1.6 15.2-4.7-4.7 1.6-1.6 3.1 3.1 6.3-6.3 1.6 1.6-7.9 7.9Z",
-        "fail",
-        "M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21Zm-1.1 5h2.2l-.35 7.6h-1.5L10.9 6.5Zm1.1 11.6a1.3 1.3 0 1 1 "
-            + "0-2.6 1.3 1.3 0 0 1 0 2.6Z"
-    );
+    private static final String WARNING_ICON =
+        "M12 2.5 1.5 21h21L12 2.5Zm-1.1 6.5h2.2l-.35 6.6h-1.5L10.9 9Zm1.1 10a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z";
 
     static String escape(String text) {
         return HtmlEscape.escapeHtml5(text);
@@ -139,16 +132,15 @@ final class ReportMarkup {
     }
 
     /**
-     * A notice set apart from the text by an icon and a rule, where a reader looks first.
+     * A warning set apart from the text by an icon and a rule, where a reader looks first.
      *
-     * @param kind {@code warning}, {@code ok} or {@code fail}
-     * @param html the notice, already rendered
+     * @param html the warning, already rendered
      * @return the admonition markup
      */
-    static String admonition(String kind, String html) {
-        return "<div class=\"admonitionblock " + kind + "\"><table><tbody><tr><td class=\"icon\">"
-            + "<svg class=\"icon-" + kind + "\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" "
-            + "d=\"" + ICONS.get(kind) + "\"/></svg></td><td class=\"content\">" + html
+    static String warning(String html) {
+        return "<div class=\"admonitionblock warning\"><table><tbody><tr><td class=\"icon\">"
+            + "<svg class=\"icon-warning\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" "
+            + "d=\"" + WARNING_ICON + "\"/></svg></td><td class=\"content\">" + html
             + "</td></tr></tbody></table></div>";
     }
 }

@@ -36,8 +36,8 @@ record ReportVerdict(ComplianceReport report) {
 
     private String draftNotice() {
         List<String> reasons = this.report.draftReasons();
-        return reasons.isEmpty() ? "" : ReportMarkup.admonition(
-            "warning", "<p>This report is a draft and must not be treated as release evidence. "
+        return reasons.isEmpty() ? "" : ReportMarkup.warning(
+            "<p>This report is a draft and must not be treated as release evidence. "
                 + reasons.stream().map(ReportMarkup::escape).collect(Collectors.joining(" ")) + "</p>"
         );
     }

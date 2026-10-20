@@ -27,10 +27,6 @@ final class ReportVulnerabilities {
         "spring-tool-suppressions.xml"
     );
 
-    static List<ReportAdvisory> read(Path file, Instant started, String module) {
-        return read(file, started, module, Set.of());
-    }
-
     static List<ReportAdvisory> read(Path file, Instant started, String module, Set<String> harness) {
         JsonNode document = ReportJson.read(file);
         JsonNode project = document.path("projectInfo");

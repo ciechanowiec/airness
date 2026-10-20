@@ -29,7 +29,7 @@ final class ReportChips {
         return switch (classification) {
             case "Permissive" -> "permissive";
             case "Weak copyleft" -> "weak-copyleft";
-            case null, default -> "refused";
+            default -> "refused";
         };
     }
 }
