@@ -20,8 +20,8 @@ final class ReportMarkup {
 
     private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
         .withZone(ZoneOffset.UTC);
-    private static final String WARNING_ICON =
-        "M12 2.5 1.5 21h21L12 2.5Zm-1.1 6.5h2.2l-.35 6.6h-1.5L10.9 9Zm1.1 10a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z";
+    private static final String WARNING_ICON = "M12 2.5 1.5 21h21L12 2.5Zm-1.1 6.5h2.2l-.35 6.6h-1.5L10.9 "
+        + "9Zm1.1 10a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z";
 
     static String escape(String text) {
         return HtmlEscape.escapeHtml5(text);

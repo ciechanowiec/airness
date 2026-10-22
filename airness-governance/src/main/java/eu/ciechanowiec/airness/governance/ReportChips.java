@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.Locale;
+import java.util.Map;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -26,10 +27,7 @@ final class ReportChips {
      * @return {@code permissive}, {@code weak-copyleft} or {@code refused}
      */
     static String classKey(String classification) {
-        return switch (classification) {
-            case "Permissive" -> "permissive";
-            case "Weak copyleft" -> "weak-copyleft";
-            default -> "refused";
-        };
+        return Map.of("Permissive", "permissive", "Weak copyleft", "weak-copyleft")
+            .getOrDefault(classification, "refused");
     }
 }

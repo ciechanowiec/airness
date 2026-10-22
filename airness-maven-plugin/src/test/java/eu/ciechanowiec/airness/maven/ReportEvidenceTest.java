@@ -141,7 +141,8 @@ class ReportEvidenceTest {
         ReportJson.write(file, scan(List.of(Map.of("fileName", "library.jar", "suppressedVulnerabilities", findings))));
         assertEquals(
             List.of("CRITICAL", "HIGH", "MEDIUM"),
-            ReportVulnerabilities.read(file, STARTED, "module", Set.of()).stream().map(ReportAdvisory::severity).toList()
+            ReportVulnerabilities.read(file, STARTED, "module", Set.of()).stream().map(ReportAdvisory::severity)
+                .toList()
         );
     }
 
