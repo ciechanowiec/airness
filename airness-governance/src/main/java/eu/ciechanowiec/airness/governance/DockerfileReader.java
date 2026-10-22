@@ -11,12 +11,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
 /**
  * Reads the two things a Dockerfile names that the blocklist judges: the images its {@code FROM} lines
- * pull, and the system packages its {@code RUN} lines install.
+ * or external {@code COPY --from} references pull, and the system packages its {@code RUN} lines install.
  *
  * <p>A line reader over a known syntax, in the manner of {@link SpringConfiguration}: what has to be
  * recognised is one keyword and the tokens after it. Continued lines are joined first, so a
@@ -33,6 +34,9 @@ import lombok.experimental.UtilityClass;
 final class DockerfileReader {
 
     private static final Pattern FROM = Pattern.compile("(?i)^[ \\t]*FROM[ \\t]+(?<rest>\\S.*)$");
+    private static final Pattern COPY = Pattern.compile("(?i)^[ \t]*COPY[ \t]+(?<rest>\\S.*)$");
+    private static final Pattern STAGE_INDEX = Pattern.compile("[0-9]+");
+    private static final String REST = "rest";
     private static final Pattern ARGUMENT = Pattern.compile(
         "(?i)^[ \\t]*ARG[ \\t]+(?<name>[A-Za-z_]\\w*)=(?<value>\\S+)"
     );
@@ -70,9 +74,12 @@ final class DockerfileReader {
         Map<String, String> defaults = new HashMap<>();
         Set<String> stages = new HashSet<>();
         List<Located<String>> images = new ArrayList<>();
-        for (Located<String> line : contentLines(text)) {
+        List<Located<String>> lines = contentLines(text);
+        Set<String> copyStages = stageNames(lines);
+        for (Located<String> line : lines) {
             readArgument(line.value(), defaults);
             readFrom(line, defaults, stages).ifPresent(images::add);
+            readCopy(line, copyStages).ifPresent(images::add);
         }
         return images;
     }
@@ -123,21 +130,45 @@ final class DockerfileReader {
     ) {
         Matcher from = FROM.matcher(line.value());
         return from.find()
-            ? image(from.group("rest"), defaults, stages).map(image -> new Located<>(line.line(), image))
+            ? image(from.group(REST), defaults, stages).map(image -> new Located<>(line.line(), image))
             : Optional.empty();
     }
 
     private static Optional<String> image(String rest, Map<String, String> defaults, Set<String> stages) {
-        List<String> tokens = Arrays.stream(BLANK.split(rest.strip()))
-            .filter(token -> !token.startsWith(OPTION))
-            .toList();
+        List<String> tokens = fromTokens(rest);
         Optional<String> reference = tokens.stream().findFirst().map(first -> substitute(first, defaults));
-        if (tokens.size() > STAGE_NAME && STAGE.equalsIgnoreCase(tokens.get(1))) {
-            stages.add(tokens.get(STAGE_NAME).toLowerCase(Locale.ROOT));
-        }
+        stageName(tokens).ifPresent(stages::add);
         return reference
             .filter(image -> !SCRATCH.equalsIgnoreCase(image))
             .filter(image -> !stages.contains(image.toLowerCase(Locale.ROOT)));
+    }
+
+    private static List<String> fromTokens(String rest) {
+        return Arrays.stream(BLANK.split(rest.strip())).filter(token -> !token.startsWith(OPTION)).toList();
+    }
+
+    private static Optional<String> stageName(List<String> tokens) {
+        return Optional.of(tokens).filter(values -> values.size() > STAGE_NAME)
+            .filter(values -> STAGE.equalsIgnoreCase(values.get(1)))
+            .map(values -> values.get(STAGE_NAME).toLowerCase(Locale.ROOT));
+    }
+
+    private static Set<String> stageNames(List<Located<String>> lines) {
+        return lines.stream().map(line -> FROM.matcher(line.value())).filter(Matcher::find)
+            .flatMap(from -> stageName(fromTokens(from.group(REST))).stream())
+            .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static Optional<Located<String>> readCopy(Located<String> line, Set<String> stages) {
+        Matcher copy = COPY.matcher(line.value());
+        return copy.find() ? copyImage(copy.group(REST), stages)
+            .map(image -> new Located<>(line.line(), image)) : Optional.empty();
+    }
+
+    private static Optional<String> copyImage(String rest, Set<String> stages) {
+        return DockerCopyOptions.source(rest)
+            .filter(reference -> !STAGE_INDEX.matcher(reference).matches())
+            .filter(reference -> !stages.contains(reference.toLowerCase(Locale.ROOT)));
     }
 
     // Both spellings of a variable are substituted, and what a default of the form ${NAME:-value} leaves
@@ -155,7 +186,7 @@ final class DockerfileReader {
     private static Stream<String> packagesIn(Located<String> line) {
         Matcher run = RUN.matcher(line.value());
         return run.find()
-            ? Arrays.stream(COMMAND_SEPARATOR.split(run.group("rest"))).flatMap(DockerfileReader::packagesInCommand)
+            ? Arrays.stream(COMMAND_SEPARATOR.split(run.group(REST))).flatMap(DockerfileReader::packagesInCommand)
             : Stream.empty();
     }
 

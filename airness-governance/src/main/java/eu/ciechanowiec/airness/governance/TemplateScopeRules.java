@@ -79,7 +79,8 @@ final class TemplateScopeRules {
      * @return whether the value reads it
      */
     static boolean reads(String written, String name) {
-        return Pattern.compile(ROOT + Pattern.quote(name) + "\\b").matcher(written).find();
+        Pattern reference = Pattern.compile(ROOT + Pattern.quote(name) + "\\b");
+        return TemplateEvaluations.regions(written).stream().anyMatch(region -> reference.matcher(region).find());
     }
 
     private static Stream<String> named(

@@ -12,16 +12,6 @@ import org.junit.jupiter.api.Test;
  */
 class SpringPlaceholderRulesTest {
 
-    private static final SpringMetadata NOTHING = new SpringMetadata(List.of());
-    private static final SpringMetadata MAIL = new SpringMetadata(
-        List.of(
-            new ConfigurationProperty(
-                "spring.mail.host", "java.lang.String", false,
-                new ConfigurationProperty.Deprecation("", "", "", "")
-            )
-        )
-    );
-
     private static String reading(String annotation) {
         return """
             package sample;
@@ -41,7 +31,7 @@ class SpringPlaceholderRulesTest {
     @Test
     void acceptsAKeyTheBaseFileDeclares() {
         List<String> offences = SpringPlaceholderRules.undeclaredPlaceholders(
-            reading("@Value(\"${example.zone}\")"), base("example:\n  zone: UTC\n"), NOTHING
+            reading("@Value(\"${example.zone}\")"), base("example:\n  zone: UTC\n")
         );
 
         assertEquals(List.of(), offences, "the base file declares the key");
@@ -50,25 +40,25 @@ class SpringPlaceholderRulesTest {
     @Test
     void acceptsAKeyWrittenInAnotherSpelling() {
         List<String> offences = SpringPlaceholderRules.undeclaredPlaceholders(
-            reading("@Value(\"${example.timeZone}\")"), base("example:\n  time-zone: UTC\n"), NOTHING
+            reading("@Value(\"${example.timeZone}\")"), base("example:\n  time-zone: UTC\n")
         );
 
         assertEquals(List.of(), offences, "Spring binds every spelling of one key");
     }
 
     @Test
-    void acceptsAKeyTheClasspathBinds() {
+    void rejectsAMissingFrameworkSetting() {
         List<String> offences = SpringPlaceholderRules.undeclaredPlaceholders(
-            reading("@Value(\"${spring.mail.host}\")"), base("example:\n  zone: UTC\n"), MAIL
+            reading("@Value(\"${spring.mail.host}\")"), base("example:\n  zone: UTC\n")
         );
 
-        assertEquals(List.of(), offences, "a dependency declares the key");
+        assertEquals(1, offences.size(), "a framework namespace does not supply a property value");
     }
 
     @Test
     void acceptsAPlaceholderCarryingADefault() {
         List<String> offences = SpringPlaceholderRules.undeclaredPlaceholders(
-            reading("@Value(\"${example.zone:UTC}\")"), base("example:\n  other: 1\n"), NOTHING
+            reading("@Value(\"${example.zone:UTC}\")"), base("example:\n  other: 1\n")
         );
 
         assertEquals(List.of(), offences, "the placeholder answers for itself");
@@ -77,7 +67,7 @@ class SpringPlaceholderRulesTest {
     @Test
     void reportsAKeyNothingDeclares() {
         List<String> offences = SpringPlaceholderRules.undeclaredPlaceholders(
-            reading("@Value(\"${example.zone}\")"), base("example:\n  other: 1\n"), NOTHING
+            reading("@Value(\"${example.zone}\")"), base("example:\n  other: 1\n")
         );
 
         assertEquals(1, offences.size(), "the key is read and declared nowhere the artifact ships");
@@ -100,7 +90,7 @@ class SpringPlaceholderRulesTest {
             """;
 
         List<String> offences = SpringPlaceholderRules.undeclaredPlaceholders(
-            source, base("jobs:\n  cron: '0 0 * * * *'\n"), NOTHING
+            source, base("jobs:\n  cron: '0 0 * * * *'\n")
         );
 
         assertEquals(1, offences.size(), "the zone is undeclared and the string in the body is no placeholder");

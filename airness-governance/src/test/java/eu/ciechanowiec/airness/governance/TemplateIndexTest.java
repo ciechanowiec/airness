@@ -78,14 +78,14 @@ class TemplateIndexTest {
     void countsTheArgumentsAFragmentDeclares() {
         TemplateIndex index = index("index-arity", USUAL);
         Path document = index.template("layout/page").orElseThrow();
-        assertEquals(3, index.fragment(document, "page").orElseThrow(), "the declaration takes three");
+        assertEquals(3, index.fragment(document, "page").orElseThrow().size(), "the declaration takes three");
     }
 
     @Test
     void countsNoArgumentsForAFragmentDeclaringNoList() {
         TemplateIndex index = index("index-bare", USUAL);
         Path document = index.template("layout/page").orElseThrow();
-        assertEquals(0, index.fragment(document, "footer").orElseThrow(), "a fragment may take none");
+        assertEquals(0, index.fragment(document, "footer").orElseThrow().size(), "a fragment may take none");
     }
 
     @Test

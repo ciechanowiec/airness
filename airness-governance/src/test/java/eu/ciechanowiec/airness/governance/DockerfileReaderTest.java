@@ -20,6 +20,61 @@ class DockerfileReaderTest {
     }
 
     @Test
+    void inventoriesExternalCopySourcesAndPreservesTheirLine() {
+        String text = """
+            FROM scratch
+            COPY --link --from=mongo:8.0 /usr/bin/mongod /mongod
+            COPY --from=alpine /etc/os-release /release
+            """;
+        assertEquals(List.of("mongo:8.0", "alpine"), images(text));
+        assertEquals(List.of(2, 3), DockerfileReader.images(text).stream().map(Located::line).toList());
+    }
+
+    @Test
+    void distinguishesCopyStageNamesAndIndexesFromImages() {
+        String text = """
+            FROM scratch AS output
+            COPY --from=builder /built /built
+            FROM alpine:3.22 AS builder
+            COPY --from=alpine:3.21 /etc/os-release /release
+            FROM scratch AS final
+            COPY --from=0 /built /built
+            COPY --from=output /built /built
+            """;
+        assertEquals(List.of("alpine:3.22", "alpine:3.21"), images(text));
+    }
+
+    @Test
+    void readsContinuedCopyOptionsWithoutMistakingSourceNamesForOptions() {
+        String text = """
+            FROM scratch
+            COPY \\
+                --from=mongo:8.0 \\
+                /usr/bin/mongod /mongod
+            COPY local --from=not-an-option /output/
+            """;
+        assertEquals(List.of("mongo:8.0"), images(text));
+    }
+
+    @Test
+    void readsCopyOptionsContainingQuotedOrEscapedWhitespace() {
+        for (String options : List.of("--exclude=\"file name\"", "--exclude='file name'", "--exclude=file\\ name")) {
+            assertEquals(
+                List.of("mongo:8.0"), images(
+                    "FROM scratch\nCOPY " + options
+                        + " --from=\"mongo\":8.0 /usr/bin/mongod /mongod\n"
+                )
+            );
+        }
+    }
+
+    @Test
+    void stopsAtTheCopyOptionTerminatorOrAQuotedSourceName() {
+        assertEquals(List.of(), images("FROM scratch\nCOPY -- --from=local-file /output/\n"));
+        assertEquals(List.of(), images("FROM scratch\nCOPY \"--from=local-file\" /output/\n"));
+    }
+
+    @Test
     void substitutesAnArgumentDefaultIntoFrom() {
         String text = """
             ARG NODE_VERSION="22.12.0"

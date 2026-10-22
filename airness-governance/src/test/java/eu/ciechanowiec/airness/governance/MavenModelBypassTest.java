@@ -40,6 +40,65 @@ class MavenModelBypassTest {
     }
 
     @Test
+    void rejectsACommittedTestSelection() {
+        assertEquals(
+            List.of("Remove child property test; it can bypass the Airness verdict"),
+            this.problems(
+                "<project><profiles><profile><properties><test>SmokeTest</test>"
+                    + "</properties></profile></profiles></project>"
+            )
+        );
+    }
+
+    @Test
+    void rejectsMovingTheDefaultTestExecution() {
+        assertTrue(
+            this.problems(
+                surefire(
+                    "<executions><execution><id>default-test</id><phase>none</phase>"
+                        + "</execution></executions>"
+                )
+            ).stream().anyMatch(problem -> problem.contains("phase"))
+        );
+    }
+
+    @Test
+    void acceptsAnAdditionalFailsafeExecution() {
+        assertTrue(
+            this.problems(
+                surefire(
+                    "<executions><execution><id>default-integration-test</id><phase>none</phase>"
+                        + "</execution></executions>"
+                ).replace("maven-surefire-plugin", "maven-failsafe-plugin")
+            ).isEmpty()
+        );
+    }
+
+    @Test
+    void leavesAnUnrelatedPluginPhaseAlone() {
+        assertTrue(
+            this.problems(
+                surefire(
+                    "<executions><execution><id>default-compile</id><phase>compile</phase>"
+                        + "</execution></executions>"
+                ).replace("maven-surefire-plugin", "maven-compiler-plugin")
+            ).isEmpty()
+        );
+    }
+
+    @Test
+    void acceptsRestatingTheDefaultTestPhase() {
+        assertTrue(
+            this.problems(
+                surefire(
+                    "<executions><execution><id>default-test</id><phase>test</phase>"
+                        + "</execution></executions>"
+                )
+            ).isEmpty()
+        );
+    }
+
+    @Test
     void rejectsATestBypassInsideALifecycleExecution() {
         String pom = surefire(
             """

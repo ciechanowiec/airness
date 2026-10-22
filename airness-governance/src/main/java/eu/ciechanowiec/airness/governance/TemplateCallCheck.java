@@ -177,12 +177,13 @@ public final class TemplateCallCheck {
             );
         }
 
-        private void count(FragmentCall call, Path document, int declared, Placement placement) {
-            if (call.arguments() != declared) {
+        private void count(FragmentCall call, Path document, Collection<String> declared, Placement placement) {
+            if (call.rejects(declared)) {
                 this.add(
                     Rule.MISCOUNTED, placement,
                     "hands %s of %s %d argument(s), and it is declared to take %d"
-                        .formatted(call.fragment(), document, call.arguments(), declared)
+                        .formatted(call.fragment(), document, call.arguments(), declared.size())
+                        + "; required names: " + declared
                 );
             }
         }

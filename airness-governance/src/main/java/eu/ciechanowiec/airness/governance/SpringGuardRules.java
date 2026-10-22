@@ -57,7 +57,7 @@ final class SpringGuardRules {
      * admitting everyone is a decision like any other.
      */
     private static final Pattern GUARD = Pattern.compile(
-        "@(?:PreAuthorize|PostAuthorize|Secured|RolesAllowed|DenyAll|PermitAll|PreFilter|PostFilter)\\b"
+        "@(?:PreAuthorize|PostAuthorize|Secured|RolesAllowed|DenyAll|PermitAll)\\b"
     );
 
     // The annotations that say the caller is the container rather than a principal.

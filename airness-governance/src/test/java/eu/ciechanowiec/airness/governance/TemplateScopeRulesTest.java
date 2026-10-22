@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,45 @@ import org.junit.jupiter.api.Test;
 class TemplateScopeRulesTest {
 
     private static final String ORDERED = "ordered";
+
+    @Test
+    void ignoresLiteralTextAndLiteralResourceNames() {
+        for (
+            String value : List.of(
+                "'ordered'", "\"ordered\"", "'it''s ordered'", "'it\\'s ordered'", "#{ordered}",
+                "#{ordered(${other})}", "@{/ordered(ordered=${other})}", "~{ordered :: ordered}",
+                "|ordered ${other}|", "'${ordered}'", "${'ordered'}"
+            )
+        ) {
+            assertFalse(TemplateScopeRules.reads(value, ORDERED), value);
+        }
+    }
+
+    @Test
+    void readsVariablesInsideComposedExpressions() {
+        for (
+            String value : List.of(
+                "${ordered == 'ordered'}", "#{key(${ordered})}", "@{${ordered}}",
+                "|before ${ordered}|", "${ {'key': ordered} }", "|It's ${ordered} and it's ready|",
+                "*{ordered}", "${ordered + '}'}"
+            )
+        ) {
+            assertTrue(TemplateScopeRules.reads(value, ORDERED), value);
+        }
+    }
+
+    @Test
+    void allowsAFragmentToPrintTheLiteralNameOfAnOuterVariable() {
+        Path root = new GitFixture("literal-fragment")
+            .write(
+                "src/main/resources/templates/card.html", """
+                    <main th:with="label=${value}">
+                      <div th:fragment="body"><span th:text="'label'">Label</span></div>
+                    </main>
+                    """
+            ).root();
+        assertTrue(Verdicts.clean(new TemplateScopeCheck(root, List.of(Path.of("src/main/resources"))).findings()));
+    }
 
     @Test
     void readsEveryNameAListOfAssignmentsGivesAValueTo() {

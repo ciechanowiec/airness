@@ -109,7 +109,7 @@ final class SpringViewRules {
                     .filter(FragmentCall::argumentsListed)
                     .flatMap(
                         call -> declaredArguments(index, call)
-                            .filter(declared -> declared != call.arguments())
+                            .filter(call::rejects)
                             .map(
                                 declared -> argumentOffence(
                                     source,
@@ -121,7 +121,7 @@ final class SpringViewRules {
             );
     }
 
-    private static Optional<Integer> declaredArguments(TemplateIndex index, FragmentCall call) {
+    private static Optional<List<String>> declaredArguments(TemplateIndex index, FragmentCall call) {
         return index.template(call.template())
             .flatMap(template -> index.fragment(template, call.fragment()));
     }
@@ -172,10 +172,11 @@ final class SpringViewRules {
         FragmentCall call = mismatch.call();
         return source.source() + ": line " + JavaCode.lineOf(source.text(), at) + ": the view name "
             + mismatch.view() + " hands " + call.arguments() + " argument(s) to the fragment " + call.fragment()
-            + ", which is declared to take " + mismatch.declared() + "; state the declaration's argument list"
+            + ", which is declared to take " + mismatch.declared().size() + "; required names: " + mismatch.declared()
+            + "; state the declaration's argument list"
             + " in the returned fragment expression";
     }
 
-    private record ArgumentMismatch(String view, FragmentCall call, int declared) {
+    private record ArgumentMismatch(String view, FragmentCall call, List<String> declared) {
     }
 }

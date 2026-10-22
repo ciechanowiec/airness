@@ -1,7 +1,9 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
 
@@ -33,11 +35,19 @@ final class FragmentSignature {
     // The third form is the one a template reaches for whenever a value has to read as a sentence, and
     // a sentence is exactly where a comma turns up. Reading it as a separator splits one argument into
     // two and reports a call that hands over the number the declaration asks for.
-    private static final Pattern QUOTED = Pattern.compile("'[^']*'|\"[^\"]*\"|\\|[^|]*\\|");
+    private static final Pattern QUOTED = Pattern.compile(
+        "'(?:\\\\.|''|[^'\\\\])*'|\"(?:\\\\.|\"\"|[^\"\\\\])*\"|\\|[^|]*\\|"
+    );
 
     // A group holding no further group. Taking every one of those out and asking again reduces a
     // nesting of any depth, which is what keeps this file from counting brackets itself.
     private static final Pattern INNERMOST = Pattern.compile("[(\\[{][^()\\[\\]{}]*[)\\]}]");
+
+    private static final Pattern ESCAPED = Pattern.compile("\\\\([\\\\'])");
+
+    private static final Pattern LITERAL_NAME = Pattern.compile("[\\w.\\[\\]:/-]+");
+
+    private static final Pattern LABEL_LITERAL = Pattern.compile("'(?:\\\\.|[^'\\\\])*'");
 
     /**
      * How many arguments a fragment takes.
@@ -56,6 +66,48 @@ final class FragmentSignature {
         }
         String list = written.substring(opens + 1, closes).trim();
         return list.isEmpty() ? 0 : separators(list) + 1;
+    }
+
+    static FragmentArguments supplied(String written) {
+        int opens = written.indexOf(OPENS);
+        int closes = written.lastIndexOf(CLOSES);
+        if (opens < 0 || closes < opens) {
+            return new FragmentArguments(0, List.of());
+        }
+        String list = written.substring(opens + 1, closes);
+        return new FragmentArguments(arguments(written), labels(list));
+    }
+
+    private static List<FragmentArguments.Label> labels(String list) {
+        String masked = flattened(QUOTED.matcher(list).replaceAll(literal -> " ".repeat(literal.group().length())));
+        List<FragmentArguments.Label> names = new ArrayList<>();
+        int from = 0;
+        for (String argument : masked.split(",", -1)) {
+            names.add(label(list.substring(from, from + argument.length()), argument));
+            from += argument.length() + 1;
+        }
+        return List.copyOf(names);
+    }
+
+    private static FragmentArguments.Label label(String original, String masked) {
+        int equals = masked.indexOf('=');
+        if (equals < 0 || comparison(masked, equals)) {
+            return new FragmentArguments.Label(false, Optional.empty());
+        }
+        String name = original.substring(0, equals).trim();
+        return new FragmentArguments.Label(true, literalName(name));
+    }
+
+    private static Optional<String> literalName(String name) {
+        if (LABEL_LITERAL.matcher(name).matches()) {
+            return Optional.of(ESCAPED.matcher(name.substring(1, name.length() - 1)).replaceAll("$1"));
+        }
+        return Optional.of(name).filter(value -> LITERAL_NAME.matcher(value).matches());
+    }
+
+    private static boolean comparison(String masked, int equals) {
+        boolean prefixed = equals > 0 && "!<>".indexOf(masked.charAt(equals - 1)) >= 0;
+        return masked.startsWith("==", equals) || prefixed;
     }
 
     /**
@@ -116,7 +168,7 @@ final class FragmentSignature {
     }
 
     private static String flattened(String list) {
-        String reduced = INNERMOST.matcher(list).replaceAll("");
+        String reduced = INNERMOST.matcher(list).replaceAll(group -> " ".repeat(group.group().length()));
         return reduced.equals(list) ? list : flattened(reduced);
     }
 }

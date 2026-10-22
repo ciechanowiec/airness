@@ -3,12 +3,20 @@ package eu.ciechanowiec.airness.spring;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import jakarta.servlet.DispatcherType;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.web.MockServletContext;
+import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
+import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.web.FilterChainProxy;
+import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.DispatcherTypeRequestMatcher;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -26,6 +34,25 @@ class SpringErrorDispatchTest {
 
     private static List<String> errorDispatch(GenericWebApplicationContext context) {
         return SpringOpenEndpoints.errorDispatch(context, List.of("open GET /public"));
+    }
+
+    @Test
+    void distinguishesErrorDispatchesFromOrdinaryRequests() {
+        FilterChainProxy proxy = SpringEndpointFixtures.proxy(
+            RequestMatcherDelegatingAuthorizationManager.builder().add(
+                new DispatcherTypeRequestMatcher(DispatcherType.ERROR),
+                SingleResultAuthorizationManager.permitAll()
+            ).add(
+                PathPatternRequestMatcher.withDefaults().matcher("/named"),
+                SingleResultAuthorizationManager.permitAll()
+            ).add(AnyRequestMatcher.INSTANCE, AuthenticatedAuthorizationManager.authenticated())
+                .build()
+        );
+        try (GenericWebApplicationContext context = application(proxy)) {
+            List<String> admitted = SpringOpenEndpoints.reached(context, Set.of(SpringEndpointFixtures.ROOT));
+            assertEquals(List.of("open POST /named"), admitted);
+            assertEquals(List.of("error-dispatch open"), SpringOpenEndpoints.errorDispatch(context, admitted));
+        }
     }
 
     @Test

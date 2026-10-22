@@ -89,7 +89,9 @@ Airness governs all of the following domains:
   declares and an argument list of the wrong length are both reported where they are written. That is the other half
   of the cap above and it fails the same way a constructor expression does: the document parses, the page renders for
   as long as nothing draws that branch, and the first request that draws it fails on a name. A fragment renamed in one
-  file and called from four others is the ordinary way it happens. What an expression builds rather than writes out,
+  file and called from four others is the ordinary way it happens. Positional calls require the declared count;
+  named calls require the declared names and may supply additional local variables, including to a fragment
+  with no declared parameters. A computed label remains unknown rather than being mistaken for a literal name. What an expression builds rather than writes out,
   and what selects an element rather than naming a declaration, are passed over, since neither names a fragment that
   can be resolved. A call is read wherever it is written, including inside another call's argument list, because a
   page handing its own controls to a shared header calls a fragment there and hands it a positional list like any
@@ -147,6 +149,9 @@ Airness governs all of the following domains:
   placed against that release is refused rather than guessed, and the freshness bound never demands an upgrade into
   a refused release. Every container image the repository names is pinned to a tag or a digest: `latest` or no tag
   lets what is pulled change without the repository changing. There is no setting that widens or narrows the list.
+  Compose images remain in scope beside `build` unless a literal service-level `pull_policy: build`
+  establishes local output. External Dockerfile `COPY --from` references are read alongside base images;
+  stage names and numeric stage indexes identify local stages rather than registry images.
 - **Software bill of materials:** every module generates `target/bom.json` during `package`, using CycloneDX 1.6
   JSON and the configured build directory. It lists direct and transitive compile, provided and runtime dependencies,
   including optional dependencies, and excludes test dependencies. Maven installs and deploys it with the `cyclonedx`
@@ -164,6 +169,12 @@ Airness governs all of the following domains:
   shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
   settle, production-to-test boundaries, per-class line and branch coverage, current-build coverage evidence, and
   current-build evidence that a framework-assembled production application reached ready.
+  Consumer lifecycle verification, including incremental `mvn verify`, starts each module's JaCoCo execution
+  data and Spring context evidence afresh at `initialize`, once per Maven session. Surefire, Failsafe
+  and lifecycle forks in that session then append to the same evidence. Old startup records, security
+  findings and covered probes cannot carry over from a previous invocation. Include `initialize`
+  before standalone test goals when preparing their evidence; standalone goals are not a full
+  verification. `-DskipTests` still produces no Airness verdict.
   Failsafe, Build Helper and Assembly are optional managed plugins: declare a plugin without a version
   in the module that uses it. Failsafe supplies `integration-test` and `verify` executions for the
   standard `IT*`, `*IT` and `*ITCase` names, shares Surefire's timeout and ordering, and fails when the
@@ -259,9 +270,9 @@ Airness governs all of the following domains:
   that is not to the rule below it, which is a form drawn by a get and submitted by a post spelled as the two matchers
   it is. An argument that resolves to no written string, a call among them, states no pattern, so the mapping stays
   reported. An argument is read as a method only after it has failed to resolve to a string, so a constant of the module
-  named for a verb and holding a path is still a path. A handler carrying a method-security annotation is passed over,
-  since its decision is taken after the chain, and mappings the framework contributes, the error controller and the
-  actuator endpoints among them, belong to the rules already written about them. Nothing but the authorization decision
+  named for a verb and holding a path is still a path. A handler carrying an authorization annotation is passed over,
+  since its decision is taken after the chain. Collection-filter annotations alone do not establish authorization.
+  Mappings the framework contributes, the error controller and actuator endpoints among them, belong to their own rules. Nothing but the authorization decision
   is exercised: no filter of the project runs, no session is created and no handler is called, so recording this cannot
   change what the test around it observes. A class of the application layer that guards some of its public methods
   guards all of them, because an authorization annotation is the whole of what decides who may call one, and a method
@@ -311,8 +322,10 @@ Airness governs all of the following domains:
   names: a replacement is reported with the offence. A key under a namespace no dependency declares is your own and is
   left alone, so a project binds its own settings freely. Declaring one key twice in one document is refused as well,
   since only the last of them is bound. A placeholder production code reads without a default is read against the base
-  configuration file and the published metadata, because the test profile satisfies it in every test while an
-  environment starting from the base file refuses to start; a module shipping no base file is passed over. A lazy
+  configuration file, because the test profile satisfies it in every test while an environment starting
+  from the base file refuses to start. Published metadata recognizes names but supplies no environment
+  value; a required placeholder needs a base declaration or its own default. A module shipping no base
+  file is passed over. A lazy
   repository bootstrap is refused, because every repository query is parsed against the entity model when the
   repository is built, and a lazy one is built on its first call. Three settings are refused for what they
   hand out: an actuator publishing an endpoint that carries a credential or stops the application, which the
@@ -422,8 +435,9 @@ for plain Java projects. Default verification produces no compliance report.
 
 Install the Chromium revision this Airness version pins with `mvn airness:report-browser-install`.
 Linux also needs Chromium's system libraries. The renderer uses this browser's separate cache, not the
-project's browser-test dependencies or a workstation's interactive Chrome profile. Report rendering
-reads no remote fonts or scripts. Missing browser tooling and incomplete evidence fail generation.
+project's browser-test dependencies or a workstation's interactive Chrome profile. Both installer and
+renderer explicitly use `~/.cache/airness/report-browser/<Playwright version>`, independently of an inherited
+`PLAYWRIGHT_BROWSERS_PATH`. Report rendering reads no remote fonts or scripts. Missing browser tooling and incomplete evidence fail generation.
 
 Run `mvn -Pextended airness:compliance-report` to regenerate the prerequisite package-phase evidence
 and the report outside full verification. This command establishes the dependency-policy result, not
@@ -564,9 +578,11 @@ spends a ceiling the next repair will need.
 | `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path below unless set |
 
 Those six are the whole of what a project file may declare. Every other name under `airness.`, and `skipTests`,
-`maven.test.skip`, and `jacoco.dataFile`, is refused there, because each of them can decide a verdict. The refusal
+`maven.test.skip`, `test`, `it.test`, and `jacoco.dataFile`, is refused there, because each of them can decide a verdict. The refusal
 reads the file as written, so a name inside a profile that is never activated is refused too. Both
 `-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
+Raw-model integrity checks read the current POM and every consumer parent up to the trusted Airness chain,
+even with `-DskipTests`; skipping execution cannot hide a forbidden committed property or inherited override.
 
 A property naming a version is refused where nothing in the same file reads it. The platform reaches a project as a
 bill of materials the parent imports rather than inherits, and an imported one resolves its own properties, so a

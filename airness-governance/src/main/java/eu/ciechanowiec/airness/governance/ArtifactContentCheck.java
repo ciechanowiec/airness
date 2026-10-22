@@ -31,8 +31,9 @@ import java.util.stream.Stream;
  * for. What a dependency published inside its own archive and a packaging plugin then copied across is
  * that dependency's own artifact-content question, answered in that dependency's own build, and no
  * change to this project would settle it. The development rule and the secret rule are therefore read
- * against the entries no vendored archive supplies. Both rules were written for first-party build
- * output and neither states anything a project can act on when it fires on a dependency's published
+ * against module-owned entries and entries no vendored archive supplies with identical bytes. Both
+ * rules were written for first-party build output and neither states anything a project can act on
+ * when it fires on a dependency's published
  * bytes: a library that ships its sources under {@code OSGI-OPT/src} and a library whose TLS code
  * carries a throwaway test key in a string constant are each reporting on the library.
  *
@@ -147,7 +148,7 @@ public final class ArtifactContentCheck {
     private Map<Kind, List<String>> scan() {
         Set<String> main = relativeFiles(this.output.main());
         Set<String> test = relativeFiles(this.output.test());
-        Set<String> supplied = this.vendoredEntries();
+        ArtifactDependencies supplied = new ArtifactDependencies(this.vendored);
         try (JarFile jar = new JarFile(this.artifact.toFile())) {
             List<Content> entries = jar.stream().map(entry -> content(jar, entry)).toList();
             List<String> names = entries.stream().map(Content::name).toList();
@@ -158,8 +159,9 @@ public final class ArtifactContentCheck {
                     .filter(index -> unsafeEntry(names, index))
                     .mapToObj(names::get)
                     .toList(),
-                Kind.DEVELOPMENT, names.stream()
-                    .filter(name -> !supplied.contains(name))
+                Kind.DEVELOPMENT, entries.stream()
+                    .filter(entry -> entry.firstParty(main, supplied))
+                    .map(Content::name)
                     .filter(ArtifactContentCheck::development)
                     .toList(),
                 Kind.TEST, files.filter(entry -> testOnly(entry, main, test))
@@ -172,7 +174,7 @@ public final class ArtifactContentCheck {
                     .toList(),
                 Kind.SECRET, entries.stream()
                     .filter(Content::file)
-                    .filter(entry -> !supplied.contains(entry.name()))
+                    .filter(entry -> entry.firstParty(main, supplied))
                     .filter(entry -> SensitiveContent.secret(entry.content()))
                     .map(Content::name)
                     .toList(),
@@ -182,25 +184,6 @@ public final class ArtifactContentCheck {
             );
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect artifact " + this.artifact, exception);
-        }
-    }
-
-    /**
-     * Every entry name the resolved dependency archives carry.
-     *
-     * @return the names a packaging plugin can copy into this archive without this module writing one
-     */
-    private Set<String> vendoredEntries() {
-        return this.vendored.stream()
-            .flatMap(ArtifactContentCheck::archiveNames)
-            .collect(Collectors.toUnmodifiableSet());
-    }
-
-    private static Stream<String> archiveNames(Path archive) {
-        try (JarFile jar = new JarFile(archive.toFile())) {
-            return jar.stream().map(JarEntry::getName).toList().stream();
-        } catch (IOException exception) {
-            throw new UncheckedIOException("Could not read dependency archive " + archive, exception);
         }
     }
 
@@ -330,6 +313,10 @@ public final class ArtifactContentCheck {
     }
 
     private record Content(String name, boolean directory, String content) {
+
+        boolean firstParty(Collection<String> output, ArtifactDependencies supplied) {
+            return this.compiledIn(output) || !supplied.supplies(this.name(), this.content());
+        }
 
         // Boot relocates module output. Only output matching reads the relative name. Every archive
         // safety check and diagnostic keeps the original name, including any unsafe path segments.

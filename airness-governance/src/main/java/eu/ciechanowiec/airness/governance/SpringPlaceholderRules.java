@@ -18,9 +18,9 @@ import lombok.experimental.UtilityClass;
  * green.
  *
  * <p>So the key is read against the base configuration file alone, which is the one every environment
- * starts from, and against what the classpath publishes, since a key a dependency declares has a value
- * whether or not the project wrote one. A placeholder carrying a default has answered the question
- * itself. A module shipping no base configuration is passed over, because a library reading a key
+ * starts from. Metadata describes a property but supplies no value to Spring's environment, including
+ * when a configuration-properties object has a field default. A placeholder carrying a default has
+ * answered the question itself. A module shipping no base configuration is passed over, because a library reading a key
  * relies on the application that declares it, and that is the application module's file to hold.
  */
 @UtilityClass
@@ -32,19 +32,18 @@ final class SpringPlaceholderRules {
     /**
      * Every placeholder an annotation of the source reads that nothing the artifact ships declares.
      *
-     * @param source   the source as written
-     * @param base     the base configuration files of the module, already read
-     * @param metadata what the classpath publishes
+     * @param source the source as written
+     * @param base   the base configuration files of the module, already read
      * @return one offence per undeclared key, by line
      */
     static List<String> undeclaredPlaceholders(
-        CharSequence source, Collection<SpringConfiguration> base, SpringMetadata metadata
+        CharSequence source, Collection<SpringConfiguration> base
     ) {
         String code = JavaCode.blanked(source);
         String read = JavaCode.withoutComments(source);
         return ANNOTATION.matcher(code).results()
             .flatMap(annotation -> placeholders(code, read, annotation))
-            .filter(placeholder -> !declared(placeholder.key(), base, metadata))
+            .filter(placeholder -> !declared(placeholder.key(), base))
             .map(placeholder -> offence(source, placeholder))
             .toList();
     }
@@ -57,16 +56,16 @@ final class SpringPlaceholderRules {
     }
 
     private static boolean declared(
-        String key, Collection<SpringConfiguration> base, SpringMetadata metadata
+        String key, Collection<SpringConfiguration> base
     ) {
-        return base.stream().anyMatch(file -> file.declared(key).isPresent()) || metadata.known(key);
+        return base.stream().anyMatch(file -> file.declared(key).isPresent());
     }
 
     private static String offence(CharSequence source, Placeholder placeholder) {
         return "line " + JavaCode.lineOf(source, placeholder.at()) + ": the placeholder reads "
-            + placeholder.key() + ", which no base configuration file of the module declares and nothing on"
-            + " the classpath binds, so an environment the test profile does not stand in for refuses to"
-            + " start; declare the key in the base file, reading its value from the environment"
+            + placeholder.key() + ", which no base configuration file of the module declares; metadata supplies"
+            + " no value, so an environment the test profile does not stand in for refuses to start;"
+            + " declare the key in the base file, reading its value from the environment"
             + " through a placeholder where that is where the value lives";
     }
 

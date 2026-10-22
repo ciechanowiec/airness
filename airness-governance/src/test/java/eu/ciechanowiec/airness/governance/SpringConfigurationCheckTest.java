@@ -104,6 +104,19 @@ class SpringConfigurationCheckTest {
     }
 
     @Test
+    void metadataCannotSatisfyARequiredProductionPlaceholder() {
+        Path root = new GitFixture("metadata-placeholder")
+            .write(YAML, CLEAN)
+            .write("src/main/resources/application-test.yml", "spring:\n  mail:\n    host: localhost\n")
+            .write(CLOCK, READING.replace("example.zone", "spring.mail.host")).root();
+        SpringConfigurationCheck check = new SpringConfigurationCheck(
+            root, RESOURCES, SOURCES,
+            List.of(declared("spring.application.name"), declared("spring.mail.host"))
+        );
+        assertEquals(1, Verdicts.offences(check.findings(), "Placeholders production code reads").size());
+    }
+
+    @Test
     void passesOverPlaceholdersOfAModuleShippingNoBaseFile() {
         Path root = new GitFixture("config-library")
             .write("src/main/resources/application-test.yml", CLEAN)

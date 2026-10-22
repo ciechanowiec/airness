@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * The classes a coverage report measured, read so that an exclusion naming none of them can be found.
@@ -24,10 +23,8 @@ import java.util.stream.Stream;
  *
  * <p>The name a pattern is matched against is the qualified name of the class, with dots, and a nested
  * class is reached through its outer one. The report writes both differently, with slashes between
- * packages and a dollar sign before a nested name, so each class is offered here under both spellings of
- * its nesting. Matching either counts as reaching it, which is deliberate: the cost of missing a dead
- * pattern is a finding nobody gets, and the cost of inventing one is a build that fails over a setting
- * that works.
+ * packages and a dollar sign before a nested name. JaCoCo's class rules normalize both separators to
+ * dots, so this inventory uses the same single identity for matching and counting each class.
  */
 public final class CoverageReport {
 
@@ -73,8 +70,7 @@ public final class CoverageReport {
      * nothing is reported, while patterns that between them reach everything are each doing their job,
      * so nothing here objects. What they leave is a floor with no class under it, which the coverage
      * tool passes because it has nothing left to weigh, on a build whose production code no test ran
-     * over. A class is offered under both spellings of its nesting, so this counts names rather than
-     * classes: the question a caller asks of it is whether anything at all survived.
+     * over. Each class has one normalized identity, so aliases cannot keep an empty scope alive.
      *
      * @param patterns the declared exclusion patterns
      * @return the number of measured names the exclusions leave to the floor
@@ -114,9 +110,10 @@ public final class CoverageReport {
     private static Set<String> namesIn(CharSequence report) {
         return DECLARATION.matcher(report).results()
             .map(hit -> hit.group(1))
-            .map(name -> name.replace(PACKAGE_SEPARATOR, SOURCE_SEPARATOR))
-            .flatMap(name -> Stream.of(name, name.replace(NESTING_SEPARATOR, SOURCE_SEPARATOR)))
-            .collect(Collectors.toUnmodifiableSet());
+            .map(
+                name -> name.replace(PACKAGE_SEPARATOR, SOURCE_SEPARATOR)
+                    .replace(NESTING_SEPARATOR, SOURCE_SEPARATOR)
+            ).collect(Collectors.toUnmodifiableSet());
     }
 
     private static String read(Path report) {

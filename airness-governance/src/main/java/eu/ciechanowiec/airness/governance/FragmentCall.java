@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.Collection;
+
 /**
  * One call on a fragment, as the expression that made it named its parts.
  *
@@ -9,10 +11,18 @@ package eu.ciechanowiec.airness.governance;
  *
  * @param template        the template the call reaches, and nothing when it reaches its own document
  * @param fragment        the fragment the call reaches, and nothing when it reaches a whole template
- * @param arguments       how many arguments the call hands over
+ * @param supplied        the positional arguments or named assignments the call hands over
  * @param argumentsListed whether the call writes an argument list, including an empty one
  */
-record FragmentCall(String template, String fragment, int arguments, boolean argumentsListed) {
+record FragmentCall(String template, String fragment, FragmentArguments supplied, boolean argumentsListed) {
+
+    int arguments() {
+        return this.supplied.count();
+    }
+
+    boolean rejects(Collection<String> declared) {
+        return this.supplied.rejects(declared);
+    }
 
     /**
      * Whether the call reaches the document it was written in rather than another one.

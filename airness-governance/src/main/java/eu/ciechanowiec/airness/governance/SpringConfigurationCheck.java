@@ -109,7 +109,7 @@ public final class SpringConfigurationCheck {
                 .flatMap(
                     source -> Repository.readText(source).stream()
                         .flatMap(
-                            text -> SpringPlaceholderRules.undeclaredPlaceholders(text, base, this.metadata)
+                            text -> SpringPlaceholderRules.undeclaredPlaceholders(text, base)
                                 .stream()
                         ).map(offence -> this.root.relativize(source) + ": " + offence)
                 ).toList();

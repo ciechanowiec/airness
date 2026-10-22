@@ -170,7 +170,7 @@ final class TemplateCallRules {
             new FragmentCall(
                 reached,
                 name,
-                FragmentSignature.arguments(fragment),
+                FragmentSignature.supplied(fragment),
                 FragmentSignature.listsArguments(fragment)
             )
         );

@@ -47,7 +47,7 @@ final class TemplateIndex {
 
     private final List<FragmentDeclaration> found;
 
-    private final Map<Path, Map<String, Integer>> declared;
+    private final Map<Path, Map<String, List<String>>> declared;
 
     private final Set<String> called;
 
@@ -119,13 +119,13 @@ final class TemplateIndex {
     }
 
     /**
-     * How many arguments a fragment of the given document declares.
+     * The argument names a fragment of the given document declares.
      *
      * @param document the document the fragment would be declared in
      * @param name     the fragment name
-     * @return the number of arguments it declares, and nothing when it declares no such fragment
+     * @return the argument names it declares, and nothing when it declares no such fragment
      */
-    Optional<Integer> fragment(Path document, String name) {
+    Optional<List<String>> fragment(Path document, String name) {
         return Optional.ofNullable(this.declared.get(document))
             .map(fragments -> fragments.get(name.trim()));
     }
@@ -151,11 +151,11 @@ final class TemplateIndex {
     }
 
     // A document declaring the same name twice keeps the first, which is the one the engine finds.
-    private static Map<Path, Map<String, Integer>> byDocument(Collection<FragmentDeclaration> found) {
+    private static Map<Path, Map<String, List<String>>> byDocument(Collection<FragmentDeclaration> found) {
         return found.stream().collect(
             Collectors.groupingBy(
                 FragmentDeclaration::in,
-                Collectors.toMap(FragmentDeclaration::fragment, FragmentDeclaration::arguments, (first, _) -> first)
+                Collectors.toMap(FragmentDeclaration::fragment, FragmentDeclaration::parameters, (first, _) -> first)
             )
         );
     }
@@ -193,7 +193,7 @@ final class TemplateIndex {
                 new FragmentDeclaration(
                     this.named,
                     FragmentSignature.name(declaration),
-                    FragmentSignature.arguments(declaration),
+                    FragmentSignature.names(declaration),
                     line,
                     column
                 )

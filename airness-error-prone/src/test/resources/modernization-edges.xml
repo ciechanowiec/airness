@@ -66,6 +66,9 @@
     <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.nio.file.*; class C { void m(Path p) throws Exception { Files.write(p, new byte[0]); } }]]></edge>
     <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[import java.nio.file.*; class C { long m(Path p) throws Exception { return Files.size(p); } }]]></edge>
     <edge check="AirnessJdkApiHasAModernForm" findings="0"><![CDATA[class C { static String readString(Object p, Object c) { return ""; } String m() { return readString(null, java.nio.charset.StandardCharsets.UTF_8); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.lang3.StringUtils; class C { String[] read(String value) { return StringUtils.split(value); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.lang3.StringUtils; class C { String[] read(String value) { return StringUtils.split(value, "."); } }]]></edge>
+    <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.lang3.StringUtils; class C { String read(String value) { return StringUtils.deleteWhitespace(value); } }]]></edge>
     <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.lang3.StringUtils; class C { boolean m(String s) { return StringUtils.isAlpha(s); } }]]></edge>
     <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.io.FileUtils; import java.io.File; class C { long m(File f) { return FileUtils.sizeOf(f); } }]]></edge>
     <edge check="AirnessCommonsHasAJdkForm" findings="0"><![CDATA[import org.apache.commons.codec.binary.Base64; class C { boolean m(byte[] b) { return Base64.isBase64(b); } }]]></edge>

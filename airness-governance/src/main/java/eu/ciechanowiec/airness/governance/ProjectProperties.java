@@ -50,7 +50,8 @@ public final class ProjectProperties {
         "maven.compiler.parameters",
         "maven.test.skip",
         "skipTests",
-        "skipITs"
+        "skipITs",
+        "test"
     );
 
     /**

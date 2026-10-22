@@ -15,7 +15,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Installs the Chromium revision pinned by this Airness version into Playwright's user cache.
+ * Installs the Chromium revision pinned by this Airness version into its isolated report-browser cache.
  */
 @Mojo(name = "report-browser-install", aggregator = true, requiresProject = false, threadSafe = true)
 public final class ReportBrowserInstallMojo extends AbstractMojo {
@@ -41,8 +41,12 @@ public final class ReportBrowserInstallMojo extends AbstractMojo {
         String classpath = Objects.requireNonNull(this.artifacts, "Maven did not inject plugin artifacts").stream()
             .map(Artifact::getFile).map(File::getAbsolutePath).collect(Collectors.joining(File.pathSeparator));
         String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
-        return new ProcessBuilder(java, "-cp", classpath, "com.microsoft.playwright.CLI", "install", "chromium")
-            .inheritIO().start();
+        ProcessBuilder process = new ProcessBuilder(
+            java, "-cp", classpath, "com.microsoft.playwright.CLI", "install", "chromium"
+        ).inheritIO();
+        process.environment().putAll(ReportBrowser.environment());
+        this.getLog().info("Report browser cache: " + ReportBrowser.environment().get("PLAYWRIGHT_BROWSERS_PATH"));
+        return process.start();
     }
 
     private static void await(Process process) throws InterruptedException, MojoExecutionException {

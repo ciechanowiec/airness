@@ -68,6 +68,7 @@ public final class MavenModelPolicy {
             VersionProperties.problems(root),
             PomPropertyOrder.problems(root).stream(),
             executionProblems(root),
+            testPhaseProblems(root),
             pluginConfigurationProblems(root),
             mergeOverrideProblems(root),
             systemDependencyProblems(root),
@@ -105,6 +106,20 @@ public final class MavenModelPolicy {
             .filter(MavenModelPolicy::mavenPlugin)
             .flatMap(MavenModelPolicy::protectedConfigurationProblems)
             .distinct();
+    }
+
+    private static Stream<String> testPhaseProblems(Element root) {
+        return DeclaredCoordinates.plugins(root)
+            .filter(MavenModelPolicy::mavenPlugin)
+            .filter(plugin -> "maven-surefire-plugin".equals(Xml.text(plugin, "artifactId").orElse("")))
+            .flatMap(MavenModelPolicy::executions)
+            .filter(execution -> "default-test".equals(Xml.idTextOrEmpty(execution)))
+            .flatMap(execution -> Xml.text(execution, "phase").stream())
+            .filter(phase -> !"test".equals(phase))
+            .map(
+                phase -> "Remove child execution default-test phase " + phase
+                    + "; it moves an inherited test execution"
+            );
     }
 
     private static Stream<String> mergeOverrideProblems(Element root) {

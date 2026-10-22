@@ -581,6 +581,13 @@
                 <artifactId>airness-maven-plugin</artifactId>
                 <executions>
                     <execution>
+                        <id>airness-prepare-test-evidence</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>prepare-test-evidence</goal>
+                        </goals>
+                    </execution>
+                    <execution>
                         <id>airness-main-build-inputs</id>
                         <phase>process-resources</phase>
                         <goals><goal>build-inputs</goal></goals>

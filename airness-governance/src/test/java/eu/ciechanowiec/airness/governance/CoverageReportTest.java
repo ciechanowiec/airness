@@ -38,11 +38,11 @@ class CoverageReportTest {
     @Test
     void countsWhatTheExclusionsLeaveToTheFloor() {
         assertEquals(
-            5, this.report().beyond(List.of()), "an empty exclusion list leaves every measured name"
+            4, this.report().beyond(List.of()), "an empty exclusion list leaves every measured name"
         );
         assertEquals(
             2, this.report().beyond(List.of("com.example.daemon.*")),
-            "one package excluded leaves the two names of the other, and takes both spellings of the nested one"
+            "one package excluded leaves the two names of the other, and takes the nested class once"
         );
     }
 
@@ -57,8 +57,8 @@ class CoverageReportTest {
     @Test
     void readsEveryClassTheReportMeasured() {
         assertEquals(
-            5, this.report().measured(),
-            "three plain classes, and the nested one under both spellings of its nesting"
+            4, this.report().measured(),
+            "three plain classes and one nested class"
         );
     }
 
@@ -89,13 +89,26 @@ class CoverageReportTest {
     }
 
     @Test
-    void reachesANestedClassThroughEitherSpellingOfItsNesting() {
+    void matchesNestedClassesUsingOnlyJacocoClassRuleNames() {
         assertEquals(
-            List.of(),
+            List.of("com.example.daemon.Launcher$Outcome"),
             this.report().unreached(
                 List.of("com.example.daemon.Launcher.Outcome", "com.example.daemon.Launcher$Outcome")
             ),
-            "the report writes a dollar sign and the coverage check writes a dot, so both reach it"
+            "JaCoCo's class-rule matcher converts nesting separators to dots"
+        );
+    }
+
+    @Test
+    void countsNoAliasAsRemainingScopeWhenEveryRealClassIsExcluded() {
+        assertEquals(
+            0,
+            this.report().beyond(
+                List.of(
+                    "com.example.cli.*", "com.example.daemon.Launcher",
+                    "com.example.daemon.Launcher.Outcome"
+                )
+            )
         );
     }
 

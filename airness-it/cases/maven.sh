@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
 run_maven_cases() {
+    run_model_policy_cases
     new_consumer maven-consumer
     maven_consumer="${consumer_directory}"
 

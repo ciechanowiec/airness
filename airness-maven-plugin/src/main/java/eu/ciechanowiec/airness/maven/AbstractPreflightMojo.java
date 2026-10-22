@@ -44,11 +44,21 @@ abstract class AbstractPreflightMojo extends AbstractMojo {
 
     @Override
     public final void execute() throws MojoFailureException {
+        this.decide(this.requiredProblems());
         if (this.skip) {
             this.getLog().info("Skipping Airness because skipTests is true");
         } else if (this.applies()) {
             this.decide(this.problems());
         }
+    }
+
+    /**
+     * Configuration checks that must run even when tests were explicitly skipped.
+     *
+     * @return problems that would make the skip itself untrustworthy
+     */
+    List<String> requiredProblems() {
+        return List.of();
     }
 
     boolean applies() {

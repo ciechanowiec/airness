@@ -15,6 +15,7 @@ run_managed_plugin_cases() {
     else
         fail 'plugins: both test phases cover the branch and the assembled JAR holds the additional resource'
     fi
+    run_incremental_evidence_cases
     run_integration_failure_cases
     run_spring_integration_case
 }

@@ -13,12 +13,15 @@ base="${local_repository}/com/microsoft/playwright"
 classpath="${base}/playwright/${version}/playwright-${version}.jar"
 classpath="${classpath}:${base}/driver/${version}/driver-${version}.jar"
 classpath="${classpath}:${base}/driver-bundle/${version}/driver-bundle-${version}.jar"
+report_browser_path="${HOME}/.cache/airness/report-browser/${version}"
 case "${1-}" in
     '')
-        java -cp "${classpath}" com.microsoft.playwright.CLI install chromium
+        PLAYWRIGHT_BROWSERS_PATH="${report_browser_path}" \
+            java -cp "${classpath}" com.microsoft.playwright.CLI install chromium
         ;;
     --with-deps)
-        java -cp "${classpath}" com.microsoft.playwright.CLI install --with-deps chromium
+        PLAYWRIGHT_BROWSERS_PATH="${report_browser_path}" \
+            java -cp "${classpath}" com.microsoft.playwright.CLI install --with-deps chromium
         ;;
     *)
         printf 'Usage: sh airness-it/report-browser.sh [--with-deps]\n' >&2

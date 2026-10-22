@@ -72,10 +72,13 @@ final class VersionCoordinates {
 
     private static VersionPom versionPom(MavenProject project, Path repository) {
         String owner = project.getGroupId() + SEPARATOR + project.getArtifactId();
-        Path file = Optional.ofNullable(project.getFile())
+        return new VersionPom(owner, versionedKey(project), rawPom(project, repository));
+    }
+
+    static Path rawPom(MavenProject project, Path repository) {
+        return Optional.ofNullable(project.getFile())
             .map(File::toPath)
             .orElseGet(() -> localPom(project, repository));
-        return new VersionPom(owner, versionedKey(project), file);
     }
 
     private static Path localPom(MavenProject project, Path repository) {

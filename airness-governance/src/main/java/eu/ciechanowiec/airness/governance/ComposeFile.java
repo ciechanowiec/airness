@@ -9,13 +9,12 @@ import java.util.stream.IntStream;
 import lombok.experimental.UtilityClass;
 
 /**
- * Reads the images a compose file pulls: the {@code image} of every service under {@code services}
- * that is not built from a Dockerfile of its own.
+ * Reads service images except names that are guaranteed to be local build outputs.
  *
- * <p>A service with a {@code build} is judged through its Dockerfile, and its {@code image} is only the
- * name the build is tagged with, so it is passed over here. A variable written with a default resolves
- * to the default, which is what compose pulls where nothing set it, and a variable written without one
- * stays in the reference for the rule to report as one it cannot judge.
+ * <p>A build declaration alone does not prevent Compose from pulling the image. Only a literal
+ * {@code pull_policy: build} beside that declaration establishes local output. Even {@code never}
+ * can run an image pulled into the platform cache earlier. Image variables with written defaults
+ * resolve to those defaults. A variable pull policy cannot establish the local-output exemption.
  *
  * <p>The grammar this needs is a few keys wide, and it is read the way {@link SpringConfiguration} reads
  * its files: a mapping is one level of indentation deeper than its key. The lines under
@@ -31,12 +30,13 @@ final class ComposeFile {
     private static final String SERVICES = "services";
     private static final String IMAGE = "image";
     private static final String BUILD = "build";
+    private static final String PULL_POLICY = "pull_policy";
     private static final String COMMENT = "#";
     private static final char SEPARATOR = ':';
     private static final int OUTSIDE = -1;
 
     /**
-     * Every image a service pulls rather than builds.
+     * Every service image that is not a guaranteed local build output.
      *
      * @param yaml the text of the file
      * @return the images with their service and line, in file order
@@ -81,13 +81,33 @@ final class ComposeFile {
 
     private static Optional<Located<PulledImage>> image(List<Located<Entry>> group) {
         String service = group.getFirst().value().key();
-        boolean built = group.stream().skip(1).anyMatch(entry -> BUILD.equals(entry.value().key()));
-        return group.stream()
-            .skip(1)
+        List<Located<Entry>> properties = properties(group);
+        return properties.stream()
             .filter(entry -> IMAGE.equals(entry.value().key()))
             .findFirst()
-            .filter(_ -> !built)
-            .map(entry -> new Located<>(entry.line(), new PulledImage(service, entry.value().value())));
+            .filter(_ -> !localBuild(properties))
+            .map(
+                entry -> new Located<>(
+                    entry.line(), new PulledImage(
+                        service,
+                        VariableDefaults.applied(entry.value().value())
+                    )
+                )
+            );
+    }
+
+    private static List<Located<Entry>> properties(List<Located<Entry>> group) {
+        int indent = group.stream().skip(1).mapToInt(entry -> entry.value().indent()).min().orElse(OUTSIDE);
+        return group.stream().skip(1).filter(entry -> entry.value().indent() == indent).toList();
+    }
+
+    private static boolean localBuild(List<Located<Entry>> properties) {
+        boolean built = properties.stream().anyMatch(entry -> BUILD.equals(entry.value().key()));
+        boolean always = properties.stream().anyMatch(
+            entry -> PULL_POLICY.equals(entry.value().key())
+                && BUILD.equals(entry.value().value())
+        );
+        return built && always;
     }
 
     /**
@@ -115,7 +135,7 @@ final class ComposeFile {
             Matcher comment = COMMENTED.matcher(stripped);
             boolean unquoted = stripped.equals(value.strip());
             String literal = unquoted && comment.find() ? stripped.substring(0, comment.start()) : stripped;
-            return VariableDefaults.applied(literal.strip());
+            return literal.strip();
         }
 
         static Entry of(String raw) {

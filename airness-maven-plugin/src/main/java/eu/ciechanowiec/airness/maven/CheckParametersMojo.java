@@ -1,7 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.ManagedVersions;
-import eu.ciechanowiec.airness.governance.MavenModelPolicy;
 import eu.ciechanowiec.airness.governance.SuppressionDocument;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -72,6 +70,14 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
     }
 
     @Override
+    List<String> requiredProblems() {
+        return ConsumerModels.problems(
+            this.project(), this.session().getRepositorySession().getData(),
+            this.session().getRepositorySession().getLocalRepositoryManager().getRepository().getBasePath()
+        );
+    }
+
+    @Override
     List<String> problems() {
         this.logParameters();
         String root = this.packageRoot();
@@ -82,9 +88,7 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
         Stream<String> packages = UNSET.equals(root)
             ? Stream.empty()
             : PackageRoots.problems(root, this.sourceRoots()).stream();
-        Stream<String> versions = ManagedVersions.problems(this.project().getFile().toPath()).stream();
-        Stream<String> model = MavenModelPolicy.problems(this.project().getFile().toPath()).stream();
-        return Stream.of(parameters, packages, versions, model, this.suppressions())
+        return Stream.of(parameters, packages, this.suppressions())
             .flatMap(Function.identity())
             .toList();
     }

@@ -9,6 +9,18 @@ import org.junit.jupiter.api.Test;
 class SpringGuardRulesTest {
 
     @Test
+    void collectionFiltersDoNotGuardASiblingMethod() {
+        for (String filter : List.of("PreFilter", "PostFilter")) {
+            assertEquals(
+                1,
+                SpringGuardRules.partiallyGuardedClasses(
+                    service("@" + filter + "(\"true\")\npublic void forgotten() {\n    }")
+                ).size()
+            );
+        }
+    }
+
+    @Test
     void reportsThePublicMethodItsSiblingsLeftUnguarded() {
         List<String> offences = SpringGuardRules.partiallyGuardedClasses(
             service("public void forgotten(UUID reference) {\n    }")

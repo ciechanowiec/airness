@@ -35,6 +35,12 @@ class SpringViewArgumentRulesTest {
     }
 
     @Test
+    void acceptsAdditionalNamedLocalsInAFragmentView() {
+        assertEquals(List.of(), offences("view-named-extra", "rows(value='Hello',theme='dark')"));
+        assertEquals(1, offences("view-named-missing", "rows(theme='dark')").size());
+    }
+
+    @Test
     void reportsAnExplicitEmptyListWhenTheDeclarationTakesOneArgument() {
         assertEquals(1, offences("view-arguments-empty", "rows()").size());
     }

@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.config.BeanExpressionContext;
+import org.springframework.context.expression.StandardBeanExpressionResolver;
 import org.springframework.context.support.GenericApplicationContext;
 
 /**
@@ -22,6 +24,8 @@ class SpringGuardBeansTest {
     private static GenericApplicationContext delegating(Class<?> guarded) {
         GenericApplicationContext context = new GenericApplicationContext();
         context.registerBean(CLEARANCE, Clearance.class);
+        context.registerBean("permission.bean", Clearance.class);
+        context.registerBean("permission''bean", Clearance.class);
         context.registerBean(guarded);
         context.refresh();
         return context;
@@ -34,6 +38,36 @@ class SpringGuardBeansTest {
 
     private static List<String> unresolved(GenericApplicationContext context) {
         return SpringGuardBeans.unresolved(context, Set.of(SpringEndpointFixtures.ROOT));
+    }
+
+    @Test
+    void preservesTheQuotedBeanNameThatSpelResolves() {
+        try (GenericApplicationContext context = delegating(QuotedGuards.class)) {
+            assertEquals(
+                true,
+                new StandardBeanExpressionResolver().evaluate(
+                    "#{ @'permission''bean' != null }", new BeanExpressionContext(context.getBeanFactory(), null)
+                )
+            );
+            assertTrue(unresolved(context).isEmpty());
+        }
+    }
+
+    @Test
+    void distinguishesLiteralAtSignsFromQuotedAndUnquotedBeanReferences() {
+        try (GenericApplicationContext context = delegating(QuotedGuards.class)) {
+            assertTrue(unresolved(context).isEmpty());
+        }
+    }
+
+    @Test
+    void reportsARealMissingQuotedBeanBesideALiteralEmailAddress() {
+        try (GenericApplicationContext context = delegating(MissingQuotedGuard.class)) {
+            assertEquals(
+                List.of("guard-bean missing.bean " + MissingQuotedGuard.class.getName() + "#reached"),
+                unresolved(context)
+            );
+        }
     }
 
     @Test

@@ -7,6 +7,11 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockServletContext;
+import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
+import org.springframework.security.authorization.SingleResultAuthorizationManager;
+import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 
 /**
@@ -22,6 +27,23 @@ class SpringOpenEndpointsScopeTest {
 
     private static List<String> reached(GenericWebApplicationContext context) {
         return SpringOpenEndpoints.reached(context, Set.of(SpringEndpointFixtures.ROOT));
+    }
+
+    @Test
+    void collectionFiltersDoNotExemptPublicEndpoints() {
+        try (
+            GenericWebApplicationContext context = SpringEndpointFixtures.context(
+                SpringEndpointFixtures.proxy(
+                    RequestMatcherDelegatingAuthorizationManager.builder().add(
+                        PathPatternRequestMatcher.withDefaults().matcher("/records/**"),
+                        SingleResultAuthorizationManager.permitAll()
+                    ).add(AnyRequestMatcher.INSTANCE, AuthenticatedAuthorizationManager.authenticated())
+                        .build()
+                ), FilteredEndpoints.class
+            )
+        ) {
+            assertEquals(List.of("open GET /records/post", "open POST /records/pre"), reached(context));
+        }
     }
 
     @Test

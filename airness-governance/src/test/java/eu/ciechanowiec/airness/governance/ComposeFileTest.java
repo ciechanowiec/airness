@@ -38,16 +38,53 @@ class ComposeFileTest {
     }
 
     @Test
-    void skipsABuiltService() {
+    void skipsAServiceThatExplicitlyBuildsItsImage() {
         String yaml = """
             services:
               app:
                 build: .
+                pull_policy: build
                 image: example/app:1.0.0
               db:
                 image: postgres:18
             """;
         assertEquals(List.of(new PulledImage("db", "postgres:18")), images(yaml), "the built image is only a name");
+    }
+
+    @Test
+    void auditsImagesThatMayBePulledEvenWhenBuildIsPresent() {
+        for (
+            String policy : List.of(
+                "", "pull_policy: always", "pull_policy: missing", "pull_policy: never",
+                "pull_policy: ${POLICY:-build}"
+            )
+        ) {
+            String yaml = "services:\n  app:\n    build: .\n    image: mongo:8.0\n    " + policy + "\n";
+            assertEquals(List.of(new PulledImage("app", "mongo:8.0")), images(yaml), policy);
+        }
+    }
+
+    @Test
+    void readsPullPolicyOnlyFromTheServiceMapping() {
+        String yaml = """
+            services:
+              app:
+                build: .
+                environment:
+                  pull_policy: build
+                  image: not-the-service
+                image: mongo:8.0
+            """;
+        assertEquals(List.of(new PulledImage("app", "mongo:8.0")), images(yaml));
+    }
+
+    @Test
+    void requiresABuildBeforeTreatingAnImageAsBuildOutput() {
+        assertEquals(
+            List.of(new PulledImage("app", "mongo:8.0")), images(
+                "services:\n  app:\n    pull_policy: build\n    image: mongo:8.0\n"
+            )
+        );
     }
 
     @Test

@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.spring;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -72,7 +73,7 @@ final class SpringOpenEndpoints {
      * package the framework moves them to does not quietly empty this set.
      */
     private static final Set<String> GUARDS = Set.of(
-        "PreAuthorize", "PostAuthorize", "PreFilter", "PostFilter", "Secured", "RolesAllowed", "DenyAll"
+        "PreAuthorize", "PostAuthorize", "Secured", "RolesAllowed", "DenyAll"
     );
 
     private static final String ANONYMOUS = "anonymous";
@@ -145,7 +146,7 @@ final class SpringOpenEndpoints {
     }
 
     private static String drawn(FilterChainProxy proxy) {
-        return open(proxy, new Probe("GET", ERROR_ADDRESS)) ? "open" : "closed";
+        return open(proxy, new Probe("GET", ERROR_ADDRESS, DispatcherType.ERROR)) ? "open" : "closed";
     }
 
     /**
@@ -232,7 +233,9 @@ final class SpringOpenEndpoints {
         List<String> methods = mapping.getMethodsCondition().getMethods().isEmpty()
             ? List.of("GET")
             : mapping.getMethodsCondition().getMethods().stream().map(Enum::name).toList();
-        return patterns.stream().flatMap(pattern -> methods.stream().map(method -> new Probe(method, pattern)));
+        return patterns.stream().flatMap(
+            pattern -> methods.stream().map(method -> new Probe(method, pattern, DispatcherType.REQUEST))
+        );
     }
 
     /**
@@ -244,6 +247,7 @@ final class SpringOpenEndpoints {
      */
     private static boolean open(FilterChainProxy proxy, Probe probe) {
         MockHttpServletRequest request = new MockHttpServletRequest(probe.method(), concrete(probe.pattern()));
+        request.setDispatcherType(probe.dispatcher());
         ServletRequestPathUtils.parseAndCache(request);
         try {
             return authorization(proxy, request).map(manager -> granted(manager, request)).orElse(Boolean.TRUE);
@@ -308,11 +312,12 @@ final class SpringOpenEndpoints {
     /**
      * One method and pattern of the application, and the evidence line recording that it is reached.
      *
-     * @param method  the HTTP method a caller arrives by
-     * @param pattern the pattern the mapping declares, kept as written so that the rule reading this
-     *                evidence compares it with the matcher a project wrote rather than with a path it did not
+     * @param method     the HTTP method a caller arrives by
+     * @param pattern    the pattern the mapping declares, kept as written so that the rule reading this
+     *                   evidence compares it with the matcher a project wrote rather than with a path it did not
+     * @param dispatcher the servlet dispatch whose authorization decision is being assessed
      */
-    private record Probe(String method, String pattern) {
+    private record Probe(String method, String pattern, DispatcherType dispatcher) {
 
         private String line() {
             return "open " + this.method() + ' ' + this.pattern();

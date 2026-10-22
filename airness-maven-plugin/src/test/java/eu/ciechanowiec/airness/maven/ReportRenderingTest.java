@@ -50,7 +50,7 @@ class ReportRenderingTest {
     void downloadsTheEmbeddedInventoryAndSbomWithoutExternalRequests() {
         ComplianceReport report = sample();
         Playwright.CreateOptions options = new Playwright.CreateOptions()
-            .setEnv(Map.of("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"));
+            .setEnv(ReportBrowser.environment());
         try (
             Playwright playwright = Playwright.create(options);
             Browser browser = playwright.chromium().launch();
@@ -73,6 +73,17 @@ class ReportRenderingTest {
                 ).click()
             );
             assertEquals(report.evidence().sbom(), Files.readString(sbom.path()));
+        }
+    }
+
+    @Test
+    void selectsChromiumFromTheOwnedVersionedCache() {
+        Playwright.CreateOptions options = new Playwright.CreateOptions().setEnv(ReportBrowser.environment());
+        try (Playwright playwright = Playwright.create(options)) {
+            Path executable = Path.of(playwright.chromium().executablePath());
+            Path owned = Path.of(System.getProperty("user.home"), ".cache", "airness", "report-browser");
+            assertTrue(executable.startsWith(owned));
+            assertTrue(Files.isRegularFile(executable));
         }
     }
 

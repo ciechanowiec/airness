@@ -61,7 +61,11 @@ final class SpringGuardBeans {
 
     // A bean reference, and the member it calls where it calls one. The member is optional because an
     // expression may hand the bean itself to something else, which names no method to look for.
-    private static final Pattern REFERENCE = Pattern.compile("@(\\w+)(?:\\s*\\.\\s*(\\w+)\\s*\\()?");
+    private static final String QUOTED = "'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"";
+    // Consuming literal strings as whole tokens keeps their at signs out of the bean-reference branch.
+    private static final Pattern REFERENCE = Pattern.compile(
+        "@(\\w+|" + QUOTED + ")(?:\\s*\\.\\s*(\\w+)\\s*\\()?|" + QUOTED
+    );
 
     private static final String EXPRESSION = "value";
 
@@ -163,6 +167,7 @@ final class SpringGuardBeans {
     private static Stream<String> unresolvable(ConfigurableListableBeanFactory beans, Guard guard) {
         return REFERENCE.matcher(guard.expression())
             .results()
+            .filter(reference -> Optional.ofNullable(reference.group(1)).isPresent())
             .map(reference -> refused(beans, guard, reference))
             .flatMap(Optional::stream);
     }
@@ -170,10 +175,17 @@ final class SpringGuardBeans {
     private static Optional<String> refused(
         ConfigurableListableBeanFactory beans, Guard guard, MatchResult reference
     ) {
-        String bean = reference.group(1);
+        String bean = beanName(reference.group(1));
         return beans.containsBean(bean)
             ? missing(beans, guard, bean, Optional.ofNullable(reference.group(2)))
             : Optional.of(UNKNOWN_BEAN + bean + ' ' + guard.where());
+    }
+
+    private static String beanName(String reference) {
+        String quote = reference.substring(0, 1);
+        return "'".equals(quote) || "\"".equals(quote)
+            ? reference.substring(1, reference.length() - 1)
+            : reference;
     }
 
     private static Optional<String> missing(

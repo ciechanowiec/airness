@@ -29,7 +29,7 @@ final class ReportPdf {
 
     static byte[] print(String html) {
         Playwright.CreateOptions setup = new Playwright.CreateOptions()
-            .setEnv(Map.of("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"));
+            .setEnv(ReportBrowser.environment());
         try (
             Playwright playwright = Playwright.create(setup);
             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setTimeout(TIMEOUT));
