@@ -168,7 +168,7 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 | _airness_ owns the marked section at the top. The project owns the text below it.
 
 | [[pinned-file]]Pinned
-| `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/settings.xml`, `CLAUDE.md`, `lombok.config`, `qodana.yaml`, `README-guideline-software-project.adoc`
+| `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/settings.xml`, `lombok.config`, `qodana.yaml`, `README-guideline-software-project.adoc`
 | The file must match the active _airness_ version.
 
 | [[seed-file]]Seed
@@ -180,6 +180,7 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 | _airness_ supplies the Qodana profile elsewhere and refuses source-rewriting engines, whose artifacts the blocklist names. The files must be absent. The xref:#default-verification[default verification] reports but doesn't delete them.
 |===
 
+. `AGENTS.md` is the only agent instruction file. Claude Code reads it directly, so the xref:#default-verification[default verification] fails when the working tree contains a `CLAUDE.md` or `CLAUDE.local.md` file in any directory. No setting exempts one.
 . The xref:#managed-section[managed section] in `AGENTS.md` is enclosed by `BEGIN AIRNESS MANAGED INSTRUCTIONS` and `END AIRNESS MANAGED INSTRUCTIONS`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or updates this section while preserving the project text below it.
 . The xref:#default-verification[default verification] fails when a xref:#pinned-file[pinned file] is missing or outdated or when a xref:#seed-file[seed file] is missing. It also fails if a build plugin modifies a project file during the build.
 . Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a xref:#verification-commands[verification command]:

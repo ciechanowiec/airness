@@ -5,10 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies the fixed {@code AGENTS.md} and {@code CLAUDE.md} contract.
+ * Verifies the fixed {@code AGENTS.md} contract and the {@code CLAUDE.md} ban.
  */
 class EntryFileCheckTest {
 
@@ -24,21 +25,19 @@ class EntryFileCheckTest {
     }
 
     @Test
-    void passesWhenBothFixedFilesSatisfyTheirContracts() {
+    void passesWhenTheInstructionFileSatisfiesItsContract() {
         Path root = new GitFixture("entry-clean")
             .write(EntryFileRules.INSTRUCTIONS, AIRNESS + INSTRUCTION_BODY)
-            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertTrue(
             Verdicts.clean(check(root).findings()),
-            "the root file has instructions and the Claude entry is the exact fixed reference"
+            "the root file has instructions and no Claude entry file competes with it"
         );
     }
 
     @Test
     void reportsAMissingInstructionFile() {
         Path root = new GitFixture("entry-no-instructions")
-            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertEquals(
             List.of(EntryFileRules.INSTRUCTIONS),
@@ -51,7 +50,6 @@ class EntryFileCheckTest {
     void reportsAnInstructionFileWithNoInstructions() {
         Path root = new GitFixture("entry-empty-instructions")
             .write(EntryFileRules.INSTRUCTIONS, " \n")
-            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertEquals(
             List.of(EntryFileRules.INSTRUCTIONS),
@@ -61,27 +59,29 @@ class EntryFileCheckTest {
     }
 
     @Test
-    void reportsAMissingClaudeEntryFile() {
-        Path root = new GitFixture("entry-no-claude")
+    void reportsEveryClaudeEntryFileInTheTree() {
+        Path root = new GitFixture("entry-claude-forbidden")
             .write(EntryFileRules.INSTRUCTIONS, AIRNESS + INSTRUCTION_BODY)
+            .write("CLAUDE.md", "@AGENTS.md\n")
+            .write("module/CLAUDE.md", "Run Maven first.\n")
             .root();
         assertEquals(
-            List.of(EntryFileRules.CLAUDE),
-            Verdicts.offences(check(root).findings(), "CLAUDE.md file is missing"),
-            "Claude must have its fixed entry point"
+            Set.of("CLAUDE.md", Path.of("module", "CLAUDE.md").toString()),
+            Set.copyOf(Verdicts.offences(check(root).findings(), "CLAUDE.md files are forbidden")),
+            "Claude Code reads AGENTS.md, so even a bare reference to it is a second instruction source"
         );
     }
 
     @Test
-    void reportsAnyContentBeyondTheExactClaudeReference() {
-        Path root = new GitFixture("entry-claude-drift")
+    void ignoresAClaudeFileGitIgnores() {
+        Path root = new GitFixture("entry-claude-ignored")
             .write(EntryFileRules.INSTRUCTIONS, AIRNESS + INSTRUCTION_BODY)
-            .write(EntryFileRules.CLAUDE, "@AGENTS.md\nRun Maven first.\n")
+            .write(".gitignore", "CLAUDE.local.md\n")
+            .write("CLAUDE.local.md", "Personal notes.\n")
             .root();
-        assertEquals(
-            List.of(EntryFileRules.CLAUDE),
-            Verdicts.offences(check(root).findings(), "must contain exactly"),
-            "the entry file has no project-owned instructions of its own"
+        assertTrue(
+            Verdicts.clean(check(root).findings()),
+            "an ignored personal file is not part of the tree the check governs"
         );
     }
 
@@ -89,7 +89,6 @@ class EntryFileCheckTest {
     void reportsStaleAirnessInstructions() {
         Path root = new GitFixture("entry-stale-airness")
             .write(EntryFileRules.INSTRUCTIONS, AIRNESS.replace("Airness rules.", "Old rules."))
-            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertEquals(
             List.of(EntryFileRules.INSTRUCTIONS),
@@ -102,7 +101,6 @@ class EntryFileCheckTest {
     void reportsNonLeadingAirnessInstructionsAsMalformed() {
         Path root = new GitFixture("entry-misplaced-airness")
             .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY + AIRNESS)
-            .write(EntryFileRules.CLAUDE, EntryFileRules.CLAUDE_CONTENT)
             .root();
         assertEquals(
             List.of(EntryFileRules.INSTRUCTIONS),

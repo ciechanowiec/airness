@@ -29,7 +29,7 @@ import java.util.stream.Stream;
  * <p>A line this reader cannot account for is reported rather than skipped. The grammar is a handful of
  * keys wide, so reading it needs no library, but a reader that ignored what it did not recognise would
  * pass a key it had never heard of in silence, and that silence is the thing being removed.
- * {@link EntryFileCheck} makes the same trade about {@code CLAUDE.md}.
+ * {@link EntryFileCheck} makes the same trade about {@code AGENTS.md}.
  */
 public final class SecretScanConfiguration {
 

@@ -3,10 +3,11 @@ package eu.ciechanowiec.airness.governance;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies the content rules for the two fixed agent files.
+ * Verifies the content and naming rules for agent instruction files.
  */
 class EntryFileRulesTest {
 
@@ -21,17 +22,22 @@ class EntryFileRulesTest {
     }
 
     @Test
-    void acceptsTheExactClaudeEntry() {
-        assertTrue(EntryFileRules.isClaudeEntry("@AGENTS.md\n"));
+    void forbidsAClaudeEntryFileInAnyDirectory() {
+        assertTrue(EntryFileRules.isForbidden(Path.of("module", "CLAUDE.md")));
     }
 
     @Test
-    void rejectsExtraClaudeContent() {
-        assertFalse(EntryFileRules.isClaudeEntry("@AGENTS.md\nRun Maven.\n"));
+    void forbidsALocalClaudeFile() {
+        assertTrue(EntryFileRules.isForbidden(Path.of("CLAUDE.local.md")));
     }
 
     @Test
-    void rejectsAClaudeEntryWithoutItsRequiredFinalNewline() {
-        assertFalse(EntryFileRules.isClaudeEntry("@AGENTS.md"));
+    void forbidsAClaudeEntryFileWhateverItsCase() {
+        assertTrue(EntryFileRules.isForbidden(Path.of("claude.md")));
+    }
+
+    @Test
+    void allowsAFileThatOnlyMentionsClaude() {
+        assertFalse(EntryFileRules.isForbidden(Path.of("docs", "CLAUDE-notes.md")));
     }
 }

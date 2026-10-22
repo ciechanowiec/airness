@@ -1,13 +1,12 @@
 # Files that must exist in a consumer working tree because non-Maven tools read them there.
 # Project documentation belongs to the consuming project. The software project guideline is the one
-# exception because it defines the agent contract. CLAUDE.md is a fixed tool entry point.
+# exception because it defines the agent contract.
 
 .editorconfig	PINNED
 .gitattributes	PINNED
 .java-version	PINNED
 .mvn/maven.config	PINNED
 .mvn/settings.xml	PINNED
-CLAUDE.md	PINNED
 lombok.config	PINNED
 qodana.yaml	PINNED
 .airness/agent-guide.md	PINNED

@@ -6,11 +6,12 @@ import java.util.Optional;
 
 /**
  * The repository carries the managed Airness section and project instructions in {@code AGENTS.md},
- * exposing both to Claude through a fixed {@code CLAUDE.md} entry file.
+ * and in no other agent instruction file.
  *
- * <p>The names and the reference are constants rather than project parameters. A configurable path
- * could make the check pass over a different file, which would leave the tools that read these fixed
- * names outside the contract.
+ * <p>Claude Code reads {@code AGENTS.md} itself, so a {@code CLAUDE.md} could only add a second source of
+ * instructions beside it. Such files are refused in every directory, since Claude Code also loads nested
+ * ones. The names are constants rather than project parameters, and no setting exempts a path, because
+ * a configurable rule could pass over the very file the tool would read.
  */
 public final class EntryFileCheck {
 
@@ -22,14 +23,14 @@ public final class EntryFileCheck {
         = "AGENTS.md has stale Airness instructions (run mvn airness:assets-sync)";
     private static final String MALFORMED_AIRNESS
         = "AGENTS.md has malformed, duplicate, or non-leading Airness instruction markers";
-    private static final String MISSING_CLAUDE = "The mandatory CLAUDE.md file is missing";
-    private static final String WRONG_CLAUDE = "CLAUDE.md must contain exactly @AGENTS.md";
+    private static final String FORBIDDEN_CLAUDE
+        = "CLAUDE.md files are forbidden because Claude Code reads AGENTS.md (delete them)";
 
     private final Path root;
     private final AgentInstructions instructions;
 
     /**
-     * Names the working tree that must carry both fixed files.
+     * Names the working tree that must carry {@code AGENTS.md} and no {@code CLAUDE.md}.
      *
      * @param root      the working tree root
      * @param canonical the exact Airness-owned section required at the start of {@code AGENTS.md}
@@ -50,8 +51,7 @@ public final class EntryFileCheck {
             new Findings(EMPTY_INSTRUCTIONS, this.emptyInstructions()),
             new Findings(MISSING_AIRNESS, this.missingAirness()),
             new Findings(MALFORMED_AIRNESS, this.malformedAirness()),
-            new Findings(MISSING_CLAUDE, this.missingClaude()),
-            new Findings(WRONG_CLAUDE, this.wrongClaude())
+            new Findings(FORBIDDEN_CLAUDE, this.forbiddenClaude())
         );
     }
 
@@ -83,17 +83,11 @@ public final class EntryFileCheck {
             .orElseGet(List::of);
     }
 
-    private List<String> missingClaude() {
-        return this.read(EntryFileRules.CLAUDE).isEmpty()
-            ? List.of(EntryFileRules.CLAUDE)
-            : List.of();
-    }
-
-    private List<String> wrongClaude() {
-        return this.read(EntryFileRules.CLAUDE)
-            .filter(content -> !EntryFileRules.isClaudeEntry(content))
-            .map(_ -> List.of(EntryFileRules.CLAUDE))
-            .orElseGet(List::of);
+    private List<String> forbiddenClaude() {
+        return Repository.trackedFiles(this.root).stream()
+            .filter(EntryFileRules::isForbidden)
+            .map(file -> this.root.relativize(file).toString())
+            .toList();
     }
 
     private Optional<String> read(String name) {
