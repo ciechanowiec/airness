@@ -42,6 +42,17 @@ class ConsumerModelsTest {
     }
 
     @Test
+    void stopsAtTheTrustedJavaParentBeforeTheGenericOne() {
+        MavenProject java = this.project(
+            "airness-parent-java", "<properties><airness.coverage.skip>false</airness.coverage.skip></properties>"
+        );
+        java.setGroupId("eu.ciechanowiec");
+        MavenProject child = this.project("child", "");
+        child.setParent(java);
+        assertTrue(ConsumerModels.problems(child, new DefaultSessionData(), this.directory).isEmpty());
+    }
+
+    @Test
     void checksManagedVersionsInTheParent() {
         MavenProject parent = this.project("company", "<properties><airness.version>1</airness.version></properties>");
         MavenProject child = this.project("child", "");

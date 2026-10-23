@@ -115,7 +115,7 @@ run_sbom_reactor() {
         perl -0pi -e "s{<artifactId>consumer</artifactId>}{<artifactId>sbom-${sbom_module}</artifactId>}" \
             "${sbom_reactor}/${sbom_module}/pom.xml"
     done
-    perl -0pi -e 's{<artifactId>airness-parent</artifactId>}{<artifactId>airness-parent-spring-boot</artifactId>}' \
+    perl -0pi -e 's{<artifactId>airness-parent-java</artifactId>}{<artifactId>airness-parent-spring-boot</artifactId>}' \
         "${sbom_reactor}/boot/pom.xml"
     run_maven sbom_reactor_build maven "${sbom_reactor}" clean package -DskipTests
     expect_exit sbom_reactor_build 'sbom: a reactor with plain and Spring parents generates each module inventory' 0

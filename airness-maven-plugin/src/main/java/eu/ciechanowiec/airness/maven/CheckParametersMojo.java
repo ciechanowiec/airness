@@ -71,10 +71,11 @@ public final class CheckParametersMojo extends AbstractPreflightMojo {
 
     @Override
     List<String> requiredProblems() {
-        return ConsumerModels.problems(
+        List<String> models = ConsumerModels.problems(
             this.project(), this.session().getRepositorySession().getData(),
             this.session().getRepositorySession().getLocalRepositoryManager().getRepository().getBasePath()
         );
+        return Stream.concat(models.stream(), JavaParents.problem(this.project()).stream()).toList();
     }
 
     @Override

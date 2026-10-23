@@ -14,10 +14,11 @@ import org.w3c.dom.Element;
 /**
  * The harness holds itself to what it publishes, and writes each shared list once.
  *
- * <p>Airness cannot inherit the parent it publishes: {@code airness-parent} depends on
+ * <p>Airness cannot inherit the parent it publishes: {@code airness-parent-java} depends on
  * {@code airness-annotations}, and a module cannot both be depended on by its own parent and inherit it.
  * The root project file therefore binds the harness to its own modules directly, and what a consumer
- * receives it receives through {@code airness-parent}. Two audiences, one repository.
+ * receives it receives through {@code airness-parent-java} and the generic {@code airness-parent} above
+ * it. Two audiences, one repository.
  *
  * <p>A list serving both audiences is written in the pluginManagement of the root project file and
  * nowhere else. Writing it a second time below that file is what this class forbids. Two copies drift,
@@ -96,7 +97,7 @@ class SelfHarnessMirrorTest {
     @Test
     void leavesTheSharedListsToTheOneFileThatWritesThem() {
         Stream<Path> below = Stream.concat(
-            Stream.of(ProjectFiles.parentPom()), ProjectFiles.moduleFiles().stream()
+            Stream.of(ProjectFiles.parentPom(), ProjectFiles.javaParentPom()), ProjectFiles.moduleFiles().stream()
         );
         assertEquals(
             List.of(), below.flatMap(SelfHarnessMirrorTest::rewritten).toList(),

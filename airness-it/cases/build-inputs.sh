@@ -28,7 +28,7 @@ run_ignored_build_inputs() {
     printf 'New untracked resource\n' > "${input_consumer}/src/main/resources/new.txt"
     run_maven inputs_tracked repository "${input_consumer}" validate
     expect_exit inputs_tracked 'build inputs: tracked ignored-pattern files and new ordinary files pass' 0
-    perl -0pi -e 's{<artifactId>airness-parent</artifactId>}{<artifactId>airness-parent-spring-boot</artifactId>}' \
+    perl -0pi -e 's{<artifactId>airness-parent-java</artifactId>}{<artifactId>airness-parent-spring-boot</artifactId>}' \
         "${input_consumer}/pom.xml"
     printf 'Another local module\n' > "${input_consumer}/src/main/resources/vendor/build/missing.mjs"
     run_maven inputs_spring repository "${input_consumer}" validate

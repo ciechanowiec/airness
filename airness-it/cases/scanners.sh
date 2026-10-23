@@ -41,7 +41,7 @@ run_scanner_cases() {
     run_scanner_lifecycle
 
     new_consumer scanner-spring-parent
-    perl -0pi -e 's{<artifactId>airness-parent</artifactId>}{<artifactId>airness-parent-spring-boot</artifactId>}' \
+    perl -0pi -e 's{<artifactId>airness-parent-java</artifactId>}{<artifactId>airness-parent-spring-boot</artifactId>}' \
         "${consumer_directory}/pom.xml"
     printf '#!/bin/sh\nprintf "%%s\\n" ready\n' > "${consumer_directory}/run.sh"
     run_maven scanners_spring scanners "${consumer_directory}" airness:shellcheck airness:checkov

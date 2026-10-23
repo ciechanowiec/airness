@@ -24,7 +24,8 @@ import org.w3c.dom.NodeList;
 final class ProjectFiles {
 
     private static final String PARENT = "airness-parent";
-    private static final Set<String> PARENTS = Set.of(PARENT, "airness-parent-spring-boot");
+    private static final String JAVA_PARENT = "airness-parent-java";
+    private static final Set<String> PARENTS = Set.of(PARENT, JAVA_PARENT, "airness-parent-spring-boot");
     private static final String MAIN = "src/main/java";
     private static final String POM = "pom.xml";
 
@@ -38,12 +39,35 @@ final class ProjectFiles {
     }
 
     /**
-     * The project file consumers inherit.
+     * The project file of the generic parent, which every consumer inherits through the parent it names.
      *
      * @return its path
      */
     static Path parentPom() {
         return SelfModules.repository().resolve(PARENT).resolve(POM);
+    }
+
+    /**
+     * The project file a Java consumer inherits, which adds the Java rules to the generic parent.
+     *
+     * @return its path
+     */
+    static Path javaParentPom() {
+        return SelfModules.repository().resolve(JAVA_PARENT).resolve(POM);
+    }
+
+    /**
+     * One bound execution of either parent a Java consumer inherits.
+     *
+     * @param id the execution identifier
+     * @return the execution element
+     */
+    static Element parentExecution(String id) {
+        return Stream.of(parentPom(), javaParentPom())
+            .flatMap(pom -> descendants(document(pom), "execution"))
+            .filter(execution -> id.equals(Xml.text(execution, "id").orElse("")))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("no parent binds execution " + id));
     }
 
     /**

@@ -9,7 +9,7 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
 
 ## Layer 2: Harness Invariants
 
-- The project inherits `airness-parent`, or `airness-parent-spring-boot` when it is a Spring Boot project.
+- The project inherits `airness-parent-java`, or `airness-parent-spring-boot` when it is a Spring Boot project.
   That choice is the only place a project states which kind it is, and it is what decides which rules apply.
   Do not weaken, replace, duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or
   managed files that the parent owns.

@@ -20,7 +20,9 @@ final class RepositoryProjects {
      * CONSUMER_PARENT above, which selects the one module that owns repository-wide work and stays one:
      * a second owner would report every repository finding twice.
      */
-    private static final Set<String> HARNESS_PARENTS = Set.of(CONSUMER_PARENT, "airness-parent-spring-boot");
+    private static final Set<String> HARNESS_PARENTS = Set.of(
+        CONSUMER_PARENT, "airness-parent-java", "airness-parent-spring-boot"
+    );
 
     static boolean owns(MavenProject topLevel, MavenProject current) {
         return topLevel.equals(current) || selfBuild(topLevel, current);

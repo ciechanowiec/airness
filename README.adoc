@@ -58,7 +58,7 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 [[parent-configuration]]
 === Parent Configuration
 
-. The following complete Maven project file configures a project with classes under `com.example.orders`.
+. The following complete Maven project file configures a Java project with classes under `com.example.orders`.
 +
 [source,xml,subs="attributes+"]
 ----
@@ -71,7 +71,7 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 
     <parent>
         <groupId>eu.ciechanowiec</groupId>
-        <artifactId>airness-parent</artifactId>
+        <artifactId>airness-parent-java</artifactId>
         <version>{airness-version}</version>
         <relativePath/>
     </parent>
@@ -98,6 +98,10 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
     <relativePath/>
 </parent>
 ----
+
+. [[generic-parent]]`airness-parent` is the generic parent. It carries only the repository rules, such as managed files, history, secrets, licenses and the compliance report, and suits a repository or a monorepo root with no Java of its own. A module with Java sources under `src/main/java` or `src/test/java` that inherits it directly fails verification and is told to inherit `airness-parent-java`.
+
+. [[parent-upgrade]]Upgrading from a version in which `airness-parent` carried the Java rules: change the parent of every Java module from `airness-parent` to `airness-parent-java`. A Spring Boot project that already names `airness-parent-spring-boot` needs no change.
 
 [[managed-file-setup]]
 === Managed File Setup
