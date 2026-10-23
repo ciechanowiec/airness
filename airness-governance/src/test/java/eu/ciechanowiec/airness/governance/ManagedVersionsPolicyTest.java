@@ -51,6 +51,7 @@ class ManagedVersionsPolicyTest {
     void everyVersionPropertyIsOwnedOnceAcrossTheHarnessPoms() {
         Element root = parse(repository().resolve("pom.xml"));
         Element parent = parse(repository().resolve("airness-parent/pom.xml"));
+        Element java = parse(repository().resolve("airness-parent-java/pom.xml"));
         List<String> owned = sourcePoms().flatMap(ManagedVersionsPolicyTest::governedProperties).toList();
         Element mavenRule = elements(root, "requireMavenVersion").findFirst().orElseThrow();
         Element javaRule = elements(root, "requireJavaVersion").findFirst().orElseThrow();
@@ -58,6 +59,7 @@ class ManagedVersionsPolicyTest {
             () -> assertEquals(ManagedVersions.protectedProperties(), Set.copyOf(owned)),
             () -> assertEquals(owned.size(), Set.copyOf(owned).size(), "no property is declared twice"),
             () -> assertTrue(governedProperties(parent).findAny().isEmpty()),
+            () -> assertTrue(governedProperties(java).findAny().isEmpty()),
             () -> assertEquals("[3.10.0,)", Xml.text(mavenRule, VERSION).orElse("")),
             () -> assertEquals("[25,26)", Xml.text(javaRule, VERSION).orElse(""))
         );
@@ -191,6 +193,7 @@ class ManagedVersionsPolicyTest {
         return Stream.of(
             repository.resolve("pom.xml"),
             repository.resolve("airness-parent/pom.xml"),
+            repository.resolve("airness-parent-java/pom.xml"),
             repository.resolve("airness-parent-spring-boot/pom.xml")
         ).map(ManagedVersionsPolicyTest::parse);
     }

@@ -23,9 +23,15 @@ run_model_policy_cases() {
     model_execution="${model_execution}</execution></executions></plugin></plugins></build>"
     MODEL_EXECUTION="${model_execution}" perl -0pi -e \
         's{</project>}{$ENV{MODEL_EXECUTION}."</project>"}e' "${model_consumer}/pom.xml"
+    # The same run names the generic parent, which a module holding Java may not inherit on its own: both
+    # model problems are reported together, so the refusal is proved without a run of its own.
+    perl -0pi -e 's{<artifactId>airness-parent-java</artifactId>}{<artifactId>airness-parent</artifactId>}' \
+        "${model_consumer}/pom.xml"
     run_maven model_test_phase maven "${model_consumer}" airness:check-parameters
     expect_exit model_test_phase 'model: the default test execution cannot be unbound' 1
     expect_match model_test_phase 'model: the changed test phase is identified' 'default-test.*phase'
+    expect_match model_test_phase 'model: Java under the generic parent is refused with the Java parent named' \
+        'has Java sources but does not inherit eu[.]ciechanowiec:airness-parent-java'
     run_parent_model_cases
 }
 

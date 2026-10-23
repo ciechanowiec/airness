@@ -159,6 +159,7 @@ jobs:
             airness-web-evidence/pom.xml \
             airness-maven-plugin/pom.xml \
             airness-parent/pom.xml \
+            airness-parent-java/pom.xml \
             airness-parent-spring-boot/pom.xml; do
               mvn --batch-mode --no-transfer-progress --file "$project" \
                 "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-metadata" \

@@ -392,7 +392,7 @@ build_consumer() {
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>eu.ciechanowiec</groupId>
-        <artifactId>airness-parent</artifactId>
+        <artifactId>airness-parent-java</artifactId>
         <version>1.0.9-SNAPSHOT</version>
     </parent>
     <groupId>com.example</groupId>

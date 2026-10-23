@@ -6,9 +6,9 @@
 
     <parent>
         <groupId>eu.ciechanowiec</groupId>
-        <artifactId>airness-parent</artifactId>
+        <artifactId>airness-parent-java</artifactId>
         <version>1.0.9-SNAPSHOT</version>
-        <relativePath>../airness-parent/pom.xml</relativePath>
+        <relativePath>../airness-parent-java/pom.xml</relativePath>
     </parent>
 
     <artifactId>airness-it</artifactId>
@@ -16,7 +16,7 @@
 
     <name>airness-it</name>
     <description>
-        The harness seen from a consumer's side of it. This module inherits airness-parent the way a real
+        The harness seen from a consumer's side of it. This module inherits airness-parent-java the way a real
         project does and carries no analysis configuration of its own, so a finding it reports came off
         the plugin classpath and nowhere else.
 

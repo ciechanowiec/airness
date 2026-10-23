@@ -11,6 +11,7 @@ class RepositoryProjectsTest {
     private static final String GROUP = "eu.ciechanowiec";
     private static final String AGGREGATOR = "airness";
     private static final String CONSUMER_PARENT = "airness-parent";
+    private static final String JAVA_PARENT = "airness-parent-java";
     private static final String SPRING_PARENT = "airness-parent-spring-boot";
 
     @Test
@@ -66,6 +67,26 @@ class RepositoryProjectsTest {
         spring.setParent(project(GROUP, CONSUMER_PARENT));
 
         assertFalse(RepositoryProjects.owns(root, spring));
+    }
+
+    /*
+     * The Java parent inherits the generic one, so it inherits the repository-wide bindings as well. Only
+     * the generic parent, whose own parent is the aggregator, owns them during the self-build.
+     */
+    @Test
+    void leavesRepositoryWorkToTheConsumerParentWhenTheJavaParentBuilds() {
+        MavenProject root = project(GROUP, AGGREGATOR);
+        MavenProject java = project(GROUP, JAVA_PARENT);
+        MavenProject parent = project(GROUP, CONSUMER_PARENT);
+        parent.setParent(root);
+        java.setParent(parent);
+
+        assertFalse(RepositoryProjects.owns(root, java));
+    }
+
+    @Test
+    void readsTheJavaParentAsAParentTheHarnessPublishes() {
+        assertTrue(RepositoryProjects.harnessParent(project(GROUP, JAVA_PARENT)));
     }
 
     @Test

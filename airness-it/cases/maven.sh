@@ -49,7 +49,7 @@ run_maven_cases() {
     expect_before lifecycle_clean 'lifecycle: the source checks report before the tests run' \
         '--- airness:[^ ]+:typography [(]airness-governance-sources[)]' '--- surefire:[^ ]+:test '
     expect_before lifecycle_clean 'lifecycle: the last source check still precedes the tests' \
-        '--- airness:[^ ]+:suppression-budget [(]airness-governance-sources[)]' '--- surefire:[^ ]+:test '
+        '--- airness:[^ ]+:message-parity [(]airness-java-sources[)]' '--- surefire:[^ ]+:test '
     expect_before lifecycle_clean 'lifecycle: Checkstyle reports before the tests run' \
         '--- checkstyle:[^ ]+:check ' '--- surefire:[^ ]+:test '
     expect_before lifecycle_clean 'lifecycle: the heavier analyzers still report after the tests' \

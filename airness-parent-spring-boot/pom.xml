@@ -5,17 +5,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!--
-        The one module that inherits airness-parent rather than the aggregator. Every other module parents
-        to the aggregator because a plugin cannot be used in the reactor that builds it. This one is not a
-        module of the harness in that sense: it is a second consumer-facing parent, and inheriting the
-        first is the whole of what it does. The relativePath is written out because the default would
-        resolve to the aggregator in the directory above.
+        One of the two modules that inherit a consumer parent rather than the aggregator. Every other
+        module parents to the aggregator because a plugin cannot be used in the reactor that builds it.
+        This one is not a module of the harness in that sense: it is a third consumer-facing parent, and
+        inheriting the Java one is the whole of what it does. The relativePath is written out because the
+        default would resolve to the aggregator in the directory above.
     -->
     <parent>
         <groupId>eu.ciechanowiec</groupId>
-        <artifactId>airness-parent</artifactId>
+        <artifactId>airness-parent-java</artifactId>
         <version>1.0.9-SNAPSHOT</version>
-        <relativePath>../airness-parent/pom.xml</relativePath>
+        <relativePath>../airness-parent-java/pom.xml</relativePath>
     </parent>
 
     <artifactId>airness-parent-spring-boot</artifactId>
@@ -23,24 +23,24 @@
 
     <name>airness-parent-spring-boot</name>
     <description>
-        The parent a consuming Spring Boot project inherits. It carries everything airness-parent carries,
-        and adds the Spring version set and the rules that only a Spring Boot project can break.
+        The parent a consuming Spring Boot project inherits. It carries everything airness-parent-java
+        carries, and adds the Spring version set and the rules that only a Spring Boot project can break.
 
         A project states which kind it is by which parent it names, rather than by a switch. That is what
         keeps the Spring relaxations off every project that is not a Spring Boot one, and what keeps them
         reviewable: they are a diff against the parent above rather than a second copy of it.
 
         Two rules are relaxed and five are added, so a project inheriting this answers to more than one
-        inheriting airness-parent, never to less.
+        inheriting airness-parent-java, never to less.
     </description>
 
     <properties>
         <!--
-            The inversion of what airness-parent declares. Relaxed reaches every file, so the handful of
+            The inversion of what airness-parent-java declares. Relaxed reaches every file, so the handful of
             filters keyed to a Spring annotation now fire, and suppressed reaches none, so the Spring
             rules stop being suppressed and apply.
 
-            Both are read by the Checkstyle configuration airness-parent already points at. This is the
+            Both are read by the Checkstyle configuration airness-parent-java already points at. This is the
             whole of how a Spring Boot project is judged differently, and it is two values rather than a
             second rule set, so the difference can be read in one place. Neither is referenced in this
             file, which is why the property order puts them ahead of the version below.
@@ -51,7 +51,7 @@
 
     <!--
         Spring Framework reads JSpecify annotations reflectively while it builds beans, so the classes
-        have to be in the archive that ships. airness-parent declares them provided, which is right for a
+        have to be in the archive that ships. airness-parent-java declares them provided, which is right for a
         library whose annotations are read by a compiler and by nothing afterwards, and wrong here: the
         repackaged application starts, gets as far as the first handler mapping, and dies on a
         NoClassDefFoundError naming an annotation nobody wrote.
@@ -226,7 +226,7 @@
                     AMQP and the rest.
 
                     The children are appended rather than written over the inherited list, which is what
-                    keeps the airness-annotations exemption airness-parent declares.
+                    keeps the airness-annotations exemption airness-parent-java declares.
                 -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -254,7 +254,7 @@
             <plugin>
                 <!--
                     The questions that only a Spring Boot project has to answer, and that no analyzer
-                    configuration can ask. Bound here rather than in airness-parent, so a project that is
+                    configuration can ask. Bound here rather than in airness-parent-java, so a project that is
                     not a Spring Boot one never runs the goal at all.
 
                     The five goals differ in what each has to read before it can answer. One reads the

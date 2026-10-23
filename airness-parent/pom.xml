@@ -15,75 +15,27 @@
 
     <name>airness-parent</name>
     <description>
-        The parent a consuming project inherits. It carries the plugin configuration and the lifecycle
-        bindings, so a consumer states its coordinates and its dependencies and receives the harness.
+        The generic parent. It carries the rules that make sense in a repository with no code at all:
+        managed files, the committable tree, formatting of committed text, typography, agent entry
+        files, the suppression ceiling, software refused by name, licenses, freshness, known
+        vulnerabilities, the software bill of materials, the compliance report, history, commit
+        messages, secrets, shell scripts and infrastructure.
 
-        It binds the analyzers, tests, coverage, source normalization, and repository governance. A
-        consumer updates the harness by raising the parent version and synchronizing the managed files.
+        A repository with no code, or a monorepo root, inherits this one directly. A Java module
+        inherits airness-parent-java, which inherits this one and adds the Java rules.
     </description>
 
     <properties>
         <!--
-            The phase at which each source-shaping tool applies its changes. Only the applying half is a
-            property. The checking half is bound to a literal phase and cannot be moved by anyone.
-
-            The asymmetry prevents a consumer from moving a checking phase to "none" in its own pom.
-            Setting an applying phase can only add work: the tool applies its changes first and the
-            check still runs afterwards, so the check confirms that the apply did its job.
-
-            The format profile below is what sets them. Each applying execution is declared ahead of its
-            checking one, so within the shared phase the apply runs first.
-        -->
-        <airness.source.formatting.apply>false</airness.source.formatting.apply>
-        <!--
-            Where the harness unpacks what it supplies. Under the build directory rather than in the
-            tree, because a copy in the tree is a copy that gets edited and then ignored, and because
-            the build directory is already ignored by git and so is invisible to the tree-mutation net.
-        -->
-        <!--
-            The field annotations NullAway treats as initializing a field it would otherwise call
-            uninitialized: a value Maven, JUnit, picocli, or an injector writes rather than a
-            constructor. Named once because the report-only profile below has to restate the whole
-            compiler argument to relax it, so the list would otherwise be hand-copied three times.
-        -->
-        <airness.nullaway.excluded-field-annotations>org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</airness.nullaway.excluded-field-annotations>
-        <!--
             The package NullAway treats as annotated. Everything outside it is assumed unannotated and
             goes unchecked, so a value naming a package this project does not use turns the whole
             null-checker into a no-op that still appears in the build log. check-parameters refuses to
-            let it stay unset.
+            let it stay unset, and that preflight is bound here, so the default is declared here too.
         -->
         <airness.package.root>UNSET</airness.package.root>
-        <!--
-            The ceiling on one test, one lifecycle method, or one template invocation. Declared here
-            rather than left to the aggregator this parent inherits, because this is the file a consumer
-            inherits, and every other default the user guide documents is stated in it.
-        -->
-        <airness.test.timeout>30 s</airness.test.timeout>
-        <airness.coverage.skip>${skipTests}</airness.coverage.skip>
+        <skipTests>false</skipTests>
         <!-- One switch controls whether findings fail the build. skipTests is the separate bypass. -->
         <airness.enforce>true</airness.enforce>
-        <!--
-            Classes left out of the per-class coverage floor, comma-separated, each because of the role
-            it plays rather than because covering it was inconvenient. Empty by default: a harness that
-            arrived with exclusions would be teaching a project that the list is where difficulty goes.
-        -->
-        <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
-        <skipTests>false</skipTests>
-        <airness.prettier.goal>check</airness.prettier.goal>
-        <!--
-            The two file patterns that decide which Checkstyle rules a project answers to. The shipped
-            configuration holds one rule set, and these select the part of it that applies here.
-
-            Both are stated as the answer for a project that is not a Spring Boot one: no rule is relaxed,
-            and every Spring rule is suppressed. airness-parent-spring-boot inverts them, and nothing else
-            may, because a project that declared either would be choosing which rules it is judged by.
-
-            A file pattern rather than a switch, because that is the only lever a Checkstyle filter takes.
-            An empty pattern reaches no file, so a filter carrying one is a filter that never fires.
-        -->
-        <airness.checkstyle.spring.relaxed>^$</airness.checkstyle.spring.relaxed>
-        <airness.checkstyle.spring.suppressed>.*</airness.checkstyle.spring.suppressed>
         <!--
             The Dependency-Check exceptions of a project. The profile at the end of this file activates on
             that document existing and hands the scan this path, so keeping the document where the guide
@@ -98,247 +50,8 @@
         <airness.dependency-check.suppression.file>${project.basedir}/.airness/dependency-check-suppressions.xml</airness.dependency-check.suppression.file>
     </properties>
 
-    <!-- Versions come from the root dependency management. These declarations supply the dependencies. -->
-    <dependencies>
-        <dependency>
-            <groupId>com.github.spotbugs</groupId>
-            <artifactId>spotbugs-annotations</artifactId>
-            <scope>provided</scope>
-            <optional>true</optional>
-        </dependency>
-        <!--
-            Inherited by every consumer, so the annotation the rule set expects is on the compile
-            classpath without anyone declaring it. A rule that demands an annotation a project has to go
-            and write for itself is a rule that gets worked around rather than followed.
-
-            provided scope, because the annotation has SOURCE retention and is gone by the time the class
-            file exists. Nothing needs it later, so nothing downstream should resolve it.
-        -->
-        <dependency>
-            <groupId>eu.ciechanowiec</groupId>
-            <artifactId>airness-annotations</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jspecify</groupId>
-            <artifactId>jspecify</artifactId>
-            <scope>provided</scope>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-dependency-plugin</artifactId>
-                    <configuration>
-                        <!--
-                            Dependency analysis reads class files, and a SOURCE-retention annotation
-                            leaves none behind. airness-annotations is therefore used by every project
-                            that suppresses a rule and reported as unused by all of them. The exemption is
-                            named for this one artifact rather than switched off wholesale, so a genuinely
-                            unused dependency is still reported.
-                        -->
-                        <ignoredUnusedDeclaredDependencies>
-                            <ignoredUnusedDeclaredDependency>
-                                eu.ciechanowiec:airness-annotations
-                            </ignoredUnusedDeclaredDependency>
-                        </ignoredUnusedDeclaredDependencies>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
-            <plugin>
-                <!--
-                    Error Prone is a javac plugin rather than a Maven one: it hooks the compiler's typed
-                    AST while compiling. Since JDK 16 that compiler is strongly encapsulated, so reaching
-                    it needs a forked javac carrying the exports and opens below.
-
-                    NullAway rides along as an Error Prone check. It reads airness.package.root to decide
-                    what counts as annotated code, and everything outside that package is assumed
-                    unannotated and left alone, which is why a wrong value there disables the checker
-                    while leaving it in the log looking configured.
-
-                    -parameters is a literal member of the protected compiler argument list rather than
-                    a project property. It therefore reaches main and test compilation in every mode,
-                    and a command-line maven.compiler.parameters value cannot remove it. The
-                    compiler-parameters goal later reads the emitted class files as the final proof.
-
-                    The reflective-injection annotations are excluded from the field-initialization
-                    check, because a field a framework assigns is not a field the constructor forgot.
-                    The list is fixed rather than a property: a project that could extend it could also
-                    empty it, and an empty list reads in the log exactly like a correct one.
-
-                    doclint holds the Javadoc that Checkstyle only requires the presence of: a @param
-                    naming an argument the method does not take, or a {@link} to a type that does not
-                    resolve. The governance javadoc-links goal pushes every resolvable name into a link,
-                    and without doclint nothing afterwards confirms the link it asked for reaches
-                    anything. -missing is the one group left out, because Checkstyle's MissingJavadoc
-                    rules read the source AST and so ask only for Javadoc on declarations that were
-                    actually written, while doclint also demands it on the constructor Lombok's
-                    @UtilityClass synthesizes.
-                -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <fork>true</fork>
-                    <compilerArgs>
-                        <arg>-XDcompilePolicy=simple</arg>
-                        <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-parameters</arg>
-                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -Xep:JSpecifyUnrecognizedAnnotationLocation:ERROR -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=${airness.nullaway.excluded-field-annotations}</arg>
-                        <arg>-Werror</arg>
-                        <arg>-Xlint:deprecation</arg>
-                        <arg>-Xdoclint:all,-missing</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                        <path>
-                            <groupId>com.google.errorprone</groupId>
-                            <artifactId>error_prone_core</artifactId>
-                            <version>${error-prone.version}</version>
-                        </path>
-                        <path>
-                            <groupId>com.uber.nullaway</groupId>
-                            <artifactId>nullaway</artifactId>
-                            <version>${nullaway.version}</version>
-                        </path>
-                        <!--
-                            The Airness rules that need resolved types. Error Prone discovers them on this
-                            path, so they read the trees this compilation has already attributed rather than
-                            parsing the sources again, and they cover main and test sources alike.
-                        -->
-                        <path>
-                            <groupId>eu.ciechanowiec</groupId>
-                            <artifactId>airness-error-prone</artifactId>
-                            <version>${airness.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-                <!--
-                    A timeout every test carries whether or not it declares one, so an unbounded wait
-                    ends in a finding rather than in a build that hangs. Declared here rather than in a
-                    junit-platform.properties in each project, because a file a project owns is a file a
-                    project can empty.
-
-                    JUnit's default thread mode is left in place: it reports a test that ran past the
-                    ceiling rather than interrupting one mid-flight. Interrupting would also unstick a
-                    true hang, at the cost of moving every test off the thread its fixtures were built
-                    on, which is a large change to impose on a consumer to catch a case CI already bounds.
-                -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <properties>
-                        <configurationParameters>
-                            junit.jupiter.execution.timeout.default = ${airness.test.timeout}
-                            junit.jupiter.testclass.order.default = org.junit.jupiter.api.ClassOrderer$Random
-                            junit.jupiter.testmethod.order.default = org.junit.jupiter.api.MethodOrderer$Random
-                            junit.jupiter.execution.order.random.seed = 42
-                        </configurationParameters>
-                    </properties>
-                </configuration>
-            </plugin>
-            <plugin>
-                <!--
-                    Coverage measured per class rather than over the module. A module-wide floor lets one
-                    thoroughly covered class carry an untested one, and the arithmetic that makes that
-                    work gets easier the larger the module grows, so the number stops meaning what it
-                    says exactly when it matters most.
-
-                    Both counters are held to the same floor. Instructions alone say a line ran, which a
-                    single walk through a method achieves while leaving every branch in it untaken.
-                -->
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <configuration>
-                    <skip>${airness.coverage.skip}</skip>
-                    <append>true</append>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>airness-coverage-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>airness-coverage-report</id>
-                        <!-- Both test JVMs append to the same evidence before this final report. -->
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>airness-coverage-check</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <haltOnFailure>${airness.enforce}</haltOnFailure>
-                            <rules>
-                                <rule>
-                                    <element>CLASS</element>
-                                    <excludes>${airness.coverage.excluded.classes}</excludes>
-                                    <limits>
-                                        <limit>
-                                            <counter>LINE</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.80</minimum>
-                                        </limit>
-                                        <limit>
-                                            <counter>BRANCH</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.80</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
@@ -357,82 +70,6 @@
                                 written once for a consumer and for the harness alike.
                             -->
                         </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!--
-                    Fails on a declared dependency nothing uses, and on a used one nothing declares, so
-                    the declared set stays exactly what the code needs. Non-compile scopes are left out,
-                    because this reads class files and cannot see a dependency used only through
-                    annotations or reflection.
-                -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <!--
-                        Exposes each resolved dependency path as ${groupId:artifactId:type}. Java 25
-                        modernization uses that standard property form when Mockito is already present
-                        and must run as a test JVM agent instead of attaching itself dynamically.
-                    -->
-                    <execution>
-                        <id>airness-dependency-properties</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>properties</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>airness-analyze-dependencies</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>analyze-only</goal>
-                        </goals>
-                        <configuration>
-                            <skip>${skipTests}</skip>
-                            <failOnWarning>${airness.enforce}</failOnWarning>
-                            <ignoreNonCompile>true</ignoreNonCompile>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!--
-                    Formats the markup and the stylesheets, which is the half of the tree the Java
-                    formatter never reads. The guideline asks for a formatter wherever the platform has
-                    one, and .editorconfig settles only line endings, encoding and trailing whitespace:
-                    how a nested element or a declaration block is laid out was left to whoever wrote it.
-
-                    The goal is a property for the same reason the Java formatter's apply switch is one.
-                    Checking is what a verification does and is bound here; writing is reachable only
-                    through the format profile, so no ordinary build reshapes the tree it is judging.
-                    Both sit at process-resources, beside the Java formatter, because that is the phase
-                    the format command names and a goal bound past it could never be applied.
-
-                    Only the roots a project owns are read. A vendored library is third-party text that
-                    this project neither wrote nor may reformat, and minified text would be rewritten
-                    into something no upstream release matches.
-                -->
-                <groupId>com.hubspot.maven.plugins</groupId>
-                <artifactId>prettier-maven-plugin</artifactId>
-                <configuration>
-                    <skip>${skipTests}</skip>
-                    <fail>${airness.enforce}</fail>
-                    <inputGlobs>
-                        <inputGlob>src/main/resources/**/*.css</inputGlob>
-                        <inputGlob>src/main/resources/**/*.html</inputGlob>
-                        <inputGlob>src/test/resources/**/*.css</inputGlob>
-                        <inputGlob>src/test/resources/**/*.html</inputGlob>
-                        <inputGlob>!**/vendor/**</inputGlob>
-                    </inputGlobs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>airness-prettier</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>${airness.prettier.goal}</goal>
-                        </goals>
                     </execution>
                 </executions>
             </plugin>
@@ -573,37 +210,13 @@
                 remains enforced.
 
                 The repository-wide goals run only on the top-level project, so a reactor reports each
-                finding once. The per-module goals skip a module with no Java source directory, and
-                refuse a module that has one and read nothing out of it.
+                finding once. The per-module Java goals, here and in airness-parent-java, skip a module
+                with no Java source directory, and refuse a module that has one and read nothing out of it.
             -->
             <plugin>
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-maven-plugin</artifactId>
                 <executions>
-                    <execution>
-                        <id>airness-prepare-test-evidence</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>prepare-test-evidence</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>airness-main-build-inputs</id>
-                        <phase>process-resources</phase>
-                        <goals><goal>build-inputs</goal></goals>
-                    </execution>
-                    <execution>
-                        <id>airness-test-build-inputs</id>
-                        <phase>process-test-resources</phase>
-                        <goals><goal>build-inputs</goal></goals>
-                    </execution>
-                    <execution>
-                        <id>airness-source-formatting</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>source-formatting</goal>
-                        </goals>
-                    </execution>
                     <execution>
                         <id>airness-preflight</id>
                         <phase>validate</phase>
@@ -618,24 +231,10 @@
                         </goals>
                     </execution>
                     <execution>
-                        <id>airness-compiler-parameters</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>compiler-parameters</goal>
-                        </goals>
-                    </execution>
-                    <execution>
                         <id>airness-license-metadata</id>
                         <phase>prepare-package</phase>
                         <goals>
                             <goal>license-metadata</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>airness-coverage-evidence</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>coverage-evidence</goal>
                         </goals>
                     </execution>
                     <!--
@@ -673,9 +272,9 @@
                         </goals>
                     </execution>
                     <!--
-                        Bound at process-test-classes, the last phase before the tests run. Every goal here
-                        reads sources, resources, or the tracked tree, and none of them reads a class file:
-                        the cycle check parses the package and import lines out of the source text. So the
+                        Bound at process-test-classes, the last phase before the tests run. Every goal here,
+                        and every source check airness-parent-java adds at the same phase, reads sources,
+                        resources, or the tracked tree, and none of them reads a class file. So the
                         floor is not compilation but registration. A source or resource root can be added as
                         late as generate-test-resources, which is why build-inputs is bound twice, and the
                         format profile reformats at process-resources, so a check reading before either would
@@ -695,23 +294,21 @@
                         <goals>
                             <goal>typography</goal>
                             <goal>entry-files</goal>
-                            <goal>comment-prose</goal>
-                            <goal>javadoc-links</goal>
-                            <goal>test-assertions</goal>
-                            <goal>web-accessibility</goal>
-                            <goal>package-cycles</goal>
-                            <goal>template-parse</goal>
-                            <goal>template-fragments</goal>
-                            <goal>template-replacements</goal>
-                            <goal>template-links</goal>
-                            <goal>template-calls</goal>
-                            <goal>template-output</goal>
-                            <goal>template-expressions</goal>
-                            <goal>template-reach</goal>
-                            <goal>template-scope</goal>
-                            <goal>stylesheet-selectors</goal>
-                            <goal>message-parity</goal>
                             <goal>suppression-budget</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        coverage-evidence and artifact-content are Java checks, bound here rather than in
+                        airness-parent-java because Maven runs a child parent's executions after every one
+                        inherited from this file. Bound in the Java parent, they would run after the
+                        compliance report below, which could then be published for a module that fails
+                        right after it. Each skips a module with no production Java or no archive.
+                    -->
+                    <execution>
+                        <id>airness-coverage-evidence</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>coverage-evidence</goal>
                         </goals>
                     </execution>
                     <!--
@@ -747,224 +344,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <dependencies>
-                    <dependency>
-                        <groupId>com.puppycrawl.tools</groupId>
-                        <artifactId>checkstyle</artifactId>
-                        <version>${checkstyle.version}</version>
-                    </dependency>
-                    <!--
-                    Supplies the custom com.qulice.checkstyle.* AST checks (paired-brackets notation and
-                    the other rules referenced in checkstyle.xml). The qulice plugin jar is a library of
-                    check classes on this plugin's isolated classpath, not a plugin this build runs: its
-                    goal is never invoked. Its bundled checkstyle is excluded so the plugin runs solely on
-                    the pinned ${checkstyle.version} declared above. The standalone qulice-checkstyle
-                    artifact is frozen at 0.25.2 and the checks now ship inside qulice-maven-plugin.
-                    -->
-                    <dependency>
-                        <groupId>com.qulice</groupId>
-                        <artifactId>qulice-maven-plugin</artifactId>
-                        <version>${qulice-maven-plugin.version}</version>
-                        <exclusions>
-                            <exclusion>
-                                <groupId>com.puppycrawl.tools</groupId>
-                                <artifactId>checkstyle</artifactId>
-                            </exclusion>
-                            <!-- Only the AST checks are used; QuLice's compiler is never invoked. -->
-                            <exclusion>
-                                <groupId>com.google.errorprone</groupId>
-                                <artifactId>error_prone_core</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>com.google.errorprone</groupId>
-                                <artifactId>error_prone_check_api</artifactId>
-                            </exclusion>
-                        </exclusions>
-                    </dependency>
-                    <!--
-                        The configuration itself, carried on this plugin's classpath so configLocation
-                        below resolves as a resource. This is what replaces the consumer-local file.
-                    -->
-                    <dependency>
-                        <groupId>eu.ciechanowiec</groupId>
-                        <artifactId>airness-config</artifactId>
-                        <version>${airness.version}</version>
-                    </dependency>
-                    <!-- Supplies the Airness-owned Checkstyle classes named by the configuration. -->
-                    <dependency>
-                        <groupId>eu.ciechanowiec</groupId>
-                        <artifactId>airness-governance</artifactId>
-                        <version>${airness.version}</version>
-                    </dependency>
-                </dependencies>
-                <configuration>
-                    <configLocation>eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml</configLocation>
-                    <!--
-                        The shipped configuration reads these two rather than carrying their values, so a
-                        second parent selects a different part of one rule set instead of shipping a
-                        second copy of the whole of it.
-                    -->
-                    <propertyExpansion>
-                        airness.checkstyle.spring.relaxed=${airness.checkstyle.spring.relaxed}
-                        airness.checkstyle.spring.suppressed=${airness.checkstyle.spring.suppressed}
-                    </propertyExpansion>
-                    <consoleOutput>true</consoleOutput>
-                    <!--
-                        failsOnError covers a Checkstyle processing error; failOnViolation covers a rule
-                        violation. Both read the switch, or turning it off would leave violations failing
-                        the build and the switch would be a half-truth.
-                    -->
-                    <skip>${skipTests}</skip>
-                    <failsOnError>${airness.enforce}</failsOnError>
-                    <failOnViolation>${airness.enforce}</failOnViolation>
-                    <violationSeverity>info</violationSeverity>
-                    <linkXRef>false</linkXRef>
-                    <includeResources>false</includeResources>
-                    <includeTestResources>false</includeTestResources>
-                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                </configuration>
-                <!--
-                    Bound at process-test-classes, the last phase before the tests run, for the reason the
-                    governance goals above are bound there. Checkstyle reads source text and answers in
-                    seconds, while the phases after it carry the whole test suite and, under the extended
-                    profile, the vulnerability database and the inspection engine. Ordering it after them
-                    meant a missing blank line in a comment was reported only once every test had already
-                    run, which on a project whose tests start containers is minutes spent to learn about
-                    a line.
-
-                    It is the only analyzer moved here. Every phase before the tests is also a phase a
-                    plain mvn test reaches, so what is bound here is charged to the narrow test run an
-                    agent uses to ask one question. Checkstyle is cheap enough to be worth that and PMD,
-                    CPD and SpotBugs are not, which is why they stay behind the tests.
-
-                    It still precedes the package-bound Qodana execution, and a child execution merges
-                    after the inherited ones, so the phase is the only place that order can be settled.
-                -->
-                <executions>
-                    <execution>
-                        <phase>process-test-classes</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                    <!--
-                        Earlier reactor modules have already built the configuration and governance
-                        artifacts before this parent reaches any phase of its own, because it is built
-                        after them. The ordinary inherited execution sees no Java here because this is a
-                        POM project. This non-inherited execution instead checks the implementation
-                        modules that produce the harness, without leaking their paths into consumers.
-                    -->
-                    <execution>
-                        <id>airness-self-checkstyle</id>
-                        <phase>process-test-classes</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <inherited>false</inherited>
-                        <configuration>
-                            <sourceDirectories>
-                                <sourceDirectory>${project.basedir}/../airness-annotations/src/main/java</sourceDirectory>
-                                <sourceDirectory>${project.basedir}/../airness-error-prone/src/main/java</sourceDirectory>
-                                <sourceDirectory>${project.basedir}/../airness-governance/src/main/java</sourceDirectory>
-                                <sourceDirectory>${project.basedir}/../airness-maven-plugin/src/main/java</sourceDirectory>
-                                <sourceDirectory>${project.basedir}/../airness-spring-evidence/src/main/java</sourceDirectory>
-                                <sourceDirectory>${project.basedir}/../airness-web-evidence/src/main/java</sourceDirectory>
-                            </sourceDirectories>
-                            <testSourceDirectories>
-                                <testSourceDirectory>${project.basedir}/../airness-annotations/src/test/java</testSourceDirectory>
-                                <testSourceDirectory>${project.basedir}/../airness-error-prone/src/test/java</testSourceDirectory>
-                                <testSourceDirectory>${project.basedir}/../airness-governance/src/test/java</testSourceDirectory>
-                                <testSourceDirectory>${project.basedir}/../airness-maven-plugin/src/test/java</testSourceDirectory>
-                                <testSourceDirectory>${project.basedir}/../airness-spring-evidence/src/test/java</testSourceDirectory>
-                                <testSourceDirectory>${project.basedir}/../airness-web-evidence/src/test/java</testSourceDirectory>
-                            </testSourceDirectories>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-pmd-plugin</artifactId>
-                <dependencies>
-                    <dependency>
-                        <groupId>eu.ciechanowiec</groupId>
-                        <artifactId>airness-config</artifactId>
-                        <version>${airness.version}</version>
-                    </dependency>
-                </dependencies>
-                <configuration>
-                    <rulesets>
-                        <ruleset>eu/ciechanowiec/airness/static_code_analysis/pmd.xml</ruleset>
-                    </rulesets>
-                    <skip>${skipTests}</skip>
-                    <failOnViolation>${airness.enforce}</failOnViolation>
-                    <printFailingErrors>true</printFailingErrors>
-                    <suppressMarker>__AIRNESS_INLINE_SUPPRESSION_DISABLED__</suppressMarker>
-                    <includeTests>true</includeTests>
-                    <linkXRef>false</linkXRef>
-                    <!--
-                        The duplication bound. CPD counts tokens rather than lines, so a token
-                        count is what the policy has to name: 100 of them is roughly twenty lines
-                        of Java. That sits below the fifty-line method ceiling, so a method copied
-                        and edited is still caught, and above the incidental repetition that a
-                        shared signature or a chained builder produces without anyone copying
-                        anything. Literals and identifiers are left significant, so only text that
-                        genuinely repeats is reported rather than text that merely rhymes.
-                    -->
-                    <minimumTokens>100</minimumTokens>
-                </configuration>
-                <executions>
-                    <!--
-                        Left at prepare-package, behind the tests, unlike the Checkstyle executions
-                        above. Every phase before the tests is also a phase that a plain mvn test
-                        reaches, and PMD and CPD together cost about a minute on a codebase of any
-                        size, which is a minute added to the narrow test run an agent uses to ask one
-                        question. Checkstyle answers in seconds and is worth that trade. These are not.
-                    -->
-                    <execution>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>check</goal>
-                            <goal>cpd-check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <dependencies>
-                    <dependency>
-                        <groupId>eu.ciechanowiec</groupId>
-                        <artifactId>airness-config</artifactId>
-                        <version>${airness.version}</version>
-                    </dependency>
-                </dependencies>
-                <configuration>
-                    <excludeFilterFile>eu/ciechanowiec/airness/static_code_analysis/spotbugs-exclude.xml</excludeFilterFile>
-                    <skip>${skipTests}</skip>
-                    <failOnError>${airness.enforce}</failOnError>
-                    <includeTests>true</includeTests>
-                    <effort>Max</effort>
-                    <threshold>Low</threshold>
-                </configuration>
-                <executions>
-                    <!--
-                        Left at package, for the reason PMD is left at prepare-package. This one reads
-                        class files rather than source text and is the slowest of the four, so it is the
-                        last of them a build reaches.
-                    -->
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
@@ -981,120 +360,12 @@
             <properties>
                 <airness.dependency-check.fail-build-on-cvss>11</airness.dependency-check.fail-build-on-cvss>
             </properties>
-            <build>
-                <pluginManagement>
-                    <plugins>
-                        <plugin>
-                            <groupId>org.apache.maven.plugins</groupId>
-                            <artifactId>maven-failsafe-plugin</artifactId>
-                            <configuration><testFailureIgnore>true</testFailureIgnore></configuration>
-                        </plugin>
-                    </plugins>
-                </pluginManagement>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <testFailureIgnore>true</testFailureIgnore>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <configuration>
-                            <compilerArgs combine.self="override">
-                                <arg>-XDcompilePolicy=simple</arg>
-                                <arg>--should-stop=ifError=FLOW</arg>
-                                <arg>-parameters</arg>
-                                <arg>-Xplugin:ErrorProne -XepAllErrorsAsWarnings -Xep:NullAway:WARN -Xep:JSpecifyUnrecognizedAnnotationLocation:WARN -XepOpt:NullAway:AnnotatedPackages=${airness.package.root} -XepOpt:NullAway:ExcludedFieldAnnotations=${airness.nullaway.excluded-field-annotations}</arg>
-                                <arg>-Xlint:deprecation</arg>
-                                <arg>-Xdoclint:all,-missing</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-                                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-                                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
-                            </compilerArgs>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <!--
-                skipTests removes compiler-side analysis and ordinary lifecycle-bound checks. Parameter
-                metadata remains: it is part of the bytecode contract rather than an analyzer verdict.
-            -->
-            <id>airness-skip</id>
-            <activation>
-                <property>
-                    <name>skipTests</name>
-                    <value>true</value>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <configuration>
-                            <fork>false</fork>
-                            <compilerArgs combine.self="override">
-                                <arg>-parameters</arg>
-                            </compilerArgs>
-                            <annotationProcessorPaths combine.self="override">
-                                <path>
-                                    <groupId>org.projectlombok</groupId>
-                                    <artifactId>lombok</artifactId>
-                                    <version>${lombok.version}</version>
-                                </path>
-                            </annotationProcessorPaths>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <!--
-                A module with no production sources has nothing for the coverage agent to measure.
-                Production code without tests is deliberately not skipped: coverage evidence reports it.
-            -->
-            <id>airness-no-production-code</id>
-            <activation>
-                <file>
-                    <missing>src/main/java</missing>
-                </file>
-            </activation>
-            <properties>
-                <airness.coverage.skip>true</airness.coverage.skip>
-            </properties>
-        </profile>
-        <profile>
-            <!--
-                Applies what the ordinary build only reports. Each source-shaping tool applies its
-                changes and is then checked, in that order and in the same phase, so this profile adds
-                work rather than removing any: the check still runs and now confirms the apply landed.
-
-                It is opt-in because the alternative is a build that edits the sources it is judging.
-                Once that happens, a green result says the tree was acceptable after the build changed
-                it, and no one afterwards can tell that from a tree that was acceptable as committed.
-            -->
-            <id>format</id>
-            <properties>
-                <airness.source.formatting.apply>true</airness.source.formatting.apply>
-                <airness.prettier.goal>write</airness.prettier.goal>
-            </properties>
         </profile>
         <profile>
             <!--
                 The slow half of the harness. What lands here is what reads more than this module: the
-                whole commit history, the network, Docker, and the IntelliJ inspection engine. None of
+                whole commit history, the network and Docker, and in airness-parent-java the IntelliJ
+                inspection engine. None of
                 it belongs in the loop a developer runs a dozen times an
                 hour, and all of it runs on every push.
 
@@ -1224,13 +495,6 @@
                                     <goal>plugin-inputs</goal>
                                     <goal>shellcheck</goal>
                                     <goal>checkov</goal>
-                                </goals>
-                            </execution>
-                            <execution>
-                                <id>airness-qodana</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>qodana</goal>
                                 </goals>
                             </execution>
                         </executions>

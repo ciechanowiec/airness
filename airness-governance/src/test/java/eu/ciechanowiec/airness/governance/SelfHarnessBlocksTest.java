@@ -10,7 +10,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 /**
- * The configuration blocks the root project file copies from {@code airness-parent} still say the same
+ * The configuration blocks the root project file copies from {@code airness-parent-java} still say the same
  * thing, and the analyzer that reaches Airness's own sources by naming them still names all of them.
  *
  * <p>{@link SelfHarnessMirrorTest} answers the same question about the rules and the licences by
@@ -37,7 +37,7 @@ class SelfHarnessBlocksTest {
     @Test
     void mirrorsTheTestExecutionParametersTheParentBinds() {
         Element parent = ProjectFiles.child(
-            ProjectFiles.bound(ProjectFiles.parentPom(), SUREFIRE), CONFIGURATION, PROPERTIES, PARAMETERS
+            ProjectFiles.bound(ProjectFiles.javaParentPom(), SUREFIRE), CONFIGURATION, PROPERTIES, PARAMETERS
         );
         Element root = ProjectFiles.child(
             ProjectFiles.managed(ProjectFiles.rootPom(), SUREFIRE), CONFIGURATION, PROPERTIES, PARAMETERS
@@ -51,7 +51,7 @@ class SelfHarnessBlocksTest {
     @Test
     void mirrorsTheDependencyAnalysisExemptionsTheParentBinds() {
         Element parent = ProjectFiles.child(
-            ProjectFiles.managed(ProjectFiles.parentPom(), DEPENDENCY),
+            ProjectFiles.managed(ProjectFiles.javaParentPom(), DEPENDENCY),
             CONFIGURATION, "ignoredUnusedDeclaredDependencies"
         );
         Element root = ProjectFiles.child(
@@ -67,7 +67,7 @@ class SelfHarnessBlocksTest {
     @Test
     void mirrorsTheNullnessFieldExclusionsTheParentBinds() {
         assertEquals(
-            ProjectFiles.property(ProjectFiles.parentPom(), NULLAWAY_EXCLUSIONS),
+            ProjectFiles.property(ProjectFiles.javaParentPom(), NULLAWAY_EXCLUSIONS),
             ProjectFiles.property(ProjectFiles.rootPom(), NULLAWAY_EXCLUSIONS),
             "an annotation the null checker treats as initializing a field does so on both sides of the harness"
         );
@@ -76,7 +76,7 @@ class SelfHarnessBlocksTest {
     @Test
     void readsEveryModuleWithProductionJavaWithCheckstyle() {
         Element directories = ProjectFiles.child(
-            ProjectFiles.execution(ProjectFiles.parentPom(), CHECKSTYLE_EXECUTION),
+            ProjectFiles.execution(ProjectFiles.javaParentPom(), CHECKSTYLE_EXECUTION),
             CONFIGURATION, "sourceDirectories"
         );
         assertEquals(

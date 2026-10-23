@@ -117,7 +117,7 @@ class IntegrationPluginsPolicyTest {
         );
         for (String execution : executions) {
             assertEquals(
-                "verify", Xml.text(ProjectFiles.execution(ProjectFiles.parentPom(), execution), "phase").orElseThrow()
+                "verify", Xml.text(ProjectFiles.parentExecution(execution), "phase").orElseThrow()
             );
         }
     }
