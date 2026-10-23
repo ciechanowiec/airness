@@ -46,6 +46,10 @@ class SpringMessageSetupBoundaryTest {
                 resolver -> resolver.setTextTemplateModePatterns(Set.of("text/*"))
             );
             changes.forEach(change -> assertTrue(inspect(context, loader, change).resolution().isEmpty()));
+            assertTrue(
+                inspect(context, loader, changes.getFirst()).reason().contains("classpath HTML"),
+                "a template outside the classpath is reported as unassessed in words that say why"
+            );
         }
     }
 

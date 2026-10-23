@@ -151,17 +151,24 @@ JAVA
     expect_match streaming_missing 'spring: missing streaming policy identifies the endpoint' 'Streams#direct'
     expect_match streaming_missing 'spring: an inherited container timeout is diagnosed' \
         'Streaming endpoints inheriting the servlet container timeout'
+    expect_match streaming_missing 'spring: the missing production policy has its own offence title' \
+        'Streaming endpoints without a production timeout policy'
     expect_no_match streaming_missing 'spring: missing streaming policy stops before Qodana' 'qodana:.*:scan'
 
-    printf 'spring.mvc.async.request-timeout=0\n' > "${streaming_app}/src/test/resources/application.properties"
-    run_maven streaming_test_only spring "${streaming_app}" clean test airness:spring-streaming-timeouts
-    expect_exit streaming_test_only 'spring: a test-only timeout cannot satisfy production policy' 1
-    expect_match streaming_test_only 'spring: test settings are distinguished from production policy' \
-        'Streaming endpoints without a production timeout policy'
-    expect_no_match streaming_test_only 'spring: explicit test timeout is not called inherited' \
-        'Streaming endpoints inheriting the servlet container timeout'
+    # Five variants of the same rule used to cost a run each here and are proven in process instead:
+    # - a test-only timeout: SpringStreamingPropertiesTest.aTestFileWithTheSameNameCannotStandInForProduction
+    #   and SpringStreamingTimeoutsTest.aTestOnlyConfigurerCannotSupplyTheProductionDeclaration (missing, not
+    #   inherited), with distinguishesExplicitZeroAndFiniteValuesFromAnUnsetField;
+    # - an inactive profile: SpringStreamingPropertiesTest.inactiveAndOriginlessValuesDoNotDeclareProduction
+    #   Policy, which reads a value with no production origin. It stands in for Boot's config-data profile
+    #   handling rather than exercising it; the loaded profile below stays an integration case;
+    # - conditional and delegated callbacks: StreamingJavaIndexTest.rejectsConditionalAndDelegatedCallbacks;
+    # - an anonymous callback: StreamingJavaIndexTest.indexesNoDeclarationForAnAnonymousCallback, with the
+    #   undeclared configurer reported by SpringStreamingTimeoutsTest.anOpaqueProductionCallbackCannotPass and
+    #   aTestOnlyConfigurerCannotSupplyTheProductionDeclaration;
+    # - their shared title: StreamingTimeoutCheckTest.acceptsCurrentEvidenceAndKeepsEveryFailure.
+    # No integration run produces "cannot be verified" any more; each link (index, runtime, check) is a unit.
 
-    rm "${streaming_app}/src/test/resources/application.properties"
     printf "spring.mvc.async.request-timeout=\${STREAMING_TIMEOUT:30s}\n" \
         > "${streaming_app}/src/main/resources/application.properties"
     run_maven streaming_property spring "${streaming_app}" clean test airness:spring-streaming-timeouts
@@ -177,8 +184,6 @@ JAVA
     rm "${streaming_app}/src/main/resources/application.properties"
     run_maven streaming_profile spring "${streaming_app}" clean test airness:spring-streaming-timeouts -Dspring.profiles.active=production
     expect_exit streaming_profile 'spring: a loaded production profile may explicitly disable the deadline' 0
-    run_maven streaming_inactive spring "${streaming_app}" clean test airness:spring-streaming-timeouts
-    expect_exit streaming_inactive 'spring: an inactive profile cannot supply a streaming policy' 1
     rm "${streaming_app}/src/main/resources/application-production.properties"
 
     write_streaming_configurer 'configurer.setDefaultTimeout(0).registerCallableInterceptors();'
@@ -187,110 +192,22 @@ JAVA
     run_maven streaming_java spring "${streaming_app}" clean test airness:spring-streaming-timeouts
     expect_exit streaming_java 'spring: an active production callback may explicitly disable the deadline' 0
 
-    write_streaming_configurer 'if (!Boolean.getBoolean("fixture.streaming.disabled")) { configurer.setDefaultTimeout(0); }'
-    cat > "${streaming_app}/src/test/java/com/example/ConditionalCallbackTest.java" <<'JAVA'
-package com.example;
-
-import static org.junit.jupiter.api.Assertions.assertNull;
-
-import java.util.Optional;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
-import org.junit.jupiter.api.parallel.Resources;
-import org.springframework.beans.DirectFieldAccessor;
-import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
-
-class ConditionalCallbackTest {
-
-    @Test
-    @ResourceLock(Resources.SYSTEM_PROPERTIES)
-    void theDisabledBranchLeavesTheChoiceUnset() {
-        String key = "fixture.streaming.disabled";
-        Optional<String> previous = Optional.ofNullable(System.getProperty(key));
-        System.setProperty(key, "true");
-        try {
-            AsyncSupportConfigurer configurer = new AsyncSupportConfigurer();
-            new StreamingConfiguration().configureAsyncSupport(configurer);
-            assertNull(new DirectFieldAccessor(configurer).getPropertyValue("timeout"));
-        } finally {
-            previous.ifPresentOrElse(value -> System.setProperty(key, value), () -> System.clearProperty(key));
-        }
-    }
-}
-JAVA
-    prepare_maven streaming_conditional_format spring "${streaming_app}" process-resources -Pformat
-    run_maven streaming_conditional spring "${streaming_app}" clean test airness:spring-streaming-timeouts
-    expect_exit streaming_conditional 'spring: conditional callbacks fail when their policy cannot be verified' 1
-    expect_match streaming_conditional 'spring: unsupported callbacks are diagnosed explicitly' \
-        'Streaming timeout configuration cannot be verified'
-
-    rm "${streaming_app}/src/test/java/com/example/ConditionalCallbackTest.java"
-    write_streaming_configurer 'applyTimeout(configurer);'
-    python3 - "${streaming_app}/src/main/java/com/example/StreamingConfiguration.java" <<'PY'
-from pathlib import Path
-import sys
-path = Path(sys.argv[1])
-text = path.read_text()
-index = text.rfind('}')
-path.write_text(text[:index] + '''
-    private static void applyTimeout(AsyncSupportConfigurer configurer) {
-        configurer.setDefaultTimeout(0);
-    }
-}
-''')
-PY
-    prepare_maven streaming_delegate_format spring "${streaming_app}" process-resources -Pformat
-    run_maven streaming_delegate spring "${streaming_app}" clean test airness:spring-streaming-timeouts
-    expect_exit streaming_delegate 'spring: delegated timeout setup is not guessed safe' 1
-    expect_match streaming_delegate 'spring: delegated setup remains visibly unsupported' \
-        'Streaming timeout configuration cannot be verified'
-
-    cat > "${streaming_app}/src/main/java/com/example/StreamingConfiguration.java" <<'JAVA'
-package com.example;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-/**
- * Supplies an anonymous timeout callback that cannot be tied to a named source declaration.
- */
-@Configuration(proxyBeanMethods = false)
-public final class StreamingConfiguration {
-
-    /**
-     * Creates the callback used by production MVC.
-     *
-     * @return the anonymous callback
-     */
-    @Bean
-    WebMvcConfigurer timeoutPolicy() {
-        return new WebMvcConfigurer() {
-            @Override
-            public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
-                configurer.setDefaultTimeout(0);
-            }
-        };
-    }
-}
-JAVA
-    prepare_maven streaming_anonymous_format spring "${streaming_app}" process-resources -Pformat
-    run_maven streaming_anonymous spring "${streaming_app}" clean test airness:spring-streaming-timeouts
-    expect_exit streaming_anonymous 'spring: anonymous timeout callbacks require an assessable declaration' 1
-    expect_match streaming_anonymous 'spring: anonymous timeout setup is explicitly unsupported' \
-        'Streaming timeout configuration cannot be verified'
-
-    write_streaming_configurer 'configurer.setDefaultTimeout(0).registerCallableInterceptors();'
-    prepare_maven streaming_final_format spring "${streaming_app}" process-resources -Pformat
-    git -C "${streaming_app}" add --all
     git -C "${streaming_app}" commit --quiet --message 'test(it): exercise streaming timeout governance' \
         --message 'Real HTTP requests exercise direct and wrapped streaming with an explicit production timeout.'
+    # This is also the Extended run of the conforming Spring Boot application: the streaming application is
+    # the base Spring fixture plus a web module, and one full Extended lifecycle over it proves what a second
+    # one over the bare fixture used to, at the price of one Qodana run instead of two.
     run_maven streaming_extended spring "${streaming_app}" clean verify -Pextended
     expect_exit streaming_extended 'spring: streaming passes the complete Extended consumer lifecycle' 0
     expect_match streaming_extended 'spring: streaming Extended executes Qodana' 'Analysis results: 0 problem detected'
     expect_match streaming_extended 'spring: streaming Extended inspects the final packaged artifact' \
         'airness:.*:artifact-content'
+    expect_analysis_before_qodana streaming_extended
+    expect_before streaming_extended 'spring: final archive inspection follows repackaging' \
+        '--- spring-boot:[^ ]+:repackage' '--- airness:[^ ]+:artifact-content'
+    expect_file_no_match "${streaming_app}/target/qodana/qodana.sarif.json" \
+        'spring: the package-private Boot entry point is not read as a utility class' \
+        '"ruleId": "UtilityClassWithoutPrivateConstructor"'
 }
 
 write_streaming_configurer() {

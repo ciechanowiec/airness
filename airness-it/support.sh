@@ -55,6 +55,117 @@ execution_status() {
     sed -n '1p' "${execution_logs}/$1.status"
 }
 
+execution_findings() {
+    printf '%s/%s.findings\n' "${execution_logs}" "$1"
+}
+
+# Normalizes the analyzer reports an execution wrote into executions/<id>.findings: one '#report <tool>'
+# line per tool that wrote a report, then one finding per line as tool, path:line, rule and message
+# separated by tabs. Only reports strictly newer than the execution's start marker are read, here and in
+# findings.py alike, so a report an earlier execution left in the same fixture is never attributed to this
+# one. An execution that wrote no report has an empty table, and a report that cannot be read leaves no
+# table at all. Dependency trees and Git metadata are pruned, so a fixture carrying node_modules does not
+# make every execution walk it.
+collect_findings() {
+    collection_findings="$(execution_findings "$1")"
+    rm -f "${collection_findings}"
+    collection_reports="$(find "$2" \( -name node_modules -o -name .git \) -prune -o -path '*/target/*' \
+        -newer "$3" \( -name checkstyle-result.xml -o -name pmd.xml -o -name cpd.xml \
+        -o -name qodana.sarif.json \) -print 2>/dev/null | head -n 1)"
+    if [ -z "${collection_reports}" ]; then
+        : > "${collection_findings}"
+        return
+    fi
+    if ! python3 "${repository}/airness-it/findings.py" "$2" "$3" "${collection_findings}" \
+        > "${execution_logs}/$1.findings.log" 2>&1; then
+        rm -f "${collection_findings}"
+    fi
+}
+
+# Asserts one finding of the machine-readable findings table: the tool that reported it, where, and a
+# pattern read against its rule and message. The location is a path suffix, optionally with :line, and
+# matches at a path boundary, so 'A.java:12' matches 'src/main/java/x/A.java:12' and not 'XA.java:12'.
+expect_finding() {
+    finding_arguments "$@"
+    if finding_unreadable; then
+        return
+    elif finding_matches "${finding_table}"; then
+        pass "${finding_label}"
+    else
+        fail "${finding_label}" "execution ${finding_execution} has no ${finding_tool} finding at \
+${finding_location} matching /${finding_pattern}/"
+        sed -n '1,120p' "${finding_table}" >&2
+    fi
+}
+
+# The negative counterpart, for a clean control beside planted defects. It requires a report from the
+# named tool, so a tool that wrote nothing, or nothing readable, cannot pass a control by having said
+# nothing.
+expect_no_finding() {
+    finding_arguments "$@"
+    if finding_unreadable; then
+        return
+    elif finding_matches "${finding_table}"; then
+        fail "${finding_label}" "execution ${finding_execution} unexpectedly has a ${finding_tool} finding at \
+${finding_location} matching /${finding_pattern}/"
+        sed -n '1,120p' "${finding_table}" >&2
+    else
+        pass "${finding_label}"
+    fi
+}
+
+finding_arguments() {
+    finding_execution="$1"
+    finding_label="$2"
+    finding_tool="$3"
+    finding_location="$4"
+    finding_pattern="$5"
+    finding_table="$(execution_findings "${finding_execution}")"
+}
+
+# Fails the assertion when the table is missing or the named tool wrote no report into it.
+finding_unreadable() {
+    if [ ! -f "${finding_table}" ]; then
+        fail "${finding_label}" "execution ${finding_execution} left no readable findings table"
+        sed -n '1,40p' "${execution_logs}/${finding_execution}.findings.log" >&2 2>/dev/null || true
+        return 0
+    fi
+    if ! grep -qx "#report	${finding_tool}" "${finding_table}"; then
+        fail "${finding_label}" "execution ${finding_execution} has no ${finding_tool} report to read"
+        return 0
+    fi
+    return 1
+}
+
+# The values reach awk through the environment rather than -v, which would process backslash escapes
+# and silently change a pattern such as '\['.
+finding_matches() {
+    FINDING_TOOL="${finding_tool}" FINDING_LOCATION="${finding_location}" FINDING_PATTERN="${finding_pattern}" \
+        awk -F '\t' '
+        function at(where, wanted,    offset, before) {
+            if (index(wanted, ":") == 0) {
+                sub(/:[0-9]+$/, "", where)
+            }
+            if (length(where) < length(wanted)) {
+                return 0
+            }
+            offset = length(where) - length(wanted)
+            if (substr(where, offset + 1) != wanted) {
+                return 0
+            }
+            before = substr(where, offset, 1)
+            return offset == 0 || before == "/"
+        }
+        BEGIN {
+            tool = ENVIRON["FINDING_TOOL"]
+            location = ENVIRON["FINDING_LOCATION"]
+            pattern = ENVIRON["FINDING_PATTERN"]
+        }
+        $1 == tool && at($2, location) && ($3 " " $4) ~ pattern { found = 1 }
+        END { exit !found }
+    ' "$1"
+}
+
 record_timing() {
     operation_seconds="$1"
     operation_domain="$2"
@@ -121,6 +232,8 @@ run_maven() {
         *)
             ;;
     esac
+    execution_marker="${execution_logs}/${execution_id}.started"
+    : > "${execution_marker}"
     execution_started="$(date +%s)"
     set +e
     (cd "${execution_directory}" && mvn --batch-mode --no-transfer-progress "$@") > "${execution_output}" 2>&1
@@ -130,6 +243,7 @@ run_maven() {
     if [ "${execution_exclusive}" = yes ]; then
         release_exclusive
     fi
+    collect_findings "${execution_id}" "${execution_directory}" "${execution_marker}"
     printf '%s\n' "${execution_result}" > "${execution_logs}/${execution_id}.status"
     maven_processes=$((maven_processes + 1))
     physical_executions=$((physical_executions + 1))

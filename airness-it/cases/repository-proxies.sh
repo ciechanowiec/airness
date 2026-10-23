@@ -124,21 +124,7 @@ JAVA
     expect_match repository_proxy_verify 'spring: the repository consumer reaches the full verification verdict' \
         'BUILD SUCCESS'
 
-    repository_component="${scratch}/repository-component"
-    clone_tree "${spring_app}" "${repository_component}"
-    sed 's/Repository/Component/g' "${repository_proxy_app}/src/main/java/com/example/Catalogue.java" \
-        > "${repository_component}/src/main/java/com/example/Catalogue.java"
-    run_maven repository_component_final spring "${repository_component}" checkstyle:check
-    expect_exit repository_component_final 'spring: an ordinary component still needs to be final' 1
-    expect_match repository_component_final 'spring: the ordinary component reports the finality rule' \
-        'Catalogue[.]java:.*RequireFinalClass'
-
-    new_consumer repository-plain
-    repository_plain="${consumer_directory}"
-    cp "${repository_proxy_app}/src/main/java/com/example/Catalogue.java" \
-        "${repository_plain}/src/main/java/com/example/Catalogue.java"
-    run_maven repository_plain_final spring "${repository_plain}" checkstyle:check
-    expect_exit repository_plain_final 'spring: the repository exemption is absent under the plain Java parent' 1
-    expect_match repository_plain_final 'spring: the plain Java consumer reports the finality rule' \
-        'Catalogue[.]java:.*RequireFinalClass'
+    # The two finality variants, an ordinary component under the Spring parent and a repository under the
+    # plain parent, are rule questions. CheckstyleVariantTest decides the first in process, and the plain
+    # parent's wiring is asserted by the batched analysis consumer, which plants the same repository.
 }

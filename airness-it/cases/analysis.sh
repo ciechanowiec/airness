@@ -1,20 +1,67 @@
 #!/usr/bin/env sh
 
 run_analysis_cases() {
-    new_consumer analysis-clean
-    analysis_clean="${consumer_directory}"
-    run_maven analysis_clean analysis "${analysis_clean}" checkstyle:check pmd:check pmd:cpd-check
-    expect_exit analysis_clean 'analysis: clean packaged Checkstyle PMD and CPD configurations pass together' 0
-    expect_match analysis_clean 'analysis: the Checkstyle goal actually executed' \
-        'checkstyle:[^:]+:check'
-    expect_match analysis_clean 'analysis: the PMD goal actually executed' \
-        'pmd:[^:]+:check'
-    expect_match analysis_clean 'analysis: the CPD goal actually executed' \
-        'pmd:[^:]+:cpd-check'
+    # One fixture carries every planted analyzer defect that no other one can mask: each lives in a file
+    # of its own and is read by a different rule. The report-only run asserts every one of them, at its
+    # file and line, from the analyzers' own reports, and the enforcing run beside it proves that what the
+    # batch reports fails a build. The rule variants this batch replaced (the final and nearby locals, the
+    # joined dot, an ordinary Spring component, a named request map) are proven in process by
+    # CheckstyleVariantTest; what stays here is that the installed parent selects and wires each rule.
+    new_consumer analysis-batch
+    analysis_batch="${consumer_directory}"
+    write_analysis_batch "${analysis_batch}"
 
-    new_consumer analysis-findings
-    analysis_findings="${consumer_directory}"
-    cat > "${analysis_findings}/src/main/java/com/example/InferredLocal.java" <<'JAVA'
+    run_maven analysis_batch analysis "${analysis_batch}" \
+        checkstyle:check pmd:check pmd:cpd-check -Dairness.enforce=false
+    expect_exit analysis_batch 'report-only: analyzer findings do not stop compatible goals' 0
+    expect_match analysis_batch 'analysis: the Checkstyle goal actually executed' \
+        'checkstyle:[^:]+:check'
+    expect_match analysis_batch 'analysis: the PMD goal actually executed' \
+        'pmd:[^:]+:check'
+    expect_match analysis_batch 'analysis: report-only still executes CPD after PMD findings' \
+        'pmd:[^:]+:cpd-check'
+    expect_finding analysis_batch 'checkstyle: the representative finding stays visible at its file' \
+        checkstyle 'src/main/java/com/example/InferredLocal.java:7' 'Write the type'
+    expect_no_finding analysis_batch 'checkstyle: the clean control stays free of the representative rule' \
+        checkstyle 'src/main/java/com/example/Example.java' 'Write the type'
+    expect_finding analysis_batch 'pmd: the representative rule ID stays visible at its file' \
+        pmd 'src/main/java/com/example/BlankJustification.java:6' '^JustificationNeedsText '
+    expect_finding analysis_batch 'cpd: the duplicated pair stays visible' \
+        cpd 'src/main/java/com/example/FirstScorer.java' 'SecondScorer[.]java'
+    expect_finding analysis_batch 'analysis: a distant local fails the packaged distance check' \
+        checkstyle 'src/main/java/com/example/Reading.java:9' \
+        '^VariableDeclarationUsageDistance .*remembered'
+    expect_no_match analysis_batch 'analysis: the distance diagnostic never recommends final' \
+        'making that variable final'
+    expect_finding analysis_batch 'analysis: a detached chained dot fails packaged Checkstyle' \
+        checkstyle 'src/main/java/com/example/JoinedValues.java:14' '^AirnessDetachedChainDot .*Join this dot'
+    expect_finding analysis_batch 'checkstyle: an Airness rule reports on test sources too' \
+        checkstyle 'src/test/java/com/example/RatioTest.java:11' 'floating-point literal suffix in upper case'
+    expect_finding analysis_batch 'checkstyle: the plain parent keeps the finality rule for a repository' \
+        checkstyle 'src/main/java/com/example/Catalogue.java:8' '^RequireFinalClass '
+
+    run_maven analysis_batch_enforced analysis "${analysis_batch}" checkstyle:check
+    expect_exit analysis_batch_enforced 'checkstyle: the batched packaged findings fail enforcement' 1
+    expect_match analysis_batch_enforced 'checkstyle: enforcement names the exact fixture' \
+        'InferredLocal[.]java:.*Write the type'
+    # Every batched Checkstyle finding is named by the failing run too, so a severity below the failing
+    # threshold could not hide behind the one representative finding.
+    expect_match analysis_batch_enforced 'checkstyle: enforcement names the distant local' \
+        'Reading[.]java:.*VariableDeclarationUsageDistance'
+    expect_match analysis_batch_enforced 'checkstyle: enforcement names the detached dot' \
+        'JoinedValues[.]java:.*AirnessDetachedChainDot'
+    expect_match analysis_batch_enforced 'checkstyle: enforcement names the test-source finding' \
+        'RatioTest[.]java:.*floating-point literal suffix in upper case'
+    expect_match analysis_batch_enforced 'checkstyle: enforcement names the plain-parent repository' \
+        'Catalogue[.]java:.*RequireFinalClass'
+    run_analysis_lifecycle
+    run_early_analysis_lifecycle
+    run_jspecify_annotation_locations
+    run_modernization_cases
+}
+
+write_analysis_batch() {
+    cat > "$1/src/main/java/com/example/InferredLocal.java" <<'JAVA'
 package com.example;
 
 /** Carries the representative packaged-Checkstyle finding. */
@@ -26,7 +73,7 @@ final class InferredLocal {
     }
 }
 JAVA
-    cat > "${analysis_findings}/src/main/java/com/example/BlankJustification.java" <<'JAVA'
+    cat > "$1/src/main/java/com/example/BlankJustification.java" <<'JAVA'
 package com.example;
 
 import eu.ciechanowiec.airness.Justification;
@@ -40,7 +87,7 @@ final class BlankJustification {
     }
 }
 JAVA
-    cat > "${analysis_findings}/src/main/java/com/example/FirstScorer.java" <<'JAVA'
+    cat > "$1/src/main/java/com/example/FirstScorer.java" <<'JAVA'
 package com.example;
 
 import java.util.List;
@@ -75,46 +122,81 @@ final class FirstScorer {
     }
 }
 JAVA
-    sed 's/FirstScorer/SecondScorer/g' \
-        "${analysis_findings}/src/main/java/com/example/FirstScorer.java" \
-        > "${analysis_findings}/src/main/java/com/example/SecondScorer.java"
+    sed 's/FirstScorer/SecondScorer/g' "$1/src/main/java/com/example/FirstScorer.java" \
+        > "$1/src/main/java/com/example/SecondScorer.java"
+    cat > "$1/src/main/java/com/example/Reading.java" <<'JAVA'
+package com.example;
 
-    run_maven analysis_report_only analysis "${analysis_findings}" \
-        checkstyle:check pmd:check pmd:cpd-check -Dairness.enforce=false
-    expect_exit analysis_report_only 'report-only: analyzer findings do not stop compatible goals' 0
-    expect_match analysis_report_only 'checkstyle: the representative finding stays visible at its file' \
-        'InferredLocal[.]java:.*Write the type'
-    expect_no_match analysis_report_only 'checkstyle: the clean control stays free of the representative rule' \
-        'Example[.]java:.*Write the type'
-    expect_match analysis_report_only 'pmd: the representative rule ID stays visible at its file' \
-        'BlankJustification:6 Rule:JustificationNeedsText'
-    expect_match analysis_report_only 'cpd: the duplicated pair stays visible' \
-        'has found [0-9]+ duplication'
-    expect_match analysis_report_only 'analysis: report-only still executes CPD after PMD findings' \
-        'pmd:[^:]+:cpd-check'
+/**
+ * Holds a value across several operations to exercise the distance diagnostic.
+ */
+final class Reading {
 
-    run_maven checkstyle_enforcement analysis "${analysis_findings}" \
-        checkstyle:check '-Dcheckstyle.includes=**/InferredLocal.java'
-    expect_exit checkstyle_enforcement 'checkstyle: a representative packaged finding fails enforcement' 1
-    expect_match checkstyle_enforcement 'checkstyle: enforcement names the exact fixture' \
-        'InferredLocal[.]java:.*Write the type'
+    String before(StringBuilder content) {
+        String remembered = content.toString();
+        content.append('a');
+        content.append('b');
+        content.append('c');
+        content.append('d');
+        return remembered;
+    }
+}
+JAVA
+    cat > "$1/src/main/java/com/example/JoinedValues.java" <<'JAVA'
+package com.example;
 
-    run_maven pmd_enforcement analysis "${analysis_findings}" pmd:check
-    expect_exit pmd_enforcement 'pmd: a representative packaged finding fails enforcement' 1
-    expect_match pmd_enforcement 'pmd: enforcement names its rule ID' 'JustificationNeedsText'
+import java.util.List;
 
-    rm "${analysis_findings}/src/main/java/com/example/InferredLocal.java" \
-        "${analysis_findings}/src/main/java/com/example/BlankJustification.java"
-    run_maven cpd_enforcement analysis "${analysis_findings}" pmd:cpd-check
-    expect_exit cpd_enforcement 'cpd: packaged duplication wiring fails enforcement' 1
-    expect_match cpd_enforcement 'cpd: enforcement reports the duplicated pair' \
-        'has found [0-9]+ duplication'
-    run_variable_distance_cases
-    run_detached_chain_dot_cases
-    run_analysis_lifecycle
-    run_early_analysis_lifecycle
-    run_jspecify_annotation_locations
-    run_modernization_cases
+/**
+ * Joins the supplied values into one readable line.
+ */
+final class JoinedValues {
+
+    String read(List<String> values) {
+        return String.join(
+            ",", values
+        )
+        .strip();
+    }
+}
+JAVA
+    cat > "$1/src/main/java/com/example/Catalogue.java" <<'JAVA'
+package com.example;
+
+import org.springframework.stereotype.Repository;
+
+/**
+ * A catalogue whose public lookup can be called through a Spring proxy.
+ */
+@Repository
+public class Catalogue {
+
+    /**
+     * Reads a normalized catalogue key.
+     *
+     * @param key the requested key
+     * @return the normalized key
+     */
+    public String lookup(String key) {
+        return key.strip();
+    }
+}
+JAVA
+    cat > "$1/src/test/java/com/example/RatioTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class RatioTest {
+
+    @Test
+    void halvesTheValue() {
+        assertEquals(0.5f, new Example().value() / 2.0F);
+    }
+}
+JAVA
 }
 
 run_jspecify_annotation_locations() {
@@ -158,83 +240,6 @@ JAVA
         '\[JSpecifyUnrecognizedAnnotationLocation\]'
 }
 
-run_detached_chain_dot_cases() {
-    new_consumer detached-chain-dot
-    detached_chain_dot="${consumer_directory}"
-    cat > "${detached_chain_dot}/src/main/java/com/example/JoinedValues.java" <<'JAVA'
-package com.example;
-
-import java.util.List;
-
-/**
- * Joins the supplied values into one readable line.
- */
-final class JoinedValues {
-
-    String read(List<String> values) {
-        return String.join(
-            ",", values
-        )
-        .strip();
-    }
-}
-JAVA
-    run_maven detached_chain_dot_refused analysis "${detached_chain_dot}" checkstyle:check
-    expect_exit detached_chain_dot_refused 'analysis: a detached chained dot fails packaged Checkstyle' 1
-    expect_match detached_chain_dot_refused 'analysis: the finding names the source and repair' \
-        'JoinedValues[.]java:.*Join this dot.*AirnessDetachedChainDot'
-
-    perl -0pi -e 's/\)\n        \.strip/).strip/' \
-        "${detached_chain_dot}/src/main/java/com/example/JoinedValues.java"
-    run_maven detached_chain_dot_joined analysis "${detached_chain_dot}" checkstyle:check
-    expect_exit detached_chain_dot_joined 'analysis: joining the dot to the closing parenthesis passes' 0
-}
-
-run_variable_distance_cases() {
-    new_consumer variable-distance
-    variable_distance="${consumer_directory}"
-    cat > "${variable_distance}/src/main/java/com/example/Reading.java" <<'JAVA'
-package com.example;
-
-/**
- * Holds a value across several operations to exercise the distance diagnostic.
- */
-final class Reading {
-
-    String before(StringBuilder content) {
-        String remembered = content.toString();
-        content.append('a');
-        content.append('b');
-        content.append('c');
-        content.append('d');
-        return remembered;
-    }
-}
-JAVA
-    run_maven variable_distance_refused analysis "${variable_distance}" checkstyle:check
-    expect_exit variable_distance_refused 'analysis: a distant local still fails the packaged distance check' 1
-    expect_match variable_distance_refused 'analysis: the distance finding names the local and its rule' \
-        'Reading[.]java:.*remembered.*VariableDeclarationUsageDistance'
-    expect_no_match variable_distance_refused 'analysis: the distance diagnostic never recommends final' \
-        'making that variable final'
-
-    perl -0pi -e 's/String remembered =/final String remembered =/' \
-        "${variable_distance}/src/main/java/com/example/Reading.java"
-    run_maven variable_distance_final analysis "${variable_distance}" checkstyle:check
-    expect_exit variable_distance_final 'analysis: final locals remain forbidden' 1
-    expect_match variable_distance_final 'analysis: the final-local prohibition remains explicit' \
-        'Local variables must not be declared final'
-    expect_match variable_distance_final 'analysis: final no longer exempts a distant local from its check' \
-        'Reading[.]java:.*remembered.*VariableDeclarationUsageDistance'
-    expect_no_match variable_distance_final 'analysis: a final local receives no advice to add final' \
-        'making that variable final'
-
-    perl -0pi -e 's/        final String remembered = content.toString\(\);\n//; s/        return remembered;/        String remembered = content.toString();\n        return remembered;/' \
-        "${variable_distance}/src/main/java/com/example/Reading.java"
-    run_maven variable_distance_nearby analysis "${variable_distance}" checkstyle:check
-    expect_exit variable_distance_nearby 'analysis: a local declared beside its use passes' 0
-}
-
 run_modernization_cases() {
     new_consumer modernization-compiler
     modernization_compiler="${consumer_directory}"
@@ -262,28 +267,6 @@ JAVA
     expect_match modernization_compiler_report 'report-only: the Airness compiler finding stays visible' \
         'Draw[.]java:.*AirnessJdkApiHasAModernForm'
 
-    new_consumer modernization-test-source
-    modernization_test_source="${consumer_directory}"
-    cat > "${modernization_test_source}/src/test/java/com/example/RatioTest.java" <<'JAVA'
-package com.example;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import org.junit.jupiter.api.Test;
-
-class RatioTest {
-
-    @Test
-    void halvesTheValue() {
-        assertEquals(0.5f, new Example().value() / 2.0F);
-    }
-}
-JAVA
-    run_maven modernization_test_source analysis "${modernization_test_source}" checkstyle:check
-    expect_exit modernization_test_source 'checkstyle: an Airness rule fails on test sources too' 1
-    expect_match modernization_test_source 'checkstyle: the test-source finding names its file' \
-        'RatioTest[.]java:.*floating-point literal suffix in upper case'
-
     new_consumer build-practices
     build_practices="${consumer_directory}"
     sed 's|^    </properties>|    </properties>\
@@ -294,6 +277,7 @@ JAVA
     expect_match build_practices 'build practices: the finding names both elements' \
         'url is written after properties'
 
-    run_maven build_practices_clean analysis "${modernization_test_source}" validate
+    new_consumer build-practices-clean
+    run_maven build_practices_clean analysis "${consumer_directory}" validate
     expect_exit build_practices_clean 'build practices: the template consumer passes validation' 0
 }
