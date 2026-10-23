@@ -106,11 +106,22 @@ HTML
     git -C "${message_app}" commit --quiet --message 'test(it): create a template message consumer' \
         --message 'The application starts but its template contains an undefined literal message key.'
 
+    # The bound goal, its report-only mode, the staleness of its evidence and the unassessed report are
+    # wiring and stay here. The variants are decided by the rule and proven in process: the engine's own
+    # source rather than an unrelated bean (SpringMessageSetupTest.usesTheEngineSourceInsteadOfAn...),
+    # the selected basename rather than the conventional messages bundle beside it
+    # (SpringMessageSetupTest.readsOnlyTheBundleTheSelectedSourceNames), the configured basename supplying
+    # the key (SpringMessageSetupTest.checksBaseMessagesAndReportsResourcesOutsideTheResolver), and
+    # code-as-default hiding nothing (SpringMessageSetupTest.reportsAMissingKeyThatCodeAsDefaultWouldHave...
+    # and SpringMessageLookupTest.defeatsCodeAsDefaultAndDoesNotReserveTranslationText).
     run_maven message_parity_alone spring "${message_app}" airness:message-parity
     expect_exit message_parity_alone 'spring: one message bundle has no parity disagreement' 0
     run_maven message_missing spring "${message_app}" clean test airness:spring-template-messages
     expect_exit message_missing 'spring: the bound message goal rejects an unrendered missing key' 1
     expect_match message_missing 'spring: missing messages name the template and key' 'templates/page[.]html.*browse[.]more.*missing from base'
+    run_maven message_report_only spring "${message_app}" test airness:spring-template-messages -Dairness.enforce=false
+    expect_exit message_report_only 'spring: message report-only preserves the finding without enforcement' 0
+    expect_match message_report_only 'spring: message report-only still names the missing key' 'browse[.]more.*missing from base'
 
     printf 'browse.next=Next page\nbrowse.more=More\n' > "${message_app}/src/main/resources/messages.properties"
     run_maven message_supplied spring "${message_app}" test airness:spring-template-messages
@@ -118,22 +129,6 @@ HTML
     expect_match message_supplied 'spring: the ordinary source was actually checked' '1 checked lookup[(]s[)], 0 unassessed'
 
     printf 'browse.next=Next page\n' > "${message_app}/src/main/resources/messages.properties"
-    printf 'spring.messages.use-code-as-default-message=true\n' > "${message_app}/src/main/resources/application.properties"
-    run_maven message_default_code spring "${message_app}" test airness:spring-template-messages
-    expect_exit message_default_code 'spring: code-as-default cannot hide an undefined message key' 1
-    run_maven message_report_only spring "${message_app}" test airness:spring-template-messages -Dairness.enforce=false
-    expect_exit message_report_only 'spring: message report-only preserves the finding without enforcement' 0
-    expect_match message_report_only 'spring: message report-only still names the missing key' 'browse[.]more.*missing from base'
-
-    printf 'spring.messages.basename=labels\n' > "${message_app}/src/main/resources/application.properties"
-    printf 'browse.more=Unrelated\n' > "${message_app}/src/main/resources/messages.properties"
-    printf 'browse.next=Next page\n' > "${message_app}/src/main/resources/labels.properties"
-    run_maven message_selected_bundle spring "${message_app}" test airness:spring-template-messages
-    expect_exit message_selected_bundle 'spring: an unrelated bundle cannot satisfy the selected source' 1
-    printf 'browse.more=Configured label\n' > "${message_app}/src/main/resources/labels.properties"
-    run_maven message_configured_bundle spring "${message_app}" test airness:spring-template-messages
-    expect_exit message_configured_bundle 'spring: the configured basename supplies the key' 0
-
     printf 'spring.thymeleaf.prefix=file:/outside-scope/\n' > "${message_app}/src/main/resources/application.properties"
     run_maven message_unassessed spring "${message_app}" test airness:spring-template-messages
     expect_exit message_unassessed 'spring: unsupported resolution is not guessed to be missing' 0

@@ -228,12 +228,6 @@ JAVA
     expect_match request_scalar_contract 'spring: individual values still require requiredness' \
         'AirnessSpringWebParameterDeclaresRequiredness'
 
-    request_named_app="${scratch}/request-named-app"
-    clone_tree "${request_map_app}" "${request_named_app}"
-    perl -0pi -e 's|@RequestParam\(name = "payload", required = true\)|@RequestParam(name = "payload")|' \
-        "${request_named_app}/src/main/java/com/example/Parameters.java"
-    run_maven request_named_contract spring "${request_named_app}" checkstyle:check
-    expect_exit request_named_contract 'spring: named maps still require requiredness' 1
-    expect_match request_named_contract 'spring: named-map requiredness keeps its diagnostic' \
-        'AirnessSpringWebParameterDeclaresRequiredness'
+    # The named-map variant of the same rule is decided in process by CheckstyleVariantTest. The run above
+    # stays as the wiring case: the Spring parent activates the request-contract rules at all.
 }

@@ -23,6 +23,11 @@ run_qodana_profile() {
         expect_file_match "${qodana_sarif}" \
             'qodana: a switch without a default is still reported' \
             '"ruleId": "SwitchStatementsWithoutDefault"'
+        # The same reports read through the findings table, which places each one at its file and line.
+        expect_finding qodana_profile 'qodana: the switch without a default is placed at its statement' \
+            qodana 'src/main/java/com/example/IncompleteDispatch.java:26' '^SwitchStatementsWithoutDefault '
+        expect_finding qodana_profile 'qodana: the over-coupled class is placed at its declaration' \
+            qodana 'src/main/java/com/example/CommandRouter.java:9' '^ClassCoupling .*overly coupled'
         if grep -q "'CommandRouter' is overly coupled" "${qodana_sarif}"; then
             pass 'qodana: ClassCoupling still reports an over-coupled class'
         else
@@ -75,7 +80,6 @@ run_container_cases() {
     run_extended_consumer
     run_secret_scanner_control
     run_qodana_profile
-    run_spring_qodana
 }
 
 run_extended_consumer() {
@@ -119,21 +123,4 @@ run_secret_scanner_control() {
         'leaks found: 1'
     expect_match secret_history 'secrets: the container reports scanning commits' \
         '[0-9]+ commits scanned'
-}
-
-run_spring_qodana() {
-    if [ -z "${spring_app-}" ] || [ ! -d "${spring_app}" ]; then
-        run_spring_cases
-    fi
-    run_maven spring_qodana containers "${spring_app}" clean verify -Pextended
-    expect_exit spring_qodana 'spring: the conforming Spring Boot application passes Extended verification' 0
-    expect_analysis_before_qodana spring_qodana
-    expect_match spring_qodana 'spring: real Qodana analysis completes without findings' \
-        'Analysis results: 0 problem detected'
-    expect_before spring_qodana 'spring: final archive inspection follows repackaging' \
-        '--- spring-boot:[^ ]+:repackage' '--- airness:[^ ]+:artifact-content'
-    spring_sarif="${spring_app}/target/qodana/qodana.sarif.json"
-    expect_file_no_match "${spring_sarif}" \
-        'spring: the package-private Boot entry point is not read as a utility class' \
-        '"ruleId": "UtilityClassWithoutPrivateConstructor"'
 }

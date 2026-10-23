@@ -102,7 +102,7 @@ if [ -n "${selected_domain}" ]; then
     printf '  %spartial domain: %s; this run cannot claim the full integration verdict%s\n' \
         "${style_dim}" "${selected_domain}" "${style_off}"
 else
-    printf '  %stwo lanes: spring, containers and the short domains | streaming and repository%s\n' \
+    printf '  %stwo lanes: spring, containers and maven | streaming, repository and the short domains%s\n' \
         "${style_dim}" "${style_off}"
     printf '  %seach lane is replayed whole when it is joined; follow one live under %s%s\n' \
         "${style_dim}" "${lane_results}" "${style_off}"
@@ -111,8 +111,10 @@ fi
 case "${selected_domain}" in
     '')
         # The consumer template is built once here rather than inside a lane, because every lane clones
-        # it. The partition is measured rather than chosen, and the one ordering it encodes is that the
-        # container cases read the fixture the spring cases build, so those two share a lane.
+        # it. The partition is measured rather than chosen: each lane carries about half of the summed
+        # execution time, and the Extended executions that hold the exclusive lock are split so that
+        # neither lane spends most of its time waiting for the other to release it. No case reads a
+        # fixture another lane builds.
         #
         # Two lanes rather than three, because a consumer build is not one processor: the compiler is
         # forked, and the analysis, the coverage agent and the test fork all want their own. Three of
@@ -120,9 +122,9 @@ case "${selected_domain}" in
         # lane returned. Two leave the runner subscribed rather than oversubscribed, and leave a
         # workstation running this a processor to answer its owner with.
         ensure_consumer_template
-        start_lane spring run_spring_cases run_container_cases run_template_message_cases \
-            run_web_accessibility_cases run_maven_cases run_analysis_cases run_template_cases
+        start_lane spring run_spring_cases run_container_cases run_maven_cases
         start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases \
+            run_analysis_cases run_template_message_cases run_web_accessibility_cases run_template_cases \
             run_stylesheet_cases
         # Joined in the order whose headings do not repeat across the seam.
         join_lane spring

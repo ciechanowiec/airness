@@ -74,6 +74,31 @@ class StreamingJavaIndexTest {
         );
     }
 
+    // An anonymous callback has no name a runtime type can be matched against, so it is never indexed as a
+    // declaration. The runtime then meets a configurer the manifest does not name, which it reports as
+    // unsupported rather than guessing safe.
+    @Test
+    void indexesNoDeclarationForAnAnonymousCallback() {
+        List<StreamingInput> inputs = this.read(
+            """
+                package example;
+                class Options {
+                    WebMvcConfigurer timeoutPolicy() {
+                        return new WebMvcConfigurer() {
+                            @Override
+                            public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+                                configurer.setDefaultTimeout(0);
+                            }
+                        };
+                    }
+                }
+                """
+        );
+        List<StreamingInput> types = inputs.stream().filter(input -> "type".equals(input.kind())).toList();
+        assertEquals(List.of("example.Options"), types.stream().map(StreamingInput::name).toList());
+        assertEquals("none", types.getFirst().detail());
+    }
+
     @Test
     void bindsTheManifestToSourceChanges() {
         StreamingInput first = this.read("class First {}").getFirst();
