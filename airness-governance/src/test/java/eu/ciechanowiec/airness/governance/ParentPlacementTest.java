@@ -29,12 +29,13 @@ class ParentPlacementTest {
         Set<String> expected = new TreeSet<>(
             Stream.concat(
                 Stream.of(
-                    "assets-check", "blocklist", "build-inputs", "build-practices", "check-parameters", "checkov",
-                    "commit-history", "commit-typography", "compliance-report-collect", "dependency-freshness",
-                    "editorconfig-excludes", "entry-files", "license-metadata", "linear-history", "plugin-inputs",
+                    "actions", "assets-check", "blocklist", "build-inputs", "build-practices", "check-parameters",
+                    "checkov", "commit-history", "commit-typography", "compliance-report-collect",
+                    "dependency-freshness", "docker", "docs", "editorconfig-excludes", "entry-files", "environment",
+                    "generated-denial", "image-assets", "license-metadata", "linear-history", "plugin-inputs",
                     "publication-content", "publication-metadata", "repository-policy", "require-full-history",
-                    "require-online", "required-profiles", "scan-secrets", "shellcheck", "suppression-budget",
-                    "tree-snapshot", "tree-verify", "typography",
+                    "require-online", "required-profiles", "scan-secrets", "shellcheck", "skills",
+                    "suppression-budget", "tree-snapshot", "tree-verify", "typography",
                     /*
                      * Java checks bound here only for their position: a child parent's verify executions run
                      * after the compliance report this file binds. Both skip a module with nothing to read.

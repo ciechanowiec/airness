@@ -32,6 +32,28 @@ record ScannerProcess(String image, ScannerTree tree) {
         return List.copyOf(command);
     }
 
+    /**
+     * The command that runs the scanner over its standard input, with no mount at all.
+     *
+     * <p>For a scanner that reads one file at a time and whose image carries no shell to probe a mount
+     * with. The container still has no network, no capability and no way to gain privileges.
+     *
+     * @param executable the scanner entry point
+     * @param arguments  the scanner arguments
+     * @return the command
+     */
+    List<String> standardInputCommand(String executable, List<String> arguments) {
+        this.validate(executable);
+        List<String> command = new ArrayList<>(
+            List.of(
+                "docker", "run", "--rm", "--interactive", "--init", "--cap-drop=ALL",
+                "--security-opt=no-new-privileges", "--network", "none", "--entrypoint", executable, this.image
+            )
+        );
+        command.addAll(arguments);
+        return List.copyOf(command);
+    }
+
     List<String> probeCommand() {
         return this.command(
             "/bin/sh", List.of(
@@ -48,7 +70,7 @@ record ScannerProcess(String image, ScannerTree tree) {
         String tool = "python".equals(executable) ? "checkov" : executable;
         boolean probe = "/bin/sh".equals(executable);
         List<String> allowed = probe
-            ? Stream.of("shellcheck", "checkov").map(ScannerTools::image).toList()
+            ? Stream.of("shellcheck", "checkov", "actionlint").map(ScannerTools::image).toList()
             : List.of(ScannerTools.image(tool));
         if (!allowed.contains(this.image)) {
             throw new IllegalArgumentException("The " + tool + " image is owned by the installed Airness policy");

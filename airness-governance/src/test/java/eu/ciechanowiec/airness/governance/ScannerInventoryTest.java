@@ -43,6 +43,31 @@ class ScannerInventoryTest {
     }
 
     @Test
+    void rejectsContainerAndWorkflowLinterOverrides() {
+        Path root = new GitFixture("scanner-linter-bypasses")
+            .write(".hadolint.yaml", "ignored:\n  - DL3008\n")
+            .write(".github/actionlint.yaml", "paths:\n  .github/workflows/**/*.yml:\n    ignore: ['.*']\n")
+            .write("Dockerfile", "FROM alpine:3.22\n# hadolint ignore=DL3018\nRUN apk add curl\n")
+            .write("app.Dockerfile", "# hadolint global ignore=DL3006\nFROM alpine:3.22\n")
+            .root();
+        List<String> problems = new ScannerInventory(root).problems();
+        assertEquals(4, problems.size(), problems.toString());
+        assertTrue(problems.stream().allMatch(problem -> problem.contains("Airness")), problems.toString());
+    }
+
+    @Test
+    void acceptsAWorkflowNamedLikeTheActionlintConfiguration() {
+        Path root = new GitFixture("scanner-actionlint-workflow")
+            .write(".github/workflows/actionlint.yml", "on: push\njobs: {}\n")
+            .write("docs/actionlint.yaml", "paths: {}\n")
+            .root();
+        assertEquals(
+            List.of(), new ScannerInventory(root).problems(),
+            "actionlint reads its configuration only from the .github directory itself"
+        );
+    }
+
+    @Test
     void leavesQuotedDocumentationAndNonShellSourcesAlone() {
         Path root = new GitFixture("scanner-quotes")
             .write("README.md", "# shellcheck disable=all\n")

@@ -46,6 +46,8 @@ run_scanner_cases() {
     printf '#!/bin/sh\nprintf "%%s\\n" ready\n' > "${consumer_directory}/run.sh"
     run_maven scanners_spring scanners "${consumer_directory}" airness:shellcheck airness:checkov
     expect_exit scanners_spring 'scanners: the Spring parent supplies the same mandatory scanner policy' 0
+
+    run_generic_rule_cases
 }
 
 run_scanner_lifecycle() {

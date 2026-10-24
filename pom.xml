@@ -58,6 +58,7 @@
     </modules>
 
     <properties>
+        <actionlint.image>rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667</actionlint.image>
         <!--
             Airness's own Dependency-Check exceptions. Named on each self-execution rather than in the
             pluginManagement above, because this pom is an ancestor of every consumer and a suppression
@@ -83,6 +84,7 @@
         <checkov.image>bridgecrew/checkov:3.3.26@sha256:8e63f217cb084f1c1a067326a9cf6e37d54bdc82e5822210d50ca4e2f647dd93</checkov.image>
         <cyclonedx.skip>false</cyclonedx.skip>
         <gitleaks.image>zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f</gitleaks.image>
+        <hadolint.image>hadolint/hadolint:v2.15.1@sha256:32dac94127fd60b7b7e3fbfc65e1383b9b5e25c9bfd7b8536de7a539fe68a12d</hadolint.image>
         <!--
             The one Java version this build targets. A project that inherits the harness is on 25
             already, so an artifact only such a project resolves gains nothing from a lower target.

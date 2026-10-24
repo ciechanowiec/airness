@@ -11,6 +11,8 @@ class ScannerToolsTest {
     @Test
     void requiresFilteredProducerPinsAndRejectsUnknownTools() {
         assertTrue(ScannerTools.image("checkov").contains("@sha256:"));
+        assertTrue(ScannerTools.image("hadolint").contains("@sha256:"));
+        assertTrue(ScannerTools.image("actionlint").contains("@sha256:"));
         assertThrows(IllegalArgumentException.class, () -> ScannerTools.image("unknown"));
         Properties pins = new Properties();
         pins.setProperty("checkov", "${checkov.image}");

@@ -56,6 +56,14 @@ Airness governs all of the following domains:
   inputs there and ordinary non-ignored new files remain valid. No project allowlist is provided,
   and report-only mode does not excuse a preflight failure. Arbitrary custom-tool file reads are
   outside this check, so it does not establish general provenance for everything a build can read.
+- **Repository content:** every image of a supported format (PNG, JPEG, GIF, WebP, ICO) decodes; every file path
+  an `AGENTS.md` names in backticks exists beside it or at the root; every `.claude/skills/**/SKILL.md` opens with
+  frontmatter whose kebab-case `name` equals its directory, whose `description` says when to use it, and whose
+  keys are all ones the agent runtime knows; every
+  variable a compose file interpolates without a default is documented in `.env.example` (or `.env.sample`,
+  `.env.template`) and supplied by every workflow that runs Maven through `verify`; and `.claude/settings.json`
+  denies `Edit(...)` of every generated file a stack layer or `airness.generated.files` declares, with no local
+  settings allowing one back.
 - **Maven repository routing:** Airness owns `.mvn/maven.config` and `.mvn/settings.xml`. The startup
   configuration loads the latter as Maven's global settings and mirrors every remote repository to
   Maven Central, including repositories introduced by dependency POMs and plugin POM inspection.
@@ -110,7 +118,9 @@ Airness governs all of the following domains:
   so application settings and analyzer configuration are not treated as cloud templates. The fleet policy keeps
   security requirements and omits requirements for a particular deployment architecture, availability target,
   commercial security service, or signing product. A CLI container needs no health endpoint. A release workflow
-  may declare manual inputs. Both checks run before Qodana.
+  may declare manual inputs. Extended verification also lints every Dockerfile with hadolint at its default
+  info threshold, loads every compose project with `docker compose config`, and lints every workflow with actionlint.
+  These checks run before Qodana, from staged copies of the committable tree.
   Missing tools, unreadable inputs, incomplete reports and parsing failures fail verification.
 
 Do not treat a domain omitted from one command's output as ungoverned. The parent POM, bundled configurations, and
@@ -242,7 +252,7 @@ Earlier report pairs are removed only after a complete replacement has been rend
   suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
 - There is no setting that turns a check off. If a check is wrong for the project, that is an Airness bug to be
   fixed in Airness, not a local override.
-- ShellCheck and Checkov accept no project-owned suppression or replacement configuration. Their image pins
+- ShellCheck, Checkov, hadolint and actionlint accept no project-owned suppression or replacement configuration. Their image pins
   and policy are carried in the installed Airness artifacts, so even a command-line image override cannot replace
   them. A ShellCheck source hint must identify the actual repository import, never an empty substitute. Report a
   false finding to Airness.
@@ -273,12 +283,13 @@ spends a ceiling the next repair will need.
 | `airness.package.root` | the prefix of every production and test package, and the only required key |
 | `airness.assets.unmanaged` | repository paths the project takes over from the harness |
 | `airness.node.projects` | the module's node project directories, comma-separated, and none unless set |
+| `airness.generated.files` | further repository paths a generator owns, comma-separated, denied to agents |
 | `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them |
 | `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip, never all of them |
 | `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
 | `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path below unless set |
 
-Those seven are the whole of what a project file may declare. Every other name under `airness.`, and `skipTests`,
+Those eight are the whole of what a project file may declare. Every other name under `airness.`, and `skipTests`,
 `maven.test.skip`, `test`, `it.test`, and `jacoco.dataFile`, is refused there, because each of them can decide a verdict. The refusal
 reads the file as written, so a name inside a profile that is never activated is refused too. Both
 `-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.

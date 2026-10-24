@@ -295,6 +295,11 @@
                             <goal>typography</goal>
                             <goal>entry-files</goal>
                             <goal>suppression-budget</goal>
+                            <goal>image-assets</goal>
+                            <goal>environment</goal>
+                            <goal>docs</goal>
+                            <goal>skills</goal>
+                            <goal>generated-denial</goal>
                         </goals>
                     </execution>
                     <!--
@@ -495,6 +500,8 @@
                                     <goal>plugin-inputs</goal>
                                     <goal>shellcheck</goal>
                                     <goal>checkov</goal>
+                                    <goal>docker</goal>
+                                    <goal>actions</goal>
                                 </goals>
                             </execution>
                         </executions>
