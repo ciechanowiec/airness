@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -26,7 +27,8 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
 
     /**
      * The gate id, which the result file must repeat. A bound execution names it in its configuration, and
-     * the property serves only a gate run from the command line, which adds a gate and replaces none.
+     * the property serves only a gate run from the command line, which adds a gate: an id a bound execution
+     * owns is refused there.
      */
     @Parameter(property = "airness.node.gate", required = true)
     private @Nullable String gate;
@@ -44,6 +46,12 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
     @Parameter(property = "airness.node.projects")
     private @Nullable String declared;
 
+    /**
+     * The execution being run, which tells a command-line run from a bound one.
+     */
+    @Parameter(defaultValue = "${mojoExecution}", readonly = true, required = true)
+    private @Nullable MojoExecution execution;
+
     @Override
     boolean applies() {
         return !RepositoryProjects.harnessParent(this.project()) && !this.projects().none();
@@ -55,6 +63,18 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
             Objects.requireNonNull(this.gate, "Maven did not inject the gate"),
             Objects.requireNonNull(this.command, "Maven did not inject the command")
         );
+        boolean owned = NodeGateOwnership.bound(this.project().getBuildPlugins()).contains(bound.id());
+        if (this.fromCommandLine() && owned) {
+            return List.of(
+                new Findings(
+                    "Node gate " + bound.id() + " from the command line: a gate id no bound execution owns",
+                    List.of(
+                        "a bound execution owns the gate " + bound.id() + ", so a command-line run would rewrite "
+                            + "its result; run mvn verify, or name another gate id"
+                    )
+                )
+            );
+        }
         try {
             NodeTools tools = AbstractNodeMojo.install(this.session(), this.getLog());
             return this.projects().projects().stream().map(project -> this.run(bound, project, tools)).toList();
@@ -97,6 +117,13 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
             Files.deleteIfExists(stale);
         }
         Files.deleteIfExists(result);
+    }
+
+    // Maven names the execution of a goal given on the command line default-cli.
+    private boolean fromCommandLine() {
+        return "default-cli".equals(
+            Objects.requireNonNull(this.execution, "Maven did not inject the mojo execution").getExecutionId()
+        );
     }
 
     private NodeProjects projects() {

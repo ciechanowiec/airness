@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The npm package @airness/node, governed as the TypeScript library it is. It inherits the node parent
+        a consumer inherits, so the reactor runs the node gates on it with the plugin and parents it has just
+        built. Each gate runs the airness-node binary this module builds into dist, through the package's
+        own link to itself, rather than an installed release.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent-node</artifactId>
+        <version>1.0.8-SNAPSHOT</version>
+        <relativePath>../airness-parent-node/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>airness-node</artifactId>
+    <packaging>pom</packaging>
+
+    <name>airness-node</name>
+    <description>
+        The JS/TS gates of the Airness node layer, published to npm as @airness/node: the gates airness:node-gate
+        runs, the analyzer configurations they read, and the analyzers pinned at the versions the harness decides.
+    </description>
+
+    <properties>
+        <airness.package.root>eu.ciechanowiec.airness</airness.package.root>
+    </properties>
+
+    <build>
+        <plugins>
+            <!--
+                The package's own build: the TypeScript compiled into dist, before verify, where the gates run
+                that build. It runs under -DskipTests too, because a consumer fixture links the built package.
+            -->
+            <plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>node-build</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>node-run</goal>
+                        </goals>
+                        <configuration>
+                            <project>.</project>
+                            <script>build</script>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+            The package's own Vitest suite, which proves every rule variant of the gates. node-run runs under
+            -DskipTests as well, so the suite is bound in a profile that a command-line skipTests switches off.
+        -->
+        <profile>
+            <id>node-tests</id>
+            <activation>
+                <property>
+                    <name>!skipTests</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>airness-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>node-test</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>node-run</goal>
+                                </goals>
+                                <configuration>
+                                    <project>.</project>
+                                    <script>test</script>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

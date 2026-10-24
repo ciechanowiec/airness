@@ -1,0 +1,8 @@
+{
+  "name": "fixture-library",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@airness/node": "link:@AIRNESS_NODE@"
+  }
+}

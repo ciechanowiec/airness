@@ -32,4 +32,25 @@ class DocumentReferencesTest {
             "a trailing glob is stripped before the name is judged"
         );
     }
+
+    @Test
+    void readsScriptFamiliesAndPnpmRunInvocationsAsNpmScripts() {
+        assertEquals(
+            List.of("lint:arch", "verify:full", "knip", "build"),
+            DocumentReferences.scripts("Run `lint:arch`, `verify:full`, `knip`, `build`, `pnpm run build`.\n"),
+            "a backticked token of a script family and a pnpm run name are scripts, a bare word is not"
+        );
+    }
+
+    @Test
+    void readsThePackageAModuleSpecifierStartsWith() {
+        assertEquals(
+            List.of("@airness/node", "ploaness"),
+            List.of(
+                DocumentReferences.specifierPackage("@airness/node/tsconfig.json"),
+                DocumentReferences.specifierPackage("ploaness/tsconfig.json")
+            ),
+            "a scoped specifier names its scope and package, an unscoped one its first segment"
+        );
+    }
 }

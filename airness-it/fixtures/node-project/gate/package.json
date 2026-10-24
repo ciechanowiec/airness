@@ -5,5 +5,14 @@
   "type": "module",
   "bin": {
     "airness-fake-gate": "gate.mjs"
+  },
+  "airness": {
+    "javascriptAllowlist": [
+      {
+        "pattern": "^gate\\.mjs$",
+        "reason": "the stand-in gate node runs directly, with no compiler before it",
+        "runtime": "node"
+      }
+    ]
   }
 }

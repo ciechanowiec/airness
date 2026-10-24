@@ -33,7 +33,7 @@ class ParentPlacementTest {
                     "checkov", "commit-history", "commit-typography", "compliance-report-collect",
                     "dependency-freshness", "docker", "docs", "editorconfig-excludes", "entry-files", "environment",
                     "generated-denial", "image-assets", "license-metadata", "linear-history", "node-dependencies",
-                    "node-install", "node-projects", "plugin-inputs",
+                    "node-gate", "node-install", "node-projects", "plugin-inputs",
                     "publication-content", "publication-metadata", "repository-policy", "require-full-history",
                     "require-online", "required-profiles", "scan-secrets", "shellcheck", "skills",
                     "suppression-budget", "tree-snapshot", "tree-verify", "typography",
@@ -73,6 +73,43 @@ class ParentPlacementTest {
             ).toList()
         );
         assertEquals(expected, bound(ProjectFiles.javaParentPom()));
+    }
+
+    @Test
+    void bindsNothingInTheNodeParent() {
+        assertEquals(Set.of(), bound(ProjectFiles.nodeParentPom()));
+    }
+
+    @Test
+    void makesTheModuleItselfTheNodeProjectInTheNodeParent() {
+        assertEquals(
+            List.of("."),
+            ProjectFiles.descendants(ProjectFiles.document(ProjectFiles.nodeParentPom()), "airness.node.projects")
+                .map(Element::getTextContent)
+                .map(String::strip)
+                .toList(),
+            "the node parent changes one default: the module's own directory is its node project"
+        );
+    }
+
+    @Test
+    void bindsEveryNodeGateOnceInTheGenericParent() {
+        List<String> gates = ProjectFiles.descendants(ProjectFiles.document(ProjectFiles.parentPom()), "execution")
+            .filter(ParentPlacementTest::runsNodeGate)
+            .map(execution -> Xml.text(execution, "id").orElseThrow())
+            .toList();
+        assertEquals(
+            List.of(
+                "node-gate-types", "node-gate-biome", "node-gate-oxlint", "node-gate-eslint", "node-gate-source-rules",
+                "node-gate-config-refs", "node-gate-javascript-allowlist"
+            ),
+            gates
+        );
+    }
+
+    private static boolean runsNodeGate(Element execution) {
+        return ProjectFiles.descendants(execution, "goal")
+            .anyMatch(goal -> "node-gate".equals(goal.getTextContent().strip()));
     }
 
     private static Set<String> bound(Path pom) {

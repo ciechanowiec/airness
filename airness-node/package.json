@@ -1,0 +1,95 @@
+{
+  "name": "@airness/node",
+  "version": "1.0.8-SNAPSHOT",
+  "description": "The JS/TS gates of the Airness node layer, the analyzer configurations they read, and the pinned analyzers.",
+  "license": "MIT-0",
+  "author": "Herman Ciechanowiec <herman@ciechanowiec.eu>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ciechanowiec/airness.git",
+    "directory": "airness-node"
+  },
+  "type": "module",
+  "bin": {
+    "airness-node": "./dist/bin.js"
+  },
+  "exports": {
+    "./eslint": {
+      "types": "./dist/eslint.d.ts",
+      "default": "./dist/eslint.js"
+    },
+    "./eslint-core": {
+      "types": "./dist/eslint-core.d.ts",
+      "default": "./dist/eslint-core.js"
+    },
+    "./settings": {
+      "types": "./dist/settings.d.ts",
+      "default": "./dist/settings.js"
+    },
+    "./layer": {
+      "types": "./dist/layer.d.ts",
+      "default": "./dist/layer.js"
+    },
+    "./project": {
+      "types": "./dist/project.d.ts",
+      "default": "./dist/project.js"
+    },
+    "./working-tree": {
+      "types": "./dist/working-tree.d.ts",
+      "default": "./dist/working-tree.js"
+    },
+    "./source-selection": {
+      "types": "./dist/source-selection.d.ts",
+      "default": "./dist/source-selection.js"
+    },
+    "./source-text": {
+      "types": "./dist/source-text.d.ts",
+      "default": "./dist/source-text.js"
+    },
+    "./gate-result": {
+      "types": "./dist/gate-result.d.ts",
+      "default": "./dist/gate-result.js"
+    },
+    "./biome": "./configs/airness-biome.json",
+    "./tsconfig": "./configs/tsconfig.json",
+    "./tsconfig.json": "./configs/tsconfig.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "configs"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "dependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
+    "@eslint/js": "10.0.1",
+    "@typescript-eslint/parser": "8.72.0",
+    "@vitest/eslint-plugin": "1.6.27",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-functional": "10.0.1",
+    "eslint-plugin-jsdoc": "65.4.0",
+    "eslint-plugin-regexp": "3.3.1",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "eslint-plugin-unicorn": "78.0.0",
+    "globals": "17.13.0",
+    "micromatch": "4.0.8",
+    "oxlint": "1.89.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@airness/node": "link:.",
+    "@types/micromatch": "4.0.10",
+    "@types/node": "26.6.5",
+    "vitest": "5.0.5"
+  }
+}

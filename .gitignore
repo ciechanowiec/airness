@@ -89,3 +89,27 @@ claude/scheduled_tasks.lock
 .gradle/
 hs_err_pid*
 # END AIRNESS MANAGED: java
+
+# BEGIN AIRNESS MANAGED: node
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Build output & caches
+*.tsbuildinfo
+.type-coverage/
+
+# Next.js
+.next/
+.turbo/
+.vercel
+next-env.d.ts
+
+# Testing
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+# END AIRNESS MANAGED: node

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        Inherits the generic parent, like airness-parent-java, because it is a consumer-facing parent. The
+        relativePath is written out because the default would resolve to the aggregator in the directory
+        above.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent</artifactId>
+        <version>1.0.8-SNAPSHOT</version>
+        <relativePath>../airness-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>airness-parent-node</artifactId>
+    <packaging>pom</packaging>
+
+    <name>airness-parent-node</name>
+    <description>
+        The parent a module whose main content is JavaScript or TypeScript inherits. The node goals and the
+        node gates are bound in airness-parent, because a Java module with a frontend inside it inherits
+        airness-parent-java and cannot also inherit this one. All this parent changes is the default: the
+        module itself is the node project, so the goals run in its own directory without a property.
+
+        A consumer inheriting it declares pom packaging, since Maven then only runs the checks.
+    </description>
+
+    <properties>
+        <!--
+            The module's own directory is its node project. A module that keeps its node project elsewhere,
+            or several, lists them instead, exactly as a Java module with a frontend does.
+        -->
+        <airness.node.projects>.</airness.node.projects>
+    </properties>
+</project>

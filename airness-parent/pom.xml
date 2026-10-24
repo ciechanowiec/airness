@@ -332,6 +332,90 @@
                         </goals>
                     </execution>
                     <!--
+                        The node gates, one execution per gate, each run by node-gate in every declared node project
+                        through the harness's pnpm as pnpm exec airness-node gate <id>, from the @airness/node the
+                        project installed. A module that declares no node project runs none. They are bound in
+                        verify, after the module's own build, and ahead of the tree check below, so that check reads
+                        whatever the analyzers left behind.
+                    -->
+                    <execution>
+                        <id>node-gate-types</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>types</gate>
+                            <command>airness-node gate types</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-biome</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>biome</gate>
+                            <command>airness-node gate biome</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-oxlint</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>oxlint</gate>
+                            <command>airness-node gate oxlint</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-eslint</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>eslint</gate>
+                            <command>airness-node gate eslint</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-source-rules</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>source-rules</gate>
+                            <command>airness-node gate source-rules</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-config-refs</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>config-refs</gate>
+                            <command>airness-node gate config-refs</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-javascript-allowlist</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>javascript-allowlist</gate>
+                            <command>airness-node gate javascript-allowlist</command>
+                        </configuration>
+                    </execution>
+                    <!--
                         coverage-evidence and artifact-content are Java checks, bound here rather than in
                         airness-parent-java because Maven runs a child parent's executions after every one
                         inherited from this file. Bound in the Java parent, they would run after the

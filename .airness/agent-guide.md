@@ -12,7 +12,8 @@ the executable harness.
 ## Layer 2: Harness Invariants
 
 - Each module inherits the Airness parent for what it contains: `airness-parent` for a monorepo root or a module
-  with no code, `airness-parent-java` for Java, or `airness-parent-spring-boot` for a Spring Boot project. That
+  with no code, `airness-parent-java` for Java, `airness-parent-spring-boot` for a Spring Boot project, or
+  `airness-parent-node` for a module whose main content is JavaScript or TypeScript. That
   choice is the only place a module states which kind it is, and it is what decides which rules apply. A module
   that inherits `airness-parent-java` also follows `.airness/agent-guide-java.md`. Do not weaken, replace,
   duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or managed files that the parent
@@ -57,7 +58,9 @@ Airness governs all of the following domains:
   and report-only mode does not excuse a preflight failure. Arbitrary custom-tool file reads are
   outside this check, so it does not establish general provenance for everything a build can read.
 - **Repository content:** every image of a supported format (PNG, JPEG, GIF, WebP, ICO) decodes; every file path
-  an `AGENTS.md` names in backticks exists beside it or at the root; every `.claude/skills/**/SKILL.md` opens with
+  an `AGENTS.md` names in backticks exists beside it or at the root, unless it is a module specifier of a
+  dependency the `package.json` there declares; every npm script it names, backticked or after `pnpm run`, is
+  declared by that `package.json`; every `.claude/skills/**/SKILL.md` opens with
   frontmatter whose kebab-case `name` equals its directory, whose `description` says when to use it, and whose
   keys are all ones the agent runtime knows; every
   variable a compose file interpolates without a default is documented in `.env.example` (or `.env.sample`,
@@ -73,7 +76,20 @@ Airness governs all of the following domains:
   artifact only with an `airness:node-run` execution, the one declaration of the Airness plugin a project may
   write, with an id of its own and a phase before `prepare-package`. `com.github.eirslett` artifacts, however
   they reach the build, and `exec` or `antrun` steps that run `node`, `npm`, `npx`, `pnpm`, `yarn`, `bun` or
-  `deno` are refused, because they run a Node other than the one the checks use.
+  `deno` are refused, because they run a Node other than the one the checks use. Each node project declares
+  `@airness/node` as a development dependency, and in `verify` each of its gates runs in every declared
+  project and in each member of a declared pnpm workspace: `types` (the project's `tsconfig.json` extends
+  `@airness/node/tsconfig.json`, sets no compiler option but `paths`, `baseUrl`, `plugins`, `types`, `rootDir`
+  and `outDir`, keeps the include and exclude the harness names, and type-checks), `biome` (formatting and fast lint under the shipped configuration, with
+  no `biome.json` or `.biome.json` below the project root), `oxlint` (native rules, with no project Oxlint configuration),
+  `eslint` (type-aware lint under the shipped configuration, whatever the project keeps, with no warning
+  allowed and at least one file to lint), `source-rules` (no parent-relative import under a source root, no credential guard that opens when
+  the credential is unset), `config-refs` (every carve-out and declared exclusion reaches a file) and
+  `javascript-allowlist` (no hand-written JavaScript outside the allowlist). A node project declares only what
+  the harness cannot know, under the `airness` key of its `package.json`: further `sourceRoots`, and
+  `generatedArtefacts`, `frameworkGlue` and `javascriptAllowlist` entries that each name a `pattern` and a
+  `reason`, an allowlist entry also the `runtime` of `node` or `cloudfront-js-2.0` that runs it. Diagnose one
+  finding with `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
 - **Maven repository routing:** Airness owns `.mvn/maven.config` and `.mvn/settings.xml`. The startup
   configuration loads the latter as Maven's global settings and mirrors every remote repository to
   Maven Central, including repositories introduced by dependency POMs and plugin POM inspection.

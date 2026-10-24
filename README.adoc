@@ -101,6 +101,19 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 
 . [[generic-parent]]`airness-parent` is the generic parent. It carries only the repository rules, such as managed files, history, secrets, licenses and the compliance report, and suits a repository or a monorepo root with no Java of its own. A module with Java sources under `src/main/java` or `src/test/java` that inherits it directly fails verification and is told to inherit `airness-parent-java`.
 
+. [[node-parent]]`airness-parent-node` is the parent of a module whose main content is JavaScript or TypeScript, such as a single-page application or a TypeScript library. It adds no rule to `airness-parent`. It makes the module's own directory its xref:#node-projects[node project], so the module declares `pom` packaging and needs no property:
++
+[source,xml,subs="attributes+"]
+----
+<parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent-node</artifactId>
+    <version>{airness-version}</version>
+</parent>
+<packaging>pom</packaging>
+----
++
+A Java module with a frontend inside it keeps `airness-parent-java` and lists the frontend's directory in xref:#airness-node-projects[`airness.node.projects`] instead.
 . [[parent-upgrade]]Upgrading from a version in which `airness-parent` carried the Java rules: change the parent of every Java module from `airness-parent` to `airness-parent-java`. A Spring Boot project that already names `airness-parent-spring-boot` needs no change.
 
 [[managed-file-setup]]
@@ -254,6 +267,32 @@ mvn airness:assets-sync
 The script writes its output under `target/`. With `-DskipTests`, a module that binds `node-run` still installs the toolchain and builds its frontend.
 . The xref:#default-verification[default verification] refuses `com.github.eirslett:frontend-maven-plugin` and every other `com.github.eirslett` artifact wherever the module's build reaches it: declared in its project file with or without a version, inherited from a parent, or given to a plugin as a dependency. It also refuses an `exec-maven-plugin` or `maven-antrun-plugin` step whose executable is `node`, `npm`, `npx`, `pnpm`, `yarn`, `bun` or `deno`, including through the `exec.executable` property. Each of them would run a Node other than the one the checks use. _airness_ doesn't inspect what an allowed process starts, such as a shell script that calls Node by an absolute path.
 . Each JS/TS check runs through the `node-gate` goal in every declared project, as `pnpm exec <command> --result <file>`. The gate writes its result as `<gate>.json`, with any evidence files beside it, in `target/airness/node/module/` for the module itself and in `target/airness/node/projects/<project>/` for a project at `<project>` relative to the module. Command output goes to the same place under `target/airness/node-logs/`.
+. Each node project declares the npm package `@airness/node` as a development dependency. The package ships the JS/TS gates, the analyzer configurations they read and the analyzers at the versions _airness_ decides. `airness-parent` binds one `node-gate` execution per gate in `verify`, each running `airness-node gate <id>`:
++
+[cols="1,3",options="header"]
+|===
+| Gate | What it checks
+| `types` | The project's `tsconfig.json` extends `@airness/node/tsconfig.json`, sets no compiler option but `paths`, `baseUrl`, `plugins`, `types`, `rootDir` and `outDir`, and carries exactly the `include` and `exclude` the harness names, every nested workspace member excluded. Then it type-checks with the pinned TypeScript.
+| `biome` | Formatting and fast lint under the shipped Biome configuration, over the source roots, the JavaScript files and the root configuration files. A `biome.json` or `.biome.json` below the project root is refused, because it would replace the shipped configuration for its directory.
+| `oxlint` | Native rules under a closed rule set the gate writes, with the accessibility rules over the JSX of a project that declares Next. A project Oxlint configuration is refused.
+| `eslint` | Type-aware lint under the shipped ESLint configuration, whatever configuration the project keeps, with every warning a failure. A project with no file to lint fails. The managed `eslint.config.mjs` re-exports the same configuration for editors.
+| `source-rules` | No parent-relative import under a source root, and no credential guard that opens when the credential is unset.
+| `config-refs` | Every file a tool configuration carves out exists, and every exclusion the project declares reaches a file.
+| `javascript-allowlist` | No hand-written JavaScript outside the allowlist: by default `eslint.config.mjs` and a PostCSS configuration.
+|===
++
+A pnpm workspace root and each of its members are judged as their own packages, and a failing member names itself in each finding.
+. A node project declares what only it knows under the `airness` key of its `package.json`. Each exclusion names its pattern and a `reason`, and an entry without one is not honoured:
++
+[cols="1,3",options="header"]
+|===
+| Key | Use
+| `sourceRoots` | Directories of first-party source beyond `src`, `tests` and `scripts`, which stay.
+| `generatedArtefacts` | Globs of files a generator writes, which no gate judges.
+| `frameworkGlue` | Globs of files a framework writes to a fixed shape, which the lint relaxes.
+| `javascriptAllowlist` | Regular expressions of JavaScript files a tool forces on the project, each with a `runtime` of `node` or `cloudfront-js-2.0`.
+|===
+. `pnpm exec airness-node gate <id> --verbose` runs one gate in the node project it is started in and prints what the tool wrote. It diagnoses one finding and gives no verdict.
 
 [[configuration]]
 == Configuration

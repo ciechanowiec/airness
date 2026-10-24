@@ -5,9 +5,9 @@
 # parent must download and verify the pinned Node and pnpm, install each declared project's locked
 # dependencies, build a frontend with node-run on that Node, fail the build on a failing gate, and fail a
 # module that carries a package.json nobody declared, a declared folder without one, or a project that picks a
-# pnpm of its own. No parent binds a gate before the node layer ships its gates, and a project may declare the
-# Airness plugin only to bind node-run, so the fake gate runs as a command-line goal after verify, which adds
-# a gate and replaces none. The variants (path resolution, result parsing, workspace membership, the exec,
+# pnpm of its own. A project may declare the Airness plugin only to bind node-run, so the fake gate runs as a
+# command-line goal after verify, which adds a gate and replaces none. The node gates the parent binds run in
+# verify as well, so each frontend links the @airness/node this reactor built and conforms to them. The variants (path resolution, result parsing, workspace membership, the exec,
 # antrun and frontend-maven-plugin refusals) are unit-tested in airness-maven-plugin and airness-governance.
 run_node_project_cases() {
     node_fixture="${repository}/airness-it/fixtures/node-project"
@@ -16,6 +16,7 @@ run_node_project_cases() {
     node_shop="${consumer_directory}"
     mkdir -p "${node_shop}/src/main"
     cp -R "${node_fixture}" "${node_shop}/src/main/frontend"
+    link_airness_node "${node_shop}/src/main/frontend"
     write_node_consumer "${node_shop}" 'src/main/frontend' '
     <build>
         <plugins>
@@ -65,6 +66,8 @@ run_node_project_cases() {
     mkdir -p "${node_portal}/src/main/webapp" "${node_portal}/ui"
     cp -R "${node_fixture}" "${node_portal}/src/main/webapp/admin"
     cp -R "${node_fixture}" "${node_portal}/ui/storefront"
+    link_airness_node "${node_portal}/src/main/webapp/admin"
+    link_airness_node "${node_portal}/ui/storefront"
     write_node_consumer "${node_portal}" 'src/main/webapp/admin,ui/storefront' ''
 
     run_maven node_portal node "${node_portal}" airness:assets-sync clean verify airness:node-gate \

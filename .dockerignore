@@ -25,3 +25,8 @@ Thumbs.db
 logs/
 log/
 # END AIRNESS MANAGED: generic
+
+# BEGIN AIRNESS MANAGED: node
+# Dependencies, installed inside the image rather than copied from the host
+node_modules/
+# END AIRNESS MANAGED: node

@@ -55,6 +55,8 @@
         <module>airness-parent</module>
         <module>airness-parent-java</module>
         <module>airness-parent-spring-boot</module>
+        <module>airness-parent-node</module>
+        <module>airness-node</module>
     </modules>
 
     <properties>
@@ -1144,6 +1146,14 @@
                     <excludeSubmodules>false</excludeSubmodules>
                     <excludes>
                         <exclude>**/target/**</exclude>
+                        <!--
+                            The installed packages, the compiled output and the TypeScript build cache of
+                            airness-node, all of which git ignores. The package links to itself, so its
+                            node_modules would never end being walked.
+                        -->
+                        <exclude>**/node_modules/**</exclude>
+                        <exclude>airness-node/dist/**</exclude>
+                        <exclude>**/*.tsbuildinfo</exclude>
                         <exclude>.git/**</exclude>
                         <exclude>.idea/**</exclude>
                         <exclude>**/*.png</exclude>
@@ -1546,6 +1556,13 @@
                             <autoPublish>true</autoPublish>
                             <waitUntil>published</waitUntil>
                             <waitMaxTime>7200</waitMaxTime>
+                            <!--
+                                airness-node is the npm package @airness/node, built and governed by this reactor.
+                                Its pom carries no artifact a Maven consumer reads, so it is not sent to Central.
+                            -->
+                            <excludeArtifacts>
+                                <excludeArtifact>airness-node</excludeArtifact>
+                            </excludeArtifacts>
                         </configuration>
                     </plugin>
                 </plugins>

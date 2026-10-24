@@ -6,3 +6,4 @@ AGENTS.md	SECTION
 .gitignore	SECTION
 .dockerignore	SECTION
 AGENTS.md	SECTION	NODE_PROJECT
+eslint.config.mjs	PINNED	NODE_PROJECT
