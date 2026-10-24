@@ -2,9 +2,10 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_REGISTRY, type NpmConfig, npmConfigOf, parseNpmrc, registryFor, tokenFor } from '@/npmrc.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { removeProject, temporaryProject } from './helpers/temporary-project.js'
 
-describe('the npm configuration', () => {
+describe('the npm configuration', PROCESS_TIME, () => {
   it('reads keys and values, skips comments, and expands variables', () => {
     expect(
       parseNpmrc(

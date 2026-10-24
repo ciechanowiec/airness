@@ -1,7 +1,7 @@
 {
   "extends": "@airness/node/tsconfig.json",
   "compilerOptions": {
-    "types": [],
+    "types": ["node"],
     "paths": {
       "@/*": ["./src/*"]
     }

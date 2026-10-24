@@ -5,8 +5,13 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { coverageCandidates } from './coverage-policy.js'
 import { failed, fromRun, type GateResult, passed, runNode } from './exec.js'
+import { isBrowserApp } from './facets.js'
+import { matchesGlob } from './file-roles.js'
+import { isHarnessPackage } from './harness-packages.js'
 import { asRecord, asStringRecord, asText } from './json-shapes.js'
 import { harnessDirectory, type Member, readJson } from './project.js'
+import { matchesAnyGlob, memberFiles } from './source-selection.js'
+import { misplacedSpecs } from './spec-roles.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
 const VITEST: string = 'vitest'
@@ -22,9 +27,17 @@ const memberVitest = (member: Member): string | undefined => {
   }
 }
 
-/** The member's suite passes, and every measured file meets the coverage floor. */
-export const tests = (member: Member): GateResult => {
-  if (coverageCandidates(presentWorkingTreeFiles(member.root), member.settings, member.siblingPaths).length === 0) {
+// A harness package ships end-to-end specs from its sources, which the e2e gate runs from the built package in
+// every browser application rather than in the package itself.
+const isShippedSpec = (member: Member, file: string): boolean =>
+  isHarnessPackage(asText(asRecord(member.packageJson)['name'])) && matchesGlob('src/**/*.e2e.spec.ts', file)
+
+// The member's own suite under the shipped configuration.
+const suite = (member: Member): GateResult => {
+  if (
+    coverageCandidates(presentWorkingTreeFiles(member.root), member.settings, member.siblingPaths, member.hasOwnRuntime)
+      .length === 0
+  ) {
     return passed('the member holds no source the floor measures, so there is no suite to run')
   }
   const vitest: string | undefined = memberVitest(member)
@@ -42,4 +55,19 @@ export const tests = (member: Member): GateResult => {
     'the suite passes and every measured file meets the coverage floor',
     'the suite failed, or a file is below the coverage floor',
   )
+}
+
+/** Every spec sits where a runner collects it, the suite passes, and every measured file meets the floor. */
+export const tests = (member: Member): GateResult => {
+  const files: readonly string[] = memberFiles(presentWorkingTreeFiles(member.root), member.siblingPaths).filter(
+    (file: string): boolean => !matchesAnyGlob(file, member.settings.generatedArtefacts),
+  )
+  const misplaced: readonly string[] = misplacedSpecs(
+    files.filter((file: string): boolean => !isShippedSpec(member, file)),
+    isBrowserApp(member),
+  )
+  if (misplaced.length > 0) {
+    return failed(`${String(misplaced.length)} spec file(s) no runner collects`, misplaced)
+  }
+  return suite(member)
 }

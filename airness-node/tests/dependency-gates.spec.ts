@@ -8,10 +8,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { GateResult } from '@/exec.js'
 import { installScripts } from '@/gate-install-scripts.js'
 import { npmInventory } from '@/gate-npm-inventory.js'
+import { npmSbom } from '@/gate-npm-sbom.js'
 import { releaseAge } from '@/gate-release-age.js'
 import { wiring } from '@/gate-wiring.js'
 import type { Member } from '@/project.js'
 import { installIntoStore, type StoredPackage } from './helpers/package-store.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 const NOW: number = Date.parse('2026-10-24T12:00:00Z')
@@ -68,7 +70,7 @@ const nested = (root: string): Member => ({ ...memberAt(root), path: 'gate' })
 
 const findingsOf = (result: GateResult): string => result.findings.join('\n')
 
-describe('wiring', () => {
+describe('wiring', PROCESS_TIME, () => {
   it('reads the parent versions airness:node-gate supplies, and fails a harness at another version', async () => {
     await withProject({ 'pnpm-lock.yaml': LOCKFILE }, (root: string): void => {
       process.env['AIRNESS_HARNESS_VERSIONS'] = '@airness/node=2.0.0'
@@ -113,7 +115,7 @@ describe('wiring', () => {
   })
 })
 
-describe('install-scripts', () => {
+describe('install-scripts', PROCESS_TIME, () => {
   it('passes a record that decides the one package with an install script, at the project root only', async () => {
     const files: Readonly<Record<string, string>> = {
       'pnpm-lock.yaml': lockfileWith([AGED, '  esbuild@0.25.0:\n    resolution: {integrity: sha512-ghi}']),
@@ -160,7 +162,7 @@ describe('install-scripts', () => {
   })
 })
 
-describe('npm-inventory', () => {
+describe('npm-inventory', PROCESS_TIME, () => {
   it('writes the inventory of every resolved package beside the result and lists it as evidence', async () => {
     await withProject({ 'pnpm-lock.yaml': LOCKFILE }, (root: string): void => {
       installIntoStore(root, INSTALLED)
@@ -183,6 +185,35 @@ describe('npm-inventory', () => {
       expect(npmInventory(memberAt(root), { evidenceDirectory: root }).ok).toBe(false)
       installIntoStore(root, [{ name: 'aged', version: '1.0.0' }])
       expect(findingsOf(npmInventory(memberAt(root), { evidenceDirectory: root }))).toContain(
+        '@airness/node@2.0.0 is resolved for this system but not installed',
+      )
+    })
+  })
+})
+
+describe('npm-sbom', PROCESS_TIME, () => {
+  it('writes the CycloneDX document of every resolved package beside the result and lists it as evidence', async () => {
+    await withProject({ 'pnpm-lock.yaml': LOCKFILE }, (root: string): void => {
+      expect(npmSbom(memberAt(root, { name: 'shop' }), { evidenceDirectory: root }).ok).toBe(false)
+      installIntoStore(root, INSTALLED)
+      const result: GateResult = npmSbom(memberAt(root, { name: 'shop', version: '1.0.0' }), {
+        evidenceDirectory: root,
+      })
+      expect(result.evidence).toEqual(['bom.cdx.json'])
+      const document: unknown = JSON.parse(readFileSync(path.join(root, 'bom.cdx.json'), 'utf8'))
+      expect(document).toMatchObject({
+        bomFormat: 'CycloneDX',
+        metadata: { component: { name: 'shop', version: '1.0.0' } },
+      })
+      expect(npmSbom(memberAt(root), { evidenceDirectory: undefined }).evidence).toBeUndefined()
+      expect(npmSbom(nested(root), { evidenceDirectory: root }).summary).toContain('project root')
+    })
+  })
+
+  it('fails when a package for every system is missing', async () => {
+    await withProject({ 'pnpm-lock.yaml': LOCKFILE }, (root: string): void => {
+      installIntoStore(root, [{ name: 'aged', version: '1.0.0' }])
+      expect(findingsOf(npmSbom(memberAt(root), { evidenceDirectory: root }))).toContain(
         '@airness/node@2.0.0 is resolved for this system but not installed',
       )
     })
@@ -226,7 +257,11 @@ afterAll(async (): Promise<void> => {
   })
 })
 
-describe('release-age', () => {
+// The lockfile with the harness resolved some other way than from the registry.
+const harnessFrom = (resolution: string): string =>
+  lockfileWith([AGED]).replace('    resolution: {integrity: sha512-abc}', (): string => `    resolution: ${resolution}`)
+
+describe('release-age', PROCESS_TIME, () => {
   it('passes releases older than the floor, read from the registry, and leaves the harness out', async () => {
     await withProject({ 'pnpm-lock.yaml': LOCKFILE, 'pnpm-workspace.yaml': WORKSPACE }, async (root: string) => {
       const result: GateResult = await releaseAge(memberAt(root), undefined, environment(), NOW)
@@ -269,6 +304,22 @@ describe('release-age', () => {
       expect(findings).toContain('forked@1.0.0 resolves from a git, which no registry dates')
       expect(findings).toContain('remote@1.0.0 resolves from a tarball (https://example.invalid/remote-1.0.0.tgz)')
     })
+  })
+
+  it('exempts a harness package from the age floor only, never from coming from a registry', async () => {
+    for (const resolution of [
+      '{commit: abc, repo: https://example.invalid/node.git, type: git}',
+      '{integrity: sha512-abc, tarball: https://example.invalid/node-2.0.0.tgz}',
+    ]) {
+      await withProject(
+        { 'pnpm-lock.yaml': harnessFrom(resolution), 'pnpm-workspace.yaml': WORKSPACE },
+        async (root) => {
+          const findings: string = findingsOf(await releaseAge(memberAt(root), undefined, environment(), NOW))
+          expect(findings).toContain('@airness/node@2.0.0 resolves from a ')
+          expect(findings).toContain('which no registry dates')
+        },
+      )
+    }
   })
 
   it('fails without a lockfile', async () => {

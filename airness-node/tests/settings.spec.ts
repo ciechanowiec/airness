@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACCESSIBILITY_ROUTE_BUDGET,
+  BUNDLE_BUDGET_BYTES,
   DEFAULT_SOURCE_ROOTS,
+  type DeclaredExclusion,
   findConvenienceExclusions,
   findUnreachedExclusions,
+  findUnreachedExclusionsBySetting,
   isHonouredExclusion,
+  LAYOUT_MINIMUM_GAP,
   readSettings,
   type Settings,
 } from '@/settings.js'
@@ -70,5 +75,91 @@ describe('an exclusion that reaches nothing', () => {
         'so it records a decision with no effect',
     ])
     expect(findUnreachedExclusions(settings.declaredExclusions, ['src/app/page.ts'])).toEqual([])
+  })
+})
+
+describe('the application settings', () => {
+  it('defaults every application setting to the strict end', () => {
+    expect(readSettings({})).toMatchObject({
+      serve: undefined,
+      serverUrl: 'http://localhost:3000',
+      bundleBudgetBytes: BUNDLE_BUDGET_BYTES,
+      accessibilitySkipRoutes: [],
+      accessibilityRouteBudget: ACCESSIBILITY_ROUTE_BUDGET,
+      layoutMinimumGap: LAYOUT_MINIMUM_GAP,
+      layoutViewports: [],
+      pureLogicRoots: [],
+    })
+  })
+
+  it('lets a project lower a ceiling and raise a floor, never the reverse', () => {
+    const lowered: Settings = readSettings({
+      airness: { bundleBudgetBytes: 1024, accessibilityRouteBudget: 10, layoutMinimumGap: 8 },
+    })
+    expect(lowered).toMatchObject({ bundleBudgetBytes: 1024, accessibilityRouteBudget: 10, layoutMinimumGap: 8 })
+    const raised: Settings = readSettings({
+      airness: { bundleBudgetBytes: BUNDLE_BUDGET_BYTES * 2, accessibilityRouteBudget: 1e6, layoutMinimumGap: 1 },
+    })
+    expect(raised).toMatchObject({
+      bundleBudgetBytes: BUNDLE_BUDGET_BYTES,
+      accessibilityRouteBudget: ACCESSIBILITY_ROUTE_BUDGET,
+      layoutMinimumGap: LAYOUT_MINIMUM_GAP,
+    })
+  })
+
+  it('reads the serve script, the origin, the viewports, the routes and the floor a project declares', () => {
+    const settings: Settings = readSettings({
+      airness: {
+        serve: 'preview',
+        serverUrl: 'http://localhost:4173',
+        layoutViewports: [
+          { width: 768, height: 1024 },
+          { width: 0, height: 1 },
+        ],
+        accessibilitySkipRoutes: [{ pattern: '/drafts', reason: 'unpublished pages' }, '/silent'],
+        pureLogicRoots: [{ pattern: 'src/domain/', reason: 'the pricing rules' }],
+      },
+    })
+    expect(settings).toMatchObject({
+      serve: 'preview',
+      serverUrl: 'http://localhost:4173',
+      layoutViewports: [{ width: 768, height: 1024 }],
+      accessibilitySkipRoutes: ['/drafts'],
+      accessibilityCustomSkipRoutes: ['/drafts'],
+      pureLogicRoots: ['src/domain'],
+    })
+  })
+
+  it('takes the floor and the skipped routes of a layer package beside the project ones', () => {
+    const settings: Settings = readSettings({}, [
+      {
+        generatedArtefacts: [],
+        frameworkGlue: [],
+        javascriptRuntimes: [],
+        pureLogicRoots: ['src/access'],
+        accessibilitySkipRoutes: ['/admin'],
+      },
+    ])
+    expect(settings).toMatchObject({
+      pureLogicRoots: ['src/access'],
+      accessibilitySkipRoutes: ['/admin'],
+      accessibilityCustomSkipRoutes: [],
+    })
+  })
+
+  it('judges a declared floor by the files below it, and never a route prefix', () => {
+    const entries: readonly DeclaredExclusion[] = readSettings({
+      airness: {
+        pureLogicRoots: [
+          { pattern: 'src/domain', reason: 'the pricing rules' },
+          { pattern: 'src/gone', reason: 'removed' },
+        ],
+        accessibilitySkipRoutes: [{ pattern: '/drafts', reason: 'unpublished pages' }],
+      },
+    }).declaredExclusions
+    expect(findUnreachedExclusionsBySetting(entries, ['src/domain/price.ts'])).toEqual([
+      'pureLogicRoots entry "src/gone" excludes nothing; it matches no file the gate would have judged, so it ' +
+        'records a decision with no effect',
+    ])
   })
 })

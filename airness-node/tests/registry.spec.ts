@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { type Lookup, publicationTimesOf } from '@/registry.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 
 // A registry on a local port, answering the way the npm registry answers a package document request, and
 // answering the private package only to the token it was given.
@@ -58,7 +59,7 @@ afterAll(async (): Promise<void> => {
   }
 })
 
-describe('publication times', () => {
+describe('publication times', PROCESS_TIME, () => {
   it('reads when each release was published from its own registry, a scoped name included', async () => {
     const lookups: readonly Lookup[] = await publicationTimesOf([
       { name: 'left-pad', version: '1.0.0', registry: registry() },

@@ -33,6 +33,8 @@ export const layerDefaultsOf = (manifest: unknown): LayerDefaults => {
     generatedArtefacts: texts(block['generatedArtefacts']),
     frameworkGlue: texts(block['frameworkGlue']),
     javascriptRuntimes: runtimes(block['javascriptAllowlist']),
+    pureLogicRoots: texts(block['pureLogicRoots']),
+    accessibilitySkipRoutes: texts(block['accessibilitySkipRoutes']),
   }
 }
 

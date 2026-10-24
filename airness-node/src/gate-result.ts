@@ -27,6 +27,17 @@ export interface MemberOutcome {
 
 const located = (member: string, line: string): string => (member === ROOT_MEMBER_PATH ? line : `${member}: ${line}`)
 
+// Not applicable only when no member had anything for the gate to judge: one member it applied to makes the
+// project's verdict a pass or a failure.
+const statusOf = (failing: readonly MemberOutcome[], outcomes: readonly MemberOutcome[]): GateStatus => {
+  if (failing.length > 0) {
+    return 'failed'
+  }
+  return outcomes.every((outcome: MemberOutcome): boolean => outcome.result.isApplicable === false)
+    ? 'not-applicable'
+    : 'passed'
+}
+
 /**
  * Combine every member's outcome into one result file. The gate passes only where every member passes,
  * and a failing member's findings name it. A passing member's findings are an informational report, and
@@ -43,7 +54,7 @@ export const resultOf = (gate: string, title: string, outcomes: readonly MemberO
     contract: RESULT_CONTRACT,
     gate,
     title,
-    status: failing.length > 0 ? 'failed' : 'passed',
+    status: statusOf(failing, outcomes),
     summary: reported
       .map((outcome: MemberOutcome): string => located(outcome.member, outcome.result.summary))
       .join('; '),

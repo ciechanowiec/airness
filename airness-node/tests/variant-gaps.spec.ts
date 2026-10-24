@@ -8,9 +8,10 @@ import { configReferences } from '@/gate-config-references.js'
 import { layerDefaultsOf } from '@/layer.js'
 import { matchesAnyGlob } from '@/source-selection.js'
 import { workingTreeFiles, workingTreeFingerprint } from '@/working-tree.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
-describe('the Biome selection', () => {
+describe('the Biome selection', PROCESS_TIME, () => {
   it('reads a member-wide source root and turns a generated directory into a directory exclusion', () => {
     const includes: readonly string[] = biomeIncludes(['.'], ['src/generated/**', 'src/client.ts'])
     expect(includes).toEqual(expect.arrayContaining(['**/*', '!src/generated', '!src/client.ts']))
@@ -33,22 +34,28 @@ describe('the Biome selection', () => {
   })
 })
 
-describe('a layer block', () => {
+describe('a layer block', PROCESS_TIME, () => {
   it('contributes nothing from fields of the wrong shape', () => {
     expect(
       layerDefaultsOf({ airness: { layer: { generatedArtefacts: 'src/types.ts', javascriptAllowlist: 'all' } } }),
-    ).toEqual({ generatedArtefacts: [], frameworkGlue: [], javascriptRuntimes: [] })
+    ).toEqual({
+      generatedArtefacts: [],
+      frameworkGlue: [],
+      javascriptRuntimes: [],
+      pureLogicRoots: [],
+      accessibilitySkipRoutes: [],
+    })
   })
 })
 
-describe('glob roles', () => {
+describe('glob roles', PROCESS_TIME, () => {
   it('matches a path against any of several globs', () => {
     expect(matchesAnyGlob('src/generated/api.ts', ['dist/**', 'src/generated/**'])).toBe(true)
     expect(matchesAnyGlob('src/total.ts', ['dist/**'])).toBe(false)
   })
 })
 
-describe('the working-tree fingerprint', () => {
+describe('the working-tree fingerprint', PROCESS_TIME, () => {
   it('records an untracked nested repository as a directory rather than reading into it', () => {
     const root: string = temporaryProject({ 'source.ts': 'export const value = 1\n' })
     try {
@@ -66,7 +73,7 @@ describe('the working-tree fingerprint', () => {
   })
 })
 
-describe('a coverage exclusion', () => {
+describe('a coverage exclusion', PROCESS_TIME, () => {
   it('must reach a file the floor would otherwise measure, and must say why', () => {
     const manifest: Readonly<Record<string, unknown>> = {
       airness: {
@@ -92,7 +99,7 @@ describe('a coverage exclusion', () => {
   })
 })
 
-describe('a blanket coverage exclusion', () => {
+describe('a blanket coverage exclusion', PROCESS_TIME, () => {
   it('is refused, because it switches the floor off rather than naming a role', () => {
     const manifest: Readonly<Record<string, unknown>> = {
       airness: { coverageExclude: [{ pattern: 'src/**', reason: 'every file' }] },

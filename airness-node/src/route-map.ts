@@ -1,0 +1,235 @@
+// Map Next.js route files to URL patterns for comparison with actual crawl results.
+
+/** A page a project's file tree declares, and the address it answers at. */
+export interface DeclaredRoute {
+  /** The file declaring it, relative to the member root. */
+  readonly file: string
+  /** The address, with dynamic segments left in their file-tree spelling. */
+  readonly route: string
+  /** Whether that address carries a dynamic segment, and so names a family rather than one page. */
+  readonly isDynamic: boolean
+}
+
+// Next.js reads a page from any of these; `pageExtensions` can add more, which is one of the reasons
+// the module comment above declines to guess at a configured project.
+const PAGE_FILES: ReadonlySet<string> = new Set<string>(['page.tsx', 'page.ts', 'page.jsx', 'page.js', 'page.mdx'])
+
+// A root layout is required of a Next.js application and of nothing else, so it is what tells an app
+// directory apart from a directory that happens to be called `app`.
+const ROOT_LAYOUTS: ReadonlySet<string> = new Set<string>(['layout.tsx', 'layout.ts', 'layout.jsx', 'layout.js'])
+
+// `src/app` first, because that is where a `src`-rooted application puts it and where a stray top-level
+// `app/` is least likely to be mistaken for one.
+const APP_ROOTS: readonly string[] = ['src/app', 'app']
+
+const ROOT_ROUTE: string = '/'
+
+const SEGMENT_SEPARATOR: string = '/'
+
+// Whether a path is the ROOT layout of a candidate app directory. Next.js requires one, and allows it
+// to sit inside route groups rather than at the top: an application that splits its site and its admin
+// panel into `(frontend)` and `(admin)` has no `src/app/layout.tsx` at all, because each group carries its
+// own. Requiring the top-level file found no app directory in such a project, and the check then passed by
+// doing nothing - which is the one way a rule like this fails that nobody notices.
+const isRootLayout = (path: string, root: string): boolean => {
+  const prefix: string = `${root}${SEGMENT_SEPARATOR}`
+  if (!path.startsWith(prefix)) {
+    return false
+  }
+  const segments: readonly string[] = path.slice(prefix.length).split(SEGMENT_SEPARATOR)
+  const addressed: readonly string[] = segments.filter((segment: string): boolean => !isRouteGroup(segment))
+  return addressed.length === 1 && ROOT_LAYOUTS.has(addressed[0] ?? '')
+}
+
+/**
+ * Which directory holds the application's routes.
+ *
+ * Chosen from the conventional two rather than searched for, and confirmed by the root layout Next.js
+ * requires, so a library with a `src/app` module of its own is not mistaken for an application.
+ * @param paths every file of the member, relative to its root, separated by forward slashes.
+ * @returns the app directory, or nothing when the member declares no routes.
+ */
+export const appRootOf = (paths: readonly string[]): string | undefined =>
+  APP_ROOTS.find((root: string): boolean => paths.some((path: string): boolean => isRootLayout(path, root)))
+
+// A segment wholly inside parentheses is a route group: it organises the tree and contributes nothing
+// to the address. `(.)photo` is not one - it is an intercepting route, and it opens with a parenthesis
+// without closing on one, which is exactly what tells the two apart.
+const isRouteGroup = (segment: string): boolean => segment.startsWith('(') && segment.endsWith(')')
+
+// `(.)`, `(..)`, `(...)` and `(..)(..)`, each followed by the segment being intercepted. A file behind
+// one of these declares no independently reachable address: on a hard navigation the INTERCEPTED route
+// renders instead, and that route has a declaration of its own. So the file is skipped rather than
+// mapped to an address no server serves.
+const isIntercepting = (segment: string): boolean => segment.startsWith('(') && !segment.endsWith(')')
+
+// A slot of a parallel route. Its own `page` file is the slot's default content, rendered by the
+// parent's layout rather than at an address of its own, so the segment is dropped and the address that
+// results is the parent's - which the parent already declares, and which the dedup below collapses.
+const isParallelSlot = (segment: string): boolean => segment.startsWith('@')
+
+// Next.js serves nothing from a folder whose name opens with an underscore.
+const isPrivate = (segment: string): boolean => segment.startsWith('_')
+
+const isDynamicSegment = (segment: string): boolean => segment.startsWith('[') && segment.endsWith(']')
+
+/**
+ * Strip a trailing slash, so an address written with one and an address written without are one.
+ *
+ * The crawl records whatever `URL.pathname` gave it and a link may be written either way, while a file
+ * tree never produces a trailing slash at all. Comparing the two without this reports every page of a
+ * project that sets `trailingSlash`.
+ * @param route the address to normalise.
+ * @returns the address without its trailing slash, and the root route unchanged.
+ */
+export const normalisedRoute = (route: string): string =>
+  route.length > 1 && route.endsWith(SEGMENT_SEPARATOR) ? route.slice(0, -1) : route
+
+/**
+ * The address one file answers at, if it declares a page at all.
+ * @param file the file, relative to the app directory.
+ * @returns the declared route, or nothing when the file declares no independently reachable address.
+ */
+export const declaredRouteOf = (file: string): DeclaredRoute | undefined => {
+  const parts: readonly string[] = file.split(SEGMENT_SEPARATOR)
+  if (!PAGE_FILES.has(parts.at(-1) ?? '')) {
+    return undefined
+  }
+  const directories: readonly string[] = parts.slice(0, -1)
+  if (directories.some((segment: string): boolean => isPrivate(segment) || isIntercepting(segment))) {
+    return undefined
+  }
+  const addressed: readonly string[] = directories.filter(
+    (segment: string): boolean => !(isRouteGroup(segment) || isParallelSlot(segment)),
+  )
+  return {
+    file,
+    route: addressed.length === 0 ? ROOT_ROUTE : `${SEGMENT_SEPARATOR}${addressed.join(SEGMENT_SEPARATOR)}`,
+    isDynamic: addressed.some((segment: string): boolean => isDynamicSegment(segment)),
+  }
+}
+
+/**
+ * Every address a member's file tree declares.
+ *
+ * Deduplicated by address, because a parallel route's slot and the page beside it reduce to the same
+ * one and reporting it twice would ask a project to answer for the same page under two file names.
+ * @param paths every file of the member, relative to its root, separated by forward slashes.
+ * @param appRoot the app directory, as `appRootOf` chose it.
+ * @returns one entry per declared address, in the order the paths were given.
+ */
+export const declaredRoutesOf = (paths: readonly string[], appRoot: string): readonly DeclaredRoute[] => {
+  const prefix: string = `${appRoot}${SEGMENT_SEPARATOR}`
+  const declared: readonly DeclaredRoute[] = paths.flatMap((file: string): DeclaredRoute[] => {
+    if (!file.startsWith(prefix)) {
+      return []
+    }
+    const found: DeclaredRoute | undefined = declaredRouteOf(file.slice(prefix.length))
+    return found === undefined ? [] : [{ ...found, file }]
+  })
+  return declared.filter(
+    (route: DeclaredRoute, index: number): boolean =>
+      declared.findIndex((other: DeclaredRoute): boolean => other.route === route.route) === index,
+  )
+}
+
+/**
+ * The part of an address before its first dynamic segment.
+ *
+ * What a specification can be searched for when the address itself cannot be: a spec never contains
+ * `/posts/[slug]`, it contains `/posts/` and then a value.
+ * @param route the declared address.
+ * @returns the leading static part, which is the root route when the first segment is dynamic.
+ */
+export const staticPrefixOf = (route: string): string => {
+  const segments: readonly string[] = route.split(SEGMENT_SEPARATOR).slice(1)
+  const upTo: number = segments.findIndex((segment: string): boolean => isDynamicSegment(segment))
+  const kept: readonly string[] = upTo === -1 ? segments : segments.slice(0, upTo)
+  return kept.length === 0 ? ROOT_ROUTE : `${SEGMENT_SEPARATOR}${kept.join(SEGMENT_SEPARATOR)}`
+}
+
+// An address as the segments it is made of, with the leading slash and any trailing one gone. The root
+// route is no segments at all, which is what lets an optional catch-all match it.
+const segmentsOf = (route: string): readonly string[] =>
+  normalisedRoute(route)
+    .split(SEGMENT_SEPARATOR)
+    .filter((segment: string): boolean => segment !== '')
+
+const isCatchAll = (segment: string): boolean => segment.startsWith('[...') && segment.endsWith(']')
+
+const isOptionalCatchAll = (segment: string): boolean => segment.startsWith('[[...') && segment.endsWith(']]')
+
+// Segment by segment, because a catch-all is the only one whose width is not one and Next.js allows it
+// only in the last position. Written as a recursion rather than a regular expression: the address a
+// project declares is attacker-adjacent text in no sense, but a pattern built by concatenation is one
+// nobody can read afterwards, and the whole point of this module is that its edge cases are legible.
+const matchesSegments = (pattern: readonly string[], actual: readonly string[]): boolean => {
+  const [head, ...rest] = pattern
+  if (head === undefined) {
+    return actual.length === 0
+  }
+  if (isOptionalCatchAll(head)) {
+    return true
+  }
+  if (isCatchAll(head)) {
+    return actual.length > 0
+  }
+  return isDynamicSegment(head)
+    ? actual.length > 0 && matchesSegments(rest, actual.slice(1))
+    : actual[0] === head && matchesSegments(rest, actual.slice(1))
+}
+
+/**
+ * Whether a declared pattern admits one visited address.
+ *
+ * This matches patterns independently. Use `resolvedRouteOf` to select the rendered page when
+ * several declarations admit the same URL.
+ * @param route the declared address, dynamic segments in their file-tree spelling.
+ * @param visited an address the crawl reached.
+ * @returns true when the pattern admits the address; resolve overlaps before crediting coverage.
+ */
+export const matchesRoute = (route: string, visited: string): boolean =>
+  matchesSegments(segmentsOf(route), segmentsOf(visited))
+
+const EXACT_SPECIFICITY: number = 5
+const STATIC_SPECIFICITY: number = 4
+const DYNAMIC_SPECIFICITY: number = 3
+const CATCH_ALL_SPECIFICITY: number = 2
+const OPTIONAL_SPECIFICITY: number = 1
+
+const segmentSpecificity = (segment: string | undefined): number => {
+  if (segment === undefined) {
+    return EXACT_SPECIFICITY
+  }
+  if (isOptionalCatchAll(segment)) {
+    return OPTIONAL_SPECIFICITY
+  }
+  if (isCatchAll(segment)) {
+    return CATCH_ALL_SPECIFICITY
+  }
+  return isDynamicSegment(segment) ? DYNAMIC_SPECIFICITY : STATIC_SPECIFICITY
+}
+
+// Next selects the most specific branch at the first differing segment, not the route with the
+// largest total number of static segments. An exact endpoint also precedes an optional tail.
+const compareSpecificity = (left: readonly string[], right: readonly string[]): number => {
+  const difference: number = segmentSpecificity(left[0]) - segmentSpecificity(right[0])
+  return difference !== 0 || left.length === 0 ? difference : compareSpecificity(left.slice(1), right.slice(1))
+}
+
+/**
+ * Select the declaration rendered by a URL among the supported Next route patterns.
+ * @param routes the complete declared set, including routes excluded from the sweep.
+ * @param visited the requested URL path.
+ * @returns the most specific matching declaration, or nothing when no pattern matches.
+ */
+export const resolvedRouteOf = (routes: readonly DeclaredRoute[], visited: string): DeclaredRoute | undefined =>
+  routes
+    .filter((route: DeclaredRoute): boolean => matchesRoute(route.route, visited))
+    .reduce<DeclaredRoute | undefined>(
+      (selected: DeclaredRoute | undefined, route: DeclaredRoute): DeclaredRoute | undefined =>
+        selected === undefined || compareSpecificity(segmentsOf(route.route), segmentsOf(selected.route)) > 0
+          ? route
+          : selected,
+      undefined,
+    )

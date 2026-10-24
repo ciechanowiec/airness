@@ -70,23 +70,71 @@ export const registryFor = (config: NpmConfig, name: string): string => {
   return withSlash(scoped ?? config.get('registry') ?? DEFAULT_REGISTRY)
 }
 
+const TOKEN_SUFFIX: string = ':_authToken'
+
+/** Where a credential applies: a host, with its port when it names one, and a path below it. */
+interface CredentialScope {
+  readonly host: string
+  readonly segments: readonly string[]
+}
+
+const segmentsOf = (pathname: string): readonly string[] =>
+  pathname.split('/').filter((segment: string): boolean => segment.length > 0)
+
+// A key is nerf-darted: `//host[:port]/path/:_authToken`, the scheme left out. Anything else names no scope.
+const scopeOfKey = (key: string): CredentialScope | undefined => {
+  if (!(key.startsWith('//') && key.endsWith(TOKEN_SUFFIX))) {
+    return undefined
+  }
+  const location: string = key.slice('//'.length, -TOKEN_SUFFIX.length)
+  const slash: number = location.indexOf('/')
+  const host: string = (slash === -1 ? location : location.slice(0, slash)).toLowerCase()
+  return host.length > 0 ? { host, segments: segmentsOf(slash === -1 ? '' : location.slice(slash)) } : undefined
+}
+
+const isCovered = (scope: CredentialScope, host: string, segments: readonly string[]): boolean =>
+  scope.host === host && scope.segments.every((segment: string, index: number): boolean => segments[index] === segment)
+
 /**
- * The token configured for a registry, matched on the longest `//host/path/:_authToken` prefix of its URL.
+ * The token configured for a registry: the `//host/path/:_authToken` whose host and port equal the registry's
+ * exactly and whose path is the longest run of whole leading segments of the registry's path. No token is
+ * sent to a registry reached over plain HTTP, where anyone on the way could read it.
  * @param config the configuration.
  * @param registry the registry URL.
- * @returns the token, or undefined when none is configured.
+ * @returns the token, or undefined when none applies.
  */
 export const tokenFor = (config: NpmConfig, registry: string): string | undefined => {
-  const location: string = registry.replace(/^https?:/u, '')
+  const url: URL | undefined = URL.canParse(registry) ? new URL(registry) : undefined
+  if (url?.protocol !== 'https:') {
+    return undefined
+  }
+  const segments: readonly string[] = segmentsOf(url.pathname)
   return [...config]
-    .filter(([key]: readonly [string, string]): boolean => key.endsWith(':_authToken'))
-    .map(([key, value]: readonly [string, string]): readonly [string, string] => [
-      key.slice(0, -':_authToken'.length),
-      value,
-    ])
-    .filter(([prefix]: readonly [string, string]): boolean => location.startsWith(prefix))
+    .flatMap(([key, value]: readonly [string, string]): readonly (readonly [CredentialScope, string])[] => {
+      const scope: CredentialScope | undefined = scopeOfKey(key)
+      return scope !== undefined && isCovered(scope, url.host, segments) ? [[scope, value]] : []
+    })
     .toSorted(
-      (left: readonly [string, string], right: readonly [string, string]): number => right[0].length - left[0].length,
+      (left: readonly [CredentialScope, string], right: readonly [CredentialScope, string]): number =>
+        right[0].segments.length - left[0].segments.length,
     )
-    .map(([, value]: readonly [string, string]): string => value)[0]
+    .map(([, value]: readonly [CredentialScope, string]): string => value)[0]
 }
+
+/** What the lockfile records of where a package comes from. */
+export interface RegistryResolution {
+  readonly name: string
+  readonly source: string
+  readonly tarball: string
+}
+
+/**
+ * Whether a package resolves from the registry configured for it: by name, or as a tarball below that
+ * registry's URL, which pnpm records for a registry other than the default one.
+ * @param config the configuration.
+ * @param resolved how the lockfile resolves the package.
+ * @returns true when a registry serves the package.
+ */
+export const isFromItsRegistry = (config: NpmConfig, resolved: RegistryResolution): boolean =>
+  resolved.source === 'registry' ||
+  (resolved.source === 'tarball' && resolved.tarball.startsWith(registryFor(config, resolved.name)))

@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 /**
  * Which parent binds which rule, written out so that moving a rule between them is a visible decision.
@@ -23,6 +25,7 @@ import org.w3c.dom.Element;
 class ParentPlacementTest {
 
     private static final String AIRNESS = "airness-maven-plugin:";
+    private static final String PROFILE = "profile";
 
     @Test
     void bindsOnlyRepositoryRulesInTheGenericParent() {
@@ -103,17 +106,29 @@ class ParentPlacementTest {
                 "node-gate-wiring@prepare-package", "node-gate-npm-inventory@prepare-package", "node-gate-types@verify",
                 "node-gate-biome@verify", "node-gate-oxlint@verify", "node-gate-eslint@verify",
                 "node-gate-source-rules@verify", "node-gate-config-refs@verify",
-                "node-gate-javascript-allowlist@verify", "node-gate-arch@verify", "node-gate-type-coverage@verify",
-                "node-gate-knip@verify", "node-gate-tests@verify", "node-gate-install-scripts@verify",
-                "node-gate-release-age@verify"
+                "node-gate-javascript-allowlist@verify", "node-gate-css@verify", "node-gate-tailwind-tokens@verify",
+                "node-gate-arch@verify", "node-gate-type-coverage@verify", "node-gate-knip@verify",
+                "node-gate-tests@verify", "node-gate-install-scripts@verify", "node-gate-release-age@verify",
+                "extended:node-gate-npm-sbom@prepare-package", "extended:node-gate-build@verify",
+                "extended:node-gate-bundle@verify", "extended:node-gate-e2e@verify"
             ),
             gates,
-            "wiring judges the harness before npm-inventory writes evidence the package-phase policies read"
+            "wiring judges the harness before npm-inventory writes evidence the package-phase policies read, the "
+                + "facet gates of Default run beside the core gates, and the Extended ones only in its profile"
         );
     }
 
     private static String idAtPhase(Element execution) {
-        return Xml.text(execution, "id").orElseThrow() + '@' + Xml.text(execution, "phase").orElseThrow();
+        return profileOf(execution).map(profile -> profile + ':').orElse("")
+            + Xml.text(execution, "id").orElseThrow() + '@' + Xml.text(execution, "phase").orElseThrow();
+    }
+
+    private static Optional<String> profileOf(Node node) {
+        return Optional.ofNullable(node.getParentNode()).flatMap(
+            parent -> parent instanceof Element element && PROFILE.equals(element.getTagName())
+                ? Xml.text(element, "id")
+                : profileOf(parent)
+        );
     }
 
     private static boolean runsNodeGate(Element execution) {

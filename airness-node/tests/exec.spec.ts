@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { fromRun, type GateResult, type RunResult, runNode } from '@/exec.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 
 const CWD: string = process.cwd()
 
 const script = (source: string, options: { readonly input?: string; readonly timeoutMs?: number } = {}): RunResult =>
   runNode('-e', [source], { cwd: CWD, ...options })
 
-describe('running a tool', () => {
+describe('running a tool', PROCESS_TIME, () => {
   it('keeps standard output apart from the combined output', () => {
     const result: RunResult = script('process.stdout.write("out"); process.stderr.write("err")')
     expect(result).toEqual({ code: 0, output: 'outerr', stdout: 'out' })
@@ -31,7 +32,7 @@ describe('running a tool', () => {
   })
 })
 
-describe('a tool run as a gate result', () => {
+describe('a tool run as a gate result', PROCESS_TIME, () => {
   it('passes on a zero exit and fails with the output, or a marker for none, otherwise', () => {
     expect(fromRun({ code: 0, output: '', stdout: '' }, 'held', 'broken').ok).toBe(true)
     const silent: GateResult = fromRun({ code: 1, output: '', stdout: '' }, 'held', 'broken')

@@ -7,7 +7,8 @@ import { HARNESS_VERSIONS_VARIABLE, readHarnessVersions } from './harness-packag
 import { rewriteFindings } from './install-config.js'
 import { installConfigOf } from './install-config-files.js'
 import { asStringRecord, readKey } from './json-shapes.js'
-import { LOCKFILE, type Lockfile, readLockfile } from './lockfile.js'
+import { LOCKFILE, type Lockfile, type ResolvedPackage, readLockfile } from './lockfile.js'
+import { isFromItsRegistry, type NpmConfig, npmConfigOf } from './npmrc.js'
 import { harnessDirectory, type Member, readJson, readText } from './project.js'
 import { wiringFindings } from './wiring-policy.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
@@ -25,6 +26,7 @@ const harnessPins = (): Readonly<Record<string, string>> => {
 export const wiring = (member: Member): GateResult => {
   const text: string | undefined = readText(path.join(member.projectRoot, LOCKFILE))
   const lockfile: Lockfile | undefined = text === undefined ? undefined : readLockfile(text)
+  const config: NpmConfig = npmConfigOf(member.projectRoot)
   const findings: readonly string[] = wiringFindings({
     memberPath: member.path,
     manifest: member.packageJson,
@@ -32,8 +34,14 @@ export const wiring = (member: Member): GateResult => {
     rewrites: [...rewriteFindings(installConfigOf(member.projectRoot)), ...(lockfile?.rewrites ?? [])],
     expected: readHarnessVersions(process.env[HARNESS_VERSIONS_VARIABLE]),
     pins: harnessPins(),
+    isFromItsRegistry: (resolved: ResolvedPackage): boolean => isFromItsRegistry(config, resolved),
     hasSource:
-      coverageCandidates(presentWorkingTreeFiles(member.root), member.settings, member.siblingPaths).length > 0,
+      coverageCandidates(
+        presentWorkingTreeFiles(member.root),
+        member.settings,
+        member.siblingPaths,
+        member.hasOwnRuntime,
+      ).length > 0,
   })
   return findings.length > 0
     ? failed(`${String(findings.length)} wiring defect(s)`, findings)

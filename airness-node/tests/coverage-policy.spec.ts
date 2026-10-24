@@ -56,3 +56,25 @@ describe('the coverage floor', () => {
     ])
   })
 })
+
+describe('the coverage floor of a Next.js application', () => {
+  const files: readonly string[] = [
+    'src/app/page.tsx',
+    'src/app/blog/[slug]/layout.tsx',
+    'src/app/api/route.ts',
+    'src/app/blog/card.tsx',
+    'src/proxy.ts',
+    'src/price.ts',
+  ]
+
+  it('leaves the pages the crawl renders and the proxy to the e2e gate, and measures route handlers', () => {
+    const measured: readonly string[] = ['src/app/api/route.ts', 'src/app/blog/card.tsx', 'src/price.ts']
+    expect(coverageCandidates(files, readSettings({}), [], true)).toEqual(measured)
+    expect(measurableFiles(files, readSettings({}), [], true)).toEqual(measured)
+    expect(coverageExclusions(readSettings({}), true)).toContain('src/proxy.ts')
+  })
+
+  it('measures the same files in a member that is no Next.js application', () => {
+    expect(coverageCandidates(files, readSettings({}), [])).toEqual(files)
+  })
+})

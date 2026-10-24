@@ -21,10 +21,11 @@ import {
   typeAwareParsing,
   vitestPlugin,
 } from './eslint-core.js'
+import { END_TO_END_FILES, endToEndBlocks, nextBlocks } from './eslint-next.js'
 import { cloudFrontBlock } from './eslint-runtime.js'
 import { JAVASCRIPT_EXTENSIONS, TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
-import { projectDirectory, projectSettings as settings } from './project-settings.js'
+import { isBrowserProject, isNextProject, projectDirectory, projectSettings as settings } from './project-settings.js'
 import { REEXPORT_CONFIG_FILES } from './settings.js'
 
 // The allowlisted files whose entry declares the CloudFront runtime.
@@ -33,7 +34,8 @@ const isCloudFrontFile: (filePath: string) => boolean = allowlistedJavaScript(
   projectDirectory,
 )
 
-const IGNORED: readonly string[] = ['dist/**', 'node_modules/**', 'coverage/**', '.next/**']
+// `next-env.d.ts` is the ambient declaration file `next build` writes and rewrites, whatever a project keeps.
+const IGNORED: readonly string[] = ['dist/**', 'node_modules/**', 'coverage/**', '.next/**', 'next-env.d.ts']
 
 // `unicorn/prefer-export-from` rewrites `import x from 'y'` + `export default x` into
 // `export { default } from 'y'` - and it AUTOFIXES, so a format run turned a correctly wired
@@ -84,6 +86,8 @@ const config: ReturnType<typeof compose> = compose(
   // gap is about serving an application, which is the only thing this config is meant to differ about.
   {
     files: ['tests/**'],
+    // The end-to-end specs are Playwright's, held to the browser-application facet's block below instead.
+    ignores: [...END_TO_END_FILES],
     plugins: { vitest: vitestPlugin },
     rules: {
       ...testIdiomRules,
@@ -91,6 +95,8 @@ const config: ReturnType<typeof compose> = compose(
       ...testSuiteSyntaxRules,
     },
   } satisfies FlatConfigBlock,
+  ...(isNextProject ? nextBlocks : []),
+  ...(isBrowserProject ? endToEndBlocks : []),
   reexportConfigBlock,
   commonJavaScriptBlock(settings.javascriptAllowlist, projectDirectory),
   commonTypeScriptBlock(),

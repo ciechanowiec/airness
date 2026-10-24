@@ -39,7 +39,8 @@ final class AssetPlan {
                 Collectors.toMap(
                     placement -> placement.file() + '\t' + placement.asset().owner(),
                     Function.identity(),
-                    // NODE_PROJECT is declared after ROOT, so the greater location is the more specific one.
+                    // Locations are declared from the general to the specific (ROOT, NODE_PROJECT,
+                    // NEXT_PROJECT), so the greater location is the more specific one.
                     BinaryOperator.maxBy(Comparator.comparing(placement -> placement.asset().location())),
                     LinkedHashMap::new
                 )

@@ -53,6 +53,13 @@ POM
         expect_file_match "${node_library}/target/airness/node/module/${node_gate}.json" \
             "node gates: ${node_gate} writes its result in the contract" "\"gate\": \"${node_gate}\""
     done
+    # The facets the library does not have read as not applicable, never as a pass.
+    for node_gate in ${node_facet_gates}; do
+        expect_match node_library "node gates: ${node_gate} runs through node-gate and has nothing to judge" \
+            "Node gate ${node_gate} in [.] not applicable"
+        expect_file_match "${node_library}/target/airness/node/module/${node_gate}.json" \
+            "node gates: ${node_gate} writes not-applicable in the contract" '"status": "not-applicable"'
+    done
     expect_file_match "${node_library}/target/airness/node/module/npm-inventory.json" \
         'node gates: npm-inventory lists its evidence in the result' '"dependencies[.]json"'
     expect_file_match "${node_library}/target/airness/node/module/dependencies.json" \
@@ -72,6 +79,8 @@ POM
     printf "import { first } from './cycle-first.js'\n\nexport const second = (): number => first()\n" \
         > "${node_library}/src/cycle-second.ts"
     printf 'export const loose = (value: any): number => value.length\n' > "${node_library}/src/loose.ts"
+    printf 'a {\n  colr: red;\n}\n' > "${node_library}/src/site.css"
+    printf 'export const Badge = (): unknown => <span className="p-4 bg-[#0a7]" />\n' > "${node_library}/src/badge.tsx"
     printf "import { expect, it } from 'vitest'\nimport { total } from '@/total.js'\n\n%s\n" \
         "it('adds wrongly', () => {
   expect(total(1, 1)).toBe(3)
@@ -87,6 +96,7 @@ path = sys.argv[1]
 with open(path, encoding='utf-8') as manifest:
     document = json.load(manifest)
 document['devDependencies']['typescript'] = '6.0.2'
+document['devDependencies']['tailwindcss'] = '4.3.3'
 document['airness'] = {
     'generatedArtefacts': [{'pattern': 'src/generated/**', 'reason': 'the API client generator writes it'}]
 }
@@ -115,11 +125,15 @@ PY
     expect_match node_library_report 'node gates: type-coverage reports the explicit any' 'src/loose[.]ts'
     expect_match node_library_report 'node gates: knip reports the unused file' 'src/legacy[.]js'
     expect_match node_library_report 'node gates: tests reports the failing spec' 'tests/wrong[.]spec[.]ts'
+    expect_match node_library_report 'node gates: css reports the Stylelint finding' \
+        'Unknown property "colr".*property-no-unknown'
+    expect_match node_library_report 'node gates: tailwind-tokens reports the arbitrary value of a Tailwind project' \
+        'src/badge[.]tsx:1:.* arbitrary Tailwind value `-\[#0a7\]`'
     expect_match node_library_report 'node gates: install-scripts reports the decision about nothing' \
         'allowBuilds[.]left-pad names no installed dependency that runs an install script'
     expect_match node_library_report 'node gates: release-age reports the lenient floor' \
         'minimumReleaseAgeStrict: must be true'
-    for node_gate in ${node_gates}; do
+    for node_gate in ${node_gates} ${node_facet_gates}; do
         if [ "${node_gate}" = npm-inventory ]; then
             continue
         fi
@@ -133,9 +147,11 @@ PY
         'Node gate wiring in [.] failed'
 }
 
-# Every gate airness-parent binds, in the order the result files are asserted.
+# Every Default gate airness-parent binds that applies to every node project, in the order the result files are
+# asserted, and the Default facet gates, which a library without their facet reads as not applicable.
 node_gates='wiring types biome oxlint eslint source-rules config-refs javascript-allowlist arch type-coverage knip
 tests install-scripts release-age npm-inventory'
+node_facet_gates='css tailwind-tokens'
 
 # Starts, once per process, the registry that serves the @airness/node tarball this reactor packed and the
 # fixtures' scripted packages. It stops on its own once the shell that started it is gone.
@@ -189,4 +205,95 @@ install_airness_node() {
         cat "${install_log}" >&2
         exit 1
     fi
+}
+
+# The facets of a Next.js application, run by node-gate in a pure TypeScript module whose parent is
+# airness-parent-node. One clean Default build proves the stylesheet facet applies, the Tailwind facet does
+# not, the Next.js lint, type and coverage rules accept a conforming application, and the assets goal seeds the
+# proxy into the node project because it declares next. The Extended gates then run as the bound executions of
+# the extended profile, by their ids, without the rest of that profile: the SBOM, the production build, the
+# client bundle and the end-to-end suite pass. A report-only run of the same executions after a validate, with
+# a faint paragraph added and the budget lowered, proves the accessibility sweep and the budget reach their
+# findings (a header defect would stop the sweep at its own header check first, so the header rule is proven by
+# Vitest), and that node-projects passes over the package.json the build wrote under .next. The
+# variants are unit-tested by the Vitest suite of airness-node.
+run_node_next_cases() {
+    node_next="${scratch}/node-next"
+    mkdir -p "${node_next}"
+    cp -R "${repository}/airness-it/fixtures/node-next/." "${node_next}/"
+    install_airness_node "${node_next}"
+    cat > "${node_next}/pom.xml" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent-node</artifactId>
+        <version>1.0.8-SNAPSHOT</version>
+    </parent>
+    <groupId>com.example</groupId>
+    <artifactId>site</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <properties>
+        <airness.package.root>com.example</airness.package.root>
+    </properties>
+</project>
+POM
+    git -C "${node_next}" init --quiet
+    git -C "${node_next}" config user.name Fixture
+    git -C "${node_next}" config user.email fixture@example.invalid
+    prepare_maven node_next_assets node "${node_next}" --quiet airness:assets-sync
+    git -C "${node_next}" add --all
+    git -C "${node_next}" commit --quiet \
+        --message 'test(it): create a Next.js application fixture' \
+        --message 'The fixture proves the facet gates are bound in the installed node parent.'
+
+    expect_file_match "${node_next}/src/proxy.ts" 'node next: the assets goal seeds the proxy of a Next.js application' \
+        "response[.]headers[.]set[(]'x-content-type-options', 'nosniff'[)]"
+    run_maven node_next node "${node_next}" clean verify
+    expect_exit node_next 'node next: a conforming Next.js application passes Default verification' 0
+    expect_match node_next 'node next: the stylesheet facet applies and passes' 'Node gate css in [.] passed'
+    expect_match node_next 'node next: the Tailwind facet does not apply without tailwindcss' \
+        'Node gate tailwind-tokens in [.] not applicable'
+    expect_match node_next 'node next: the suite leaves the App Router entry points and the proxy to e2e' \
+        'Node gate tests in [.] passed'
+
+    run_maven node_next_extended node "${node_next}" -Pextended airness:node-gate@node-gate-npm-sbom \
+        airness:node-gate@node-gate-build airness:node-gate@node-gate-bundle airness:node-gate@node-gate-e2e
+    expect_exit node_next_extended 'node next: the Extended facet gates pass a conforming Next.js application' 0
+    for node_gate in npm-sbom build bundle e2e; do
+        expect_match node_next_extended "node next: ${node_gate} runs through node-gate and passes" \
+            "Node gate ${node_gate} in [.] passed"
+    done
+    expect_file_match "${node_next}/target/airness/node/module/npm-sbom.json" \
+        'node next: npm-sbom lists its evidence in the result' '"bom[.]cdx[.]json"'
+    expect_file_match "${node_next}/target/airness/node/module/bom.cdx.json" \
+        'node next: the SBOM is CycloneDX and names the resolved next by its package URL' '"pkg:npm/next@16[.]4[.]2"'
+    expect_match node_next_extended 'node next: the bundle gate measures the build' 'client JavaScript .* gzipped'
+
+    sed "s|<h1>|<p style={{ color: '#c8c8c8' }}>Faint</p>\\n      <h1>|" "${node_next}/src/app/page.tsx" \
+        > "${node_next}/src/app/page.tsx.planted"
+    mv "${node_next}/src/app/page.tsx.planted" "${node_next}/src/app/page.tsx"
+    python3 - "${node_next}/package.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as manifest:
+    document = json.load(manifest)
+document['airness']['bundleBudgetBytes'] = 1
+with open(path, 'w', encoding='utf-8') as manifest:
+    json.dump(document, manifest, indent=2)
+    manifest.write('\n')
+PY
+    run_maven node_next_report node "${node_next}" -Pextended -Dairness.enforce=false validate \
+        airness:node-gate@node-gate-build airness:node-gate@node-gate-bundle airness:node-gate@node-gate-e2e
+    expect_exit node_next_report 'node next: report-only mode prints the planted facet findings' 0
+    expect_no_match node_next_report 'node next: node-projects passes over the package.json the build wrote' \
+        'no gate checks'
+    expect_match node_next_report 'node next: bundle reports a client bundle over the lowered budget' \
+        'is over budget'
+    expect_match node_next_report 'node next: the shipped accessibility sweep reports the faint text' 'color-contrast'
+    expect_match node_next_report 'node next: e2e fails on its planted defect' 'Node gate e2e in [.] failed'
 }

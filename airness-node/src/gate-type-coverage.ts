@@ -15,6 +15,10 @@ const TYPE_COVERAGE_IGNORE: readonly string[] = [
   '*.config.ts',
   '*.config.mts',
   '*.config.mjs',
+  // What `next build` writes beside the sources: the route types it generates under `.next`, which the
+  // tsconfig a Next.js application carries includes, and its ambient declaration file. Neither is hand-written.
+  '.next/**',
+  'next-env.d.ts',
 ]
 
 const JSON_INDENT: number = 2

@@ -21,6 +21,11 @@ export interface GateResult {
   readonly output?: string
   /** Files the gate wrote beside its result for the repository's rules to read, by plain file name. */
   readonly evidence?: readonly string[]
+  /**
+   * False when the member lacks what the gate judges, such as a facet's framework; the result then reads as
+   * not applicable rather than as a pass. Absent means the gate applied.
+   */
+  readonly isApplicable?: false
 }
 
 /** What a gate run knows beyond the member it judges. */
@@ -34,6 +39,18 @@ export const passed = (summary: string, findings: readonly string[] = []): GateR
   ok: true,
   findings,
   summary,
+})
+
+/**
+ * A result for a member that lacks what the gate judges, which reads as not applicable rather than as a pass.
+ * @param summary why the gate does not apply here.
+ * @returns a passing result marked not applicable.
+ */
+export const notApplicable = (summary: string): GateResult => ({
+  ok: true,
+  findings: [],
+  summary,
+  isApplicable: false,
 })
 
 /** A failing result carrying the findings the user must act on. */

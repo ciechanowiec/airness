@@ -37,21 +37,36 @@ export const coverageIncludes = (sourceRoots: readonly string[]): readonly strin
     EXECUTABLE_EXTENSIONS.map((extension: string): string => `${rootPrefix(root)}**/*${extension}`),
   )
 
-// The roles no setting can change, and the files a generator or a framework owns.
-const roleExclusions = (settings: Settings): readonly string[] => [
+// The App Router files the e2e crawl renders on every page it audits, and the proxy every response it reads
+// passes through, which the security-header spec judges. They are framework glue the running application
+// verifies. Route handlers, metadata routes and the error, forbidden and unauthorized boundaries are not driven
+// by any shipped spec, so they stay under the floor like any other logic; so do colocated helpers and
+// components.
+const APP_ENTRY_NAMES: readonly string[] = ['page', 'layout', 'template', 'loading', 'not-found']
+
+const NEXT_ENTRY_EXCLUDE: readonly string[] = [
+  ...APP_ENTRY_NAMES.flatMap((name: string): readonly string[] => [`src/app/**/${name}.ts`, `src/app/**/${name}.tsx`]),
+  'src/proxy.ts',
+]
+
+// The roles no setting can change, the files a generator or a framework owns, and a Next.js application's
+// entry points.
+const roleExclusions = (settings: Settings, isNextApp: boolean): readonly string[] => [
   ...COVERAGE_ROLE_EXCLUDE,
   ...settings.generatedArtefacts,
   ...settings.frameworkGlue,
+  ...(isNextApp ? NEXT_ENTRY_EXCLUDE : []),
 ]
 
 /**
  * The globs the floor never measures: the invariant roles, the files a generator or a framework owns, and
  * the files the member's `coverageExclude` names by role.
  * @param settings the member's settings.
+ * @param isNextApp whether the member is a Next.js application, whose entry points the e2e gate verifies.
  * @returns the exclusion globs.
  */
-export const coverageExclusions = (settings: Settings): readonly string[] => [
-  ...roleExclusions(settings),
+export const coverageExclusions = (settings: Settings, isNextApp: boolean = false): readonly string[] => [
+  ...roleExclusions(settings, isNextApp),
   ...settings.coverageExclude,
 ]
 
@@ -65,15 +80,17 @@ const isMeasurable = (file: string, settings: Settings, exclusions: readonly str
  * @param files the member-relative paths of the files a commit would carry.
  * @param settings the member's settings.
  * @param siblingPaths the members nested inside this one.
+ * @param isNextApp whether the member is a Next.js application, whose entry points the e2e gate verifies.
  * @returns the measurable files.
  */
 export const measurableFiles = (
   files: readonly string[],
   settings: Settings,
   siblingPaths: readonly string[],
+  isNextApp: boolean = false,
 ): readonly string[] =>
   memberFiles(files, siblingPaths).filter((file: string): boolean =>
-    isMeasurable(file, settings, roleExclusions(settings)),
+    isMeasurable(file, settings, roleExclusions(settings, isNextApp)),
   )
 
 /**
@@ -81,15 +98,17 @@ export const measurableFiles = (
  * @param files the member-relative paths of the files a commit would carry.
  * @param settings the member's settings.
  * @param siblingPaths the members nested inside this one.
+ * @param isNextApp whether the member is a Next.js application, whose entry points the e2e gate verifies.
  * @returns the measured files.
  */
 export const coverageCandidates = (
   files: readonly string[],
   settings: Settings,
   siblingPaths: readonly string[],
+  isNextApp: boolean = false,
 ): readonly string[] =>
   memberFiles(files, siblingPaths).filter((file: string): boolean =>
-    isMeasurable(file, settings, coverageExclusions(settings)),
+    isMeasurable(file, settings, coverageExclusions(settings, isNextApp)),
   )
 
 /**

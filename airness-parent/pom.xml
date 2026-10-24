@@ -444,6 +444,33 @@
                             <command>airness-node gate javascript-allowlist</command>
                         </configuration>
                     </execution>
+                    <!--
+                        The stylesheet and Tailwind facets. Each runs in every node project and reads as not
+                        applicable where its facet is absent: a member without a stylesheet, or one that does not
+                        declare tailwindcss.
+                    -->
+                    <execution>
+                        <id>node-gate-css</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>css</gate>
+                            <command>airness-node gate css</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-tailwind-tokens</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>tailwind-tokens</gate>
+                            <command>airness-node gate tailwind-tokens</command>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>node-gate-arch</id>
                         <phase>verify</phase>
@@ -711,6 +738,58 @@
                                     <goal>docker</goal>
                                     <goal>actions</goal>
                                 </goals>
+                            </execution>
+                            <!--
+                                The npm software bill of materials of every declared node project, at prepare-
+                                package beside the Default inventory, so the package-phase policies and the closing
+                                step can read it. Then the Next.js facet's production build and client bundle
+                                budget, and the browser-application facet's end-to-end suite, in that order, since
+                                the suite serves the build. Each reads as not applicable in a node project without
+                                its facet.
+                            -->
+                            <execution>
+                                <id>node-gate-npm-sbom</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>node-gate</goal>
+                                </goals>
+                                <configuration>
+                                    <gate>npm-sbom</gate>
+                                    <command>airness-node gate npm-sbom</command>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>node-gate-build</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>node-gate</goal>
+                                </goals>
+                                <configuration>
+                                    <gate>build</gate>
+                                    <command>airness-node gate build</command>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>node-gate-bundle</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>node-gate</goal>
+                                </goals>
+                                <configuration>
+                                    <gate>bundle</gate>
+                                    <command>airness-node gate bundle</command>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>node-gate-e2e</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>node-gate</goal>
+                                </goals>
+                                <configuration>
+                                    <gate>e2e</gate>
+                                    <command>airness-node gate e2e</command>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>

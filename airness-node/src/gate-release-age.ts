@@ -5,9 +5,10 @@ import path from 'node:path'
 import { failed, type GateContext, type GateResult, passed } from './exec.js'
 import { isHarnessPackage } from './harness-packages.js'
 import { LOCKFILE, type Lockfile, type ResolvedPackage, readLockfile } from './lockfile.js'
-import { type NpmConfig, npmConfigOf, registryFor, tokenFor } from './npmrc.js'
+import { isFromItsRegistry, type NpmConfig, npmConfigOf, registryFor, tokenFor } from './npmrc.js'
 import type { Member } from './project.js'
 import { readText } from './project.js'
+import { redactUrls } from './redaction.js'
 import { type Lookup, publicationTimesOf, type Release } from './registry.js'
 import { type PublishedRelease, releaseAgeSettingFindings, youngReleaseFindings } from './release-age.js'
 import { ROOT_MEMBER_PATH } from './workspace.js'
@@ -29,14 +30,13 @@ const unreadFindings = (lookups: readonly Lookup[]): readonly string[] => {
   )
 }
 
-// A tarball URL below the registry configured for the package is that registry's own tarball, which pnpm
-// records for a registry other than the default one.
-const isFromItsRegistry = (resolved: ResolvedPackage, config: NpmConfig): boolean =>
-  resolved.source === 'registry' ||
-  (resolved.source === 'tarball' && resolved.tarball.startsWith(registryFor(config, resolved.name)))
-
-const undatedFinding = (resolved: ResolvedPackage): string => {
-  const where: string = resolved.tarball.length > 0 ? ' (' + resolved.tarball + ')' : ''
+/**
+ * The finding for a release no registry serves, its URL stripped of credentials.
+ * @param resolved how the lockfile resolves the release.
+ * @returns the finding.
+ */
+export const undatedFinding = (resolved: ResolvedPackage): string => {
+  const where: string = resolved.tarball.length > 0 ? ` (${redactUrls(resolved.tarball)})` : ''
   return (
     `${resolved.name}@${resolved.version} resolves from a ${resolved.source}${where}, which no registry dates, ` +
     'so no release-age floor can measure it; install it from a registry'
@@ -73,14 +73,17 @@ export const releaseAge = async (
     return failed('the lockfile is missing or unreadable', [`${LOCKFILE} names the releases this gate measures`])
   }
   const config: NpmConfig = npmConfigOf(member.projectRoot, environment)
-  const judged: readonly ResolvedPackage[] = lockfile.packages.filter(
+  // Every release, harness packages included, must come from a registry. Only the age floor leaves the harness
+  // packages out, since a harness release is installed at the version its Maven parent names.
+  const judged: readonly ResolvedPackage[] = lockfile.packages
+  const dated: readonly ResolvedPackage[] = judged.filter((resolved: ResolvedPackage): boolean =>
+    isFromItsRegistry(config, resolved),
+  )
+  const measured: readonly ResolvedPackage[] = dated.filter(
     (resolved: ResolvedPackage): boolean => !isHarnessPackage(resolved.name),
   )
-  const dated: readonly ResolvedPackage[] = judged.filter((resolved: ResolvedPackage): boolean =>
-    isFromItsRegistry(resolved, config),
-  )
   const lookups: readonly Lookup[] = await publicationTimesOf(
-    dated.map((resolved: ResolvedPackage): Release => releaseOf(resolved, config)),
+    measured.map((resolved: ResolvedPackage): Release => releaseOf(resolved, config)),
   )
   const findings: readonly string[] = [
     ...releaseAgeSettingFindings(readWorkspaceFile(member.projectRoot)),
@@ -97,5 +100,5 @@ export const releaseAge = async (
   ]
   return findings.length > 0
     ? failed(`${String(findings.length)} release-age defect(s)`, findings)
-    : passed(`each of the ${String(dated.length)} resolved release(s) is older than the floor, by its registry`)
+    : passed(`each of the ${String(measured.length)} resolved release(s) is older than the floor, by its registry`)
 }

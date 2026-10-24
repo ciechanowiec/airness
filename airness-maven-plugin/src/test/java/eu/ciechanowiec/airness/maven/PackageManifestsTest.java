@@ -41,11 +41,13 @@ class PackageManifestsTest {
         assertEquals(
             Optional.of(
                 new PackageManifest(
-                    Set.of("build", "lint:arch"), Set.of("react", "@airness/node", "next", "fsevents")
+                    Set.of("build", "lint:arch"),
+                    Set.of("react", "@airness/node", "next", "fsevents"),
+                    Set.of("react", "@airness/node", "fsevents")
                 )
             ),
             PackageManifests.in(this.directory),
-            "every script name and every declared package is read"
+            "every script name and every declared package is read, and a peer is declared but not installed"
         );
     }
 

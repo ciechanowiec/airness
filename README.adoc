@@ -283,11 +283,26 @@ The script writes its output under `target/`. With `-DskipTests`, a module that 
 | `arch` | Under the shipped dependency-cruiser contract: no cycle, no import that does not resolve, no production import of a spec or of a development-only dependency, no deprecated Node.js core module.
 | `type-coverage` | Every identifier of hand-written logic is typed, with no `any` and no type assertion. A `typeCoverage` key in `package.json` is refused.
 | `knip` | No unused file, export or dependency, under the shipped knip configuration.
-| `tests` | The member's own Vitest runs its suite under the shipped configuration, in a fixed shuffled order, and every measured file reaches 80% line, branch, function and statement coverage. A member with source and no suite fails. The managed `vitest.config.mts` re-exports the same configuration for editors.
+| `css` | A facet: every authored stylesheet under a source root passes Stylelint under the shipped configuration, and every SCSS file is formatted as the shipped Prettier options format it. A project Stylelint configuration or `.stylelintignore` is refused. Not applicable to a member without a stylesheet.
+| `tailwind-tokens` | A facet: in a member that declares `tailwindcss`, no `.tsx` file under a source root writes an arbitrary Tailwind value such as `bg-[#0a7]`; a value comes from the theme. Not applicable otherwise.
+| `tests` | Every spec sits where a runner collects it: unit specs at `tests/**/*.spec.ts`, and the end-to-end specs of a browser application at `tests/e2e/**/*.e2e.spec.ts`. The member's own Vitest runs its suite under the shipped configuration, in a fixed shuffled order, and every measured file reaches 80% line, branch, function and statement coverage. In a Next.js application the App Router files the `e2e` crawl renders (`page`, `layout`, `template`, `loading` and `not-found` under `src/app`) and `src/proxy.ts`, which the header spec judges, are left to `e2e`; route handlers, metadata routes and error boundaries stay under the floor. A member with source and no suite fails. The managed `vitest.config.mts` re-exports the same configuration for editors.
 | `install-scripts` | `allowBuilds` decides every installed dependency that runs an install script as `true` or `false`, names no other, and no other setting decides install scripts beside it. The packages are those the lockfile resolves; one limited to other systems is judged where it installs. A setting that moves the virtual store is refused.
 | `release-age` | `pnpm-workspace.yaml` sets `minimumReleaseAge` to at least 1440 minutes with `minimumReleaseAgeStrict: true`, excluding only a harness package, and every resolved release comes from a registry that dates it at least a day back. Each release is read from the registry pnpm fetched it from, with that registry's token and through the proxy `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` name, on every run. A git, tarball or directory resolution fails, and so does a registry that can't be read.
 | `npm-inventory` | Judges nothing. Bound in `prepare-package` after `wiring`, it writes `dependencies.json` beside its result: every package the lockfile resolves with its version, its declared license, whether a member declares it and whether this host installed it, for the dependency policies to read.
 |===
++
+The xref:#extended-verification[extended verification] adds four gates. A gate whose facet a node project lacks reports _not applicable_, which is no pass:
++
+[cols="1,3",options="header"]
+|===
+| Gate | What it checks
+| `npm-sbom` | Judges nothing. Bound in `prepare-package`, it writes `bom.cdx.json` beside its result: a CycloneDX 1.6 document of every package the lockfile resolves, with its package URL, its declared license and the dependency graph, written offline from the same resolved set as `npm-inventory`.
+| `build` | The Next.js facet, in a member that declares `next`: `next build` with the member's own Next.js succeeds.
+| `bundle` | The Next.js facet: the gzipped client JavaScript of the build the `build` gate recorded for the tree as it is now stays within 1100 KiB; a stale or unrecorded build is refused, a ceiling a project may only lower with `bundleBudgetBytes`. The build directory is read from the member's own Next.js configuration.
+| `e2e` | The browser-application facet, in a member that declares `next` or declares `serve`: Playwright, under the shipped configuration, starts the application (the production build the `build` gate made of the tree as it is now, otherwise the `package.json` script `serve` names) and runs the harness's accessibility and layout sweep and its security-header spec from the installed `@airness/node`, then the member's own `tests/e2e/**/*.e2e.spec.ts`. The sweep crawls every page linked from `/`, fails when it audits none, and runs axe on each in its default, hover and focus states, and measures its layout at a phone and a desktop width. The header spec needs `x-content-type-options: nosniff`, a `referrer-policy`, a framing decision, and a content security policy whose script sources refuse `'unsafe-inline'`. The browser is the Chromium of the Playwright version _airness_ pins, which `mvn airness:report-browser-install` installs. `@playwright/test` resolves to the version `@airness/node` runs.
+|===
++
+A Next.js application also gets the facet's lint: React components need no return-type annotation, Next.js's Core Web Vitals rules apply to `src/`, Biome adds its React and Next.js rule domains, Oxlint adds its accessibility rules, and `arch` forbids any import of `src/app` from outside it. The assets goal seeds `src/proxy.ts`, which sends the security headers, into a node project that installs `next`, keeps its routes under `src/app` or `src/pages` and runs no `middleware` or `proxy` of its own; the project owns it afterwards. `airness:node-gate` runs only in the executions the parents bind; given on the command line without an execution id, or with the id of no bound execution, it is refused.
 +
 A pnpm workspace root and each of its members are judged as their own packages, and a failing member names itself in each finding.
 . A node project declares what only it knows under the `airness` key of its `package.json`. Each exclusion names its pattern and a `reason`, and an entry without one is not honoured:
@@ -300,6 +315,12 @@ A pnpm workspace root and each of its members are judged as their own packages, 
 | `frameworkGlue` | Globs of files a framework writes to a fixed shape, which the lint relaxes.
 | `javascriptAllowlist` | Regular expressions of JavaScript files a tool forces on the project, each with a `runtime` of `node` or `cloudfront-js-2.0`.
 | `coverageExclude` | Globs of source files the coverage floor doesn't measure, such as a configuration a tool loads in a process of its own. It is an exception to the floor, so an entry that leaves no measured file is refused.
+| `pureLogicRoots` | Directories of pure logic, each with a `reason`, which `arch` forbids to import anything else under a source root.
+| `serve` | The `package.json` script that serves a browser application that is not a Next.js application, for `e2e`.
+| `serverUrl` | The origin `e2e` drives, `http://localhost:3000` by default.
+| `bundleBudgetBytes`, `accessibilityRouteBudget` | Lower ceilings for the client bundle and for the number of routes the sweep may discover.
+| `accessibilitySkipRoutes` | Route prefixes, each with a `reason`, the sweep does not follow. Each names a subtree at a segment boundary; `config-refs` refuses `/`, and in a Next.js application a prefix that skips no declared page or every one.
+| `layoutMinimumGap`, `layoutViewports` | A larger gap between boxes, and further viewports the layout scan measures.
 |===
 . `pnpm exec airness-node gate <id> --verbose` runs one gate in the node project it is started in and prints what the tool wrote. It diagnoses one finding and gives no verdict.
 

@@ -29,6 +29,8 @@ class RepositorySitesTest {
     private static final String PACKAGE = "package.json";
     private static final String PACKAGE_BODY = "{}\n";
     private static final String CMS = "cms";
+    private static final String NEXT_MANIFEST = "{\"dependencies\": {\"next\": \"16.4.2\"}}\n";
+    private static final String PAGE = "export default function Page() {}\n";
 
     @TempDir
     private Path directory;
@@ -45,6 +47,55 @@ class RepositorySitesTest {
                 ),
                 sorted(RepositorySites.read(maven.builder(), maven.request(), root)),
                 "the root carries Java and node although no root parent names them, and the frontend is a node project"
+            );
+        }
+    }
+
+    @Test
+    void addsTheNextJsSiteToANodeProjectThatDeclaresNext() {
+        Path root = this.monorepo();
+        write(root.resolve("web").resolve(PACKAGE), NEXT_MANIFEST);
+        write(root.resolve("web/src/app/page.tsx"), PAGE);
+        try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
+            assertEquals(
+                List.of(
+                    AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
+                    new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
+                    new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
+                    new AssetSite("web", AssetLocation.NEXT_PROJECT, Set.of(Capability.NODE))
+                ),
+                sorted(RepositorySites.read(maven.builder(), maven.request(), root)),
+                "a node project that installs next and routes under src is also a site for the Next.js facet's files"
+            );
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void addsNoNextJsSiteWhereTheSeedWouldBeASecondHookOrUnread() {
+        Path root = this.monorepo();
+        write(root.resolve("web").resolve(PACKAGE), NEXT_MANIFEST);
+        write(root.resolve("web/src/app/page.tsx"), PAGE);
+        write(root.resolve("web/src/middleware.ts"), PAGE);
+        write(root.resolve(FRONTEND).resolve(PACKAGE), "{\"peerDependencies\": {\"next\": \">=16\"}}\n");
+        write(root.resolve(FRONTEND).resolve("src/app/page.tsx"), PAGE);
+        try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
+            List<AssetSite> sites = RepositorySites.read(maven.builder(), maven.request(), root);
+            assertEquals(
+                List.of(),
+                sites.stream().filter(site -> site.location() == AssetLocation.NEXT_PROJECT).toList(),
+                "a middleware of the project's own, or next declared only as a peer, places no proxy seed"
+            );
+        }
+        Files.delete(root.resolve("web/src/middleware.ts"));
+        write(root.resolve("web/proxy.mjs"), PAGE);
+        try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
+            assertEquals(
+                List.of(),
+                RepositorySites.read(maven.builder(), maven.request(), root).stream()
+                    .filter(site -> site.location() == AssetLocation.NEXT_PROJECT)
+                    .toList(),
+                "a proxy at the project root is a hook of its own too"
             );
         }
     }
