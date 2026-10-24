@@ -56,7 +56,7 @@ public final class EntryFileCheck {
     }
 
     private List<String> missingAirness() {
-        return this.read(EntryFileRules.INSTRUCTIONS)
+        return this.readInstructions()
             .filter(content -> !this.instructions.malformed(content))
             .filter(content -> !this.instructions.current(content))
             .map(_ -> List.of(EntryFileRules.INSTRUCTIONS))
@@ -64,20 +64,20 @@ public final class EntryFileCheck {
     }
 
     private List<String> malformedAirness() {
-        return this.read(EntryFileRules.INSTRUCTIONS)
+        return this.readInstructions()
             .filter(this.instructions::malformed)
             .map(_ -> List.of(EntryFileRules.INSTRUCTIONS))
             .orElseGet(List::of);
     }
 
     private List<String> missingInstructions() {
-        return this.read(EntryFileRules.INSTRUCTIONS).isEmpty()
+        return this.readInstructions().isEmpty()
             ? List.of(EntryFileRules.INSTRUCTIONS)
             : List.of();
     }
 
     private List<String> emptyInstructions() {
-        return this.read(EntryFileRules.INSTRUCTIONS)
+        return this.readInstructions()
             .filter(content -> !EntryFileRules.hasInstructions(content))
             .map(_ -> List.of(EntryFileRules.INSTRUCTIONS))
             .orElseGet(List::of);
@@ -90,7 +90,7 @@ public final class EntryFileCheck {
             .toList();
     }
 
-    private Optional<String> read(String name) {
-        return Repository.readText(this.root.resolve(name));
+    private Optional<String> readInstructions() {
+        return Repository.readText(this.root.resolve(EntryFileRules.INSTRUCTIONS));
     }
 }
