@@ -3,11 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.mjs ../../../target/classes/static"
+    "build": "node build.mjs ../../../target/classes/static",
+    "fake-gate": "airness-fake-gate gate fake",
+    "postinstall": "node -e \"require('node:fs').writeFileSync('root-postinstall-ran', '')\"",
+    "prepare": "node -e \"require('node:fs').writeFileSync('root-prepare-ran', '')\""
   },
   "devDependencies": {
-    "@airness/node": "link:@AIRNESS_NODE@",
-    "airness-fake-gate": "workspace:*"
+    "@airness/fixture-approved": "1.0.0",
+    "@airness/fixture-denied": "1.0.0",
+    "@airness/node": "1.0.8-SNAPSHOT",
+    "@vitest/coverage-v8": "5.0.5",
+    "airness-fake-gate": "workspace:*",
+    "vitest": "5.0.5"
   },
   "airness": {
     "javascriptAllowlist": [

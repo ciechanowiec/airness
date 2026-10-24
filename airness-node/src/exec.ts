@@ -19,6 +19,14 @@ export interface GateResult {
    * vulnerability at or above moderate" is a claim, and this is the evidence for it.
    */
   readonly output?: string
+  /** Files the gate wrote beside its result for the repository's rules to read, by plain file name. */
+  readonly evidence?: readonly string[]
+}
+
+/** What a gate run knows beyond the member it judges. */
+export interface GateContext {
+  /** The directory of the result file, where a gate writes its evidence; undefined without `--result`. */
+  readonly evidenceDirectory: string | undefined
 }
 
 /** A passing result, optionally carrying a non-failing report. */
@@ -90,7 +98,7 @@ const OUT_OF_BUFFER: string = 'ENOBUFS'
 const TIMED_OUT: string = 'ETIMEDOUT'
 
 /** The exit status reported for a tool killed for exceeding the deadline its caller set. */
-export const TIMED_OUT_CODE: number = 124
+const TIMED_OUT_CODE: number = 124
 
 const startupFailure = (error: Error): RunResult => {
   if (error.message.includes('maxBuffer')) {
@@ -106,7 +114,7 @@ const startupFailure = (error: Error): RunResult => {
 }
 
 /** The exit status reported for a tool that could not be started at all. */
-export const COMMAND_NOT_FOUND: number = 127
+const COMMAND_NOT_FOUND: number = 127
 
 // A process killed by a signal reports no status at all, and reporting it as an ordinary failure hid
 // the one fact that explains it - an out-of-memory kill during a build looks exactly like a build that
@@ -136,7 +144,7 @@ const withProjectBinaries = (
   }
 }
 
-export const run = (command: string, commandArguments: readonly string[], options: RunOptions): RunResult => {
+const run = (command: string, commandArguments: readonly string[], options: RunOptions): RunResult => {
   const result: SpawnSyncReturns<string> = spawnSync(command, [...commandArguments], {
     cwd: options.cwd,
     encoding: 'utf8',
@@ -166,7 +174,7 @@ export const runNode = (script: string, commandArguments: readonly string[], opt
  * @param output the tool's own text.
  * @returns one entry per line, with CRLF endings normalised so no finding carries a stray `\r`.
  */
-export const asFindings = (output: string): readonly string[] =>
+const asFindings = (output: string): readonly string[] =>
   output.length > 0 ? output.replaceAll('\r\n', '\n').split('\n') : ['(the tool produced no output)']
 
 /**

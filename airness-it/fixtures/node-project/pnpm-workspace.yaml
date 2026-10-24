@@ -1,2 +1,14 @@
 packages:
   - gate
+
+allowBuilds:
+  "@airness/fixture-approved": true
+  "@airness/fixture-denied": false
+  "@airness/fixture-member": true
+
+minimumReleaseAge: 1440
+
+minimumReleaseAgeStrict: true
+
+minimumReleaseAgeExclude:
+  - "@airness/node"

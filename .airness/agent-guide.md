@@ -77,17 +77,29 @@ Airness governs all of the following domains:
   write, with an id of its own and a phase before `prepare-package`. `com.github.eirslett` artifacts, however
   they reach the build, and `exec` or `antrun` steps that run `node`, `npm`, `npx`, `pnpm`, `yarn`, `bun` or
   `deno` are refused, because they run a Node other than the one the checks use. Each node project declares
-  `@airness/node` as a development dependency, and in `verify` each of its gates runs in every declared
-  project and in each member of a declared pnpm workspace: `types` (the project's `tsconfig.json` extends
+  `@airness/node` as a development dependency, installed by its version, and in `verify` each of its gates runs
+  in every declared project and in each member of a declared pnpm workspace: `wiring` (the lockfile resolves
+  `@airness/node` at the version of the module's `airness-parent`, never from a local path, with no override,
+  patch, package extension or pnpmfile hook, and `vitest`,
+  `@vitest/coverage-v8` and `typescript` at the versions the harness runs), `types` (the project's `tsconfig.json` extends
   `@airness/node/tsconfig.json`, sets no compiler option but `paths`, `baseUrl`, `plugins`, `types`, `rootDir`
   and `outDir`, keeps the include and exclude the harness names, and type-checks), `biome` (formatting and fast lint under the shipped configuration, with
   no `biome.json` or `.biome.json` below the project root), `oxlint` (native rules, with no project Oxlint configuration),
   `eslint` (type-aware lint under the shipped configuration, whatever the project keeps, with no warning
   allowed and at least one file to lint), `source-rules` (no parent-relative import under a source root, no credential guard that opens when
   the credential is unset), `config-refs` (every carve-out and declared exclusion reaches a file) and
-  `javascript-allowlist` (no hand-written JavaScript outside the allowlist). A node project declares only what
+  `javascript-allowlist` (no hand-written JavaScript outside the allowlist), `arch` (no cycle, unresolvable
+  import, or production import of a spec or development-only dependency), `type-coverage` (no `any` and no type
+  assertion in hand-written logic, and no `typeCoverage` key), `knip` (no unused file, export or dependency),
+  `tests` (the member's own Vitest under the shipped configuration, with 80% per-file coverage), `install-scripts`
+  (`allowBuilds` in `pnpm-workspace.yaml` decides every dependency that runs an install script, and only those;
+  `node-dependencies` installs with every script off and then runs only the approved ones) and `release-age`
+  (`minimumReleaseAge` of at least 1440 with `minimumReleaseAgeStrict: true`, and no resolved release younger
+  than a day by the registry pnpm fetched it from, read on every run, and no git, tarball or directory
+  resolution). `npm-inventory` writes the npm dependency evidence in
+  `prepare-package` and judges nothing. A node project declares only what
   the harness cannot know, under the `airness` key of its `package.json`: further `sourceRoots`, and
-  `generatedArtefacts`, `frameworkGlue` and `javascriptAllowlist` entries that each name a `pattern` and a
+  `generatedArtefacts`, `frameworkGlue`, `coverageExclude` and `javascriptAllowlist` entries that each name a `pattern` and a
   `reason`, an allowlist entry also the `runtime` of `node` or `cloudfront-js-2.0` that runs it. Diagnose one
   finding with `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
 - **Maven repository routing:** Airness owns `.mvn/maven.config` and `.mvn/settings.xml`. The startup

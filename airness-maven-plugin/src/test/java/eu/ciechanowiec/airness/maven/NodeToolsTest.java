@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -75,5 +76,16 @@ class NodeToolsTest {
         assertEquals(harness, tools.path(""));
         String inherited = String.join(File.pathSeparator, "bin", "tools");
         assertEquals(harness + File.pathSeparator + inherited, tools.path(inherited));
+    }
+
+    @Test
+    @SneakyThrows
+    void runsPnpmWithTheVariablesTheCallerAdds() {
+        Path pnpm = this.executable("pnpm", "#!/bin/sh\nprintf '%s\\n' \"$AIRNESS_HARNESS_VERSIONS\"\n");
+        Path log = this.directory.resolve("logs/run.log");
+        new NodeTools(this.directory.resolve("node"), pnpm, GENEROUS).pnpm(
+            List.of("exec", "gate"), this.directory, log, Map.of("AIRNESS_HARNESS_VERSIONS", "@airness/node=2.0.0")
+        );
+        assertEquals("@airness/node=2.0.0", Files.readString(log).strip());
     }
 }

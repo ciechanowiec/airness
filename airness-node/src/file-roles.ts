@@ -12,13 +12,6 @@ export const normalisedSourceRoot = (root: string): string => {
   return normalised.endsWith('/') ? normalised.slice(0, -1) : normalised
 }
 
-/** Match literal member-relative directories, including the explicitly declared member root. */
-export const isWithinSourceRoots = (file: string, roots: readonly string[]): boolean =>
-  roots.some((root: string): boolean => {
-    const normalised: string = normalisedSourceRoot(root)
-    return normalised === '.' || file.startsWith(`${normalised}/`)
-  })
-
 const NUL_BYTE: number = 0
 // A PDF can use ASCII for every object and stream and still carry byte offsets that formatting would break.
 const PDF_HEADER_BYTES: number = 9
@@ -32,7 +25,7 @@ export const TYPESCRIPT_SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '
 export const JAVASCRIPT_EXTENSIONS: readonly string[] = ['.js', '.jsx', '.mjs', '.cjs']
 
 /** Every stylesheet format supported by the stylesheet gate. */
-export const STYLESHEET_EXTENSIONS: readonly string[] = ['.css', '.scss']
+const STYLESHEET_EXTENSIONS: readonly string[] = ['.css', '.scss']
 
 /** Extensions the Code Rules govern. */
 export const CODE_EXTENSIONS: readonly string[] = [

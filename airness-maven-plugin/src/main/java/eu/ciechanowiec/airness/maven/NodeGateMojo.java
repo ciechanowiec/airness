@@ -7,6 +7,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -97,7 +98,10 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
         try {
             Files.createDirectories(results);
             clear(result);
-            int exit = tools.pnpm(bound.arguments(result), project.directory(), log);
+            int exit = tools.pnpm(
+                bound.arguments(result), project.directory(), log,
+                Map.of(HarnessVersions.VARIABLE, HarnessVersions.of(this.project()).value())
+            );
             NodeGateResult read = NodeGateResult.read(bound.id(), project.key(), result, exit);
             if (!read.findings().clean()) {
                 AbstractNodeMojo.replay(log, this.getLog());

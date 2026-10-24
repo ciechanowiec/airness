@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -50,6 +51,22 @@ record NodeTools(Path node, Path pnpm, Duration timeout) {
      * @throws IOException when the command cannot start, outlives the timeout, or is interrupted
      */
     int pnpm(List<String> arguments, Path directory, Path log) throws IOException {
+        return this.pnpm(arguments, directory, log, Map.of());
+    }
+
+    /**
+     * Runs pnpm with the given arguments in a directory, with further environment variables.
+     *
+     * @param arguments   the pnpm arguments, such as {@code install --frozen-lockfile}
+     * @param directory   the working directory
+     * @param log         where the command's output and error streams go together
+     * @param environment further variables the command runs with
+     * @return the exit code
+     * @throws IOException when the command cannot start, outlives the timeout, or is interrupted
+     */
+    int pnpm(
+        List<String> arguments, Path directory, Path log, Map<String, String> environment
+    ) throws IOException {
         Files.createDirectories(Objects.requireNonNull(log.getParent(), "a log file lives in a directory"));
         List<String> command = Stream.concat(Stream.of(this.pnpm.toString()), arguments.stream()).toList();
         ProcessBuilder builder = new ProcessBuilder(command)
@@ -57,6 +74,7 @@ record NodeTools(Path node, Path pnpm, Duration timeout) {
             .redirectErrorStream(true)
             .redirectOutput(log.toFile());
         builder.environment().put(PATH, this.path(builder.environment().getOrDefault(PATH, "")));
+        builder.environment().putAll(environment);
         builder.environment().put(PACKAGE_MANAGER_VERSIONS, "false");
         Process process = builder.start();
         try {
