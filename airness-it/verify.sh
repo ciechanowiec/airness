@@ -13,7 +13,7 @@ fi
 
 selected_domain="${1-}"
 case "${selected_domain}" in
-    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners)
+    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node)
         ;;
     *)
         printf 'Unknown Airness integration domain: %s\n' "${selected_domain}" >&2
@@ -92,6 +92,7 @@ fi
 . "${repository}/airness-it/cases/containers.sh"
 . "${repository}/airness-it/cases/scanners.sh"
 . "${repository}/airness-it/cases/generic-rules.sh"
+. "${repository}/airness-it/cases/node-projects.sh"
 
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -127,7 +128,7 @@ case "${selected_domain}" in
         start_lane spring run_spring_cases run_container_cases run_maven_cases
         start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases \
             run_analysis_cases run_template_message_cases run_web_accessibility_cases run_template_cases \
-            run_stylesheet_cases
+            run_stylesheet_cases run_node_project_cases
         # Joined in the order whose headings do not repeat across the seam.
         join_lane spring
         join_lane repository
@@ -158,6 +159,9 @@ case "${selected_domain}" in
         ;;
     scanners)
         run_scanner_cases
+        ;;
+    node)
+        run_node_project_cases
         ;;
     *)
         exit 2

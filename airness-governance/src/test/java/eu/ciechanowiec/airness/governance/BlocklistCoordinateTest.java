@@ -56,6 +56,17 @@ class BlocklistCoordinateTest {
     }
 
     @Test
+    void refusesTheFrontendPluginAndTheLibraryItIsBuiltOn() {
+        String group = "com.github.eirslett";
+        Optional<Refusal> plugin = Blocklist.coordinate(coordinate(group, "frontend-maven-plugin", "1.15.1"));
+        assertTrue(
+            plugin.map(Refusal::replacement).orElse("").contains("airness:node-run"),
+            "the refusal names the goal that builds a frontend on the harness's Node"
+        );
+        assertTrue(Blocklist.coordinate(coordinate(group, "frontend-plugin-core", "1.15.1")).isPresent());
+    }
+
+    @Test
     void refusesABuildExtensionWithNoVersionToPlace() {
         assertTrue(Blocklist.coordinate(coordinate("com.gradle", "develocity-maven-extension", "")).isPresent());
     }

@@ -135,6 +135,10 @@ final class BlocklistEntries {
         = "nothing; the rules the parent's analyzers apply already cover these requirements";
     private static final String LIQUIBASE = "Liquibase Pro is under an end-user licence agreement";
     private static final String LIQUIBASE_CORE = "org.liquibase:liquibase-core";
+    private static final String FRONTEND_PLUGIN
+        = "installs its own Node and pnpm, unpinned by hash, beside the ones the harness verifies";
+    private static final String NODE_RUN
+        = "the airness:node-run goal, which runs a package.json script on the harness's Node";
     private static final String ORACLE_JDK
         = "Oracle JDK is under the Oracle No-Fee Terms and Conditions, which is not an open-source licence";
     private static final String ORACLE_GRAALVM
@@ -348,7 +352,8 @@ final class BlocklistEntries {
         ),
         BlockedCoordinate.of(
             "com.hazelcast", "hazelcast-enterprise*", "Hazelcast Enterprise is proprietary", "com.hazelcast:hazelcast"
-        )
+        ),
+        BlockedCoordinate.of("com.github.eirslett", ANY, FRONTEND_PLUGIN, NODE_RUN)
     );
 
     /**

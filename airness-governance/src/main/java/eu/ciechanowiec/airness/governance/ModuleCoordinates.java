@@ -14,22 +14,38 @@ import java.util.stream.Stream;
  * coordinate is repaired where it is written, and the raw pom is read for it so a declaration in an
  * inactive profile or a management section is found where the effective model would have dropped it. A
  * resolved coordinate may have arrived through a starter three levels up, and the report says so by
- * naming the resolved set rather than a line.
+ * naming the resolved set rather than a line. The plugins of the effective build are a third set: a plugin
+ * declared without a version, or by a parent outside the repository, appears in neither of the others.
  *
  * @param declared what the raw pom declares, with its build extensions
  * @param resolved what Maven resolved for the module, in a stable order
+ * @param build    the plugins of the effective build, managed ones included, and their dependencies
  */
-public record ModuleCoordinates(List<DeclaredCoordinate> declared, List<DeclaredCoordinate> resolved) {
+public record ModuleCoordinates(
+    List<DeclaredCoordinate> declared, List<DeclaredCoordinate> resolved, List<DeclaredCoordinate> build
+) {
 
     /**
      * Makes defensive copies so a caller cannot alter the sets after the check read them.
      *
      * @param declared what the raw pom declares
      * @param resolved what Maven resolved
+     * @param build    the plugins of the effective build
      */
     public ModuleCoordinates {
         declared = List.copyOf(declared);
         resolved = List.copyOf(resolved);
+        build = List.copyOf(build);
+    }
+
+    /**
+     * The same coordinates with the plugins of the effective build beside them.
+     *
+     * @param plugins the effective build plugins, managed ones included, and their dependencies
+     * @return the coordinates
+     */
+    public ModuleCoordinates withBuild(Collection<DeclaredCoordinate> plugins) {
+        return new ModuleCoordinates(this.declared, this.resolved, plugins.stream().distinct().toList());
     }
 
     /**
@@ -50,6 +66,6 @@ public record ModuleCoordinates(List<DeclaredCoordinate> declared, List<Declared
             .distinct()
             .sorted(Comparator.comparing(DeclaredCoordinate::groupId).thenComparing(DeclaredCoordinate::artifactId))
             .toList();
-        return new ModuleCoordinates(declared, ordered);
+        return new ModuleCoordinates(declared, ordered, List.of());
     }
 }

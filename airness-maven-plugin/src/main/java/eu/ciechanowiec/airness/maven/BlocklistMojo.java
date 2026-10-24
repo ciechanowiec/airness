@@ -4,14 +4,18 @@ import eu.ciechanowiec.airness.governance.BlocklistCheck;
 import eu.ciechanowiec.airness.governance.DeclaredCoordinate;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.ModuleCoordinates;
+import eu.ciechanowiec.airness.governance.NodeExecutionCheck;
 import eu.ciechanowiec.airness.governance.RepositoryBlocklistCheck;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.model.Plugin;
+import org.apache.maven.model.PluginManagement;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
@@ -20,7 +24,8 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * Nothing the project reaches is software Airness refuses by name: no coordinate its poms declare or
  * Maven resolves, no image a Dockerfile, a compose file, a workflow, or a Testcontainers literal pulls,
  * no system package a Dockerfile installs, no build extension, and no JDK that is not an open build,
- * whether a workflow installs it, a version manager selects it, or this build runs on it.
+ * whether a workflow installs it, a version manager selects it, or this build runs on it. No build step the
+ * module declares runs a Node executable by name either, since that runs whatever Node the machine has.
  *
  * <p>The licence allowlist judges an artifact by what its own pom says, and this judges it by its name,
  * because the licence that decides is often one the pom never states. The module half runs once per
@@ -49,31 +54,41 @@ public final class BlocklistMojo extends AbstractGovernanceMojo {
     @Override
     List<Findings> findings() {
         Path root = this.repositoryRoot();
-        BlocklistCheck module = new BlocklistCheck(
-            root, this.project().getFile().toPath(), this.moduleSourceRoots(), this.coordinates()
-        );
+        Path pom = this.project().getFile().toPath();
+        Map<String, String> effective = this.effectiveProperties();
+        BlocklistCheck module = new BlocklistCheck(root, pom, this.moduleSourceRoots(), this.coordinates(effective));
         this.getLog().info(
             "Blocklist read " + module.scanned() + " subject(s) of " + this.project().getArtifactId()
         );
+        List<Findings> moduleFindings = Stream.concat(
+            module.findings().stream(), new NodeExecutionCheck(root, pom, effective).findings().stream()
+        ).toList();
         boolean first = OncePerSession.firstRun(
             this.session().getRepositorySession().getData(), RepositoryBlocklistCheck.class
         );
         if (!first) {
-            return module.findings();
+            return moduleFindings;
         }
         RepositoryBlocklistCheck repository = new RepositoryBlocklistCheck(root, System.getProperty(RUNTIME_NAME, ""));
         this.getLog().info("Blocklist read " + repository.scanned() + " repository file(s) and the build JDK");
-        return Stream.concat(module.findings().stream(), repository.findings().stream()).toList();
+        return Stream.concat(moduleFindings.stream(), repository.findings().stream()).toList();
     }
 
-    private ModuleCoordinates coordinates() {
+    private Map<String, String> effectiveProperties() {
         Properties properties = this.project().getProperties();
-        Map<String, String> effective = properties.stringPropertyNames().stream()
+        return properties.stringPropertyNames().stream()
             .collect(Collectors.toMap(name -> name, properties::getProperty));
+    }
+
+    private ModuleCoordinates coordinates(Map<String, String> effective) {
         List<DeclaredCoordinate> resolved = this.project().getArtifacts().stream()
             .map(BlocklistMojo::coordinate)
             .toList();
-        return ModuleCoordinates.of(this.project().getFile().toPath(), effective, resolved);
+        List<Plugin> managed = Optional.ofNullable(this.project().getPluginManagement())
+            .map(PluginManagement::getPlugins)
+            .orElseGet(List::of);
+        return ModuleCoordinates.of(this.project().getFile().toPath(), effective, resolved)
+            .withBuild(PluginCoordinates.of(this.project().getBuildPlugins(), managed));
     }
 
     private static DeclaredCoordinate coordinate(Artifact artifact) {

@@ -17,6 +17,7 @@ class BlocklistCheckTest {
 
     private static final List<Path> ROOTS = List.of(Path.of("src/test/java"));
     private static final String HEADLINE = "module reaches";
+    private static final String POM = "pom.xml";
     private static final String CLEAN_POM = """
         <project>
             <dependencies>
@@ -82,13 +83,13 @@ class BlocklistCheckTest {
         """;
 
     private static BlocklistCheck check(Path root, List<DeclaredCoordinate> resolved) {
-        Path pom = root.resolve("pom.xml");
+        Path pom = root.resolve(POM);
         return new BlocklistCheck(root, pom, ROOTS, ModuleCoordinates.of(pom, Map.of(), resolved));
     }
 
     @Test
     void passesAModuleThatReachesNothingRefused() {
-        Path root = new GitFixture("blocklist-clean").write("pom.xml", CLEAN_POM).root();
+        Path root = new GitFixture("blocklist-clean").write(POM, CLEAN_POM).root();
         BlocklistCheck check = check(root, List.of(new DeclaredCoordinate("org.postgresql", "postgresql", "42.7.4")));
         assertTrue(Verdicts.clean(check.findings()), "PostgreSQL and its driver are open");
         assertEquals(2, check.scanned(), "the declaration and the resolved artifact were both read");
@@ -96,7 +97,7 @@ class BlocklistCheckTest {
 
     @Test
     void refusesADeclarationInADormantProfileAndABuildExtension() {
-        Path root = new GitFixture("blocklist-profile").write("pom.xml", PROFILED_POM).root();
+        Path root = new GitFixture("blocklist-profile").write(POM, PROFILED_POM).root();
         List<String> offences = Verdicts.offences(check(root, List.of()).findings(), HEADLINE);
         assertEquals(2, offences.size(), "the dormant driver and the extension: " + offences);
         assertTrue(
@@ -107,7 +108,7 @@ class BlocklistCheckTest {
 
     @Test
     void refusesAResolvedArtifactByNamingTheResolvedSet() {
-        Path root = new GitFixture("blocklist-resolved").write("pom.xml", CLEAN_POM).root();
+        Path root = new GitFixture("blocklist-resolved").write(POM, CLEAN_POM).root();
         List<DeclaredCoordinate> resolved = List.of(new DeclaredCoordinate("org.mongodb", "bson", "5.3.0"));
         List<String> offences = Verdicts.offences(check(root, resolved).findings(), HEADLINE);
         assertEquals(1, offences.size());
@@ -116,10 +117,34 @@ class BlocklistCheckTest {
         );
     }
 
+    // A plugin declared without a version, or by a parent outside the repository, leaves no coordinate in the
+    // raw pom, so only the effective build names it.
+    @Test
+    void refusesAnUnversionedOrInheritedPluginByNamingTheEffectiveBuild() {
+        String unversioned = """
+            <project><build><plugins><plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+            </plugin></plugins></build></project>
+            """;
+        Path root = new GitFixture("blocklist-build").write(POM, unversioned).root();
+        Path pom = root.resolve(POM);
+        ModuleCoordinates coordinates = ModuleCoordinates.of(pom, Map.of(), List.of())
+            .withBuild(List.of(new DeclaredCoordinate("com.github.eirslett", "frontend-maven-plugin", "1.15.1")));
+        List<String> offences = Verdicts.offences(
+            new BlocklistCheck(root, pom, ROOTS, coordinates).findings(), HEADLINE
+        );
+        assertEquals(1, offences.size(), "the raw pom names no version, so only the effective build is judged");
+        assertTrue(
+            offences.getFirst().startsWith("pom.xml (effective build): com.github.eirslett:frontend-maven-plugin"),
+            offences.getFirst()
+        );
+    }
+
     @Test
     void refusesAnImageATestNamesByItsLine() {
         Path root = new GitFixture("blocklist-literal")
-            .write("pom.xml", CLEAN_POM)
+            .write(POM, CLEAN_POM)
             .write("src/test/java/sample/ImageTest.java", IMAGE_TEST)
             .root();
         List<String> offences = Verdicts.offences(check(root, List.of()).findings(), HEADLINE);
@@ -131,7 +156,7 @@ class BlocklistCheckTest {
     @Test
     void refusesAnImageAConstantOfTheSameSourceNames() {
         Path root = new GitFixture("blocklist-constant")
-            .write("pom.xml", CLEAN_POM)
+            .write(POM, CLEAN_POM)
             .write("src/test/java/sample/ConstantTest.java", CONSTANT_TEST)
             .root();
         List<String> offences = Verdicts.offences(check(root, List.of()).findings(), HEADLINE);
