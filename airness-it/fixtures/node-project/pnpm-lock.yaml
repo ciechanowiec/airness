@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@airness/node':
+        specifier: link:@AIRNESS_NODE@
+        version: link:@AIRNESS_NODE@
       airness-fake-gate:
         specifier: workspace:*
         version: link:gate

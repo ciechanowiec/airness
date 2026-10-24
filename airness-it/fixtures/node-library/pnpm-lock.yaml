@@ -1,0 +1,13 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@airness/node':
+        specifier: link:@AIRNESS_NODE@
+        version: link:@AIRNESS_NODE@

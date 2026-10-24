@@ -17,11 +17,17 @@ Every layer is binding, and a later layer may strengthen but never weaken an ear
 In every module that inherits `airness-parent-java`, also follow `.airness/agent-guide-java.md`.
 <!-- END AIRNESS MANAGED: java -->
 
+<!-- BEGIN AIRNESS MANAGED: node -->
+## Airness node layer
+
+Each directory a module lists in `airness.node.projects` is a node project and carries the node layer in its own `AGENTS.md`.
+<!-- END AIRNESS MANAGED: node -->
+
 # Repository Guidelines
 
 ## Project Structure & Module Organization
 
-Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java 25. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, and formatter rules), `airness-error-prone` (compiler-side rules that need resolved types), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-spring-evidence` (test-scope Spring Boot runtime evidence), `airness-web-evidence` (test-scope accessibility auditing of a rendered page), `airness-parent` (the generic parent with the repository rules), `airness-parent-java` (the parent a Java project inherits, adding the Java rules), `airness-parent-spring-boot` (the parent a Spring Boot project inherits instead), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
+Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java 25. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, and formatter rules), `airness-error-prone` (compiler-side rules that need resolved types), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-spring-evidence` (test-scope Spring Boot runtime evidence), `airness-web-evidence` (test-scope accessibility auditing of a rendered page), `airness-parent` (the generic parent with the repository rules), `airness-parent-java` (the parent a Java project inherits, adding the Java rules), `airness-parent-spring-boot` (the parent a Spring Boot project inherits instead), `airness-parent-node` (the parent a JS/TS module inherits), `airness-node` (the npm package `@airness/node`: the JS/TS gates, their analyzer configurations and the pinned analyzers, written in TypeScript under `airness-node/src`), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
 
 ## Build, Test, and Development Commands
 
@@ -39,7 +45,7 @@ Keep packages under `eu.ciechanowiec.airness`. Prefer focused classes and explan
 ## Testing Guidelines
 
 Airness tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example
-`rejectsATrailingPeriod`. Add regression coverage beside the changed module. Self-coverage includes every governance
+`rejectsATrailingPeriod`. `airness-node` tests use Vitest under `airness-node/tests`, importing sources through the `@/` alias. Add regression coverage beside the changed module. Self-coverage includes every governance
 class and every non-Mojo Maven-plugin support class. Do not treat `mvn clean package` inside
 `airness-it` as a normal test: its fixtures intentionally violate rules.
 

@@ -6,6 +6,16 @@
     "build": "node build.mjs ../../../target/classes/static"
   },
   "devDependencies": {
+    "@airness/node": "link:@AIRNESS_NODE@",
     "airness-fake-gate": "workspace:*"
+  },
+  "airness": {
+    "javascriptAllowlist": [
+      {
+        "pattern": "^build\\.mjs$",
+        "reason": "the build step node runs directly, with no compiler before it",
+        "runtime": "node"
+      }
+    ]
   }
 }
