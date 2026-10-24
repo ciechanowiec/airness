@@ -248,6 +248,10 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 | empty
 | Directories of the module that hold a node project, relative to the module and comma-separated, for example `src/main/frontend`. Each one receives the `node` managed files.
 
+| `airness.generated.files`
+| empty
+| Repository paths of further files a generator owns, comma-separated. Each is denied to the agent runtime through an `Edit(...)` rule in `.claude/settings.json`, beside the generated files the stack layers declare. The setting can only add to that set.
+
 | [[airness-assets-unmanaged]]`airness.assets.unmanaged`
 | empty
 | Repository paths managed by the project itself. The section xref:#managed-files[] lists the paths that can use this setting.

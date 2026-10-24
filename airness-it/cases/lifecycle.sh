@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 expect_analysis_before_qodana() {
-    for scanner_goal in shellcheck checkov; do
+    for scanner_goal in shellcheck checkov docker actions; do
         expect_before "$1" "lifecycle: ${scanner_goal} precedes Qodana in $1" \
             "--- airness:[^ ]+:${scanner_goal} " '--- airness:[^ ]+:qodana [(]airness-qodana[)]'
     done

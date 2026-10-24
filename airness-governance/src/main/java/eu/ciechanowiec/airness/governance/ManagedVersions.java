@@ -131,7 +131,7 @@ public final class ManagedVersions {
 
     /**
      * The version properties of every coordinate above, and the values that are not versions but decide
-     * what a check reads. The two Docker images belong here for the same reason a threshold does: an image
+     * what a check reads. The Docker images belong here for the same reason a threshold does: an image
      * a project can repoint is a check a project can replace with one that finds nothing, and the digest
      * pin in the parent would then be advice rather than a rule.
      */
@@ -139,7 +139,9 @@ public final class ManagedVersions {
         "gitleaks.image",
         "qodana.image",
         "shellcheck.image",
-        "checkov.image"
+        "checkov.image",
+        "hadolint.image",
+        "actionlint.image"
     );
     private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(
         Stream.concat(

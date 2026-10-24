@@ -49,6 +49,19 @@ record GitFixture(Path root) {
     }
 
     /**
+     * Writes one binary file into the fixture.
+     *
+     * @return this fixture, so writes chain
+     */
+    @SneakyThrows
+    GitFixture write(String relative, byte[] content) {
+        Path file = this.root.resolve(relative);
+        Files.createDirectories(file.getParent());
+        Files.write(file, content);
+        return this;
+    }
+
+    /**
      * Stages everything present, without recording it.
      *
      * <p>A pending commit message is checked against what is staged, so the fixture has to be able to

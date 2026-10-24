@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,6 +22,18 @@ class ScannerCommandTest {
         ScannerCommand.run(List.of("git", "--version"), output);
         assertTrue(Files.readString(output).startsWith("git version"));
         assertThrows(IOException.class, () -> ScannerCommand.run(List.of("git", "--airness-invalid-option"), output));
+    }
+
+    @Test
+    @SneakyThrows
+    void feedsAFileToTheStandardInputAndRunsFromADirectory(@TempDir Path directory) {
+        Path input = Files.writeString(directory.resolve("input.txt"), "piped content\n");
+        Path output = directory.resolve("cat.txt");
+        assertEquals(0, ScannerCommand.executeWithInput(List.of("cat"), input, output));
+        assertEquals("piped content\n", Files.readString(output));
+        Path listing = directory.resolve("ls.txt");
+        assertEquals(0, ScannerCommand.executeIn(List.of("ls"), directory, listing));
+        assertTrue(Files.readString(listing).contains("input.txt"));
     }
 
     @Test

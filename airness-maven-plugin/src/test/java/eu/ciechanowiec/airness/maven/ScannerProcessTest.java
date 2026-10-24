@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,6 +25,20 @@ class ScannerProcessTest {
         assertFalse(command.contains("/var/run/docker.sock"));
         assertFalse(command.contains("--env-file"));
         assertTrue(new ScannerProcess(ScannerTools.image("shellcheck"), tree).probeCommand().contains("/bin/sh"));
+    }
+
+    @Test
+    void runsAStandardInputScannerWithoutAnyMountOrNetwork(@TempDir Path directory) {
+        ScannerTree tree = new ScannerTree(directory.resolve("output"), directory.resolve("input"));
+        List<String> command = new ScannerProcess(ScannerTools.image("hadolint"), tree)
+            .standardInputCommand("hadolint", List.of("-"));
+        assertTrue(command.containsAll(List.of("--interactive", "--network", "none", "--cap-drop=ALL")));
+        assertFalse(command.contains("--mount"));
+        assertEquals("-", command.getLast());
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new ScannerProcess(ScannerTools.image("actionlint"), tree).standardInputCommand("hadolint", List.of())
+        );
     }
 
     @Test

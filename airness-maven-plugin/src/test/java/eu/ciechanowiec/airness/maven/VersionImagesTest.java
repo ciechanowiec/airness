@@ -21,13 +21,17 @@ class VersionImagesTest {
         project.getProperties().setProperty("qodana.image", "example/qodana:2.3@sha256:digest");
         project.getProperties().setProperty("shellcheck.image", "example/shellcheck:3.4@sha256:digest");
         project.getProperties().setProperty("checkov.image", "example/checkov:4.5@sha256:digest");
+        project.getProperties().setProperty("hadolint.image", "example/hadolint:5.6@sha256:digest");
+        project.getProperties().setProperty("actionlint.image", "example/actionlint:6.7@sha256:digest");
 
         assertEquals(
             List.of(
                 new DeclaredContainerImage("gitleaks.image", "example/gitleaks:1.2@sha256:digest"),
                 new DeclaredContainerImage("qodana.image", "example/qodana:2.3@sha256:digest"),
                 new DeclaredContainerImage("shellcheck.image", "example/shellcheck:3.4@sha256:digest"),
-                new DeclaredContainerImage("checkov.image", "example/checkov:4.5@sha256:digest")
+                new DeclaredContainerImage("checkov.image", "example/checkov:4.5@sha256:digest"),
+                new DeclaredContainerImage("hadolint.image", "example/hadolint:5.6@sha256:digest"),
+                new DeclaredContainerImage("actionlint.image", "example/actionlint:6.7@sha256:digest")
             ),
             VersionImages.from(project)
         );

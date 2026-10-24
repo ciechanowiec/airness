@@ -91,6 +91,7 @@ fi
 . "${repository}/airness-it/cases/qodana-fixture.sh"
 . "${repository}/airness-it/cases/containers.sh"
 . "${repository}/airness-it/cases/scanners.sh"
+. "${repository}/airness-it/cases/generic-rules.sh"
 
 trap cleanup EXIT
 trap 'exit 130' INT

@@ -32,6 +32,7 @@ public final class ProjectProperties {
         "airness.assets.unmanaged",
         COVERAGE_EXCLUDES,
         "airness.dependency-check.suppression.file",
+        "airness.generated.files",
         "airness.node.projects",
         "airness.package.root",
         "airness.test.timeout",
