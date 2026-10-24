@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { failed, passed } from '@/exec.js'
 import { crashedResult, RESULT_CONTRACT, type ResultFile, resultOf } from '@/gate-result.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 
-describe('the result file', () => {
+describe('the result file', PROCESS_TIME, () => {
   it('passes only when every member passes, and names the gate and the contract', () => {
     const result: ResultFile = resultOf('types', 'strict type check', [
       { member: '.', result: passed('the root type-checks') },
@@ -40,7 +41,7 @@ describe('the result file', () => {
   })
 })
 
-describe('the evidence a result lists', () => {
+describe('the evidence a result lists', PROCESS_TIME, () => {
   it('carries the evidence a passing member wrote, and none from a failing run', () => {
     const written: ResultFile = resultOf('npm-inventory', 'npm dependency evidence', [
       { member: '.', result: { ...passed('written'), evidence: ['dependencies.json'] } },

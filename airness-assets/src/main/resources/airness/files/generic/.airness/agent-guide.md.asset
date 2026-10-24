@@ -96,10 +96,21 @@ Airness governs all of the following domains:
   `node-dependencies` installs with every script off and then runs only the approved ones) and `release-age`
   (`minimumReleaseAge` of at least 1440 with `minimumReleaseAgeStrict: true`, and no resolved release younger
   than a day by the registry pnpm fetched it from, read on every run, and no git, tarball or directory
-  resolution). `npm-inventory` writes the npm dependency evidence in
-  `prepare-package` and judges nothing. A node project declares only what
-  the harness cannot know, under the `airness` key of its `package.json`: further `sourceRoots`, and
-  `generatedArtefacts`, `frameworkGlue`, `coverageExclude` and `javascriptAllowlist` entries that each name a `pattern` and a
+  resolution), and the facets, each not applicable where a member lacks it: `css` (Stylelint and SCSS formatting
+  over authored stylesheets, with no project Stylelint configuration) and `tailwind-tokens` (no arbitrary
+  Tailwind value in a member that declares `tailwindcss`). `tests` also fails a spec outside
+  `tests/**/*.spec.ts` and, in a browser application, `tests/e2e/**/*.e2e.spec.ts`. `npm-inventory` writes the npm
+  dependency evidence in `prepare-package` and judges nothing. Extended verification adds `npm-sbom` (a CycloneDX
+  document beside `dependencies.json`), and for a member that declares `next` `build` and `bundle` (gzipped
+  client JavaScript within 1100 KiB), and for a browser application `e2e`: the harness's accessibility, layout and
+  security-header specs and the member's own end-to-end specs under the shipped Playwright configuration. A
+  browser application that is not a Next.js application declares the script that serves it as `serve`. A
+  Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top, the
+  pages the crawl renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets
+  goal seeds `src/proxy.ts`. A node project declares only what
+  the harness cannot know, under the `airness` key of its `package.json`: further `sourceRoots`, `serve`,
+  `serverUrl`, lower `bundleBudgetBytes` and `accessibilityRouteBudget`, and `generatedArtefacts`, `frameworkGlue`,
+  `coverageExclude`, `pureLogicRoots`, `accessibilitySkipRoutes` and `javascriptAllowlist` entries that each name a `pattern` and a
   `reason`, an allowlist entry also the `runtime` of `node` or `cloudfront-js-2.0` that runs it. Diagnose one
   finding with `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
 - **Maven repository routing:** Airness owns `.mvn/maven.config` and `.mvn/settings.xml`. The startup

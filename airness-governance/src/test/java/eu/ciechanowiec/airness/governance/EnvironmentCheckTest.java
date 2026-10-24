@@ -5,12 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 /**
  * Verifies that a compose file's variables must reach the example file and every verifying workflow.
  */
 class EnvironmentCheckTest {
+
+    private static final String NEXT = "next";
+    private static final String NEXT_CONFIG
+        = "const a = process.env.NEXT_PUBLIC_SITE\nconst b = process.env['NEXT_PUBLIC_KEY']\n";
 
     private static final String COMPOSE = """
         services:
@@ -75,5 +82,56 @@ class EnvironmentCheckTest {
     void passesARepositoryWithNoComposeFile() {
         Path root = new GitFixture("environment-none").write(".github/workflows/verify.yml", VERIFYING).root();
         assertTrue(Verdicts.clean(new EnvironmentCheck(root).findings()), "nothing interpolates, so nothing is owed");
+    }
+
+    @Test
+    void namesEveryVariableANextBuildInlinesThatTheDockerfileBuildingItDoesNotDeclare() {
+        Path root = new GitFixture("environment-next")
+            .write("web/package.json", "{}\n")
+            .write("web/next.config.ts", NEXT_CONFIG)
+            .write("web/Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_SITE=x \\\n    OTHER\nRUN build\n")
+            .write("api/package.json", "{}\n")
+            .write("api/next.config.ts", "process.env.NEXT_PUBLIC_ELSEWHERE\n")
+            .write("Dockerfile", "FROM node:26\n")
+            .root();
+        Function<Path, Optional<PackageManifest>> manifests = _ -> Optional.of(
+            new PackageManifest(Set.of(), Set.of(NEXT))
+        );
+        assertEquals(
+            List.of("NEXT_PUBLIC_KEY in " + Path.of("web", "Dockerfile")),
+            Verdicts.offences(new EnvironmentCheck(root, manifests).findings(), "a Dockerfile building it"),
+            "a declaration with a default declares the name, a Next.js package with no Dockerfile of its own owes"
+                + " nothing, and the root Dockerfile builds no package, since the root holds no package.json"
+        );
+    }
+
+    @Test
+    void readsNoNodePackageWithoutAManifestReader() {
+        Path root = new GitFixture("environment-next-unread")
+            .write("package.json", "{}\n")
+            .write("next.config.ts", "process.env.NEXT_PUBLIC_SITE\n")
+            .write("Dockerfile", "FROM node:26\n")
+            .root();
+        assertTrue(Verdicts.clean(new EnvironmentCheck(root).findings()), "no package is known to be Next.js");
+    }
+
+    @Test
+    void readsADockerfileOutsideTheApplicationThatNamesItsDirectory() {
+        Path root = new GitFixture("environment-next-root-dockerfile")
+            .write("apps/web/package.json", "{}\n")
+            .write("apps/web/next.config.ts", NEXT_CONFIG)
+            .write("apps/admin/package.json", "{}\n")
+            .write("apps/admin/next.config.ts", "process.env.NEXT_PUBLIC_ADMIN\n")
+            .write("docker/web.Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_SITE\nCOPY apps/web /app\n")
+            .write("Dockerfile", "FROM node:26\nCOPY . /src\n")
+            .root();
+        Function<Path, Optional<PackageManifest>> manifests = _ -> Optional.of(
+            new PackageManifest(Set.of(), Set.of(NEXT))
+        );
+        assertEquals(
+            List.of("NEXT_PUBLIC_KEY in " + Path.of("docker", "web.Dockerfile")),
+            Verdicts.offences(new EnvironmentCheck(root, manifests).findings(), "a Dockerfile building it"),
+            "a Dockerfile no package holds builds the application whose directory it names, and only that one"
+        );
     }
 }

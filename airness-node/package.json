@@ -54,6 +54,18 @@
       "types": "./dist/vitest.d.ts",
       "default": "./dist/vitest.js"
     },
+    "./a11y": {
+      "types": "./dist/a11y.d.ts",
+      "default": "./dist/a11y.js"
+    },
+    "./security": {
+      "types": "./dist/security.d.ts",
+      "default": "./dist/security.js"
+    },
+    "./playwright": {
+      "types": "./dist/playwright.d.ts",
+      "default": "./dist/playwright.js"
+    },
     "./biome": "./configs/airness-biome.json",
     "./tsconfig": "./configs/tsconfig.json",
     "./tsconfig.json": "./configs/tsconfig.json",
@@ -72,9 +84,12 @@
     "node": ">=26"
   },
   "dependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@biomejs/biome": "2.5.15",
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
+    "@next/eslint-plugin-next": "16.4.2",
+    "@playwright/test": "1.63.0",
     "@typescript-eslint/parser": "8.72.0",
     "@vitest/coverage-v8": "5.0.5",
     "@vitest/eslint-plugin": "1.6.27",
@@ -83,6 +98,7 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-functional": "10.0.1",
     "eslint-plugin-jsdoc": "65.4.0",
+    "eslint-plugin-playwright": "2.12.1",
     "eslint-plugin-regexp": "3.3.1",
     "eslint-plugin-sonarjs": "4.2.2",
     "eslint-plugin-unicorn": "78.0.0",
@@ -90,6 +106,11 @@
     "knip": "6.42.1",
     "micromatch": "4.0.8",
     "oxlint": "1.89.0",
+    "postcss-scss": "4.0.9",
+    "prettier": "3.9.10",
+    "stylelint": "17.16.0",
+    "stylelint-config-standard": "40.0.0",
+    "stylelint-scss": "7.3.0",
     "type-coverage": "2.30.4",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.0",
@@ -99,7 +120,8 @@
   "devDependencies": {
     "@airness/node": "link:.",
     "@types/micromatch": "4.0.10",
-    "@types/node": "26.6.5"
+    "@types/node": "26.6.5",
+    "ajv": "8.20.0"
   },
   "airness": {
     "coverageExclude": [
@@ -114,6 +136,40 @@
       {
         "pattern": "src/project-settings.ts",
         "reason": "read only by the ESLint configuration, in the process ESLint runs it in"
+      },
+      {
+        "pattern": "src/a11y.ts",
+        "reason": "the accessibility scans and the route walk the shipped sweep and a project's own specs call, which run only inside a Playwright worker during the e2e gate; the rules they apply are measured in their own modules"
+      },
+      {
+        "pattern": "src/layout.ts",
+        "reason": "the layout measurement, whose page code runs in the browser Playwright drives during the e2e gate; the rules that judge its snapshot are measured in their own modules"
+      },
+      {
+        "pattern": "src/settle.ts",
+        "reason": "the wait before a scan, which runs only in the browser page Playwright drives during the e2e gate"
+      },
+      {
+        "pattern": "src/security.ts",
+        "reason": "the Playwright assertion over a received response, which runs only inside a Playwright worker; the header baseline it applies is measured in security-headers.ts"
+      },
+      {
+        "pattern": "src/playwright.ts",
+        "reason": "the Playwright configuration, which Playwright loads in a process of its own during the e2e gate"
+      },
+      {
+        "pattern": "src/production-{build,environment,server}.ts",
+        "reason": "the launcher of a Next.js production build and the loaders of its configuration and environment, which run only inside the Playwright run of the e2e gate against an installed Next; the output selection they apply is measured in production-output.ts"
+      },
+      {
+        "pattern": "src/browser-servers.ts",
+        "reason": "the TCP probe of the browser endpoint, which opens sockets and resolves hostnames; the decisions it feeds are measured in browser-server-policy.ts"
+      }
+    ],
+    "generatedArtefacts": [
+      {
+        "pattern": "tests/fixtures/cyclonedx/**",
+        "reason": "the CycloneDX 1.6 JSON schema, vendored verbatim from the CycloneDX specification so the SBOM spec validates offline"
       }
     ]
   }

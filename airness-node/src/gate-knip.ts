@@ -21,6 +21,11 @@ const RESOLVED_BY_NAME: readonly string[] = [
   '@biomejs/biome',
   'dependency-cruiser',
   'oxlint',
+  'postcss-scss',
+  'prettier',
+  'stylelint',
+  'stylelint-config-standard',
+  'stylelint-scss',
   'type-coverage',
 ]
 

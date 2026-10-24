@@ -7,6 +7,8 @@ import { coverageExclusions, coverageIncludes } from './coverage-policy.js'
 import { layerDefaultsFor } from './layer.js'
 import { readJson } from './project.js'
 import { readSettings, type Settings } from './settings.js'
+import { END_TO_END_SPEC_GLOB, UNIT_SPEC_GLOB } from './spec-roles.js'
+import { hasOwnRuntime } from './workspace.js'
 
 /** The per-file floor every measured file is held to, for lines, branches, functions and statements. */
 export const COVERAGE_THRESHOLD: number = 80
@@ -25,7 +27,9 @@ const config: ViteUserConfig = defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     environment: 'node',
-    include: ['tests/**/*.spec.ts'],
+    include: [UNIT_SPEC_GLOB],
+    // The end-to-end specs are Playwright's, which the e2e gate runs against a served application.
+    exclude: [END_TO_END_SPEC_GLOB, '**/node_modules/**'],
     sequence: {
       shuffle: { files: true, tests: true },
       seed: TEST_ORDER_SEED,
@@ -40,7 +44,7 @@ const config: ViteUserConfig = defineConfig({
       reporter: ['text'],
       reportsDirectory: 'node_modules/.airness/coverage',
       include: [...coverageIncludes(settings.sourceRoots)],
-      exclude: [...coverageExclusions(settings)],
+      exclude: [...coverageExclusions(settings, hasOwnRuntime(manifest))],
       thresholds: {
         perFile: true,
         lines: COVERAGE_THRESHOLD,

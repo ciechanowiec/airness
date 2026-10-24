@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { workingTreeFiles, workingTreeFingerprint } from '@/working-tree.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 
 const SPEC_DIRECTORY: string = path.dirname(fileURLToPath(import.meta.url))
 
@@ -18,7 +19,7 @@ const withTree = (use: (root: string) => void): void => {
   }
 }
 
-describe('working-tree evidence', () => {
+describe('working-tree evidence', PROCESS_TIME, () => {
   it('enumerates untracked source with spaces and excludes ignored build output', () => {
     withTree((root: string): void => {
       writeFileSync(path.join(root, 'new source.ts'), 'export const other = 2\n')

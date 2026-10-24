@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { hasInstallScript, type InstalledPackage, installedPackages } from '@/installed-packages.js'
 import { installIntoStore } from './helpers/package-store.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 const withStore = (use: (root: string) => void): void => {
@@ -12,7 +13,7 @@ const withStore = (use: (root: string) => void): void => {
   }
 }
 
-describe('installed packages', () => {
+describe('installed packages', PROCESS_TIME, () => {
   it('reads each package from the virtual store once, scoped ones included, and passes over the links', () => {
     withStore((root: string): void => {
       installIntoStore(root, [

@@ -84,4 +84,23 @@ class EnvironmentRulesTest {
             "the skip is read on the continued line too"
         );
     }
+
+    @Test
+    void readsTheNamesANextBuildInlinesInBothForms() {
+        String source = "process.env.NEXT_PUBLIC_A + process.env[ \"NEXT_PUBLIC_B\" ] + process.env.OTHER";
+        assertEquals(
+            Set.of("NEXT_PUBLIC_A", "NEXT_PUBLIC_B"),
+            EnvironmentRules.inlined(source),
+            "only the prefixed reads are inlined"
+        );
+    }
+
+    @Test
+    void readsEveryBuildArgumentWithOrWithoutADefaultAcrossContinuedLines() {
+        assertEquals(
+            Set.of("FIRST", "SECOND", "THIRD"),
+            EnvironmentRules.buildArguments("FROM a\narg FIRST=1 \\\n  SECOND\nFROM b\nARG THIRD\nRUN ARG=x\n"),
+            "every stage is read as one namespace, and an ARG word inside RUN declares nothing"
+        );
+    }
 }

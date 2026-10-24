@@ -1,10 +1,12 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -17,8 +19,11 @@ import java.util.stream.Stream;
  * interpolate from. A repository with no compose file passes over an empty set, and the first one added
  * is checked from then on.
  *
- * <p>The variables application code reads, and those a build inlines into an image, are inputs a stack
- * layer contributes. The generic layer reads none.
+ * <p>The Next.js facet contributes a third: what a Next.js application's build configuration inlines through a
+ * {@code NEXT_PUBLIC_} read must be declared by an {@code ARG} in every Dockerfile that builds the application,
+ * because docker discards a {@code --build-arg} the Dockerfile never named and warns rather than failing. A
+ * Dockerfile builds the node package whose directory most closely holds it. The variables application code
+ * reads through a validated environment module are a Payload layer input, and the generic layer reads none.
  */
 public final class EnvironmentCheck {
 
@@ -30,17 +35,38 @@ public final class EnvironmentCheck {
         = "Environment variables a compose file needs that a verifying workflow does not supply (add each"
             + " to the workflow's env)";
 
+    private static final String UNDECLARED
+        = "Environment variables a Next.js build inlines that a Dockerfile building it does not declare (add ARG"
+            + " <NAME> to the stage that runs the build)";
+    private static final List<String> BUILD_CONFIGURATIONS = List.of(
+        "next.config.ts", "next.config.mjs", "next.config.js"
+    );
+    private static final String MANIFEST = "package.json";
+    private static final String NEXT = "next";
+
     private final Path root;
     private final ContainerDefinitions definitions;
+    private final Function<Path, Optional<PackageManifest>> manifests;
 
     /**
-     * Names the working tree whose environment declarations are read.
+     * Names the working tree whose environment declarations are read, with no node package read.
      *
      * @param root the working tree root
      */
     public EnvironmentCheck(Path root) {
+        this(root, _ -> Optional.empty());
+    }
+
+    /**
+     * Names the working tree whose environment declarations are read, and how a node package is read.
+     *
+     * @param root      the working tree root
+     * @param manifests the {@code package.json} of a directory, empty where it holds none
+     */
+    public EnvironmentCheck(Path root, Function<Path, Optional<PackageManifest>> manifests) {
         this.root = root;
         this.definitions = new ContainerDefinitions(root);
+        this.manifests = manifests;
     }
 
     /**
@@ -64,7 +90,64 @@ public final class EnvironmentCheck {
             .filter(workflow -> EnvironmentRules.verifying(this.read(workflow)))
             .flatMap(workflow -> this.missing(needed, workflow))
             .toList();
-        return List.of(new Findings(UNDOCUMENTED, undocumented), new Findings(UNSUPPLIED, unsupplied));
+        return List.of(
+            new Findings(UNDOCUMENTED, undocumented),
+            new Findings(UNSUPPLIED, unsupplied),
+            new Findings(UNDECLARED, this.undeclared())
+        );
+    }
+
+    private List<String> undeclared() {
+        List<Path> packages = Repository.trackedFiles(this.root).stream()
+            .filter(file -> MANIFEST.equals(String.valueOf(file.getFileName())))
+            .map(Path::getParent)
+            .toList();
+        List<Path> dockerfiles = this.definitions.dockerfiles();
+        return packages.stream()
+            .filter(this::isNextApplication)
+            .flatMap(application -> this.undeclaredIn(application, this.building(application, packages, dockerfiles)))
+            .toList();
+    }
+
+    private boolean isNextApplication(Path directory) {
+        return this.manifests.apply(directory)
+            .filter(manifest -> manifest.installs(NEXT))
+            .isPresent();
+    }
+
+    private Stream<String> undeclaredIn(Path application, List<Path> dockerfiles) {
+        if (dockerfiles.isEmpty()) {
+            return Stream.empty();
+        }
+        Set<String> declared = dockerfiles.stream()
+            .flatMap(file -> EnvironmentRules.buildArguments(this.read(file)).stream())
+            .collect(Collectors.toSet());
+        String files = dockerfiles.stream().map(this::relative).collect(Collectors.joining(", "));
+        return BUILD_CONFIGURATIONS.stream()
+            .map(application::resolve)
+            .flatMap(file -> EnvironmentRules.inlined(this.read(file)).stream())
+            .distinct()
+            .sorted()
+            .filter(name -> !declared.contains(name))
+            .map(name -> name + " in " + files);
+    }
+
+    // The Dockerfiles that build a package: those its directory holds more closely than any other package's
+    // does, and, wherever they sit, those that name its directory, which is how a Dockerfile at the root of a
+    // monorepo, or under docker/, copies one application out of it.
+    private List<Path> building(Path application, List<Path> packages, List<Path> dockerfiles) {
+        String directory = this.relative(application);
+        return dockerfiles.stream().filter(file -> this.builds(file, application, directory, packages)).toList();
+    }
+
+    private boolean builds(Path dockerfile, Path application, String directory, List<Path> packages) {
+        boolean held = owner(dockerfile, packages).filter(application::equals).isPresent();
+        boolean named = !directory.isEmpty() && this.read(dockerfile).contains(directory);
+        return held || named;
+    }
+
+    private static Optional<Path> owner(Path file, List<Path> packages) {
+        return packages.stream().filter(file::startsWith).max(Comparator.comparingInt(Path::getNameCount));
     }
 
     private Stream<String> missing(Set<String> needed, Path workflow) {

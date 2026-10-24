@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { runCommandLine } from '@/command-line.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 const withProject = async (
@@ -17,7 +18,7 @@ const withProject = async (
   }
 }
 
-describe('the command line', () => {
+describe('the command line', PROCESS_TIME, () => {
   it('lists the gates and prints its usage', async () => {
     expect(await runCommandLine(['gates'], process.cwd())).toBe(0)
     expect(await runCommandLine([], process.cwd())).toBe(0)
@@ -43,6 +44,16 @@ describe('the command line', () => {
     })
     await withProject({ 'src/legacy.js': 'export const legacy = 1\n' }, async (root: string): Promise<void> => {
       expect(await runCommandLine(['gate', 'javascript-allowlist'], root)).toBe(1)
+    })
+  })
+
+  it('writes a facet gate with nothing to judge as not applicable, and exits zero', async () => {
+    await withProject({ 'src/total.ts': 'export const total = 1\n' }, async (root: string): Promise<void> => {
+      const result: string = path.join(root, 'css.json')
+      expect(await runCommandLine(['gate', 'css', '--result', result], root)).toBe(0)
+      expect(JSON.parse(readFileSync(result, 'utf8'))).toEqual(
+        expect.objectContaining({ gate: 'css', status: 'not-applicable', findings: [] }),
+      )
     })
   })
 

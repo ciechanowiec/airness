@@ -9,12 +9,13 @@
 import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesGlob, matchesRole, type RolePattern } from './file-roles.js'
 import { isJavascriptRuntime, JAVASCRIPT_RUNTIMES, type RuntimeRole } from './javascript-runtimes.js'
 import { asRecord, asText, isArray, isRecord } from './json-shapes.js'
+import { isSubtreePrefix } from './route-exclusions.js'
 
 /** The key of package.json a node project declares its settings under. */
 export const SETTINGS_KEY: string = 'airness'
 
 /** How a declared exclusion's pattern is matched against a path. */
-export type ExclusionKind = 'regex' | 'glob'
+export type ExclusionKind = 'regex' | 'glob' | 'directory' | 'route'
 
 /** One exclusion a project declared, and the file role it claims. */
 export interface DeclaredExclusion {
@@ -43,7 +44,52 @@ export interface Settings {
   readonly javascriptAllowlist: readonly RolePattern[]
   /** The same roles, each with the engine its files run in, which decides how they are linted. */
   readonly javascriptRuntimes: readonly RuntimeRole[]
+  /**
+   * Directories forming the pure-logic floor, which may depend on nothing else under a source root. Empty
+   * unless the project or a layer package declares one.
+   */
+  readonly pureLogicRoots: readonly string[]
+  /**
+   * The `package.json` script that serves a browser application that is not a Next.js application, which the
+   * end-to-end suite starts. Undefined when the project declares none.
+   */
+  readonly serve: string | undefined
+  /** The origin the end-to-end suite drives. */
+  readonly serverUrl: string
+  /** The gzipped client JavaScript ceiling of a Next.js application, which a project may only lower. */
+  readonly bundleBudgetBytes: number
+  /** Route prefixes the accessibility crawl does not follow. */
+  readonly accessibilitySkipRoutes: readonly string[]
+  /** The prefixes the project itself declared, apart from a layer's. */
+  readonly accessibilityCustomSkipRoutes: readonly string[]
+  /** How many routes the accessibility crawl may discover before it fails; a project may only lower it. */
+  readonly accessibilityRouteBudget: number
+  /** The smallest gap, in CSS pixels, between a boxed element and its sibling; a project may only raise it. */
+  readonly layoutMinimumGap: number
+  /** Viewports the layout scan measures beside the ones the harness requires. */
+  readonly layoutViewports: readonly LayoutViewport[]
 }
+
+/** A viewport the layout scan measures, in CSS pixels. */
+export interface LayoutViewport {
+  readonly width: number
+  readonly height: number
+}
+
+/** The origin the end-to-end suite drives when the project declares none. */
+export const DEFAULT_SERVER_URL: string = 'http://localhost:3000'
+
+const BYTES_PER_KIB: number = 1024
+const BUNDLE_BUDGET_KIB: number = 1100
+
+/** The gzipped client JavaScript ceiling, which a project may lower and never raise. */
+export const BUNDLE_BUDGET_BYTES: number = BUNDLE_BUDGET_KIB * BYTES_PER_KIB
+
+/** How many routes the accessibility crawl may discover, which a project may lower and never raise. */
+export const ACCESSIBILITY_ROUTE_BUDGET: number = 250
+
+/** The smallest gap between a boxed element and its sibling, which a project may raise and never lower. */
+export const LAYOUT_MINIMUM_GAP: number = 4
 
 /**
  * The defaults a layer package contributes to every member that declares it: a stack layer above the node
@@ -54,6 +100,10 @@ export interface LayerDefaults {
   readonly generatedArtefacts: readonly string[]
   readonly frameworkGlue: readonly string[]
   readonly javascriptRuntimes: readonly RuntimeRole[]
+  /** The pure-logic floor the layer's framework lays out, such as an access-rule directory. */
+  readonly pureLogicRoots?: readonly string[]
+  /** Route prefixes the layer's framework serves outside the public site, such as an admin panel. */
+  readonly accessibilitySkipRoutes?: readonly string[]
 }
 
 /** The directories a project holds first-party source in, whatever else it declares. */
@@ -152,6 +202,74 @@ export const declaredRuntimeRoles = (entries: readonly DeclaredExclusion[]): rea
       : [],
   )
 
+// A skipped route prefix is honoured only where it names a subtree: `/` would switch the sweep off.
+const honouredRoutes = (routes: readonly DeclaredExclusion[]): readonly string[] =>
+  honoured(routes).filter((prefix: string): boolean => isSubtreePrefix(prefix))
+
+const withoutTrailingSlash = (directory: string): string =>
+  directory.endsWith('/') ? withoutTrailingSlash(directory.slice(0, -1)) : directory
+
+// The pure-logic floor: every layer's, then every directory the project declares with a reason.
+const floorOf = (floor: readonly DeclaredExclusion[], layers: readonly LayerDefaults[]): readonly string[] => [
+  ...new Set<string>([
+    ...layers.flatMap((layer: LayerDefaults): readonly string[] => layer.pureLogicRoots ?? []),
+    ...honoured(floor).map((directory: string): string => withoutTrailingSlash(directory)),
+  ]),
+]
+
+const asPositiveInteger = (raw: unknown, fallback: number): number =>
+  typeof raw === 'number' && Number.isSafeInteger(raw) && raw > 0 ? raw : fallback
+
+// A ceiling a project may only lower: a larger or malformed value leaves the harness's own.
+const clampedCeiling = (raw: unknown, shipped: number): number => Math.min(shipped, asPositiveInteger(raw, shipped))
+
+const asLayoutViewports = (raw: unknown): readonly LayoutViewport[] =>
+  isArray(raw)
+    ? raw.flatMap((entry: unknown): readonly LayoutViewport[] => {
+        const record: Record<string, unknown> = asRecord(entry)
+        const width: number = asPositiveInteger(record['width'], 0)
+        const height: number = asPositiveInteger(record['height'], 0)
+        return width > 0 && height > 0 ? [{ width, height }] : []
+      })
+    : []
+
+// What a browser application declares: how it is served and where it answers, and the one-directional
+// limits of the accessibility and layout scans. None of them reaches a rule; each can only narrow a scan's
+// reach in the stricter direction, or say where the application is.
+const appSettings = (
+  raw: Record<string, unknown>,
+  layers: readonly LayerDefaults[],
+  customRoutes: readonly string[],
+): Pick<
+  Settings,
+  | 'serve'
+  | 'serverUrl'
+  | 'bundleBudgetBytes'
+  | 'accessibilitySkipRoutes'
+  | 'accessibilityCustomSkipRoutes'
+  | 'accessibilityRouteBudget'
+  | 'layoutMinimumGap'
+  | 'layoutViewports'
+> => {
+  const serve: string = asText(raw['serve']).trim()
+  const serverUrl: string = asText(raw['serverUrl']).trim()
+  return {
+    serve: serve.length > 0 ? serve : undefined,
+    serverUrl: serverUrl.length > 0 ? serverUrl : DEFAULT_SERVER_URL,
+    bundleBudgetBytes: clampedCeiling(raw['bundleBudgetBytes'], BUNDLE_BUDGET_BYTES),
+    accessibilitySkipRoutes: [
+      ...new Set<string>([
+        ...layers.flatMap((layer: LayerDefaults): readonly string[] => layer.accessibilitySkipRoutes ?? []),
+        ...customRoutes,
+      ]),
+    ],
+    accessibilityCustomSkipRoutes: customRoutes,
+    accessibilityRouteBudget: clampedCeiling(raw['accessibilityRouteBudget'], ACCESSIBILITY_ROUTE_BUDGET),
+    layoutMinimumGap: Math.max(LAYOUT_MINIMUM_GAP, asPositiveInteger(raw['layoutMinimumGap'], LAYOUT_MINIMUM_GAP)),
+    layoutViewports: asLayoutViewports(raw['layoutViewports']),
+  }
+}
+
 /** The raw `airness` block of a manifest, before any default is applied. */
 export const settingsBlock = (packageJson: unknown): Record<string, unknown> =>
   asRecord(asRecord(packageJson)[SETTINGS_KEY])
@@ -177,6 +295,12 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     'glob',
   )
   const coverage: readonly DeclaredExclusion[] = asDeclaredExclusions(raw['coverageExclude'], 'coverageExclude', 'glob')
+  const floor: readonly DeclaredExclusion[] = asDeclaredExclusions(raw['pureLogicRoots'], 'pureLogicRoots', 'directory')
+  const routes: readonly DeclaredExclusion[] = asDeclaredExclusions(
+    raw['accessibilitySkipRoutes'],
+    'accessibilitySkipRoutes',
+    'route',
+  )
   const layerRuntimes: readonly RuntimeRole[] = layers.flatMap(
     (layer: LayerDefaults): readonly RuntimeRole[] => layer.javascriptRuntimes,
   )
@@ -195,13 +319,15 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
       ...honoured(generated),
     ],
     coverageExclude: honoured(coverage),
-    declaredExclusions: [...javascript, ...glue, ...generated, ...coverage],
+    declaredExclusions: [...javascript, ...glue, ...generated, ...coverage, ...floor, ...routes],
     javascriptAllowlist: [
       ...DEFAULT_JAVASCRIPT_ALLOWLIST,
       ...layerRuntimes.map((role: RuntimeRole): RolePattern => role.role),
       ...honoured(javascript),
     ],
     javascriptRuntimes: [...DEFAULT_JAVASCRIPT_RUNTIMES, ...layerRuntimes, ...declaredRuntimeRoles(javascript)],
+    pureLogicRoots: floorOf(floor, layers),
+    ...appSettings(raw, layers, honouredRoutes(routes)),
   }
 }
 
@@ -240,10 +366,20 @@ export const findUndeclaredRuntimes = (entries: readonly DeclaredExclusion[]): r
         `; declare the engine its file runs in, one of: ${JAVASCRIPT_RUNTIMES.join(', ')}`,
     )
 
+const reachesCandidate = (entry: DeclaredExclusion, candidate: string): boolean => {
+  if (entry.kind === 'glob') {
+    return matchesGlob(entry.pattern, candidate)
+  }
+  if (entry.kind === 'directory') {
+    return candidate.startsWith(`${withoutTrailingSlash(entry.pattern)}/`)
+  }
+  return matchesRole(candidate, [entry.pattern])
+}
+
+// A route prefix names a URL the running application serves, which no file in the tree can show, so its
+// reach is not judged here.
 const reachesAny = (entry: DeclaredExclusion, candidates: readonly string[]): boolean =>
-  candidates.some((candidate: string): boolean =>
-    entry.kind === 'glob' ? matchesGlob(entry.pattern, candidate) : matchesRole(candidate, [entry.pattern]),
-  )
+  entry.kind === 'route' || candidates.some((candidate: string): boolean => reachesCandidate(entry, candidate))
 
 /**
  * Report every declared exclusion that matches none of the paths it could have excluded.

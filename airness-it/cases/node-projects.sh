@@ -1,22 +1,19 @@
 #!/usr/bin/env sh
 
-# The node infrastructure, proven with a fake gate: a few lines of JavaScript in a pnpm workspace member of
-# the fixture, which writes a result in the node-gate contract and names the Node it ran on. The installed
-# parent must download and verify the pinned Node and pnpm, install each declared project's locked
-# dependencies, build a frontend with node-run on that Node, fail the build on a failing gate, and fail a
-# module that carries a package.json nobody declared, a declared folder without one, or a project that picks a
-# pnpm of its own. A project may declare the Airness plugin only to bind node-run, so the fake gate runs as a
-# command-line goal after verify, which adds a gate and replaces none. The node gates the parent binds run in
-# verify as well, so each frontend installs the @airness/node this reactor packed and conforms to them. The
-# variants (path resolution, result parsing, workspace membership, the exec, antrun and frontend-maven-plugin
-# refusals) are unit-tested in airness-maven-plugin and airness-governance.
+# The node infrastructure, proven with the node gates the parent binds. The installed parent must download and
+# verify the pinned Node and pnpm, install each declared project's locked dependencies, build a frontend with
+# node-run on that Node, run the gates there, report a failing gate, refuse node-gate from the command line, and
+# fail a module that carries a package.json nobody declared, a declared folder without one, or a project that
+# picks a pnpm of its own. Each frontend installs the @airness/node this reactor packed and conforms to the
+# gates; the spec of its workspace member asserts the Node it runs on, so the tests gate passing proves the
+# gates ran on the harness's Node. The variants (path resolution, result parsing, workspace membership, the
+# exec, antrun and frontend-maven-plugin refusals) are unit-tested in airness-maven-plugin and
+# airness-governance.
 run_node_project_cases() {
-    node_fixture="${repository}/airness-it/fixtures/node-project"
-
     new_consumer node-shop
     node_shop="${consumer_directory}"
     mkdir -p "${node_shop}/src/main"
-    cp -R "${node_fixture}" "${node_shop}/src/main/frontend"
+    copy_node_fixture "${node_shop}/src/main/frontend"
     install_airness_node "${node_shop}/src/main/frontend"
     write_node_consumer "${node_shop}" 'src/main/frontend' '
     <build>
@@ -41,8 +38,7 @@ run_node_project_cases() {
         </plugins>
     </build>'
 
-    run_maven node_shop node "${node_shop}" airness:assets-sync clean verify airness:node-gate \
-        -Dairness.node.gate=fake '-Dairness.node.command=airness-fake-gate gate fake'
+    run_maven node_shop node "${node_shop}" airness:assets-sync clean verify
     expect_exit node_shop 'node: a Java module with an in-module frontend passes' 0
     expect_match node_shop 'node: the pinned Node and pnpm are installed and verified' \
         'Node 26[.]11[.]1 and pnpm 12[.]14[.]0, verified by SHA-256'
@@ -60,45 +56,49 @@ run_node_project_cases() {
     else
         pass 'node: the project lifecycle scripts never run'
     fi
-    expect_match node_shop 'node: the gate runs in the declared project on the harness Node' \
-        'Node gate fake in src/main/frontend passed: ran on Node v26[.]11[.]1'
+    expect_match node_shop 'node: the gates run in the declared project on the harness Node' \
+        'Node gate tests in src/main/frontend passed'
     expect_file_match "${node_shop}/target/classes/static/index.html" \
         'node: node-run builds the frontend into the artifact on the harness Node' 'built on Node v26[.]11[.]1'
 
-    run_maven node_shop_skip node "${node_shop}" clean package -DskipTests airness:node-gate \
-        -Dairness.node.gate=fake '-Dairness.node.command=airness-fake-gate gate fake'
+    run_maven node_shop_skip node "${node_shop}" clean package -DskipTests
     expect_exit node_shop_skip 'node: Skip mode still builds the frontend of a module that runs node-run' 0
     unzip -p "${node_shop}/target/consumer-9.4.2.jar" static/index.html > "${scratch}/node-shop-index.html" \
         2>/dev/null || true
     expect_file_match "${scratch}/node-shop-index.html" \
         'node: Skip mode packs the frontend node-run built into the jar' 'built on Node v26[.]11[.]1'
-    expect_no_match node_shop_skip 'node: Skip mode runs no node gate' 'Node gate fake'
+    expect_no_match node_shop_skip 'node: Skip mode runs no node gate' 'Node gate '
 
     new_consumer node-portal
     node_portal="${consumer_directory}"
     mkdir -p "${node_portal}/src/main/webapp" "${node_portal}/ui"
-    cp -R "${node_fixture}" "${node_portal}/src/main/webapp/admin"
-    cp -R "${node_fixture}" "${node_portal}/ui/storefront"
+    copy_node_fixture "${node_portal}/src/main/webapp/admin"
+    copy_node_fixture "${node_portal}/ui/storefront"
     install_airness_node "${node_portal}/src/main/webapp/admin"
     install_airness_node "${node_portal}/ui/storefront"
     write_node_consumer "${node_portal}" 'src/main/webapp/admin,ui/storefront' ''
 
-    run_maven node_portal node "${node_portal}" airness:assets-sync clean verify airness:node-gate \
-        -Dairness.node.gate=fake '-Dairness.node.command=airness-fake-gate gate fake'
+    run_maven node_portal node "${node_portal}" airness:assets-sync clean verify
     expect_exit node_portal 'node: two frontends in custom folders pass' 0
     for node_project in src/main/webapp/admin ui/storefront; do
-        expect_match node_portal "node: the gate runs in ${node_project}" \
-            "Node gate fake in ${node_project} passed: ran on Node v26[.]11[.]1"
-        expect_file_match "${node_portal}/target/airness/node/projects/${node_project}/fake.json" \
-            "node: the result for ${node_project} lies under its own key" '"gate":"fake"'
+        expect_match node_portal "node: the gates run in ${node_project}" \
+            "Node gate tests in ${node_project} passed"
+        expect_file_match "${node_portal}/target/airness/node/projects/${node_project}/tests.json" \
+            "node: the result for ${node_project} lies under its own key" '"gate": "tests"'
     done
 
-    # A failing result fails the build: the fake gate fails where a planted-finding.txt lies.
-    printf 'planted\n' > "${node_portal}/ui/storefront/planted-finding.txt"
-    run_maven node_failing node "${node_portal}" verify airness:node-gate \
-        -Dairness.node.gate=fake '-Dairness.node.command=airness-fake-gate gate fake'
-    expect_exit node_failing 'node: a failing gate fails the build' 1
-    expect_match node_failing 'node: the failure names the gate finding' 'planted-finding[.]txt is planted'
+    # A failing gate in one of two frontends is reported against that frontend alone. Report-only, so the
+    # same run reaches the command-line node-gate after verify, which is refused: it may not name a gate or a
+    # command of its own, and runs only in the executions the parents bind. The enforcing failure of a gate
+    # finding is proven by the node-gates domain.
+    printf "export const wrong: number = 'text'\n" > "${node_portal}/ui/storefront/src/wrong.ts"
+    run_maven node_failing node "${node_portal}" verify airness:node-gate -Dairness.enforce=false
+    expect_match node_failing 'node: a failing gate names the frontend it failed in' \
+        'Node gate types in ui/storefront failed'
+    expect_match node_failing 'node: the other frontend still passes the same gate' \
+        'Node gate types in src/main/webapp/admin passed'
+    expect_match node_failing 'node: node-gate from the command line is refused' \
+        'airness:node-gate runs only in the node-gate executions the Airness parents bind'
 
     # The case that matters most: a Java module gains a package.json in a folder nobody declared. One
     # validate run batches it with a declared folder that holds no package.json and a project that names a
@@ -117,6 +117,15 @@ run_node_project_cases() {
         'missing has no package[.]json; fix airness[.]node[.]projects'
     expect_match node_undeclared 'node: a project may not choose a pnpm of its own' \
         'web/package[.]json: packageManager lets pnpm choose a pnpm or Node of its own'
+}
+
+# Copies the node-project fixture, writing in the Node version the harness pins, which its member's spec asserts.
+copy_node_fixture() {
+    cp -R "${repository}/airness-it/fixtures/node-project" "$1"
+    pinned_node="$(sed -n 's/^node[.]version=//p' \
+        "${repository}/airness-maven-plugin/src/main/resources/eu/ciechanowiec/airness/node/toolchain.properties")"
+    sed "s/@NODE_VERSION@/${pinned_node}/" "$1/member/tests/total.spec.ts" > "$1/member/tests/total.spec.ts.pinned"
+    mv "$1/member/tests/total.spec.ts.pinned" "$1/member/tests/total.spec.ts"
 }
 
 # Rewrites a cloned consumer's pom to declare its node projects, with any build plugins the case needs.

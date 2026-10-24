@@ -10,6 +10,8 @@ import {
 import { blanketExclusionFindings, measurableFiles } from './coverage-policy.js'
 import { failed, type GateResult, passed } from './exec.js'
 import { harnessDirectory, type Member } from './project.js'
+import { skipRouteFindings } from './route-exclusions.js'
+import { appRootOf, type DeclaredRoute, declaredRoutesOf } from './route-map.js'
 import {
   type DeclaredExclusion,
   findConvenienceExclusions,
@@ -59,7 +61,12 @@ const unreached = (member: Member): readonly string[] => {
   const coverage: readonly DeclaredExclusion[] = entries.filter((entry: DeclaredExclusion): boolean =>
     isCoverageEntry(entry),
   )
-  const measurable: readonly string[] = measurableFiles(files, member.settings, member.siblingPaths)
+  const measurable: readonly string[] = measurableFiles(
+    files,
+    member.settings,
+    member.siblingPaths,
+    member.hasOwnRuntime,
+  )
   return [
     ...findUnreachedExclusions(coverage, measurable),
     ...blanketExclusionFindings(coverage, measurable),
@@ -70,9 +77,24 @@ const unreached = (member: Member): readonly string[] => {
   ]
 }
 
+// The pages a Next.js application's App Router declares, which a skipped route prefix is judged against.
+const declaredPages = (member: Member): readonly DeclaredRoute[] | undefined => {
+  if (!member.hasOwnRuntime) {
+    return undefined
+  }
+  const files: readonly string[] = memberFiles(presentWorkingTreeFiles(member.root), member.siblingPaths)
+  const appRoot: string | undefined = appRootOf(files)
+  return appRoot === undefined ? undefined : declaredRoutesOf(files, appRoot)
+}
+
 /** Every carve-out of a tool configuration or a setting reaches a file that exists. */
 export const configReferences = (member: Member): GateResult => {
-  const findings: readonly string[] = [...danglingReferences(member), ...unexplained(member), ...unreached(member)]
+  const findings: readonly string[] = [
+    ...danglingReferences(member),
+    ...unexplained(member),
+    ...unreached(member),
+    ...skipRouteFindings(member.settings.declaredExclusions, declaredPages(member)),
+  ]
   return findings.length > 0
     ? failed(`${String(findings.length)} carve-out(s) that reach nothing`, findings)
     : passed('every carve-out of a tool configuration or setting reaches a file that exists')

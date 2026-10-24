@@ -19,7 +19,7 @@ export interface DirectDependency {
 }
 
 /** Where pnpm fetched a package from, as its resolution records it. */
-type PackageSource = 'registry' | 'tarball' | 'git' | 'directory'
+type PackageSource = 'registry' | 'tarball' | 'git' | 'directory' | 'unknown'
 
 /** One package of the resolved set. */
 export interface ResolvedPackage {
@@ -99,6 +99,11 @@ const sourceOf = (resolution: Record<string, unknown>): PackageSource => {
   }
   if (typeof resolution['directory'] === 'string') {
     return 'directory'
+  }
+  // A resolution of a type this reading does not know, such as a future runtime or binary resolution, is no
+  // registry release: classified as its own source, it fails every rule that requires a registry.
+  if (resolution['type'] !== undefined) {
+    return 'unknown'
   }
   return typeof resolution['tarball'] === 'string' ? 'tarball' : 'registry'
 }

@@ -4,10 +4,16 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { GateContext } from './exec.js'
-import { crashedResult, type MemberOutcome, type ResultFile, resultOf } from './gate-result.js'
+import { crashedResult, type GateStatus, type MemberOutcome, type ResultFile, resultOf } from './gate-result.js'
 import { GATES, type Gate, gateById } from './gates.js'
 import { type Member, membersOf } from './project.js'
 
+// How the verdict reads on the console.
+const STATUS_LABELS: Readonly<Record<GateStatus, string>> = {
+  passed: '[PASS]',
+  failed: '[FAIL]',
+  'not-applicable': '[N/A]',
+}
 const RESULT_OPTION: string = '--result'
 const VERBOSE_OPTION: string = '--verbose'
 const JSON_INDENT: number = 2
@@ -94,11 +100,12 @@ const gateCommand = async (invocation: GateInvocation, directory: string): Promi
   if (invocation.result !== undefined) {
     writeFileSync(invocation.result, `${JSON.stringify(result, null, JSON_INDENT)}\n`)
   }
-  console.info(`${result.status === 'passed' ? '[PASS]' : '[FAIL]'} ${gate.id}  ${result.summary}`)
+  console.info(`${STATUS_LABELS[result.status]} ${gate.id}  ${result.summary}`)
   for (const finding of result.findings) {
     console.info(`  ${finding}`)
   }
-  return result.status === 'passed' ? 0 : 1
+  // Only a failure exits nonzero: a facet gate with nothing to judge is not applicable, which is no failure.
+  return result.status === 'failed' ? 1 : 0
 }
 
 const listGates = (): number => {

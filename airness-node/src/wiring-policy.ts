@@ -10,7 +10,13 @@ import { ROOT_MEMBER_PATH } from './workspace.js'
  * The libraries whose version decides a verdict and which a member declares itself, because its own specs
  * import them or the tests gate runs them from the member. The harness's own manifest names their versions.
  */
-const HARNESS_DECIDED: ReadonlySet<string> = new Set<string>(['vitest', '@vitest/coverage-v8', 'typescript'])
+const HARNESS_DECIDED: ReadonlySet<string> = new Set<string>([
+  'vitest',
+  '@vitest/coverage-v8',
+  'typescript',
+  // The shipped Playwright configuration and the member's own end-to-end specs must load one copy.
+  '@playwright/test',
+])
 
 /** The libraries a member holding source declares, because the tests gate runs them from the member. */
 const SUITE_LIBRARIES: readonly string[] = ['vitest', '@vitest/coverage-v8']
@@ -36,7 +42,23 @@ export interface WiringInputs {
   readonly hasSource: boolean
   /** The install-time rewrites the project configures or its lockfile records, judged at the project root. */
   readonly rewrites: readonly string[]
+  /** Whether the registry configured for a package serves the resolution the lockfile records for it. */
+  readonly isFromItsRegistry?: (resolved: ResolvedPackage) => boolean
 }
+
+// A harness package fetched from git, a directory or a stray tarball is not the release the parents name, even
+// at the same version: no registry vouches for its content.
+const harnessSourceFindings = (
+  harness: readonly ResolvedPackage[],
+  isFromItsRegistry: (resolved: ResolvedPackage) => boolean,
+): readonly string[] =>
+  harness
+    .filter((resolved: ResolvedPackage): boolean => !isFromItsRegistry(resolved))
+    .map(
+      (resolved: ResolvedPackage): string =>
+        `${LOCKFILE} resolves ${resolved.name}@${resolved.version} from a ${resolved.source} rather than from the ` +
+        'registry configured for it; install the released package from its registry',
+    )
 
 // A harness package's own repository installs that package through its link to itself, as airness-node
 // does and ploaness-node will, so its own name is the one harness package it may link.
@@ -81,6 +103,10 @@ const projectFindings = (inputs: WiringInputs, lockfile: Lockfile): readonly str
     ...self,
     ...harness.flatMap((resolved: ResolvedPackage): readonly string[] =>
       versionFinding(resolved.name, resolved.version, expected),
+    ),
+    ...harnessSourceFindings(
+      harness,
+      inputs.isFromItsRegistry ?? ((resolved: ResolvedPackage): boolean => resolved.source === 'registry'),
     ),
   ]
 }

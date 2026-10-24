@@ -11,6 +11,7 @@ import {
   resolvedVersion,
   resolveTool,
 } from '@/project.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 const WORKSPACE: Readonly<Record<string, string>> = {
@@ -23,7 +24,7 @@ const WORKSPACE: Readonly<Record<string, string>> = {
 
 const pathsOf = (members: readonly Member[]): readonly string[] => members.map((member: Member): string => member.path)
 
-describe('the members of a node project', () => {
+describe('the members of a node project', PROCESS_TIME, () => {
   it('is the project alone without a workspace file', () => {
     const root: string = temporaryProject({ 'package.json': '{"name":"solo"}\n' })
     try {
@@ -66,7 +67,7 @@ describe('the members of a node project', () => {
   })
 })
 
-describe('the harness tools', () => {
+describe('the harness tools', PROCESS_TIME, () => {
   it('resolves a tool by its package and bin, and the version it resolved to', () => {
     expect(resolveTool('typescript', 'tsc')).toMatch(/typescript[/\\]bin[/\\]tsc$/u)
     expect(resolveTool('knip')).toMatch(/knip/u)

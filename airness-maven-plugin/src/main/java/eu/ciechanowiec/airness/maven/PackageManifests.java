@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -21,9 +22,8 @@ import lombok.experimental.UtilityClass;
 final class PackageManifests {
 
     private static final String MANIFEST = "package.json";
-    private static final List<String> DEPENDENCIES = List.of(
-        "dependencies", "devDependencies", "peerDependencies", "optionalDependencies"
-    );
+    private static final List<String> INSTALLED = List.of("dependencies", "devDependencies", "optionalDependencies");
+    private static final String PEERS = "peerDependencies";
 
     /**
      * The manifest in a directory.
@@ -44,7 +44,11 @@ final class PackageManifests {
         return Optional.of(
             new PackageManifest(
                 keys(document.path("scripts")),
-                DEPENDENCIES.stream()
+                Stream.concat(INSTALLED.stream(), Stream.of(PEERS))
+                    .map(document::path)
+                    .flatMap(node -> keys(node).stream())
+                    .collect(Collectors.toUnmodifiableSet()),
+                INSTALLED.stream()
                     .map(document::path)
                     .flatMap(node -> keys(node).stream())
                     .collect(Collectors.toUnmodifiableSet())

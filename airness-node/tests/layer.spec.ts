@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { layerDefaultsFor, layerDefaultsOf } from '@/layer.js'
 import { readJson } from '@/project.js'
 import { readSettings, type Settings } from '@/settings.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 const LAYER_MANIFEST: Readonly<Record<string, unknown>> = {
@@ -20,7 +21,7 @@ const LAYER_MANIFEST: Readonly<Record<string, unknown>> = {
   },
 }
 
-describe('the defaults a layer package contributes', () => {
+describe('the defaults a layer package contributes', PROCESS_TIME, () => {
   it('applies a layer default to the settings without making it the project exclusion', () => {
     const settings: Settings = readSettings({}, [layerDefaultsOf(LAYER_MANIFEST)])
     expect(settings.generatedArtefacts).toEqual(['src/payload-types.ts'])

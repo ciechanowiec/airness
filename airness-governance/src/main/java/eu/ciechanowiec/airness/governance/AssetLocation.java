@@ -14,5 +14,13 @@ public enum AssetLocation {
      * Each declared node project directory, for a file that the node tools read beside a
      * {@code package.json}.
      */
-    NODE_PROJECT
+    NODE_PROJECT,
+
+    /**
+     * Each declared node project that is a Next.js application, because its {@code package.json} installs
+     * {@code next}, whose routes live under {@code src/app} or {@code src/pages}, and which runs no middleware or
+     * proxy of its own, for a file only the Next.js facet needs there. The facet switches on by detection, never
+     * by a flag.
+     */
+    NEXT_PROJECT
 }

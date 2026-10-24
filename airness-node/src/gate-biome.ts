@@ -1,8 +1,10 @@
 // Formatting and fast lint, under the shipped Biome configuration, over the files the member owns.
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { biomeIncludes, biomeSelection, isNestedBiomeConfig } from './biome-selection.js'
 import { failed, fromRun, type GateResult, passed, runNode } from './exec.js'
+import { isNextApp } from './facets.js'
+import { asRecord } from './json-shapes.js'
 import { harnessDirectory, type Member, resolvedVersion, resolveTool } from './project.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
@@ -29,6 +31,49 @@ export const biomeSchemaProblems = (installed: string, config: string): readonly
 const schemaProblems = (): readonly string[] =>
   biomeSchemaProblems(resolvedVersion('@biomejs/biome'), readFileSync(shippedConfig(), 'utf8'))
 
+const JSON_INDENT: number = 2
+
+// The Next.js facet adds Biome's React and Next.js rule domains to the shipped configuration, rendered under the
+// member's node_modules, which the tree ignores, so the project still holds no Biome configuration of its own.
+// Not in the system's temporary directory: Biome roots its project scan at the configuration's directory, and
+// rooted there it reported nothing at all, the import-cycle rules of the project domain included.
+const NEXT_DOMAINS: Readonly<Record<string, string>> = { next: 'all', react: 'all' }
+
+/**
+ * The shipped Biome configuration with the Next.js facet's rule domains added.
+ * @param shipped the shipped configuration's text.
+ * @returns the configuration a Next.js application is checked with.
+ */
+export const nextBiomeConfig = (shipped: string): Readonly<Record<string, unknown>> => {
+  const config: Record<string, unknown> = asRecord(JSON.parse(shipped))
+  const linter: Record<string, unknown> = asRecord(config['linter'])
+  return { ...config, linter: { ...linter, domains: { ...asRecord(linter['domains']), ...NEXT_DOMAINS } } }
+}
+
+const check = (member: Member, files: readonly string[], configPath: string): GateResult =>
+  fromRun(
+    runNode(
+      resolveTool('@biomejs/biome', 'biome'),
+      ['check', '--error-on-warnings', '--config-path', configPath, ...files],
+      { cwd: member.root },
+    ),
+    `Biome reports no formatting or lint defect in ${String(files.length)} file(s)`,
+    'Biome reports a formatting or lint defect',
+  )
+
+const checkNext = (member: Member, files: readonly string[]): GateResult => {
+  mkdirSync(path.join(member.root, 'node_modules', '.airness'), { recursive: true })
+  const directory: string = mkdtempSync(path.join(member.root, 'node_modules', '.airness', 'biome-'))
+  try {
+    const config: string = path.join(directory, 'biome.json')
+    const shipped: string = readFileSync(shippedConfig(), 'utf8')
+    writeFileSync(config, `${JSON.stringify(nextBiomeConfig(shipped), null, JSON_INDENT)}\n`)
+    return check(member, files, config)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
 /** Formatting and fast lint, bounded to the member's working-tree files. */
 export const biome = (member: Member): GateResult => {
   const inventory: readonly string[] = presentWorkingTreeFiles(member.root)
@@ -49,13 +94,5 @@ export const biome = (member: Member): GateResult => {
   if (files.length === 0) {
     return passed('no owned file is selected for Biome')
   }
-  return fromRun(
-    runNode(
-      resolveTool('@biomejs/biome', 'biome'),
-      ['check', '--error-on-warnings', '--config-path', shippedConfig(), ...files],
-      { cwd: member.root },
-    ),
-    `Biome reports no formatting or lint defect in ${String(files.length)} file(s)`,
-    'Biome reports a formatting or lint defect',
-  )
+  return isNextApp(member) ? checkNext(member, files) : check(member, files, shippedConfig())
 }

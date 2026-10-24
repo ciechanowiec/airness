@@ -1,7 +1,9 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,6 +45,16 @@ final class EnvironmentRules {
     // A run that skips the checks evaluates nothing, whichever phase it names.
     private static final Pattern SKIPPING = Pattern.compile("-D(?:skipTests|maven\\.test\\.skip)(?:=true)?(?![\\w.=])");
     // A shell line continued with a trailing backslash is one command.
+    // The only reads a Next.js build substitutes into the bundle, textually: `NEXT_PUBLIC_` is the framework's
+    // prefix for the values a project invents, in the dotted and the bracketed form.
+    private static final Pattern INLINED = Pattern.compile(
+        "process\\.env(?:\\.(?<name>NEXT_PUBLIC_\\w+)|\\[\\s*(['\"])(?<bracketed>NEXT_PUBLIC_\\w+)\\2\\s*])"
+    );
+    // A build-argument declaration, with or without a default, which declares the name either way.
+    private static final Pattern ARGUMENT = Pattern.compile(
+        "^[ \\t]*ARG[ \\t]+(?<names>\\S.*)$", Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern BLANKS = Pattern.compile("[ \\t]+");
     private static final Pattern CONTINUATION = Pattern.compile("\\\\[ \\t]*\\r?\\n[ \\t]*");
 
     /**
@@ -85,6 +97,36 @@ final class EnvironmentRules {
     static boolean verifying(CharSequence workflow) {
         return CONTINUATION.matcher(workflow).replaceAll(" ").lines()
             .anyMatch(line -> VERIFYING.matcher(line).find() && !SKIPPING.matcher(line).find());
+    }
+
+    /**
+     * The {@code NEXT_PUBLIC_} variables a Next.js build inlines from one source file.
+     *
+     * @param source the source, such as a {@code next.config.ts}
+     * @return the names, sorted
+     */
+    static Set<String> inlined(CharSequence source) {
+        return INLINED.matcher(source).results()
+            .map(match -> Optional.ofNullable(match.group(NAME)).orElseGet(() -> match.group("bracketed")))
+            .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    /**
+     * The build arguments a Dockerfile declares, in every stage, since which stage runs the build is not a fact
+     * the text establishes: reading the file as one namespace can only accept a declaration in the wrong stage,
+     * never reject a correct one.
+     *
+     * @param dockerfile the Dockerfile
+     * @return the names, sorted
+     */
+    static Set<String> buildArguments(CharSequence dockerfile) {
+        return CONTINUATION.matcher(dockerfile).replaceAll(" ").lines()
+            .map(ARGUMENT::matcher)
+            .filter(Matcher::find)
+            .flatMap(match -> BLANKS.splitAsStream(match.group("names")))
+            .map(token -> token.split("=", 2)[0])
+            .filter(name -> !name.isEmpty())
+            .collect(Collectors.toCollection(TreeSet::new));
     }
 
     private static Set<String> names(CharSequence text, Pattern pattern) {

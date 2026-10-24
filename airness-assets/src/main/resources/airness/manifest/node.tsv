@@ -1,6 +1,6 @@
 # Files a repository carries when any of its modules declares a node project, at the repository root
-# and in every declared node project directory. The columns and policies are the ones generic.tsv
-# describes.
+# and in every declared node project directory, and the Next.js facet's files in every declared node
+# project that declares next. The columns and policies are the ones generic.tsv describes.
 
 AGENTS.md	SECTION
 .gitignore	SECTION
@@ -8,3 +8,4 @@ AGENTS.md	SECTION
 AGENTS.md	SECTION	NODE_PROJECT
 eslint.config.mjs	PINNED	NODE_PROJECT
 vitest.config.mts	PINNED	NODE_PROJECT
+src/proxy.ts	SEED	NEXT_PROJECT

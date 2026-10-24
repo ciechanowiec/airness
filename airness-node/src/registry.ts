@@ -3,6 +3,7 @@
 // world rather than about the project.
 import { setGlobalProxyFromEnv } from 'node:http'
 import { asRecord, asText } from './json-shapes.js'
+import { redactUrls } from './redaction.js'
 
 /** A release to look up: its name, its version, and the registry it was resolved from. */
 export interface Release {
@@ -41,9 +42,9 @@ const publicationTimes = async (release: Release): Promise<Record<string, unknow
     })
     return response.ok
       ? asRecord(asRecord(await response.json())['time'])
-      : `${release.registry} answered ${String(response.status)} ${response.statusText}`
+      : redactUrls(`${release.registry} answered ${String(response.status)} ${response.statusText}`)
   } catch (error: unknown) {
-    return describe(error) || String(error)
+    return redactUrls(describe(error) || String(error))
   }
 }
 
@@ -53,7 +54,7 @@ const lookupIn = (times: Record<string, unknown> | string | undefined, release: 
   }
   const publishedAt: number = Date.parse(asText(asRecord(times)[release.version]))
   return Number.isNaN(publishedAt)
-    ? { ...release, problem: `${release.registry} names no publication time for this version` }
+    ? { ...release, problem: redactUrls(`${release.registry} names no publication time for this version`) }
     : { ...release, publishedAt }
 }
 

@@ -10,6 +10,7 @@ import { oxlint } from '@/gate-oxlint.js'
 import { sourceRules } from '@/gate-source-rules.js'
 import { types } from '@/gate-types.js'
 import { GATES, gateById } from '@/gates.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 // The type-aware lint and the compiler each start a process that reads the whole project.
@@ -67,7 +68,7 @@ const findingsOf = (result: GateResult): string => result.findings.join('\n')
 /** A manifest declaring settings under the airness key. */
 type Manifest = Readonly<Record<string, unknown>>
 
-describe('the gate registry', () => {
+describe('the gate registry', PROCESS_TIME, () => {
   it('ships every node gate under its id, in the order the parent binds them', () => {
     expect(GATES.map((gate) => gate.id)).toEqual([
       'wiring',
@@ -78,6 +79,8 @@ describe('the gate registry', () => {
       'source-rules',
       'config-refs',
       'javascript-allowlist',
+      'css',
+      'tailwind-tokens',
       'arch',
       'type-coverage',
       'knip',
@@ -85,12 +88,16 @@ describe('the gate registry', () => {
       'install-scripts',
       'release-age',
       'npm-inventory',
+      'npm-sbom',
+      'build',
+      'bundle',
+      'e2e',
     ])
-    expect(gateById('npm-sbom')).toBeUndefined()
+    expect(gateById('payload-defaults')).toBeUndefined()
   })
 })
 
-describe('javascript-allowlist', () => {
+describe('javascript-allowlist', PROCESS_TIME, () => {
   it('passes TypeScript and the ESLint configuration', () => {
     withPlanted({ 'eslint.config.mjs': "export { default } from '@airness/node/eslint'\n" }, (root: string) => {
       expect(javascriptAllowlist(memberAt(root)).findings).toEqual([])
@@ -123,7 +130,7 @@ describe('javascript-allowlist', () => {
   })
 })
 
-describe('source-rules', () => {
+describe('source-rules', PROCESS_TIME, () => {
   it('passes source that imports through the alias', () => {
     expect(sourceRules(memberAt(conforming)).findings).toEqual([])
   })
@@ -141,7 +148,7 @@ describe('source-rules', () => {
   })
 })
 
-describe('config-refs', () => {
+describe('config-refs', PROCESS_TIME, () => {
   it('passes a project that declares nothing', () => {
     expect(configReferences(memberAt(conforming)).findings).toEqual([])
   })
@@ -162,7 +169,7 @@ describe('config-refs', () => {
   })
 })
 
-describe('biome', () => {
+describe('biome', PROCESS_TIME, () => {
   it('passes formatted source', () => {
     expect(biome(memberAt(conforming)).findings).toEqual([])
   })
@@ -170,6 +177,28 @@ describe('biome', () => {
   it('fails a formatting defect', () => {
     withPlanted({ 'src/total.ts': 'export const total = (a: number, b: number): number => a+b;\n' }, (root: string) => {
       expect(findingsOf(biome(memberAt(root)))).toContain('src/total.ts format')
+    })
+  })
+
+  it('checks a Next.js application with the React and Next.js domains added', () => {
+    expect(biome({ ...memberAt(conforming), hasOwnRuntime: true }).findings).toEqual([])
+    withPlanted({ 'src/total.ts': 'export const total = (a: number, b: number): number => a+b;\n' }, (root: string) => {
+      expect(findingsOf(biome({ ...memberAt(root), hasOwnRuntime: true }))).toContain('src/total.ts format')
+    })
+  })
+
+  it("fires the React domain and the project domain's import graph in a Next.js application", () => {
+    const planted: Readonly<Record<string, string>> = {
+      'src/list.tsx':
+        'export const List = ({ items }: { readonly items: readonly string[] }) => (\n  <ul>\n' +
+        '    {items.map((item) => (\n      <li>{item}</li>\n    ))}\n  </ul>\n)\n',
+      'src/cycle-first.ts': "import { second } from './cycle-second'\n\nexport const first = (): number => second()\n",
+      'src/cycle-second.ts': "import { first } from './cycle-first'\n\nexport const second = (): number => first()\n",
+    }
+    withPlanted(planted, (root: string) => {
+      const findings: string = findingsOf(biome({ ...memberAt(root), hasOwnRuntime: true }))
+      expect(findings).toContain('lint/correctness/useJsxKeyInIterable')
+      expect(findings).toContain('lint/suspicious/noImportCycles')
     })
   })
 
@@ -193,7 +222,7 @@ describe('biome', () => {
   })
 })
 
-describe('oxlint', () => {
+describe('oxlint', PROCESS_TIME, () => {
   it('passes source that follows the native rules', () => {
     expect(oxlint(memberAt(conforming)).findings).toEqual([])
   })
@@ -212,7 +241,7 @@ describe('oxlint', () => {
   })
 })
 
-describe('types', () => {
+describe('types', PROCESS_TIME, () => {
   it('fails a tsconfig.json that relaxes the shipped options before running the compiler', () => {
     const relaxed: string = '{ "compilerOptions": { "strict": false }, "include": ["src/**/*.ts"] }\n'
     withPlanted({ 'tsconfig.json': relaxed }, (root: string) => {
@@ -235,7 +264,7 @@ describe('types', () => {
   )
 })
 
-describe('eslint', () => {
+describe('eslint', PROCESS_TIME, () => {
   it(
     'judges by the shipped configuration whatever the project configuration turns off, and fails a member with nothing to lint',
     () => {

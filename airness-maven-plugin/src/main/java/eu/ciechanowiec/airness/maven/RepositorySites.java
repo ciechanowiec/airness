@@ -47,6 +47,12 @@ final class RepositorySites {
     private static final String NODE_PROJECTS = "airness.node.projects";
     private static final String POM = "pom.xml";
     private static final String PACKAGE = "package.json";
+    private static final String NEXT = "next";
+    private static final List<String> ROUTE_DIRECTORIES = List.of("src/app", "src/pages");
+    private static final List<String> HOOK_DIRECTORIES = List.of("", "src/");
+    private static final List<String> HOOK_NAMES = List.of("middleware", "proxy");
+    private static final List<String> HOOK_EXTENSIONS = List.of(".ts", ".js", ".mts", ".mjs", ".cts", ".cjs");
+    private static final String SEEDED_PROXY = "src/proxy.ts";
     private static final String SEPARATOR = ",";
     private static final String PARENT_DIRECTORY = "..";
     private static final Set<String> PRUNED = Set.of("target", "node_modules", ".git");
@@ -100,13 +106,44 @@ final class RepositorySites {
         Map<String, Set<Capability>> projects = new LinkedHashMap<>();
         consumers.forEach(module -> declare(projects, repository, module));
         List<AssetSite> nodes = projects.entrySet().stream()
-            .map(project -> new AssetSite(project.getKey(), AssetLocation.NODE_PROJECT, project.getValue()))
+            .flatMap(project -> sites(repository, project.getKey(), project.getValue()))
             .toList();
         Set<Capability> present = Stream.concat(
             consumers.stream().flatMap(RepositorySites::capabilities),
             nodes.stream().flatMap(site -> site.capabilities().stream())
         ).collect(Collectors.toSet());
         return Stream.concat(Stream.of(AssetSite.root(present)), nodes.stream()).toList();
+    }
+
+    // Every node project is a site for the node project's files. A Next.js application whose routes live under
+    // src and which has no request hook of its own is a second site at the same directory, for the Next.js
+    // facet's files: the proxy seed is written into src, where such an application loads it, and an application
+    // that already runs a middleware or a proxy would get a second hook, which Next.js refuses or ignores.
+    private static Stream<AssetSite> sites(Path repository, String directory, Set<Capability> capabilities) {
+        AssetSite node = new AssetSite(directory, AssetLocation.NODE_PROJECT, capabilities);
+        Path project = repository.resolve(directory);
+        boolean next = PackageManifests.in(project)
+            .filter(manifest -> manifest.installs(NEXT))
+            .isPresent();
+        return next && routesUnderSource(project) && !ownsRequestHook(project)
+            ? Stream.of(node, new AssetSite(directory, AssetLocation.NEXT_PROJECT, capabilities))
+            : Stream.of(node);
+    }
+
+    private static boolean routesUnderSource(Path project) {
+        return ROUTE_DIRECTORIES.stream().anyMatch(routes -> Files.isDirectory(project.resolve(routes)));
+    }
+
+    private static boolean ownsRequestHook(Path project) {
+        return HOOK_DIRECTORIES.stream()
+            .flatMap(RepositorySites::hookFiles)
+            .filter(file -> !SEEDED_PROXY.equals(file))
+            .anyMatch(file -> Files.isRegularFile(project.resolve(file)));
+    }
+
+    private static Stream<String> hookFiles(String directory) {
+        return HOOK_NAMES.stream()
+            .flatMap(name -> HOOK_EXTENSIONS.stream().map(extension -> directory + name + extension));
     }
 
     private static void declare(Map<String, Set<Capability>> projects, Path repository, MavenProject module) {

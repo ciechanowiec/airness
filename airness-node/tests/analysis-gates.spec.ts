@@ -6,6 +6,7 @@ import { architecture } from '@/gate-architecture.js'
 import { knip } from '@/gate-knip.js'
 import { tests } from '@/gate-tests.js'
 import { typeCoverage } from '@/gate-type-coverage.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 // Each analyzer starts a process that reads the whole project.
@@ -64,7 +65,7 @@ const withProject = (files: Readonly<Record<string, string>>, use: (root: string
 
 const findingsOf = (result: GateResult): string => result.findings.join('\n')
 
-describe('arch', () => {
+describe('arch', PROCESS_TIME, () => {
   it(
     'passes acyclic modules and fails a cycle',
     () => {
@@ -84,6 +85,27 @@ describe('arch', () => {
     TOOL_TIMEOUT_MS,
   )
 
+  it(
+    'holds a Next.js application to its application layer, and a declared floor to purity',
+    () => {
+      const layered: Readonly<Record<string, string>> = {
+        'src/app/page.ts': 'export const page = 1\n',
+        'src/lib/price.ts': "import { page } from '../app/page.js'\n\nexport const price = (): number => page\n",
+      }
+      const floor: Readonly<Record<string, unknown>> = {
+        ...MANIFEST,
+        airness: { pureLogicRoots: [{ pattern: 'src/lib', reason: 'the pricing rules' }] },
+      }
+      withProject(layered, (root: string): void => {
+        expect(architecture(memberAt(root)).ok).toBe(true)
+        const findings: string = findingsOf(architecture({ ...memberAt(root, floor), hasOwnRuntime: true }))
+        expect(findings).toContain('nothing-imports-app')
+        expect(findings).toContain('pure-logic-stays-pure')
+      })
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
   it('passes a member with no source directory', () => {
     withProject({}, (root: string): void => {
       expect(
@@ -93,7 +115,7 @@ describe('arch', () => {
   })
 })
 
-describe('type-coverage', () => {
+describe('type-coverage', PROCESS_TIME, () => {
   it(
     'passes fully typed logic and fails an explicit any',
     () => {
@@ -112,7 +134,7 @@ describe('type-coverage', () => {
   )
 })
 
-describe('knip', () => {
+describe('knip', PROCESS_TIME, () => {
   it(
     'passes a project whose every file and export is used, and fails an unused file',
     () => {
@@ -132,7 +154,7 @@ describe('knip', () => {
   )
 })
 
-describe('tests', () => {
+describe('tests', PROCESS_TIME, () => {
   it(
     'passes a suite that covers its source and fails a file below the floor',
     () => {
@@ -171,7 +193,7 @@ describe('tests', () => {
   })
 })
 
-describe('type-coverage settings', () => {
+describe('type-coverage settings', PROCESS_TIME, () => {
   it('refuses type-coverage options a project sets for itself', () => {
     withProject({}, (root: string): void => {
       expect(typeCoverage(memberAt(root, { typeCoverage: { ignoreCatch: true } })).findings).toEqual([
@@ -181,7 +203,7 @@ describe('type-coverage settings', () => {
   })
 })
 
-describe('a project configuration of its own', () => {
+describe('a project configuration of its own', PROCESS_TIME, () => {
   const Sign: string = SIGN_SOURCE
   const Cycle: Readonly<Record<string, string>> = {
     'src/first.ts': "import { second } from './second.js'\n\nexport const first = (): number => second()\n",
@@ -223,7 +245,7 @@ describe('a project configuration of its own', () => {
   )
 })
 
-describe('a layer package', () => {
+describe('a layer package', PROCESS_TIME, () => {
   it(
     'leaves the files it generates out of the floor in the suite run, as in every gate',
     () => {
