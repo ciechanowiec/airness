@@ -1,0 +1,2 @@
+# Dependencies, installed inside the image rather than copied from the host
+node_modules/

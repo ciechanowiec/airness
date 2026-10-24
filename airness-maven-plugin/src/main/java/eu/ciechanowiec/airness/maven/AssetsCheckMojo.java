@@ -11,13 +11,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
+import javax.inject.Inject;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.ProjectBuilder;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The files the harness owns are where their policy says, with the bytes it ships.
+ *
+ * <p>Which files apply follows the capabilities of the whole repository, read from the model of every
+ * project file in it, so a build started inside one member checks what a build started at the root checks.
  *
  * <p>The parent binds this read-only goal to {@code validate}. A disagreement therefore fails an
  * ordinary build without repairing the file, while {@code airness:assets-sync} remains the explicit
@@ -35,13 +40,28 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
     @Parameter(property = "airness.assets.unmanaged")
     private @Nullable String unmanaged;
 
+    private final ProjectBuilder builder;
+
+    /**
+     * Receives the builder that reads the models of every module in the repository.
+     *
+     * @param builder the Maven project builder
+     */
+    @Inject
+    public AssetsCheckMojo(ProjectBuilder builder) {
+        this.builder = builder;
+    }
+
     @Override
     List<Findings> findings() {
         List<String> exempt = Sentinel.optional(this.unmanaged);
         exempt.forEach(path -> this.getLog().info("This project owns " + path + " rather than the harness"));
         Path root = this.repositoryRoot();
         List<Findings> assets = new AssetCheck(
-            root, new AssetCatalogue(AssetsCheckMojo.class.getClassLoader()), exempt
+            root,
+            new AssetCatalogue(AssetsCheckMojo.class.getClassLoader()),
+            exempt,
+            RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root)
         ).findings();
         List<Findings> licenses = new RootLicenseCheck(root).findings();
         return Stream.of(assets, licenses, secretScan(root)).flatMap(List::stream).toList();

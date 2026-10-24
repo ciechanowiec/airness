@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.airness.governance.AssetCatalogue;
+import eu.ciechanowiec.airness.governance.AssetSite;
 import eu.ciechanowiec.airness.governance.AssetSync;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import lombok.SneakyThrows;
 import org.apache.maven.execution.DefaultMavenExecutionRequest;
@@ -34,7 +36,7 @@ class MavenRepositoryPolicyTest {
 
     @BeforeEach
     void materializesTheActualShippedFiles() {
-        new AssetSync(this.directory, catalogue(), List.of()).write();
+        new AssetSync(this.directory, catalogue(), List.of(), List.of(AssetSite.root(Set.of()))).write();
     }
 
     @Test

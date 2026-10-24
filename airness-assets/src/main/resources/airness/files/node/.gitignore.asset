@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Build output & caches
+*.tsbuildinfo
+.type-coverage/
+
+# Next.js
+.next/
+.turbo/
+.vercel
+next-env.d.ts
+
+# Testing
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

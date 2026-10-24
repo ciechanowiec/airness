@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -44,7 +45,7 @@ class AssetSyncTest {
             .ship(GUIDE, "guide\n")
             .ship(GITIGNORE, SEEDED)
             .catalogue();
-        return new AssetSync(root, catalogue, List.of(unmanaged)).write();
+        return new AssetSync(root, catalogue, List.of(unmanaged), List.of(AssetSite.root(Set.of()))).write();
     }
 
     @SneakyThrows

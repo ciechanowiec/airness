@@ -1,0 +1,8 @@
+# Files a repository carries when any of its modules declares a node project, at the repository root
+# and in every declared node project directory. The columns and policies are the ones generic.tsv
+# describes.
+
+AGENTS.md	SECTION
+.gitignore	SECTION
+.dockerignore	SECTION
+AGENTS.md	SECTION	NODE_PROJECT

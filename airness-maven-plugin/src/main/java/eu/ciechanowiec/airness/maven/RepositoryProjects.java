@@ -21,7 +21,8 @@ final class RepositoryProjects {
      * a second owner would report every repository finding twice.
      */
     private static final Set<String> HARNESS_PARENTS = Set.of(
-        CONSUMER_PARENT, "airness-parent-java", "airness-parent-spring-boot"
+        CONSUMER_PARENT, "airness-parent-java", "airness-parent-spring-boot", "airness-parent-node",
+        "airness-parent-payload"
     );
 
     static boolean owns(MavenProject topLevel, MavenProject current) {

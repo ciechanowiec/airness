@@ -162,38 +162,63 @@ For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#ex
 == Managed Files
 
 . Maven, Git, editors, and coding agents read some configuration from the working tree. _airness_ manages these files so that every project receives the same setup.
+. The files a repository receives follow what its modules contain, not which parent each one names. Each stack is a capability with its own files:
++
+[cols="1,3,3"]
+|===
+| Capability | Present when | Receives files at
+
+| `generic`
+| always
+| the repository root
+
+| `java`
+| a module inherits `airness-parent-java`
+| the repository root
+
+| `node`
+| a module lists a directory in xref:#airness-node-projects[`airness.node.projects`]
+| the repository root and each listed directory
+|===
++
+The repository root carries the files of every capability present in any module. The managed-file check reads the model of every `pom.xml` in the repository, so a build started inside one member checks what a build started at the root checks. A listed directory receives the `node` files only once it holds a `package.json`.
+. Each managed path has one of the following policies:
 +
 [cols="1,2,3"]
 |===
 | Policy | Files | Behavior
 
 | [[managed-section]]Managed section
-| `AGENTS.md`
-| _airness_ owns the marked section at the top. The project owns the text below it.
+| `AGENTS.md`, `.gitignore`, `.dockerignore` at the root, and `AGENTS.md` in each node project directory
+| The file starts with one marked block for each capability that claims it, in the order `generic`, `java`, `node`. The project owns the text below the blocks.
 
 | [[pinned-file]]Pinned
-| `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/settings.xml`, `lombok.config`, `qodana.yaml`, `README-guideline-software-project.adoc`
+| `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/settings.xml`, `README-guideline-software-project.adoc`, and with `java` also `.airness/agent-guide-java.md`, `lombok.config`, `qodana.yaml`
 | The file must match the active _airness_ version.
 
 | [[seed-file]]Seed
-| `.dockerignore`, `.gitignore`, `.gitleaks.toml`
+| `.gitleaks.toml`
 | The file must exist. The xref:#asset-sync-goal[`assets-sync` goal] creates it whenever it's missing, and the project owns its contents.
 
+| [[reference-file]]Reference
+| `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`
+| The file is optional. When present, every line that says anything names `AGENTS.md`, so no tool gets instructions of its own.
+
 | [[forbidden-file]]Forbidden
-| `rewrite.yml`, `qodana/profile.xml`
+| with `java`, `rewrite.yml`, `qodana/profile.xml`
 | _airness_ supplies the Qodana profile elsewhere and refuses source-rewriting engines, whose artifacts the blocklist names. The files must be absent. The xref:#default-verification[default verification] reports but doesn't delete them.
 |===
 
 . `AGENTS.md` is the only agent instruction file. Claude Code reads it directly, so the xref:#default-verification[default verification] fails when the working tree contains a `CLAUDE.md` or `CLAUDE.local.md` file in any directory. No setting exempts one.
-. The xref:#managed-section[managed section] in `AGENTS.md` is enclosed by `BEGIN AIRNESS MANAGED INSTRUCTIONS` and `END AIRNESS MANAGED INSTRUCTIONS`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or updates this section while preserving the project text below it.
-. The xref:#default-verification[default verification] fails when a xref:#pinned-file[pinned file] is missing or outdated or when a xref:#seed-file[seed file] is missing. It also fails if a build plugin modifies a project file during the build.
+. Each block of a xref:#managed-section[managed section] is enclosed by `BEGIN AIRNESS MANAGED: <capability>` and `END AIRNESS MANAGED: <capability>`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or replaces the blocks while preserving the project text below them. A block appears exactly when its capability is present, so a stale or unclaimed block fails verification.
+. The xref:#default-verification[default verification] fails when a xref:#pinned-file[pinned file] is missing or outdated, when a xref:#managed-section[managed section] is missing or outdated, or when a xref:#seed-file[seed file] is missing. It also fails if a build plugin modifies a project file during the build.
 . Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a xref:#verification-commands[verification command]:
 +
 [source,bash]
 ----
 mvn airness:assets-sync
 ----
-. To let the project own a xref:#pinned-file[pinned file], xref:#seed-file[seed file], or xref:#forbidden-file[forbidden file], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path.
+. To let the project own a xref:#pinned-file[pinned file], xref:#seed-file[seed file], or xref:#forbidden-file[forbidden file], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path. A xref:#managed-section[managed section] can't be taken over, because the project already owns every line outside its blocks.
 
 [[configuration]]
 == Configuration
@@ -218,6 +243,10 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 | `airness.typography.excludes`
 | empty
 | Path prefixes excluded from typography checks. For example, `docs` matches `docs/guide.adoc` but not `docs-old/guide.adoc`.
+
+| [[airness-node-projects]]`airness.node.projects`
+| empty
+| Directories of the module that hold a node project, relative to the module and comma-separated, for example `src/main/frontend`. Each one receives the `node` managed files.
 
 | [[airness-assets-unmanaged]]`airness.assets.unmanaged`
 | empty

@@ -2,14 +2,18 @@ package eu.ciechanowiec.airness.governance;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * Writes catalogue-managed files into a project.
@@ -19,44 +23,96 @@ import java.util.stream.IntStream;
  *
  * <p>Nothing is ever deleted. A file the harness forbids is reported by the check with the reason and
  * the remedy, and removing it is left to whoever put it there: a build tool deleting a developer's file
- * on their behalf is a worse failure than the one it would be fixing.
+ * on their behalf is a worse failure than the one it would be fixing. For the same reason a file of
+ * managed blocks keeps every project line: the blocks are replaced, and the rest is carried below them.
  */
 public final class AssetSync {
 
     private final Path root;
     private final AssetCatalogue catalogue;
     private final Set<String> unmanaged;
+    private final AssetPlan plan;
 
     /**
-     * Reads nothing yet, holding only where to write and what to leave alone.
+     * Reads nothing yet, holding only where to write, what applies where, and what to leave alone.
      *
      * @param root      the working tree root
      * @param catalogue the files the harness owns
      * @param unmanaged repository-relative paths this project has taken over
+     * @param sites     the directories that receive files, with the capabilities present in each
      */
-    public AssetSync(Path root, AssetCatalogue catalogue, Collection<String> unmanaged) {
+    public AssetSync(
+        Path root, AssetCatalogue catalogue, Collection<String> unmanaged, Collection<AssetSite> sites
+    ) {
         this.root = real(root);
         this.catalogue = catalogue;
         this.unmanaged = Set.copyOf(unmanaged);
+        this.plan = new AssetPlan(catalogue, sites);
     }
 
     /**
      * Writes what is missing or has drifted, and reports what it wrote.
      *
      * <p>A pinned file is written whenever it differs. A seed is written only when it is absent, since
-     * its body belongs to the project the moment it exists.
+     * its body belongs to the project the moment it exists. A file of managed blocks gets the current
+     * blocks at its start and keeps everything else.
      *
-     * @return the paths written, in manifest order
+     * @return the repository-relative paths written, pinned and seeded files first, in site order
+     * @throws IllegalStateException when the markers of a file of managed blocks do not pair up
      */
     public List<String> write() {
-        return this.catalogue.assets().stream()
-            .filter(asset -> !this.unmanaged.contains(asset.path()))
+        Stream<AssetPlan.Placement> whole = Stream.concat(
+            this.plan.placements(AssetPolicy.PINNED), this.plan.placements(AssetPolicy.SEED)
+        );
+        Stream<String> files = whole
+            .filter(placement -> !this.unmanaged.contains(placement.file()))
             .filter(this::needsWriting)
-            .map(this::materialize)
-            .toList();
+            .map(this::materialize);
+        Stream<String> sections = this.plan.sections().entrySet().stream()
+            .filter(this::compose)
+            .map(Map.Entry::getKey);
+        return Stream.concat(files, sections).toList();
     }
 
-    private static void write(Path file, byte[] content) {
+    private boolean needsWriting(AssetPlan.Placement placement) {
+        return placement.asset().policy() == AssetPolicy.PINNED
+            ? !this.matches(placement)
+            : !Files.exists(this.safe(placement.file()), LinkOption.NOFOLLOW_LINKS);
+    }
+
+    private boolean matches(AssetPlan.Placement placement) {
+        Optional<byte[]> shipped = this.catalogue.canonical(placement.asset());
+        Path file = this.safe(placement.file());
+        return shipped.isPresent() && Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
+            && Arrays.equals(shipped.get(), bytes(file));
+    }
+
+    private String materialize(AssetPlan.Placement placement) {
+        byte[] content = this.catalogue.canonical(placement.asset()).orElseThrow(
+            () -> new IllegalStateException("The harness ships no bytes for " + placement.file())
+        );
+        store(this.safe(placement.file()), content);
+        return placement.file();
+    }
+
+    private boolean compose(Map.Entry<String, String> section) {
+        Path file = this.safe(section.getKey());
+        String held = Files.exists(file, LinkOption.NOFOLLOW_LINKS)
+            ? new String(bytes(file), StandardCharsets.UTF_8)
+            : "";
+        if (ManagedSections.current(held, section.getValue())) {
+            return false;
+        }
+        String project = ManagedSections.projectPart(held).orElseThrow(
+            () -> new IllegalStateException(
+                section.getKey() + " has Airness markers that do not pair up; repair them manually"
+            )
+        );
+        store(file, ManagedSections.write(section.getValue(), project).getBytes(StandardCharsets.UTF_8));
+        return true;
+    }
+
+    private static void store(Path file, byte[] content) {
         try {
             Optional.ofNullable(file.getParent()).ifPresent(AssetSync::directory);
             Files.write(file, content);
@@ -65,20 +121,12 @@ public final class AssetSync {
         }
     }
 
-    private boolean needsWriting(ManagedAsset asset) {
-        return switch (asset.policy()) {
-            case PINNED -> !new AssetCheck(this.root, this.catalogue, this.unmanaged).matches(asset);
-            case SEED -> !Files.exists(this.safe(asset.path()), LinkOption.NOFOLLOW_LINKS);
-            case FORBIDDEN -> false;
-        };
-    }
-
-    private String materialize(ManagedAsset asset) {
-        byte[] content = this.catalogue.canonical(asset.path()).orElseThrow(
-            () -> new IllegalStateException("The harness ships no bytes for " + asset.path())
-        );
-        write(this.safe(asset.path()), content);
-        return asset.path();
+    private static byte[] bytes(Path file) {
+        try {
+            return Files.readAllBytes(file);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not read " + file, exception);
+        }
     }
 
     private Path safe(String path) {

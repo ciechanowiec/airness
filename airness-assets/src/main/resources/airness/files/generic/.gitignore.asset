@@ -25,35 +25,15 @@ Thumbs.db
 logs/
 log/
 
-# Java
-*.class
-target/
-.gradle/
-hs_err_pid*
-
 # Python
 __pycache__/
 
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-.yarn/install-state.gz
-
 # Build output & caches
+target/
 dist/
 dist-tarballs/
 build/
 out/
-*.tsbuildinfo
-.type-coverage/
-
-# Next.js / Payload CMS
-.next/
-.turbo/
-.vercel
-next-env.d.ts
-/media
 
 # Supabase
 .supabase/
@@ -68,10 +48,6 @@ supabase/.temp/
 
 # Testing
 coverage/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
 
 # Environment & secrets
 .env
