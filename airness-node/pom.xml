@@ -33,8 +33,10 @@
     <build>
         <plugins>
             <!--
-                The package's own build: the TypeScript compiled into dist, before verify, where the gates run
-                that build. It runs under -DskipTests too, because a consumer fixture links the built package.
+                The package's own build: the TypeScript compiled into dist before verify, where the gates run that
+                build, its own Vitest suite included, and then packed into target as the tarball a consumer installs,
+                which the integration fixtures install. Both run under -DskipTests too, so the tarball always
+                matches the built package.
             -->
             <plugin>
                 <groupId>eu.ciechanowiec</groupId>
@@ -51,44 +53,19 @@
                             <script>build</script>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>node-pack</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>node-run</goal>
+                        </goals>
+                        <configuration>
+                            <project>.</project>
+                            <script>package</script>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!--
-            The package's own Vitest suite, which proves every rule variant of the gates. node-run runs under
-            -DskipTests as well, so the suite is bound in a profile that a command-line skipTests switches off.
-        -->
-        <profile>
-            <id>node-tests</id>
-            <activation>
-                <property>
-                    <name>!skipTests</name>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>eu.ciechanowiec</groupId>
-                        <artifactId>airness-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>node-test</id>
-                                <phase>test</phase>
-                                <goals>
-                                    <goal>node-run</goal>
-                                </goals>
-                                <configuration>
-                                    <project>.</project>
-                                    <script>test</script>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

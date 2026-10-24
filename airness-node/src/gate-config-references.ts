@@ -7,11 +7,13 @@ import {
   extractLiteralSourcePaths,
   findMissingConfigReferences,
 } from './config-references.js'
+import { blanketExclusionFindings, measurableFiles } from './coverage-policy.js'
 import { failed, type GateResult, passed } from './exec.js'
 import { harnessDirectory, type Member } from './project.js'
 import {
   type DeclaredExclusion,
   findConvenienceExclusions,
+  findUnreachedExclusions,
   findUnreachedExclusionsBySetting,
   VITEST_CONFIG_FILE,
 } from './settings.js'
@@ -23,6 +25,8 @@ import { presentWorkingTreeFiles } from './working-tree.js'
 const configTargets = (member: Member): readonly string[] =>
   [
     path.join(harnessDirectory(), 'configs', 'airness-biome.json'),
+    path.join(harnessDirectory(), 'configs', 'knip.json'),
+    path.join(harnessDirectory(), 'configs', 'dependency-cruiser.json'),
     path.join(member.root, 'biome.json'),
     path.join(member.root, VITEST_CONFIG_FILE),
   ].filter((file: string): boolean => existsSync(file))
@@ -45,16 +49,30 @@ const unexplained = (member: Member): readonly string[] =>
     ),
   )
 
-/** Every carve-out of a tool configuration or a setting reaches a file that exists. */
-export const configReferences = (member: Member): GateResult => {
-  const findings: readonly string[] = [
-    ...danglingReferences(member),
-    ...unexplained(member),
+const isCoverageEntry = (entry: DeclaredExclusion): boolean => entry.setting === 'coverageExclude'
+
+// A coverage exclusion has to reach a file the floor would otherwise measure; every other setting a file of
+// its own kind the member carries.
+const unreached = (member: Member): readonly string[] => {
+  const files: readonly string[] = presentWorkingTreeFiles(member.root)
+  const entries: readonly DeclaredExclusion[] = member.settings.declaredExclusions
+  const coverage: readonly DeclaredExclusion[] = entries.filter((entry: DeclaredExclusion): boolean =>
+    isCoverageEntry(entry),
+  )
+  const measurable: readonly string[] = measurableFiles(files, member.settings, member.siblingPaths)
+  return [
+    ...findUnreachedExclusions(coverage, measurable),
+    ...blanketExclusionFindings(coverage, measurable),
     ...findUnreachedExclusionsBySetting(
-      member.settings.declaredExclusions,
-      memberFiles(presentWorkingTreeFiles(member.root), member.siblingPaths),
+      entries.filter((entry: DeclaredExclusion): boolean => !isCoverageEntry(entry)),
+      memberFiles(files, member.siblingPaths),
     ),
   ]
+}
+
+/** Every carve-out of a tool configuration or a setting reaches a file that exists. */
+export const configReferences = (member: Member): GateResult => {
+  const findings: readonly string[] = [...danglingReferences(member), ...unexplained(member), ...unreached(member)]
   return findings.length > 0
     ? failed(`${String(findings.length)} carve-out(s) that reach nothing`, findings)
     : passed('every carve-out of a tool configuration or setting reaches a file that exists')

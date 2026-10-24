@@ -96,15 +96,24 @@ class ParentPlacementTest {
     void bindsEveryNodeGateOnceInTheGenericParent() {
         List<String> gates = ProjectFiles.descendants(ProjectFiles.document(ProjectFiles.parentPom()), "execution")
             .filter(ParentPlacementTest::runsNodeGate)
-            .map(execution -> Xml.text(execution, "id").orElseThrow())
+            .map(ParentPlacementTest::idAtPhase)
             .toList();
         assertEquals(
             List.of(
-                "node-gate-types", "node-gate-biome", "node-gate-oxlint", "node-gate-eslint", "node-gate-source-rules",
-                "node-gate-config-refs", "node-gate-javascript-allowlist"
+                "node-gate-wiring@prepare-package", "node-gate-npm-inventory@prepare-package", "node-gate-types@verify",
+                "node-gate-biome@verify", "node-gate-oxlint@verify", "node-gate-eslint@verify",
+                "node-gate-source-rules@verify", "node-gate-config-refs@verify",
+                "node-gate-javascript-allowlist@verify", "node-gate-arch@verify", "node-gate-type-coverage@verify",
+                "node-gate-knip@verify", "node-gate-tests@verify", "node-gate-install-scripts@verify",
+                "node-gate-release-age@verify"
             ),
-            gates
+            gates,
+            "wiring judges the harness before npm-inventory writes evidence the package-phase policies read"
         );
+    }
+
+    private static String idAtPhase(Element execution) {
+        return Xml.text(execution, "id").orElseThrow() + '@' + Xml.text(execution, "phase").orElseThrow();
     }
 
     private static boolean runsNodeGate(Element execution) {

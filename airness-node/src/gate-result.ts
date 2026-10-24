@@ -50,7 +50,10 @@ export const resultOf = (gate: string, title: string, outcomes: readonly MemberO
     findings: failing.flatMap((outcome: MemberOutcome): readonly string[] =>
       outcome.result.findings.map((line: string): string => located(outcome.member, line)),
     ),
-    evidence: [],
+    evidence:
+      failing.length > 0
+        ? []
+        : outcomes.flatMap((outcome: MemberOutcome): readonly string[] => outcome.result.evidence ?? []),
   }
 }
 

@@ -35,6 +35,8 @@ export interface Settings {
   readonly frameworkGlue: readonly string[]
   /** Paths a generator owns, which no rule may judge. */
   readonly generatedArtefacts: readonly string[]
+  /** Paths the coverage floor does not measure, each by a role the project names. */
+  readonly coverageExclude: readonly string[]
   /** Every exclusion the project declared, honoured or not, so a gate can judge them. */
   readonly declaredExclusions: readonly DeclaredExclusion[]
   /** Path patterns exempt from the hand-written-JavaScript ban. */
@@ -174,6 +176,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     'generatedArtefacts',
     'glob',
   )
+  const coverage: readonly DeclaredExclusion[] = asDeclaredExclusions(raw['coverageExclude'], 'coverageExclude', 'glob')
   const layerRuntimes: readonly RuntimeRole[] = layers.flatMap(
     (layer: LayerDefaults): readonly RuntimeRole[] => layer.javascriptRuntimes,
   )
@@ -191,7 +194,8 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
       ...layers.flatMap((layer: LayerDefaults): readonly string[] => layer.generatedArtefacts),
       ...honoured(generated),
     ],
-    declaredExclusions: [...javascript, ...glue, ...generated],
+    coverageExclude: honoured(coverage),
+    declaredExclusions: [...javascript, ...glue, ...generated, ...coverage],
     javascriptAllowlist: [
       ...DEFAULT_JAVASCRIPT_ALLOWLIST,
       ...layerRuntimes.map((role: RuntimeRole): RolePattern => role.role),

@@ -2,16 +2,10 @@ import { hasExtension, matchesGlob } from './file-roles.js'
 import { analysisBoundaries } from './workspace.js'
 
 /** The application JSX file types, shared by native analysis and Biome deduplication. */
-export const JSX_EXTENSIONS: readonly string[] = ['.tsx', '.jsx']
+const JSX_EXTENSIONS: readonly string[] = ['.tsx', '.jsx']
 
 /** Existing application-lint exclusions, expressed once for both analyzer owners. */
-export const APPLICATION_JSX_IGNORES: readonly string[] = ['.next/**', '**/node_modules/**', 'coverage/**', '.*/**']
-
-/** Biome overrides apply only where the application's native JSX analyzer takes responsibility. */
-export const jsxAnalysisPatterns = (): readonly string[] => [
-  ...JSX_EXTENSIONS.map((extension: string): string => `**/*${extension}`),
-  ...APPLICATION_JSX_IGNORES.map((pattern: string): string => `!${pattern}`),
-]
+const APPLICATION_JSX_IGNORES: readonly string[] = ['.next/**', '**/node_modules/**', 'coverage/**', '.*/**']
 
 /**
  * Select committable JSX files without crossing a member or generated-file boundary.

@@ -259,6 +259,35 @@
                             <goal>node-dependencies</goal>
                         </goals>
                     </execution>
+                    <!--
+                        wiring first, at prepare-package: past a harness at the wrong version, or one an override
+                        or a patch changed, no later verdict is about the gates this release vouches for, and no
+                        evidence it writes is either. Then the npm dependency evidence of every declared node
+                        project, written at prepare-package so the dependency policies of the package phase can
+                        read it. It judges nothing itself.
+                    -->
+                    <execution>
+                        <id>node-gate-wiring</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>wiring</gate>
+                            <command>airness-node gate wiring</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-npm-inventory</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>npm-inventory</gate>
+                            <command>airness-node gate npm-inventory</command>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>airness-license-metadata</id>
                         <phase>prepare-package</phase>
@@ -336,7 +365,7 @@
                         through the harness's pnpm as pnpm exec airness-node gate <id>, from the @airness/node the
                         project installed. A module that declares no node project runs none. They are bound in
                         verify, after the module's own build, and ahead of the tree check below, so that check reads
-                        whatever the analyzers left behind.
+                        whatever the analyzers and the suite left behind. wiring runs earlier, at prepare-package.
                     -->
                     <execution>
                         <id>node-gate-types</id>
@@ -413,6 +442,72 @@
                         <configuration>
                             <gate>javascript-allowlist</gate>
                             <command>airness-node gate javascript-allowlist</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-arch</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>arch</gate>
+                            <command>airness-node gate arch</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-type-coverage</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>type-coverage</gate>
+                            <command>airness-node gate type-coverage</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-knip</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>knip</gate>
+                            <command>airness-node gate knip</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-tests</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>tests</gate>
+                            <command>airness-node gate tests</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-install-scripts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>install-scripts</gate>
+                            <command>airness-node gate install-scripts</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-release-age</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>release-age</gate>
+                            <command>airness-node gate release-age</command>
                         </configuration>
                     </execution>
                     <!--

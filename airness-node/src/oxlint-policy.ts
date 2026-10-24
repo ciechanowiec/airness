@@ -9,7 +9,7 @@ export interface OxlintRule {
 const JSX_FILENAME_RULE: string = 'react/jsx-filename-extension'
 
 /** Validated gaps in the existing analyzer coverage; equivalent rules retain their current owner. */
-export const OXLINT_CORE_RULES: readonly OxlintRule[] = [
+const OXLINT_CORE_RULES: readonly OxlintRule[] = [
   { oxlint: 'eslint/no-promise-executor-return', options: { allowVoid: false } },
   {
     oxlint: 'import/no-absolute-path',

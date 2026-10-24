@@ -7,7 +7,7 @@ import type { Member } from '@/project.js'
 import { readSettings } from '@/settings.js'
 
 /** The directory of this package, where the shipped configurations live. */
-export const harnessRoot: string = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+const harnessRoot: string = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /**
  * Write a node project into a fresh temporary directory beside the specs.
@@ -32,6 +32,7 @@ export const temporaryProject = (files: Readonly<Record<string, string>>): strin
  */
 export const memberAt = (root: string, packageJson: unknown = {}): Member => ({
   root,
+  projectRoot: root,
   path: '.',
   packageJson,
   settings: readSettings(packageJson),

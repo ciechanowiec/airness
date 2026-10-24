@@ -1,0 +1,15 @@
+{
+  "name": "@airness/fixture-member",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "scripts": {
+    "postinstall": "node -e \"require('node:fs').writeFileSync('postinstall-ran', '')\""
+  }
+}

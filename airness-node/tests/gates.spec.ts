@@ -68,8 +68,9 @@ const findingsOf = (result: GateResult): string => result.findings.join('\n')
 type Manifest = Readonly<Record<string, unknown>>
 
 describe('the gate registry', () => {
-  it('ships the lint and type gates under their ids', () => {
+  it('ships every node gate under its id, in the order the parent binds them', () => {
     expect(GATES.map((gate) => gate.id)).toEqual([
+      'wiring',
       'types',
       'biome',
       'oxlint',
@@ -77,8 +78,15 @@ describe('the gate registry', () => {
       'source-rules',
       'config-refs',
       'javascript-allowlist',
+      'arch',
+      'type-coverage',
+      'knip',
+      'tests',
+      'install-scripts',
+      'release-age',
+      'npm-inventory',
     ])
-    expect(gateById('knip')).toBeUndefined()
+    expect(gateById('npm-sbom')).toBeUndefined()
   })
 })
 

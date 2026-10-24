@@ -267,11 +267,12 @@ mvn airness:assets-sync
 The script writes its output under `target/`. With `-DskipTests`, a module that binds `node-run` still installs the toolchain and builds its frontend.
 . The xref:#default-verification[default verification] refuses `com.github.eirslett:frontend-maven-plugin` and every other `com.github.eirslett` artifact wherever the module's build reaches it: declared in its project file with or without a version, inherited from a parent, or given to a plugin as a dependency. It also refuses an `exec-maven-plugin` or `maven-antrun-plugin` step whose executable is `node`, `npm`, `npx`, `pnpm`, `yarn`, `bun` or `deno`, including through the `exec.executable` property. Each of them would run a Node other than the one the checks use. _airness_ doesn't inspect what an allowed process starts, such as a shell script that calls Node by an absolute path.
 . Each JS/TS check runs through the `node-gate` goal in every declared project, as `pnpm exec <command> --result <file>`. The gate writes its result as `<gate>.json`, with any evidence files beside it, in `target/airness/node/module/` for the module itself and in `target/airness/node/projects/<project>/` for a project at `<project>` relative to the module. Command output goes to the same place under `target/airness/node-logs/`.
-. Each node project declares the npm package `@airness/node` as a development dependency. The package ships the JS/TS gates, the analyzer configurations they read and the analyzers at the versions _airness_ decides. `airness-parent` binds one `node-gate` execution per gate in `verify`, each running `airness-node gate <id>`:
+. Each node project declares the npm package `@airness/node` as a development dependency, installed by its version from a registry. The package ships the JS/TS gates, the analyzer configurations they read and the analyzers at the versions _airness_ decides. `node-dependencies` installs the project's locked dependencies with every lifecycle script switched off, then runs the build scripts of exactly the dependencies `allowBuilds` in `pnpm-workspace.yaml` approves with `true`. `airness-parent` binds one `node-gate` execution per gate in `verify`, each running `airness-node gate <id>`, and `wiring` then `npm-inventory` in `prepare-package`:
 +
 [cols="1,3",options="header"]
 |===
 | Gate | What it checks
+| `wiring` | The lockfile resolves `@airness/node` at the version of the `airness-parent` in the module's parent chain, and `ploaness` at the version of `airness-parent-payload`, from a registry rather than a `link:`, `file:`, `workspace:` or `portal:` path, except a harness package's own repository linking itself. The project configures no override, patch, package extension or pnpmfile hook, and the lockfile records none. `vitest`, `@vitest/coverage-v8` and `typescript` resolve to the versions `@airness/node` runs, and a member with source declares the first two.
 | `types` | The project's `tsconfig.json` extends `@airness/node/tsconfig.json`, sets no compiler option but `paths`, `baseUrl`, `plugins`, `types`, `rootDir` and `outDir`, and carries exactly the `include` and `exclude` the harness names, every nested workspace member excluded. Then it type-checks with the pinned TypeScript.
 | `biome` | Formatting and fast lint under the shipped Biome configuration, over the source roots, the JavaScript files and the root configuration files. A `biome.json` or `.biome.json` below the project root is refused, because it would replace the shipped configuration for its directory.
 | `oxlint` | Native rules under a closed rule set the gate writes, with the accessibility rules over the JSX of a project that declares Next. A project Oxlint configuration is refused.
@@ -279,6 +280,13 @@ The script writes its output under `target/`. With `-DskipTests`, a module that 
 | `source-rules` | No parent-relative import under a source root, and no credential guard that opens when the credential is unset.
 | `config-refs` | Every file a tool configuration carves out exists, and every exclusion the project declares reaches a file.
 | `javascript-allowlist` | No hand-written JavaScript outside the allowlist: by default `eslint.config.mjs` and a PostCSS configuration.
+| `arch` | Under the shipped dependency-cruiser contract: no cycle, no import that does not resolve, no production import of a spec or of a development-only dependency, no deprecated Node.js core module.
+| `type-coverage` | Every identifier of hand-written logic is typed, with no `any` and no type assertion. A `typeCoverage` key in `package.json` is refused.
+| `knip` | No unused file, export or dependency, under the shipped knip configuration.
+| `tests` | The member's own Vitest runs its suite under the shipped configuration, in a fixed shuffled order, and every measured file reaches 80% line, branch, function and statement coverage. A member with source and no suite fails. The managed `vitest.config.mts` re-exports the same configuration for editors.
+| `install-scripts` | `allowBuilds` decides every installed dependency that runs an install script as `true` or `false`, names no other, and no other setting decides install scripts beside it. The packages are those the lockfile resolves; one limited to other systems is judged where it installs. A setting that moves the virtual store is refused.
+| `release-age` | `pnpm-workspace.yaml` sets `minimumReleaseAge` to at least 1440 minutes with `minimumReleaseAgeStrict: true`, excluding only a harness package, and every resolved release comes from a registry that dates it at least a day back. Each release is read from the registry pnpm fetched it from, with that registry's token and through the proxy `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` name, on every run. A git, tarball or directory resolution fails, and so does a registry that can't be read.
+| `npm-inventory` | Judges nothing. Bound in `prepare-package` after `wiring`, it writes `dependencies.json` beside its result: every package the lockfile resolves with its version, its declared license, whether a member declares it and whether this host installed it, for the dependency policies to read.
 |===
 +
 A pnpm workspace root and each of its members are judged as their own packages, and a failing member names itself in each finding.
@@ -291,6 +299,7 @@ A pnpm workspace root and each of its members are judged as their own packages, 
 | `generatedArtefacts` | Globs of files a generator writes, which no gate judges.
 | `frameworkGlue` | Globs of files a framework writes to a fixed shape, which the lint relaxes.
 | `javascriptAllowlist` | Regular expressions of JavaScript files a tool forces on the project, each with a `runtime` of `node` or `cloudfront-js-2.0`.
+| `coverageExclude` | Globs of source files the coverage floor doesn't measure, such as a configuration a tool loads in a process of its own. It is an exception to the floor, so an entry that leaves no measured file is refused.
 |===
 . `pnpm exec airness-node gate <id> --verbose` runs one gate in the node project it is started in and prints what the tool wrote. It diagnoses one finding and gives no verdict.
 

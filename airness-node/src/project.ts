@@ -18,6 +18,8 @@ const nodeRequire: NodeJS.Require = createRequire(import.meta.url)
 export interface Member {
   /** The member's own directory. */
   readonly root: string
+  /** The node project's directory, where its lockfile and its installed dependencies live. */
+  readonly projectRoot: string
   /** Relative to the node project, `.` for the project itself. */
   readonly path: string
   /** The member's parsed package.json, or undefined when it has none. */
@@ -97,6 +99,7 @@ const createMember = (root: string, memberPath: string, every: readonly string[]
   const packageJson: unknown = readJson(path.join(directory, MANIFEST))
   return {
     root: directory,
+    projectRoot: root,
     path: memberPath,
     packageJson,
     settings: readSettings(packageJson, layerDefaultsFor(directory, packageJson, readJson)),

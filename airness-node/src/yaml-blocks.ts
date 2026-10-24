@@ -18,7 +18,7 @@ const isMapping = (value: unknown): value is Record<string, unknown> => {
 }
 
 /** Read a workspace mapping, rejecting malformed evidence rather than treating it as absent. */
-export const readWorkspaceDocument = (file: string): Readonly<Record<string, unknown>> => {
+const readWorkspaceDocument = (file: string): Readonly<Record<string, unknown>> => {
   try {
     const document: ReturnType<typeof parseDocument> = parseDocument(file)
     if (document.errors.length > 0 || document.warnings.length > 0) {

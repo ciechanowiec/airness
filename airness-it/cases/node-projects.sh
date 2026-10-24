@@ -7,8 +7,9 @@
 # module that carries a package.json nobody declared, a declared folder without one, or a project that picks a
 # pnpm of its own. A project may declare the Airness plugin only to bind node-run, so the fake gate runs as a
 # command-line goal after verify, which adds a gate and replaces none. The node gates the parent binds run in
-# verify as well, so each frontend links the @airness/node this reactor built and conforms to them. The variants (path resolution, result parsing, workspace membership, the exec,
-# antrun and frontend-maven-plugin refusals) are unit-tested in airness-maven-plugin and airness-governance.
+# verify as well, so each frontend installs the @airness/node this reactor packed and conforms to them. The
+# variants (path resolution, result parsing, workspace membership, the exec, antrun and frontend-maven-plugin
+# refusals) are unit-tested in airness-maven-plugin and airness-governance.
 run_node_project_cases() {
     node_fixture="${repository}/airness-it/fixtures/node-project"
 
@@ -16,7 +17,7 @@ run_node_project_cases() {
     node_shop="${consumer_directory}"
     mkdir -p "${node_shop}/src/main"
     cp -R "${node_fixture}" "${node_shop}/src/main/frontend"
-    link_airness_node "${node_shop}/src/main/frontend"
+    install_airness_node "${node_shop}/src/main/frontend"
     write_node_consumer "${node_shop}" 'src/main/frontend' '
     <build>
         <plugins>
@@ -46,7 +47,19 @@ run_node_project_cases() {
     expect_match node_shop 'node: the pinned Node and pnpm are installed and verified' \
         'Node 26[.]11[.]1 and pnpm 12[.]14[.]0, verified by SHA-256'
     expect_match node_shop 'node: the frontend dependencies are installed from its lockfile, running no script' \
-        'Running pnpm install --frozen-lockfile --ignore-scripts in .*/src/main/frontend'
+        'Running pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile in .*/src/main/frontend'
+    expect_match node_shop 'node: only the build scripts allowBuilds approves run, after the install' \
+        'Running pnpm rebuild --ignore-pnpmfile --config[.]strict-dep-builds=false --config[.]dangerously-allow-all-builds=false in'
+    node_store="${node_shop}/src/main/frontend/node_modules/.pnpm"
+    expect_marker 'node: a build script allowBuilds approves runs' "${node_store}" 'fixture-approved' yes
+    expect_marker 'node: a build script allowBuilds refuses does not run' "${node_store}" 'fixture-denied' no
+    expect_marker 'node: an approved build of a workspace member alone runs too' "${node_store}" 'fixture-member' yes
+    if [ -e "${node_shop}/src/main/frontend/root-postinstall-ran" ] \
+        || [ -e "${node_shop}/src/main/frontend/root-prepare-ran" ]; then
+        fail 'node: the project lifecycle scripts never run' 'a root postinstall or prepare marker exists'
+    else
+        pass 'node: the project lifecycle scripts never run'
+    fi
     expect_match node_shop 'node: the gate runs in the declared project on the harness Node' \
         'Node gate fake in src/main/frontend passed: ran on Node v26[.]11[.]1'
     expect_file_match "${node_shop}/target/classes/static/index.html" \
@@ -66,8 +79,8 @@ run_node_project_cases() {
     mkdir -p "${node_portal}/src/main/webapp" "${node_portal}/ui"
     cp -R "${node_fixture}" "${node_portal}/src/main/webapp/admin"
     cp -R "${node_fixture}" "${node_portal}/ui/storefront"
-    link_airness_node "${node_portal}/src/main/webapp/admin"
-    link_airness_node "${node_portal}/ui/storefront"
+    install_airness_node "${node_portal}/src/main/webapp/admin"
+    install_airness_node "${node_portal}/ui/storefront"
     write_node_consumer "${node_portal}" 'src/main/webapp/admin,ui/storefront' ''
 
     run_maven node_portal node "${node_portal}" airness:assets-sync clean verify airness:node-gate \
@@ -126,4 +139,14 @@ write_node_consumer() {
     </properties>$3
 </project>
 POM
+}
+
+# Asserts whether the postinstall marker of a fixture package exists in the virtual store.
+expect_marker() {
+    marker_found="$(find "$2" -path "*$3*" -name postinstall-ran 2>/dev/null | head -n 1)"
+    if { [ "$4" = yes ] && [ -n "${marker_found}" ]; } || { [ "$4" = no ] && [ -z "${marker_found}" ]; }; then
+        pass "$1"
+    else
+        fail "$1" "postinstall marker of $3 present: ${marker_found:-none}, expected $4"
+    fi
 }

@@ -50,6 +50,10 @@
       "types": "./dist/gate-result.d.ts",
       "default": "./dist/gate-result.js"
     },
+    "./vitest": {
+      "types": "./dist/vitest.d.ts",
+      "default": "./dist/vitest.js"
+    },
     "./biome": "./configs/airness-biome.json",
     "./tsconfig": "./configs/tsconfig.json",
     "./tsconfig.json": "./configs/tsconfig.json",
@@ -61,6 +65,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "package": "pnpm pack --pack-destination target",
     "test": "vitest run"
   },
   "engines": {
@@ -71,7 +76,9 @@
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
     "@typescript-eslint/parser": "8.72.0",
+    "@vitest/coverage-v8": "5.0.5",
     "@vitest/eslint-plugin": "1.6.27",
+    "dependency-cruiser": "18.7.0",
     "eslint": "10.13.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-functional": "10.0.1",
@@ -80,16 +87,34 @@
     "eslint-plugin-sonarjs": "4.2.2",
     "eslint-plugin-unicorn": "78.0.0",
     "globals": "17.13.0",
+    "knip": "6.42.1",
     "micromatch": "4.0.8",
     "oxlint": "1.89.0",
+    "type-coverage": "2.30.4",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5",
     "yaml": "2.9.1"
   },
   "devDependencies": {
     "@airness/node": "link:.",
     "@types/micromatch": "4.0.10",
-    "@types/node": "26.6.5",
-    "vitest": "5.0.5"
+    "@types/node": "26.6.5"
+  },
+  "airness": {
+    "coverageExclude": [
+      {
+        "pattern": "src/bin.ts",
+        "reason": "the executable's entry point, which runs only as a process of its own; the command line it starts is measured"
+      },
+      {
+        "pattern": "src/eslint*.ts",
+        "reason": "the ESLint configuration, which ESLint loads in a process of its own during the eslint gate, where the gate specs run it and coverage does not reach"
+      },
+      {
+        "pattern": "src/project-settings.ts",
+        "reason": "read only by the ESLint configuration, in the process ESLint runs it in"
+      }
+    ]
   }
 }

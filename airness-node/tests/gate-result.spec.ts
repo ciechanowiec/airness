@@ -39,3 +39,18 @@ describe('the result file', () => {
     )
   })
 })
+
+describe('the evidence a result lists', () => {
+  it('carries the evidence a passing member wrote, and none from a failing run', () => {
+    const written: ResultFile = resultOf('npm-inventory', 'npm dependency evidence', [
+      { member: '.', result: { ...passed('written'), evidence: ['dependencies.json'] } },
+      { member: 'gate', result: passed('the root inventories every member') },
+    ])
+    expect(written.evidence).toEqual(['dependencies.json'])
+    const refused: ResultFile = resultOf('npm-inventory', 'npm dependency evidence', [
+      { member: '.', result: { ...passed('written'), evidence: ['dependencies.json'] } },
+      { member: 'gate', result: failed('broken', ['a finding']) },
+    ])
+    expect(refused.evidence).toEqual([])
+  })
+})

@@ -4,7 +4,7 @@ import { type OxlintRule, oxlintRules } from './oxlint-policy.js'
 import { analysisBoundaries } from './workspace.js'
 
 /** Authored JavaScript and TypeScript, including configuration and hidden tooling. */
-export const OXLINT_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
+const OXLINT_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
 
 const OUTPUTS: readonly string[] = ['**/node_modules/**', '.next/**', 'dist/**', 'build/**', 'out/**', 'coverage/**']
 

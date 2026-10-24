@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "@airness/node": "link:@AIRNESS_NODE@"
+    "@airness/node": "1.0.8-SNAPSHOT",
+    "@vitest/coverage-v8": "5.0.5",
+    "vitest": "5.0.5"
   }
 }

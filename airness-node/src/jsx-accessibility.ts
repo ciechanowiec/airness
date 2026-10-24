@@ -170,21 +170,3 @@ export const JSX_ACCESSIBILITY_RULES: readonly JsxAccessibilityRule[] = [
     biome: 'noPositiveTabindex',
   },
 ]
-
-/** The native configuration, independent of anything in the consuming working tree. */
-export const oxlintAccessibilityConfig = (): Readonly<Record<string, unknown>> => ({
-  plugins: ['jsx-a11y'],
-  categories: { correctness: 'off' },
-  rules: Object.fromEntries(
-    JSX_ACCESSIBILITY_RULES.map((rule: JsxAccessibilityRule): readonly [string, unknown] => [
-      rule.oxlint,
-      rule.options === undefined ? 'error' : ['error', rule.options],
-    ]),
-  ),
-})
-
-/** The Biome checks whose application JSX responsibility belongs to Oxlint. */
-export const replacedBiomeAccessibilityRules = (): Readonly<Record<string, string>> =>
-  Object.fromEntries(
-    JSX_ACCESSIBILITY_RULES.map((rule: JsxAccessibilityRule): readonly [string, string] => [rule.biome, 'off']),
-  )
