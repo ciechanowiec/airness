@@ -26,8 +26,14 @@ class AssetCatalogueTest {
     }
 
     @Test
-    void rejectsAManifestEntryWithoutExactlyTwoFields() {
+    void rejectsAManifestEntryWithoutAPolicy() {
         AssetFixture fixture = new AssetFixture(this.directory, "only-a-path\n");
+        assertThrows(IllegalStateException.class, fixture::catalogue);
+    }
+
+    @Test
+    void rejectsAFourthFieldThatIsNotAnOverride() {
+        AssetFixture fixture = new AssetFixture(this.directory, "a.txt\tPINNED\tROOT\tREPLACES node\n");
         assertThrows(IllegalStateException.class, fixture::catalogue);
     }
 }

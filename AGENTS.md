@@ -1,14 +1,21 @@
-<!-- BEGIN AIRNESS MANAGED INSTRUCTIONS -->
+<!-- BEGIN AIRNESS MANAGED: generic -->
 ## Airness harness
 
 Follow the repository contract from general to specific:
 
 1. Follow `README-guideline-software-project.adoc`.
 2. Follow the complete Airness contract in `.airness/agent-guide.md`.
-3. Follow the project-owned instructions below this managed block.
+3. Follow each Airness stack layer below, where it applies.
+4. Follow the project-owned instructions below the managed blocks.
 
 Every layer is binding, and a later layer may strengthen but never weaken an earlier one. The inherited harness is the executable enforcement of this contract. Do not weaken, replace, duplicate, or version what Airness owns.
-<!-- END AIRNESS MANAGED INSTRUCTIONS -->
+<!-- END AIRNESS MANAGED: generic -->
+
+<!-- BEGIN AIRNESS MANAGED: java -->
+## Airness Java layer
+
+In every module that inherits `airness-parent-java`, also follow `.airness/agent-guide-java.md`.
+<!-- END AIRNESS MANAGED: java -->
 
 # Repository Guidelines
 

@@ -1,0 +1,3 @@
+## Airness Java layer
+
+In every module that inherits `airness-parent-java`, also follow `.airness/agent-guide-java.md`.

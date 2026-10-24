@@ -1,17 +1,18 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.AgentInstructions;
 import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetSync;
 import eu.ciechanowiec.airness.governance.Repository;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import javax.inject.Inject;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuilder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -42,6 +43,18 @@ public final class AssetsSyncMojo extends AbstractMojo {
     @Parameter(property = "airness.assets.unmanaged")
     private @Nullable String unmanaged;
 
+    private final ProjectBuilder builder;
+
+    /**
+     * Receives the builder that reads the models of every module in the repository.
+     *
+     * @param builder the Maven project builder
+     */
+    @Inject
+    public AssetsSyncMojo(ProjectBuilder builder) {
+        this.builder = builder;
+    }
+
     /**
      * Writes the managed files once, from the project that owns the repository.
      *
@@ -70,21 +83,14 @@ public final class AssetsSyncMojo extends AbstractMojo {
 
     private void write() {
         Path root = Repository.rootFrom(this.project().getBasedir().toPath());
-        boolean instructions = new AgentInstructions(
-            root, new AgentMaterials(AssetsSyncMojo.class.getClassLoader()).instructions()
-        ).write();
-        if (instructions) {
-            this.getLog().info("Wrote the Airness-managed section in AGENTS.md");
-        }
         List<String> written = new AssetSync(
-            root, new AssetCatalogue(AssetsSyncMojo.class.getClassLoader()), Sentinel.optional(this.unmanaged)
+            root,
+            new AssetCatalogue(AssetsSyncMojo.class.getClassLoader()),
+            Sentinel.optional(this.unmanaged),
+            RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root)
         ).write();
         written.forEach(path -> this.getLog().info("Wrote " + path));
-        this.summarize(written.size(), instructions);
-    }
-
-    private void summarize(int written, boolean instructions) {
-        if (written == 0 && !instructions) {
+        if (written.isEmpty()) {
             this.getLog().info("Every file the harness owns was already in place");
         }
     }

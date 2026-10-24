@@ -1,0 +1,4 @@
+# Java
+*.class
+.gradle/
+hs_err_pid*

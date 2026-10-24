@@ -1,46 +1,44 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.UncheckedIOException;
-import java.net.URL;
-import java.net.URLClassLoader;
+import eu.ciechanowiec.airness.governance.AssetCatalogue;
+import eu.ciechanowiec.airness.governance.AssetLocation;
+import eu.ciechanowiec.airness.governance.AssetPolicy;
+import eu.ciechanowiec.airness.governance.Capability;
+import eu.ciechanowiec.airness.governance.ManagedAsset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
-import lombok.SneakyThrows;
 import org.eclipse.aether.DefaultSessionData;
 import org.eclipse.aether.SessionData;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Exercises the small support objects that guard Maven-session and agent-material scope.
+ * Exercises the small support objects that guard Maven-session scope and the shipped manifests.
  */
 class HarnessSupportTest {
 
-    @TempDir
-    private Path directory;
-
     @Test
-    void readsTheManagedAgentMaterialFromTheRealPluginClasspath() {
-        String instructions = new AgentMaterials(AgentMaterials.class.getClassLoader()).instructions();
-        assertTrue(instructions.startsWith("<!-- BEGIN AIRNESS MANAGED INSTRUCTIONS -->"));
-    }
-
-    @Test
-    void failsWhenAgentMaterialIsMissingOrBecomesUnreadable() {
-        URL[] empty = {};
-        assertThrows(
-            IllegalStateException.class,
-            () -> new AgentMaterials(new URLClassLoader(empty, null)).instructions()
+    void readsTheShippedManifestsWithoutAContradictionBetweenLayers() {
+        List<ManagedAsset> agents = new AssetCatalogue(HarnessSupportTest.class.getClassLoader())
+            .select(AssetLocation.ROOT, EnumSet.allOf(Capability.class))
+            .stream()
+            .filter(asset -> "AGENTS.md".equals(asset.path()))
+            .toList();
+        assertEquals(
+            List.of(Capability.GENERIC, Capability.JAVA, Capability.NODE),
+            agents.stream().map(ManagedAsset::owner).toList(),
+            "every layer the repository ships contributes its own block to the root instructions"
         );
-        assertThrows(UncheckedIOException.class, this::readDeletedMaterial);
+        assertTrue(agents.stream().allMatch(asset -> asset.policy() == AssetPolicy.SECTION));
     }
 
     @Test
@@ -84,7 +82,7 @@ class HarnessSupportTest {
         assertTrue(OncePerSession.firstRun(data, HarnessSupportTest.class, "first"));
         assertFalse(OncePerSession.firstRun(data, HarnessSupportTest.class, "first"));
         assertTrue(OncePerSession.firstRun(data, HarnessSupportTest.class, "second"));
-        assertTrue(OncePerSession.firstRun(data, AgentMaterials.class, "first"));
+        assertTrue(OncePerSession.firstRun(data, RepositorySites.class, "first"));
         assertTrue(OncePerSession.firstRun(data, HarnessSupportTest.class));
         assertFalse(OncePerSession.firstRun(data, HarnessSupportTest.class));
     }
@@ -107,15 +105,6 @@ class HarnessSupportTest {
         Path root = repository();
         TreeState.snapshot(data, root, "repository");
         assertTrue(TreeState.unchanged(data, root, "repository"));
-    }
-
-    @SneakyThrows
-    private void readDeletedMaterial() {
-        Path material = Files.writeString(this.directory.resolve("instructions.md"), "instructions\n");
-        URL location = material.toUri().toURL();
-        AgentMaterials agent = new AgentMaterials(Optional.of(location));
-        Files.delete(material);
-        agent.instructions();
     }
 
     private static Path repository() {

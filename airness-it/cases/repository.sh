@@ -11,6 +11,7 @@ run_repository_cases() {
     run_packaged_output_boundary
     run_coverage_boundary
     run_git_boundaries
+    run_managed_file_cases
     check_published_assets
 }
 
@@ -319,8 +320,8 @@ check_published_assets() {
     assets="${local_repository}/eu/ciechanowiec/airness-assets/${harness_version}/airness-assets-${harness_version}.jar"
     listing="${scratch}/assets.txt"
     jar tf "${assets}" > "${listing}"
-    if grep -Fq 'airness/files/README-guideline-software-project.adoc.asset' "${listing}" \
-        && ! grep -Ev 'airness/files/README-guideline-software-project[.]adoc[.]asset$' "${listing}" \
+    if grep -Fq 'airness/files/generic/README-guideline-software-project.adoc.asset' "${listing}" \
+        && ! grep -Ev 'airness/files/generic/README-guideline-software-project[.]adoc[.]asset$' "${listing}" \
             | grep -Eq '(^|/)([.]vale|[.]docs|docinfo|README|githooks|lint-docs)'; then
         pass 'assets: the published JAR contains only the pinned guideline documentation'
     else

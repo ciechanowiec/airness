@@ -21,7 +21,7 @@ class EntryFileCheckTest {
         """;
 
     private static EntryFileCheck check(Path root) {
-        return new EntryFileCheck(root, AIRNESS);
+        return new EntryFileCheck(root);
     }
 
     @Test
@@ -82,30 +82,6 @@ class EntryFileCheckTest {
         assertTrue(
             Verdicts.clean(check(root).findings()),
             "an ignored personal file is not part of the tree the check governs"
-        );
-    }
-
-    @Test
-    void reportsStaleAirnessInstructions() {
-        Path root = new GitFixture("entry-stale-airness")
-            .write(EntryFileRules.INSTRUCTIONS, AIRNESS.replace("Airness rules.", "Old rules."))
-            .root();
-        assertEquals(
-            List.of(EntryFileRules.INSTRUCTIONS),
-            Verdicts.offences(check(root).findings(), "stale Airness instructions"),
-            "the active harness version defines the managed section"
-        );
-    }
-
-    @Test
-    void reportsNonLeadingAirnessInstructionsAsMalformed() {
-        Path root = new GitFixture("entry-misplaced-airness")
-            .write(EntryFileRules.INSTRUCTIONS, INSTRUCTION_BODY + AIRNESS)
-            .root();
-        assertEquals(
-            List.of(EntryFileRules.INSTRUCTIONS),
-            Verdicts.offences(check(root).findings(), "non-leading Airness instruction markers"),
-            "automatic synchronization cannot move an ambiguous project-owned prefix"
         );
     }
 }

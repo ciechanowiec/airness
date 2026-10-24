@@ -1,0 +1,26 @@
+# Files every repository carries, whatever stacks it holds.
+# Columns: path, policy, then optionally a location (ROOT unless stated) and OVERRIDES <capability>.
+# PINNED: the file holds exactly the shipped bytes. SEED: written when absent, then owned by the project.
+# SECTION: the file leads with one marked block per capability that claims it; the rest is the project's.
+# REFERENCE: optional, and when present it only points at AGENTS.md. FORBIDDEN: the file must not exist.
+# Project documentation belongs to the consuming project. The software project guideline is the one
+# exception because it defines the agent contract. The Maven startup files and the Java version are
+# generic because every repository builds with Maven on exactly Java 25.
+
+.editorconfig	PINNED
+.gitattributes	PINNED
+.java-version	PINNED
+.mvn/maven.config	PINNED
+.mvn/settings.xml	PINNED
+.airness/agent-guide.md	PINNED
+README-guideline-software-project.adoc	PINNED
+.airness/license-inventory.ftl	PINNED
+AGENTS.md	SECTION
+.gitignore	SECTION
+.dockerignore	SECTION
+.gitleaks.toml	SEED
+GEMINI.md	REFERENCE
+.cursorrules	REFERENCE
+.windsurfrules	REFERENCE
+.clinerules	REFERENCE
+.github/copilot-instructions.md	REFERENCE

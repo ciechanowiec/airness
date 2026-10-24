@@ -1,0 +1,10 @@
+# Files a repository carries when any of its modules inherits airness-parent-java.
+# The columns and policies are the ones generic.tsv describes.
+
+lombok.config	PINNED
+qodana.yaml	PINNED
+.airness/agent-guide-java.md	PINNED
+AGENTS.md	SECTION
+.gitignore	SECTION
+rewrite.yml	FORBIDDEN
+qodana/profile.xml	FORBIDDEN
