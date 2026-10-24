@@ -118,6 +118,35 @@ public final class Repository {
     }
 
     /**
+     * The files a commit from this working tree would carry beneath a directory, when git can say.
+     *
+     * <p>For a caller that has a fallback of its own when the directory lies in no working tree or git is
+     * not installed, rather than a reason to stop.
+     *
+     * @param directory the directory to list, inside a working tree or not
+     * @return the committable files below it, or nothing when git cannot list them
+     */
+    public static Optional<List<Path>> committableFiles(Path directory) {
+        try {
+            Optional<String> listing = GitPlumbing.attempt(
+                directory, List.of("ls-files", "-z", "--cached", "--others", "--exclude-standard")
+            );
+            return listing.map(names -> listed(directory, names));
+        } catch (UncheckedIOException _) {
+            return Optional.empty();
+        }
+    }
+
+    private static List<Path> listed(Path directory, String names) {
+        return Arrays.stream(names.split("\0", -1))
+            .filter(name -> !name.isEmpty())
+            .map(directory::resolve)
+            .filter(Repository::committableEntry)
+            .distinct()
+            .toList();
+    }
+
+    /**
      * The readable text of a file, if it has any.
      *
      * <p>A path that is not there reads as no text rather than as a failure, which is what lets a caller

@@ -220,6 +220,41 @@ mvn airness:assets-sync
 ----
 . To let the project own a xref:#pinned-file[pinned file], xref:#seed-file[seed file], or xref:#forbidden-file[forbidden file], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path. A xref:#managed-section[managed section] can't be taken over, because the project already owns every line outside its blocks.
 
+[[node-projects]]
+== Node Projects
+
+. A module lists the directories that hold its node projects in xref:#airness-node-projects[`airness.node.projects`]. Each listed directory holds a `package.json`, either for a single package or for a pnpm workspace root, whose listed members it covers.
+. _airness_ installs the Node and pnpm versions its release pins and checks each download against a pinned SHA-256. The installation is cached under `.airness/toolchain` in the local Maven repository, so later builds reuse it. Only Java and Maven need installing by hand. The pins cover macOS and Linux on x64 and arm64.
+. At `validate`, every module checks that each `package.json` in it belongs to a declared node project or to a member of a declared workspace, and that each declared directory holds a `package.json`. The check also runs in a module that declares nothing, so a new frontend in an undeclared folder fails the build. It reads the files a commit would carry, so build output that git ignores is passed over, and so are child modules. A workspace glob is read as pnpm reads it, and one using extended-glob or character-class syntax is refused.
+. The same check refuses every setting with which pnpm would pick a pnpm or a Node of its own: `packageManager` and `devEngines` in a `package.json`, `useNodeVersion`, `nodeVersion`, `executionEnv` and `managePackageManagerVersions` there under `pnpm` or in `pnpm-workspace.yaml`, and their `.npmrc` forms. _airness_ supplies both.
+. At `initialize`, a module that declares a node project installs the toolchain and runs `pnpm install --frozen-lockfile --ignore-scripts` in each project that has its own `pnpm-lock.yaml`. No lifecycle script runs while dependencies are installed.
+. A frontend that the Maven build packs into the artifact is built by the `node-run` goal, which runs one `package.json` script of a declared project on the harness's Node and pnpm. A project may declare the _airness_ plugin only to bind such executions, each with an id of its own that it doesn't inherit, a phase before `prepare-package`, and no `combine` attribute:
++
+[source,xml]
+----
+<plugin>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-maven-plugin</artifactId>
+    <executions>
+        <execution>
+            <id>frontend-build</id>
+            <phase>generate-resources</phase>
+            <goals>
+                <goal>node-run</goal>
+            </goals>
+            <configuration>
+                <project>src/main/frontend</project>
+                <script>build</script>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+----
++
+The script writes its output under `target/`. With `-DskipTests`, a module that binds `node-run` still installs the toolchain and builds its frontend.
+. The xref:#default-verification[default verification] refuses `com.github.eirslett:frontend-maven-plugin` and every other `com.github.eirslett` artifact wherever the module's build reaches it: declared in its project file with or without a version, inherited from a parent, or given to a plugin as a dependency. It also refuses an `exec-maven-plugin` or `maven-antrun-plugin` step whose executable is `node`, `npm`, `npx`, `pnpm`, `yarn`, `bun` or `deno`, including through the `exec.executable` property. Each of them would run a Node other than the one the checks use. _airness_ doesn't inspect what an allowed process starts, such as a shell script that calls Node by an absolute path.
+. Each JS/TS check runs through the `node-gate` goal in every declared project, as `pnpm exec <command> --result <file>`. The gate writes its result as `<gate>.json`, with any evidence files beside it, in `target/airness/node/module/` for the module itself and in `target/airness/node/projects/<project>/` for a project at `<project>` relative to the module. Command output goes to the same place under `target/airness/node-logs/`.
+
 [[configuration]]
 == Configuration
 
@@ -246,7 +281,7 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 
 | [[airness-node-projects]]`airness.node.projects`
 | empty
-| Directories of the module that hold a node project, relative to the module and comma-separated, for example `src/main/frontend`. Each one receives the `node` managed files.
+| Directories of the module that hold a node project, relative to the module and comma-separated, for example `src/main/frontend`. Each one receives the `node` managed files and the xref:#node-projects[node toolchain and checks].
 
 | `airness.generated.files`
 | empty

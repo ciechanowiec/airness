@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -44,6 +46,21 @@ class RepositoryTest {
             thrown.toString().contains("git init"),
             "a directory that was never a clone has to be told what makes it usable"
         );
+    }
+
+    @Test
+    void listsTheCommittableFilesBelowADirectoryAndNothingOutsideAWorkingTree(@TempDir Path outside) {
+        Path root = new GitFixture("repository-committable")
+            .write(".gitignore", "dist/\n")
+            .write("ui/package.json", "{}\n")
+            .write("ui/dist/package.json", "{}\n")
+            .root();
+        assertEquals(
+            Optional.of(List.of(root.resolve("ui/package.json"))),
+            Repository.committableFiles(root.resolve("ui")),
+            "what git ignores is build output, and the listing stays below the directory asked about"
+        );
+        assertEquals(Optional.empty(), Repository.committableFiles(outside));
     }
 
     @Test

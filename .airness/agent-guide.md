@@ -64,6 +64,16 @@ Airness governs all of the following domains:
   `.env.template`) and supplied by every workflow that runs Maven through `verify`; and `.claude/settings.json`
   denies `Edit(...)` of every generated file a stack layer or `airness.generated.files` declares, with no local
   settings allowing one back.
+- **Node projects:** every `package.json` in a module belongs to a node project the module lists in
+  `airness.node.projects`, or to a member of a listed pnpm workspace, and every listed directory holds one. A
+  module that lists nothing is checked too. A module that lists a project gets the Node and pnpm the Airness
+  release pins, verified by SHA-256 and cached in the local Maven repository, and each project's locked
+  dependencies, installed with no lifecycle script run. No project may pick a pnpm or Node of its own through
+  `packageManager`, `devEngines`, `useNodeVersion`, `nodeVersion` or `executionEnv`. Build a frontend into the
+  artifact only with an `airness:node-run` execution, the one declaration of the Airness plugin a project may
+  write, with an id of its own and a phase before `prepare-package`. `com.github.eirslett` artifacts, however
+  they reach the build, and `exec` or `antrun` steps that run `node`, `npm`, `npx`, `pnpm`, `yarn`, `bun` or
+  `deno` are refused, because they run a Node other than the one the checks use.
 - **Maven repository routing:** Airness owns `.mvn/maven.config` and `.mvn/settings.xml`. The startup
   configuration loads the latter as Maven's global settings and mirrors every remote repository to
   Maven Central, including repositories introduced by dependency POMs and plugin POM inspection.

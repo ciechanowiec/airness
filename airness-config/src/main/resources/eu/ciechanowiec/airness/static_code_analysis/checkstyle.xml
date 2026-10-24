@@ -61,7 +61,7 @@
         AsciidoctorJ registers a Java tree processor through Treeprocessor and its process(Document) hook.
         -->
         <property name="format"
-                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo|AbstractSimpleMarkupHandler|TreeScanner|BugChecker|Treeprocessor|AbstractCheck)\b)\w+[^{]*\{"/>
+                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo|AbstractNodeMojo|AbstractSimpleMarkupHandler|TreeScanner|BugChecker|Treeprocessor|AbstractCheck)\b)\w+[^{]*\{"/>
         <property name="message"
                   value="Inheritance is allowed only for explicitly specified cases."/>
     </module>

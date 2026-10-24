@@ -100,6 +100,12 @@
                     -->
                     <excludes>
                         <exclude>**/target/**</exclude>
+                        <!--
+                            Installed node packages, which node-dependencies writes at initialize. The ignored
+                            files above are listed at validate, before any package is installed, so they
+                            cannot name these.
+                        -->
+                        <exclude>**/node_modules/**</exclude>
                         <exclude>.git/**</exclude>
                         <exclude>.idea/**</exclude>
                         <exclude>**/*.png</exclude>
@@ -228,6 +234,29 @@
                             <goal>assets-check</goal>
                             <goal>editorconfig-excludes</goal>
                             <goal>build-inputs</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        The node goals. node-projects runs in every module, declared node projects or not,
+                        because the module that declares nothing is where an undeclared package.json would
+                        otherwise go unchecked. node-install and node-dependencies do nothing in a module that
+                        declares no node project. They run at initialize, in this order, so the pinned Node and
+                        each project's locked dependencies are in place before any phase where a project builds
+                        its frontend with node-run.
+                    -->
+                    <execution>
+                        <id>airness-node-projects</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>node-projects</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>airness-node-install</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>node-install</goal>
+                            <goal>node-dependencies</goal>
                         </goals>
                     </execution>
                     <execution>

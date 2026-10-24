@@ -25,6 +25,7 @@ public final class BlocklistCheck {
 
     private static final String HEADLINE = "Software the module reaches that Airness refuses by name";
     private static final String RESOLVED = " (resolved set)";
+    private static final String BUILD = " (effective build)";
 
     private final int scanned;
     private final List<String> offences;
@@ -40,10 +41,12 @@ public final class BlocklistCheck {
     public BlocklistCheck(Path root, Path pom, Collection<Path> sourceRoots, ModuleCoordinates coordinates) {
         List<Path> sources = JavaSources.under(root, sourceRoots);
         String location = root.relativize(pom).toString();
-        this.scanned = coordinates.declared().size() + coordinates.resolved().size() + sources.size();
+        this.scanned = coordinates.declared().size() + coordinates.resolved().size() + coordinates.build().size()
+            + sources.size();
         this.offences = Stream.of(
             refusals(coordinates.declared(), location),
             refusals(coordinates.resolved(), location + RESOLVED),
+            refusals(coordinates.build(), location + BUILD),
             sources.stream().flatMap(source -> literals(root, source))
         ).flatMap(stream -> stream).distinct().toList();
     }

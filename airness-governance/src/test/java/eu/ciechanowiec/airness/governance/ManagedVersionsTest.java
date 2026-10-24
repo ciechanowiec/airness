@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -103,6 +104,115 @@ class ManagedVersionsTest {
             ),
             this.problems(pom)
         );
+    }
+
+    @Test
+    void acceptsADeclarationOfTheAirnessPluginThatOnlyBuildsAFrontend() {
+        String pom = """
+            <project><build><plugins><plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>frontend-build</id>
+                        <phase>generate-resources</phase>
+                        <goals><goal>node-run</goal></goals>
+                        <configuration>
+                            <project>src/main/frontend</project>
+                            <script>build</script>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin></plugins></build></project>
+            """;
+        assertEquals(List.of(), this.problems(pom), "node-run is a build step only the project can bind");
+    }
+
+    @Test
+    void rejectsADeclarationOfTheAirnessPluginThatDoesMoreThanBuildAFrontend() {
+        String refusal = "Remove child declaration of eu.ciechanowiec:airness-maven-plugin; "
+            + "Airness supplies this plugin";
+        String gate = """
+            <project><build><plugins><plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions><execution>
+                    <id>frontend-build</id>
+                    <goals><goal>node-run</goal><goal>node-gate</goal></goals>
+                </execution></executions>
+            </plugin></plugins></build></project>
+            """;
+        String configured = """
+            <project><build><plugins><plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions><execution>
+                    <goals><goal>node-run</goal></goals>
+                    <configuration><skip>true</skip></configuration>
+                </execution></executions>
+            </plugin></plugins></build></project>
+            """;
+        String versioned = """
+            <project><build><plugins><plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <version>0.1</version>
+                <executions><execution><goals><goal>node-run</goal></goals></execution></executions>
+            </plugin></plugins></build></project>
+            """;
+        String bare = """
+            <project><build><plugins><plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+            </plugin></plugins></build></project>
+            """;
+        for (String pom : List.of(gate, configured, versioned, bare)) {
+            assertEquals(List.of(refusal), this.problems(pom), pom);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void rejectsANodeRunExecutionThatWouldMergeIntoOrRunAfterWhatItInherits() {
+        String refusal = "Remove child declaration of eu.ciechanowiec:airness-maven-plugin; "
+            + "Airness supplies this plugin";
+        Path own = this.directory.resolve("own.xml");
+        Files.writeString(own, nodeRun("<id>frontend-build</id><phase>generate-resources</phase>", ""));
+        assertEquals(List.of(), ManagedVersions.problems(own, Set.of("node-gate-eslint")));
+        assertEquals(
+            List.of(refusal), ManagedVersions.problems(own, Set.of("frontend-build")),
+            "an inherited id would hand the inherited goals the phase this execution names"
+        );
+        for (
+            String execution : List.of(
+                "<id>frontend-build</id><phase>none</phase>",
+                "<id>frontend-build</id><phase>prepare-package</phase>",
+                "<id>frontend-build</id><phase>verify</phase>",
+                "<phase>generate-resources</phase>",
+                "<id>airness-governance</id><phase>generate-resources</phase>",
+                "<id>default-cli</id><phase>generate-resources</phase>"
+            )
+        ) {
+            assertEquals(List.of(refusal), this.problems(nodeRun(execution, "")), execution);
+        }
+        assertEquals(
+            List.of(refusal),
+            this.problems(nodeRun("<id>frontend-build</id>", " combine.self=\"override\"")),
+            "a combine attribute changes how the declaration merges into what it inherits"
+        );
+    }
+
+    private static String nodeRun(String execution, String attribute) {
+        return """
+            <project><build><plugins><plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions><execution>%s
+                    <goals><goal>node-run</goal></goals>
+                    <configuration%s><project>.</project><script>build</script></configuration>
+                </execution></executions>
+            </plugin></plugins></build></project>
+            """.formatted(execution, attribute);
     }
 
     @Test

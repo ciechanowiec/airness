@@ -26,6 +26,13 @@ import org.w3c.dom.Node;
  * a child repeating it would be running the harness twice under two configurations. A plugin the parent
  * only pins a version for is an extension: the child is the only one who can bind it to anything, so
  * forbidding the declaration would leave a pinned version nobody is allowed to use.
+ *
+ * <p>One declaration of a supplied plugin is the child's own: an execution of airness:node-run, which builds
+ * the project's frontend and which only the project can bind, since only the project knows which directory
+ * and script build it. A declaration of the Airness plugin that carries nothing but such executions, each
+ * naming only its id, phase, goal and the {@code project} and {@code script} it runs, adds a build step and
+ * cannot change how the harness itself runs. Its id must be its own, not one it inherits, its phase must come
+ * before {@code prepare-package}, and no {@code combine} attribute may change how it merges.
  */
 @UtilityClass
 public final class ManagedVersions {
@@ -35,6 +42,8 @@ public final class ManagedVersions {
     private static final String AIRNESS_GROUP = "eu.ciechanowiec";
 
     private static final String AIRNESS_VERSION = "airness.version";
+
+    private static final String AIRNESS_PLUGIN = "airness-maven-plugin";
 
     private static final List<Coordinate> COORDINATES = List.of(
         allowedPlugin(MAVEN_PLUGIN_GROUP, "maven-clean-plugin", "maven-clean-plugin.version"),
@@ -74,7 +83,7 @@ public final class ManagedVersions {
         suppliedPlugin("org.codehaus.mojo", "license-maven-plugin", "license-maven-plugin.version"),
         suppliedPlugin("org.owasp", "dependency-check-maven", "dependency-check-maven.version"),
         suppliedPlugin("org.cyclonedx", "cyclonedx-maven-plugin", "cyclonedx-maven-plugin.version"),
-        suppliedPlugin(AIRNESS_GROUP, "airness-maven-plugin", AIRNESS_VERSION),
+        suppliedPlugin(AIRNESS_GROUP, AIRNESS_PLUGIN, AIRNESS_VERSION),
         suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-checkstyle-plugin", "maven-checkstyle-plugin.version"),
         suppliedPlugin(MAVEN_PLUGIN_GROUP, "maven-pmd-plugin", "maven-pmd-plugin.version"),
         suppliedPlugin(
@@ -158,8 +167,25 @@ public final class ManagedVersions {
      * @return problems ordered by their message
      */
     public static List<String> problems(Path pom) {
+        return problems(pom, Set.of());
+    }
+
+    /**
+     * Every child declaration that tries to replace or redeclare an Airness-owned coordinate, judged against
+     * the execution ids the child inherits.
+     *
+     * <p>Maven merges an execution into an inherited one of the same id: the child's phase wins and the
+     * configurations merge. A node-run execution reusing an inherited id could therefore move that
+     * execution's goals to another phase, so such an execution is not the project's own build step.
+     *
+     * @param pom       raw child pom
+     * @param inherited the ids of the Airness plugin executions the child inherits
+     * @return problems ordered by their message
+     */
+    public static List<String> problems(Path pom, Collection<String> inherited) {
         Element root = Xml.parse(read(pom)).getDocumentElement();
-        return Stream.of(coordinateProblems(root), propertyProblems(root), relocatedPlugins(root))
+        Set<String> ids = Set.copyOf(inherited);
+        return Stream.of(coordinateProblems(root, ids), propertyProblems(root), relocatedPlugins(root))
             .flatMap(problems -> problems).sorted().toList();
     }
 
@@ -180,13 +206,13 @@ public final class ManagedVersions {
         return PROTECTED_PROPERTIES;
     }
 
-    private static Stream<String> coordinateProblems(Element root) {
-        return COORDINATES.stream().flatMap(coordinate -> coordinateProblems(root, coordinate));
+    private static Stream<String> coordinateProblems(Element root, Set<String> inherited) {
+        return COORDINATES.stream().flatMap(coordinate -> coordinateProblems(root, coordinate, inherited));
     }
 
-    private static Stream<String> coordinateProblems(Element root, Coordinate coordinate) {
+    private static Stream<String> coordinateProblems(Element root, Coordinate coordinate, Set<String> inherited) {
         List<Node> declarations = declarations(root, coordinate).toList();
-        return declarations.isEmpty() ? Stream.empty() : declarationProblems(coordinate, declarations);
+        return declarations.isEmpty() ? Stream.empty() : declarationProblems(coordinate, declarations, inherited);
     }
 
     private static Stream<String> relocatedPlugins(Element root) {
@@ -200,9 +226,13 @@ public final class ManagedVersions {
             ).distinct();
     }
 
-    private static Stream<String> declarationProblems(Coordinate coordinate, Collection<Node> declarations) {
+    private static Stream<String> declarationProblems(
+        Coordinate coordinate, Collection<Node> declarations, Set<String> inherited
+    ) {
         if (coordinate.supplied()) {
-            return Stream.of(coordinate.declarationProblem());
+            return frontendBuild(coordinate, declarations, inherited)
+                ? Stream.empty()
+                : Stream.of(coordinate.declarationProblem());
         }
         return declarations.stream().anyMatch(ManagedVersions::versioned)
             ? Stream.of(coordinate.versionProblem())
@@ -217,6 +247,11 @@ public final class ManagedVersions {
             case PLUGIN -> DeclaredCoordinates.plugins(root);
         };
         return declarations.filter(coordinate::matches);
+    }
+
+    private static boolean frontendBuild(Coordinate coordinate, Collection<Node> declarations, Set<String> inherited) {
+        return AIRNESS_PLUGIN.equals(coordinate.artifact())
+            && declarations.stream().allMatch(plugin -> NodeRunDeclaration.only(plugin, inherited));
     }
 
     private static boolean versioned(Node declaration) {

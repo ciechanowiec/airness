@@ -1,0 +1,11 @@
+{
+  "name": "fixture-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs ../../../target/classes/static"
+  },
+  "devDependencies": {
+    "airness-fake-gate": "workspace:*"
+  }
+}

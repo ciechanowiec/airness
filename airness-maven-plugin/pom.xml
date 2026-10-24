@@ -54,6 +54,7 @@
         -->
         <eclipse-equinox-common.version>3.20.200</eclipse-equinox-common.version>
         <eclipse-text.version>3.14.400</eclipse-text.version>
+        <commons-compress.version>1.28.0</commons-compress.version>
         <playwright.version>1.63.0</playwright.version>
         <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
         <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
@@ -185,6 +186,13 @@
         <dependency>
             <groupId>com.github.javaparser</groupId>
             <artifactId>javaparser-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <!-- Unpacks the Node and pnpm release archives node-install downloads and verifies. -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>${commons-compress.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
