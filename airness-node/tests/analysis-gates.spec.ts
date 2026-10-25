@@ -6,6 +6,7 @@ import { architecture } from '@/gate-architecture.js'
 import { knip } from '@/gate-knip.js'
 import { tests } from '@/gate-tests.js'
 import { typeCoverage } from '@/gate-type-coverage.js'
+import { asRecord as asRecordOf } from '@/json-shapes.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
@@ -149,6 +150,39 @@ describe('knip', PROCESS_TIME, () => {
       withProject({ 'package.json': `${harness}\n` }, (root: string): void => {
         expect(knip(memberAt(root, JSON.parse(harness))).findings).toEqual([])
       })
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'counts a declared stack layer package as used, and no other dependency nothing imports',
+    () => {
+      const layered: Readonly<Record<string, unknown>> = {
+        ...MANIFEST,
+        devDependencies: { ...asRecordOf(MANIFEST['devDependencies']), ploaness: '2.0.0' },
+      }
+      // Installed, as a real member has it, since the shipped Vitest configuration knip loads reads its defaults.
+      const installed: Readonly<Record<string, string>> = {
+        'node_modules/ploaness/package.json': '{ "name": "ploaness", "version": "2.0.0" }\n',
+      }
+      withProject(
+        { ...installed, 'package.json': `${JSON.stringify(layered, null, JSON_INDENT)}\n` },
+        (root: string): void => {
+          expect(knip(memberAt(root, layered)).findings).toEqual([])
+        },
+      )
+      const unused: Readonly<Record<string, unknown>> = {
+        ...layered,
+        devDependencies: { ...asRecordOf(layered['devDependencies']), 'left-pad': '1.3.0' },
+      }
+      withProject(
+        { ...installed, 'package.json': `${JSON.stringify(unused, null, JSON_INDENT)}\n` },
+        (root: string): void => {
+          const findings: string = findingsOf(knip(memberAt(root, unused)))
+          expect(findings).toContain('left-pad')
+          expect(findings).not.toContain('ploaness')
+        },
+      )
     },
     TOOL_TIMEOUT_MS,
   )
