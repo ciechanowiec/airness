@@ -1,6 +1,12 @@
 // The npm configuration pnpm reads for a node project: the user's `.npmrc`, the project's, and the
-// `npm_config_` variables, later sources winning. The gates read it for the registry each package comes
-// from and for the settings that change what an install does.
+// environment, later sources winning. The gates read it for the registry each package comes from and for the
+// settings that change what an install does.
+//
+// The environment is read as pnpm 12 reads it, which is not as npm does: a setting comes from a
+// `pnpm_config_` variable, an underscore in its name read as a dash, and no longer from an `npm_config_` one,
+// so `npm_config_registry` changes nothing pnpm does. A registry credential (`//host/:_authToken`) is read
+// from either prefix, a scope's registry from neither, and the user file is named by `pnpm_config_userconfig`,
+// else `npm_config_userconfig`. Reading what pnpm ignores would judge a registry pnpm never asked.
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { readText } from './project.js'
@@ -8,7 +14,10 @@ import { readText } from './project.js'
 /** The registry pnpm uses when nothing names another. */
 export const DEFAULT_REGISTRY: string = 'https://registry.npmjs.org/'
 
-const ENVIRONMENT_PREFIX: string = 'npm_config_'
+const PNPM_PREFIX: string = 'pnpm_config_'
+const NPM_PREFIX: string = 'npm_config_'
+const CREDENTIAL_PREFIX: string = '//'
+const SCOPE_PREFIX: string = '@'
 const COMMENT: RegExp = /^\s*[#;]/u
 const VARIABLE: RegExp = /\$\{([^}]+)\}/gu
 
@@ -35,6 +44,40 @@ export const parseNpmrc = (text: string, environment: NodeJS.ProcessEnv): NpmCon
       }),
   )
 
+// Every variable whose name starts with a prefix, in any case, with the prefix removed.
+const variablesWith = (environment: NodeJS.ProcessEnv, prefix: string): readonly (readonly [string, string])[] =>
+  Object.entries(environment)
+    .filter(
+      ([name, value]: readonly [string, string | undefined]): boolean =>
+        name.toLowerCase().startsWith(prefix) && value !== undefined,
+    )
+    .map(([name, value]: readonly [string, string | undefined]): readonly [string, string] => [
+      name.slice(prefix.length),
+      String(value),
+    ])
+
+const USER_CONFIG: string = 'userconfig'
+
+const userConfigWith = (environment: NodeJS.ProcessEnv, prefix: string): string | undefined =>
+  variablesWith(environment, prefix).find(
+    ([name]: readonly [string, string]): boolean => name.toLowerCase() === USER_CONFIG,
+  )?.[1]
+
+// A setting's name as an `.npmrc` writes it. A credential's key names a host and a path, which keep their case.
+const settingKey = (name: string): string =>
+  name.startsWith(CREDENTIAL_PREFIX) ? name : name.toLowerCase().replaceAll('_', '-')
+
+// The settings pnpm reads from the environment: every `pnpm_config_` setting but a scope's registry, and the
+// registry credentials of `npm_config_` variables, a `pnpm_config_` one winning.
+const environmentSettings = (environment: NodeJS.ProcessEnv): readonly (readonly [string, string])[] => [
+  ...variablesWith(environment, NPM_PREFIX).filter(([name]: readonly [string, string]): boolean =>
+    name.startsWith(CREDENTIAL_PREFIX),
+  ),
+  ...variablesWith(environment, PNPM_PREFIX)
+    .filter(([name]: readonly [string, string]): boolean => !name.startsWith(SCOPE_PREFIX))
+    .map(([name, value]: readonly [string, string]): readonly [string, string] => [settingKey(name), value]),
+]
+
 /**
  * The configuration pnpm reads for a project: the user file, the project file, then the environment.
  * @param projectRoot the node project directory.
@@ -42,18 +85,17 @@ export const parseNpmrc = (text: string, environment: NodeJS.ProcessEnv): NpmCon
  * @returns the merged configuration.
  */
 export const npmConfigOf = (projectRoot: string, environment: NodeJS.ProcessEnv = process.env): NpmConfig => {
-  const userFile: string = environment['npm_config_userconfig'] ?? path.join(homedir(), '.npmrc')
-  const fromEnvironment: readonly (readonly [string, string])[] = Object.entries(environment)
-    .filter(([name]: readonly [string, string | undefined]): boolean =>
-      name.toLowerCase().startsWith(ENVIRONMENT_PREFIX),
-    )
-    .map(([name, value]: readonly [string, string | undefined]): readonly [string, string] => [
-      name.slice(ENVIRONMENT_PREFIX.length),
-      String(value),
-    ])
+  const userFile: string =
+    userConfigWith(environment, PNPM_PREFIX) ??
+    userConfigWith(environment, NPM_PREFIX) ??
+    path.join(homedir(), '.npmrc')
   const user: string = readText(userFile) ?? ''
   const project: string = readText(path.join(projectRoot, '.npmrc')) ?? ''
-  return new Map([...parseNpmrc(user, environment), ...parseNpmrc(project, environment), ...fromEnvironment])
+  return new Map([
+    ...parseNpmrc(user, environment),
+    ...parseNpmrc(project, environment),
+    ...environmentSettings(environment),
+  ])
 }
 
 const withSlash = (url: string): string => (url.endsWith('/') ? url : `${url}/`)

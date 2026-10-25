@@ -71,7 +71,7 @@ class ReportAggregationTest {
     @Test
     void mergesTheNpmDocumentsAndTheToolchainIntoTheOneSbom() {
         ReportPackage npm = new ReportPackage(
-            "pkg:npm/left-pad@1.3.0", List.of("WTFPL"), List.of(new ReportUse("web", "npm", "direct")), Map.of()
+            "pkg:npm/left-pad@1.3.0", List.of("SSPL-1.0"), List.of(new ReportUse("web", "npm", "direct")), Map.of()
         );
         ReportPackage node = new ReportPackage(
             "pkg:generic/node@26.11.1?checksum=sha256:" + "b".repeat(SHA256_LENGTH), List.of("MIT"),

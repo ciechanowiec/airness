@@ -18,6 +18,10 @@
       "types": "./dist/eslint.d.ts",
       "default": "./dist/eslint.js"
     },
+    "./eslint-layered": {
+      "types": "./dist/eslint-layered.d.ts",
+      "default": "./dist/eslint-layered.js"
+    },
     "./eslint-core": {
       "types": "./dist/eslint-core.d.ts",
       "default": "./dist/eslint-core.js"

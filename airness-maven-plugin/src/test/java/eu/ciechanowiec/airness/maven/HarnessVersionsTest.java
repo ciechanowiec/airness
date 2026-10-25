@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.maven;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.maven.model.Model;
 import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.Test;
@@ -53,5 +54,17 @@ class HarnessVersionsTest {
                 )
             ).value()
         );
+    }
+
+    @Test
+    void handsEveryGateTheChainsVersionsAndTheModulesOwnVersionAndIdentity() {
+        MavenProject node = project("airness-parent-node", "2.0.0");
+        node.setParent(project("airness-parent", "2.0.0"));
+        MavenProject library = project("ploaness-node", "3.1.0");
+        library.setParent(node);
+        Map<String, String> environment = NodeGateMojo.environment(library);
+        assertEquals("@airness/node=2.0.0", environment.get("AIRNESS_HARNESS_VERSIONS"));
+        assertEquals("3.1.0", environment.get("AIRNESS_MODULE_VERSION"));
+        assertEquals("eu.ciechanowiec:ploaness-node", environment.get("AIRNESS_MODULE"));
     }
 }

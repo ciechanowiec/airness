@@ -28,6 +28,20 @@ record HarnessVersions(SequencedMap<String, String> versions) {
      */
     static final String VARIABLE = "AIRNESS_HARNESS_VERSIONS";
 
+    /**
+     * The environment variable a node gate reads the module's own version from. A harness package's own
+     * repository, such as ploaness-node, which inherits {@code airness-parent-node}, releases the package at
+     * that version, and no parent in its chain names it.
+     */
+    static final String MODULE_VARIABLE = "AIRNESS_MODULE_VERSION";
+
+    /**
+     * The environment variable a node gate reads the module's own identity from, as {@code groupId:artifactId}.
+     * Only the module that builds a harness package may name its node project after it and link it to itself.
+     * the mapping lives in airness-node's {@code harness-packages.ts}.
+     */
+    static final String IDENTITY_VARIABLE = "AIRNESS_MODULE";
+
     private static final String GROUP = "eu.ciechanowiec";
     private static final Map<String, String> PACKAGES = Map.of(
         "airness-parent", "@airness/node",

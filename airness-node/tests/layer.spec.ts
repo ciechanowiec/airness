@@ -1,7 +1,15 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { layerDefaultsFor, layerDefaultsOf } from '@/layer.js'
+import {
+  type LayerPackage,
+  layerDefaultsFor,
+  layerDefaultsOf,
+  layerEslintConfigOf,
+  layerPackagesFor,
+  layerProjectsFor,
+  layerSpecificationsOf,
+} from '@/layer.js'
 import { readJson } from '@/project.js'
 import { readSettings, type Settings } from '@/settings.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
@@ -46,6 +54,117 @@ describe('the defaults a layer package contributes', PROCESS_TIME, () => {
         ['src/payload-types.ts'],
       ])
       expect(layerDefaultsFor(root, { devDependencies: { impostor: '1.0.0' } }, readJson)).toEqual([])
+    } finally {
+      removeProject(root)
+    }
+  })
+})
+
+const layerAt = (directory: string, layer: Readonly<Record<string, unknown>>): LayerPackage => ({
+  name: 'ploaness',
+  directory,
+  manifest: { name: 'ploaness', airness: { layer } },
+})
+
+describe('the seams a layer package joins the node gates through', PROCESS_TIME, () => {
+  it('runs the specifications a layer ships from a directory inside the package, and from nowhere else', () => {
+    expect(layerSpecificationsOf(layerAt('/store/ploaness', { e2eSpecs: 'dist' }))).toEqual({
+      name: 'ploaness',
+      directory: path.join('/store/ploaness', 'dist'),
+    })
+    expect(layerSpecificationsOf(layerAt('/store/ploaness', {}))).toBeUndefined()
+    for (const e2eSpecs of ['../../project/tests', '/project/tests', ['dist'], '']) {
+      expect(() => layerSpecificationsOf(layerAt('/store/ploaness', { e2eSpecs }))).toThrow(
+        'which is not a directory inside the package',
+      )
+    }
+  })
+
+  it('resolves the ESLint configuration a declared layer exports from the member, and nothing it does not export', () => {
+    const root: string = temporaryProject({})
+    try {
+      const layerDirectory: string = path.join(root, 'node_modules', 'ploaness')
+      mkdirSync(path.join(layerDirectory, 'dist'), { recursive: true })
+      writeFileSync(path.join(layerDirectory, 'dist', 'eslint.js'), 'export default []\n')
+      writeFileSync(
+        path.join(layerDirectory, 'package.json'),
+        JSON.stringify({
+          name: 'ploaness',
+          type: 'module',
+          exports: {
+            './eslint': { types: './dist/eslint.d.ts', default: './dist/eslint.js' },
+            './package.json': './package.json',
+          },
+          airness: { layer: { eslint: './eslint', e2eSpecs: 'dist' } },
+        }),
+      )
+      const [layer]: readonly LayerPackage[] = layerPackagesFor(
+        root,
+        { devDependencies: { ploaness: '1.0.0' } },
+        readJson,
+      )
+      expect(layer?.directory).toBe(layerDirectory)
+      expect(layer === undefined ? undefined : layerEslintConfigOf(layer, root)).toBe(
+        path.join(layerDirectory, 'dist', 'eslint.js'),
+      )
+      expect(layerEslintConfigOf(layerAt(layerDirectory, {}), root)).toBeUndefined()
+      for (const eslint of ['eslint', '../other/eslint', './../eslint', 'other/eslint', ['./eslint']]) {
+        expect(() => layerEslintConfigOf(layerAt(layerDirectory, { eslint }), root)).toThrow(
+          "which is not a package export such as './eslint'",
+        )
+      }
+      expect(() => layerEslintConfigOf(layerAt(layerDirectory, { eslint: './absent' }), root)).toThrow()
+      expect(layerPackagesFor(root, { devDependencies: { impostor: '1.0.0' } }, readJson)).toEqual([])
+    } finally {
+      removeProject(root)
+    }
+  })
+
+  it('never reads the member itself as its own layer, by name or by where it resolves', () => {
+    const root: string = temporaryProject({})
+    try {
+      const posing: Readonly<Record<string, unknown>> = {
+        name: 'ploaness',
+        exports: { './package.json': './package.json' },
+        devDependencies: { ploaness: 'link:.' },
+        airness: { layer: { frameworkGlue: ['src/**'], eslint: './eslint' } },
+      }
+      writeFileSync(path.join(root, 'package.json'), JSON.stringify(posing))
+      expect(layerPackagesFor(root, posing, readJson)).toEqual([])
+      mkdirSync(path.join(root, 'node_modules'), { recursive: true })
+      symlinkSync(root, path.join(root, 'node_modules', 'ploaness'))
+      expect(layerPackagesFor(root, { ...posing, name: 'shop' }, readJson)).toEqual([])
+      expect(layerDefaultsFor(root, { ...posing, name: 'shop' }, readJson)).toEqual([])
+    } finally {
+      removeProject(root)
+    }
+  })
+
+  it('makes a Playwright project of the specifications a layer ships, and refuses a directory with none', () => {
+    const root: string = temporaryProject({})
+    try {
+      const layerDirectory: string = path.join(root, 'node_modules', 'ploaness')
+      mkdirSync(path.join(layerDirectory, 'dist'), { recursive: true })
+      const writeLayer = (layer: Readonly<Record<string, unknown>>): void => {
+        writeFileSync(
+          path.join(layerDirectory, 'package.json'),
+          JSON.stringify({ name: 'ploaness', airness: { layer } }),
+        )
+      }
+      const declared: Readonly<Record<string, unknown>> = { devDependencies: { ploaness: '1.0.0' } }
+      const use: Readonly<Record<string, unknown>> = { channel: 'chromium' }
+      writeLayer({})
+      expect(layerProjectsFor(root, declared, readJson, use)).toEqual([])
+      writeLayer({ e2eSpecs: 'dist' })
+      expect(() => layerProjectsFor(root, declared, readJson, use)).toThrow('holds no *.e2e.spec.js file')
+      writeLayer({ e2eSpecs: 'build' })
+      expect(() => layerProjectsFor(root, declared, readJson, use)).toThrow('holds no *.e2e.spec.js file')
+      writeFileSync(path.join(layerDirectory, 'dist', 'access-boundary.e2e.spec.js'), 'export {}\n')
+      writeLayer({ e2eSpecs: 'dist' })
+      expect(layerProjectsFor(root, declared, readJson, use)).toEqual([
+        { name: 'ploaness', testDir: path.join(layerDirectory, 'dist'), testMatch: /\.e2e\.spec\.js$/u, use },
+      ])
+      expect(layerProjectsFor(root, {}, readJson, use)).toEqual([])
     } finally {
       removeProject(root)
     }

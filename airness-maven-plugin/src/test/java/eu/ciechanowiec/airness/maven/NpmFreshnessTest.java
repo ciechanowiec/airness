@@ -101,13 +101,14 @@ class NpmFreshnessTest {
         NpmRegistries registries = NpmRegistries.of(
             directory, Map.of(
                 "REGISTRY", "http://127.0.0.1:4873/", "npm_config_userconfig", user.toString(), "TOKEN", "deep",
-                "NPM_CONFIG_REGISTRY", "https://mirror.example/npm"
+                "PNPM_CONFIG_REGISTRY", "https://mirror.example/npm", "npm_config_registry", "https://ignored.example/"
             )
         );
         assertEquals("http://127.0.0.1:4873/", registries.registry("@airness/node"), "a scope's registry first");
         assertEquals(
             "https://mirror.example/npm/", registries.registry("vitest"),
-            "an npm_config_ variable wins over the project's file, which wins over the user's"
+            "a pnpm_config_ variable wins over the project's file, which wins over the user's, and pnpm 12 reads"
+                + " no npm_config_ registry"
         );
         assertEquals(Optional.of("deep"), registries.token("https://npm.example.com/private/npm/"));
         assertEquals(Optional.of("root"), registries.token("https://npm.example.com/public/"));
@@ -129,6 +130,21 @@ class NpmFreshnessTest {
             "https://host:8443/npm/x", NpmRegistries.redacted("https://" + CREDENTIAL + "@host:8443/npm/x?token=1"),
             "a credential in a configured registry address never reaches a finding"
         );
+    }
+
+    @Test
+    void readsTheEnvironmentAsPnpm12ReadsIt(@TempDir Path directory) {
+        NpmRegistries environment = NpmRegistries.of(
+            directory, Map.of(
+                "npm_config_userconfig", directory.resolve("absent").toString(), "pnpm_config_registry",
+                "https://r.example/",
+                "npm_config_//npm.example.com/Team/:_authToken", "npm", "pnpm_config_//npm.example.com/:_authToken",
+                "pnpm", "pnpm_config_@airness:registry", "https://ignored.example/"
+            )
+        );
+        assertEquals(Optional.of("npm"), environment.token("https://npm.example.com/Team/"), "the path keeps its case");
+        assertEquals(Optional.of("pnpm"), environment.token("https://npm.example.com/public/"));
+        assertEquals("https://r.example/", environment.registry("@airness/node"), "no scope registry from variables");
     }
 
     @Test

@@ -1,7 +1,8 @@
 // The Playwright configuration the e2e gate passes to Playwright with `--config`. It lives in the harness's
 // own dist rather than in the project, so every path below is absolute: the harness's shipped specs run from
-// beside this file, and the member's own specs and Playwright's output are found from the directory the run
-// starts in, which the gate sets to the member.
+// beside this file, each declared stack layer's from the directory its manifest names, and the member's own
+// specs and Playwright's output are found from the directory the run starts in, which the gate sets to the
+// member.
 //
 // Everything here is policy rather than preference. `forbidOnly` is the end-to-end analogue of the
 // focused-test ban the lint gates enforce for Vitest: a left-behind `test.only` would otherwise turn a run
@@ -20,6 +21,7 @@ import {
   VERIFICATION_ENVIRONMENT_VARIABLE,
 } from './browser-server-policy.js'
 import { portOf, runEnvironmentFiles } from './environment-files.js'
+import { type LayerProject, layerProjectsFor, SHIPPED_SPECS } from './layer.js'
 import { loadProductionEnvironment } from './production-environment.js'
 import { shellArgument } from './production-output.js'
 import { readJson } from './project.js'
@@ -28,16 +30,14 @@ import { hasOwnRuntime } from './workspace.js'
 
 const here: string = path.dirname(fileURLToPath(import.meta.url))
 
-/** The harness's own specifications, compiled beside this file, which a project never holds a copy of. */
-const SHIPPED_SPECS: RegExp = /\.e2e\.spec\.js$/u
-
 /** The member's own end-to-end specifications, by the harness's convention. */
 const PROJECT_SPECS: string = path.join(projectDirectory, 'tests', 'e2e')
 
 // Below node_modules, so a run leaves the working tree exactly as it found it.
 const OUTPUT_DIRECTORY: string = path.join(projectDirectory, 'node_modules', '.airness', 'e2e', 'test-results')
 
-const isNext: boolean = hasOwnRuntime(readJson(path.join(projectDirectory, 'package.json')))
+const manifest: unknown = readJson(path.join(projectDirectory, 'package.json'))
+const isNext: boolean = hasOwnRuntime(manifest)
 const isVerification: boolean = process.env[VERIFICATION_ENVIRONMENT_VARIABLE] !== undefined
 
 // Read before anything else, because a spec module is what needs it. Playwright evaluates this config in
@@ -108,6 +108,11 @@ const serverEnvironment: Readonly<Record<string, string>> = withPort(
 
 const browser: Readonly<Record<string, unknown>> = { ...devices['Desktop Chrome'], channel: 'chromium' }
 
+// The specifications each declared stack layer ships, as harness-owned as the node layer's own: read from the
+// installed layer package, never from a file of the project. A layer that names a directory holding none fails
+// the run while this configuration loads, rather than letting Playwright pass a project with no tests.
+const layerProjects: readonly LayerProject[] = layerProjectsFor(projectDirectory, manifest, readJson, browser)
+
 // Structural rather than Playwright's own `PlaywrightTestConfig`: the harness owns the config and the run
 // resolves the runner, so an emitted declaration should not make the runner's types a condition of reading
 // this entry point.
@@ -131,6 +136,7 @@ const declared: ReturnType<typeof defineConfig> = defineConfig({
   },
   projects: [
     { name: 'harness', testDir: here, testMatch: SHIPPED_SPECS, use: browser },
+    ...layerProjects,
     ...(existsSync(PROJECT_SPECS)
       ? [{ name: 'project', testDir: PROJECT_SPECS, testMatch: '**/*.e2e.spec.ts', use: browser }]
       : []),

@@ -71,6 +71,13 @@ class LicenseConfigurationPolicyTest {
     }
 
     @Test
+    void admitsTheUnconditionalGrantPayloadReachesButNoFontLicense() {
+        List<String> allowed = allowlist();
+        assertTrue(allowed.contains("WTFPL"), "Payload reaches truncate-utf8-bytes under WTFPL");
+        assertFalse(allowed.contains("OFL-1.1"));
+    }
+
+    @Test
     void mergesOnlyIntoAnAllowedIdentifier() {
         Set<String> allowed = Set.copyOf(allowlist());
         List<String> unallowed = merges().stream()

@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.SneakyThrows;
@@ -41,7 +42,7 @@ class NodeToolsTest {
         Path pnpm = this.executable(
             "pnpm",
             "#!/bin/sh\nprintf '%s|%s|%s|%s\\n' \"$*\" \"$(pwd -P)\" \"$PATH\" "
-                + "\"$npm_config_manage_package_manager_versions\"\nexit 3\n"
+                + "\"$pnpm_config_manage_package_manager_versions\"\nexit 3\n"
         );
         Path node = this.directory.resolve("node-dist/bin/node");
         Path log = this.directory.resolve("logs/run.log");
@@ -87,5 +88,25 @@ class NodeToolsTest {
             List.of("exec", "gate"), this.directory, log, Map.of("AIRNESS_HARNESS_VERSIONS", "@airness/node=2.0.0")
         );
         assertEquals("@airness/node=2.0.0", Files.readString(log).strip());
+    }
+
+    @Test
+    void dropsEveryInheritedSettingThatPicksAPnpmOrANodeAndKeepsPnpmToItsOwnVersion() {
+        Map<String, String> environment = new HashMap<>(
+            Map.of(
+                "npm_config_manage_package_manager_versions", "true",
+                "PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS", "true", "pnpm_config_use_node_version", "20.0.0",
+                "NPM_CONFIG_NODE_VERSION", "20.0.0", "pnpm_config_execution_env", "{}", "Pnpm_Config_Pm_On_Fail",
+                "download", "pnpm_config_store_dir", "/store", "HOME", "/home"
+            )
+        );
+        NodeTools.guard(environment);
+        assertEquals(
+            Map.of(
+                "npm_config_manage_package_manager_versions", "false", "pnpm_config_manage_package_manager_versions",
+                "false", "pnpm_config_store_dir", "/store", "HOME", "/home"
+            ),
+            environment
+        );
     }
 }
