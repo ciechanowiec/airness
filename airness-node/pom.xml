@@ -66,6 +66,35 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--
+                The packed tarball, attached to this module's artifact as type tgz without a classifier, so
+                mvn install puts it in the local repository beside the pom, at
+                eu/ciechanowiec/airness-node/<version>/airness-node-<version>.tgz, where a consumer that installs
+                @airness/node before it is on npm, such as ploaness, resolves it with the dependency plugin rather
+                than from a sibling checkout. npm stays its publication channel: the release profile keeps the
+                whole module, this attachment included, out of the Central bundle.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-npm-package</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>${project.build.directory}/${project.artifactId}-${project.version}.tgz</file>
+                                    <type>tgz</type>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

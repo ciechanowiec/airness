@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { type Lookup, publicationTimesOf } from '@/registry.js'
+import { isPermittedRedirect, type Lookup, publicationTimesOf } from '@/registry.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 // A registry on a local port, answering the way the npm registry answers a package document request, and
@@ -20,8 +20,32 @@ const answer = (response: ServerResponse, status: number, document: unknown): vo
   response.end(JSON.stringify(document))
 }
 
+// Another origin, the same host on another port, which answers only a request that carries no credential.
+const MOVED: string = '/@corp%2fmoved'
+const FOUND: number = 302
+const elsewhereServer: Server = createServer((incoming: IncomingMessage, response: ServerResponse): void => {
+  const isAnonymous: boolean = incoming.headers.authorization === undefined
+  answer(response, isAnonymous ? 200 : UNAUTHORIZED, { time: { '3.0.0': '2022-01-01T00:00:00.000Z' } })
+})
+
 const registryServer: Server = createServer((incoming: IncomingMessage, response: ServerResponse): void => {
   const location: string = incoming.url ?? '/'
+  const redirects: Readonly<Record<string, string>> = {
+    '/loop': '/loop',
+    '/bad': `${['http', ''].join(':')}//[bad`,
+    '/@corp%2fsame': PRIVATE,
+  }
+  const target: string | undefined = redirects[location]
+  if (target !== undefined) {
+    response.writeHead(FOUND, { location: target })
+    response.end()
+    return
+  }
+  if (location === MOVED) {
+    response.writeHead(FOUND, { location: `${['http', ''].join(':')}//127.0.0.1:${portOf(elsewhereServer)}${MOVED}` })
+    response.end()
+    return
+  }
   if (location === PRIVATE) {
     const isAuthorized: boolean = incoming.headers.authorization === `Bearer ${TOKEN}`
     answer(response, isAuthorized ? 200 : UNAUTHORIZED, { time: { '3.0.0': '2022-01-01T00:00:00.000Z' } })
@@ -42,7 +66,7 @@ const portOf = (server: Server): string => String((server.address() as AddressIn
 const registry = (): string => `http://127.0.0.1:${portOf(registryServer)}/`
 
 beforeAll(async (): Promise<void> => {
-  for (const server of [registryServer, proxyServer]) {
+  for (const server of [registryServer, proxyServer, elsewhereServer]) {
     await new Promise<void>((resolve: () => void): void => {
       server.listen(0, '127.0.0.1', resolve)
     })
@@ -50,7 +74,7 @@ beforeAll(async (): Promise<void> => {
 })
 
 afterAll(async (): Promise<void> => {
-  for (const server of [registryServer, proxyServer]) {
+  for (const server of [registryServer, proxyServer, elsewhereServer]) {
     await new Promise<void>((resolve: () => void): void => {
       server.close((): void => {
         resolve()
@@ -78,6 +102,39 @@ describe('publication times', PROCESS_TIME, () => {
     expect(authorized?.publishedAt).toBe(Date.parse('2022-01-01T00:00:00.000Z'))
     const [refused] = await publicationTimesOf([{ name: '@corp/ui', version: '3.0.0', registry: registry() }])
     expect(refused?.problem).toBe(`${registry()} answered 401 Unauthorized`)
+  })
+
+  it('never forwards the token to the other origin a registry redirects to', async () => {
+    const [moved] = await publicationTimesOf([
+      { name: '@corp/moved', version: '3.0.0', registry: registry(), token: TOKEN },
+    ])
+    expect(moved?.problem, 'the other origin answers only a request that carries no credential').toBeUndefined()
+    expect(moved?.publishedAt).toBe(Date.parse('2022-01-01T00:00:00.000Z'))
+  })
+
+  it('keeps the token within one origin, and follows no endless or unreadable redirect', async () => {
+    const [same] = await publicationTimesOf([
+      { name: '@corp/same', version: '3.0.0', registry: registry(), token: TOKEN },
+    ])
+    expect(same?.publishedAt).toBe(Date.parse('2022-01-01T00:00:00.000Z'))
+    const lookups: readonly Lookup[] = await publicationTimesOf([
+      { name: 'loop', version: '1.0.0', registry: registry() },
+      { name: 'bad', version: '1.0.0', registry: registry() },
+    ])
+    expect(lookups.map((lookup: Lookup): string | undefined => lookup.problem)).toEqual([
+      expect.stringContaining('is not followed'),
+      expect.stringContaining('to an address that does not parse'),
+    ])
+  })
+
+  it('never follows a redirect from HTTPS to plain HTTP', () => {
+    const secure: URL = new URL('https://npm.example/kit')
+    const plain: URL = new URL(`${['http', ''].join(':')}//127.0.0.1:4873/kit`)
+    expect(isPermittedRedirect(secure, new URL('https://cdn.example/kit'))).toBe(true)
+    expect(isPermittedRedirect(plain, secure)).toBe(true)
+    expect(isPermittedRedirect(plain, plain)).toBe(true)
+    expect(isPermittedRedirect(secure, plain)).toBe(false)
+    expect(isPermittedRedirect(plain, new URL('ftp://127.0.0.1/kit'))).toBe(false)
   })
 
   it('says why a time could not be read, rather than passing over the release', async () => {

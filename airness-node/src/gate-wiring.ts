@@ -3,7 +3,12 @@
 import path from 'node:path'
 import { coverageCandidates } from './coverage-policy.js'
 import { failed, type GateResult, passed } from './exec.js'
-import { HARNESS_VERSIONS_VARIABLE, readHarnessVersions } from './harness-packages.js'
+import {
+  HARNESS_VERSIONS_VARIABLE,
+  MODULE_VARIABLE,
+  MODULE_VERSION_VARIABLE,
+  readHarnessVersions,
+} from './harness-packages.js'
 import { rewriteFindings } from './install-config.js'
 import { installConfigOf } from './install-config-files.js'
 import { asStringRecord, readKey } from './json-shapes.js'
@@ -33,6 +38,8 @@ export const wiring = (member: Member): GateResult => {
     lockfile,
     rewrites: [...rewriteFindings(installConfigOf(member.projectRoot)), ...(lockfile?.rewrites ?? [])],
     expected: readHarnessVersions(process.env[HARNESS_VERSIONS_VARIABLE]),
+    moduleVersion: process.env[MODULE_VERSION_VARIABLE],
+    module: process.env[MODULE_VARIABLE],
     pins: harnessPins(),
     isFromItsRegistry: (resolved: ResolvedPackage): boolean => isFromItsRegistry(config, resolved),
     hasSource:

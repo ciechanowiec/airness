@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -27,8 +28,18 @@ record NodeTools(Path node, Path pnpm, Duration timeout) {
     private static final Duration TIMEOUT = Duration.ofMinutes(60);
     private static final String PATH = "PATH";
     // Keeps pnpm from switching to the version a user-level configuration names. The project's own settings
-    // to that effect are refused by node-projects.
-    private static final String PACKAGE_MANAGER_VERSIONS = "npm_config_manage_package_manager_versions";
+    // to that effect are refused by node-projects. pnpm 12 reads its settings from pnpm_config_ variables and
+    // still honours this one npm_config_ name, so both are set. The node domain of airness-it proves the pinned
+    // pnpm keeps to its own version under them.
+    private static final List<String> PACKAGE_MANAGER_VERSIONS = List.of(
+        "npm_config_manage_package_manager_versions", "pnpm_config_manage_package_manager_versions"
+    );
+    private static final List<String> PREFIXES = List.of("npm_config_", "pnpm_config_");
+    // Every setting with which pnpm picks a pnpm or a Node of its own, removed from the inherited environment in
+    // any case, since pnpm reads a variable whatever its case and which of two spellings wins is unspecified.
+    private static final List<String> SELECTING = List.of(
+        "manage_package_manager_versions", "use_node_version", "node_version", "execution_env", "pm_on_fail"
+    );
 
     /**
      * The executables, with the timeout every build command runs under.
@@ -75,7 +86,7 @@ record NodeTools(Path node, Path pnpm, Duration timeout) {
             .redirectOutput(log.toFile());
         builder.environment().put(PATH, this.path(builder.environment().getOrDefault(PATH, "")));
         builder.environment().putAll(environment);
-        builder.environment().put(PACKAGE_MANAGER_VERSIONS, "false");
+        guard(builder.environment());
         Process process = builder.start();
         try {
             if (!process.waitFor(this.timeout)) {
@@ -90,6 +101,24 @@ record NodeTools(Path node, Path pnpm, Duration timeout) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while running pnpm " + String.join(" ", arguments), exception);
         }
+    }
+
+    /**
+     * Removes every inherited setting with which pnpm would pick a pnpm or a Node of its own, then keeps pnpm to
+     * its own version.
+     *
+     * @param environment the environment a command runs with, changed in place
+     */
+    static void guard(Map<String, String> environment) {
+        environment.keySet().removeIf(NodeTools::selects);
+        PACKAGE_MANAGER_VERSIONS.forEach(name -> environment.put(name, "false"));
+    }
+
+    private static boolean selects(String name) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        return PREFIXES.stream().anyMatch(
+            prefix -> lower.startsWith(prefix) && SELECTING.contains(lower.substring(prefix.length()))
+        );
     }
 
     /**

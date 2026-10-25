@@ -42,7 +42,7 @@ class ReportLicensePolicyTest {
 
     @Test
     void refusesWhatTheAllowlistDoesNotAdmit() {
-        assertTrue(POLICY.refuses(new ReportPackage("pkg:npm/x@1", List.of("WTFPL"), List.of(), Map.of())));
+        assertTrue(POLICY.refuses(new ReportPackage("pkg:npm/x@1", List.of("SSPL-1.0"), List.of(), Map.of())));
         assertFalse(POLICY.refuses(new ReportPackage("pkg:npm/y@1", List.of("MIT License"), List.of(), Map.of())));
     }
 }

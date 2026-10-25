@@ -1,5 +1,7 @@
 // Each gate against a real project in a temporary git working tree: one conforming project, and one
 // planted defect per gate, so a gate that stopped judging would let the defect through.
+import { writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { GateResult } from '@/exec.js'
 import { biome } from '@/gate-biome.js'
@@ -15,6 +17,12 @@ import { memberAt, removeProject, temporaryProject } from './helpers/temporary-p
 
 // The type-aware lint and the compiler each start a process that reads the whole project.
 const TOOL_TIMEOUT_MS: number = 60_000
+
+// A stack layer's ESLint export, planted under node_modules: the node blocks, then the given ones.
+const layerConfig = (blocks: string): string => `import node from '@airness/node/eslint'\nexport default ${blocks}\n`
+
+// Five lint runs, one per layer configuration the spec plants.
+const LAYERED_TIMEOUT_MS: number = 300_000
 
 // Formatted the way Biome writes JSON, since Biome reads the manifest and the tsconfig too.
 const JSON_INDENT: number = 2
@@ -285,6 +293,54 @@ describe('eslint', PROCESS_TIME, () => {
       })
     },
     TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'adds the blocks of a declared stack layer after the node layer, and refuses one that weakens it',
+    () => {
+      const manifest: Manifest = {
+        name: 'conforming',
+        private: true,
+        type: 'module',
+        devDependencies: { ploaness: '1.0.0' },
+      }
+      const layer: Manifest = {
+        name: 'ploaness',
+        type: 'module',
+        exports: { './eslint': './eslint.js', './package.json': './package.json' },
+        airness: { layer: { eslint: './eslint' } },
+      }
+      const writeLayer = (root: string, blocks: string): void => {
+        writeFileSync(path.join(root, 'node_modules', 'ploaness', 'eslint.js'), layerConfig(blocks))
+      }
+      withPlanted(
+        {
+          'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
+          'node_modules/ploaness/package.json': JSON.stringify(layer),
+          'node_modules/ploaness/eslint.js': layerConfig(
+            "[...node, { files: ['src/**/*.ts'], rules: { 'id-denylist': ['error', 'left'] } }]",
+          ),
+          // The project's own configuration turns everything off, and the verdict does not move.
+          'eslint.config.mjs': "export default [{ ignores: ['**'] }]\n",
+        },
+        (root: string) => {
+          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain('id-denylist')
+          writeLayer(root, "[...node, { files: ['src/**/*.ts'], rules: { 'no-magic-numbers': 'off' } }]")
+          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain('weakens the node rule no-magic-numbers')
+          writeLayer(root, "[{ files: ['**/*.ts'], rules: {} }]")
+          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain("does not start with the node layer's blocks")
+          writeLayer(root, "[...node, { ignores: ['src/**'] }]")
+          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain('ignores files for every block')
+          // A layer that names no configuration leaves the node layer's in place.
+          writeFileSync(
+            path.join(root, 'node_modules', 'ploaness', 'package.json'),
+            JSON.stringify({ ...layer, airness: { layer: {} } }),
+          )
+          expect(eslint(memberAt(root, manifest)).findings).toEqual([])
+        },
+      )
+    },
+    LAYERED_TIMEOUT_MS,
   )
 
   it(

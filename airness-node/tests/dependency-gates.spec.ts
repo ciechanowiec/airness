@@ -239,7 +239,7 @@ const registry = (): string => `http://127.0.0.1:${String((server.address() as A
 
 // The npm configuration a run reads: the local registry for everything, and no user file.
 const environment = (): NodeJS.ProcessEnv => ({
-  npm_config_registry: registry(),
+  pnpm_config_registry: registry(),
   npm_config_userconfig: '/nonexistent',
 })
 
@@ -274,14 +274,15 @@ describe('release-age', PROCESS_TIME, () => {
 
   it('reads a scoped package from its scope registry, never from the default one', async () => {
     const scoped: string = "  '@corp/ui@1.0.0':\n    resolution: {integrity: sha512-mno}"
+    // A scope's registry comes from an .npmrc, since pnpm reads none from the environment.
     const files: Readonly<Record<string, string>> = {
       'pnpm-lock.yaml': lockfileWith([scoped]),
       'pnpm-workspace.yaml': WORKSPACE,
+      '.npmrc': `@corp:registry=${registry()}\n`,
     }
     await withProject(files, async (root: string) => {
       const defaultOnly: NodeJS.ProcessEnv = {
-        npm_config_registry: 'http://127.0.0.1:9/',
-        'npm_config_@corp:registry': registry(),
+        pnpm_config_registry: 'http://127.0.0.1:9/',
         npm_config_userconfig: '/nonexistent',
       }
       const result: GateResult = await releaseAge(memberAt(root), undefined, defaultOnly, NOW)

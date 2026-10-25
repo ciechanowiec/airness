@@ -22,7 +22,7 @@ final class NpmFixture {
 
     static final String INVENTORY = """
         {"contract": 1, "packages": [
-          {"name": "left-pad", "version": "1.3.0", "license": "WTFPL", "direct": true, "installed": true},
+          {"name": "left-pad", "version": "1.3.0", "license": "SSPL-1.0", "direct": true, "installed": true},
           {"name": "@scope/kit", "version": "2.0.0", "license": "(MIT OR Apache-2.0)", "direct": false,
            "installed": true},
           {"name": "@esbuild/linux-x64", "version": "0.25.0", "license": "", "direct": false, "installed": false}
@@ -35,7 +35,7 @@ final class NpmFixture {
            "version": "1.0.0"}},
          "components": [
            {"type": "library", "bom-ref": "pkg:npm/left-pad@1.3.0", "name": "left-pad", "version": "1.3.0",
-            "purl": "pkg:npm/left-pad@1.3.0", "licenses": [{"expression": "WTFPL"}], "scope": "required"},
+            "purl": "pkg:npm/left-pad@1.3.0", "licenses": [{"expression": "SSPL-1.0"}], "scope": "required"},
            {"type": "library", "bom-ref": "pkg:npm/%40scope/kit@2.0.0", "group": "@scope", "name": "kit",
             "version": "2.0.0", "purl": "pkg:npm/%40scope/kit@2.0.0", "licenses": [{"expression": "MIT OR Apache-2.0"}],
             "scope": "required"}

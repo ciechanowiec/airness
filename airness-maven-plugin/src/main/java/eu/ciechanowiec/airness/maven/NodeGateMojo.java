@@ -15,6 +15,7 @@ import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -98,7 +99,7 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
         try {
             Files.createDirectories(results);
             clear(result);
-            int exit = tools.pnpm(bound.arguments(result), project.directory(), log, this.environment());
+            int exit = tools.pnpm(bound.arguments(result), project.directory(), log, environment(this.project()));
             NodeGateResult read = NodeGateResult.read(bound.id(), project.key(), result, exit);
             if (!read.findings().clean()) {
                 AbstractNodeMojo.replay(log, this.getLog());
@@ -112,11 +113,19 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
         }
     }
 
-    // The parents' versions, which wiring compares, and the browser cache of the Playwright version Airness pins,
-    // which the e2e gate drives: the same Chromium the report renderer uses, installed by report-browser-install.
-    private Map<String, String> environment() {
+    /**
+     * The variables every gate runs with: the parents' versions and the module's own version and identity, which
+     * wiring compares, and the browser cache of the Playwright version Airness pins, which the e2e gate drives: the
+     * same Chromium the report renderer uses, installed by report-browser-install.
+     *
+     * @param module the module the gate runs in
+     * @return the variables
+     */
+    static Map<String, String> environment(MavenProject module) {
         Map<String, String> environment = new HashMap<>(ReportBrowser.environment());
-        environment.put(HarnessVersions.VARIABLE, HarnessVersions.of(this.project()).value());
+        environment.put(HarnessVersions.VARIABLE, HarnessVersions.of(module).value());
+        environment.put(HarnessVersions.MODULE_VARIABLE, module.getVersion());
+        environment.put(HarnessVersions.IDENTITY_VARIABLE, module.getGroupId() + ':' + module.getArtifactId());
         return Map.copyOf(environment);
     }
 

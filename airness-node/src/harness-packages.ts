@@ -15,6 +15,28 @@ export const HARNESS_PACKAGES: readonly string[] = [HARNESS_PACKAGE, ...LAYER_PA
 export const HARNESS_VERSIONS_VARIABLE: string = 'AIRNESS_HARNESS_VERSIONS'
 
 /**
+ * The environment variable `airness:node-gate` names the module's own Maven version in. A harness package's
+ * own repository releases the package at that version, which its parents need not name.
+ */
+export const MODULE_VERSION_VARIABLE: string = 'AIRNESS_MODULE_VERSION'
+
+/**
+ * The environment variable `airness:node-gate` names the module's own Maven identity in, as
+ * `groupId:artifactId`, which no file of the node project can state.
+ */
+export const MODULE_VARIABLE: string = 'AIRNESS_MODULE'
+
+/**
+ * The one Maven module that builds each harness package, as `groupId:artifactId`. Only that module may
+ * name its node project after the package, link it to itself and have it versioned as the module rather
+ * than by a parent: any other module whose manifest names a harness package is posing as the harness.
+ */
+export const HARNESS_MODULES: ReadonlyMap<string, string> = new Map([
+  [HARNESS_PACKAGE, 'eu.ciechanowiec:airness-node'],
+  ['ploaness', 'eu.ciechanowiec:ploaness-node'],
+])
+
+/**
  * Whether a package name is one of the harness's own.
  * @param name the package name.
  * @returns true for a harness package.

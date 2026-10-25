@@ -27,9 +27,13 @@ import java.util.stream.Stream;
  * Where an npm package's releases are listed, and the releases listed there, read as pnpm reads them.
  *
  * <p>The configuration is the one {@code release-age} reads: the user's {@code .npmrc}
- * ({@code npm_config_userconfig}, else {@code ~/.npmrc}), then the project's, then the {@code npm_config_}
- * variables, a later source winning, with {@code ${NAME}} expanded from the environment. A package is asked of
- * its scope's registry, else the configured one, else the public one, with the token of the
+ * ({@code pnpm_config_userconfig}, else {@code npm_config_userconfig}, else {@code ~/.npmrc}), then the
+ * project's, then the environment, a later source winning, with {@code ${NAME}} expanded from the environment.
+ * The environment is read as pnpm 12 reads it, not as npm does: a setting comes from a {@code pnpm_config_}
+ * variable, an underscore in its name read as a dash, and no longer from an {@code npm_config_} one. A
+ * registry credential ({@code //host/:_authToken}) comes from either prefix, and a scope's registry from
+ * neither. Redirects are followed by this class, never by the client, so a token reaches no other origin. A
+ * package is asked of its scope's registry, else the configured one, else the public one, with the token of the
  * {@code //host[:port]/path/:_authToken} whose host and port equal the registry's exactly and whose path is the
  * longest run of the registry's leading segments. No token is sent over plain HTTP. A registry that refuses the
  * request is named in the finding, never a crash and never a pass.
@@ -50,7 +54,10 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
     static final String NODE_RELEASES = "https://nodejs.org/dist/index.json";
 
     private static final Pattern VARIABLE = Pattern.compile("\\$\\{([^}]+)}");
-    private static final String PREFIX = "npm_config_";
+    private static final String PNPM_PREFIX = "pnpm_config_";
+    private static final String NPM_PREFIX = "npm_config_";
+    private static final String CREDENTIAL = "//";
+    private static final String USER_CONFIG = "userconfig";
     private static final String REGISTRY = "registry";
     private static final String TOKEN = ":_authToken";
     private static final String SLASH = "/";
@@ -60,8 +67,11 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
     private static final int UNAUTHORIZED = 401;
     private static final int FORBIDDEN = 403;
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final HttpClient SHARED = HttpClient.newBuilder().connectTimeout(TIMEOUT)
-        .followRedirects(HttpClient.Redirect.NORMAL).build();
+    // Redirects are followed by fetch itself, never by the client: Java's client sends every header it was given
+    // to wherever a redirect points, so a registry, or anyone who can make it redirect, would receive the token
+    // on another host.
+    private static final HttpClient SHARED = clientBuilder().build();
+    private static final int MOST_REDIRECTS = 5;
 
     /**
      * Copies the configuration, so the answer cannot change after it was read.
@@ -74,30 +84,59 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
     }
 
     /**
+     * The settings of the client every build shares: the connection timeout, and redirects left to this class.
+     *
+     * @return a builder with those settings
+     */
+    static HttpClient.Builder clientBuilder() {
+        return HttpClient.newBuilder().connectTimeout(TIMEOUT).followRedirects(HttpClient.Redirect.NEVER);
+    }
+
+    /**
      * Reads the npm configuration a node project installs with.
      *
      * @param directory   the node project directory, whose {@code .npmrc} is read
-     * @param environment the environment, which names the user configuration, adds {@code npm_config_}
-     *                    settings and expands {@code ${...}}
+     * @param environment the environment, which names the user configuration, adds {@code pnpm_config_}
+     *                    settings and registry credentials, and expands {@code ${...}}
      * @return the registries
      */
     static NpmRegistries of(Path directory, Map<String, String> environment) {
-        Path user = Optional.ofNullable(environment.get(PREFIX + "userconfig"))
-            .or(() -> Optional.ofNullable(environment.get((PREFIX + "userconfig").toUpperCase(Locale.ROOT))))
+        Path user = variable(environment, PNPM_PREFIX, USER_CONFIG)
+            .or(() -> variable(environment, NPM_PREFIX, USER_CONFIG))
             .map(Path::of)
             .orElseGet(() -> Path.of(System.getProperty("user.home"), ".npmrc"));
         UnaryOperator<String> expand = value -> VARIABLE.matcher(value).replaceAll(
             match -> Matcher.quoteReplacement(environment.getOrDefault(match.group(1), ""))
         );
-        Stream<Map.Entry<String, String>> variables = environment.entrySet().stream()
-            .filter(entry -> entry.getKey().toLowerCase(Locale.ROOT).startsWith(PREFIX))
-            .map(
-                entry -> Map.entry(entry.getKey().substring(PREFIX.length()).toLowerCase(Locale.ROOT), entry.getValue())
-            );
-        Map<String, String> merged = Stream.of(read(user, expand), read(directory.resolve(".npmrc"), expand), variables)
-            .flatMap(stream -> stream)
+        Stream<Map.Entry<String, String>> credentials = variables(environment, NPM_PREFIX)
+            .filter(entry -> entry.getKey().startsWith(CREDENTIAL));
+        Stream<Map.Entry<String, String>> settings = variables(environment, PNPM_PREFIX)
+            .filter(entry -> !entry.getKey().startsWith("@"))
+            .map(entry -> Map.entry(settingKey(entry.getKey()), entry.getValue()));
+        Map<String, String> merged = Stream.of(
+            read(user, expand), read(directory.resolve(".npmrc"), expand), credentials, settings
+        ).flatMap(stream -> stream)
             .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, (_, later) -> later));
         return new NpmRegistries(merged, SHARED);
+    }
+
+    // Every variable whose name starts with the prefix, in any case, with the prefix removed, in a stable order
+    // so a later source wins the same way on every run.
+    private static Stream<Map.Entry<String, String>> variables(Map<String, String> environment, String prefix) {
+        return environment.entrySet().stream()
+            .filter(entry -> entry.getKey().toLowerCase(Locale.ROOT).startsWith(prefix))
+            .map(entry -> Map.entry(entry.getKey().substring(prefix.length()), entry.getValue()))
+            .sorted(Map.Entry.comparingByKey());
+    }
+
+    private static Optional<String> variable(Map<String, String> environment, String prefix, String key) {
+        return variables(environment, prefix).filter(entry -> key.equals(entry.getKey().toLowerCase(Locale.ROOT)))
+            .map(Map.Entry::getValue).findFirst();
+    }
+
+    // A setting's name as an .npmrc writes it. A credential's key names a host and a path, which keep their case.
+    private static String settingKey(String name) {
+        return name.startsWith(CREDENTIAL) ? name : name.toLowerCase(Locale.ROOT).replace('_', '-');
     }
 
     /**
@@ -122,7 +161,7 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
      */
     Optional<String> token(String registry) {
         URI url = URI.create(registry);
-        if (!HTTPS.equals(url.getScheme())) {
+        if (!HTTPS.equalsIgnoreCase(url.getScheme())) {
             return Optional.empty();
         }
         String host = (url.getPort() < 0 ? url.getHost() : url.getHost() + ':' + url.getPort()).toLowerCase(
@@ -130,7 +169,7 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
         );
         List<String> segments = segments(Optional.ofNullable(url.getPath()).orElse(""));
         return this.config.entrySet().stream()
-            .filter(entry -> entry.getKey().startsWith("//") && entry.getKey().endsWith(TOKEN))
+            .filter(entry -> entry.getKey().startsWith(CREDENTIAL) && entry.getKey().endsWith(TOKEN))
             .map(entry -> Map.entry(entry.getKey().substring(2, entry.getKey().length() - TOKEN.length()), entry))
             .filter(scope -> covers(scope.getKey(), host, segments))
             .max(Comparator.comparingInt(scope -> segments(scope.getKey()).size()))
@@ -229,21 +268,68 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
         );
     }
 
+    // Follows at most a few redirects itself, each hop by follow.
     private JsonNode fetch(String address, Optional<String> token) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(address)).timeout(TIMEOUT)
+        Hop hop = new Hop(URI.create(address), token);
+        for (int count = 0; count <= MOST_REDIRECTS; count++) {
+            HttpResponse<String> response = this.send(hop.address(), hop.token());
+            Optional<URI> next = RegistryRedirects.target(
+                hop.address(), response.statusCode(), response.headers().firstValue("Location")
+            );
+            if (next.isEmpty()) {
+                accepted(hop.address().toString(), response.statusCode());
+                return parsed(hop.address(), response.body());
+            }
+            hop = this.follow(hop, next.orElseThrow());
+        }
+        throw new IllegalStateException(
+            redacted(address) + " redirected more than " + MOST_REDIRECTS + " times; the last address was "
+                + redacted(hop.address().toString())
+        );
+    }
+
+    // A redirect to another scheme, host or port carries no token unless the configuration names one for the new
+    // address under the same rules as the first (HTTPS only, exact host and port, whole leading path segments),
+    // a request that carried none never gains one, and a redirect from HTTPS to plain HTTP is refused.
+    private Hop follow(Hop hop, URI next) {
+        if (!RegistryRedirects.permitted(hop.address(), next)) {
+            throw new IllegalStateException(
+                redacted(hop.address().toString()) + " redirected to " + redacted(next.toString())
+                    + ", which is not HTTPS; the redirect is not followed"
+            );
+        }
+        boolean keeps = RegistryRedirects.sameOrigin(hop.address(), next) || hop.token().isEmpty();
+        return new Hop(next, keeps ? hop.token() : this.token(next.toString()));
+    }
+
+    private HttpResponse<String> send(URI address, Optional<String> token) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(address).timeout(TIMEOUT)
             .header("Accept", "application/vnd.npm.install-v1+json, application/json");
         token.ifPresent(value -> builder.header("Authorization", "Bearer " + value));
         try {
-            HttpResponse<String> response = this.client.send(
-                builder.GET().build(), HttpResponse.BodyHandlers.ofString()
-            );
-            accepted(address, response.statusCode());
-            return JSON.readTree(response.body());
+            return this.client.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString());
         } catch (IOException exception) {
-            throw new IllegalStateException(redacted(address) + " could not be read", exception);
+            throw new IllegalStateException(redacted(address.toString()) + " could not be read", exception);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while reading " + redacted(address), exception);
+            throw new IllegalStateException("Interrupted while reading " + redacted(address.toString()), exception);
         }
+    }
+
+    private static JsonNode parsed(URI address, String body) {
+        try {
+            return JSON.readTree(body);
+        } catch (IOException exception) {
+            throw new IllegalStateException(redacted(address.toString()) + " could not be read", exception);
+        }
+    }
+
+    /**
+     * One request of a chain of redirects: the address, and the token it carries.
+     *
+     * @param address the address
+     * @param token   the token, or nothing
+     */
+    private record Hop(URI address, Optional<String> token) {
     }
 }

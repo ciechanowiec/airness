@@ -1,7 +1,15 @@
 // Whether a node project installs the harness the way its Maven parents decide: the resolved harness
 // packages at the versions of the parents in the module's chain, from a registry rather than a local path,
 // and the libraries the harness decides at exactly the harness's versions.
-import { HARNESS_PACKAGE, HARNESS_PACKAGES, HARNESS_VERSIONS_VARIABLE, isHarnessPackage } from './harness-packages.js'
+import {
+  HARNESS_MODULES,
+  HARNESS_PACKAGE,
+  HARNESS_PACKAGES,
+  HARNESS_VERSIONS_VARIABLE,
+  isHarnessPackage,
+  MODULE_VARIABLE,
+  MODULE_VERSION_VARIABLE,
+} from './harness-packages.js'
 import { asText, readKey } from './json-shapes.js'
 import { type DirectDependency, LOCKFILE, type Lockfile, type ResolvedPackage } from './lockfile.js'
 import { ROOT_MEMBER_PATH } from './workspace.js'
@@ -36,6 +44,10 @@ export interface WiringInputs {
   readonly lockfile: Lockfile | undefined
   /** The versions the module's parents name, or undefined when they were not supplied. */
   readonly expected: ReadonlyMap<string, string> | undefined
+  /** The module's own Maven version, which a harness package's own repository releases it at. */
+  readonly moduleVersion?: string | undefined
+  /** The module's own Maven identity, `groupId:artifactId`, which decides whether it builds a harness package. */
+  readonly module?: string | undefined
   /** The versions the harness decides, by package name. */
   readonly pins: Readonly<Record<string, string>>
   /** Whether the member holds source the tests gate measures. */
@@ -61,10 +73,11 @@ const harnessSourceFindings = (
     )
 
 // A harness package's own repository installs that package through its link to itself, as airness-node
-// does and ploaness-node will, so its own name is the one harness package it may link.
-const ownHarnessName = (manifest: unknown): string | undefined => {
+// and ploaness-node do, so its own name is the one harness package it may link. Which repository that is
+// comes from the module's Maven identity, never from the manifest: a manifest's name is the project's to write.
+const ownHarnessName = (manifest: unknown, module: string | undefined): string | undefined => {
   const name: string = asText(readKey(manifest, 'name'))
-  return isHarnessPackage(name) ? name : undefined
+  return module !== undefined && isHarnessPackage(name) && HARNESS_MODULES.get(name) === module ? name : undefined
 }
 
 const versionFinding = (name: string, found: string, expected: ReadonlyMap<string, string>): readonly string[] => {
@@ -75,6 +88,50 @@ const versionFinding = (name: string, found: string, expected: ReadonlyMap<strin
   return found === wanted
     ? []
     : [`${LOCKFILE} resolves ${name} ${found}, but the module's Airness parent names ${wanted}; install ${wanted}`]
+}
+
+// A harness package's own repository releases the package at the module's own Maven version, and its chain
+// need not name it: ploaness-node inherits airness-parent-node, which names only @airness/node. A chain that
+// does name it, as airness-node's does, still holds it to the parent's version too.
+const selfFindings = (
+  manifest: unknown,
+  own: string,
+  moduleVersion: string | undefined,
+  expected: ReadonlyMap<string, string>,
+): readonly string[] => {
+  const found: string = asText(readKey(manifest, 'version'))
+  const named: readonly string[] = expected.has(own) ? versionFinding(own, found, expected) : []
+  if (moduleVersion === undefined) {
+    return [
+      `the module's own version was not supplied in ${MODULE_VERSION_VARIABLE}; run the gate through mvn ` +
+        'verify, whose airness:node-gate reads it from the module',
+      ...named,
+    ]
+  }
+  return found === moduleVersion
+    ? named
+    : [
+        `package.json versions ${own} ${found}, but the module that builds it is ${moduleVersion}; ` +
+          "release the package at the module's version",
+        ...named,
+      ]
+}
+
+// A member named after a harness package is that package's own repository, or a project posing as it.
+const identityFindings = (inputs: WiringInputs): readonly string[] => {
+  const name: string = asText(readKey(inputs.manifest, 'name'))
+  if (!isHarnessPackage(name)) {
+    return []
+  }
+  if (ownHarnessName(inputs.manifest, inputs.module) === undefined) {
+    const module: string = inputs.module ?? `not named in ${MODULE_VARIABLE}`
+    return [
+      `package.json names the package ${name}, which only the module ${String(HARNESS_MODULES.get(name))} ` +
+        `builds, and this module is ${module}; give the package a ` +
+        'name of its own',
+    ]
+  }
+  return selfFindings(inputs.manifest, name, inputs.moduleVersion, inputs.expected ?? new Map())
 }
 
 // The checks that read the lockfile as a whole, made once, at the project root.
@@ -90,9 +147,7 @@ const projectFindings = (inputs: WiringInputs, lockfile: Lockfile): readonly str
   const harness: readonly ResolvedPackage[] = lockfile.packages.filter((resolved: ResolvedPackage): boolean =>
     isHarnessPackage(resolved.name),
   )
-  const own: string | undefined = ownHarnessName(inputs.manifest)
-  const self: readonly string[] =
-    own === undefined ? [] : versionFinding(own, asText(readKey(inputs.manifest, 'version')), expected)
+  const own: string | undefined = ownHarnessName(inputs.manifest, inputs.module)
   const isHarnessResolved: boolean =
     own === HARNESS_PACKAGE || harness.some((resolved: ResolvedPackage): boolean => resolved.name === HARNESS_PACKAGE)
   return [
@@ -100,7 +155,6 @@ const projectFindings = (inputs: WiringInputs, lockfile: Lockfile): readonly str
     ...(isHarnessResolved
       ? []
       : [`${LOCKFILE} resolves no ${HARNESS_PACKAGE}; declare it as a development dependency and run pnpm install`]),
-    ...self,
     ...harness.flatMap((resolved: ResolvedPackage): readonly string[] =>
       versionFinding(resolved.name, resolved.version, expected),
     ),
@@ -111,13 +165,17 @@ const projectFindings = (inputs: WiringInputs, lockfile: Lockfile): readonly str
   ]
 }
 
-const localSpecifierFindings = (dependencies: readonly DirectDependency[], manifest: unknown): readonly string[] =>
+const localSpecifierFindings = (
+  dependencies: readonly DirectDependency[],
+  manifest: unknown,
+  module: string | undefined,
+): readonly string[] =>
   dependencies
     .filter(
       (dependency: DirectDependency): boolean =>
         HARNESS_PACKAGES.includes(dependency.name) &&
         (LOCAL_PROTOCOL.test(dependency.specifier) || LOCAL_PROTOCOL.test(dependency.version)) &&
-        !(dependency.name === ownHarnessName(manifest) && dependency.specifier === SELF_LINK),
+        !(dependency.name === ownHarnessName(manifest, module) && dependency.specifier === SELF_LINK),
     )
     .map(
       (dependency: DirectDependency): string =>
@@ -166,7 +224,8 @@ export const wiringFindings = (inputs: WiringInputs): readonly string[] => {
   }
   return [
     ...(inputs.memberPath === ROOT_MEMBER_PATH ? projectFindings(inputs, inputs.lockfile) : []),
-    ...localSpecifierFindings(dependencies, inputs.manifest),
+    ...identityFindings(inputs),
+    ...localSpecifierFindings(dependencies, inputs.manifest, inputs.module),
     ...pinFindings(dependencies, inputs.pins),
     ...(inputs.hasSource ? suiteFindings(dependencies, inputs.pins) : []),
   ]

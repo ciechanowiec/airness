@@ -730,7 +730,11 @@
                                 closure of the harness itself carries two data packages under them, caniuse-lite
                                 through eslint-plugin-unicorn and spdx-exceptions through eslint-plugin-jsdoc, so
                                 without them every node project fails this list; each obliges attribution, which
-                                the compliance report gives. Fonts and joke licenses are not admitted.
+                                the compliance report gives.
+
+                                WTFPL grants every use without condition. It is admitted because Payload, which the Payload
+                                layer governs, reaches truncate-utf8-bytes under it through sanitize-filename, so
+                                without it every Payload application fails this list. Font licenses are not admitted.
                             -->
                             <includedLicense>AFL-2.1</includedLicense>
                             <includedLicense>AFL-3.0</includedLicense>
@@ -748,6 +752,7 @@
                             <includedLicense>Unlicense</includedLicense>
                             <includedLicense>UPL-1.0</includedLicense>
                             <includedLicense>W3C</includedLicense>
+                            <includedLicense>WTFPL</includedLicense>
                             <includedLicense>X11</includedLicense>
                             <includedLicense>Zlib</includedLicense>
                         </includedLicenses>
@@ -1610,7 +1615,9 @@
                             <waitMaxTime>7200</waitMaxTime>
                             <!--
                                 airness-node is the npm package @airness/node, built and governed by this reactor.
-                                Its pom carries no artifact a Maven consumer reads, so it is not sent to Central.
+                                It attaches its packed tarball (type tgz) so mvn install puts it in the local
+                                repository, but npm is where it is published, so neither its pom nor the tarball
+                                is sent to Central.
                             -->
                             <excludeArtifacts>
                                 <excludeArtifact>airness-node</excludeArtifact>

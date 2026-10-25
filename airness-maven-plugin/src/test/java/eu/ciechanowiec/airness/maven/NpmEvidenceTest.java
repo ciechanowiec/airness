@@ -90,7 +90,7 @@ class NpmEvidenceTest {
         assertEquals(List.of(web.subject()), findings.get(1).offences(), "evidence past a failing wiring is named");
         assertEquals(1, NpmReportInputs.qualifications(List.of(NpmFixture.module(this.directory, false))).size());
         assertEquals(
-            List.of(web.subject() + ": left-pad@1.3.0 declares WTFPL"), findings.get(2).offences(),
+            List.of(web.subject() + ": left-pad@1.3.0 declares SSPL-1.0"), findings.get(2).offences(),
             "an expression with an admitted alternative passes, and a package this host did not install is left out"
         );
         assertEquals(1, NpmLicenses.elsewhere(List.of(web)));

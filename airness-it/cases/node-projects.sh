@@ -92,7 +92,25 @@ run_node_project_cases() {
     # module-complete, which is refused: it may not name a gate or a command of its own, and runs only in the
     # executions the parents bind. The enforcing failure of a gate finding is proven by the node-gates domain.
     printf "export const wrong: number = 'text'\n" > "${node_portal}/ui/storefront/src/wrong.ts"
+    # The same run proves the harness keeps pnpm to its pinned version: node-projects reports the packageManager
+    # field, and the install that follows in report-only mode still runs the pinned pnpm, not the one it names.
+    python3 - "${node_portal}/ui/storefront/package.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as manifest:
+    document = json.load(manifest)
+document['packageManager'] = 'pnpm@10.0.0'
+with open(path, 'w', encoding='utf-8') as manifest:
+    json.dump(document, manifest, indent=2)
+    manifest.write('\n')
+PY
     run_maven node_failing node "${node_portal}" airness:node-gate verify -Dairness.enforce=false
+    pinned_pnpm="$(sed -n 's/^pnpm[.]version=//p' \
+        "${repository}/airness-maven-plugin/src/main/resources/eu/ciechanowiec/airness/node/toolchain.properties")"
+    expect_file_match "${node_portal}/target/airness/node-logs/projects/ui/storefront/install.log" \
+        'node: a project naming a pnpm of its own still installs with the pinned pnpm' "using pnpm v${pinned_pnpm}"
     expect_match node_failing 'node: a failing gate names the frontend it failed in' \
         'Node gate types in ui/storefront failed'
     expect_match node_failing 'node: the other frontend still passes the same gate' \

@@ -41,6 +41,15 @@ POM
 
     run_maven node_library node "${node_library}" clean verify
     expect_exit node_library 'node gates: a conforming pure TypeScript module passes' 0
+    # mvn install attached the packed tarball to airness-node's artifact, where a consumer such as ploaness
+    # resolves it from the local repository rather than from a sibling checkout.
+    if cmp -s "${local_repository}/eu/ciechanowiec/airness-node/${harness_version}/airness-node-${harness_version}.tgz" \
+        "${repository}/airness-node/target/airness-node-${harness_version}.tgz"; then
+        pass 'node gates: mvn install puts the packed @airness/node tarball in the local repository'
+    else
+        fail 'node gates: mvn install puts the packed @airness/node tarball in the local repository' \
+            'eu/ciechanowiec/airness-node/<version>/airness-node-<version>.tgz is missing or differs from target'
+    fi
     expect_file_match "${node_library}/eslint.config.mjs" \
         'node gates: the node project carries the managed ESLint configuration' "@airness/node/eslint"
     expect_file_match "${node_library}/vitest.config.mts" \
@@ -237,13 +246,25 @@ install_airness_node() {
     # version its cached metadata already names it reuses the cached integrity, so a port the system handed out
     # before would install the @airness/node an earlier build packed. The store is this run's too, so nothing a
     # fixture installs comes from outside the run. The lockfile then names the integrity of this build's tarball,
-    # which node-dependencies installs by, frozen and content-addressed, whatever its own cache holds.
-    if ! (cd "$1" && PATH="${node_home}/bin:${pnpm_home}:${PATH}" npm_config_manage_package_manager_versions=false \
-        npm_config_cache_dir="${scratch}/.pnpm-cache" npm_config_store_dir="${scratch}/.pnpm-store" \
+    # which node-dependencies installs by, frozen and content-addressed, whatever its own cache holds. pnpm 12
+    # reads these settings from pnpm_config_ variables only: an npm_config_ one is silently ignored.
+    if ! (cd "$1" && PATH="${node_home}/bin:${pnpm_home}:${PATH}" pnpm_config_manage_package_manager_versions=false \
+        pnpm_config_cache_dir="${scratch}/.pnpm-cache" pnpm_config_store_dir="${scratch}/.pnpm-store" \
         "${pnpm_home}/pnpm" install --ignore-scripts) > "${install_log}" 2>&1; then
         printf '\n  %sinstalling the dependencies of %s failed%s\n' "${style_fail}" "$1" "${style_off}" >&2
         cat "${install_log}" >&2
         exit 1
+    fi
+    # Asserted once per run, where the first install wrote them: pnpm used the run's own cache and store.
+    if [ -z "${airness_node_store_checked-}" ]; then
+        airness_node_store_checked=1
+        if [ -n "$(find "${scratch}/.pnpm-store" -mindepth 1 -print 2>/dev/null | head -n 1)" ] \
+            && [ -n "$(find "${scratch}/.pnpm-cache" -mindepth 1 -print 2>/dev/null | head -n 1)" ]; then
+            pass 'node gates: the fixture install uses the pnpm cache and store of the run'
+        else
+            fail 'node gates: the fixture install uses the pnpm cache and store of the run' \
+                "pnpm wrote nothing under ${scratch}/.pnpm-store or .pnpm-cache, so it ignored the variables"
+        fi
     fi
 }
 
