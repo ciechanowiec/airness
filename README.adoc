@@ -170,6 +170,18 @@ mvn airness:assets-sync
 |===
 +
 For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#extended-verification[extended verification] in xref:#report-only-mode[report-only mode]. Use xref:#skip-tests[`mvn package -DskipTests`] when the build needs artifacts without an _airness_ verification verdict.
+. [[closing]]Every module ends with `airness:module-complete`, the last execution `airness-parent` binds in `verify`. A module that has finished all its executions records itself, and the module that completes the set, sequentially or as the last of a parallel build, runs one closing step for the whole build:
++
+* The committable tree is compared with the tree the first module saw at `validate`, so a step of any module that rewrote a tracked file fails the build.
+* The suppressions in the Java sources of every module are held to a ceiling of three per thousand lines, and never fewer than five.
+* The suppressions in the node projects' own code are held to a ceiling of two, and one more per 500 non-blank lines. Their own code is what lies under each member's source roots (`src`, `scripts` and its `sourceRoots`), without tests, without what its `generatedArtefacts` name, and without the files the harness pins or a stack layer declares generated. ESLint, Oxlint and Stylelint disable comments, Biome ignore comments, `@ts-ignore`, `@ts-expect-error` and `@ts-nocheck`, the `v8`, `c8` and `istanbul` coverage directives, `gitleaks:allow` and the layout exemption attribute count one per rule they turn off. A stack layer adds forms of its own in `airness/suppressions/<capability>.txt`.
+* Under xref:#extended-verification[extended verification], one compliance report is written with one embedded SBOM: every module's Maven artifacts and build tools, every node project's npm packages, and the Node and pnpm that ran the node gates, joined in one dependency graph. Every resolved npm package is looked up by its package URL in the OSV database, and each advisory it lists fails the build; an OSV that can't be reached fails it too.
++
+Closing covers every module that inherits an Airness parent and every module one of them depends on. A module that does neither, such as a distribution module on a parent of its own, is left out, named in the log and in the report, whatever order the build finishes in.
++
+Nothing may run after `module-complete`, except the signing of the release profile, which reads the archives the verdict covers. The `completion-order` preflight refuses, at `validate`, a module whose plan runs anything else after it in `verify`, and any `verify` execution the project declares; bind a project step to an earlier phase, such as `post-integration-test`. A goal named on the command line after the lifecycle is refused too: name it before the lifecycle, as in `mvn sonar:sonar verify`, or run it in an invocation of its own, `mvn verify` and then `mvn sonar:sonar`. The node gates and the JaCoCo report and check run in `verify`, after a project's teardown at `post-integration-test`. The Extended node gates and the Spring Boot runtime evidence checks run at `post-integration-test`, because a profile's or a child parent's `verify` executions would follow `module-complete`, and so does failsafe's `verify`, because Maven orders a plugin the project declares after the one its parents bind. A harness check there runs before a teardown the project binds to that phase, so one that fails skips the teardown; declare a teardown plugin before failsafe, and start and stop what the integration tests need inside the tests, for example with Testcontainers, when a skipped teardown matters. A failed module never records itself, so a failed build never closes.
++
+The final comparison covers what runs through `verify`. A project step bound to `install`, `deploy` or the site lifecycle runs after closing in the last module, so the tree it writes is outside the verdict.
 
 [[managed-files]]
 == Managed Files
@@ -206,8 +218,8 @@ The repository root carries the files of every capability present in any module.
 | The file starts with one marked block for each capability that claims it, in the order `generic`, `java`, `node`. The project owns the text below the blocks.
 
 | [[pinned-file]]Pinned
-| `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/settings.xml`, `README-guideline-software-project.adoc`, and with `java` also `.airness/agent-guide-java.md`, `lombok.config`, `qodana.yaml`
-| The file must match the active _airness_ version.
+| `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/jvm.config`, `.mvn/settings.xml`, `README-guideline-software-project.adoc`, and with `java` also `.airness/agent-guide-java.md`, `lombok.config`, `qodana.yaml`
+| The file must match the active _airness_ version. The agent runtime is denied `Edit(...)` of every pinned file in `.claude/settings.json`, which the xref:#asset-sync-goal[`assets-sync` goal] writes beside the project's own rules. `.mvn/jvm.config` is pinned with the startup files, because a `-D` option there would set a property such as `skipTests` for every build.
 
 | [[seed-file]]Seed
 | `.gitleaks.toml`
@@ -290,6 +302,8 @@ The script writes its output under `target/`. With `-DskipTests`, a module that 
 | `release-age` | `pnpm-workspace.yaml` sets `minimumReleaseAge` to at least 1440 minutes with `minimumReleaseAgeStrict: true`, excluding only a harness package, and every resolved release comes from a registry that dates it at least a day back. Each release is read from the registry pnpm fetched it from, with that registry's token and through the proxy `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` name, on every run. A git, tarball or directory resolution fails, and so does a registry that can't be read.
 | `npm-inventory` | Judges nothing. Bound in `prepare-package` after `wiring`, it writes `dependencies.json` beside its result: every package the lockfile resolves with its version, its declared license, whether a member declares it and whether this host installed it, for the dependency policies to read.
 |===
++
+In `package`, the `npm-dependencies` goal reads that evidence. Every package this host installed answers to the license allowlist the Maven artifacts answer to, its SPDX expression read as alternatives, of which one must be admitted, an alternative joining licenses with `AND` only when the allowlist admits each. Only SPDX identifiers are matched, regardless of case: a free-text name such as `BSD` is refused, and `X WITH <exception>` is judged as `X` when the exception is on the SPDX exception list. Every resolved package is held to the npm blocklist, which refuses packages whose license misleads, such as drivers that reach only a non-open server. Every direct dependency but `@airness/node` and `ploaness` answers to the freshness bound: no release two majors or more behind the latest stable one, read from the registry pnpm installs it from, as the user's and the project's `.npmrc` and the `npm_config_` variables name it, with the token configured for that registry. A registry that refuses the request is named in the finding. A node project with no readable `dependencies.json` fails rather than passing as empty, and in report-only mode an inventory written past a failing `wiring` is named as such. The Node _airness_ pins answers to the bound counted in long-term-support lines, read from the Node release index, and pnpm to the ordinary bound, read from the npm registry.
 +
 The xref:#extended-verification[extended verification] adds four gates. A gate whose facet a node project lacks reports _not applicable_, which is no pass:
 +

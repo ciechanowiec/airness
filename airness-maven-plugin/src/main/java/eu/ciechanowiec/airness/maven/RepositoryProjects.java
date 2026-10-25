@@ -35,6 +35,17 @@ final class RepositoryProjects {
             && isAirnessEntry(topLevel, current);
     }
 
+    /**
+     * Whether the build is Airness's own reactor, whose library modules inherit its aggregator rather than an
+     * Airness parent and are built ahead of the parents that close the build.
+     *
+     * @param topLevel the session's top-level project
+     * @return whether that project is the Airness aggregator
+     */
+    static boolean selfRepository(MavenProject topLevel) {
+        return coordinates(topLevel, AGGREGATOR);
+    }
+
     static boolean harnessParent(MavenProject project) {
         return GROUP.equals(project.getGroupId()) && HARNESS_PARENTS.contains(project.getArtifactId());
     }

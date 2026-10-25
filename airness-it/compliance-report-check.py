@@ -38,6 +38,34 @@ if sys.argv[2] == "patched":
         raise SystemExit("The report retained a replaced tool version")
     if '"build"' not in downloads["csv"] or "log4j-core" not in downloads["csv"]:
         raise SystemExit("The CSV lost the tool's Maven use")
+if sys.argv[2] == "mixed":
+    components = sbom["components"]
+    references = {component.get("bom-ref") for component in components}
+    purls = {component.get("purl", "") for component in components}
+    if "pkg:npm/%40airness/node@1.0.8-SNAPSHOT" not in purls:
+        raise SystemExit("The SBOM omits the npm packages of the TypeScript module")
+    if "pkg:npm/fixture-library" not in references:
+        raise SystemExit("The SBOM omits the node project the npm packages belong to")
+    if not any(purl.startswith("pkg:generic/node@") for purl in purls) or not any(
+        purl.startswith("pkg:npm/%40pnpm/exe.") for purl in purls
+    ):
+        raise SystemExit("The SBOM omits the pinned Node and pnpm")
+    if not {"consumer", "report-first", "report-web"}.issubset({component["name"] for component in components}):
+        raise SystemExit("The SBOM lost a Maven module of the reactor")
+    if len(references) != len(components):
+        raise SystemExit("A component is listed twice in the merged SBOM")
+    edges = {entry["ref"]: entry["dependsOn"] for entry in sbom["dependencies"]}
+    web = [ref for ref in edges if ref.startswith("com.example:report-web:")]
+    if not web or "pkg:npm/fixture-library" not in edges[web[0]]:
+        raise SystemExit("The graph does not join the TypeScript module to its node project")
+    if "api.osv.dev/v1/querybatch" not in html:
+        raise SystemExit("The report does not name the database the npm packages were looked up in")
+    if "no scanner has read them" in html:
+        raise SystemExit("The report still calls the scanned npm packages unscanned")
+    if (root / "report-web/target/compliance").exists():
+        raise SystemExit("The TypeScript module published a report of its own")
+    print("One SBOM merges the Maven and npm evidence and the pinned toolchain, with one graph")
+    sys.exit(0)
 commit = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
 if commit not in html or commit[:SHORT_COMMIT] not in html_file.name:
     raise SystemExit("The report does not identify its source commit")

@@ -1,11 +1,13 @@
 package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.AssetCatalogue;
+import eu.ciechanowiec.airness.governance.AssetSite;
 import eu.ciechanowiec.airness.governance.AssetSync;
 import eu.ciechanowiec.airness.governance.Repository;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
@@ -16,7 +18,8 @@ import org.apache.maven.project.ProjectBuilder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Writes the files the harness owns into this project when explicitly requested.
+ * Writes the files the harness owns into this project when explicitly requested, and denies the agent runtime
+ * every generated and pinned file in {@code .claude/settings.json}, keeping every rule the project wrote there.
  *
  * <p>The parent does not bind this goal to the lifecycle. An ordinary build checks the files without
  * changing them, so its verdict describes the tree that started the build. A project opts into repair
@@ -42,6 +45,13 @@ public final class AssetsSyncMojo extends AbstractMojo {
      */
     @Parameter(property = "airness.assets.unmanaged")
     private @Nullable String unmanaged;
+
+    /**
+     * Repository-relative paths of further files a generator owns, comma-separated, which the agent runtime is
+     * denied beside the generated and pinned files the harness places.
+     */
+    @Parameter(property = "airness.generated.files")
+    private @Nullable String generated;
 
     private final ProjectBuilder builder;
 
@@ -83,12 +93,20 @@ public final class AssetsSyncMojo extends AbstractMojo {
 
     private void write() {
         Path root = Repository.rootFrom(this.project().getBasedir().toPath());
-        List<String> written = new AssetSync(
+        List<AssetSite> sites = RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root);
+        List<String> files = new AssetSync(
             root,
             new AssetCatalogue(AssetsSyncMojo.class.getClassLoader()),
             Sentinel.optional(this.unmanaged),
-            RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root)
+            sites
         ).write();
+        List<String> denied = GeneratedDenialMojo.denied(
+            root, sites, Sentinel.optional(this.generated), Sentinel.optional(this.unmanaged)
+        ).stream().map(path -> "Edit(" + path + ')').toList();
+        boolean settings = ClaudeSettings.add(root.resolve(ClaudeSettings.SHARED), "deny", denied);
+        List<String> written = Stream.concat(
+            files.stream(), settings ? Stream.of(ClaudeSettings.SHARED) : Stream.empty()
+        ).toList();
         written.forEach(path -> this.getLog().info("Wrote " + path));
         if (written.isEmpty()) {
             this.getLog().info("Every file the harness owns was already in place");

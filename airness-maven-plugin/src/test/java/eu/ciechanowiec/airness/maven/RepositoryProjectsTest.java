@@ -28,6 +28,8 @@ class RepositoryProjectsTest {
         parent.setParent(root);
 
         assertTrue(RepositoryProjects.owns(root, parent));
+        assertTrue(RepositoryProjects.selfRepository(root));
+        assertFalse(RepositoryProjects.selfRepository(parent));
     }
 
     @Test

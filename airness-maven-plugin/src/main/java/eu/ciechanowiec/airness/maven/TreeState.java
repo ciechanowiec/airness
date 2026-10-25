@@ -13,12 +13,18 @@ import lombok.experimental.UtilityClass;
 import org.eclipse.aether.SessionData;
 
 /**
- * Stores one tree fingerprint per module for exactly one Maven session.
+ * Stores one tree fingerprint per module for exactly one Maven session, and the first one taken in it.
+ *
+ * <p>Each module snapshots the tree at its own {@code validate}, which in a reactor comes after the modules
+ * before it have built. The first snapshot is the tree the invocation started from, and it is the one the
+ * closing comparison holds the finished build to.
  */
 @UtilityClass
 final class TreeState {
 
     private static final Object KEY = new Object();
+    // No module file is named this, so it cannot collide with a module's scope.
+    private static final String FIRST = "<first snapshot of the session>";
     private static final Lock LOCK = new ReentrantLock();
 
     static void snapshot(SessionData data, Path root, String scope) {
@@ -27,6 +33,17 @@ final class TreeState {
 
     static void snapshot(SessionData data, String scope, String fingerprint) {
         store(data, scope, fingerprint);
+    }
+
+    /**
+     * Whether the tree still matches the first snapshot this session took.
+     *
+     * @param data session-scoped resolver data
+     * @param root the repository root
+     * @return whether nothing committable changed since the invocation started
+     */
+    static boolean unchangedSinceStart(SessionData data, Path root) {
+        return unchanged(data, FIRST, TreeFingerprint.from(root));
     }
 
     static boolean unchanged(SessionData data, Path root, String scope) {
@@ -62,7 +79,10 @@ final class TreeState {
             Map<String, String> held = Optional.ofNullable(current)
                 .map(value -> (Map<String, String>) value)
                 .orElseGet(Map::of);
-            Stream<Map.Entry<String, String>> replacement = Stream.of(Map.entry(scope, fingerprint));
+            Stream<Map.Entry<String, String>> replacement = Stream.concat(
+                Stream.of(Map.entry(scope, fingerprint)),
+                held.containsKey(FIRST) ? Stream.empty() : Stream.of(Map.entry(FIRST, fingerprint))
+            );
             Map<String, String> update = Stream.concat(held.entrySet().stream(), replacement).collect(
                 Collectors.toUnmodifiableMap(
                     Map.Entry::getKey, Map.Entry::getValue, (_, second) -> second

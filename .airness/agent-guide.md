@@ -41,6 +41,13 @@ Airness governs all of the following domains:
   properties, valid Airness parameters, and current build practices: no Java version below 25 stated in the project
   file, no superseded coordinate, a version on every managed dependency, a groupId on every plugin, `project.`-prefixed
   expressions, the documented order of pom elements, and Java 21 or later in every workflow's `setup-java`.
+  Every module ends with `airness:module-complete`, the last execution of `verify`: a project binds nothing in
+  `verify` and names no goal after it, and either is refused at `validate`. Bind a project step to an earlier
+  phase, such as `post-integration-test`, and name a command-line goal before the lifecycle
+  (`mvn sonar:sonar verify`) or run it in an invocation of its own. Once every module of the build has
+  completed, one closing step compares the committable tree with the one the build started from, holds the
+  Java sources and the node projects' own code to their suppression ceilings, and under Extended verification
+  writes the compliance report and looks every npm package up in the OSV database.
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
   instruction files; editor and Git configuration; and an unchanged committable tree during verification. Managed
   files follow what the repository contains rather than which parent a module names: the root carries the files
@@ -65,8 +72,9 @@ Airness governs all of the following domains:
   keys are all ones the agent runtime knows; every
   variable a compose file interpolates without a default is documented in `.env.example` (or `.env.sample`,
   `.env.template`) and supplied by every workflow that runs Maven through `verify`; and `.claude/settings.json`
-  denies `Edit(...)` of every generated file a stack layer or `airness.generated.files` declares, with no local
-  settings allowing one back.
+  denies `Edit(...)` of every generated file a stack layer or `airness.generated.files` declares and of every
+  pinned managed file, with no local settings allowing one back. `mvn airness:assets-sync` writes those rules
+  beside the project's own.
 - **Node projects:** every `package.json` in a module belongs to a node project the module lists in
   `airness.node.projects`, or to a member of a listed pnpm workspace, and every listed directory holds one. A
   module that lists nothing is checked too. A module that lists a project gets the Node and pnpm the Airness
@@ -100,7 +108,12 @@ Airness governs all of the following domains:
   over authored stylesheets, with no project Stylelint configuration) and `tailwind-tokens` (no arbitrary
   Tailwind value in a member that declares `tailwindcss`). `tests` also fails a spec outside
   `tests/**/*.spec.ts` and, in a browser application, `tests/e2e/**/*.e2e.spec.ts`. `npm-inventory` writes the npm
-  dependency evidence in `prepare-package` and judges nothing. Extended verification adds `npm-sbom` (a CycloneDX
+  dependency evidence in `prepare-package` and judges nothing. In `package`, every npm package it lists that
+  this host installed answers to the license allowlist the Maven artifacts answer to, read as its SPDX
+  identifiers, every package it lists to the npm blocklist, every direct dependency but the harness packages
+  to the freshness bound, read from the registry pnpm installs it from with its configured token, and a node
+  project without that evidence fails. The pinned Node answers to the bound in long-term-support lines, and
+  pnpm to the ordinary bound. Extended verification adds `npm-sbom` (a CycloneDX
   document beside `dependencies.json`), and for a member that declares `next` `build` and `bundle` (gzipped
   client JavaScript within 1100 KiB), and for a browser application `e2e`: the harness's accessibility, layout and
   security-header specs and the member's own end-to-end specs under the shipped Playwright configuration. A
@@ -113,13 +126,14 @@ Airness governs all of the following domains:
   `coverageExclude`, `pureLogicRoots`, `accessibilitySkipRoutes` and `javascriptAllowlist` entries that each name a `pattern` and a
   `reason`, an allowlist entry also the `runtime` of `node` or `cloudfront-js-2.0` that runs it. Diagnose one
   finding with `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
-- **Maven repository routing:** Airness owns `.mvn/maven.config` and `.mvn/settings.xml`. The startup
+- **Maven repository routing:** Airness owns `.mvn/maven.config`, `.mvn/jvm.config` and `.mvn/settings.xml`,
+  since a `-D` option in the JVM options would set a property such as `skipTests` for every build. The startup
   configuration loads the latter as Maven's global settings and mirrors every remote repository to
   Maven Central, including repositories introduced by dependency POMs and plugin POM inspection.
   The local Maven cache and locally installed snapshots remain available. Remote snapshots and
   artifacts absent from Central are not supported by this policy. Deployment destinations are separate
   from download mirrors. User settings retain credentials and proxies, but may not add or replace mirrors.
-  The mandatory `repository-policy` preflight checks both files, the selected global settings and the
+  The mandatory `repository-policy` preflight checks the three files, the selected global settings and the
   effective mirror and resolver. Neither `-DskipTests`, report-only mode nor `airness.assets.unmanaged`
   exempts these files or this check. Run `mvn airness:assets-sync` to adopt an update, then restart Maven.
   If missing startup settings prevent Maven from starting, run
@@ -256,7 +270,10 @@ it is published, only a fresh history satisfies the rule.
 ### Compliance Reports
 
 Extended verification writes one HTML and PDF compliance report for the participating reactor under the
-root project's configured build directory, in `compliance/`. The common filename is
+root project's configured build directory, in `compliance/`. It embeds one SBOM: every module's Maven
+artifacts and build tools, every node project's npm packages, and the Node and pnpm that ran the node gates,
+joined in one dependency graph. Every npm package is looked up in the OSV database, and an advisory it lists,
+or an OSV that can't be reached, fails Extended verification. The common filename is
 `oss-compliance-report-<root-artifactId>-<12-character-commit>`. Both formats are required, including
 for plain Java projects. Default verification produces no compliance report.
 

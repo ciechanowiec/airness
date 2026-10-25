@@ -115,11 +115,13 @@ class IntegrationPluginsPolicyTest {
         List<String> executions = List.of(
             "airness-coverage-report", "airness-coverage-check", "airness-coverage-evidence", "airness-governance"
         );
-        for (String execution : executions) {
-            assertEquals(
-                "verify", Xml.text(ProjectFiles.parentExecution(execution), "phase").orElseThrow()
-            );
-        }
+        assertEquals(
+            List.of("verify", "verify", "verify", "verify"),
+            executions.stream()
+                .map(execution -> Xml.text(ProjectFiles.parentExecution(execution), "phase").orElseThrow())
+                .toList(),
+            "the reports read what a teardown at post-integration-test flushed, ahead of module-complete"
+        );
     }
 
     private static String plugin(String artifact, String contents) {

@@ -38,15 +38,30 @@ public record ReportLicensePolicy(Set<String> allowed, Map<String, String> alias
     /**
      * Classifies all declared alternatives using the check's admitted-license semantics.
      *
+     * <p>An alternative that joins licenses with {@code AND}, as an npm expression can, is admitted only
+     * when every one of them is.
+     *
      * @param licenses supplier declarations
      * @return readable license class
      */
     public String classification(List<String> licenses) {
-        List<String> admitted = licenses.stream().map(this::normalized).filter(this.allowed::contains).toList();
+        List<List<String>> admitted = licenses.stream().map(this::conjuncts)
+            .filter(this.allowed::containsAll).toList();
         if (admitted.isEmpty()) {
             return REFUSED;
         }
-        return admitted.stream().allMatch(ReportLicensePolicy::copyleft) ? WEAK : PERMISSIVE;
+        return admitted.stream().allMatch(conjuncts -> conjuncts.stream().anyMatch(ReportLicensePolicy::copyleft))
+            ? WEAK : PERMISSIVE;
+    }
+
+    // One alternative is a license, or licenses joined as an npm expression joins them, every one of which the
+    // allowlist must admit (LicenseExpression). A license name that itself contains AND, as the CDDL's long name
+    // does, is one license, so an alternative the allowlist or its spellings admit whole is never split.
+    private List<String> conjuncts(String alternative) {
+        String whole = this.normalized(alternative);
+        return this.allowed.contains(whole) ? List.of(whole)
+            : Stream.of(alternative.split(LicenseExpression.CONJUNCTION, -1)).map(String::strip)
+                .map(this::normalized).toList();
     }
 
     /**

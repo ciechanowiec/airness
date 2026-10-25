@@ -17,7 +17,8 @@ import lombok.SneakyThrows;
 import org.apache.maven.project.MavenProject;
 
 /**
- * Requires complete current-invocation evidence before a module enters the aggregate report.
+ * Requires complete current-invocation evidence before a module enters the aggregate report: the Maven
+ * inventory, scan and SBOM, and the npm inventory and SBOM of every node project the module declares.
  */
 final class ReportInputs {
 
@@ -25,9 +26,15 @@ final class ReportInputs {
     private static final String FORMAT = "CycloneDX";
 
     private final Instant started;
+    private final OsvScan osv;
 
     ReportInputs(Instant started) {
+        this(started, OsvScan.of(OsvScan.PUBLIC));
+    }
+
+    ReportInputs(Instant started, OsvScan osv) {
         this.started = started;
+        this.osv = osv;
     }
 
     @SneakyThrows
@@ -48,24 +55,27 @@ final class ReportInputs {
             throw new IllegalStateException("Invalid CycloneDX evidence for " + project.getId());
         }
         ReportSbom.validate(parsed, dependencies);
-        List<ReportPackage> packages = Stream.concat(dependencies.stream(), this.tools(project, build).stream())
-            .toList();
+        NpmReportInputs npm = NpmReportInputs.read(project, this.started, this.osv);
+        List<ReportPackage> packages = npm.packages(
+            Stream.concat(dependencies.stream(), this.tools(project, build).stream()).toList()
+        );
         Path scan = build.resolve("dependency-check-report.json");
         List<ReportAdvisory> advisories = ReportVulnerabilities.read(
             scan, this.started, project.getId(),
             ReportVulnerabilities.harnessNotes(build.resolve("airness/plugin-inputs"))
         );
         return new ReportModule(
-            project.getId(), packages, advisories, Map.of(
+            project.getId(), packages, Stream.concat(advisories.stream(), npm.advisories().stream()).toList(), Map.of(
                 "SBOM", sbom,
                 "SBOM SHA-256", ReportJson.hash(sbom), "Scanner SHA-256", ReportJson.hash(Files.readString(scan)),
                 "Scan date", ReportJson.read(scan).path("projectInfo").path("reportDate").asText(),
-                "Graph", this.graph(project, build)
+                "Graph", ReportJson.encode(npm.graph(this.graph(project, build))),
+                NpmReportInputs.DOCUMENTS, npm.documents()
             )
         );
     }
 
-    private String graph(MavenProject project, Path build) {
+    private Map<String, List<String>> graph(MavenProject project, Path build) {
         Path file = build.resolve("airness/plugin-inputs/report-inventory.json");
         Stream<Map.Entry<String, List<String>>> tools = Files.exists(file)
             ? ReportJson.read(file).path("dependencies").properties().stream().map(
@@ -74,10 +84,8 @@ final class ReportInputs {
                     entry.getValue().valueStream().map(JsonNode::asText).toList()
                 )
             ) : Stream.empty();
-        return ReportJson.encode(
-            Stream.concat(ReportGraph.project(project).entrySet().stream(), tools)
-                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, ReportGraph::union))
-        );
+        return Stream.concat(ReportGraph.project(project).entrySet().stream(), tools)
+            .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue, ReportGraph::union));
     }
 
     @SneakyThrows

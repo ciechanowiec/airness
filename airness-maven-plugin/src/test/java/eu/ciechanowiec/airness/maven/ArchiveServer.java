@@ -37,12 +37,14 @@ final class ArchiveServer implements AutoCloseable {
     private final HttpServer server;
     private final Map<String, byte[]> archives;
     private final AtomicInteger requests;
+    private final Map<String, Integer> statuses;
 
     @SneakyThrows
     ArchiveServer() {
         this.server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         this.archives = new ConcurrentHashMap<>();
         this.requests = new AtomicInteger();
+        this.statuses = new ConcurrentHashMap<>();
         this.server.createContext("/", this::answer);
         this.server.start();
     }
@@ -50,6 +52,10 @@ final class ArchiveServer implements AutoCloseable {
     URI serve(String path, byte[] archive) {
         this.archives.put(path, archive.clone());
         return this.uri(path);
+    }
+
+    void refuse(String path, int status) {
+        this.statuses.put(path, status);
     }
 
     URI uri(String path) {
@@ -90,7 +96,9 @@ final class ArchiveServer implements AutoCloseable {
         this.requests.incrementAndGet();
         Optional<byte[]> body = Optional.ofNullable(this.archives.get(exchange.getRequestURI().getPath()));
         if (body.isEmpty()) {
-            exchange.sendResponseHeaders(NOT_FOUND, NO_BODY);
+            exchange.sendResponseHeaders(
+                this.statuses.getOrDefault(exchange.getRequestURI().getPath(), NOT_FOUND), NO_BODY
+            );
             exchange.close();
             return;
         }

@@ -100,11 +100,26 @@ class HarnessSupportTest {
     }
 
     @Test
+    void comparesTheClosingTreeWithTheFirstSnapshotOfTheSession() {
+        SessionData data = new DefaultSessionData();
+        TreeState.snapshot(data, "first-module", "start");
+        TreeState.snapshot(data, "last-module", "after an earlier module wrote a tracked file");
+        assertTrue(TreeState.unchanged(data, "last-module", "after an earlier module wrote a tracked file"));
+        assertFalse(
+            TreeState.unchanged(
+                data, "<first snapshot of the session>", "after an earlier module wrote a tracked file"
+            ),
+            "the per-module check of the last module misses what an earlier module wrote, and closing does not"
+        );
+    }
+
+    @Test
     void fingerprintsARealRepositoryThroughSessionData() {
         SessionData data = new DefaultSessionData();
         Path root = repository();
         TreeState.snapshot(data, root, "repository");
         assertTrue(TreeState.unchanged(data, root, "repository"));
+        assertTrue(TreeState.unchangedSinceStart(data, root), "the first snapshot of the session is the start");
     }
 
     private static Path repository() {

@@ -23,6 +23,12 @@ class DependencyFreshnessRulesTest {
     }
 
     @Test
+    void holdsAVersionReadElsewhereToTheSameBound() {
+        assertFalse(DependencyFreshnessCheck.trailing(update(PICOCLI, "6.0.0")).isEmpty());
+        assertTrue(DependencyFreshnessCheck.trailing(update(PICOCLI, "5.0.0")).isEmpty());
+    }
+
+    @Test
     void passesADependencyOneMajorBehind() {
         assertTrue(DependencyFreshnessRules.violation(update(PICOCLI, "5.0.0")).isEmpty());
     }

@@ -88,11 +88,11 @@ run_node_project_cases() {
     done
 
     # A failing gate in one of two frontends is reported against that frontend alone. Report-only, so the
-    # same run reaches the command-line node-gate after verify, which is refused: it may not name a gate or a
-    # command of its own, and runs only in the executions the parents bind. The enforcing failure of a gate
-    # finding is proven by the node-gates domain.
+    # same run also reaches the command-line node-gate, named before verify because nothing may run after
+    # module-complete, which is refused: it may not name a gate or a command of its own, and runs only in the
+    # executions the parents bind. The enforcing failure of a gate finding is proven by the node-gates domain.
     printf "export const wrong: number = 'text'\n" > "${node_portal}/ui/storefront/src/wrong.ts"
-    run_maven node_failing node "${node_portal}" verify airness:node-gate -Dairness.enforce=false
+    run_maven node_failing node "${node_portal}" airness:node-gate verify -Dairness.enforce=false
     expect_match node_failing 'node: a failing gate names the frontend it failed in' \
         'Node gate types in ui/storefront failed'
     expect_match node_failing 'node: the other frontend still passes the same gate' \

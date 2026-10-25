@@ -22,7 +22,8 @@ import java.util.List;
 public record GeneratedDenial(List<String> generated, List<String> deny, List<String> localAllow) {
 
     private static final String WRITABLE
-        = "Generated files an agent may still edit (add each rule to permissions.deny in .claude/settings.json)";
+        = "Generated and pinned files an agent may still edit (run mvn airness:assets-sync, which adds each rule to"
+            + " permissions.deny in .claude/settings.json)";
     private static final String REPERMITTED
         = "Write denials the local agent settings give back (remove each from permissions.allow in"
             + " .claude/settings.local.json)";

@@ -307,12 +307,13 @@
                         </goals>
                     </execution>
                     <!--
-                        Runtime evidence can arrive from Surefire or Failsafe. Verify reads both test phases
-                        after the integration tests finish, beside the final coverage evidence.
+                        Runtime evidence can arrive from Surefire or Failsafe. Post-integration-test reads both test
+                        phases after the integration tests finish, beside the final coverage evidence. Not verify:
+                        a child parent's verify executions run after module-complete, which closes the build.
                     -->
                     <execution>
                         <id>airness-spring-context</id>
-                        <phase>verify</phase>
+                        <phase>post-integration-test</phase>
                         <goals>
                             <goal>spring-context</goal>
                             <goal>spring-template-messages</goal>

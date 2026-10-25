@@ -74,6 +74,20 @@ public final class AssetSync {
         return Stream.concat(files, sections).toList();
     }
 
+    /**
+     * Every pinned file the harness places, which the agent runtime is denied as a generated file is: the harness
+     * writes each from its shipped bytes, and an edit made by hand is one the next sync takes back.
+     *
+     * @return the repository-relative paths, in site order, without those this project has taken over
+     */
+    public List<String> pinned() {
+        return this.plan.placements(AssetPolicy.PINNED)
+            .map(AssetPlan.Placement::file)
+            .filter(file -> !this.unmanaged.contains(file))
+            .distinct()
+            .toList();
+    }
+
     private boolean needsWriting(AssetPlan.Placement placement) {
         return placement.asset().policy() == AssetPolicy.PINNED
             ? !this.matches(placement)
