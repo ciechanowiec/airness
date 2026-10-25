@@ -279,7 +279,7 @@ build_consumer() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent</artifactId>
-        <version>1.0.8</version>
+        <version>1.0.9-SNAPSHOT</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>consumer</artifactId>
