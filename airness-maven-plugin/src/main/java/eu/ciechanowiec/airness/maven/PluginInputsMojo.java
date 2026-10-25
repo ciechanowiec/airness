@@ -88,7 +88,13 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
             new MavenReportArtifacts(this.builder, this.session().getProjectBuildingRequest())
         );
         ScannerResources.copy("eclipse-suppressions.xml", directory);
-        ScannerResources.copy("tool-suppressions.xml", directory);
+        ScannerResources.copyApplicable(
+            "tool-suppressions.xml", directory,
+            resolved.stream().map(
+                artifact -> "pkg:maven/" + artifact.getGroupId() + '/' + artifact.getArtifactId() + '@'
+                    + artifact.getVersion() + "?type=" + artifact.getExtension()
+            ).toList()
+        );
         policy(self, "self-tool-suppressions.xml", directory);
         boolean spring = artifacts.keySet().stream()
             .anyMatch(coordinate -> coordinate.startsWith("org.springframework.boot:spring-boot-loader-tools:"));

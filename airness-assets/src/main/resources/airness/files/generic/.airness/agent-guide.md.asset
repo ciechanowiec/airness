@@ -72,9 +72,9 @@ Airness governs all of the following domains:
   keys are all ones the agent runtime knows; every
   variable a compose file interpolates without a default is documented in `.env.example` (or `.env.sample`,
   `.env.template`) and supplied by every workflow that runs Maven through `verify`; and `.claude/settings.json`
-  denies `Edit(...)` of every generated file a stack layer or `airness.generated.files` declares and of every
-  pinned managed file, with no local settings allowing one back. `mvn airness:assets-sync` writes those rules
-  beside the project's own.
+  denies `Edit(...)` of every generated file a stack layer, `airness.generated.files` or a node project's
+  `airness.generatedArtefacts` declares and of every pinned managed file, with no local settings allowing one
+  back. `mvn airness:assets-sync` writes those rules beside the project's own.
 - **Node projects:** every `package.json` in a module belongs to a node project the module lists in
   `airness.node.projects`, or to a member of a listed pnpm workspace, and every listed directory holds one. A
   module that lists nothing is checked too. A module that lists a project gets the Node and pnpm the Airness
@@ -350,7 +350,7 @@ spends a ceiling the next repair will need.
 | `airness.assets.unmanaged` | repository paths the project takes over from the harness |
 | `airness.node.projects` | the module's node project directories, comma-separated, and none unless set |
 | `airness.generated.files` | further repository paths a generator owns, comma-separated, denied to agents |
-| `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them |
+| `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them; generated files are skipped without it |
 | `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip, never all of them |
 | `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
 | `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path below unless set |

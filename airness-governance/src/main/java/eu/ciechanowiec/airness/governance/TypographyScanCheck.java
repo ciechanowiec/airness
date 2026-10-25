@@ -28,7 +28,33 @@ public final class TypographyScanCheck {
      *                         whole segment
      */
     public TypographyScanCheck(Path root, Collection<String> excludedPrefixes) {
-        this.scan = TypographyScanner.scan(root, excludedPrefixes);
+        this(root, excludedPrefixes, List.of());
+    }
+
+    /**
+     * Reads the tree once, leaving out the files a generator owns as well as the exempt prefixes.
+     *
+     * <p>A generated file carries whatever text its generator copies into it, such as the labels a Payload
+     * configuration declares, and the agent runtime is denied editing it, so a finding there could not be
+     * repaired where it is reported. A generated glob that matches nothing is not stale: a layer declares the
+     * files its stack may write, whether or not this repository has them yet.
+     *
+     * @param root             the working tree root
+     * @param excludedPrefixes repository-relative path prefixes to leave unread, matched whole segment by
+     *                         whole segment
+     * @param generated        repository-relative globs of the files a generator owns
+     */
+    public TypographyScanCheck(Path root, Collection<String> excludedPrefixes, Collection<String> generated) {
+        this.scan = TypographyScanner.scan(root, excludedPrefixes, generated);
+    }
+
+    /**
+     * How many files the generated globs kept out of the scan.
+     *
+     * @return the count
+     */
+    public long generated() {
+        return this.scan.generated();
     }
 
     /**

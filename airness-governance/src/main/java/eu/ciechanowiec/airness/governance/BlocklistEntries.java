@@ -257,7 +257,20 @@ final class BlocklistEntries {
         BlockedImage.of("grafana/otel-lgtm", LGTM, LGTM_REPLACEMENT),
         BlockedImage.of("grafana/k6", "k6 is " + AGPL_STORE, "apache/jmeter"),
         BlockedImage.of("plausible/*", "Plausible is " + AGPL_STORE, "ghcr.io/umami-software/umami"),
-        BlockedImage.of("metabase/metabase", "Metabase is AGPL", NOTHING)
+        BlockedImage.of("metabase/metabase", "Metabase is AGPL", NOTHING),
+        BlockedImage.of(
+            "n8nio/*", "n8n is under the Sustainable Use License, which is not open source",
+            "nothing; no open-source workflow engine is endorsed in its place"
+        ),
+        BlockedImage.of(
+            "directus/directus", "Directus is under the Business Source License, which is not open source",
+            "Payload, which the Payload layer governs"
+        ),
+        BlockedImage.of(
+            "ghcr.io/apollographql/router",
+            "the Apollo Router is under the Elastic License 2.0, which is not open source",
+            "the GraphQL Hive gateway (ghcr.io/graphql-hive/gateway)"
+        )
     );
 
     /**

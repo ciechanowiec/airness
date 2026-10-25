@@ -2,16 +2,21 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.TypographyScanCheck;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
+import javax.inject.Inject;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.ProjectBuilder;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Every committable file uses plain ASCII typography: the hyphen rather than a dash, three periods
- * rather than an ellipsis character, and straight quotation marks.
+ * rather than an ellipsis character, and straight quotation marks. A file a generator owns, as the stack
+ * layers, the {@code airness.generated.files} property or a node project's {@code airness.generatedArtefacts}
+ * declare it, carries its generator's text and is left unread, since the agent runtime may not edit it.
  */
 @Mojo(name = "typography", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class TypographyMojo extends AbstractRepositoryMojo {
@@ -32,11 +37,34 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
     @Parameter(property = "airness.typography.excludes")
     private @Nullable String excludes;
 
+    /**
+     * Repository-relative paths of further files a generator owns, comma-separated, which the scan leaves unread
+     * beside the files the stack layers and the node projects declare generated.
+     */
+    @Parameter(property = "airness.generated.files")
+    private @Nullable String generated;
+
+    private final ProjectBuilder builder;
+
+    /**
+     * Receives the builder that reads the models of every module in the repository.
+     *
+     * @param builder the Maven project builder
+     */
+    @Inject
+    public TypographyMojo(ProjectBuilder builder) {
+        this.builder = builder;
+    }
+
     @Override
     List<Findings> findings() {
-        TypographyScanCheck check = new TypographyScanCheck(
-            this.repositoryRoot(), this.exclusions()
+        Path root = this.repositoryRoot();
+        List<String> owned = GeneratedDenialMojo.generated(
+            root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
+            Sentinel.optional(this.generated)
         );
+        TypographyScanCheck check = new TypographyScanCheck(root, this.exclusions(), owned);
+        this.getLog().info("Typography left " + check.generated() + " generated file(s) unread");
         check.skipped().forEach(
             (prefix, count) -> this.getLog().info(
                 "Typography exemption " + prefix + " left " + count + " file(s) unread"

@@ -180,6 +180,22 @@ PY
             "Node gate ${node_gate} in [.] failed"
     done
 
+    expect_match node_library_report 'node gates: a declared generated artefact is denied to agents through assets-sync' \
+        'Edit[(]src/generated/[*][*][)]'
+    # The rule assets-sync writes for it, so the enforcing build below stops at the first gate of verify.
+    python3 - "${node_library}/.claude/settings.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as settings:
+    document = json.load(settings)
+document['permissions']['deny'].append('Edit(src/generated/**)')
+with open(path, 'w', encoding='utf-8') as settings:
+    json.dump(document, settings, indent=2)
+    settings.write('\n')
+PY
+
     run_maven node_library_enforced node "${node_library}" verify
     expect_exit node_library_enforced 'node gates: a planted gate finding fails an enforcing build' 1
     expect_match node_library_enforced 'node gates: wiring, the first gate of verify, stops the enforcing build' \
