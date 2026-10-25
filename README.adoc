@@ -361,7 +361,7 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 
 | `airness.typography.excludes`
 | empty
-| Path prefixes excluded from typography checks. For example, `docs` matches `docs/guide.adoc` but not `docs-old/guide.adoc`.
+| Path prefixes excluded from typography checks. For example, `docs` matches `docs/guide.adoc` but not `docs-old/guide.adoc`. Files a generator owns (those the stack layers, `airness.generated.files` or a node project's `airness.generatedArtefacts` declare) are skipped without being listed here.
 
 | [[airness-node-projects]]`airness.node.projects`
 | empty
@@ -369,7 +369,7 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 
 | `airness.generated.files`
 | empty
-| Repository paths of further files a generator owns, comma-separated. Each is denied to the agent runtime through an `Edit(...)` rule in `.claude/settings.json`, beside the generated files the stack layers declare. The setting can only add to that set.
+| Repository paths of further files a generator owns, comma-separated. Each is denied to the agent runtime through an `Edit(...)` rule in `.claude/settings.json`, beside the generated files the stack layers and each node project's `airness.generatedArtefacts` declare. The setting can only add to that set.
 
 | [[airness-assets-unmanaged]]`airness.assets.unmanaged`
 | empty

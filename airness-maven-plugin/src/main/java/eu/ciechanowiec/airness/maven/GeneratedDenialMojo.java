@@ -74,7 +74,8 @@ public final class GeneratedDenialMojo extends AbstractRepositoryMojo {
     }
 
     /**
-     * Every file the agent runtime is denied: the generated files the stack layers and the project declare, and
+     * Every file the agent runtime is denied: the generated files the stack layers and the project declare (in the
+     * {@code airness.generated.files} property and in each node project's {@code airness.generatedArtefacts}), and
      * the pinned files the harness places, which it writes from its shipped bytes as a generator writes its
      * output.
      *
@@ -89,8 +90,23 @@ public final class GeneratedDenialMojo extends AbstractRepositoryMojo {
     ) {
         ClassLoader classes = GeneratedDenialMojo.class.getClassLoader();
         return Stream.concat(
-            new GeneratedFiles(classes).paths(sites, declared).stream(),
+            generated(root, sites, declared).stream(),
             new AssetSync(root, new AssetCatalogue(classes), unmanaged, sites).pinned().stream()
         ).distinct().toList();
+    }
+
+    /**
+     * Every file a generator owns: those the stack layers declare, those the {@code airness.generated.files}
+     * property names and those each node project lists under {@code airness.generatedArtefacts}.
+     *
+     * @param root     the repository root
+     * @param sites    the directories of the repository, with the capabilities present in each
+     * @param declared the generated files the project declares in the property
+     * @return repository-relative paths and globs, layer declarations first
+     */
+    static List<String> generated(Path root, Collection<AssetSite> sites, Collection<String> declared) {
+        Stream<String> node = NodeGeneratedArtefacts.paths(root, sites).stream();
+        List<String> projectDeclared = Stream.concat(declared.stream(), node).toList();
+        return new GeneratedFiles(GeneratedDenialMojo.class.getClassLoader()).paths(sites, projectDeclared);
     }
 }

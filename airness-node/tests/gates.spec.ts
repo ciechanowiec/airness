@@ -12,6 +12,9 @@ import { oxlint } from '@/gate-oxlint.js'
 import { sourceRules } from '@/gate-source-rules.js'
 import { types } from '@/gate-types.js'
 import { GATES, gateById } from '@/gates.js'
+import { layerDefaultsOf } from '@/layer.js'
+import type { Member } from '@/project.js'
+import { readSettings } from '@/settings.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
@@ -152,6 +155,24 @@ describe('source-rules', PROCESS_TIME, () => {
   it('reads only the declared source roots', () => {
     withPlanted({ 'other/read.ts': "import { total } from '../src/total.js'\nexport { total }\n" }, (root: string) => {
       expect(sourceRules(memberAt(root)).findings).toEqual([])
+    })
+  })
+
+  it("passes over a generated artefact, the project's or a layer's, as a generator wrote it", () => {
+    const scaffold: Readonly<Record<string, string>> = {
+      'src/app/(payload)/admin/page.tsx': "import { importMap } from '../importMap.js'\nexport { importMap }\n",
+    }
+    withPlanted(scaffold, (root: string) => {
+      expect(findingsOf(sourceRules(memberAt(root)))).toContain('[no-deep-relative-imports]')
+      const declared: Manifest = {
+        airness: { generatedArtefacts: [{ pattern: 'src/app/?payload?/**', reason: 'Payload writes it' }] },
+      }
+      expect(sourceRules(memberAt(root, declared)).findings).toEqual([])
+      const layered: Member = {
+        ...memberAt(root),
+        settings: readSettings({}, [{ ...layerDefaultsOf({}), generatedArtefacts: ['src/app/?payload?/**'] }]),
+      }
+      expect(sourceRules(layered).findings).toEqual([])
     })
   })
 })

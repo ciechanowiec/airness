@@ -28,6 +28,17 @@ class BlocklistImageTest {
     }
 
     @Test
+    void refusesTheSourceAvailableServicesTheOldPayloadListRefused() {
+        assertTrue(reason(Blocklist.image("n8nio/n8n:1.80.0")).orElse("").contains("Sustainable Use License"));
+        assertTrue(reason(Blocklist.image("n8nio/runners:1.80.0")).isPresent(), "every n8n repository");
+        assertTrue(reason(Blocklist.image("directus/directus:11.5.1")).orElse("").contains("Business Source"));
+        assertTrue(
+            reason(Blocklist.image("ghcr.io/apollographql/router:v2.1.0")).orElse("").contains("Elastic License 2.0")
+        );
+        assertEquals(Optional.empty(), Blocklist.image("ghcr.io/apollographql/other:1.0.0"), "only the router");
+    }
+
+    @Test
     void leavesRedisBelowTheFloorToTheLicenceAllowlist() {
         assertEquals(Optional.empty(), Blocklist.image("redis:7.2.4"), "7.2 is the open release line");
         assertEquals(Optional.empty(), Blocklist.image("redis:7.2.4-alpine"), "whatever suffix it carries");

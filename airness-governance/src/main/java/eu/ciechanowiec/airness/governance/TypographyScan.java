@@ -19,8 +19,9 @@ import java.util.Map;
  * @param violations every banned code point, one entry each, naming its file, line, and column
  * @param skipped    how many files each exclusion prefix kept out of the scan, keyed by that prefix
  * @param scanned    how many files the scan read, which is every tracked file no prefix exempted
+ * @param generated  how many tracked files a generator owns, which the scan left unread
  */
-record TypographyScan(List<String> violations, Map<String, Long> skipped, int scanned) {
+record TypographyScan(List<String> violations, Map<String, Long> skipped, int scanned, long generated) {
 
     /**
      * Copies both collections, so a caller that keeps its own cannot alter a scan already reported.
@@ -28,6 +29,7 @@ record TypographyScan(List<String> violations, Map<String, Long> skipped, int sc
      * @param violations every banned code point
      * @param skipped    how many files each exclusion prefix kept out
      * @param scanned    how many files the scan read
+     * @param generated  how many tracked files a generator owns
      */
     TypographyScan {
         violations = List.copyOf(violations);

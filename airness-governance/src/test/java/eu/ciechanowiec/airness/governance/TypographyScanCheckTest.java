@@ -64,6 +64,24 @@ class TypographyScanCheckTest {
     }
 
     @Test
+    void leavesTheFilesAGeneratorOwnsUnreadWithoutReportingAGlobThatMatchesNothing() {
+        Path root = new GitFixture("typography-generated")
+            .write(README, PLAIN)
+            .write("src/payload-types.ts", OFFENDING)
+            .write("web/src/app/(payload)/admin/page.tsx", OFFENDING)
+            .write("web/src/app/other.ts", OFFENDING)
+            .root();
+        TypographyScanCheck check = new TypographyScanCheck(
+            root, List.of(), List.of("src/payload-types.ts", "web/src/app/?payload?/**", "src/absent.ts")
+        );
+        List<String> offences = Verdicts.offences(check.findings(), "Banned typography");
+        assertEquals(1, offences.size(), "only the file no generator owns: " + offences);
+        assertTrue(offences.getFirst().contains("web/src/app/other.ts"));
+        assertEquals(2L, check.generated(), "and the generated files left unread are counted");
+        assertTrue(Verdicts.offences(check.findings(), "An exclusion prefix").isEmpty(), "no generated glob is stale");
+    }
+
+    @Test
     void doesNotLetAnExemptionReachAPathThatMerelySharesItsOpeningCharacters() {
         Path root = new GitFixture("typography-sibling")
             .write(THEME, PLAIN)

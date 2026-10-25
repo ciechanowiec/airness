@@ -14,7 +14,8 @@
       "Edit(qodana.yaml)",
       "Edit(.airness/agent-guide-java.md)",
       "Edit(airness-node/eslint.config.mjs)",
-      "Edit(airness-node/vitest.config.mts)"
+      "Edit(airness-node/vitest.config.mts)",
+      "Edit(airness-node/tests/fixtures/cyclonedx/**)"
     ]
   }
 }
