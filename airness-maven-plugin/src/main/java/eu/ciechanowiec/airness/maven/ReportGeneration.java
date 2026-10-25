@@ -35,10 +35,19 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
         return new ReportGeneration(
             ReportSession.source(session.getRepositorySession().getData()),
             ReportProject.from(ReportProjects.root(session.getAllProjects()), owner),
-            ReportProjects.qualifications(
-                ReportProjects.partial(session.getProjects(), session.getAllProjects()),
-                session.getUserProperties().getProperty("airness.enforce", "true")
-            )
+            Stream.concat(
+                ReportProjects.qualifications(
+                    ReportProjects.partial(session.getProjects(), session.getAllProjects()),
+                    session.getUserProperties().getProperty("airness.enforce", "true")
+                ).stream(),
+                NpmReportInputs.qualifications(session.getProjects()).stream()
+            ).toList()
+        );
+    }
+
+    ReportGeneration qualified(List<String> reasons) {
+        return new ReportGeneration(
+            this.initial, this.project, Stream.concat(this.qualifications.stream(), reasons.stream()).toList()
         );
     }
 

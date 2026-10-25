@@ -1,10 +1,15 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.AssetCatalogue;
+import eu.ciechanowiec.airness.governance.AssetSite;
+import eu.ciechanowiec.airness.governance.AssetSync;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.GeneratedDenial;
 import eu.ciechanowiec.airness.governance.GeneratedFiles;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -13,7 +18,8 @@ import org.apache.maven.project.ProjectBuilder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The agent runtime is denied write access to every generated file the stack layers present declare.
+ * The agent runtime is denied write access to every generated file the stack layers present declare, and to
+ * every pinned file the harness places.
  *
  * <p>Which files are generated follows the capabilities of the whole repository, read the way the managed
  * files read them, so a build started inside one member denies what a build started at the root denies.
@@ -30,6 +36,13 @@ public final class GeneratedDenialMojo extends AbstractRepositoryMojo {
     @Parameter(property = "airness.generated.files")
     private @Nullable String declared;
 
+    /**
+     * Repository-relative paths this project has taken over from the harness, comma-separated. A pinned file
+     * listed here belongs to the project, so it is not denied to the agent runtime.
+     */
+    @Parameter(property = "airness.assets.unmanaged")
+    private @Nullable String unmanaged;
+
     private final ProjectBuilder builder;
 
     /**
@@ -45,17 +58,39 @@ public final class GeneratedDenialMojo extends AbstractRepositoryMojo {
     @Override
     List<Findings> findings() {
         Path root = this.repositoryRoot();
-        List<String> generated = new GeneratedFiles(GeneratedDenialMojo.class.getClassLoader()).paths(
-            RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
-            Sentinel.optional(this.declared)
+        List<String> generated = denied(
+            root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
+            Sentinel.optional(this.declared), Sentinel.optional(this.unmanaged)
         );
         this.getLog().info(
-            "Generated-file denial read " + generated.size() + " generated file(s) the stack layers and project declare"
+            "Generated-file denial read " + generated.size() + " generated and pinned file(s) the stack layers and"
+                + " project declare"
         );
         return new GeneratedDenial(
             generated,
             ClaudeSettings.permissions(root.resolve(ClaudeSettings.SHARED), "deny"),
             ClaudeSettings.permissions(root.resolve(ClaudeSettings.LOCAL), "allow")
         ).findings();
+    }
+
+    /**
+     * Every file the agent runtime is denied: the generated files the stack layers and the project declare, and
+     * the pinned files the harness places, which it writes from its shipped bytes as a generator writes its
+     * output.
+     *
+     * @param root      the repository root
+     * @param sites     the directories of the repository, with the capabilities present in each
+     * @param declared  the generated files the project declares
+     * @param unmanaged the managed files the project has taken over
+     * @return the repository-relative paths, generated files first
+     */
+    static List<String> denied(
+        Path root, Collection<AssetSite> sites, Collection<String> declared, Collection<String> unmanaged
+    ) {
+        ClassLoader classes = GeneratedDenialMojo.class.getClassLoader();
+        return Stream.concat(
+            new GeneratedFiles(classes).paths(sites, declared).stream(),
+            new AssetSync(root, new AssetCatalogue(classes), unmanaged, sites).pinned().stream()
+        ).distinct().toList();
     }
 }

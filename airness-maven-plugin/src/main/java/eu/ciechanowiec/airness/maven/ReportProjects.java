@@ -17,10 +17,22 @@ final class ReportProjects {
     private static final String EXTENDED = "extended";
 
     static boolean extended(MavenProject project) {
+        return active(project, EXTENDED);
+    }
+
+    /**
+     * Whether a profile is active for a project, declared in its own model or injected from a parent's, which
+     * Maven 3 lists apart.
+     *
+     * @param project the project
+     * @param id      the profile id
+     * @return whether the profile is active
+     */
+    static boolean active(MavenProject project, String id) {
         return Stream.concat(
             project.getActiveProfiles().stream().map(Profile::getId),
             project.getInjectedProfileIds().values().stream().flatMap(Collection::stream)
-        ).anyMatch(EXTENDED::equals);
+        ).anyMatch(id::equals);
     }
 
     static MavenProject root(List<MavenProject> projects) {
@@ -29,11 +41,6 @@ final class ReportProjects {
 
     static List<MavenProject> required(List<MavenProject> projects) {
         return projects.stream().filter(project -> !selfRoot(project)).toList();
-    }
-
-    static List<MavenProject> ready(Collection<MavenProject> completed, MavenProject current, boolean self) {
-        return self ? required(Stream.concat(completed.stream(), Stream.of(current)).distinct().toList())
-            : List.of(current);
     }
 
     static List<String> qualifications(boolean partial, String enforcement) {

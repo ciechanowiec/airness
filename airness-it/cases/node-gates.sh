@@ -47,6 +47,24 @@ POM
         'node gates: the node project carries the managed Vitest configuration' "@airness/node/vitest"
     expect_file_match "${node_library}/pnpm-lock.yaml" \
         'node gates: the lockfile resolves @airness/node by its version' "'@airness/node@1[.]0[.]8-SNAPSHOT':"
+    if python3 - "${repository}/airness-node/target/airness-node-${harness_version}.tgz" \
+        "${node_library}/pnpm-lock.yaml" <<'PY'
+import base64
+import hashlib
+import re
+import sys
+
+packed = 'sha512-' + base64.b64encode(hashlib.sha512(open(sys.argv[1], 'rb').read()).digest()).decode()
+lockfile = open(sys.argv[2], encoding='utf-8').read()
+match = re.search(r"'@airness/node@[^']+':\s*\n\s*resolution: \{integrity: ([^,}\s]+)", lockfile)
+sys.exit(0 if match and match.group(1) == packed else 1)
+PY
+    then
+        pass 'node gates: the fixture installs the @airness/node this build packed, by its integrity'
+    else
+        fail 'node gates: the fixture installs the @airness/node this build packed, by its integrity' \
+            'the lockfile integrity differs from airness-node/target, so a cached older build was installed'
+    fi
     for node_gate in ${node_gates}; do
         expect_match node_library "node gates: ${node_gate} runs through node-gate and passes" \
             "Node gate ${node_gate} in [.] passed"
@@ -64,6 +82,12 @@ POM
         'node gates: npm-inventory lists its evidence in the result' '"dependencies[.]json"'
     expect_file_match "${node_library}/target/airness/node/module/dependencies.json" \
         'node gates: npm-inventory records the installed harness with its license' '"name": "@airness/node"'
+    expect_match node_library 'npm evidence: the license allowlist and the freshness bound read the inventory' \
+        'Version checking asked npm registries about [1-9][0-9]* package[(]s[)]'
+    expect_match node_library 'npm evidence: the pinned Node and pnpm answer to the freshness bound' \
+        'Version checking asked the Node release index and the npm registry about the toolchain'
+    expect_match node_library 'npm evidence: closing weighs the node sources against the suppression ceiling' \
+        'Node suppressions in force: 0 of 2 allowed'
 
     # One defect per gate. None can mask another, since each gate reads every file and reports them all.
     printf "export const wrong: number = 'text'\n" > "${node_library}/src/wrong.ts"
@@ -71,6 +95,8 @@ POM
     printf 'export const wait = (): Promise<number> => new Promise((resolve) => resolve(1))\n' \
         > "${node_library}/src/wait.ts"
     printf '/** The limit. */\nexport const limit: number = 42 * 3\n' > "${node_library}/src/limit.ts"
+    printf '// eslint-disable-next-line no-console -- planted for the suppression ceiling\nconsole.info(1)\n' \
+        > "${node_library}/src/noisy.ts"
     mkdir -p "${node_library}/src/deep"
     printf "export { total } from '../total.js'\n" > "${node_library}/src/deep/read.ts"
     printf 'export const legacy = 1\n' > "${node_library}/src/legacy.js"
@@ -133,6 +159,10 @@ PY
         'allowBuilds[.]left-pad names no installed dependency that runs an install script'
     expect_match node_library_report 'node gates: release-age reports the lenient floor' \
         'minimumReleaseAgeStrict: must be true'
+    expect_match node_library_report 'npm evidence: an inventory written past a failing wiring is named as such' \
+        'npm evidence written past a failing wiring gate'
+    expect_match node_library_report 'npm evidence: closing counts a node suppression against the ceiling' \
+        'Node suppressions in force: 1 of 2 allowed'
     for node_gate in ${node_gates} ${node_facet_gates}; do
         if [ "${node_gate}" = npm-inventory ]; then
             continue
@@ -153,16 +183,20 @@ node_gates='wiring types biome oxlint eslint source-rules config-refs javascript
 tests install-scripts release-age npm-inventory'
 node_facet_gates='css tailwind-tokens'
 
-# Starts, once per process, the registry that serves the @airness/node tarball this reactor packed and the
-# fixtures' scripted packages. It stops on its own once the shell that started it is gone.
+# Starts the registry that serves the @airness/node tarball this reactor packed and the fixtures' scripted
+# packages. It stops on its own once the shell that started it is gone, so the full suite starts it before the
+# lanes and both lanes share that one server for the whole run. A lane that starts one of its own, as a single
+# domain does, gets its own port file and staging directory: sharing them let a lane read the port of the other
+# lane's server and lose it, mid-case, when that lane finished first.
 start_airness_node_registry() {
     if [ -n "${airness_node_registry-}" ]; then
         return
     fi
-    registry_port_file="${scratch}/.airness-node-registry.port"
+    registry_staging="$(mktemp -d "${scratch}/.airness-node-registry-XXXXXX")"
+    registry_port_file="${registry_staging}/port"
     set --
     for fixture_package in "${repository}"/airness-it/fixtures/node-packages/*; do
-        fixture_staging="${scratch}/.node-packages/$(basename "${fixture_package}")"
+        fixture_staging="${registry_staging}/packages/$(basename "${fixture_package}")"
         mkdir -p "${fixture_staging}/package"
         cp -R "${fixture_package}/." "${fixture_staging}/package/"
         tar -czf "${fixture_staging}.tgz" -C "${fixture_staging}" package
@@ -170,12 +204,12 @@ start_airness_node_registry() {
     done
     python3 "${repository}/airness-it/npm-registry.py" "${registry_port_file}" \
         "${repository}/airness-node/target/airness-node-${harness_version}.tgz" "$@" \
-        > "${scratch}/.airness-node-registry.log" 2>&1 &
+        > "${registry_staging}/registry.log" 2>&1 &
     registry_waited=0
     while [ ! -s "${registry_port_file}" ]; do
         if [ "${registry_waited}" -ge 30 ]; then
             printf '\n  %sthe @airness/node registry did not start%s\n' "${style_fail}" "${style_off}" >&2
-            cat "${scratch}/.airness-node-registry.log" >&2
+            cat "${registry_staging}/registry.log" >&2
             exit 1
         fi
         command sleep 1
@@ -199,7 +233,13 @@ install_airness_node() {
     pnpm_home="$(find "${node_toolchain}" -maxdepth 1 -type d \
         -name "pnpm-$(sed -n 's/^pnpm[.]version=//p' "${node_pins}")-*" | head -n 1)"
     install_log="${scratch}/install-$(printf '%s' "$1" | cksum | cut -d ' ' -f 1).log"
+    # A cache of this run's own. pnpm keeps registry metadata per registry host and port across runs, and for a
+    # version its cached metadata already names it reuses the cached integrity, so a port the system handed out
+    # before would install the @airness/node an earlier build packed. The store is this run's too, so nothing a
+    # fixture installs comes from outside the run. The lockfile then names the integrity of this build's tarball,
+    # which node-dependencies installs by, frozen and content-addressed, whatever its own cache holds.
     if ! (cd "$1" && PATH="${node_home}/bin:${pnpm_home}:${PATH}" npm_config_manage_package_manager_versions=false \
+        npm_config_cache_dir="${scratch}/.pnpm-cache" npm_config_store_dir="${scratch}/.pnpm-store" \
         "${pnpm_home}/pnpm" install --ignore-scripts) > "${install_log}" 2>&1; then
         printf '\n  %sinstalling the dependencies of %s failed%s\n' "${style_fail}" "$1" "${style_off}" >&2
         cat "${install_log}" >&2

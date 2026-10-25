@@ -33,6 +33,7 @@ record ReportProject(Path root, Path build, ReportIdentity identity, ReportLicen
                     Playwright.class.getPackage().getImplementationVersion()
                 ).orElseThrow(() -> new IllegalStateException("The PDF renderer has no published version")),
                 "Vulnerability scanner", "Dependency-Check " + required(owner, "dependency-check-maven.version"),
+                "npm vulnerability database", "OSV, " + OsvScan.PUBLIC + "v1/querybatch",
                 "Published SBOM generator", "CycloneDX Maven " + required(owner, "cyclonedx-maven-plugin.version")
             )
         );

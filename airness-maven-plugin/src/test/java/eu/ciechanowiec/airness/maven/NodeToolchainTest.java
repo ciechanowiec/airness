@@ -1,10 +1,16 @@
 package eu.ciechanowiec.airness.maven;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.governance.DeclaredCoordinate;
+import eu.ciechanowiec.airness.governance.OwnedCoordinate;
+import eu.ciechanowiec.airness.governance.ReportPackage;
+import eu.ciechanowiec.airness.governance.VersionUpdate;
 import eu.ciechanowiec.airness.maven.ArchiveServer.Entry;
+import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -97,5 +103,54 @@ class NodeToolchainTest {
             assertTrue(Files.isExecutable(tools.node()) && Files.isExecutable(tools.pnpm()));
             assertEquals("Node 1.0.0 and pnpm 2.0.0", toolchain.description());
         }
+    }
+
+    @Test
+    void listsThePinnedToolsForTheReportAndTheFreshnessBound() {
+        NodeToolchain toolchain = NodeToolchain.of(NodeToolchain.pinned().pins(), PLATFORM);
+        List<String> coordinates = toolchain.packages("com.example:web:pom:1").stream()
+            .map(ReportPackage::coordinate).toList();
+        assertTrue(coordinates.getFirst().startsWith("pkg:generic/node@"), coordinates.getFirst());
+        assertTrue(coordinates.getLast().startsWith("pkg:npm/%40pnpm/exe.linux-x64@"), coordinates.getLast());
+        assertTrue(coordinates.getLast().contains("?checksum=sha256:"));
+        assertEquals(
+            List.of(List.of("MIT"), List.of("MIT")),
+            toolchain.packages("m").stream().map(ReportPackage::licenses).toList()
+        );
+        assertEquals(
+            List.of("nodejs.org:node", "npm:@pnpm/exe"),
+            toolchain.declarations().stream()
+                .map(entry -> entry.coordinate().groupId() + ':' + entry.coordinate().artifactId()).toList()
+        );
+    }
+
+    @Test
+    void holdsNodeToLongTermLinesAndPnpmToTheOrdinaryBound() {
+        try (ArchiveServer server = new ArchiveServer()) {
+            String index = server.serve(
+                "/index.json",
+                "[{\"version\": \"v31.0.0\", \"lts\": false}, {\"version\": \"v28.2.0\", \"lts\": \"Next\"}]"
+                    .getBytes(UTF_8)
+            ).toString();
+            server.serve("/npm/@pnpm/exe", "{\"versions\": {\"99.0.0\": {}}}".getBytes(UTF_8));
+            NpmRegistries registries = new NpmRegistries(
+                Map.of("registry", server.uri("/npm/").toString()), HttpClient.newHttpClient()
+            );
+            NpmFreshness check = NodeToolchain.pinned().freshness(index, registries);
+            assertEquals(2, check.scanned());
+            assertEquals(1, check.trailing().size(), "a newer odd major and one newer long-term line pass; pnpm fails");
+            assertTrue(check.trailing().getFirst().contains("@pnpm/exe"));
+        }
+    }
+
+    @Test
+    void countsNodeMajorsInLongTermLines() {
+        OwnedCoordinate pin = NodeToolchain.pinned().declarations().getFirst();
+        OwnedCoordinate pinned = new OwnedCoordinate(
+            pin.owner(), new DeclaredCoordinate(pin.coordinate().groupId(), "node", "26.11.1")
+        );
+        assertTrue(NodeToolchain.longTermTrailing(new VersionUpdate(pinned, "28.0.0")).isEmpty());
+        assertTrue(NodeToolchain.longTermTrailing(new VersionUpdate(pinned, "30.1.0")).isPresent());
+        assertTrue(NodeToolchain.longTermTrailing(new VersionUpdate(pinned, "30")).isPresent(), "a bare major too");
     }
 }

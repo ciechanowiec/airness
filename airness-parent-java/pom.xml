@@ -289,7 +289,13 @@
                     </execution>
                     <execution>
                         <id>airness-coverage-report</id>
-                        <!-- Both test JVMs append to the same evidence before this final report. -->
+                        <!--
+                            Both test JVMs append to the same evidence before this final report, and so does an
+                            application a project starts for its integration tests and stops at post-integration-
+                            test. In verify, so the report reads what that stop flushed. completion-order holds it
+                            ahead of module-complete, which Maven's plugin order does: the Java plugins precede this
+                            parent's airness-maven-plugin.
+                        -->
                         <phase>verify</phase>
                         <goals>
                             <goal>report</goal>

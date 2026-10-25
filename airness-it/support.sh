@@ -306,6 +306,23 @@ expect_no_match() {
     fi
 }
 
+# Asserts a pattern matches exactly the given number of lines of an execution's log, for a step that must run
+# once rather than at least once.
+expect_count() {
+    assertion_execution="$1"
+    assertion_log="$(execution_log "${assertion_execution}")"
+    assertion_label="$2"
+    assertion_pattern="$3"
+    assertion_expected="$4"
+    assertion_actual="$(grep -Ec -e "${assertion_pattern}" "${assertion_log}" || true)"
+    if [ "${assertion_actual}" -eq "${assertion_expected}" ]; then
+        pass "${assertion_label}"
+    else
+        fail "${assertion_label}" \
+            "execution ${assertion_execution} matched /${assertion_pattern}/ ${assertion_actual} times, not ${assertion_expected}"
+    fi
+}
+
 expect_before() {
     assertion_execution="$1"
     assertion_log="$(execution_log "${assertion_execution}")"

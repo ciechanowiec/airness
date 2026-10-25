@@ -5,12 +5,15 @@
 # REFERENCE: optional, and when present it only points at AGENTS.md. FORBIDDEN: the file must not exist.
 # Project documentation belongs to the consuming project. The software project guideline is the one
 # exception because it defines the agent contract. The Maven startup files and the Java version are
-# generic because every repository builds with Maven on exactly Java 25.
+# generic because every repository builds with Maven on exactly Java 25. The JVM options file is pinned with
+# them: a -D option there becomes a system property every Maven expression reads ahead of the project's own,
+# so a committed one could set skipTests or airness.enforce for every build of the repository.
 
 .editorconfig	PINNED
 .gitattributes	PINNED
 .java-version	PINNED
 .mvn/maven.config	PINNED
+.mvn/jvm.config	PINNED
 .mvn/settings.xml	PINNED
 .airness/agent-guide.md	PINNED
 README-guideline-software-project.adoc	PINNED

@@ -33,16 +33,17 @@ class ParentPlacementTest {
             Stream.concat(
                 Stream.of(
                     "actions", "assets-check", "blocklist", "build-inputs", "build-practices", "check-parameters",
-                    "checkov", "commit-history", "commit-typography", "compliance-report-collect",
+                    "checkov", "commit-history", "commit-typography", "completion-order",
                     "dependency-freshness", "docker", "docs", "editorconfig-excludes", "entry-files", "environment",
-                    "generated-denial", "image-assets", "license-metadata", "linear-history", "node-dependencies",
-                    "node-gate", "node-install", "node-projects", "plugin-inputs",
+                    "generated-denial", "image-assets", "license-metadata", "linear-history", "module-complete",
+                    "node-dependencies", "node-gate", "node-install", "node-projects", "npm-dependencies",
+                    "plugin-inputs",
                     "publication-content", "publication-metadata", "repository-policy", "require-full-history",
                     "require-online", "required-profiles", "scan-secrets", "shellcheck", "skills",
-                    "suppression-budget", "tree-snapshot", "tree-verify", "typography",
+                    "tree-snapshot", "tree-verify", "typography",
                     /*
                      * Java checks bound here only for their position: a child parent's verify executions run
-                     * after the compliance report this file binds. Both skip a module with nothing to read.
+                     * after module-complete, which this file binds last. Both skip a module with nothing to read.
                      */
                     "coverage-evidence", "artifact-content"
                 ).map(AIRNESS::concat),
@@ -103,18 +104,50 @@ class ParentPlacementTest {
             .toList();
         assertEquals(
             List.of(
-                "node-gate-wiring@prepare-package", "node-gate-npm-inventory@prepare-package", "node-gate-types@verify",
-                "node-gate-biome@verify", "node-gate-oxlint@verify", "node-gate-eslint@verify",
+                "node-gate-wiring@prepare-package", "node-gate-npm-inventory@prepare-package",
+                "node-gate-types@verify", "node-gate-biome@verify",
+                "node-gate-oxlint@verify", "node-gate-eslint@verify",
                 "node-gate-source-rules@verify", "node-gate-config-refs@verify",
-                "node-gate-javascript-allowlist@verify", "node-gate-css@verify", "node-gate-tailwind-tokens@verify",
-                "node-gate-arch@verify", "node-gate-type-coverage@verify", "node-gate-knip@verify",
-                "node-gate-tests@verify", "node-gate-install-scripts@verify", "node-gate-release-age@verify",
-                "extended:node-gate-npm-sbom@prepare-package", "extended:node-gate-build@verify",
-                "extended:node-gate-bundle@verify", "extended:node-gate-e2e@verify"
+                "node-gate-javascript-allowlist@verify", "node-gate-css@verify",
+                "node-gate-tailwind-tokens@verify", "node-gate-arch@verify",
+                "node-gate-type-coverage@verify", "node-gate-knip@verify",
+                "node-gate-tests@verify", "node-gate-install-scripts@verify",
+                "node-gate-release-age@verify", "extended:node-gate-npm-sbom@prepare-package",
+                "extended:node-gate-build@post-integration-test", "extended:node-gate-bundle@post-integration-test",
+                "extended:node-gate-e2e@post-integration-test"
             ),
             gates,
             "wiring judges the harness before npm-inventory writes evidence the package-phase policies read, the "
-                + "facet gates of Default run beside the core gates, and the Extended ones only in its profile"
+                + "facet gates of Default run beside the core gates in verify, and the Extended ones only in its "
+                + "profile, before verify, since a profile's verify executions would follow module-complete"
+        );
+    }
+
+    @Test
+    void endsEveryVerifyPhaseWithModuleCompletion() {
+        List<String> verify = Stream.of(
+            ProjectFiles.rootPom(), ProjectFiles.parentPom(), ProjectFiles.javaParentPom(),
+            ProjectFiles.parentPom().resolveSibling("../airness-parent-spring-boot/pom.xml").normalize(),
+            ProjectFiles.nodeParentPom()
+        ).flatMap(pom -> ProjectFiles.descendants(ProjectFiles.document(pom), "execution"))
+            .filter(execution -> Xml.text(execution, "phase").map("verify"::equals).orElse(false))
+            .map(ParentPlacementTest::idAtPhase)
+            .toList();
+        assertEquals(
+            List.of(
+                "release:sign-artifacts@verify", "node-gate-types@verify", "node-gate-biome@verify",
+                "node-gate-oxlint@verify", "node-gate-eslint@verify", "node-gate-source-rules@verify",
+                "node-gate-config-refs@verify", "node-gate-javascript-allowlist@verify", "node-gate-css@verify",
+                "node-gate-tailwind-tokens@verify", "node-gate-arch@verify", "node-gate-type-coverage@verify",
+                "node-gate-knip@verify", "node-gate-tests@verify", "node-gate-install-scripts@verify",
+                "node-gate-release-age@verify", "airness-coverage-evidence@verify", "airness-governance@verify",
+                "airness-artifact@verify", "airness-module-complete@verify", "airness-coverage-report@verify",
+                "airness-coverage-check@verify"
+            ),
+            verify,
+            "a profile's and a child parent's airness executions in verify run after every one the generic build "
+                + "binds, so only that build binds the plugin in verify, ending with module-complete; the JaCoCo "
+                + "plugin precedes it, and signing alone may follow it"
         );
     }
 

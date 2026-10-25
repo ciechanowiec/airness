@@ -398,8 +398,15 @@
                             <id>airness-integration-tests</id>
                             <goals><goal>integration-test</goal></goals>
                         </execution>
+                        <!--
+                            At post-integration-test rather than verify: Maven orders a plugin a project declares after
+                            the airness-maven-plugin its parents bind, so in verify this would follow module-complete.
+                            A project that binds teardown to post-integration-test declares that plugin before
+                            failsafe, so the teardown runs before a failed integration test fails the build.
+                        -->
                         <execution>
                             <id>airness-integration-verify</id>
+                            <phase>post-integration-test</phase>
                             <goals><goal>verify</goal></goals>
                         </execution>
                     </executions>
@@ -708,6 +715,41 @@
                             <includedLicense>Public Domain</includedLicense>
                             <includedLicense>Bouncy Castle Licence</includedLicense>
                             <includedLicense>JDOM License</includedLicense>
+                            <!--
+                                The permissive software licenses npm packages declare that no Maven artifact this
+                                list was first written for did, admitted on the same terms: each grants use,
+                                modification and redistribution without reaching the code that depends on it. The
+                                npm packages of every node project answer to this one list, matched by their SPDX
+                                identifiers only. PSF-2.0 and Python-2.0 are one set of terms under two names, which
+                                argparse, reached through js-yaml in nearly every tree, has shipped under both. X11
+                                is the MIT terms under another identifier. Unlicense is an OSI-approved dedication
+                                with a permissive fallback grant. Artistic-2.0 conditions only a modified version of
+                                the package itself, which must be renamed, not the code that depends on it.
+
+                                The two CC-BY licenses are not software licenses. They stay only because the npm
+                                closure of the harness itself carries two data packages under them, caniuse-lite
+                                through eslint-plugin-unicorn and spdx-exceptions through eslint-plugin-jsdoc, so
+                                without them every node project fails this list; each obliges attribution, which
+                                the compliance report gives. Fonts and joke licenses are not admitted.
+                            -->
+                            <includedLicense>AFL-2.1</includedLicense>
+                            <includedLicense>AFL-3.0</includedLicense>
+                            <includedLicense>Artistic-2.0</includedLicense>
+                            <includedLicense>BlueOak-1.0.0</includedLicense>
+                            <includedLicense>BSL-1.0</includedLicense>
+                            <includedLicense>CC-BY-3.0</includedLicense>
+                            <includedLicense>CC-BY-4.0</includedLicense>
+                            <includedLicense>MulanPSL-2.0</includedLicense>
+                            <includedLicense>NCSA</includedLicense>
+                            <includedLicense>PostgreSQL</includedLicense>
+                            <includedLicense>PSF-2.0</includedLicense>
+                            <includedLicense>Python-2.0</includedLicense>
+                            <includedLicense>Unicode-DFS-2016</includedLicense>
+                            <includedLicense>Unlicense</includedLicense>
+                            <includedLicense>UPL-1.0</includedLicense>
+                            <includedLicense>W3C</includedLicense>
+                            <includedLicense>X11</includedLicense>
+                            <includedLicense>Zlib</includedLicense>
                         </includedLicenses>
                         <licenseMerges>
                             <licenseMerge>HTMLTIDY|Java HTML Tidy License|HTML Tidy License</licenseMerge>
@@ -716,14 +758,14 @@
                             <licenseMerge>MIT-0|MIT No Attribution</licenseMerge>
                             <licenseMerge>0BSD|BSD-0-Clause|BSD Zero Clause License|Zero-Clause BSD</licenseMerge>
                             <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License|BSD 2-Clause License|Simplified BSD License</licenseMerge>
-                            <licenseMerge>BSD-3-Clause|BSD 3-Clause|BSD-3-Clause License|The 3-Clause BSD License|New BSD License|BSD|EDL 1.0|Eclipse Distribution License - v 1.0|BSD 3-clause New License|The BSD 3-Clause License|The BSD 3-Clause License (BSD3)|3-Clause BSD License|Revised BSD|Modified BSD|BSD New|BSD New license|BSD 3-clause|BSD License 3|BSD Licence 3|The BSD3 License|The BSD License|BSD License|BSD License 2.0|BSD-style|BSD style|Plexus|The New BSD License|The (New) BSD License|New BSD license|BSD licence|Eclipse Distribution License (New BSD License)</licenseMerge>
+                            <licenseMerge>BSD-3-Clause|BSD 3-Clause|BSD-3-Clause License|The 3-Clause BSD License|New BSD License|BSD|EDL 1.0|Eclipse Distribution License - v 1.0|BSD 3-clause New License|The BSD 3-Clause License|The BSD 3-Clause License (BSD3)|3-Clause BSD License|Revised BSD|Modified BSD|BSD New|BSD New license|BSD 3-clause|BSD License 3|BSD Licence 3|The BSD3 License|The BSD License|BSD License|BSD License 2.0|BSD-style|BSD style|Plexus|The New BSD License|The (New) BSD License|New BSD license|BSD licence|Eclipse Distribution License (New BSD License)|EDL-1.0</licenseMerge>
                             <licenseMerge>CPL-1.0|Common Public License Version 1.0|Common Public 1.0</licenseMerge>
                             <licenseMerge>EPL-1.0|Eclipse Public License v1.0|Eclipse Public License - v 1.0|Eclipse Public License, Version 1.0|EPL|Eclipse Public License 1.0|Eclipse Public License - Version 1.0|EPL 1.0|Eclipse Public License</licenseMerge>
                             <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0|EPL 2.0|Eclipse Public License 2.0|Eclipse Public License v. 2.0|Eclipse Public License - Version 2.0|Eclipse Public License (EPL) 2.0|EPLv2</licenseMerge>
                             <licenseMerge>MPL-1.1|MPL 1.1|Mozilla Public License Version 1.1|Mozilla Public License, Version 1.1|Mozilla Public License version 1.1|Mozilla Public License 1.1 (MPL 1.1)</licenseMerge>
                             <licenseMerge>MPL-2.0|MPL 2.0|Mozilla Public License Version 2.0|Mozilla Public License, Version 2.0|Mozilla Public License 2.0</licenseMerge>
                             <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1|GNU Lesser General Public License|GNU Lesser General Public License, Version 2.1, February 1999|LGPL-2.1-only|LGPL-2.1-or-later|LGPL 2.1|LGPL, version 2.1|GNU Lesser General Public License v2.1 or later|GNU Lesser General Public License (LGPL), version 2.1 or later|GNU Library General Public License v2.1 or later|GNU Lesser General Public License version 2.1 (LGPLv2.1)|GNU Lesser General Public License Version 2.1|GNU Lesser General Public Licence|LGPL-2.1+|GNU Lesser General Public License v2.1 only|LGPL, v2.1 or later|Gnu Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE</licenseMerge>
-                            <licenseMerge>LGPL-3.0|LGPL (GNU Lesser General Public License)|The GNU Lesser General Public License, Version 3.0|GNU Lesser General Public License version 3|Lesser General Public License, version 3 or greater|Lesser General Public License (LGPL) v 3.0|GNU Lesser General Public License v3.0 or later</licenseMerge>
+                            <licenseMerge>LGPL-3.0|LGPL-3.0-only|LGPL-3.0-or-later|LGPL (GNU Lesser General Public License)|The GNU Lesser General Public License, Version 3.0|GNU Lesser General Public License version 3|Lesser General Public License, version 3 or greater|Lesser General Public License (LGPL) v 3.0|GNU Lesser General Public License v3.0 or later</licenseMerge>
                             <licenseMerge>CDDL-1.0|CDDL 1.0|COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.0|CDDL, v1.0|CDDL License|Common Development and Distribution License (CDDL) v1.0</licenseMerge>
                             <licenseMerge>CDDL-1.1|CDDL 1.1|CDDL + GPLv2 with classpath exception|CDDL+GPL License|Dual license consisting of the CDDL v1.1 and GPL v2</licenseMerge>
                             <licenseMerge>GPL-2.0-with-classpath-exception|GPL2 w/ CPE|GNU General Public License, version 2 with the GNU Classpath Exception|The GNU General Public License (GPL), Version 2, With Classpath Exception|GNU General Public License (GPL), version 2, with the Classpath exception|GNU General Public License, version 2 (GPL2), with the classpath exception|GPLv2+CE|CDDL/GPLv2+CE</licenseMerge>
@@ -1098,9 +1140,13 @@
                             </rules>
                         </configuration>
                     </execution>
+                    <!--
+                        After package wrote the SBOM, and before verify, which ends with module-complete in every
+                        module an Airness parent governs.
+                    -->
                     <execution>
                         <id>airness-sbom-output</id>
-                        <phase>verify</phase>
+                        <phase>post-integration-test</phase>
                         <goals>
                             <goal>enforce</goal>
                         </goals>
@@ -1481,7 +1527,8 @@
                         <executions>
                             <execution>
                                 <id>airness-release-coordinates</id>
-                                <phase>verify</phase>
+                                <!-- Before verify, which module-complete ends. -->
+                                <phase>post-integration-test</phase>
                                 <goals>
                                     <goal>enforce</goal>
                                 </goals>
@@ -1537,6 +1584,11 @@
                             </gpgArguments>
                         </configuration>
                         <executions>
+                            <!--
+                                In verify, once every phase that can attach an artifact has run. In a module an
+                                Airness parent governs it follows module-complete, the one execution completion-order
+                                lets follow it: it reads the archives the verdict covers and writes their signatures.
+                            -->
                             <execution>
                                 <id>sign-artifacts</id>
                                 <phase>verify</phase>

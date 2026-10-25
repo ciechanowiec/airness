@@ -4,6 +4,7 @@ import eu.ciechanowiec.airness.governance.ContainerFreshnessCheck;
 import eu.ciechanowiec.airness.governance.DependencyFreshnessCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.util.List;
+import java.util.stream.Stream;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
@@ -16,6 +17,10 @@ import org.apache.maven.plugins.annotations.Mojo;
  * instead of limiting the verdict to coordinates active in the effective model. It reports every
  * stable update, fails only Maven coordinates at the major-version bound, and reports container updates
  * without a failure threshold. It fails rather than passes when a registry cannot be read.
+ *
+ * <p>In a build that declares a node project, the Node and pnpm the harness pins answer to the same bound,
+ * read from the Node release index and the npm registry. The npm packages themselves are judged per module by
+ * {@code npm-dependencies}, once each module has written its inventory.
  */
 @Mojo(name = "dependency-freshness", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
@@ -35,7 +40,26 @@ public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
             VersionImages.from(this.session())
         );
         this.reportContainers(containers);
-        return dependencies.findings();
+        return Stream.concat(dependencies.findings().stream(), this.toolchain().stream()).toList();
+    }
+
+    // The Node and pnpm the harness pins, in a build that declares a node project and so installs them.
+    private List<Findings> toolchain() {
+        boolean node = this.session().getProjects().stream().anyMatch(project -> !NpmEvidence.of(project).isEmpty());
+        if (!node) {
+            return List.of();
+        }
+        NpmFreshness check = NodeToolchain.pinned().freshness(
+            NpmRegistries.NODE_RELEASES, NpmRegistries.of(this.repositoryRoot(), System.getenv())
+        );
+        this.getLog().info("Version checking asked the Node release index and the npm registry about the toolchain");
+        if (check.updates().isEmpty()) {
+            this.getLog().info("The pinned Node and pnpm are current");
+        } else {
+            this.getLog().info("The following stable toolchain updates are available:");
+            check.updates().forEach(update -> this.getLog().info("  " + update.report()));
+        }
+        return check.findings();
     }
 
     @Override

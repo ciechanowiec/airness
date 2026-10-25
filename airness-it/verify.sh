@@ -126,6 +126,9 @@ case "${selected_domain}" in
         # lane returned. Two leave the runner subscribed rather than oversubscribed, and leave a
         # workstation running this a processor to answer its owner with.
         ensure_consumer_template
+        # Started here, in the shell that outlives both lanes, so neither lane's end stops the server the other
+        # still installs from.
+        start_airness_node_registry
         start_lane spring run_spring_cases run_container_cases run_maven_cases
         start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases \
             run_analysis_cases run_template_message_cases run_web_accessibility_cases run_template_cases \

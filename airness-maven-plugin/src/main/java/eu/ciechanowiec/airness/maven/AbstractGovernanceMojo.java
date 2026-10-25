@@ -67,11 +67,22 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
         return true;
     }
 
+    /**
+     * What makes this goal's verdict meaningless, which no report-only setting excuses: a problem with the
+     * harness itself rather than a finding about the code.
+     *
+     * @return the problems, one sentence each, empty unless a subclass has some
+     */
+    List<String> refusals() {
+        return List.of();
+    }
+
     @Override
     public final void execute() throws MojoFailureException {
         if (this.skip) {
             this.getLog().info("Skipping Airness because skipTests is true");
         } else if (this.applies()) {
+            this.refuse(this.refusals());
             this.report(this.findings());
         } else {
             this.getLog().debug("Nothing for this goal to read here");
@@ -226,6 +237,16 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
             return paths.anyMatch(path -> Files.isRegularFile(path) && path.toString().endsWith(".java"));
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not inspect sources under " + root, exception);
+        }
+    }
+
+    private void refuse(Collection<String> refusals) throws MojoFailureException {
+        refusals.forEach(refusal -> this.getLog().error(refusal));
+        if (!refusals.isEmpty()) {
+            throw new MojoFailureException(
+                refusals.size() + " problem(s) with the harness itself, each printed above, which airness.enforce"
+                    + " does not excuse"
+            );
         }
     }
 

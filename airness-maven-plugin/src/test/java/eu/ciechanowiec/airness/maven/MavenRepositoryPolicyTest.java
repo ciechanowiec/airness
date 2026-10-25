@@ -29,6 +29,7 @@ class MavenRepositoryPolicyTest {
 
     private static final String SETTINGS = ".mvn/settings.xml";
     private static final String CONFIGURATION = ".mvn/maven.config";
+    private static final String JVM = ".mvn/jvm.config";
     private static final String CENTRAL = "https://repo.maven.apache.org/maven2/";
 
     @TempDir
@@ -45,7 +46,7 @@ class MavenRepositoryPolicyTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {CONFIGURATION, SETTINGS})
+    @ValueSource(strings = {CONFIGURATION, JVM, SETTINGS})
     @SneakyThrows
     void rejectsMissingStartupFiles(String path) {
         Files.delete(this.directory.resolve(path));
@@ -54,7 +55,7 @@ class MavenRepositoryPolicyTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {CONFIGURATION, SETTINGS})
+    @ValueSource(strings = {CONFIGURATION, JVM, SETTINGS})
     @SneakyThrows
     void rejectsStartupFilesThatNoLongerMatchTheHarness(String path) {
         Files.writeString(this.directory.resolve(path), "changed\n");

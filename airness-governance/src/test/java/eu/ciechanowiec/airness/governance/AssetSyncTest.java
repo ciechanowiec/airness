@@ -108,6 +108,23 @@ class AssetSyncTest {
     }
 
     @Test
+    void namesThePinnedFilesItPlacesButNotThoseTakenOver() {
+        Path root = new GitFixture("sync-pinned").write("README.md", "content\n").root();
+        AssetCatalogue catalogue = new AssetFixture(this.shipped, MANIFEST)
+            .ship(EDITORCONFIG, CANONICAL).ship(GUIDE, "guide\n").ship(GITIGNORE, SEEDED).catalogue();
+        assertEquals(
+            List.of(EDITORCONFIG, GUIDE),
+            new AssetSync(root, catalogue, List.of(), List.of(AssetSite.root(Set.of()))).pinned(),
+            "a seed belongs to the project once written, so only pinned files are named"
+        );
+        assertEquals(
+            List.of(GUIDE),
+            new AssetSync(root, catalogue, List.of(EDITORCONFIG), List.of(AssetSite.root(Set.of()))).pinned(),
+            "a pinned file the project took over is its own"
+        );
+    }
+
+    @Test
     void skipsWhatTheProjectHasTakenOver() {
         Path root = new GitFixture("sync-optout").write(EDITORCONFIG, "root = false\n").root();
         assertEquals(

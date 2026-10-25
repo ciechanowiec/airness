@@ -1,15 +1,21 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.DeclaredCoordinate;
+import eu.ciechanowiec.airness.governance.OwnedCoordinate;
+import eu.ciechanowiec.airness.governance.ReportPackage;
+import eu.ciechanowiec.airness.governance.VersionUpdate;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 /**
  * The Node and pnpm one Airness release pins, for the machine running the build.
@@ -28,6 +34,11 @@ record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Properties pins) {
     private static final String RESOURCE = "/eu/ciechanowiec/airness/node/toolchain.properties";
     private static final String NODE = "node";
     private static final String PNPM = "pnpm";
+    private static final String VERSION = "version";
+    private static final String OWNER = "Airness toolchain pins";
+    private static final String NODE_INDEX = "nodejs.org";
+    private static final int LTS_BOUND = 2;
+    private static final String PNPM_PACKAGE = "%40pnpm/exe.";
     private static final Map<String, String> SYSTEMS = Map.of("mac os x", "darwin", "linux", "linux");
     private static final Map<String, String> ARCHITECTURES = Map.of(
         "aarch64", "arm64", "arm64", "arm64", "amd64", "x64", "x86_64", "x64"
@@ -104,6 +115,98 @@ record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Properties pins) {
      */
     String description() {
         return "Node " + this.pin(NODE, "version") + " and pnpm " + this.pin(PNPM, "version");
+    }
+
+    /**
+     * The pinned Node and pnpm as the build tools the compliance report lists, each named by a package address
+     * that carries the SHA-256 of the archive this platform installs.
+     *
+     * @param module the module whose node projects they ran in
+     * @return Node, then pnpm
+     */
+    List<ReportPackage> packages(String module) {
+        return Stream.of(
+            this.tool("pkg:generic/node@" + this.pin(NODE, VERSION), this.node, NODE),
+            this.tool("pkg:npm/" + PNPM_PACKAGE + this.pnpmPlatform() + '@' + this.pin(PNPM, VERSION), this.pnpm, PNPM)
+        ).map(
+            entry -> new ReportPackage(
+                entry.getKey(), List.of(entry.getValue()), List.of(NpmReportInputs.tool(module)), Map.of()
+            )
+        ).toList();
+    }
+
+    /**
+     * The pinned versions, as the declarations the freshness bound holds against the latest releases: Node as
+     * the Node release index lists its long-term-support releases, and pnpm as the npm registry lists its
+     * native executable.
+     *
+     * @return Node, then pnpm
+     */
+    List<OwnedCoordinate> declarations() {
+        return List.of(
+            new OwnedCoordinate(OWNER, new DeclaredCoordinate(NODE_INDEX, NODE, this.pin(NODE, VERSION))),
+            new OwnedCoordinate(OWNER, new DeclaredCoordinate("npm", "@pnpm/exe", this.pin(PNPM, VERSION)))
+        );
+    }
+
+    /**
+     * The freshness of the pins: Node against its long-term-support releases, and pnpm against the npm registry.
+     *
+     * @param index    the Node release index
+     * @param registry the npm registries, which list pnpm's native executable
+     * @return the result of both
+     */
+    NpmFreshness freshness(String index, NpmRegistries registry) {
+        List<OwnedCoordinate> declared = this.declarations();
+        NpmFreshness runtime = NpmFreshness.of(
+            List.of(declared.getFirst()), _ -> registry.nodeLongTermReleases(index), NodeToolchain::longTermTrailing
+        );
+        NpmFreshness manager = NpmFreshness.of(
+            List.of(declared.getLast()), pin -> registry.versions(pin.coordinate().artifactId())
+        );
+        return new NpmFreshness(
+            runtime.scanned() + manager.scanned(), concat(runtime.updates(), manager.updates()),
+            concat(runtime.trailing(), manager.trailing()), concat(runtime.unread(), manager.unread())
+        );
+    }
+
+    /**
+     * The Node bound, counted in long-term-support lines: the pin fails once two newer lines than its own exist.
+     * Node publishes a major every six months and only the even ones become long-term-support releases, so a
+     * bound of two majors would fail every consumer a year after a release, on a pin no consumer can change.
+     *
+     * @param update the pinned version and the newest long-term-support release
+     * @return the violation, or nothing within the bound
+     */
+    static Optional<String> longTermTrailing(VersionUpdate update) {
+        int pinned = major(update.declared().coordinate().version());
+        int latest = major(update.latest());
+        int lines = (latest - pinned + 1) / 2;
+        return Optional.of(lines).filter(behind -> behind >= LTS_BOUND).map(
+            behind -> "[%s] node %s is %d long-term-support lines behind %s".formatted(
+                update.declared().owner(), update.declared().coordinate().version(), behind, update.latest()
+            )
+        );
+    }
+
+    private static int major(String version) {
+        return Integer.parseInt(
+            version.substring(0, version.indexOf('.') < 0 ? version.length() : version.indexOf('.'))
+        );
+    }
+
+    private static <T> List<T> concat(List<T> first, List<T> second) {
+        return Stream.concat(first.stream(), second.stream()).toList();
+    }
+
+    private Map.Entry<String, String> tool(String purl, PinnedArchive archive, String tool) {
+        return Map.entry(purl + "?checksum=sha256:" + archive.sha256(), this.pin(tool, "license"));
+    }
+
+    private String pnpmPlatform() {
+        String name = this.pnpm.name();
+        String prefix = PNPM + '-' + this.pin(PNPM, VERSION) + '-';
+        return name.substring(prefix.length());
     }
 
     private String pin(String tool, String key) {

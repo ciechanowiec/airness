@@ -107,6 +107,17 @@ public final class DependencyFreshnessCheck {
         );
     }
 
+    /**
+     * Whether one update trails by the failing bound, for a caller that reads versions from a registry this
+     * check does not: the npm registry or the Node release index. One bound holds for every ecosystem.
+     *
+     * @param update the declared version and the latest stable one
+     * @return the violation, or nothing when the declaration is within the bound
+     */
+    public static Optional<String> trailing(VersionUpdate update) {
+        return DependencyFreshnessRules.violation(update);
+    }
+
     private static Optional<String> refusedNote(VersionUpdate update) {
         DeclaredCoordinate declared = update.declared().coordinate();
         DeclaredCoordinate newest = new DeclaredCoordinate(declared.groupId(), declared.artifactId(), update.latest());

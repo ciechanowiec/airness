@@ -234,6 +234,7 @@
                             <goal>assets-check</goal>
                             <goal>editorconfig-excludes</goal>
                             <goal>build-inputs</goal>
+                            <goal>completion-order</goal>
                         </goals>
                     </execution>
                     <!--
@@ -322,6 +323,19 @@
                             <goal>blocklist</goal>
                         </goals>
                     </execution>
+                    <!--
+                        The license allowlist above and the freshness bound below, over the npm packages of every
+                        declared node project, read from the inventory node-gate-npm-inventory wrote at
+                        prepare-package. A node project that left no inventory fails here rather than passing as
+                        empty. Per module rather than once, because each module writes its own inventory.
+                    -->
+                    <execution>
+                        <id>airness-npm-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>npm-dependencies</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>airness-version-check</id>
                         <phase>package</phase>
@@ -352,7 +366,6 @@
                         <goals>
                             <goal>typography</goal>
                             <goal>entry-files</goal>
-                            <goal>suppression-budget</goal>
                             <goal>image-assets</goal>
                             <goal>environment</goal>
                             <goal>docs</goal>
@@ -364,8 +377,10 @@
                         The node gates, one execution per gate, each run by node-gate in every declared node project
                         through the harness's pnpm as pnpm exec airness-node gate <id>, from the @airness/node the
                         project installed. A module that declares no node project runs none. They are bound in
-                        verify, after the module's own build, and ahead of the tree check below, so that check reads
-                        whatever the analyzers and the suite left behind. wiring runs earlier, at prepare-package.
+                        verify, after the module's own build, its integration tests and any teardown a project
+                        binds to post-integration-test, and ahead of the tree check and module-complete below, which
+                        this build binds last. wiring runs earlier, at prepare-package. The extended profile's gates
+                        cannot be bound here: a profile's verify executions merge after module-complete.
                     -->
                     <execution>
                         <id>node-gate-types</id>
@@ -582,6 +597,21 @@
                             <goal>artifact-content</goal>
                         </goals>
                     </execution>
+                    <!--
+                        The last execution of every module. It refuses the build when Maven planned anything after
+                        it, records the module as complete, and in whichever module completes the set runs the
+                        closing step once: the final tree comparison against the tree the first module saw, the
+                        suppression ceiling across the repository, and under the extended profile the one SBOM and
+                        compliance report for every module. Everything a profile, a child parent or a project adds
+                        belongs in an earlier phase; completion-order refuses a verify execution a project declares.
+                    -->
+                    <execution>
+                        <id>airness-module-complete</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>module-complete</goal>
+                        </goals>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
@@ -714,11 +744,6 @@
                                 </goals>
                             </execution>
                             <execution>
-                                <id>airness-compliance-report</id>
-                                <phase>verify</phase>
-                                <goals><goal>compliance-report-collect</goal></goals>
-                            </execution>
-                            <execution>
                                 <id>airness-governance-extended</id>
                                 <phase>package</phase>
                                 <goals>
@@ -744,8 +769,11 @@
                                 package beside the Default inventory, so the package-phase policies and the closing
                                 step can read it. Then the Next.js facet's production build and client bundle
                                 budget, and the browser-application facet's end-to-end suite, in that order, since
-                                the suite serves the build. Each reads as not applicable in a node project without
-                                its facet.
+                                the suite serves the build, at post-integration-test: a profile's verify executions
+                                merge after module-complete, which closes the build. They therefore run before the
+                                Default gates, and before any teardown a project binds to the same phase, so a
+                                failing one skips that teardown. Each reads as not applicable in a node project
+                                without its facet.
                             -->
                             <execution>
                                 <id>node-gate-npm-sbom</id>
@@ -760,7 +788,7 @@
                             </execution>
                             <execution>
                                 <id>node-gate-build</id>
-                                <phase>verify</phase>
+                                <phase>post-integration-test</phase>
                                 <goals>
                                     <goal>node-gate</goal>
                                 </goals>
@@ -771,7 +799,7 @@
                             </execution>
                             <execution>
                                 <id>node-gate-bundle</id>
-                                <phase>verify</phase>
+                                <phase>post-integration-test</phase>
                                 <goals>
                                     <goal>node-gate</goal>
                                 </goals>
@@ -782,7 +810,7 @@
                             </execution>
                             <execution>
                                 <id>node-gate-e2e</id>
-                                <phase>verify</phase>
+                                <phase>post-integration-test</phase>
                                 <goals>
                                     <goal>node-gate</goal>
                                 </goals>
@@ -809,9 +837,10 @@
                         <groupId>eu.ciechanowiec</groupId>
                         <artifactId>airness-maven-plugin</artifactId>
                         <executions>
+                            <!-- Before verify, which ends with module-complete; any phase after package reads the archive. -->
                             <execution>
                                 <id>airness-publication</id>
-                                <phase>verify</phase>
+                                <phase>post-integration-test</phase>
                                 <goals>
                                     <goal>publication-metadata</goal>
                                     <goal>publication-content</goal>

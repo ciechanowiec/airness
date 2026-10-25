@@ -43,7 +43,7 @@ public final class TreeVerifyMojo extends AbstractGovernanceMojo {
     }
 
     private boolean formatProfile() {
-        return this.project().getActiveProfiles().stream().anyMatch(profile -> "format".equals(profile.getId()));
+        return ReportProjects.active(this.project(), "format");
     }
 
     private String scope() {

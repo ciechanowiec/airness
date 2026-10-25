@@ -59,12 +59,21 @@ run_maven_cases() {
     expect_match lifecycle_clean 'lifecycle: software refused by name is checked before the version check' \
         'airness:[^ ]+:blocklist \(airness-blocklist\)'
 
+    expect_before lifecycle_clean 'lifecycle: module completion follows the tree check, the last of verify' \
+        '--- airness:[^ ]+:tree-verify [(]airness-governance[)]' \
+        '--- airness:[^ ]+:module-complete [(]airness-module-complete[)]'
+    expect_count lifecycle_clean 'lifecycle: closing runs once every module has completed' \
+        'Every module of this build is complete; closing runs here' 1
+    expect_match lifecycle_clean 'lifecycle: closing weighs the whole repository against one suppression ceiling' \
+        'Suppressions in force: 0 of 5 allowed'
+
     if [ ! -e "${maven_consumer}/target/compliance" ]; then
         pass 'compliance: Default verification produces no report pair'
     else
         fail 'compliance: Default verification produces no report pair'
     fi
 
+    run_completion_order_case
     run_blocklist_boundaries
     run_license_alias_case
     run_license_metadata_cases
@@ -73,6 +82,42 @@ run_maven_cases() {
     run_repository_routing_cases
     run_plugin_vulnerability_cases
     run_managed_plugin_cases
+}
+
+# A gate bound or named after module-complete would run after the closing step judged the build, so the module
+# is refused at validate, before anything runs: a verify execution the project declares, and a node gate named on
+# the command line after verify, which Maven would run after the whole lifecycle.
+run_completion_order_case() {
+    new_consumer completion-order
+    completion_consumer="${consumer_directory}"
+    completion_plugins="$(cat <<'XML'
+    <build><plugins>
+        <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+                <execution>
+                    <id>late-step</id>
+                    <phase>verify</phase>
+                    <goals><goal>maven-version</goal></goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins></build>
+XML
+)"
+    COMPLETION_PLUGINS="${completion_plugins}" perl -0pi -e \
+        's{</project>}{$ENV{COMPLETION_PLUGINS}."\n</project>"}e' "${completion_consumer}/pom.xml"
+    run_maven completion_late maven "${completion_consumer}" verify airness:node-gate@node-gate-types
+    expect_exit completion_late 'closing: a gate bound or named after module completion fails the build' 1
+    expect_match completion_late 'closing: a node gate named after verify is refused before it runs' \
+        'node-gate [(]node-gate-types[)] runs after airness:module-complete'
+    expect_match completion_late 'closing: the refusal names the invocation that runs the goal instead' \
+        'mvn airness:node-gate@node-gate-types verify[)], or run it in an invocation of its own'
+    expect_match completion_late 'closing: a verify execution the project declares is refused' \
+        'build-helper-maven-plugin:maven-version [(]late-step[)] is a verify execution the project declares'
+    expect_no_match completion_late 'closing: the refusal comes at validate, before any test runs' \
+        'surefire:[^ ]+:test '
 }
 
 # The licence check reads what a pom says about itself, and none of these five says anything: the

@@ -36,7 +36,9 @@ record MavenRepositoryPolicy(
     private static final String SETTINGS = ".mvn/settings.xml";
     private static final String CENTRAL = "https://repo.maven.apache.org/maven2/";
     private static final String MIRROR = "airness-central";
-    private static final List<String> FILES = List.of(".mvn/maven.config", SETTINGS);
+    // The JVM options file too: a -D option there becomes a system property that Maven's expressions read ahead of
+    // the project's own properties, so a committed one could set skipTests or airness.enforce for every build.
+    private static final List<String> FILES = List.of(".mvn/maven.config", ".mvn/jvm.config", SETTINGS);
 
     List<String> problems() {
         return Stream.of(this.files(), this.settings(), this.mirrors(), this.routing())

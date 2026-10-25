@@ -119,12 +119,11 @@ class ReportGraphTest {
     }
 
     @Test
-    void selectsCompletedSelfBuildModulesWithoutPublishingAtTheRoot() {
+    void requiresEveryModuleButTheSelfBuildRoot() {
         MavenProject root = project("airness");
         MavenProject first = project("airness-governance");
         MavenProject owner = project("airness-parent");
-        assertEquals(List.of(first, owner), ReportProjects.ready(List.of(root, first), owner, true));
-        assertEquals(List.of(owner), ReportProjects.ready(List.of(first), owner, false));
+        assertEquals(List.of(first, owner), ReportProjects.required(List.of(root, first, owner)));
         assertEquals(first, ReportProjects.executed(first));
         assertTrue(ReportProjects.qualifications(false, "true").isEmpty());
         assertEquals(2, ReportProjects.qualifications(true, "false").size());
