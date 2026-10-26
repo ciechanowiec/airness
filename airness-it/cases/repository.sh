@@ -73,10 +73,14 @@ run_binary_formatting_boundary() {
         fi
     done
     printf 'Readable notes' > "${audio_consumer}/src/main/resources/notes.txt"
-    run_maven audio_text repository "${audio_consumer}" validate editorconfig:check
+    # A file a generator owns is written as the generator writes it, without the final newline the style asks for.
+    printf 'Generated notes' > "${audio_consumer}/src/main/resources/generated.txt"
+    run_maven audio_text repository "${audio_consumer}" validate editorconfig:check \
+        -Dairness.generated.files=src/main/resources/generated.txt
     expect_exit audio_text 'formatting: ordinary text still needs its final newline' 1
     expect_match audio_text 'formatting: the text file is the offending file' \
         'notes[.]txt.*insert_final_newline'
+    expect_no_match audio_text 'formatting: a generated file is left to its generator' 'generated[.]txt'
     expect_no_match audio_text 'formatting: binaries stay outside the text finding' \
         'silence[.]wav@|module[.]wasm@|font[.]pfb@|map[.]bcmap@|tone[.]mp3@|clip[.]mov@'
 }
