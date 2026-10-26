@@ -55,7 +55,9 @@ Airness governs all of the following domains:
   per stack, the lines below the blocks belong to the project, and each declared node project carries the node
   files in its own directory. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
-  rather than reported: build output and a tool's scratch are not content this style governs.
+  rather than reported: build output and a tool's scratch are not content this style governs. Neither is a file
+  a generator owns (one a stack layer, `airness.generated.files` or a node project's `airness.generatedArtefacts`
+  declares), which the editor configuration and the typography check leave unread.
   Ignored files selected as Java or resource inputs are different: Maven can consume them locally
   while a checkout omits them. The per-module `build-inputs` preflight rejects that mismatch at
   `validate`, `process-resources` and `process-test-resources`, using Maven's roots and file filters.
@@ -349,7 +351,7 @@ spends a ceiling the next repair will need.
 | `airness.package.root` | the prefix of every production and test package, and the only required key |
 | `airness.assets.unmanaged` | repository paths the project takes over from the harness |
 | `airness.node.projects` | the module's node project directories, comma-separated, and none unless set |
-| `airness.generated.files` | further repository paths a generator owns, comma-separated, denied to agents |
+| `airness.generated.files` | further repository paths a generator owns, comma-separated, denied to agents and skipped by the typography and `.editorconfig` checks |
 | `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them; generated files are skipped without it |
 | `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip, never all of them |
 | `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |

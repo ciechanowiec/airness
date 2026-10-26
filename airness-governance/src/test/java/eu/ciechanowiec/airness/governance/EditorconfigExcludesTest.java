@@ -64,14 +64,11 @@ class EditorconfigExcludesTest {
     }
 
     @Test
-    void escapesWhatAGlobWouldOtherwiseReadAsSyntax() {
-        // The brackets are escaped in the rule as well, because a character class is what they mean to
-        // git too, and an unescaped rule would ignore a directory called logso rather than this one.
+    void writesABracketInANameAsItIsBecauseTheLinterReadsItLiterally() {
+        // The brackets are escaped in the rule, because a character class is what they mean to git. The
+        // linter's patterns have no character class, and read a backslash as a path separator.
         Path root = ignoring("logs\\[old\\]/\n", "logs[old]/one.txt", "glob-syntax");
-        assertTrue(
-            patterns(root).contains("logs\\[old\\]"),
-            "a bracket in a name is part of the name rather than a character class"
-        );
+        assertTrue(patterns(root).contains("logs[old]"), "a bracket in a name is written as part of the name");
     }
 
     @Test
@@ -100,6 +97,53 @@ class EditorconfigExcludesTest {
     }
 
     @Test
+    void namesAFileAGeneratorOwnsAsThePathItIsRelativeToTheModule() {
+        Path root = generatedFixture("generated-file");
+        assertEquals(
+            List.of("src/payload-types.ts"), generated(root, "web", "web/src/payload-types.ts"),
+            "a generated file is left to its generator, named where the linter reads it"
+        );
+    }
+
+    @Test
+    void namesEveryFileABraceGlobMatchesBecauseTheLinterHasNoBraces() {
+        Path root = generatedFixture("generated-braces");
+        assertEquals(
+            List.of("src/payload-generated-schema.ts", "src/payload-types.ts"),
+            generated(root, "web", "web/src/{payload-types,payload-generated-schema}.ts"),
+            "each alternative is matched here and written as the path it matched"
+        );
+    }
+
+    @Test
+    void namesTheFilesAGlobOpeningWithAWildcardMatchesInASubmodule() {
+        Path root = generatedFixture("generated-wildcard-first");
+        assertEquals(
+            List.of("src/app/(payload)/admin/importMap.js"), generated(root, "web", "**/(payload)/**"),
+            "a glob naming no module still reaches the module whose files it matches"
+        );
+    }
+
+    @Test
+    void namesNoFileAGeneratorOwnsInAnotherModule() {
+        Path root = generatedFixture("generated-other-module");
+        assertTrue(
+            generated(root, "web", "other/src/gen.ts").isEmpty(),
+            "another module's generated file is not this module's"
+        );
+        assertEquals(
+            List.of("other/src/gen.ts"), generated(root, "", "other/src/gen.ts"),
+            "the root module names a generated file anywhere in the tree"
+        );
+    }
+
+    @Test
+    void namesNoFileAGeneratedGlobMatchesNothingOf() {
+        Path root = generatedFixture("generated-unmatched");
+        assertTrue(generated(root, "web", "web/src/absent.ts").isEmpty(), "a glob is passed on only as matches");
+    }
+
+    @Test
     void leavesTheTrackedFilesOfTheModuleUnnamed() {
         Path root = ignoring(IGNORING_A_DIRECTORY, "scratch/notes.txt", "tracked-untouched");
         assertFalse(patterns(root).contains(".gitignore"), "a file git carries is not one it ignores");
@@ -107,6 +151,21 @@ class EditorconfigExcludesTest {
 
     private static List<String> patterns(Path root) {
         return new EditorconfigExcludes(root, root).patterns();
+    }
+
+    private static List<String> generated(Path root, String module, String glob) {
+        return new EditorconfigExcludes(root, root.resolve(module), List.of(glob)).patterns();
+    }
+
+    private static Path generatedFixture(String fixture) {
+        return new GitFixture("editorconfig-" + fixture)
+            .write("web/src/payload-types.ts", "export {}")
+            .write("web/src/payload-generated-schema.ts", "export {}")
+            .write("web/src/app/(payload)/admin/importMap.js", "export {}")
+            .write("web/src/page.ts", "export {}\n")
+            .write("other/src/gen.ts", "export {}")
+            .commit("feat(core): add generated sources")
+            .root();
     }
 
     private static Path ignoring(String rules, String ignoredFile, String fixture) {

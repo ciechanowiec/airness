@@ -1,8 +1,11 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.io.File;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -24,27 +27,42 @@ import java.util.stream.Stream;
  *
  * <p>Whole ignored directories are asked for as directories, so a tree carrying a build output
  * directory or a dependency cache contributes two lines rather than one per file inside it.
+ *
+ * <p>The files a generator owns are excluded too, as the typography and source-rule checks leave them: a
+ * generator writes them as it writes them, without the final newline the style asks for, and the agent
+ * runtime may not edit them, so a finding there could not be repaired where it is reported. They arrive as
+ * repository-relative globs, which are matched here, as typography matches them, and passed on as the paths
+ * they match. Passing the globs on would not do: the linter reads Ant patterns, which have no brace
+ * alternatives, and a glob that opens with a wildcard names no module and so reaches none of them.
+ *
+ * <p>The linter's patterns know {@code *}, {@code ?} and {@code **} and nothing else, and they read a
+ * backslash as a path separator rather than as an escape. A path is therefore written as it is, save for a
+ * {@code *} or {@code ?} in a name, which only {@code ?} can stand for.
  */
 public final class EditorconfigExcludes {
 
     private static final String HEADER = """
         # Written by airness:editorconfig-excludes, and read by the file linter as patterns to skip.
         # Every line below is a path git is configured never to carry, asked of git rather than
-        # translated out of .gitignore, because a linter reads these as globs and gitignore is not one.
+        # translated out of .gitignore, because a linter reads these as globs and gitignore is not one,
+        # or a file a generator owns, matched from the globs the project declares generated.
         """;
 
     private static final String SEPARATOR = "/";
 
     private static final String EVERYTHING_BELOW = "/**";
 
-    // What a glob reads as syntax rather than as part of a name. A path is a name, so each of them is
-    // escaped: without this a directory called logs[old] would be read as a character class and would
-    // exclude something else, or nothing.
-    private static final String SYNTAX = "*?[]{}\\";
+    // What the linter's patterns read as a wildcard. Nothing escapes one, so a name holding either is
+    // written with the one-character wildcard in its place, which matches the name and its near twins.
+    private static final String WILDCARDS = "*?";
+
+    private static final char ANY_CHARACTER = '?';
 
     private final Path root;
 
     private final Path module;
+
+    private final List<String> generated;
 
     /**
      * Reads the ignored paths of one module out of the working tree that holds it.
@@ -53,8 +71,20 @@ public final class EditorconfigExcludes {
      * @param module the base directory of the module whose linter is being configured
      */
     public EditorconfigExcludes(Path root, Path module) {
+        this(root, module, List.of());
+    }
+
+    /**
+     * Reads the ignored paths of one module, and takes the files a generator owns.
+     *
+     * @param root      the working tree root, which is where git is asked
+     * @param module    the base directory of the module whose linter is being configured
+     * @param generated repository-relative globs of the files a generator owns
+     */
+    public EditorconfigExcludes(Path root, Path module, Collection<String> generated) {
         this.root = root;
         this.module = module;
+        this.generated = List.copyOf(generated);
     }
 
     /**
@@ -67,20 +97,36 @@ public final class EditorconfigExcludes {
     }
 
     /**
-     * The ignored paths of this module, as globs relative to the module rather than to the working
-     * tree, because that is what a linter matches them against.
+     * The ignored paths and the generated files of this module, as patterns relative to the module
+     * rather than to the working tree, because that is what a linter matches them against.
      *
-     * @return one or two globs per ignored path, sorted, without repetition
+     * @return one or two patterns per ignored path and one per generated file, sorted, without repetition
      */
     public List<String> patterns() {
         String prefix = this.modulePrefix();
-        return this.ignored().stream()
+        Stream<String> ignored = this.ignored().stream()
             .filter(entry -> entry.startsWith(prefix))
             .map(entry -> entry.substring(prefix.length()))
             .filter(entry -> !entry.isEmpty())
-            .flatMap(EditorconfigExcludes::globs)
-            .distinct()
-            .sorted()
+            .flatMap(EditorconfigExcludes::globs);
+        Stream<String> owned = this.owned().stream()
+            .map(file -> this.module.relativize(file).toString().replace(File.separatorChar, '/'))
+            .map(EditorconfigExcludes::literal);
+        return Stream.concat(ignored, owned).distinct().sorted().toList();
+    }
+
+    // The committable files below the module that a generated glob matches, each glob read against the
+    // path relative to the working tree root, which is what it is written relative to. Git is not asked
+    // at all when nothing is declared generated, which is the ordinary module.
+    private List<Path> owned() {
+        if (this.generated.isEmpty()) {
+            return List.of();
+        }
+        List<PathMatcher> matchers = this.generated.stream()
+            .map(glob -> FileSystems.getDefault().getPathMatcher("glob:" + glob))
+            .toList();
+        return Repository.committableFiles(this.module).orElseGet(List::of).stream()
+            .filter(file -> matchers.stream().anyMatch(matcher -> matcher.matches(this.root.relativize(file))))
             .toList();
     }
 
@@ -106,20 +152,15 @@ public final class EditorconfigExcludes {
     // as everything below it, because a glob that names a directory says nothing about its contents.
     private static Stream<String> globs(String entry) {
         String named = entry.endsWith(SEPARATOR) ? entry.substring(0, entry.length() - 1) : entry;
-        String escaped = escaped(named);
-        return entry.endsWith(SEPARATOR) ? Stream.of(escaped, escaped + EVERYTHING_BELOW) : Stream.of(escaped);
+        String literal = literal(named);
+        return entry.endsWith(SEPARATOR) ? Stream.of(literal, literal + EVERYTHING_BELOW) : Stream.of(literal);
     }
 
-    private static String escaped(String name) {
+    private static String literal(String name) {
         StringBuilder written = new StringBuilder(name.length());
-        name.chars().forEach(character -> escape(written, (char) character));
+        name.chars().forEach(
+            character -> written.append(WILDCARDS.indexOf(character) >= 0 ? ANY_CHARACTER : (char) character)
+        );
         return written.toString();
-    }
-
-    private static void escape(StringBuilder written, char character) {
-        if (SYNTAX.indexOf(character) >= 0) {
-            written.append('\\');
-        }
-        written.append(character);
     }
 }
