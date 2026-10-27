@@ -1,6 +1,8 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -8,6 +10,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.ciechanowiec.airness.governance.ComplianceReport;
 import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
 import eu.ciechanowiec.airness.governance.ReportSource;
+import eu.ciechanowiec.airness.governance.TreeFingerprint;
+import java.lang.reflect.Method;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -72,6 +77,39 @@ class ReportGenerationTest {
         assertThrows(
             IllegalStateException.class, () -> generation.write(List.of(module()), Optional.of("target/custom"))
         );
+    }
+
+    @Test
+    @SneakyThrows
+    void preservesTheFirstTreeAndReportIdentityAcrossPluginRealms() {
+        Path root = this.repository();
+        try (
+            URLClassLoader api = PluginRealm.api();
+            PluginRealm first = new PluginRealm(api);
+            PluginRealm second = new PluginRealm(api)
+        ) {
+            Object data = first.session();
+            first.method("snapshot", SessionData.class, Path.class, String.class)
+                .invoke(null, data, root, "first");
+            first.method("begin", SessionData.class, Path.class).invoke(null, data, root);
+            Object before = first.method("source", SessionData.class).invoke(null, data);
+            assertEquals(TreeFingerprint.from(root), before.getClass().getMethod("fingerprint").invoke(before));
+            Files.writeString(root.resolve("new-source.txt"), "changed between modules\n");
+            second.method("snapshot", SessionData.class, Path.class, String.class)
+                .invoke(null, data, root, "second");
+            second.method("begin", SessionData.class, Path.class).invoke(null, data, root);
+            assertFalse(
+                (Boolean) second.method("unchangedSinceStart", SessionData.class, Path.class)
+                    .invoke(null, data, root)
+            );
+            Object after = second.method("source", SessionData.class).invoke(null, data);
+            assertNotSame(before.getClass(), after.getClass());
+            for (String field : List.of("commit", "fingerprint", "generatedAt", "draftReasons")) {
+                Method readBefore = before.getClass().getMethod(field);
+                Method readAfter = after.getClass().getMethod(field);
+                assertEquals(readBefore.invoke(before), readAfter.invoke(after), field);
+            }
+        }
     }
 
     @Test

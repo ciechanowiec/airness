@@ -3,7 +3,6 @@ package eu.ciechanowiec.airness.maven;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
@@ -20,7 +19,7 @@ import org.eclipse.aether.SessionData;
 final class CompletionSession {
 
     private static final String KEY = CompletionSession.class.getName();
-    private static final Lock LOCK = new ReentrantLock();
+    private static final String CLOSED = "<closing claimed>";
 
     /**
      * Records one module as complete.
@@ -31,25 +30,20 @@ final class CompletionSession {
      * @return whether this record completed the set, which happens once per session
      */
     static boolean complete(SessionData data, String module, Collection<String> awaited) {
-        LOCK.lock();
+        Lock lock = SessionLock.of(data);
+        lock.lock();
         try {
-            Completion held = data.get(KEY) instanceof Completion stored ? stored : new Completion(Set.of(), false);
-            Set<String> completed = Stream.concat(held.completed().stream(), Stream.of(module))
+            Set<String> held = data.get(KEY) instanceof Set<?> stored
+                ? stored.stream().map(String.class::cast).collect(Collectors.toUnmodifiableSet()) : Set.of();
+            Set<String> completed = Stream.concat(held.stream(), Stream.of(module))
                 .collect(Collectors.toUnmodifiableSet());
-            boolean closes = !held.closed() && completed.containsAll(awaited);
-            data.set(KEY, new Completion(completed, held.closed() || closes));
+            boolean closes = !held.contains(CLOSED) && completed.containsAll(awaited);
+            Set<String> update = Stream.concat(completed.stream(), closes ? Stream.of(CLOSED) : Stream.empty())
+                .collect(Collectors.toUnmodifiableSet());
+            data.set(KEY, update);
             return closes;
         } finally {
-            LOCK.unlock();
+            lock.unlock();
         }
-    }
-
-    /**
-     * One immutable session state.
-     *
-     * @param completed the modules that recorded completion
-     * @param closed    whether closing has been claimed
-     */
-    private record Completion(Set<String> completed, boolean closed) {
     }
 }
