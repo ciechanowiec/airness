@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.SequencedMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.maven.project.MavenProject;
@@ -21,26 +20,7 @@ import org.apache.maven.project.MavenProject;
  *
  * @param versions each package's expected version, in the order its parent was found
  */
-record HarnessVersions(SequencedMap<String, String> versions) {
-
-    /**
-     * The environment variable a node gate reads the versions from.
-     */
-    static final String VARIABLE = "AIRNESS_HARNESS_VERSIONS";
-
-    /**
-     * The environment variable a node gate reads the module's own version from. A harness package's own
-     * repository, such as ploaness-node, which inherits {@code airness-parent-node}, releases the package at
-     * that version, and no parent in its chain names it.
-     */
-    static final String MODULE_VARIABLE = "AIRNESS_MODULE_VERSION";
-
-    /**
-     * The environment variable a node gate reads the module's own identity from, as {@code groupId:artifactId}.
-     * Only the module that builds a harness package may name its node project after it and link it to itself.
-     * the mapping lives in airness-node's {@code harness-packages.ts}.
-     */
-    static final String IDENTITY_VARIABLE = "AIRNESS_MODULE";
+record HarnessVersions(Map<String, String> versions) {
 
     private static final String GROUP = "eu.ciechanowiec";
     private static final Map<String, String> PACKAGES = Map.of(
@@ -54,7 +34,7 @@ record HarnessVersions(SequencedMap<String, String> versions) {
      * @param versions each package's expected version
      */
     HarnessVersions {
-        versions = Collections.unmodifiableSequencedMap(new LinkedHashMap<>(versions));
+        versions = Collections.unmodifiableMap(new LinkedHashMap<>(versions));
     }
 
     /**
@@ -78,7 +58,7 @@ record HarnessVersions(SequencedMap<String, String> versions) {
      * @return the versions the Airness parents among them name
      */
     static HarnessVersions of(List<List<String>> chain) {
-        SequencedMap<String, String> versions = new LinkedHashMap<>();
+        Map<String, String> versions = new LinkedHashMap<>();
         chain.stream()
             .filter(ancestor -> GROUP.equals(ancestor.getFirst()) && PACKAGES.containsKey(ancestor.get(1)))
             .forEach(ancestor -> versions.putIfAbsent(PACKAGES.get(ancestor.get(1)), ancestor.getLast()));

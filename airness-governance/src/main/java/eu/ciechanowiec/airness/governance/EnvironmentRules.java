@@ -28,7 +28,7 @@ final class EnvironmentRules {
     // ${NAME:?message} declares its own failure, so only the bare braced form must be supplied. The
     // unbraced $NAME is rare in compose and indistinguishable from a shell fragment, and $${NAME} is an
     // escaped dollar that compose leaves as text.
-    private static final Pattern INTERPOLATION = Pattern.compile("(?<!\\$)\\$\\{(?<name>[A-Za-z_]\\w*)\\}");
+    private static final Pattern INTERPOLATION = Pattern.compile("(?<!\\$)\\$\\{(?<name>[A-Za-z_]\\w*)}");
     // A workflow supplies a name as a mapping key in capitals at any depth, or by referring to a
     // secret, a variable or the job environment.
     private static final Pattern WORKFLOW_KEY = Pattern.compile(

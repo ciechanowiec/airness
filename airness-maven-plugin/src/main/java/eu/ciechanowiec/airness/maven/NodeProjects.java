@@ -129,7 +129,7 @@ record NodeProjects(List<NodeProject> projects) {
      * @param key       the directory relative to the module, normalized, or {@code .} for the module itself
      * @param directory the absolute directory
      */
-    record NodeProject(String key, Path directory) {
+    public record NodeProject(String key, Path directory) {
 
         private static final String MODULE = ".";
         private static final String PARENT = "..";

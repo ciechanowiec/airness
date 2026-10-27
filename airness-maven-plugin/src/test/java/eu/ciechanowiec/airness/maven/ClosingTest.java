@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Model;
@@ -58,7 +57,7 @@ class ClosingTest {
     @Test
     @SneakyThrows
     void readsOnlyTheCodeTheNodeProjectWrote(@TempDir Path root, @TempDir Path elsewhere) {
-        git(root, "init", "--quiet");
+        initializeGit(root);
         Path web = node(root.resolve("web"));
         List<Path> sources = Closing.nodeSources(root, List.of(web), List.of("web/src/pinned.ts"));
         assertEquals(
@@ -97,8 +96,8 @@ class ClosingTest {
     }
 
     @SneakyThrows
-    private static void git(Path root, String... arguments) {
-        List<String> command = Stream.concat(Stream.of("git", "-C", root.toString()), Stream.of(arguments)).toList();
+    private static void initializeGit(Path root) {
+        List<String> command = List.of("git", "-C", root.toString(), "init", "--quiet");
         Process process = new ProcessBuilder(command).redirectErrorStream(true)
             .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
         if (!process.waitFor(GIT_TIMEOUT) || process.exitValue() != 0) {

@@ -47,7 +47,8 @@ final class NodeRunDeclaration {
         List<Element> executions = Xml.firstChild(plugin, "executions").stream()
             .flatMap(listed -> Xml.children(listed, "execution").stream())
             .toList();
-        return children(plugin, NODE_RUN_PLUGIN) && !executions.isEmpty() && !merges((Element) plugin)
+        boolean shaped = children(plugin, NODE_RUN_PLUGIN) && !merges((Element) plugin);
+        return shaped && !executions.isEmpty()
             && executions.stream().allMatch(execution -> execution(execution, inherited));
     }
 

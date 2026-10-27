@@ -202,7 +202,7 @@ record PinnedArchive(String name, URI source, String sha256) {
             Files.move(unpacked, target, StandardCopyOption.ATOMIC_MOVE);
         } catch (FileAlreadyExistsException | DirectoryNotEmptyException exception) {
             if (!Files.isDirectory(target)) {
-                throw exception;
+                throw new IOException("The installed archive target is not a directory: " + target, exception);
             }
         }
     }

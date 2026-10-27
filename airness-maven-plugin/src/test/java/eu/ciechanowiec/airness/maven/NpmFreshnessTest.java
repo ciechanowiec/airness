@@ -95,8 +95,12 @@ class NpmFreshnessTest {
         );
         Path user = Files.writeString(
             directory.resolve("user.npmrc"),
-            "registry=https://user.example/npm\n//npm.example.com/:_authToken=root\n"
-                + "//npm.example.com/private/:_authToken=${TOKEN}\n//npm.example.com.evil.net/:_auth" + "Token=evil\n"
+            """
+                registry=https://user.example/npm
+                //npm.example.com/:_authToken=root
+                //npm.example.com/private/:_authToken=${TOKEN}
+                //npm.example.com.evil.net/:_authToken=evil
+                """
         );
         NpmRegistries registries = NpmRegistries.of(
             directory, Map.of(

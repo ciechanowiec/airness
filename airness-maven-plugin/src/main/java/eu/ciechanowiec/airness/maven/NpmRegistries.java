@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -47,11 +49,6 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
      * The public registry, which answers when the configuration names none.
      */
     static final String PUBLIC = "https://registry.npmjs.org/";
-
-    /**
-     * The Node release index, which lists every Node release and the long-term-support line of each.
-     */
-    static final String NODE_RELEASES = "https://nodejs.org/dist/index.json";
 
     private static final Pattern VARIABLE = Pattern.compile("\\$\\{([^}]+)}");
     private static final String PNPM_PREFIX = "pnpm_config_";
@@ -101,8 +98,8 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
      * @return the registries
      */
     static NpmRegistries of(Path directory, Map<String, String> environment) {
-        Path user = variable(environment, PNPM_PREFIX, USER_CONFIG)
-            .or(() -> variable(environment, NPM_PREFIX, USER_CONFIG))
+        Path user = variable(environment, PNPM_PREFIX)
+            .or(() -> variable(environment, NPM_PREFIX))
             .map(Path::of)
             .orElseGet(() -> Path.of(System.getProperty("user.home"), ".npmrc"));
         UnaryOperator<String> expand = value -> VARIABLE.matcher(value).replaceAll(
@@ -129,9 +126,10 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
             .sorted(Map.Entry.comparingByKey());
     }
 
-    private static Optional<String> variable(Map<String, String> environment, String prefix, String key) {
-        return variables(environment, prefix).filter(entry -> key.equals(entry.getKey().toLowerCase(Locale.ROOT)))
-            .map(Map.Entry::getValue).findFirst();
+    private static Optional<String> variable(Map<String, String> environment, String prefix) {
+        return variables(environment, prefix).filter(
+            entry -> USER_CONFIG.equals(entry.getKey().toLowerCase(Locale.ROOT))
+        ).map(Map.Entry::getValue).findFirst();
     }
 
     // A setting's name as an .npmrc writes it. A credential's key names a host and a path, which keep their case.
@@ -227,7 +225,8 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
         int slash = scope.indexOf('/');
         String scopeHost = (slash < 0 ? scope : scope.substring(0, slash)).toLowerCase(Locale.ROOT);
         List<String> scopeSegments = segments(slash < 0 ? "" : scope.substring(slash));
-        return !scopeHost.isEmpty() && scopeHost.equals(host) && scopeSegments.size() <= segments.size()
+        boolean hostMatches = !scopeHost.isEmpty() && scopeHost.equals(host);
+        return hostMatches && scopeSegments.size() <= segments.size()
             && scopeSegments.equals(segments.subList(0, scopeSegments.size()));
     }
 
@@ -319,7 +318,9 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
     private static JsonNode parsed(URI address, String body) {
         try {
             return JSON.readTree(body);
-        } catch (IOException exception) {
+        } catch (JsonMappingException exception) {
+            throw new IllegalStateException(redacted(address.toString()) + " returned an invalid JSON tree", exception);
+        } catch (JsonProcessingException exception) {
             throw new IllegalStateException(redacted(address.toString()) + " could not be read", exception);
         }
     }

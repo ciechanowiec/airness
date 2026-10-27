@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.ciechanowiec.airness.governance.ReportAdvisory;
@@ -111,7 +113,7 @@ record OsvScan(String base, HttpClient client) {
                         + " fails rather than passing without it"
                 );
             }
-            return JSON.readTree(response.body());
+            return parsed(request.uri(), response.body());
         } catch (IOException exception) {
             throw new IllegalStateException(
                 "OSV could not be read at " + request.uri() + ", so the npm vulnerability scan fails rather than"
@@ -121,6 +123,16 @@ record OsvScan(String base, HttpClient client) {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while reading OSV", exception);
+        }
+    }
+
+    private static JsonNode parsed(URI address, String body) {
+        try {
+            return JSON.readTree(body);
+        } catch (JsonMappingException exception) {
+            throw new IllegalStateException("OSV returned an invalid JSON tree at " + address, exception);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("OSV could not be read at " + address, exception);
         }
     }
 

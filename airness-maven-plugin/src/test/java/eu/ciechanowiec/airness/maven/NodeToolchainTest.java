@@ -13,10 +13,10 @@ import eu.ciechanowiec.airness.maven.ArchiveServer.Entry;
 import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,14 +57,24 @@ class NodeToolchainTest {
     }
 
     @Test
+    void keepsThePinsImmutableAfterConstruction() {
+        Map<String, String> pins = new HashMap<>(NodeToolchain.pinned().pins());
+        NodeToolchain toolchain = NodeToolchain.of(pins, PLATFORM);
+        String version = toolchain.pins().get("node.version");
+        pins.put("node.version", "0.0.0");
+        assertEquals(version, toolchain.pins().get("node.version"));
+        assertThrows(UnsupportedOperationException.class, () -> toolchain.pins().put("node.version", "0.0.0"));
+    }
+
+    @Test
     void refusesAPlatformThePinsDoNotCover() {
-        Properties pins = NodeToolchain.pinned().pins();
+        Map<String, String> pins = NodeToolchain.pinned().pins();
         IllegalStateException refusal = assertThrows(
             IllegalStateException.class, () -> NodeToolchain.of(pins, "freebsd-x64")
         );
         assertTrue(Objects.requireNonNull(refusal.getMessage()).contains("freebsd-x64"), refusal.getMessage());
-        Properties partial = new Properties();
-        partial.setProperty("node.version", "1.0.0");
+        Map<String, String> partial = new HashMap<>();
+        partial.put("node.version", "1.0.0");
         assertThrows(IllegalStateException.class, () -> NodeToolchain.of(partial, PLATFORM));
     }
 
@@ -85,16 +95,13 @@ class NodeToolchainTest {
         try (ArchiveServer server = new ArchiveServer()) {
             server.serve("/node/1.0.0/linux-x64.tgz", node);
             server.serve("/pnpm/2.0.0/linux-x64.tgz", pnpm);
-            Properties pins = new Properties();
-            pins.putAll(
-                Map.of(
-                    "node.version", "1.0.0", "node.executable", "bin/node",
-                    "node.source", server.uri("/node/") + "{version}/{platform}.tgz",
-                    "node.sha256.linux-x64", ArchiveServer.sha256(node),
-                    "pnpm.version", "2.0.0", "pnpm.executable", "pnpm",
-                    "pnpm.source", server.uri("/pnpm/") + "{version}/{platform}.tgz",
-                    "pnpm.sha256.linux-x64", ArchiveServer.sha256(pnpm)
-                )
+            Map<String, String> pins = Map.of(
+                "node.version", "1.0.0", "node.executable", "bin/node",
+                "node.source", server.uri("/node/") + "{version}/{platform}.tgz",
+                "node.sha256.linux-x64", ArchiveServer.sha256(node),
+                "pnpm.version", "2.0.0", "pnpm.executable", "pnpm",
+                "pnpm.source", server.uri("/pnpm/") + "{version}/{platform}.tgz",
+                "pnpm.sha256.linux-x64", ArchiveServer.sha256(pnpm)
             );
             NodeToolchain toolchain = NodeToolchain.of(pins, PLATFORM);
             NodeTools tools = toolchain.installIn(this.cache);

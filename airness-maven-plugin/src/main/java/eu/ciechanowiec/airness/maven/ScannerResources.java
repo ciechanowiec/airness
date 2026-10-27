@@ -29,15 +29,14 @@ final class ScannerResources {
      * parents resolve, such as the Checkstyle and PMD wrappers, is left out of a module that never resolves it,
      * and a module that resolves it gets the rule unchanged. A rule that names no package address is kept.
      *
-     * @param name     the packaged suppression file
      * @param output   the directory to write it into
      * @param packages the package addresses of the artifacts the scan reads, such as
      *                 {@code pkg:maven/org.apache.maven.plugins/maven-pmd-plugin@3.28.0?type=jar}
      * @return the written file
      * @throws IOException when the resource is missing or the file cannot be written
      */
-    static Path copyApplicable(String name, Path output, Collection<String> packages) throws IOException {
-        Path file = copy(name, output);
+    static Path copyApplicable(Path output, Collection<String> packages) throws IOException {
+        Path file = copy("tool-suppressions.xml", output);
         String document = Files.readString(file);
         Matcher rules = RULE.matcher(document);
         StringBuilder kept = new StringBuilder();

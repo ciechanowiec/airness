@@ -25,6 +25,8 @@ import org.apache.maven.plugins.annotations.Mojo;
 @Mojo(name = "dependency-freshness", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
 
+    private static final String NODE_RELEASES = "https://nodejs.org/dist/index.json";
+
     private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
 
     @Override
@@ -50,7 +52,7 @@ public final class DependencyFreshnessMojo extends AbstractGovernanceMojo {
             return List.of();
         }
         NpmFreshness check = NodeToolchain.pinned().freshness(
-            NpmRegistries.NODE_RELEASES, NpmRegistries.of(this.repositoryRoot(), System.getenv())
+            NODE_RELEASES, NpmRegistries.of(this.repositoryRoot(), System.getenv())
         );
         this.getLog().info("Version checking asked the Node release index and the npm registry about the toolchain");
         if (check.updates().isEmpty()) {

@@ -95,7 +95,7 @@ class EnvironmentCheckTest {
             .write("Dockerfile", "FROM node:26\n")
             .root();
         Function<Path, Optional<PackageManifest>> manifests = _ -> Optional.of(
-            new PackageManifest(Set.of(), Set.of(NEXT))
+            new PackageManifest(Set.of(), Set.of(NEXT), Set.of(NEXT))
         );
         assertEquals(
             List.of("NEXT_PUBLIC_KEY in " + Path.of("web", "Dockerfile")),
@@ -126,7 +126,7 @@ class EnvironmentCheckTest {
             .write("Dockerfile", "FROM node:26\nCOPY . /src\n")
             .root();
         Function<Path, Optional<PackageManifest>> manifests = _ -> Optional.of(
-            new PackageManifest(Set.of(), Set.of(NEXT))
+            new PackageManifest(Set.of(), Set.of(NEXT), Set.of(NEXT))
         );
         assertEquals(
             List.of("NEXT_PUBLIC_KEY in " + Path.of("docker", "web.Dockerfile")),

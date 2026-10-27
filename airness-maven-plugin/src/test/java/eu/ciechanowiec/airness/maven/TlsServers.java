@@ -84,12 +84,18 @@ final class TlsServers implements AutoCloseable {
      */
     RecordingServer server() throws IOException {
         HttpsServer server = HttpsServer.create(
-            new InetSocketAddress(InetAddress.getByAddress(LOOPBACK), 0), 0
+            new InetSocketAddress(loopback(), 0), 0
         );
         server.setHttpsConfigurator(new HttpsConfigurator(this.context));
         RecordingServer recording = new RecordingServer(server);
         this.servers.add(recording);
         return recording;
+    }
+
+    // Four address bytes always name IPv4, matching the test certificate and the recorded authority.
+    @SneakyThrows
+    private static InetAddress loopback() {
+        return InetAddress.getByAddress(LOOPBACK);
     }
 
     @Override

@@ -6,6 +6,7 @@ import eu.ciechanowiec.airness.governance.LicenseExpression;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
@@ -80,12 +81,10 @@ final class SpdxLicenses {
     }
 
     private static Map<String, String> exceptions() {
-        try (InputStream stream = SpdxLicenses.class.getResourceAsStream(EXCEPTIONS)) {
-            String text = new String(
-                Optional.ofNullable(stream).orElseThrow(() -> new IllegalStateException("No SPDX exception list"))
-                    .readAllBytes(),
-                StandardCharsets.UTF_8
-            );
+        URL resource = Optional.ofNullable(SpdxLicenses.class.getResource(EXCEPTIONS))
+            .orElseThrow(() -> new IllegalStateException("No SPDX exception list"));
+        try (InputStream stream = resource.openStream()) {
+            String text = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             return text.lines().map(String::strip).filter(line -> !line.isEmpty() && !line.startsWith("#"))
                 .collect(Collectors.toUnmodifiableMap(id -> id.toLowerCase(Locale.ROOT), Function.identity()));
         } catch (IOException exception) {

@@ -89,7 +89,7 @@ public final class PluginInputsMojo extends AbstractPreflightMojo {
         );
         ScannerResources.copy("eclipse-suppressions.xml", directory);
         ScannerResources.copyApplicable(
-            "tool-suppressions.xml", directory,
+            directory,
             resolved.stream().map(
                 artifact -> "pkg:maven/" + artifact.getGroupId() + '/' + artifact.getArtifactId() + '@'
                     + artifact.getVersion() + "?type=" + artifact.getExtension()

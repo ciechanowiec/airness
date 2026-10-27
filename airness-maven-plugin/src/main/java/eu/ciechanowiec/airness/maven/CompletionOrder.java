@@ -157,7 +157,7 @@ record CompletionOrder(List<Step> plan) {
      * @param execution the execution id
      * @param phase     the phase it is bound to, or nothing for a goal named on the command line
      */
-    record Step(String plugin, String goal, String execution, @Nullable String phase) {
+    public record Step(String plugin, String goal, String execution, @Nullable String phase) {
 
         static Step of(MojoExecution execution) {
             return new Step(

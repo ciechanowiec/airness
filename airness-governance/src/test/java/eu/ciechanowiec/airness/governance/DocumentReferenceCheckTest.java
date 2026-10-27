@@ -63,7 +63,7 @@ class DocumentReferenceCheckTest {
             .write("web/AGENTS.md", "Extend `@airness/node/tsconfig.json`, never `@gone/pkg/tsconfig.json`.\n")
             .root();
         Map<Path, PackageManifest> manifests = Map.of(
-            root.resolve("web"), new PackageManifest(Set.of(), Set.of("@airness/node"))
+            root.resolve("web"), new PackageManifest(Set.of(), Set.of("@airness/node"), Set.of("@airness/node"))
         );
         assertEquals(
             List.of(Path.of("web", AGENTS) + ": @gone/pkg/tsconfig.json"),
@@ -82,8 +82,8 @@ class DocumentReferenceCheckTest {
             .write("web/AGENTS.md", "Run `pnpm run build`, `test:unit`, `lint:gone` and `pnpm run lint:arch`.\n")
             .root();
         Map<Path, PackageManifest> manifests = Map.of(
-            root, new PackageManifest(Set.of("lint:arch"), Set.of()),
-            root.resolve("web"), new PackageManifest(Set.of("build", "test:unit"), Set.of())
+            root, new PackageManifest(Set.of("lint:arch"), Set.of(), Set.of()),
+            root.resolve("web"), new PackageManifest(Set.of("build", "test:unit"), Set.of(), Set.of())
         );
         assertEquals(
             List.of(Path.of("web", AGENTS) + ": lint:gone"),

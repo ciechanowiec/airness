@@ -113,6 +113,6 @@ final class AssetPlan {
      * @param file  the repository-relative path it takes
      * @param asset the manifest row that placed it
      */
-    record Placement(String file, ManagedAsset asset) {
+    public record Placement(String file, ManagedAsset asset) {
     }
 }

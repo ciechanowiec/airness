@@ -15,18 +15,22 @@ class NodeSuppressionBudgetTest {
 
     private static final int LINES = 500;
 
-    @Test
-    void earnsTwoAndOnePerFiveHundredNonBlankLines() {
+    private static NodeSuppressionBudget budgetFixture() {
         String lines = "const a = 1\n\n".repeat(LINES);
         Path root = new GitFixture("node-budget").write("web/src/long.ts", lines)
             .write("web/src/quiet.ts", "// eslint-disable-next-line no-console, no-alert\nconsole.log(1)\n")
             .write("web/README.md", "<!-- eslint-disable -->\n").root();
-        NodeSuppressionBudget check = new NodeSuppressionBudget(
+        return new NodeSuppressionBudget(
             root, List.of(
                 root.resolve("web/src/long.ts"), root.resolve("web/src/quiet.ts"), root.resolve("web/README.md")
             ),
             List.of()
         );
+    }
+
+    @Test
+    void earnsTwoAndOnePerFiveHundredNonBlankLines() {
+        NodeSuppressionBudget check = budgetFixture();
         assertEquals(2, check.scanned(), "Markdown is no node source");
         assertEquals(3, check.ceiling(), "502 non-blank lines earn one beyond the two, blank lines earn nothing");
         assertEquals(2, check.count());

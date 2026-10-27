@@ -54,7 +54,7 @@ final class NodeManifests {
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not walk " + module + " for package.json files", exception);
         }
-        return List.copyOf(walk.manifests);
+        return walk.manifests();
     }
 
     /**
@@ -68,6 +68,10 @@ final class NodeManifests {
         ManifestWalk(Path module) {
             this.module = module;
             this.manifests = new ArrayList<>();
+        }
+
+        List<Path> manifests() {
+            return List.copyOf(this.manifests);
         }
 
         @Override

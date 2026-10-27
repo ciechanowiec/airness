@@ -70,19 +70,7 @@ class ReportAggregationTest {
 
     @Test
     void mergesTheNpmDocumentsAndTheToolchainIntoTheOneSbom() {
-        ReportPackage npm = new ReportPackage(
-            "pkg:npm/left-pad@1.3.0", List.of("SSPL-1.0"), List.of(new ReportUse("web", "npm", "direct")), Map.of()
-        );
-        ReportPackage node = new ReportPackage(
-            "pkg:generic/node@26.11.1?checksum=sha256:" + "b".repeat(SHA256_LENGTH), List.of("MIT"),
-            List.of(new ReportUse("web", "build", "direct")), Map.of()
-        );
-        ReportModule web = new ReportModule(
-            "sample:web:pom:1", List.of(npm, node), List.of(), Map.of(
-                "Graph", "{\"sample:web:pom:1\": [\"pkg:npm/web@1.0.0\"]}",
-                NpmReportInputs.DOCUMENTS, "[" + NpmFixture.SBOM + "]"
-            )
-        );
+        ReportModule web = webModule();
         List<ReportModule> modules = List.of(module("first", "compile", "MIT"), web);
         String sbom = ReportSbom.assemble(ReportAggregation.packages(modules), modules);
         assertTrue(sbom.contains("\"purl\":\"pkg:npm/%40scope/kit@2.0.0\""), "the npm document's packages");
@@ -91,6 +79,22 @@ class ReportAggregationTest {
         assertTrue(sbom.contains("example:library:jar:1.0"), "beside the Maven artifacts");
         assertEquals(1, sbom.split("\"bom-ref\":\"pkg:npm/left-pad@1.3.0\"", -1).length - 1, "listed once");
         assertTrue(sbom.contains("\"ref\":\"sample:web:pom:1\""), "one graph joins the module to its node project");
+    }
+
+    private static ReportModule webModule() {
+        ReportPackage npm = new ReportPackage(
+            "pkg:npm/left-pad@1.3.0", List.of("SSPL-1.0"), List.of(new ReportUse("web", "npm", "direct")), Map.of()
+        );
+        ReportPackage node = new ReportPackage(
+            "pkg:generic/node@26.11.1?checksum=sha256:" + "b".repeat(SHA256_LENGTH), List.of("MIT"),
+            List.of(new ReportUse("web", "build", "direct")), Map.of()
+        );
+        return new ReportModule(
+            "sample:web:pom:1", List.of(npm, node), List.of(), Map.of(
+                "Graph", "{\"sample:web:pom:1\": [\"pkg:npm/web@1.0.0\"]}",
+                NpmReportInputs.DOCUMENTS, "[" + NpmFixture.SBOM + "]"
+            )
+        );
     }
 
     private static ReportModule module(String name, String scope, String license) {

@@ -105,7 +105,7 @@ class AssetSectionTest {
         Path root = new GitFixture("section-frontend-missing").root();
         this.sync(root, embeddedFrontend());
         Path frontend = root.resolve(FRONTEND + "/AGENTS.md");
-        write(frontend, "Project rules only.\n");
+        write(frontend);
         assertEquals(
             List.of(FRONTEND + "/AGENTS.md (run mvn airness:assets-sync to restore its managed blocks)"),
             Verdicts.offences(this.check(root, embeddedFrontend()), DRIFTED),
@@ -234,7 +234,7 @@ class AssetSectionTest {
     }
 
     @SneakyThrows
-    private static void write(Path file, String content) {
-        Files.writeString(file, content);
+    private static void write(Path file) {
+        Files.writeString(file, "Project rules only.\n");
     }
 }
