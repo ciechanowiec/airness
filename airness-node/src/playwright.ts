@@ -6,8 +6,8 @@
 //
 // Everything here is policy rather than preference. `forbidOnly` is the end-to-end analogue of the
 // focused-test ban the lint gates enforce for Vitest: a left-behind `test.only` would otherwise turn a run
-// into one green test. A single worker is not a performance choice either - every spec shares one server,
-// and parallel workers starve the heavier specs against it. The project-specific inputs are the origin and,
+// into one green test. Project and layer specifications run on one worker; the automatic sweep shards
+// independent pages across the capacity the browser launcher measured. The project-specific inputs are the origin and,
 // for an application that is not a Next.js one, the script that serves it, both declared under the
 // `airness` key of package.json. Neither reaches a rule: they say where the application answers and how it
 // starts, and every ban and shipped spec is the same whatever they say.
@@ -15,17 +15,26 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
+import { DEVICE_SCALE_FACTOR } from './browser-rules.js'
+import {
+  BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE,
+  BROWSER_TUNNEL_ENVIRONMENT_VARIABLE,
+  CLOCK_ENVIRONMENT_VARIABLE,
+} from './browser-run.js'
 import {
   browserServerEndpoint,
   canReuseBrowserServer,
   VERIFICATION_ENVIRONMENT_VARIABLE,
 } from './browser-server-policy.js'
+import { coversEveryEngine } from './change-scope-policy.js'
+import { clockedEnvironment } from './clock-environment.js'
 import { portOf, runEnvironmentFiles } from './environment-files.js'
 import { type LayerProject, layerProjectsFor, SHIPPED_SPECS } from './layer.js'
 import { loadProductionEnvironment } from './production-environment.js'
 import { shellArgument } from './production-output.js'
 import { readJson } from './project.js'
 import { projectDirectory, projectSettings } from './project-settings.js'
+import { SWEEP_WORKERS } from './sweep-workers.js'
 import { hasOwnRuntime } from './workspace.js'
 
 const here: string = path.dirname(fileURLToPath(import.meta.url))
@@ -64,7 +73,14 @@ const loadEnvironment = (): void => {
 // eslint-disable-next-line unicorn/no-top-level-side-effects -- the environment must be loaded while this configuration is evaluated, in the runner and in every worker, before any spec module is imported
 loadEnvironment()
 
-const isContinuousIntegration: boolean = Boolean(process.env['CI'])
+if (process.env[CLOCK_ENVIRONMENT_VARIABLE] !== undefined) {
+  await import('./clock-preload.js')
+}
+for (const signal of ['SIGTERM', 'SIGHUP'] as const) {
+  process.once(signal, (): void => {
+    process.kill(process.pid, 'SIGINT')
+  })
+}
 const isReuseExistingServer: boolean = canReuseBrowserServer(process.env)
 // Resolved rather than joined, so the launcher is a module this configuration names and not a bare path.
 const productionLauncher: string = fileURLToPath(import.meta.resolve('./production-server.js'))
@@ -73,7 +89,6 @@ const productionLauncher: string = fileURLToPath(import.meta.resolve('./producti
 // runner, so the budget gives compilation headroom instead of leaning on a retry to mask it.
 const TEST_TIMEOUT_MS: number = 90_000
 const SERVER_TIMEOUT_MS: number = 180_000
-const CI_RETRIES: number = 2
 
 // Spread rather than assigned, so an origin naming no port leaves the framework's default in place rather
 // than setting PORT to the string "undefined".
@@ -97,7 +112,7 @@ const command: string | undefined = serveCommand()
 const serverEnvironment: Readonly<Record<string, string>> = withPort(
   {
     NEXT_TELEMETRY_DISABLED: '1',
-    NODE_OPTIONS: '--no-deprecation',
+    ...clockedEnvironment({ settings: projectSettings }, '--no-deprecation'),
     ...(isVerification && {
       NODE_ENV: 'production',
       HOSTNAME: browserServerEndpoint(projectSettings.serverUrl).host,
@@ -106,7 +121,78 @@ const serverEnvironment: Readonly<Record<string, string>> = withPort(
   portOf(projectSettings.serverUrl),
 )
 
-const browser: Readonly<Record<string, unknown>> = { ...devices['Desktop Chrome'], channel: 'chromium' }
+const endpoint: string | undefined = process.env[BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE]
+const remote: Readonly<Record<string, unknown>> =
+  endpoint === undefined
+    ? {}
+    : {
+        connectOptions: {
+          wsEndpoint: endpoint,
+          ...(process.env[BROWSER_TUNNEL_ENVIRONMENT_VARIABLE] !== undefined && { exposeNetwork: '<loopback>' }),
+        },
+      }
+const browser: Readonly<Record<string, unknown>> = {
+  ...devices['Desktop Chrome'],
+  deviceScaleFactor: DEVICE_SCALE_FACTOR,
+  ...(endpoint === undefined && { channel: 'chromium' }),
+}
+const SWEEP_SPEC: RegExp = /a11y\.e2e\.spec\.js$/u
+const SWEEP_DISCOVERY: string = 'sweep-discovery'
+const SWEEP_SUMMARY: string = 'sweep-summary'
+const sweepProjects: NonNullable<ReturnType<typeof defineConfig>['projects']> = [
+  {
+    name: SWEEP_DISCOVERY,
+    testDir: here,
+    testMatch: SWEEP_SPEC,
+    grep: /@airness-discovery/u,
+    teardown: SWEEP_SUMMARY,
+    use: browser,
+  },
+  {
+    name: 'sweep-chromium',
+    testDir: here,
+    testMatch: SWEEP_SPEC,
+    grep: /@airness-chromium/u,
+    dependencies: [SWEEP_DISCOVERY],
+    fullyParallel: true,
+    use: browser,
+  },
+  ...(coversEveryEngine(process.env)
+    ? [
+        {
+          name: 'sweep-firefox',
+          testDir: here,
+          testMatch: SWEEP_SPEC,
+          grep: /@airness-engine/u,
+          dependencies: [SWEEP_DISCOVERY],
+          fullyParallel: true,
+          use: {
+            ...devices['Desktop Firefox'],
+            deviceScaleFactor: DEVICE_SCALE_FACTOR,
+          },
+        },
+        {
+          name: 'sweep-webkit',
+          testDir: here,
+          testMatch: SWEEP_SPEC,
+          grep: /@airness-engine/u,
+          dependencies: [SWEEP_DISCOVERY],
+          fullyParallel: true,
+          use: {
+            ...devices['Desktop Safari'],
+            deviceScaleFactor: DEVICE_SCALE_FACTOR,
+          },
+        },
+      ]
+    : []),
+  {
+    name: SWEEP_SUMMARY,
+    testDir: here,
+    testMatch: SWEEP_SPEC,
+    grep: /@airness-summary/u,
+    use: browser,
+  },
+]
 
 // The specifications each declared stack layer ships, as harness-owned as the node layer's own: read from the
 // installed layer package, never from a file of the project. A layer that names a directory holding none fails
@@ -119,37 +205,75 @@ const layerProjects: readonly LayerProject[] = layerProjectsFor(projectDirectory
 const declared: ReturnType<typeof defineConfig> = defineConfig({
   timeout: TEST_TIMEOUT_MS,
   forbidOnly: true,
-  retries: isContinuousIntegration ? CI_RETRIES : 0,
+  retries: 0,
   // A test that passes only on a retry is flaky, and Playwright exits zero for it unless told otherwise. The
-  // retries stay as a diagnosis on CI (the report names the flaky test), but the verdict does not depend on CI:
-  // a test that failed once fails the gate there as it does locally.
+  // configuration never retries a test, on CI or locally: a first failure remains the verdict.
   failOnFlakyTests: true,
-  workers: 1,
+  workers: SWEEP_WORKERS,
   // `list` alone: an HTML reporter would write a report into the project and, on failure, open a browser
   // that hangs a non-interactive run.
-  reporter: [['list']],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: path.join(path.dirname(OUTPUT_DIRECTORY), 'html-report') }],
+  ],
   outputDir: OUTPUT_DIRECTORY,
   use: {
     baseURL: projectSettings.serverUrl,
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
+    reducedMotion: 'reduce',
+    locale: 'en-US',
+    timezoneId: 'UTC',
+    colorScheme: 'light',
+    deviceScaleFactor: DEVICE_SCALE_FACTOR,
+    serviceWorkers: 'block',
+    ...remote,
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'harness', testDir: here, testMatch: SHIPPED_SPECS, use: browser },
-    ...layerProjects,
+    {
+      name: 'harness',
+      testDir: here,
+      testMatch: SHIPPED_SPECS,
+      testIgnore: SWEEP_SPEC,
+      workers: 1,
+      use: browser,
+    },
+    ...sweepProjects,
+    ...layerProjects.map((project: LayerProject) => ({
+      ...project,
+      workers: 1,
+    })),
     ...(existsSync(PROJECT_SPECS)
-      ? [{ name: 'project', testDir: PROJECT_SPECS, testMatch: '**/*.e2e.spec.ts', use: browser }]
+      ? [
+          {
+            name: 'project',
+            testDir: PROJECT_SPECS,
+            testMatch: '**/*.e2e.spec.ts',
+            workers: 1,
+            use: browser,
+          },
+        ]
       : []),
   ],
   ...(command !== undefined && {
-    webServer: {
-      command,
-      cwd: projectDirectory,
-      url: projectSettings.serverUrl,
-      reuseExistingServer: isReuseExistingServer,
-      timeout: SERVER_TIMEOUT_MS,
-      env: serverEnvironment,
-    },
+    webServer: [
+      ...projectSettings.auxiliaryServers.map((server) => ({
+        command: server.command,
+        url: server.url,
+        cwd: path.resolve(projectDirectory, server.cwd ?? '.'),
+        reuseExistingServer: isReuseExistingServer,
+        timeout: SERVER_TIMEOUT_MS,
+        env: withPort({ ...serverEnvironment, __NEXT_PROCESSED_ENV: '' }, portOf(server.url)),
+      })),
+      {
+        command,
+        cwd: projectDirectory,
+        url: projectSettings.serverUrl,
+        reuseExistingServer: isReuseExistingServer,
+        timeout: SERVER_TIMEOUT_MS,
+        env: serverEnvironment,
+      },
+    ],
   }),
 })
 

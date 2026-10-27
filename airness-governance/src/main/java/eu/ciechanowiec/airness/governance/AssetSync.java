@@ -88,6 +88,19 @@ public final class AssetSync {
             .toList();
     }
 
+    /**
+     * Creates absent scaffolds during explicit initialization, preserving existing project content.
+     *
+     * @return the repository-relative paths written
+     */
+    public List<String> scaffold() {
+        return this.plan.placements(AssetPolicy.SCAFFOLD)
+            .filter(placement -> !this.unmanaged.contains(placement.file()))
+            .filter(this::needsWriting)
+            .map(this::materialize)
+            .toList();
+    }
+
     private boolean needsWriting(AssetPlan.Placement placement) {
         return placement.asset().policy() == AssetPolicy.PINNED
             ? !this.matches(placement)

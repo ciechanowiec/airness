@@ -3,7 +3,7 @@
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { failed, type GateResult, passed } from './exec.js'
-import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesRole } from './file-roles.js'
+import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesGlob, matchesRole } from './file-roles.js'
 import type { Member } from './project.js'
 import { type DeclaredExclusion, findConvenienceExclusions, findUndeclaredRuntimes } from './settings.js'
 import { memberFiles } from './source-selection.js'
@@ -32,7 +32,9 @@ export const javascriptAllowlist = (member: Member): GateResult => {
     ...files
       .filter(
         (file: string): boolean =>
-          hasExtension(file, JAVASCRIPT_EXTENSIONS) && !matchesRole(file, member.settings.javascriptAllowlist),
+          hasExtension(file, JAVASCRIPT_EXTENSIONS) &&
+          !matchesRole(file, member.settings.javascriptAllowlist) &&
+          !member.settings.generatedArtefacts.some((pattern: string): boolean => matchesGlob(pattern, file)),
       )
       .map((file: string): string => `${file} hand-written JavaScript is banned; write TypeScript instead`),
   ]

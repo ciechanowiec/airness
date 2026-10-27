@@ -5,7 +5,14 @@ import { analysisBoundaries } from './workspace.js'
 const JSX_EXTENSIONS: readonly string[] = ['.tsx', '.jsx']
 
 /** Existing application-lint exclusions, expressed once for both analyzer owners. */
-const APPLICATION_JSX_IGNORES: readonly string[] = ['.next/**', '**/node_modules/**', 'coverage/**', '.*/**']
+const APPLICATION_JSX_IGNORES: readonly string[] = [
+  '.next/**',
+  '**/node_modules/**',
+  'coverage/**',
+  '.*/**',
+  'playwright-report/**',
+  'test-results/**',
+]
 
 /**
  * Select committable JSX files without crossing a member or generated-file boundary.

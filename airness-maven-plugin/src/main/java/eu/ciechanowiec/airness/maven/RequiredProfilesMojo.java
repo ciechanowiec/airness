@@ -108,11 +108,27 @@ public final class RequiredProfilesMojo extends AbstractMojo {
     }
 
     private void verifyOnce(MavenSession current) throws MojoFailureException {
+        List<String> problems = deltaProblems(current.getProjects());
+        if (!problems.isEmpty()) {
+            throw new MojoFailureException(String.join("; ", problems));
+        }
         if (nativeValidation(mavenVersion())) {
             this.getLog().debug("Maven 4 or later owns required profile validation");
         } else {
             this.verify(current);
         }
+    }
+
+    static List<String> deltaProblems(Collection<MavenProject> projects) {
+        return projects.stream().filter(project -> ReportProjects.active(project, "delta"))
+            .flatMap(
+                project -> Stream.concat(
+                    ReportProjects.extended(project) ? Stream.empty()
+                        : Stream.of("Delta is additive to Extended; use mvn verify -Pextended,delta"),
+                    ReportProjects.active(project, "release")
+                        ? Stream.of("A release requires the complete sweep; remove the delta profile") : Stream.empty()
+                )
+            ).distinct().toList();
     }
 
     private void verify(MavenSession current) throws MojoFailureException {

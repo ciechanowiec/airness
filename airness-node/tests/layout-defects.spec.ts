@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { findLayoutDefects, layoutViewportsWith } from '@/layout-defects.js'
-import { isVisibleColor, keyOf, type LayoutNode, type LayoutSnapshot } from '@/layout-snapshot.js'
-import { LAYOUT_MINIMUM_GAP, type LayoutViewport } from '@/settings.js'
+import {
+  findLayoutDefects,
+  LAYOUT_MINIMUM_GAP,
+  LAYOUT_VIEWPORTS,
+  type LayoutViewport,
+  layoutViewportsWith,
+} from '@/layout-defects'
+import { isVisibleColor, keyOf, type LayoutNode, type LayoutSnapshot } from '@/layout-snapshot'
 import {
   BODY,
   defectsOf,
@@ -25,8 +30,18 @@ import {
 // paragraph starts: 100 is flush against the notice, 116 is what a 16px gap on the parent produces.
 const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
   BODY,
-  nodeOf({ index: 1, parent: 0, label: 'div.page.page-narrow', rects: [rect(16, 0, 374, 160)] }),
-  nodeOf({ index: 2, parent: 1, label: 'div.page-heading', rects: [rect(16, 0, 374, 40)] }),
+  nodeOf({
+    index: 1,
+    parent: 0,
+    label: 'div.page.page-narrow',
+    rects: [rect(16, 0, 374, 160)],
+  }),
+  nodeOf({
+    index: 2,
+    parent: 1,
+    label: 'div.page-heading',
+    rects: [rect(16, 0, 374, 40)],
+  }),
   nodeOf({
     index: 3,
     parent: 2,
@@ -41,7 +56,12 @@ const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
     label: 'div.notice.notice-success',
     rects: [rect(16, 56, 374, 100)],
     backgroundColor: TINT,
-    borders: { top: NO_BORDER, right: NO_BORDER, bottom: NO_BORDER, left: GREEN_BORDER },
+    borders: {
+      top: NO_BORDER,
+      right: NO_BORDER,
+      bottom: NO_BORDER,
+      left: GREEN_BORDER,
+    },
   }),
   nodeOf({
     index: 5,
@@ -72,7 +92,8 @@ const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
 describe('the email confirmation page that escaped every other gate', () => {
   it('fails while the notice and the button touch', () => {
     expect(defectsOf(verifyPage(100))).toEqual([
-      '/en/account/verify @390px: touching boxes (gap 0px): div.notice.notice-success  <->  a.button "Sign in"',
+      '[attached] /en/account/verify @390x844 (chromium, resting): ' +
+        'touching boxes (gap 0px): div.notice.notice-success  <->  a.button "Sign in"',
     ])
   })
 
@@ -89,7 +110,12 @@ const stacked = (
 ): readonly LayoutNode[] => [
   BODY,
   nodeOf({ index: 1, parent: 0, rects: [rect(0, 0, 200, 40)], ...first }),
-  nodeOf({ index: 2, parent: 0, rects: [rect(0, secondTop, 200, secondTop + 40)], ...second }),
+  nodeOf({
+    index: 2,
+    parent: 0,
+    rects: [rect(0, secondTop, 200, secondTop + 40)],
+    ...second,
+  }),
 ]
 
 describe('what makes an element boxed', () => {
@@ -111,14 +137,24 @@ describe('what makes an element boxed', () => {
 
   it('counts a border only on the side that faces the neighbour', () => {
     const leftOnly: Partial<LayoutNode> = {
-      borders: { top: NO_BORDER, right: NO_BORDER, bottom: NO_BORDER, left: GREEN_BORDER },
+      borders: {
+        top: NO_BORDER,
+        right: NO_BORDER,
+        bottom: NO_BORDER,
+        left: GREEN_BORDER,
+      },
     }
     const bottom: Partial<LayoutNode> = {
-      borders: { top: NO_BORDER, right: NO_BORDER, bottom: GREEN_BORDER, left: NO_BORDER },
+      borders: {
+        top: NO_BORDER,
+        right: NO_BORDER,
+        bottom: GREEN_BORDER,
+        left: NO_BORDER,
+      },
     }
     expect([defectsOf(stacked(leftOnly, {})), defectsOf(stacked(bottom, {}))]).toEqual([
       [],
-      ['/en/account/verify @390px: touching boxes (gap 0px): div#n1  <->  div#n2'],
+      ['[attached] /en/account/verify @390x844 (chromium, resting): touching boxes (gap 0px): div#n1  <->  div#n2'],
     ])
   })
 
@@ -137,8 +173,18 @@ describe('what makes an element boxed', () => {
   it('compares a tinted box with its parent background, not with the page canvas', () => {
     const tinted: readonly LayoutNode[] = [
       BODY,
-      nodeOf({ index: 1, parent: 0, rects: [rect(0, 0, 200, 80)], backgroundColor: TINT }),
-      nodeOf({ index: 2, parent: 1, rects: [rect(0, 0, 200, 40)], backgroundColor: TINT }),
+      nodeOf({
+        index: 1,
+        parent: 0,
+        rects: [rect(0, 0, 200, 80)],
+        backgroundColor: TINT,
+      }),
+      nodeOf({
+        index: 2,
+        parent: 1,
+        rects: [rect(0, 0, 200, 40)],
+        backgroundColor: TINT,
+      }),
       nodeOf({ index: 3, parent: 1, rects: [rect(0, 40, 200, 80)] }),
     ]
     expect(defectsOf(tinted)).toEqual([])
@@ -152,7 +198,7 @@ describe('how close is too close', () => {
 
   it('rejects a gap one pixel under it', () => {
     expect(defectsOf(stacked({ backgroundColor: RED }, {}, 43))).toEqual([
-      '/en/account/verify @390px: touching boxes (gap 3px): div#n1  <->  div#n2',
+      '[attached] /en/account/verify @390x844 (chromium, resting): touching boxes (gap 3px): div#n1  <->  div#n2',
     ])
   })
 
@@ -162,17 +208,29 @@ describe('how close is too close', () => {
 
   it('reports overlapping boxes as overlapping rather than as a gap', () => {
     expect(defectsOf(stacked({ backgroundColor: RED }, {}, 30))).toEqual([
-      '/en/account/verify @390px: overlapping boxes: div#n1  <->  div#n2',
+      '[attached] /en/account/verify @390x844 (chromium, resting): overlapping boxes: div#n1  <->  div#n2',
     ])
   })
 
   it('judges side by side boxes along the horizontal axis', () => {
     const sideBySide: readonly LayoutNode[] = [
       BODY,
-      nodeOf({ index: 1, parent: 0, rects: [rect(0, 0, 100, 40)], backgroundColor: RED }),
-      nodeOf({ index: 2, parent: 0, rects: [rect(102, 0, 200, 40)], backgroundColor: RED }),
+      nodeOf({
+        index: 1,
+        parent: 0,
+        rects: [rect(0, 0, 100, 40)],
+        backgroundColor: RED,
+      }),
+      nodeOf({
+        index: 2,
+        parent: 0,
+        rects: [rect(102, 0, 200, 40)],
+        backgroundColor: RED,
+      }),
     ]
-    expect(defectsOf(sideBySide)).toEqual(['/en/account/verify @390px: touching boxes (gap 2px): div#n1  <->  div#n2'])
+    expect(defectsOf(sideBySide)).toEqual([
+      '[attached] /en/account/verify @390x844 (chromium, resting): touching boxes (gap 2px): div#n1  <->  div#n2',
+    ])
   })
 
   // An inline link wrapped over two lines has a bounding box covering both lines. Judged on that box it
@@ -210,16 +268,54 @@ describe('how close is too close', () => {
 
 const touchingRed = (second: Partial<LayoutNode>): readonly LayoutNode[] => stacked({ backgroundColor: RED }, second)
 
+// A card whose blurb scrolls inside an area that ends at 150, above a legend boxed from 160.
+const card = (overflowY: string): readonly LayoutNode[] => [
+  BODY,
+  nodeOf({
+    index: 1,
+    parent: 0,
+    rects: [rect(0, 0, 200, 200)],
+    backgroundColor: TINT,
+  }),
+  nodeOf({ index: 2, parent: 1, rects: [rect(0, 10, 200, 150)], overflowY }),
+  nodeOf({
+    index: 3,
+    parent: 2,
+    tag: 'p',
+    label: 'p.blurb',
+    rects: [rect(10, 10, 190, 230)],
+    textRects: [rect(10, 10, 190, 230)],
+  }),
+  nodeOf({
+    index: 4,
+    parent: 1,
+    label: 'div.legend',
+    rects: [rect(0, 160, 200, 190)],
+    backgroundColor: RED,
+  }),
+]
+
 describe('what is not compared', () => {
   // Rows paint nothing, so without this every cell would be compared with the cell below it, and each
   // would fail on the rule the table draws between them.
   it('leaves the rows and cells of a table to the table', () => {
     const ruled: Partial<LayoutNode> = {
-      borders: { top: NO_BORDER, right: NO_BORDER, bottom: GREEN_BORDER, left: NO_BORDER },
+      borders: {
+        top: NO_BORDER,
+        right: NO_BORDER,
+        bottom: GREEN_BORDER,
+        left: NO_BORDER,
+      },
     }
     const table: readonly LayoutNode[] = [
       BODY,
-      nodeOf({ index: 1, parent: 0, tag: 'table', display: 'table', rects: [rect(0, 0, 200, 80)] }),
+      nodeOf({
+        index: 1,
+        parent: 0,
+        tag: 'table',
+        display: 'table',
+        rects: [rect(0, 0, 200, 80)],
+      }),
       nodeOf({
         index: 2,
         parent: 1,
@@ -271,10 +367,17 @@ describe('what is not compared', () => {
         display: 'table-cell',
         rects: [rect(0, 0, 200, 80)],
       }),
-      nodeOf({ index: 2, parent: 1, rects: [rect(0, 0, 200, 40)], backgroundColor: RED }),
+      nodeOf({
+        index: 2,
+        parent: 1,
+        rects: [rect(0, 0, 200, 40)],
+        backgroundColor: RED,
+      }),
       nodeOf({ index: 3, parent: 1, rects: [rect(0, 40, 200, 80)] }),
     ]
-    expect(defectsOf(cell)).toEqual(['/en/account/verify @390px: touching boxes (gap 0px): div#n2  <->  div#n3'])
+    expect(defectsOf(cell)).toEqual([
+      '[attached] /en/account/verify @390x844 (chromium, resting): touching boxes (gap 0px): div#n2  <->  div#n3',
+    ])
   })
 
   it('skips a sibling hidden from assistive technology as decoration', () => {
@@ -289,6 +392,19 @@ describe('what is not compared', () => {
     expect(defectsOf(touchingRed({ position: 'fixed' }))).toEqual([])
   })
 
+  it('skips a rotated sibling, whose upright bounding box is larger than the card it paints', () => {
+    expect(defectsOf(touchingRed({ rotate: '4deg' }))).toEqual([])
+    expect(defectsOf(touchingRed({ transform: 'matrix(1, 0, 0.2, 1, 0, 0)' }))).toEqual([])
+    expect(defectsOf(touchingRed({ transform: 'matrix(1, 0, 0, 1, 0, 8)' }))).toHaveLength(1)
+  })
+
+  it('measures what a scroll area shows, not the content scrolled out of sight', () => {
+    expect(defectsOf(card('auto'))).toEqual([])
+    expect(defectsOf(card('visible'))).toEqual([
+      '[attached] /en/account/verify @390x844 (chromium, resting): overlapping boxes: p.blurb  <->  div.legend',
+    ])
+  })
+
   it('skips an invisible sibling', () => {
     expect(defectsOf(touchingRed({ visibility: 'hidden' }))).toEqual([])
   })
@@ -300,17 +416,34 @@ describe('what is not compared', () => {
   it('looks through display: contents to the children it lays out', () => {
     const contents: readonly LayoutNode[] = [
       BODY,
-      nodeOf({ index: 1, parent: 0, rects: [rect(0, 0, 200, 40)], backgroundColor: RED }),
-      nodeOf({ index: 2, parent: 0, display: 'contents', backgroundColor: TINT }),
+      nodeOf({
+        index: 1,
+        parent: 0,
+        rects: [rect(0, 0, 200, 40)],
+        backgroundColor: RED,
+      }),
+      nodeOf({
+        index: 2,
+        parent: 0,
+        display: 'contents',
+        backgroundColor: TINT,
+      }),
       nodeOf({ index: 3, parent: 2, rects: [rect(0, 40, 200, 80)] }),
     ]
-    expect(defectsOf(contents)).toEqual(['/en/account/verify @390px: touching boxes (gap 0px): div#n1  <->  div#n3'])
+    expect(defectsOf(contents)).toEqual([
+      '[attached] /en/account/verify @390x844 (chromium, resting): touching boxes (gap 0px): div#n1  <->  div#n3',
+    ])
   })
 
   it('does not look through a wrapper that carries text of its own', () => {
     const textual: readonly LayoutNode[] = [
       BODY,
-      nodeOf({ index: 1, parent: 0, rects: [rect(0, 0, 200, 40)], backgroundColor: RED }),
+      nodeOf({
+        index: 1,
+        parent: 0,
+        rects: [rect(0, 0, 200, 40)],
+        backgroundColor: RED,
+      }),
       nodeOf({
         index: 2,
         parent: 0,
@@ -330,101 +463,32 @@ describe('what is not compared', () => {
   })
 })
 
-const attachedTab = (exemption: Partial<LayoutNode>, panelTop: number = 40): readonly LayoutNode[] => [
-  BODY,
-  nodeOf({
-    index: 1,
-    parent: 0,
-    label: 'div.tab',
-    rects: [rect(0, 0, 200, 40)],
-    backgroundColor: RED,
-    ...exemption,
-  }),
-  nodeOf({
-    index: 2,
-    parent: 0,
-    label: 'div.panel',
-    rects: [rect(0, panelTop, 200, panelTop + 80)],
-    backgroundColor: TINT,
-  }),
-]
-
-const ATTACHED: Partial<LayoutNode> = {
-  exemption: 'attached',
-  exemptionReason: 'the tab joins its panel',
-}
-
-describe('an edge shared on purpose', () => {
-  it('passes a touching pair when one of them declares it attached, with a reason', () => {
-    expect(defectsOf(attachedTab(ATTACHED))).toEqual([])
-  })
-
-  it('fails an exemption that states no reason', () => {
-    expect(defectsOf(attachedTab({ exemption: 'attached' }))).toEqual([
-      '/en/account/verify @390px: ' +
-        'layout exemption without a reason on div.tab; state it in data-airness-layout-reason',
-    ])
-  })
-
-  it('fails a value the harness does not know, and does not excuse the pair', () => {
-    expect(defectsOf(attachedTab({ exemption: 'joined', exemptionReason: 'tab' }))).toEqual([
-      '/en/account/verify @390px: touching boxes (gap 0px): div.tab  <->  div.panel',
-      '/en/account/verify @390px: ' +
-        'unknown layout exemption data-airness-layout="joined" on div.tab; the only value is "attached"',
-    ])
-  })
-
-  it('fails an exemption that excuses nothing', () => {
-    expect(defectsOf(attachedTab(ATTACHED, 60))).toEqual([
-      '/en/account/verify: stale layout exemption on div.tab: ' +
-        'it excuses no touching or overlapping box at 390px; remove data-airness-layout',
-    ])
-  })
-
-  // A tab bar that sits against its panel on a phone and apart from it on a desktop is the ordinary
-  // shape of a responsive layout: the exemption is needed at one width and is not stale.
-  it('is not stale when it excuses a pair at one viewport and nothing at another', () => {
-    const phone: LayoutSnapshot = snapshotOf(attachedTab(ATTACHED))
-    const desktop: LayoutSnapshot = snapshotOf(attachedTab(ATTACHED, 60), {
-      width: 1280,
-      height: 800,
-    })
-    expect(findLayoutDefects([phone, desktop], LAYOUT_MINIMUM_GAP)).toEqual([])
-  })
-
-  it('names every viewport it was measured at when it is stale at all of them', () => {
-    const phone: LayoutSnapshot = snapshotOf(attachedTab(ATTACHED, 60))
-    const desktop: LayoutSnapshot = snapshotOf(attachedTab(ATTACHED, 60), {
-      width: 1280,
-      height: 800,
-    })
-    expect(findLayoutDefects([phone, desktop], LAYOUT_MINIMUM_GAP)).toEqual([
-      '/en/account/verify: stale layout exemption on div.tab: ' +
-        'it excuses no touching or overlapping box at 390px, 1280px; remove data-airness-layout',
-    ])
-  })
-})
-
 const widthsOf = (viewports: readonly LayoutViewport[]): readonly number[] =>
   viewports.map((viewport: LayoutViewport): number => viewport.width)
 
 describe('the viewports a scan runs at', () => {
-  it('keeps the phone and desktop widths when a project adds its own', () => {
-    expect(widthsOf(layoutViewportsWith([{ width: 768, height: 1024 }]))).toEqual([390, 1280, 768])
+  it('keeps every baseline width when a project adds its own', () => {
+    expect(widthsOf(layoutViewportsWith([{ width: 1366, height: 768 }]))).toEqual([...widthsOf(LAYOUT_VIEWPORTS), 1366])
   })
 
   it('measures a viewport a project repeats only once', () => {
-    expect(widthsOf(layoutViewportsWith([{ width: 390, height: 844 }]))).toEqual([390, 1280])
+    expect(widthsOf(layoutViewportsWith([{ width: 390, height: 844 }]))).toEqual(widthsOf(LAYOUT_VIEWPORTS))
   })
 
   it('reports a defect at each viewport it appears at', () => {
     const phone: LayoutSnapshot = snapshotOf(verifyPage(100))
-    const desktop: LayoutSnapshot = snapshotOf(verifyPage(100), { width: 1280, height: 800 })
+    const desktop: LayoutSnapshot = snapshotOf(verifyPage(100), {
+      width: 1280,
+      height: 800,
+    })
     expect(
       findLayoutDefects([phone, desktop], LAYOUT_MINIMUM_GAP).map(
         (line: string): string => line.split(':', 1)[0] ?? '',
       ),
-    ).toEqual(['/en/account/verify @390px', '/en/account/verify @1280px'])
+    ).toEqual([
+      '[attached] /en/account/verify @390x844 (chromium, resting)',
+      '[attached] /en/account/verify @1280x800 (chromium, resting)',
+    ])
   })
 })
 

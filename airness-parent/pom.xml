@@ -619,6 +619,10 @@
 
     <profiles>
         <profile>
+            <!-- Additive to extended: only the automatic browser sweep is scoped to the change. -->
+            <id>delta</id>
+        </profile>
+        <profile>
             <!-- Findings remain visible, but compilation and tool failures remain fatal. -->
             <id>airness-report-only</id>
             <activation>

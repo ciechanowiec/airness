@@ -37,6 +37,7 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
             ReportProject.from(ReportProjects.root(session.getAllProjects()), owner),
             Stream.concat(
                 ReportProjects.qualifications(
+                    session.getProjects(),
                     ReportProjects.partial(session.getProjects(), session.getAllProjects()),
                     session.getUserProperties().getProperty("airness.enforce", "true")
                 ).stream(),

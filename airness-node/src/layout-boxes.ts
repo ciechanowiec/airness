@@ -4,6 +4,9 @@
 // neighbour, or the two read as one broken shape. Two elements are compared when they are siblings
 // once every wrapper that paints nothing has been looked through: `<p><a class="button">` beside a
 // notice is the button beside the notice, because the paragraph around it draws nothing a reader sees.
+
+import { exemptionRules } from './browser-exemptions.js'
+import { intersectionOf, visibleRectsOf } from './layout-clip.js'
 import {
   ATTACHED_EXEMPTION,
   hasArea,
@@ -11,6 +14,7 @@ import {
   hasPaintedBackground,
   hasPaintedBox,
   isInAriaHidden,
+  isInTurn,
   type LayoutNode,
   type LayoutRect,
   type LayoutSide,
@@ -155,7 +159,7 @@ const isBoxedToward = (snapshot: LayoutSnapshot, node: LayoutNode, other: Layout
       node.boxShadow !== 'none' ||
       hasBorderOn(node, facingSide(outerBox(node), outerBox(other)))
 
-const isAttached = (node: LayoutNode): boolean => node.exemption === ATTACHED_EXEMPTION
+const isAttached = (node: LayoutNode): boolean => exemptionRules(node.exemption).includes(ATTACHED_EXEMPTION)
 
 // Two bands that each span the full width of the page and sit one above the other are the page's
 // sections - a header above a hero, the two tones of a footer - so their shared edge is the page's own
@@ -174,13 +178,6 @@ const isFullWidth = (snapshot: LayoutSnapshot, node: LayoutNode): boolean => {
 const isStackedBandPair = (snapshot: LayoutSnapshot, pair: readonly [LayoutNode, LayoutNode]): boolean =>
   pair.every((node: LayoutNode): boolean => isFullWidth(snapshot, node))
 
-const intersectionOf = (rect: LayoutRect, bounds: LayoutRect): LayoutRect => ({
-  left: Math.max(rect.left, bounds.left),
-  top: Math.max(rect.top, bounds.top),
-  right: Math.min(rect.right, bounds.right),
-  bottom: Math.min(rect.bottom, bounds.bottom),
-})
-
 // The content, kept inside the element's own box. A line of text reports the full height of its line box,
 // which a tight `line-height` pushes past the element's edges into empty space above and below the glyphs,
 // so content is never measured as reaching farther than the box it sits in: the measure can only shrink
@@ -196,17 +193,19 @@ interface MeasuredPair {
 }
 
 // Each side is measured by what it shows the other: its box where it is drawn toward it, its content
-// where it is not, so a heading's padding is not read as the heading touching the chips below it.
+// where it is not, so a heading's padding is not read as the heading touching the chips below it. Either
+// measure is cut by the ancestors that clip it, so content scrolled out of sight touches nothing.
 const measurePair = (snapshot: LayoutSnapshot, first: LayoutNode, second: LayoutNode): MeasuredPair => {
-  const isBoxOverlap: boolean = separationsOf(first.rects, second.rects).some((separation: Separation): boolean =>
-    isOverlapping(separation),
-  )
+  const isBoxOverlap: boolean = separationsOf(
+    visibleRectsOf(snapshot, first, first.rects),
+    visibleRectsOf(snapshot, second, second.rects),
+  ).some((separation: Separation): boolean => isOverlapping(separation))
   const isFirstBoxed: boolean = isBoxedToward(snapshot, first, second, isBoxOverlap)
   const isSecondBoxed: boolean = isBoxedToward(snapshot, second, first, isBoxOverlap)
   return {
     separations: separationsOf(
-      isFirstBoxed ? first.rects : visibleContentRects(snapshot, first),
-      isSecondBoxed ? second.rects : visibleContentRects(snapshot, second),
+      visibleRectsOf(snapshot, first, isFirstBoxed ? first.rects : visibleContentRects(snapshot, first)),
+      visibleRectsOf(snapshot, second, isSecondBoxed ? second.rects : visibleContentRects(snapshot, second)),
     ),
     isBoxed: isFirstBoxed || isSecondBoxed,
   }
@@ -241,11 +240,18 @@ const judgePair = (
 const isInlinePair = (first: LayoutNode, second: LayoutNode): boolean =>
   first.display === 'inline' && second.display === 'inline'
 
-const pairsOf = (siblings: readonly LayoutNode[]): readonly (readonly [LayoutNode, LayoutNode])[] =>
+// A rotated or skewed box reports the upright rectangle around it, so its gap to a sibling is not measured.
+const pairsOf = (
+  snapshot: LayoutSnapshot,
+  siblings: readonly LayoutNode[],
+): readonly (readonly [LayoutNode, LayoutNode])[] =>
   siblings.flatMap((first: LayoutNode, index: number): readonly (readonly [LayoutNode, LayoutNode])[] =>
     siblings
       .slice(index + 1)
-      .filter((second: LayoutNode): boolean => !isInlinePair(first, second))
+      .filter(
+        (second: LayoutNode): boolean =>
+          !(isInlinePair(first, second) || isInTurn(snapshot, first) || isInTurn(snapshot, second)),
+      )
       .map((second: LayoutNode): readonly [LayoutNode, LayoutNode] => [first, second]),
   )
 
@@ -259,7 +265,7 @@ export const findTouchingBoxes = (snapshot: LayoutSnapshot, minimumGap: number):
   snapshot.nodes
     .filter((node: LayoutNode): boolean => isGroupRoot(snapshot, node) && !isInAriaHidden(snapshot, node))
     .flatMap((parent: LayoutNode): readonly BoxFinding[] =>
-      pairsOf(layoutChildren(snapshot, parent)).flatMap(
+      pairsOf(snapshot, layoutChildren(snapshot, parent)).flatMap(
         (pair: readonly [LayoutNode, LayoutNode]): readonly BoxFinding[] => judgePair(snapshot, pair, minimumGap),
       ),
     )

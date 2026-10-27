@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyHitTarget, type HitTargetClassification, type HitTargetProbe } from '@/a11y-hit-target.js'
+import { classifyHitTarget, type HitTargetClassification, type HitTargetProbe } from '@/a11y-hit-target'
 
 const probe = (overrides: Partial<HitTargetProbe>): HitTargetProbe => ({
   width: 120,
@@ -7,6 +7,9 @@ const probe = (overrides: Partial<HitTargetProbe>): HitTargetProbe => ({
   clipPath: 'none',
   clip: 'auto',
   ownsCentrePoint: true,
+  pointerEvents: 'auto',
+  visibility: 'visible',
+  isInert: false,
   ...overrides,
 })
 
@@ -54,7 +57,12 @@ describe('classifyHitTarget on styling that only looks hidden', () => {
   it('does not mistake a decorative clip-path on a real button for a hiding technique', () => {
     expect(classifyHitTarget(probe({ clipPath: 'polygon(0% 0%, 100% 0%, 50% 100%)' })).verdict).toBe('hoverable')
     expect(
-      classifyHitTarget(probe({ clipPath: 'polygon(0% 0%, 100% 0%, 50% 100%)', ownsCentrePoint: false })).verdict,
+      classifyHitTarget(
+        probe({
+          clipPath: 'polygon(0% 0%, 100% 0%, 50% 100%)',
+          ownsCentrePoint: false,
+        }),
+      ).verdict,
     ).toBe('obscured')
   })
 
@@ -73,5 +81,28 @@ describe('classifyHitTarget on styling that only looks hidden', () => {
 
   it('does not read a partial inset as a hiding technique', () => {
     expect(classifyHitTarget(probe({ clipPath: 'inset(10% 20%)', ownsCentrePoint: false })).verdict).toBe('obscured')
+  })
+})
+
+describe('classifyHitTarget on controls the page keeps from the pointer', () => {
+  it.each([
+    ['a disabled button taking no pointer events', { pointerEvents: 'none' }],
+    ['the hidden face of a card', { visibility: 'hidden' }],
+    ['a collapsed row', { visibility: 'collapse' }],
+    ['a control on an inert slide', { isInert: true }],
+  ] as const)('does not report %s as obscured', (_name: string, facts: Partial<HitTargetProbe>) => {
+    expect(classifyHitTarget(probe({ ...facts, ownsCentrePoint: false })).verdict).toBe('not-a-pointer-target')
+  })
+
+  it('still reports a visible, live control that something else answers for', () => {
+    expect(
+      classifyHitTarget(
+        probe({
+          pointerEvents: 'auto',
+          visibility: 'visible',
+          ownsCentrePoint: false,
+        }),
+      ).verdict,
+    ).toBe('obscured')
   })
 })

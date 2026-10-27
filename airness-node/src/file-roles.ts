@@ -117,3 +117,10 @@ export const matchesGlob = (pattern: string, filePath: string): boolean =>
  */
 export const isGovernedCode = (filePath: string, excluded: readonly RolePattern[]): boolean =>
   hasExtension(filePath, CODE_EXTENSIONS) && !matchesRole(filePath, excluded)
+
+/** Match literal member-relative directories, including the explicitly declared member root. */
+export const isWithinSourceRoots = (file: string, roots: readonly string[]): boolean =>
+  roots.some((root: string): boolean => {
+    const normalised: string = normalisedSourceRoot(root)
+    return normalised === '.' || file.startsWith(`${normalised}/`)
+  })

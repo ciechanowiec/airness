@@ -73,6 +73,24 @@ class RequiredProfilesMojoTest {
         return project;
     }
 
+    @Test
+    void deltaRequiresExtendedAndCannotBeUsedForARelease() {
+        MavenProject selected = project("delta", "extended", "release");
+        selected.setInjectedProfileIds("parent", List.of("delta"));
+        assertEquals(
+            List.of("Delta is additive to Extended; use mvn verify -Pextended,delta"),
+            RequiredProfilesMojo.deltaProblems(List.of(selected))
+        );
+        selected.setInjectedProfileIds("parent", List.of("delta", "extended"));
+        assertTrue(RequiredProfilesMojo.deltaProblems(List.of(selected)).isEmpty());
+        selected.setInjectedProfileIds("parent", List.of("delta", "extended", "release"));
+        assertEquals(
+            List.of("A release requires the complete sweep; remove the delta profile"),
+            RequiredProfilesMojo.deltaProblems(List.of(selected))
+        );
+        assertTrue(RequiredProfilesMojo.deltaProblems(List.of(project("extended"))).isEmpty());
+    }
+
     private static Profile profile(String id) {
         Profile profile = new Profile();
         profile.setId(id);

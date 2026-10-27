@@ -124,7 +124,7 @@ Airness governs all of the following domains:
   pages the crawl renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets
   goal seeds `src/proxy.ts`. A node project declares only what
   the harness cannot know, under the `airness` key of its `package.json`: further `sourceRoots`, `serve`,
-  `serverUrl`, lower `bundleBudgetBytes` and `accessibilityRouteBudget`, and `generatedArtefacts`, `frameworkGlue`,
+  `serverUrl`, `clock`, `auxiliaryServers`, lower `bundleBudgetBytes` and `accessibilityRouteBudget`, and `generatedArtefacts`, `frameworkGlue`,
   `coverageExclude`, `pureLogicRoots`, `accessibilitySkipRoutes` and `javascriptAllowlist` entries that each name a `pattern` and a
   `reason`, an allowlist entry also the `runtime` of `node` or `cloudfront-js-2.0` that runs it. Diagnose one
   finding with `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
@@ -268,6 +268,34 @@ it is published, only a fresh history satisfies the rule.
    to them, and unused exceptions fail verification. Never pass `-o` to this command, which refuses an offline build outright. Default verification
    also needs online Maven mode from `prepare-package` onward to generate its SBOM; earlier phases retain their
    existing offline behavior.
+
+### Browser Verification
+
+Default verification opens no browser. Extended verification runs the complete browser sweep, including
+Chromium, Firefox and WebKit, alongside the security-header, stack-layer and project specifications. Prepare
+the Playwright image matching the node harness's pinned `@playwright/test` before the run. A missing image
+fails with its pull command. The host Chromium used for compliance reports is a separate toolchain.
+
+`mvn clean verify -Pextended,delta` runs the Extended checks with the automatic sweep restricted to affected
+routes and stories in Chromium. The delta profile requires Extended and cannot be used for a release. It
+never narrows the project's or a layer's own specifications. Its result and report explicitly state the scope,
+and its report is a draft rather than a complete Extended verdict. Use unscoped Extended verification for a
+release and a full assessment. `pnpm exec airness-node scope --json` explains the selected targets without
+running verification. The baseline is the remote default branch's merge-base; committed, staged, unstaged and
+untracked changes all count. Unknown baselines and global inputs broaden the sweep, while unreadable graphs
+fail. No pass or scope is cached.
+
+The node setting `clock` selects an ISO instant or `real`; by default the build, application, test worker and
+browser start at `2100-01-01T12:00:00.000Z`. Application clocks advance normally; browser Date stays fixed
+while timers and animation clocks continue. `auxiliaryServers` names the command and URL
+of each server the application needs before it starts, with an optional member-relative `cwd`. The sweep
+finds Storybook stories on those servers. The node harness owns the general browser rules; the installed
+Payload layer supplies its admin-view content selectors through `airness.layer.browser`.
+
+`mvn airness:assets-init` synchronizes managed files and creates absent optional scaffolds, including a nightly
+and release full-verification workflow in a repository with node projects. Scaffolds belong to the project:
+ordinary `assets-sync` and verification neither require nor recreate them. Customize the workflow's services
+and environment, or delete it when verification runs elsewhere.
 
 ### Compliance Reports
 

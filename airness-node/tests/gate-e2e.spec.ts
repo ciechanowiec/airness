@@ -67,18 +67,43 @@ const listening = async (): Promise<Server> =>
     })
   })
 
-const portOf = (server: Server): number => {
+const portOf = (server: Server): string => {
   const address: ReturnType<Server['address']> = server.address()
-  return typeof address === 'object' && address !== null ? address.port : 0
+  return String(typeof address === 'object' && address !== null ? address.port : 0)
 }
 
 describe('an occupied browser endpoint', PROCESS_TIME, () => {
+  it('refuses an already-running auxiliary server before starting the suite', async () => {
+    const server: Server = await listening()
+    try {
+      const primary: Server = await listening()
+      const primaryUrl: string = `http://127.0.0.1:${portOf(primary)}`
+      await new Promise<void>((resolve): void => {
+        primary.close((): void => {
+          resolve()
+        })
+      })
+      const manifest: unknown = {
+        scripts: { serve: 'node server.js' },
+        airness: {
+          serve: 'serve',
+          serverUrl: primaryUrl,
+          auxiliaryServers: [{ command: 'node cms.js', url: `http://127.0.0.1:${portOf(server)}` }],
+        },
+      }
+      const result: GateResult = await endToEnd(memberAt('/project', manifest))
+      expect(result.ok).toBe(false)
+      expect(result.findings.join('\n')).toContain(`:${portOf(server)}`)
+    } finally {
+      server.close()
+    }
+  })
   it('is refused before Playwright starts', async () => {
     const server: Server = await listening()
     try {
       const manifest: unknown = {
         scripts: { serve: 'vite preview' },
-        airness: { serve: 'serve', serverUrl: `http://127.0.0.1:${String(portOf(server))}` },
+        airness: { serve: 'serve', serverUrl: `http://127.0.0.1:${portOf(server)}` },
       }
       const result: GateResult = await endToEnd(memberAt('/project', manifest))
       expect(result.ok).toBe(false)

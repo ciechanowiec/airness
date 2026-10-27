@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@airness/node": "1.0.8-SNAPSHOT",
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.64.1",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

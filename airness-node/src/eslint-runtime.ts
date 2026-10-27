@@ -6,14 +6,15 @@
 // that file only. Arrow functions, `const`, template literals, rest parameters, `Object.keys`,
 // `Object.entries`, `Object.assign` and `Array.prototype.includes` are on the list and stay legal.
 //
-// Each restriction below is something the list leaves out and that is known to fail there. A
-// destructured parameter makes the engine reject the whole function with a misleading
-// `Unexpected token "=>"`, and the function then fails every request it serves. Passing these rules lowers
-// that risk without proving the file runs. Only executing it in CloudFront proves that.
+// The restrictions include known deployment failures and precautionary extensions where AWS provides
+// no exact grammar. Passing these rules lowers the risk without proving the file runs. Only executing
+// it in CloudFront proves that.
 
+import type { Rule } from 'eslint'
 import { type FileMatcher, type FlatConfigBlock, NO_INHERITANCE } from './eslint-core.js'
 import { type RestrictedSyntax, SECURITY_RESTRICTIONS } from './eslint-security.js'
 import { CLOUDFRONT_RUNTIME } from './javascript-runtimes.js'
+import { isWithinCallArguments } from './javascript-syntax.js'
 
 const unsupported = (construct: string, instead: string): string =>
   `${construct} is not supported by runtime ${CLOUDFRONT_RUNTIME}; ${instead}`
@@ -22,6 +23,30 @@ const DESTRUCTURING: string = unsupported(
   'destructuring',
   'read each property or index by name, for example parts[0] and parts.slice(1)',
 )
+
+type AwaitExpression = Parameters<NonNullable<Rule.RuleListener['AwaitExpression']>>[0]
+const AWAIT_EXPRESSION: string = 'AwaitExpression'
+
+// Direct awaited arguments fail in CloudFront. Nested argument expressions are rejected as a precaution.
+// Visit each await once: an outer call must not claim a callback's body, but calls inside it still count.
+const NO_AWAIT_IN_ARGUMENTS: Rule.RuleModule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      unsupported: unsupported('await within call arguments', 'await into a constant first'),
+    },
+  },
+  create(context: Rule.RuleContext): Rule.RuleListener {
+    return {
+      [AWAIT_EXPRESSION](node: AwaitExpression): void {
+        if (isWithinCallArguments(node, context.sourceCode.getAncestors(node))) {
+          context.report({ node, messageId: 'unsupported' })
+        }
+      },
+    }
+  },
+}
 
 // AST node types rather than text, so a string or a comment never matches. A pattern is a binding or an
 // assignment target, never a literal. A rest parameter is a `RestElement` directly under a function,
@@ -73,7 +98,11 @@ const CLOUDFRONT_GLOBALS: readonly RestrictedGlobal[] = [
  */
 export const cloudFrontBlock = (files: readonly FileMatcher[]): FlatConfigBlock => ({
   files,
+  plugins: {
+    cloudfront: { rules: { 'no-await-in-arguments': NO_AWAIT_IN_ARGUMENTS } },
+  },
   rules: {
+    'cloudfront/no-await-in-arguments': 'error',
     'no-restricted-syntax': [...NO_INHERITANCE, ...SECURITY_RESTRICTIONS, ...CLOUDFRONT_SYNTAX],
     'no-restricted-globals': ['error', ...CLOUDFRONT_GLOBALS],
     // It demands the `Set` this runtime lacks for every array only searched with `includes`, which is

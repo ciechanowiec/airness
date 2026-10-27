@@ -35,7 +35,15 @@ const isCloudFrontFile: (filePath: string) => boolean = allowlistedJavaScript(
 )
 
 // `next-env.d.ts` is the ambient declaration file `next build` writes and rewrites, whatever a project keeps.
-const IGNORED: readonly string[] = ['dist/**', 'node_modules/**', 'coverage/**', '.next/**', 'next-env.d.ts']
+const IGNORED: readonly string[] = [
+  'dist/**',
+  'node_modules/**',
+  'coverage/**',
+  '.next/**',
+  'next-env.d.ts',
+  'test-results/**',
+  'playwright-report/**',
+]
 
 // `unicorn/prefer-export-from` rewrites `import x from 'y'` + `export default x` into
 // `export { default } from 'y'` - and it AUTOFIXES, so a format run turned a correctly wired

@@ -163,7 +163,7 @@ PY
     expect_match node_library_report 'node gates: css reports the Stylelint finding' \
         'Unknown property "colr".*property-no-unknown'
     expect_match node_library_report 'node gates: tailwind-tokens reports the arbitrary value of a Tailwind project' \
-        'src/badge[.]tsx:1:.* arbitrary Tailwind value `-\[#0a7\]`'
+        "src/badge[.]tsx:1:.* arbitrary Tailwind value \`-\[#0a7\]\`"
     expect_match node_library_report 'node gates: install-scripts reports the decision about nothing' \
         'allowBuilds[.]left-pad names no installed dependency that runs an install script'
     expect_match node_library_report 'node gates: release-age reports the lenient floor' \
@@ -253,10 +253,12 @@ install_airness_node() {
     # pnpm that node-dependencies later installs it with, whatever other versions the cache still holds.
     node_pins="${repository}/airness-maven-plugin/src/main/resources/eu/ciechanowiec/airness/node/toolchain.properties"
     node_toolchain="${local_repository}/.airness/toolchain"
+    pinned_node_version="$(sed -n 's/^node[.]version=//p' "${node_pins}")"
+    pinned_pnpm_version="$(sed -n 's/^pnpm[.]version=//p' "${node_pins}")"
     node_home="$(find "${node_toolchain}" -maxdepth 1 -type d \
-        -name "node-$(sed -n 's/^node[.]version=//p' "${node_pins}")-*" | head -n 1)"
+        -name "node-${pinned_node_version}-*" | head -n 1)"
     pnpm_home="$(find "${node_toolchain}" -maxdepth 1 -type d \
-        -name "pnpm-$(sed -n 's/^pnpm[.]version=//p' "${node_pins}")-*" | head -n 1)"
+        -name "pnpm-${pinned_pnpm_version}-*" | head -n 1)"
     install_log="${scratch}/install-$(printf '%s' "$1" | cksum | cut -d ' ' -f 1).log"
     # A cache of this run's own. pnpm keeps registry metadata per registry host and port across runs, and for a
     # version its cached metadata already names it reuses the cached integrity, so a port the system handed out
@@ -274,8 +276,9 @@ install_airness_node() {
     # Asserted once per run, where the first install wrote them: pnpm used the run's own cache and store.
     if [ -z "${airness_node_store_checked-}" ]; then
         airness_node_store_checked=1
-        if [ -n "$(find "${scratch}/.pnpm-store" -mindepth 1 -print 2>/dev/null | head -n 1)" ] \
-            && [ -n "$(find "${scratch}/.pnpm-cache" -mindepth 1 -print 2>/dev/null | head -n 1)" ]; then
+        stored_file="$(find "${scratch}/.pnpm-store" -mindepth 1 -print 2>/dev/null | head -n 1)"
+        cached_file="$(find "${scratch}/.pnpm-cache" -mindepth 1 -print 2>/dev/null | head -n 1)"
+        if [ -n "${stored_file}" ] && [ -n "${cached_file}" ]; then
             pass 'node gates: the fixture install uses the pnpm cache and store of the run'
         else
             fail 'node gates: the fixture install uses the pnpm cache and store of the run' \

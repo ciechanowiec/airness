@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fromRun, type GateResult, runNode } from './exec.js'
 import { HARNESS_PACKAGE } from './harness-packages.js'
+import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
 import { LAYER_PACKAGES } from './layer.js'
 import { harnessDirectory, type Member, readJson, resolveTool } from './project.js'
@@ -46,6 +47,14 @@ const declaredLayers = (member: Member): readonly string[] => {
   return LAYER_PACKAGES.filter((name: string): boolean => Object.hasOwn(declared, name))
 }
 
+// CloudFront provides its own module; no npm package supplies it. The exemption applies only when
+// a declared CloudFront file actually exists in this member, including its sibling boundaries.
+const runtimeModules = (member: Member, files: readonly string[]): readonly string[] =>
+  allowedJavaScriptFiles(files, rolesFor(member.settings.javascriptRuntimes, CLOUDFRONT_RUNTIME), member.siblingPaths)
+    .length > 0
+    ? ['cloudfront']
+    : []
+
 // Written outside the working tree, so the run leaves nothing the tree check would notice.
 const knipConfig = (member: Member): string => {
   const shippedPath: string = path.join(harnessDirectory(), 'configs', 'knip.json')
@@ -66,8 +75,9 @@ const knipConfig = (member: Member): string => {
       ...texts(shipped['ignoreDependencies']),
       ...ownDependencies(member),
       ...declaredLayers(member),
+      ...runtimeModules(member, files),
     ],
-    ignore: boundaries,
+    ignore: [...texts(shipped['ignore']), ...boundaries, ...member.settings.generatedArtefacts],
   }
   writeFileSync(rendered, `${JSON.stringify(config, null, JSON_INDENT)}\n`)
   return rendered
@@ -78,7 +88,9 @@ export const knip = (member: Member): GateResult => {
   const config: string = knipConfig(member)
   try {
     return fromRun(
-      runNode(resolveTool('knip'), ['--config', config, '--no-progress'], { cwd: member.root }),
+      runNode(resolveTool('knip'), ['--config', config, '--no-progress'], {
+        cwd: member.root,
+      }),
       'no dead code or unused dependency',
       'dead code or an unused dependency was found',
     )

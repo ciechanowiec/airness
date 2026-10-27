@@ -37,7 +37,7 @@ class ShippedAssetsTest {
             rows.stream().filter(asset -> catalogue.canonical(asset).isEmpty()).toList(),
             "a row without a body is drift no project can repair"
         );
-        Set<String> expected = rows.stream().map(ShippedAssetsTest::body).collect(Collectors.toSet());
+        Set<String> expected = rows.stream().map(AssetCatalogue::resource).collect(Collectors.toSet());
         assertEquals(
             List.of(),
             Stream.concat(bodies("airness/files"), bodies("airness/project-files"))
@@ -45,11 +45,6 @@ class ShippedAssetsTest {
                 .toList(),
             "a body without a row is a file no project receives"
         );
-    }
-
-    private static String body(ManagedAsset asset) {
-        String base = asset.location() == AssetLocation.ROOT ? "airness/files/" : "airness/project-files/";
-        return base + asset.owner().id() + '/' + asset.path() + ".asset";
     }
 
     @SneakyThrows

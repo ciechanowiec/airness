@@ -8,6 +8,7 @@ import { layerDefaultsFor } from './layer.js'
 import { readJson } from './project.js'
 import { readSettings, type Settings } from './settings.js'
 import { END_TO_END_SPEC_GLOB, UNIT_SPEC_GLOB } from './spec-roles.js'
+import { testReporters } from './test-reporters.js'
 import { hasOwnRuntime } from './workspace.js'
 
 /** The per-file floor every measured file is held to, for lines, branches, functions and statements. */
@@ -27,6 +28,7 @@ const config: ViteUserConfig = defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     environment: 'node',
+    reporters: [...testReporters(process.env)],
     include: [UNIT_SPEC_GLOB],
     // The end-to-end specs are Playwright's, which the e2e gate runs against a served application.
     exclude: [END_TO_END_SPEC_GLOB, '**/node_modules/**'],

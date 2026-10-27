@@ -1,3 +1,4 @@
+import { type AuxiliaryServer, browserSettings } from './browser-settings.js'
 // The facts a node project may declare under the `airness` key of its package.json. Every field is
 // optional and every default is strict, so a project that declares nothing still receives the full
 // contract.
@@ -30,6 +31,10 @@ export interface DeclaredExclusion {
 
 /** The settings a gate reads, every field populated. */
 export interface Settings {
+  /** The verification clock, or real for time-dependent applications. */
+  readonly clock: string
+  /** Servers started before the application, such as a sibling CMS or Storybook. */
+  readonly auxiliaryServers: readonly AuxiliaryServer[]
   /** Directories holding first-party source. Additive to {@link DEFAULT_SOURCE_ROOTS}. */
   readonly sourceRoots: readonly string[]
   /** Paths a framework writes to a fixed shape, which the lint pass relaxes rather than judges. */
@@ -159,13 +164,21 @@ const readExclusionFields = (entry: unknown, setting: string, kind: ExclusionKin
   if (!isRecord(entry)) {
     return { setting, pattern: '', reason: '', kind }
   }
-  return { setting, pattern: asText(entry['pattern']), reason: asText(entry['reason']).trim(), kind }
+  return {
+    setting,
+    pattern: asText(entry['pattern']),
+    reason: asText(entry['reason']).trim(),
+    kind,
+  }
 }
 
 const readExclusion = (entry: unknown, setting: string, kind: ExclusionKind): DeclaredExclusion => {
   const read: DeclaredExclusion = readExclusionFields(entry, setting, kind)
   return setting === JAVASCRIPT_SETTING
-    ? { ...read, runtime: isRecord(entry) ? asText(entry['runtime']).trim() : '' }
+    ? {
+        ...read,
+        runtime: isRecord(entry) ? asText(entry['runtime']).trim() : '',
+      }
     : read
 }
 
@@ -328,6 +341,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     javascriptRuntimes: [...DEFAULT_JAVASCRIPT_RUNTIMES, ...layerRuntimes, ...declaredRuntimeRoles(javascript)],
     pureLogicRoots: floorOf(floor, layers),
     ...appSettings(raw, layers, honouredRoutes(routes)),
+    ...browserSettings(raw),
   }
 }
 

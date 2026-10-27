@@ -1,0 +1,12 @@
+{
+  "extends": "./configs/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "rootDir": "scripts/browser",
+    "outDir": "target/browser"
+  },
+  "include": ["scripts/browser/**/*.ts"]
+}

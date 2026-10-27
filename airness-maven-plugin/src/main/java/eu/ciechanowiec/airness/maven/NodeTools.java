@@ -25,6 +25,8 @@ import java.util.stream.Stream;
  */
 record NodeTools(Path node, Path pnpm, Duration timeout) {
 
+    static final String PROGRESS_LOG = "AIRNESS_GATE_LOG";
+
     private static final Duration TIMEOUT = Duration.ofMinutes(60);
     private static final String PATH = "PATH";
     // Keeps pnpm from switching to the version a user-level configuration names. The project's own settings
@@ -82,25 +84,35 @@ record NodeTools(Path node, Path pnpm, Duration timeout) {
         List<String> command = Stream.concat(Stream.of(this.pnpm.toString()), arguments.stream()).toList();
         ProcessBuilder builder = new ProcessBuilder(command)
             .directory(directory.toFile())
-            .redirectErrorStream(true)
-            .redirectOutput(log.toFile());
+            .redirectErrorStream(true);
+        if (environment.containsKey(PROGRESS_LOG)) {
+            Files.writeString(log, "");
+            builder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        } else {
+            builder.redirectOutput(log.toFile());
+        }
         builder.environment().put(PATH, this.path(builder.environment().getOrDefault(PATH, "")));
         builder.environment().putAll(environment);
         guard(builder.environment());
         Process process = builder.start();
         try {
             if (!process.waitFor(this.timeout)) {
-                process.destroyForcibly();
+                stop(process);
                 throw new IOException(
                     "pnpm " + String.join(" ", arguments) + " ran past " + this.timeout + "; see " + log
                 );
             }
             return process.exitValue();
         } catch (InterruptedException exception) {
-            process.destroyForcibly();
+            stop(process);
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while running pnpm " + String.join(" ", arguments), exception);
         }
+    }
+
+    private static void stop(Process process) {
+        process.descendants().toList().forEach(ProcessHandle::destroy);
+        process.destroyForcibly();
     }
 
     /**
