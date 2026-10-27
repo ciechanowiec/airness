@@ -91,6 +91,20 @@ class NodeToolsTest {
     }
 
     @Test
+    @SneakyThrows
+    void streamsBrowserProgressWhileTheNodeRunnerRetainsItsCompleteLog() {
+        Path pnpm = this.executable(
+            "pnpm", "#!/bin/sh\nprintf 'browser detail\\n' >> \"$AIRNESS_GATE_LOG\"\nprintf 'browser progress\\n'\n"
+        );
+        Path log = this.directory.resolve("logs/browser.log");
+        int exit = new NodeTools(pnpm, pnpm, GENEROUS).pnpm(
+            List.of("exec", "gate"), this.directory, log, Map.of("AIRNESS_GATE_LOG", log.toString())
+        );
+        assertEquals(0, exit);
+        assertEquals("browser detail\n", Files.readString(log));
+    }
+
+    @Test
     void dropsEveryInheritedSettingThatPicksAPnpmOrANodeAndKeepsPnpmToItsOwnVersion() {
         Map<String, String> environment = new HashMap<>(
             Map.of(

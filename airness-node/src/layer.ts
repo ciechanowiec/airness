@@ -77,7 +77,11 @@ export const layerPackagesFor = (
   return LAYER_PACKAGES.filter((name: string): boolean => Object.hasOwn(declared, name) && name !== ownName)
     .map((name: string): LayerPackage => {
       const manifestFile: string = resolveFrom.resolve(`${name}/package.json`)
-      return { name, directory: path.dirname(manifestFile), manifest: readManifest(manifestFile) }
+      return {
+        name,
+        directory: path.dirname(manifestFile),
+        manifest: readManifest(manifestFile),
+      }
     })
     .filter((layer: LayerPackage): boolean => realpathSync(layer.directory) !== realpathSync(directory))
 }
@@ -108,7 +112,7 @@ const layerField = (layer: LayerPackage, key: string, isValid: (value: string) =
   if (typeof value !== 'string' || !isValid(value)) {
     throw new Error(
       `the stack layer ${layer.name} names airness.layer.${key} as ${JSON.stringify(value)}, which is not a ` +
-        (key === 'eslint' ? "package export such as './eslint'" : 'directory inside the package'),
+        (key === 'e2eSpecs' ? 'directory inside the package' : "package export such as './eslint'"),
     )
   }
   return value
@@ -188,7 +192,14 @@ export const layerProjectsFor = (
           'which holds no *.e2e.spec.js file; the layer is broken, so its specifications would silently not run',
       )
     }
-    return [{ name: specifications.name, testDir: specifications.directory, testMatch: SHIPPED_SPECS, use }]
+    return [
+      {
+        name: specifications.name,
+        testDir: specifications.directory,
+        testMatch: SHIPPED_SPECS,
+        use,
+      },
+    ]
   })
 
 const SUBPATH_PREFIX: string = './'
@@ -198,6 +209,16 @@ const EXPORT_SUBPATH: RegExp = /^\.\/[\w-]+(?:\/[\w.-]+)*$/u
 
 const isExportSubpath = (subpath: string): boolean =>
   EXPORT_SUBPATH.test(subpath) && isInsidePackage(subpath.slice(SUBPATH_PREFIX.length))
+
+/** Resolve the browser adapter of a trusted layer, never a project-owned module. */
+export const layerBrowserConfigOf = (layer: LayerPackage, directory: string): string | undefined => {
+  const subpath: string | undefined = layerField(layer, 'browser', isExportSubpath)
+  return subpath === undefined
+    ? undefined
+    : createRequire(path.join(directory, 'package.json')).resolve(
+        `${layer.name}/${subpath.slice(SUBPATH_PREFIX.length)}`,
+      )
+}
 
 /**
  * The ESLint configuration a layer adds to the node layer's, named by `airness.layer.eslint` as one of the

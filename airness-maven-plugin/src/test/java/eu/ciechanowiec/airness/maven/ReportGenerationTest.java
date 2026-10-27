@@ -94,6 +94,22 @@ class ReportGenerationTest {
         assertEquals("MIT", project.policy().normalized("MIT License"));
     }
 
+    @Test
+    void labelsDeltaAsAScopedDraftEvenForACleanCompleteReactor() {
+        Path root = this.repository();
+        MavenProject model = InputProjects.project(root);
+        model.setInjectedProfileIds("parent", List.of("extended"));
+        assertTrue(ReportProjects.qualifications(List.of(model), false, "true").isEmpty());
+        model.setInjectedProfileIds("parent", List.of("extended", "delta"));
+        List<String> reasons = ReportProjects.qualifications(List.of(model), false, "true");
+        assertEquals(1, reasons.size());
+        SessionData data = new DefaultSessionData();
+        ReportSession.begin(data, root);
+        ReportGeneration generation = new ReportGeneration(ReportSession.source(data), project(root), List.of());
+        ComplianceReport report = generation.qualified(reasons).assemble(List.of(module()));
+        assertTrue(report.draftReasons().stream().anyMatch(reason -> reason.startsWith("Delta verification")));
+    }
+
     @SneakyThrows
     private Path repository() {
         Path root = this.directory.toRealPath();

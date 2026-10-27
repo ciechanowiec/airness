@@ -87,9 +87,12 @@ collect_findings() {
 # matches at a path boundary, so 'A.java:12' matches 'src/main/java/x/A.java:12' and not 'XA.java:12'.
 expect_finding() {
     finding_arguments "$@"
-    if finding_unreadable; then
+    finding_unreadable
+    if [ "${finding_is_unreadable}" = yes ]; then
         return
-    elif finding_matches "${finding_table}"; then
+    fi
+    finding_matches "${finding_table}"
+    if [ "${finding_did_match}" = yes ]; then
         pass "${finding_label}"
     else
         fail "${finding_label}" "execution ${finding_execution} has no ${finding_tool} finding at \
@@ -103,9 +106,12 @@ ${finding_location} matching /${finding_pattern}/"
 # nothing.
 expect_no_finding() {
     finding_arguments "$@"
-    if finding_unreadable; then
+    finding_unreadable
+    if [ "${finding_is_unreadable}" = yes ]; then
         return
-    elif finding_matches "${finding_table}"; then
+    fi
+    finding_matches "${finding_table}"
+    if [ "${finding_did_match}" = yes ]; then
         fail "${finding_label}" "execution ${finding_execution} unexpectedly has a ${finding_tool} finding at \
 ${finding_location} matching /${finding_pattern}/"
         sed -n '1,120p' "${finding_table}" >&2
@@ -125,22 +131,26 @@ finding_arguments() {
 
 # Fails the assertion when the table is missing or the named tool wrote no report into it.
 finding_unreadable() {
+    finding_is_unreadable=no
     if [ ! -f "${finding_table}" ]; then
         fail "${finding_label}" "execution ${finding_execution} left no readable findings table"
         sed -n '1,40p' "${execution_logs}/${finding_execution}.findings.log" >&2 2>/dev/null || true
+        finding_is_unreadable=yes
         return 0
     fi
     if ! grep -qx "#report	${finding_tool}" "${finding_table}"; then
         fail "${finding_label}" "execution ${finding_execution} has no ${finding_tool} report to read"
+        finding_is_unreadable=yes
         return 0
     fi
-    return 1
+    return 0
 }
 
 # The values reach awk through the environment rather than -v, which would process backslash escapes
 # and silently change a pattern such as '\['.
 finding_matches() {
-    FINDING_TOOL="${finding_tool}" FINDING_LOCATION="${finding_location}" FINDING_PATTERN="${finding_pattern}" \
+    finding_did_match=no
+    if FINDING_TOOL="${finding_tool}" FINDING_LOCATION="${finding_location}" FINDING_PATTERN="${finding_pattern}" \
         awk -F '\t' '
         function at(where, wanted,    offset, before) {
             if (index(wanted, ":") == 0) {
@@ -163,7 +173,9 @@ finding_matches() {
         }
         $1 == tool && at($2, location) && ($3 " " $4) ~ pattern { found = 1 }
         END { exit !found }
-    ' "$1"
+    ' "$1"; then
+        finding_did_match=yes
+    fi
 }
 
 record_timing() {

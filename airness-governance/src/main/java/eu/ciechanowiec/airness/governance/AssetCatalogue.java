@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
@@ -115,8 +116,16 @@ public final class AssetCatalogue {
      * @return the canonical bytes, or nothing when the harness ships none for it
      */
     Optional<byte[]> canonical(ManagedAsset asset) {
+        return this.read(resource(asset));
+    }
+
+    static String resource(ManagedAsset asset) {
         String base = asset.location() == AssetLocation.ROOT ? FILES : PROJECT_FILES;
-        return this.read(base + asset.owner().id() + '/' + asset.path() + SUFFIX);
+        // Scaffolds can target development-control directories. Their flat, encoded resource names keep
+        // those directories out of the production archive while preserving the target path in the manifest.
+        String path = asset.policy() == AssetPolicy.SCAFFOLD
+            ? URLEncoder.encode(asset.path(), StandardCharsets.UTF_8) : asset.path();
+        return base + asset.owner().id() + '/' + path + SUFFIX;
     }
 
     private Optional<String> manifest(Capability capability) {

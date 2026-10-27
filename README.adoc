@@ -119,7 +119,7 @@ A Java module with a frontend inside it keeps `airness-parent-java` and lists th
 [[managed-file-setup]]
 === Managed File Setup
 
-. Run the [[asset-sync-goal]]sync goal to create or update the xref:#managed-files[managed files]. No other command in the adoption flow writes these files:
+. Run the [[asset-sync-goal]]sync goal to create or update the xref:#managed-files[managed files]. Use `mvn airness:assets-init` for initial adoption when the optional workflow scaffold is wanted:
 +
 [source,bash]
 ----
@@ -147,6 +147,10 @@ mvn airness:assets-sync
 | [[extended-verification]]Extended verification
 | `mvn clean verify -Pextended`
 | Runs the xref:#default-verification[default verification] plus additional checks.
+
+| [[delta-verification]]Delta verification
+| `mvn clean verify -Pextended,delta`
+| Runs every Extended check, with the automatic browser sweep scoped to the change in Chromium. Project and stack-layer specifications still run. The report identifies the scoped verdict; it is not a complete Extended verdict. The `delta` profile requires `extended` and is refused together with `release`.
 
 | [[release-publication]]Release publication
 | `mvn clean deploy -Prelease -DskipTests`
@@ -224,6 +228,10 @@ The repository root carries the files of every capability present in any module.
 | [[seed-file]]Seed
 | `.gitleaks.toml`
 | The file must exist. The xref:#asset-sync-goal[`assets-sync` goal] creates it whenever it's missing, and the project owns its contents.
+
+| [[scaffold-file]]Scaffold
+| `.github/workflows/verify-full.yml` in a repository with node projects
+| `mvn airness:assets-init` creates the file when absent, after synchronizing managed files. The project owns it afterwards. Ordinary synchronization and verification neither require nor recreate it, so a project can customize or delete it.
 
 | [[reference-file]]Reference
 | `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`
@@ -313,7 +321,7 @@ The xref:#extended-verification[extended verification] adds four gates. A gate w
 | `npm-sbom` | Judges nothing. Bound in `prepare-package`, it writes `bom.cdx.json` beside its result: a CycloneDX 1.6 document of every package the lockfile resolves, with its package URL, its declared license and the dependency graph, written offline from the same resolved set as `npm-inventory`.
 | `build` | The Next.js facet, in a member that declares `next`: `next build` with the member's own Next.js succeeds.
 | `bundle` | The Next.js facet: the gzipped client JavaScript of the build the `build` gate recorded for the tree as it is now stays within 1100 KiB; a stale or unrecorded build is refused, a ceiling a project may only lower with `bundleBudgetBytes`. The build directory is read from the member's own Next.js configuration.
-| `e2e` | The browser-application facet, in a member that declares `next` or declares `serve`: Playwright, under the shipped configuration, starts the application (the production build the `build` gate made of the tree as it is now, otherwise the `package.json` script `serve` names) and runs the harness's accessibility and layout sweep and its security-header spec from the installed `@airness/node`, the specs each declared stack layer ships, then the member's own `tests/e2e/**/*.e2e.spec.ts`. The sweep crawls every page linked from `/`, fails when it audits none, and runs axe on each in its default, hover and focus states, and measures its layout at a phone and a desktop width. The header spec needs `x-content-type-options: nosniff`, a `referrer-policy`, a framing decision, and a content security policy whose script sources refuse `'unsafe-inline'`. The browser is the Chromium of the Playwright version _airness_ pins, which `mvn airness:report-browser-install` installs. `@playwright/test` resolves to the version `@airness/node` runs.
+| `e2e` | The browser-application facet starts the current production build or the declared `serve` script and runs the installed sweep, security-header specifications, stack-layer specifications and the project's own end-to-end specifications. The sweep discovers pages, stories, breakpoints, locales and colour schemes and judges their layout, text, media, focus, keyboard behavior, requests and accessibility. Extended verification runs the complete sweep with Chromium, Firefox and WebKit. The browsers run in the Playwright container image matching the harness's pinned `@playwright/test`; pull that image before verification. A missing image fails with the pull command. The compliance report's host Chromium remains a separate toolchain.
 |===
 +
 A Next.js application also gets the facet's lint: React components need no return-type annotation, Next.js's Core Web Vitals rules apply to `src/`, Biome adds its React and Next.js rule domains, Oxlint adds its accessibility rules, and `arch` forbids any import of `src/app` from outside it. The assets goal seeds `src/proxy.ts`, which sends the security headers, into a node project that installs `next`, keeps its routes under `src/app` or `src/pages` and runs no `middleware` or `proxy` of its own; the project owns it afterwards. `airness:node-gate` runs only in the executions the parents bind; given on the command line without an execution id, or with the id of no bound execution, it is refused.
@@ -331,12 +339,17 @@ A pnpm workspace root and each of its members are judged as their own packages, 
 | `coverageExclude` | Globs of source files the coverage floor doesn't measure, such as a configuration a tool loads in a process of its own. It is an exception to the floor, so an entry that leaves no measured file is refused.
 | `pureLogicRoots` | Directories of pure logic, each with a `reason`, which `arch` forbids to import anything else under a source root.
 | `serve` | The `package.json` script that serves a browser application that is not a Next.js application, for `e2e`.
+| `clock` | The instant the build, application, test workers and browser start at. Application clocks advance normally; the browser keeps Date fixed while timers and animation clocks continue. The default is `2100-01-01T12:00:00.000Z`; an ISO instant selects another baseline, and `real` retains the real clock.
+| `auxiliaryServers` | Further servers started before the application. Each names `command`, `url` and optionally a member-relative `cwd`, for example a sibling CMS or Storybook.
 | `serverUrl` | The origin `e2e` drives, `http://localhost:3000` by default.
 | `bundleBudgetBytes`, `accessibilityRouteBudget` | Lower ceilings for the client bundle and for the number of routes the sweep may discover.
 | `accessibilitySkipRoutes` | Route prefixes, each with a `reason`, the sweep does not follow. Each names a subtree at a segment boundary; `config-refs` refuses `/`, and in a Next.js application a prefix that skips no declared page or every one.
 | `layoutMinimumGap`, `layoutViewports` | A larger gap between boxes, and further viewports the layout scan measures.
 |===
 . A stack layer above the node layer, such as the Payload layer's npm package `ploaness`, joins the node gates through the `airness.layer` block of its own `package.json`, read from the copy a member resolves, only for the layer packages `@airness/node` names, and never from the member itself, so a project can neither name a layer's seams nor act as a layer by naming itself after one. Besides defaults for the settings above, `e2eSpecs` names a directory inside the package whose compiled `*.e2e.spec.js` files the `e2e` gate runs as a Playwright project of the layer's own, and `eslint` names one of the package's exports, such as `./eslint`, whose configuration starts with the blocks of `@airness/node/eslint` and adds the layer's own. The harness composes the two in `@airness/node/eslint-layered`, which the `eslint` gate runs and the layer's managed `eslint.config.mjs` re-exports, and refuses a layer block that turns a node rule off, lowers it or replaces its options with ones that don't extend them, ignores files for every block, or sets anything but files, ignores, plugins and rules, except the relaxations `@airness/node` lists for that layer and those files. A seam value of the wrong shape, an export the layer doesn't have, or a specification directory holding no specification fails the gate.
+. The `browser` export named by a trusted stack layer's `airness.layer` block supplies `scanRootSelectors`. The generic browser scanner marks those roots while scanning a custom view. The Payload layer supplies its admin-view selectors, so its framework navigation and header aren't judged as application content.
+. `pnpm exec airness-node scope --json` explains the next delta sweep. Its baseline is the merge-base with the remote default branch, and it includes committed, staged, unstaged and untracked changes. The import graph maps changes to routes and stories across declared node projects. Missing baselines, unsupported route mappings and global inputs broaden coverage; a failed graph read fails the diagnostic. Scope evidence names the baseline, targets and reasons. No result is cached.
+. The complete sweep belongs in release verification and in the nightly workflow scaffold. A delta sweep narrows only the automatic page and story sweep; its summary and compliance report retain that qualification.
 . `pnpm exec airness-node gate <id> --verbose` runs one gate in the node project it is started in and prints what the tool wrote. It diagnoses one finding and gives no verdict.
 
 [[configuration]]

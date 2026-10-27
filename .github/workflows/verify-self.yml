@@ -12,8 +12,8 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
     steps:
       - name: 'Checkout complete history'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,11 +67,17 @@ jobs:
       - name: 'Restore the pinned report browser cache'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cache/ms-playwright
+          path: ~/.cache/airness/report-browser
           key: report-browser-${{ runner.os }}-${{ hashFiles('airness-maven-plugin/pom.xml') }}
 
       - name: 'Install the pinned report browser and its system libraries'
         run: sh airness-it/report-browser.sh --with-deps
+
+      - name: 'Pull the pinned sweep browsers'
+        run: |
+          image='mcr.microsoft.com/playwright:v1.64.1-noble@sha256:'
+          image="${image}47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea"
+          docker pull "${image}"
 
       - name: 'Build, fully verify, and install Airness artifacts'
         run: mvn clean install -Pextended
@@ -97,3 +103,120 @@ jobs:
               fi
               ;;
           esac
+
+  geometry:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - name: 'Checkout complete history'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: 'Set up Temurin from .java-version'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: 'temurin'
+          java-version-file: '.java-version'
+          cache: 'maven'
+
+      - name: 'Install Maven 3.10.0'
+        run: |
+          set -eu
+          archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
+          curl --fail --silent --show-error --location \
+            'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
+            --output "$archive"
+          printf '%s  %s\n' \
+            '908b1501bfb420bf7c8affb855534a9c407fd6099367bfb9f2f2dcb8e9799102bffb84518cde74c679bd76870247c6528683abdd620581bffa90f95d92d175aa' \
+            "$archive" | sha512sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.10.0/bin" >> "$GITHUB_PATH"
+
+      - name: 'Build the pinned node harness'
+        run: mvn --batch-mode -pl airness-node -am package -DskipTests
+      - name: 'Pull the pinned sweep browsers'
+        run: |
+          image='mcr.microsoft.com/playwright:v1.64.1-noble@sha256:'
+          image="${image}47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea"
+          docker pull "${image}"
+      - name: 'Measure the same page in the pinned browser'
+        working-directory: airness-node
+        run: |
+          set -eu
+          sh ../airness-it/node.sh scripts/browser/geometry-probe.ts "geometry-${{ matrix.runner }}.json"
+      - name: 'Keep the measurement'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: 'geometry-${{ matrix.runner }}'
+          path: 'airness-node/geometry-${{ matrix.runner }}.json'
+
+  geometry-agreement:
+    needs: geometry
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: 'Checkout complete history'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: 'Set up Temurin from .java-version'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: 'temurin'
+          java-version-file: '.java-version'
+          cache: 'maven'
+
+      - name: 'Install Maven 3.10.0'
+        run: |
+          set -eu
+          archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
+          curl --fail --silent --show-error --location \
+            'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
+            --output "$archive"
+          printf '%s  %s\n' \
+            '908b1501bfb420bf7c8affb855534a9c407fd6099367bfb9f2f2dcb8e9799102bffb84518cde74c679bd76870247c6528683abdd620581bffa90f95d92d175aa' \
+            "$archive" | sha512sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.10.0/bin" >> "$GITHUB_PATH"
+
+      - name: 'Build the comparison against the pinned node harness'
+        run: mvn --batch-mode -pl airness-node -am package -DskipTests
+      - name: 'Fetch both measurements'
+        working-directory: airness-node
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "${{ github.run_id }}" --name geometry-ubuntu-24.04 --dir target/amd64
+          gh run download "${{ github.run_id }}" --name geometry-ubuntu-24.04-arm --dir target/arm64
+      - name: 'Require the two architectures to agree'
+        working-directory: airness-node
+        run: |
+          set -eu
+          sh ../airness-it/node.sh scripts/browser/compare-geometry.ts \
+            target/amd64/geometry-ubuntu-24.04.json target/arm64/geometry-ubuntu-24.04-arm.json
+
+  geometry-cleanup:
+    needs: geometry-agreement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: 'Remove the measurements once they agree'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          for name in geometry-ubuntu-24.04 geometry-ubuntu-24.04-arm; do
+            id="$(gh api "repos/$GH_REPO/actions/runs/${{ github.run_id }}/artifacts" --jq ".artifacts[] | select(.name == \"$name\") | .id")"
+            gh api --method DELETE "repos/$GH_REPO/actions/artifacts/$id"
+          done

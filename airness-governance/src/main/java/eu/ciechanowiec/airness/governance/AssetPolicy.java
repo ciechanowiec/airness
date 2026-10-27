@@ -26,6 +26,12 @@ public enum AssetPolicy {
     SEED,
 
     /**
+     * Written only during explicit initialization, then wholly owned by the project. Neither a later sync
+     * nor verification recreates or requires it, so a project can remove an inapplicable workflow.
+     */
+    SCAFFOLD,
+
+    /**
      * The file must not exist in the project. The harness supplies it from a jar or unpacks it under the
      * build directory, and a copy in the tree is a copy that will be edited and then ignored.
      */

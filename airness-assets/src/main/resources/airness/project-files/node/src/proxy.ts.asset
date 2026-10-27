@@ -7,6 +7,9 @@
 // adding the origins the site actually loads from, and changing the framing rule for a page meant to be
 // embedded are all the project's to make.
 //
+// A nonce reaches only pages rendered per request. Read headers() in the root layout when this
+// policy is used, so build-time prerendering cannot leave scripts without their required nonce.
+//
 // One line should not be relaxed: `script-src` without `'unsafe-inline'`. That directive is what makes
 // the rest mean anything - a policy readmitting inline script readmits the injection a policy exists to
 // stop - and it is the one thing the sweep refuses.

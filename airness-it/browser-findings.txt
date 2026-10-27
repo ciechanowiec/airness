@@ -1,0 +1,32 @@
+[broken-link] / (chromium, discovery): link to /nowhere answered 404
+[small-text] /small-text @390x844 (chromium, resting): text rendered at 10px, below 12px: p.tiny
+[small-text] /from-sitemap @390x844 (chromium, resting): text rendered at 10px
+[small-text] /pl-locale @390x844 (chromium, resting): text rendered at 10px
+[small-text] story:fixture-story--default @390x844 (chromium, resting): text rendered at 10px
+[image-load] /image-load @390x844 (chromium, resting): image did not load
+[failed-request] /image-load (chromium, resting): GET http
+[image-distorted] /image-distorted @390x844 (chromium, resting): image rendered at 160x60px from a 160x120px source
+[image-upscaled] /image-upscaled @390x844 (chromium, resting): image source 160x120px displayed at 150%
+[media-space] /media-space @390x844 (chromium, resting): img reserves 160x0px before loading
+[image-upscaled] /srcset-image @390x844 (chromium, resting): image source 160x120px displayed at 150%
+[media-space] /flex-media @390x844 (chromium, resting): img reserves
+[text-overlap] /turned-card @390x844 (chromium, resting): overlapping text: h2.pulled
+[text-overlap] /scrolled-blurb @390x844 (chromium, resting): overlapping text: p
+[attached] /scrolled-blurb @390x844 (chromium, resting): overlapping boxes: p
+[text-overlap] /covered-text @390x844 (chromium, resting): overlapping text: h2
+[axe:aria-hidden-focus] /focus-guard @390x844 (chromium, resting):
+[font-load] /font-load @390x844 (chromium, resting): @font-face \"Broken\"
+[page-error] /page-error (chromium, resting): console.error: fixture page error
+[page-not-stable] /unstable @390x844 (chromium, resting):
+[obscured] /obscured @1280x800 (chromium, resting): a \"Covered link\" cannot be reached by a pointer
+[focus-visible] /focus-visible @390x844 (chromium, focus): button.no-ring \"Silent focus\" shows no visible change
+[focus-order] /focus-order @390x844 (chromium, focus): a \"Second in source\" takes focus after a \"First in source\"
+[focus-contrast] /focus-contrast @390x844 (chromium, focus): button.faint-ring \"Faint focus\" changes when focused by keyboard, but too little
+[focus-obscured] /focus-obscured @390x844 (chromium, focus): a \"Hidden link\" is focused and entirely hidden
+[disclosure-keyboard] /disclosure-keyboard @390x844 (chromium, disclosure button \"Options\"): button \"Options\": Escape does not close it
+[text-spacing] /text-spacing @390x844 (chromium, text-spacing): clipped text
+[text-resize] /text-resize @1280x800 (chromium, text-resize): clipped text
+[overflow] /sweep (chromium, width-sweep): from 481 to
+[axe:color-contrast] /night @390x844 (chromium, dark):
+[exemption] /stale-exemption (chromium, every): stale layout exemption \"small-text\" on p
+[focus-visible] story:fixture-story--default @1280x800 (chromium, focus): button "Story action" shows no visible change

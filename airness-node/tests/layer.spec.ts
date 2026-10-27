@@ -3,6 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   type LayerPackage,
+  layerBrowserConfigOf,
   layerDefaultsFor,
   layerDefaultsOf,
   layerEslintConfigOf,
@@ -67,6 +68,26 @@ const layerAt = (directory: string, layer: Readonly<Record<string, unknown>>): L
 })
 
 describe('the seams a layer package joins the node gates through', PROCESS_TIME, () => {
+  it('resolves a browser adapter only through the installed layer package exports', () => {
+    const root: string = temporaryProject({
+      'node_modules/ploaness/package.json': JSON.stringify({
+        name: 'ploaness',
+        exports: { './browser': './browser.js' },
+      }),
+      'node_modules/ploaness/browser.js': 'export const scanRootSelectors = [".owned-view"]\n',
+    })
+    try {
+      const layer: LayerPackage = layerAt(path.join(root, 'node_modules/ploaness'), { browser: './browser' })
+      expect(layerBrowserConfigOf(layer, root)).toBe(path.join(root, 'node_modules/ploaness/browser.js'))
+      expect(layerBrowserConfigOf(layerAt(layer.directory, {}), root)).toBeUndefined()
+      expect(() => layerBrowserConfigOf(layerAt(layer.directory, { browser: '../project.js' }), root)).toThrow(
+        'package export',
+      )
+      expect(() => layerBrowserConfigOf(layerAt(layer.directory, { browser: './missing' }), root)).toThrow()
+    } finally {
+      removeProject(root)
+    }
+  })
   it('runs the specifications a layer ships from a directory inside the package, and from nowhere else', () => {
     expect(layerSpecificationsOf(layerAt('/store/ploaness', { e2eSpecs: 'dist' }))).toEqual({
       name: 'ploaness',

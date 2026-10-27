@@ -1,16 +1,23 @@
 // The page a layout spec judges, built from the numbers a real page produces: whole CSS pixels and
 // computed style strings. Shared by the specs of the layout rules, so each states only its own cases.
-import { findLayoutDefects } from '@/layout-defects.js'
-import type { LayoutBorder, LayoutNode, LayoutRect, LayoutSnapshot } from '@/layout-snapshot.js'
-import { LAYOUT_MINIMUM_GAP, type LayoutViewport } from '@/settings.js'
+import { findLayoutDefects, LAYOUT_MINIMUM_GAP, type LayoutViewport } from '@/layout-defects'
+import type { LayoutBorder, LayoutNode, LayoutRect, LayoutSnapshot } from '@/layout-snapshot'
 
 export const TRANSPARENT: string = 'rgba(0, 0, 0, 0)'
 export const WHITE: string = 'rgb(255, 255, 255)'
 export const TINT: string = 'rgb(236, 253, 245)'
 export const RED: string = 'rgb(220, 38, 38)'
 
-export const NO_BORDER: LayoutBorder = { width: 0, style: 'none', color: 'rgb(0, 0, 0)' }
-export const GREEN_BORDER: LayoutBorder = { width: 4, style: 'solid', color: 'rgb(22, 163, 74)' }
+export const NO_BORDER: LayoutBorder = {
+  width: 0,
+  style: 'none',
+  color: 'rgb(0, 0, 0)',
+}
+export const GREEN_BORDER: LayoutBorder = {
+  width: 4,
+  style: 'solid',
+  color: 'rgb(22, 163, 74)',
+}
 
 export const rect = (left: number, top: number, right: number, bottom: number): LayoutRect => ({
   left,
@@ -29,10 +36,18 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   display: 'block',
   visibility: 'visible',
   position: 'static',
+  zIndex: 'auto',
+  transform: 'none',
+  rotate: 'none',
   backgroundColor: TRANSPARENT,
   backgroundImage: 'none',
   boxShadow: 'none',
-  borders: { top: NO_BORDER, right: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER },
+  borders: {
+    top: NO_BORDER,
+    right: NO_BORDER,
+    bottom: NO_BORDER,
+    left: NO_BORDER,
+  },
   isAriaHidden: false,
   isClipped: false,
   overflowX: 'visible',
@@ -47,6 +62,9 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   ariaLabel: '',
   exemption: undefined,
   exemptionReason: '',
+  fontSize: 16,
+  fontFamily: 'sans-serif',
+  media: undefined,
   ...fields,
 })
 
@@ -59,6 +77,7 @@ export const snapshotOf = (nodes: readonly LayoutNode[], viewport: LayoutViewpor
   scrollWidth: viewport.width,
   rootBackground: WHITE,
   nodes,
+  fontFaces: [],
 })
 
 export const defectsOf = (nodes: readonly LayoutNode[], minimumGap: number = LAYOUT_MINIMUM_GAP): readonly string[] =>

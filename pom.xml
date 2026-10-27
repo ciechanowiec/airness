@@ -1486,6 +1486,10 @@
 
     <profiles>
         <profile>
+            <!-- Additive to extended: only the automatic browser sweep is scoped to the change. -->
+            <id>delta</id>
+        </profile>
+        <profile>
             <id>extended</id>
             <build>
                 <plugins>

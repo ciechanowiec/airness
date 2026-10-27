@@ -9,3 +9,6 @@ AGENTS.md	SECTION	NODE_PROJECT
 eslint.config.mjs	PINNED	NODE_PROJECT
 vitest.config.mts	PINNED	NODE_PROJECT
 src/proxy.ts	SEED	NEXT_PROJECT
+
+# Optional CI bootstrap, never required or restored by ordinary verification and sync.
+.github/workflows/verify-full.yml	SCAFFOLD	ROOT

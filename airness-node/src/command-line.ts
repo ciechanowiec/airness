@@ -7,6 +7,7 @@ import type { GateContext } from './exec.js'
 import { crashedResult, type GateStatus, type MemberOutcome, type ResultFile, resultOf } from './gate-result.js'
 import { GATES, type Gate, gateById } from './gates.js'
 import { type Member, membersOf } from './project.js'
+import { isScopeCommand, scopeCommand } from './scope-command.js'
 
 // How the verdict reads on the console.
 const STATUS_LABELS: Readonly<Record<GateStatus, string>> = {
@@ -23,6 +24,7 @@ const GATE_ID_COLUMN: number = 22
 const USAGE: string = `airness-node, the JS/TS gates of the Airness node layer
 
   airness-node gate <id> [--result <file>] [--verbose]   run one gate in this node project
+  airness-node scope [--json]                         explain the browser scope of this change
   airness-node gates                                     list the gates
 
 One gate is a diagnosis, not a verdict. Run mvn verify for the verdict.`
@@ -123,6 +125,9 @@ const listGates = (): number => {
  */
 export const runCommandLine = async (commandLine: readonly string[], directory: string): Promise<number> => {
   const [command, ...rest] = commandLine
+  if (isScopeCommand(command, rest)) {
+    return scopeCommand(directory, rest.includes('--json'))
+  }
   if (command === 'gates' && rest.length === 0) {
     return listGates()
   }

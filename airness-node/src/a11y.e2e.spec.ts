@@ -1,335 +1,105 @@
-// The harness owns this specification and runs it from its own dist, so a project never holds a copy of it.
-// What a project declares about it goes under the `airness` key of package.json: route prefixes the crawl
-// must not follow (`accessibilitySkipRoutes`), a smaller route ceiling (`accessibilityRouteBudget`), a larger
-// gap between boxes (`layoutMinimumGap`), and viewports to measure beside the phone and desktop ones
-// (`layoutViewports`).
+// The browser sweep discovers what to scan from the running application - every route reachable from
+// the home page, its `hreflang` alternates and its `sitemap.xml`, every story an auxiliary Storybook
+// serves, every breakpoint and colour scheme its stylesheets declare - and judges each one by the same
+// rules a project's own specs reach through `expectSweptPage`. A page, story, breakpoint or locale is
+// therefore checked the moment it exists, with no test to add.
 //
-// Accessibility has to stay default-safe as a site grows. Rather than a hand-maintained list of pages to
-// scan, which someone will eventually forget to extend, this sweep crawls every public route reachable
-// from the home page and runs axe on each: in its default state, and with every interactive control
-// driven into :hover and :focus. State-only contrast defects are invisible to a default scan and to any
-// static rule, which is the half of accessibility a linter can never reach. A page linked anywhere on
-// the site is therefore checked the moment it exists, with no test to add. Per-page content and
-// behaviour assertions still belong in the project's own feature specs.
-//
-// The same crawl feeds the layout scan, which measures every route at a phone and a desktop width for
-// boxes that touch, text that collides, text its own box cuts off, and a page wider than its viewport.
-// A defect of that kind is accessible, so axe passes it, and a feature spec that reads the page's text
-// passes it too; only geometry measured in the browser can see it.
-import type AxeBuilder from '@axe-core/playwright'
-import { expect, type Locator, type Page, type Response, test } from '@playwright/test'
+// Discovery runs first, once, in Chromium, and writes what it found for every pass; its problems
+// are recorded rather than failing it, because every pass depends on it. Each pass is split into
+// shards, one test each, and the shards run on parallel workers while the project's own specs keep to
+// one. Each shard has its own budget, derived from the work discovery found, and reports every defect
+// it finds rather than stopping at the first. The summary runs last, whatever failed before it: it
+// judges discovery's problems and the exemptions no pass used, reports a shard that did not finish,
+// and prints what was covered. Under `mvn verify -Pextended` the sweep also runs in Firefox and WebKit,
+// where the engine pass covers one route per template and one story per component; `mvn verify -Pextended,delta` sweeps only the routes and stories the change reaches, in Chromium.
+import { test } from '@playwright/test'
 import {
-  type AxeResults,
-  classifyHitTarget,
-  expectNoAxeDefects,
-  type HitTargetClassification,
-  type HitTargetProbe,
-  isSkippedSweepRoute,
-  layoutDefectsOf,
-  MAX_SWEEP_ROUTES,
-  scopedAxe,
-  settleForScan,
-  unsweptRoutes,
-} from './a11y.js'
-import { expectSecurityHeaders } from './security.js'
+  expectDarkScheme,
+  expectDisclosureStates,
+  expectDiscoveredSite,
+  expectEngineRules,
+  expectInteractionStates,
+  expectRestingRules,
+  expectSweepSummary,
+  expectTextStress,
+  expectWidthSweep,
+  type Shard,
+  SWEEP_SHARDS,
+} from './sweep.js'
 
-// The sweep scans every interactive control in three states on every route, so its cost grows with the
-// site. The budget is per discovered route, so it scales as pages are added instead of flaking against a
-// fixed timeout.
-const MILLISECONDS_PER_ROUTE: number = 50_000
+const CHROMIUM: string = '@airness-chromium'
+const ENGINE: string = '@airness-engine'
 
-// ...and then the whole sweep is bounded regardless of the route count, because the two numbers answer
-// different questions. Per-route generosity exists for a framework compiling a page for the first time,
-// which is a cost paid once per page; multiplying it by every route describes a machine that never warms
-// up. Left unbounded it also sets how long a HUNG sweep burns a team's CI before anything is reported,
-// and at a route ceiling in the hundreds that reached several hours.
-const MAX_SWEEP_MILLISECONDS: number = 3_600_000
+const SHARDS: readonly Shard[] = Array.from(
+  { length: SWEEP_SHARDS },
+  (_unused: unknown, index: number): Shard => ({
+    index,
+    count: SWEEP_SHARDS,
+  }),
+)
 
-// The crawl is link-based, so it starts from the one route every site has. Whether this answers is
-// what separates a crawl that ran from one that could not start.
-const SEED_ROUTE: string = '/'
+const DISCOVERY_TITLE: string = 'discovers every route, story, breakpoint and colour scheme'
+const RESTING_TITLE: string = 'every page passes the resting rules at every viewport'
+const INTERACTION_TITLE: string = 'every control passes in hover and keyboard focus'
+const DISCLOSURE_TITLE: string = 'every disclosure passes open and answers the keyboard'
+const TEXT_STRESS_TITLE: string = 'text survives WCAG spacing and doubled size'
+const WIDTH_TITLE: string = 'layout holds across the whole width range'
+const DARK_TITLE: string = 'every page passes in its dark scheme'
+const ENGINE_TITLE: string = 'every sampled page passes in this engine'
 
-// A path ending in an extension is a static asset, not a page: axe has nothing to say about it and
-// `goto` would download it.
-const STATIC_ASSET: RegExp = /\.[a-z\d]+$/i
+const partTitle = (title: string, shard: Shard): string =>
+  `${title} (part ${String(shard.index + 1)} of ${String(shard.count)})`
 
-const parseUrl = (href: string, origin: string): URL | null => {
-  try {
-    return new URL(href, origin)
-  } catch {
-    return null
+// Each pass calls its helper directly in the test body rather than through a table, so the lint rule
+// requiring an assertion in every test can see one: the `expect` helpers are what it counts.
+test.describe('Airness browser sweep', () => {
+  test(DISCOVERY_TITLE, { tag: '@airness-discovery' }, async ({ page }) => {
+    await expectDiscoveredSite(page)
+  })
+
+  for (const shard of SHARDS) {
+    test(partTitle(RESTING_TITLE, shard), { tag: CHROMIUM }, async ({ page }) => {
+      await expectRestingRules(page, shard)
+    })
   }
-}
 
-// Reduce an href - or a URL a navigation landed on - to a same-origin page path, or null to skip it: an
-// external link, a route the project declared out of scope, a static asset, or a bare anchor resolving
-// to a page already queued.
-const toRoute = (href: string, origin: string): string | null => {
-  const url: URL | null = parseUrl(href, origin)
-  if (url?.origin !== origin) {
-    return null
+  for (const shard of SHARDS) {
+    test(partTitle(INTERACTION_TITLE, shard), { tag: CHROMIUM }, async ({ page }) => {
+      await expectInteractionStates(page, shard)
+    })
   }
-  const routePath: string = url.pathname
-  return isSkippedSweepRoute(routePath) || STATIC_ASSET.test(routePath) ? null : routePath
-}
 
-/* eslint-disable functional/immutable-data -- a breadth-first crawl over a live site needs a frontier
-   that shrinks as it is read and a visited set that grows; both are confined to discoverRoutes below
-   and escape only as the list it returns */
-// The frontier, the visited set and the routes the cap refused, passed as one value because they are
-// one thing: the state of a single crawl. Threading them as separate parameters put this function over
-// the parameter cap the moment the refused set joined them.
-interface CrawlState {
-  readonly seen: Set<string>
-  readonly queue: string[]
-  readonly dropped: Set<string>
-  // Every route that answered, whether or not it turned out to be public. A route that forwards out of
-  // the public surface answers and is not swept, and only this set can tell that apart from a site that
-  // did not answer at all.
-  readonly answered: Set<string>
-}
-
-// Routes refused by the cap are collected rather than counted, so the caller learns THAT the crawl was
-// truncated from a set it can also read. Returning a boolean instead named a verb after a predicate,
-// which the shipped lint rules reject and which read as though enqueueing were the question asked.
-const enqueueRoutes = (hrefs: readonly string[], origin: string, state: CrawlState): void => {
-  for (const href of hrefs) {
-    const route: string | null = toRoute(href, origin)
-    if (route === null || state.seen.has(route) || state.dropped.has(route)) {
-      continue
-    }
-    if (state.seen.size >= MAX_SWEEP_ROUTES) {
-      state.dropped.add(route)
-    } else {
-      state.seen.add(route)
-      state.queue.push(route)
-    }
+  for (const shard of SHARDS) {
+    test(partTitle(DISCLOSURE_TITLE, shard), { tag: CHROMIUM }, async ({ page }) => {
+      await expectDisclosureStates(page, shard)
+    })
   }
-}
 
-interface RouteDiscovery {
-  readonly routes: readonly string[]
-  // Every route that answered, forwarding ones included. A page whose only job is to redirect is not
-  // a page to scan, and only this set tells it apart from a page nothing ever linked.
-  readonly answered: readonly string[]
-  readonly isCapped: boolean
-  readonly hasSeedAnswered: boolean
-}
-
-/** Check the existing baseline on HTML navigation responses, leaving API and file policies to their tests. */
-const expectHtmlSecurityHeaders = (response: Response): void => {
-  if (response.headers()['content-type']?.includes('text/html') === true) {
-    expectSecurityHeaders(response)
+  for (const shard of SHARDS) {
+    test(partTitle(TEXT_STRESS_TITLE, shard), { tag: CHROMIUM }, async ({ page }) => {
+      await expectTextStress(page, shard)
+    })
   }
-}
 
-const discoverRoutes = async (page: Page, origin: string): Promise<RouteDiscovery> => {
-  const state: CrawlState = {
-    seen: new Set<string>([SEED_ROUTE]),
-    queue: [SEED_ROUTE],
-    dropped: new Set<string>(),
-    answered: new Set<string>(),
+  for (const shard of SHARDS) {
+    test(partTitle(WIDTH_TITLE, shard), { tag: CHROMIUM }, async ({ page }) => {
+      await expectWidthSweep(page, shard)
+    })
   }
-  const reachable: string[] = []
-  while (state.queue.length > 0) {
-    const routePath: string | undefined = state.queue.shift()
-    if (routePath === undefined) {
-      break
-    }
-    const response: Response | null = await page.goto(`${origin}${routePath}`)
-    if (response?.ok() !== true) {
-      // A link can point at a not-yet-built route; it answers outside the layout, so skip it entirely
-      // rather than scanning a page the project never rendered.
-      continue
-    }
-    state.answered.add(routePath)
-    // Where a navigation LANDS is judged by the same list as where a link points. Applied only to
-    // hrefs, the skip list let a redirect walk the crawl into the prefix it exists to keep it out of:
-    // a headless CMS whose `/` forwards to `/admin` had its admin panel swept, and every finding was
-    // about a framework's markup the project cannot edit. `/` is the case that cannot be avoided by
-    // not linking to it, because the crawl seeds it.
-    if (toRoute(page.url(), origin) === null) {
-      continue
-    }
-    expectHtmlSecurityHeaders(response)
-    reachable.push(routePath)
-    const hrefs: readonly string[] = await page
-      .locator('a[href]')
-      .evaluateAll((anchors: readonly Element[]): readonly string[] =>
-        anchors.map((anchor: Element): string => anchor.getAttribute('href') ?? ''),
-      )
-    enqueueRoutes(hrefs, origin, state)
+
+  for (const shard of SHARDS) {
+    test(partTitle(DARK_TITLE, shard), { tag: CHROMIUM }, async ({ page }) => {
+      await expectDarkScheme(page, shard)
+    })
   }
-  return {
-    routes: reachable,
-    answered: [...state.answered],
-    isCapped: state.dropped.size > 0,
-    hasSeedAnswered: state.answered.has(SEED_ROUTE),
+
+  for (const shard of SHARDS) {
+    test(partTitle(ENGINE_TITLE, shard), { tag: ENGINE }, async ({ page }) => {
+      await expectEngineRules(page, shard)
+    })
   }
-}
-/* eslint-enable functional/immutable-data -- the crawl above is the only place this spec mutates */
 
-const expectNoContrastViolation = async (page: Page, label: string): Promise<void> => {
-  // Settled here rather than beside each `hover()` and `focus()`, so that one call covers both states
-  // and covers a control whose colour arrives through a CSS transition: measured on the frame the
-  // pointer lands, that control reports the colour it is moving away from.
-  await settleForScan(page)
-  const builder: AxeBuilder = await scopedAxe(page)
-  const scan: AxeResults = await builder.withRules(['color-contrast']).analyze()
-  expectNoAxeDefects(scan, label)
-}
-
-// The site chrome renders from one global stylesheet identically on every page, so its hover and focus
-// contrast is the same wherever it appears; main holds the per-page content whose state contrast can
-// differ. Scanning these scopes separately covers the chrome once and the content per route, instead of
-// re-scanning identical chrome on every page - which on a content-rich site is thousands of redundant
-// axe runs that blow the timeout and exhaust the tab.
-const CHROME_CONTROLS: string = 'header a, header button, footer a, footer button'
-const MAIN_CONTROLS: string = 'main a, main button'
-
-// What the browser has to say before a control can be classified. `elementFromPoint` is asked the same
-// question Playwright's actionability check asks, which is what lets a clipped control and a covered
-// one be told apart instead of both ending as the same timeout.
-// The fraction of a box's extent at which its centre lies. Handed to the page function as an argument,
-// because a page function is shipped to the browser as its own source and reaches nothing at module scope.
-const CENTRE: number = 0.5
-
-const probeHitTarget = async (control: Locator): Promise<HitTargetProbe> =>
-  await control.evaluate((element: Element, centre: number): HitTargetProbe => {
-    // Scroll first, because `elementFromPoint` takes VIEWPORT coordinates and answers null for a point
-    // outside it. Every control below the fold - which is every site's footer - therefore reported that
-    // it did not own its centre point, and was classified as obscured: a page defect, on a link with
-    // nothing whatsoever on top of it. `hover()` scrolls before it hits, so the question this asks is
-    // only the question hover will ask once the control is where hover would put it.
-    //
-    // Done inside this evaluate rather than through `scrollIntoViewIfNeeded()` so that reading the box
-    // and hit-testing it cannot straddle a scroll, and so that a control the sweep must still classify
-    // - one that is `display: none`, and has no box to scroll to - cannot turn this into an
-    // actionability timeout, which is the failure mode this whole module exists to remove.
-    element.scrollIntoView({ block: 'center', inline: 'center' })
-    const box: DOMRect = element.getBoundingClientRect()
-    const style: CSSStyleDeclaration = globalThis.getComputedStyle(element)
-    const atCentre: Element | null = element.ownerDocument.elementFromPoint(
-      box.left + box.width * centre,
-      box.top + box.height * centre,
-    )
-    return {
-      width: box.width,
-      height: box.height,
-      clipPath: style.clipPath,
-      // Read through `getPropertyValue` because the `clip` PROPERTY is deprecated and the shipped lint
-      // config rightly says so. The CSS property is not gone: the legacy visually-hidden rule pairs a
-      // 1px box with `clip: rect(0 0 0 0)`, and a sweep that could not see it would misclassify every
-      // element still using it.
-      clip: style.getPropertyValue('clip'),
-      ownsCentrePoint: atCentre !== null && element.contains(atCentre),
-    }
-  }, CENTRE)
-
-// A visually hidden control - a skip link behind `clip-path: inset(50%)`, which is the standard
-// accessible pattern - has no hit target, because a clip removes an element from hit testing as well as
-// from painting. Hovering it never succeeds, and the message Playwright eventually prints blames the
-// ancestor that answered instead, which reads as an instruction to weaken a correct skip link.
-//
-// Skipping the hover pass there loses no coverage: hover contrast measures painted pixels and this
-// element paints none. The focus pass, which is the state that actually matters for a skip link, still
-// runs. A control that DOES paint and is covered anyway is a defect in the page, and is reported as one
-// rather than skipped - the sweep's own rule, applied where it belongs.
-const scanInteractiveStates = async (page: Page, label: string, selector: string): Promise<void> => {
-  const controls: readonly Locator[] = await page.locator(selector).all()
-  for (const control of controls) {
-    const reach: HitTargetClassification = classifyHitTarget(await probeHitTarget(control))
-    expect(reach.verdict, `${label}: a control cannot be reached by a pointer - ${reach.reason}`).not.toBe('obscured')
-    if (reach.verdict === 'hoverable') {
-      await control.hover()
-      await expectNoContrastViolation(page, `hover contrast on ${label}`)
-    } else {
-      // `attach` rather than pushing onto `test.info().annotations`: the annotation array is mutable
-      // and the shipped config bans mutating one, and a skip nobody can see in the report is a skip
-      // that becomes permanent.
-      await test.info().attach('hover-skipped', {
-        body: `${label}: ${reach.reason}`,
-        contentType: 'text/plain',
-      })
-    }
-    await control.focus()
-    await expectNoContrastViolation(page, `focus contrast on ${label}`)
-  }
-}
-
-const scanRoute = async (page: Page, origin: string, route: string): Promise<void> => {
-  await page.goto(`${origin}${route}`)
-  await settleForScan(page)
-  const builder: AxeBuilder = await scopedAxe(page)
-  const defaultScan: AxeResults = await builder.analyze()
-  expectNoAxeDefects(defaultScan, `default-state a11y on ${route}`)
-  await scanInteractiveStates(page, route, MAIN_CONTROLS)
-}
-
-// Every route is measured before any is scanned with axe, and its findings are collected rather than
-// asserted one route at a time. An axe failure stops the sweep at its route; a layout defect does not
-// stop anything, so a run reports every layout defect on the site at once.
-const sweepLayout = async (page: Page, origin: string, routes: readonly string[]): Promise<readonly string[]> =>
-  await routes.reduce(async (found: Promise<readonly string[]>, route: string): Promise<readonly string[]> => {
-    const earlier: readonly string[] = await found
-    await page.goto(`${origin}${route}`)
-    return [...earlier, ...(await layoutDefectsOf(page))]
-  }, Promise.resolve<readonly string[]>([]))
-
-test.describe('Accessibility and layout sweep', () => {
-  test('every reachable public page passes axe in default, hover, and focus states, and its layout holds', async ({
-    page,
-    baseURL: origin = '',
-  }) => {
-    expect(origin, 'the Airness Playwright configuration must declare a server URL').not.toEqual('')
-    // Armed before the crawl rather than after it. Until the budget below is set this test runs under
-    // the shipped default, and a site approaching the route cap cannot be crawled inside it - which
-    // failed as a bare timeout naming no route, from a sweep whose whole job is to name routes.
-    test.setTimeout(MAX_SWEEP_MILLISECONDS)
-    const discovery: RouteDiscovery = await discoverRoutes(page, origin)
-    const routes: readonly string[] = discovery.routes
-    // What this guards is that the crawl RAN: a server that is down, or a root that errors, fails here with
-    // a message naming the seed. That the crawl then judged at least one page is asserted below, once the
-    // completeness check has named what it missed.
-    expect(discovery.hasSeedAnswered, `the crawl could not start: ${SEED_ROUTE} did not answer`).toBe(true)
-    expect(
-      discovery.isCapped,
-      `a11y sweep reached the ${String(MAX_SWEEP_ROUTES)}-route cap; raise the harness limit only after ` +
-        'measuring the resulting run time',
-    ).toBe(false)
-    // What the crawl reached is only half the question. The other half is what it MISSED, and this is
-    // the only place both halves exist: the file tree says which pages this project declares, and the
-    // crawl has just said which of them it could get to. A page reached by neither is a page nothing
-    // has ever scanned, and before this check nothing said so.
-    //
-    // Asserted here rather than after the per-route loop, and deliberately. It costs milliseconds
-    // while the sweep costs up to an hour, the shipped Playwright config retries a failing test twice
-    // in CI, and this whole sweep is ONE test - so a completeness failure asserted at the end would be
-    // paid for three times over before anything was reported.
-    expect(
-      unsweptRoutes(routes, discovery.answered),
-      'pages this project declares that nothing scans for accessibility and layout',
-    ).toEqual([])
-    // A sweep that audited no page is no verdict: the seed forwarded out of the public surface, or every route
-    // it reached is one a declared prefix skips. Either way nothing was judged, so it fails rather than pass.
-    const [first] = routes
-    expect(
-      first,
-      'the sweep audited no page: every route the crawl reached was skipped or forwarded away',
-    ).toBeDefined()
-    if (first === undefined) {
-      return
-    }
-    // Narrowed from the ceiling armed above, now that the route count is known.
-    test.setTimeout(Math.min(routes.length * MILLISECONDS_PER_ROUTE, MAX_SWEEP_MILLISECONDS))
-    // Soft, so the accessibility pass below still runs and reports when the layout pass has failed.
-    expect.soft(await sweepLayout(page, origin, routes), 'layout defects on the swept routes').toEqual([])
-    // The chrome is identical site-wide, so sweep its interactive states once, on the first route.
-    await page.goto(`${origin}${first}`)
-    await settleForScan(page)
-    await scanInteractiveStates(page, 'site chrome', CHROME_CONTROLS)
-    for (const route of routes) {
-      await scanRoute(page, origin, route)
-    }
+  test('every exemption excuses something, and every pass finished', { tag: '@airness-summary' }, async () => {
+    await expectSweepSummary()
   })
 })

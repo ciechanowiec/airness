@@ -1,0 +1,261 @@
+import { describe, expect, it } from 'vitest'
+import {
+  type BrowserServerOwner,
+  clockOf,
+  DEFAULT_CLOCK_INSTANT,
+  declaredSweepWorkers,
+  dockerCapacityOf,
+  enginePassParts,
+  isOrphanedBrowserServer,
+  itemLimitMs,
+  listedBrowserServers,
+  type MachineCapacity,
+  partBudgetMs,
+  passBudgetMs,
+  pinnedBrowserEndpoint,
+  pinnedBrowserServerArguments,
+  playwrightImageOf,
+  REAL_CLOCK,
+  shiftedTime,
+  sweepWorkersAcross,
+  sweepWorkersFor,
+} from '@/browser-run'
+import { isPinnedBrowserImage } from '@/browser-run.js'
+import { readSettings } from '@/settings'
+
+describe('the verification clock', () => {
+  it('starts at the default instant unless a project names another or the real clock', () => {
+    expect([clockOf(undefined), clockOf('2031-05-06T08:00:00+02:00'), clockOf('real')]).toEqual([
+      DEFAULT_CLOCK_INSTANT,
+      '2031-05-06T06:00:00.000Z',
+      REAL_CLOCK,
+    ])
+  })
+
+  it('reads a malformed value as the default, so a typo cannot unpin it', () => {
+    expect([clockOf('Real'), clockOf('2031-13-45T99:00Z'), clockOf('2031-05-06'), clockOf(1)]).toEqual([
+      DEFAULT_CLOCK_INSTANT,
+      DEFAULT_CLOCK_INSTANT,
+      DEFAULT_CLOCK_INSTANT,
+      DEFAULT_CLOCK_INSTANT,
+    ])
+  })
+
+  it('is read from the Airness settings', () => {
+    expect([readSettings({}).clock, readSettings({ airness: { clock: 'real' } }).clock]).toEqual([
+      DEFAULT_CLOCK_INSTANT,
+      REAL_CLOCK,
+    ])
+  })
+
+  it('advances from its instant at the real rate', () => {
+    expect(shiftedTime(1000, 50, 80)).toBe(1030)
+  })
+})
+
+describe('the pinned browsers and the pass budgets', () => {
+  it('names the Playwright image of the pinned version', () => {
+    expect(playwrightImageOf('1.64.1')).toBe('mcr.microsoft.com/playwright:v1.64.1-noble')
+  })
+
+  it('grows a pass budget with the work it discovered', () => {
+    expect([passBudgetMs('resting', 0), passBudgetMs('resting', 10), passBudgetMs('width-sweep', -1)]).toEqual([
+      60_000, 180_000, 60_000,
+    ])
+  })
+})
+
+describe('the budget of one part of a pass', () => {
+  it('is the budget of an equal share of the whole pass, rounded up to a whole unit', () => {
+    expect([
+      partBudgetMs('resting', 8, { index: 0, count: 4 }),
+      partBudgetMs('resting', 9, { index: 3, count: 4 }),
+      partBudgetMs('resting', 0, { index: 0, count: 4 }),
+    ]).toEqual([passBudgetMs('resting', 2), passBudgetMs('resting', 3), passBudgetMs('resting', 0)])
+  })
+})
+
+const OWNER: BrowserServerOwner = {
+  pid: 4321,
+  started: 'Mon Oct 26 09:52:44 2026',
+  host: 'builder',
+}
+
+describe('the pinned browser server', () => {
+  it('runs the host Playwright, read-only, against the image browsers on a loopback port', () => {
+    expect(
+      pinnedBrowserServerArguments({
+        image: 'mcr.microsoft.com/playwright:v1.64.1-noble',
+        name: 'airness-browsers-4100',
+        port: 4100,
+        playwrightCore: '/repo/node_modules/playwright-core',
+        isHostNetwork: false,
+        secret: 'f3a9',
+        owner: OWNER,
+      }),
+    ).toEqual([
+      'run',
+      '--detach',
+      '--rm',
+      '--init',
+      '--ipc=host',
+      '--name=airness-browsers-4100',
+      '--label=airness.owner.pid=4321',
+      '--label=airness.owner.started=Mon Oct 26 09:52:44 2026',
+      '--label=airness.owner.host=builder',
+      '--publish=127.0.0.1:4100:4100',
+      '--volume=/repo/node_modules/playwright-core:/airness/playwright-core:ro',
+      '--env=MOZ_WEBGL_FORCE_EGL=1',
+      '--workdir=/tmp',
+      'mcr.microsoft.com/playwright:v1.64.1-noble',
+      'sh',
+      '-c',
+      'for config in /ms-playwright/firefox-*/firefox/playwright.cfg; do ' +
+        String.raw`printf "\npref(\"webgl.force-enabled\", true);\n" >> "$config"; done; ` +
+        'exec node "$0" run-server "$@"',
+      '/airness/playwright-core/cli.js',
+      '--port=4100',
+      '--host=0.0.0.0',
+      '--path=/f3a9',
+    ])
+    expect(pinnedBrowserEndpoint(4100, 'f3a9')).toBe('ws://127.0.0.1:4100/f3a9')
+  })
+
+  it('shares the host network instead of publishing a port where the host network reaches loopback', () => {
+    const hostArguments: readonly string[] = pinnedBrowserServerArguments({
+      image: 'mcr.microsoft.com/playwright:v1.64.1-noble',
+      name: 'airness-browsers-4100',
+      port: 4100,
+      playwrightCore: '/repo/node_modules/playwright-core',
+      isHostNetwork: true,
+      secret: 'f3a9',
+      owner: OWNER,
+    })
+    expect([
+      hostArguments.includes('--network=host'),
+      hostArguments.some((part: string): boolean => part.startsWith('--publish')),
+      hostArguments.at(-2),
+    ]).toEqual([true, false, '--host=127.0.0.1'])
+  })
+})
+
+describe('a browser server left behind by its run', () => {
+  it('is read from the listing with its owner, and without one when a label is missing', () => {
+    expect(
+      listedBrowserServers(
+        [
+          'airness-browsers-4100|4321|Mon Oct 26 09:52:44 2026|builder',
+          '',
+          'airness-browsers-4200||Mon Oct 26 09:52:44 2026|builder',
+          'airness-browsers-4300|0|Mon Oct 26 09:52:44 2026|builder',
+        ].join('\n'),
+      ),
+    ).toEqual([
+      { name: 'airness-browsers-4100', owner: OWNER },
+      { name: 'airness-browsers-4200', owner: undefined },
+      { name: 'airness-browsers-4300', owner: undefined },
+    ])
+  })
+
+  it('is an orphan once no process holds its owner PID, or one that started at another time does', () => {
+    expect([
+      isOrphanedBrowserServer(OWNER, 'builder', undefined),
+      isOrphanedBrowserServer(OWNER, 'builder', 'Mon Oct 26 10:01:07 2026'),
+    ]).toEqual([true, true])
+  })
+
+  it('is kept while its owner runs, and whenever it was started on another machine', () => {
+    expect([
+      isOrphanedBrowserServer(OWNER, 'builder', OWNER.started),
+      isOrphanedBrowserServer(OWNER, 'another-machine', undefined),
+    ]).toEqual([false, false])
+  })
+})
+
+describe('the time one item of a pass may take', () => {
+  it('is a minute at least, so a page that hangs costs a minute rather than the whole budget of its part', () => {
+    expect([itemLimitMs('engine', 1), itemLimitMs('resting', 1), itemLimitMs('width-sweep', 0)]).toEqual([
+      60_000, 60_000, 60_000,
+    ])
+  })
+
+  it('gives a disclosure visit a second per control, so a heavy page is not cut short', () => {
+    expect([itemLimitMs('disclosures', 9), itemLimitMs('disclosures', 193)]).toEqual([60_000, 772_000])
+  })
+
+  it('grows with the work an item carries, so a page with many controls is not cut short', () => {
+    expect([itemLimitMs('interaction', 21), itemLimitMs('width-sweep', 50)]).toEqual([420_000, 400_000])
+  })
+})
+
+const GIB: number = 1024 ** 3
+
+describe('the workers a browser run spreads the sweep over', () => {
+  it('keeps four on a hosted agent, and on any machine short of processors or memory', () => {
+    expect([sweepWorkersFor(4, 16 * GIB), sweepWorkersFor(2, 8 * GIB), sweepWorkersFor(16, 8 * GIB)]).toEqual([4, 4, 4])
+  })
+
+  it('adds a worker for every two processors and every two gigabytes a larger machine offers, up to eight', () => {
+    expect([sweepWorkersFor(12, 64 * GIB), sweepWorkersFor(18, 64 * GIB), sweepWorkersFor(64, 256 * GIB)]).toEqual([
+      6, 8, 8,
+    ])
+  })
+})
+
+describe('the workers a run gives the sweep, across the host and the machine of the browsers', () => {
+  it('reads the processors and memory Docker reports, and nothing from output it cannot read', () => {
+    expect([dockerCapacityOf('9 33582346240\n'), dockerCapacityOf(''), dockerCapacityOf('error')]).toEqual([
+      { processors: 9, memoryBytes: 33_582_346_240 },
+      undefined,
+      undefined,
+    ])
+  })
+
+  it('takes the fewer of the host and a smaller virtual machine the browsers run in', () => {
+    const mac: MachineCapacity = { processors: 18, memoryBytes: 64 * GIB }
+    expect([
+      sweepWorkersAcross(mac, { processors: 9, memoryBytes: 32 * GIB }),
+      sweepWorkersAcross({ processors: 16, memoryBytes: 64 * GIB }, { processors: 16, memoryBytes: 64 * GIB }),
+      sweepWorkersAcross(mac, undefined),
+    ]).toEqual([4, 8, 8])
+  })
+
+  it('carries a worker count the sweep allows, and refuses any other', () => {
+    expect(['4', '8', '3', '9', 'six', undefined].map((value) => declaredSweepWorkers(value))).toEqual([
+      4,
+      8,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ])
+  })
+})
+
+describe('the parts an engine pass runs in', () => {
+  it('halves the parts of the engine that draws in software', () => {
+    expect(enginePassParts('webkit', 4)).toBe(2)
+    expect(enginePassParts('webkit', 7)).toBe(3)
+    expect(enginePassParts('webkit', 8)).toBe(4)
+  })
+
+  it('keeps at least one part', () => {
+    expect(enginePassParts('webkit', 1)).toBe(1)
+  })
+
+  it('keeps the parts of every other engine', () => {
+    expect(enginePassParts('firefox', 4)).toBe(4)
+    expect(enginePassParts('chromium', 8)).toBe(8)
+  })
+})
+
+describe('the harness browser image pin', () => {
+  it('requires an immutable digest at the installed Playwright version', () => {
+    const digest: string = 'a'.repeat(64)
+    const image: string = `mcr.microsoft.com/playwright:v1.64.1-noble@sha256:${digest}`
+    expect(isPinnedBrowserImage('1.64.1', image)).toBe(true)
+    expect(isPinnedBrowserImage('1.63.0', image)).toBe(false)
+    expect(isPinnedBrowserImage('1.64.1', 'mcr.microsoft.com/playwright:v1.64.1-noble')).toBe(false)
+    expect(isPinnedBrowserImage('1.64.1', image.slice(0, -1))).toBe(false)
+  })
+})

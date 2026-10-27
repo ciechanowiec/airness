@@ -125,8 +125,8 @@ class ReportGraphTest {
         MavenProject owner = project("airness-parent");
         assertEquals(List.of(first, owner), ReportProjects.required(List.of(root, first, owner)));
         assertEquals(first, ReportProjects.executed(first));
-        assertTrue(ReportProjects.qualifications(false, "true").isEmpty());
-        assertEquals(2, ReportProjects.qualifications(true, "false").size());
+        assertTrue(ReportProjects.qualifications(List.of(), false, "true").isEmpty());
+        assertEquals(2, ReportProjects.qualifications(List.of(), true, "false").size());
         assertTrue(ReportProjects.partial(List.of(owner), List.of(root, owner)));
         assertFalse(ReportProjects.partial(List.of(owner), List.of(owner)));
     }

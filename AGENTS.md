@@ -39,6 +39,8 @@ Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java
   of `airness-node` also read `registry.npmjs.org` on every run, and the integration suite installs its node
   fixtures from it.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
+- `sh airness-it/verify.sh browser` diagnoses the browser contracts alone against installed artifacts. It is a
+  partial run; the complete integration verdict still requires the command without a domain.
 
 ## Coding Style & Naming Conventions
 

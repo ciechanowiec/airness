@@ -1,0 +1,122 @@
+// A real Next page for the shipped browser sweep's positive and negative contracts. No API,
+// accessibility scanner, or browser is replaced; the only difference is the page's accessible names.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createServer, type Server } from 'node:net'
+import path from 'node:path'
+import { asRecord } from '#harness/json-shapes'
+
+const ARGUMENT_OFFSET: number = 2
+
+const freePort = async (): Promise<number> => {
+  const server: Server = createServer()
+  await new Promise<void>((resolve, reject): void => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', resolve)
+  })
+  const address: ReturnType<Server['address']> = server.address()
+  if (address === null || typeof address === 'string') {
+    throw new Error('The browser fixture did not receive a TCP port')
+  }
+  await new Promise<void>((resolve, reject): void => {
+    server.close((error: Error | undefined): void => {
+      if (error === undefined) {
+        resolve()
+      } else {
+        reject(error)
+      }
+    })
+  })
+  return address.port
+}
+
+const pageSource = (isAccessible: boolean): string =>
+  [
+    'export default function Page(): React.JSX.Element {',
+    '  return <main><h1>Accessibility contract</h1>',
+    isAccessible
+      ? '    <label htmlFor="name">Name</label><input id="name" type="text" />'
+      : '    <input type="text" />',
+    `    <button type="button"${isAccessible ? ' aria-label="Close"' : ''}>`,
+    '      <span aria-hidden="true">Close</span>',
+    '    </button></main>',
+    '}',
+    '',
+  ].join('\n')
+
+const [directory, mode]: readonly (string | undefined)[] = process.argv.slice(ARGUMENT_OFFSET)
+if (directory === undefined || !['valid', 'invalid'].includes(mode ?? '')) {
+  throw new Error('Expected a fixture directory and valid or invalid markup mode')
+}
+const JSON_INDENT: number = 2
+const manifestPath: string = path.join(directory, 'package.json')
+const manifest: Record<string, unknown> = asRecord(JSON.parse(readFileSync(manifestPath, 'utf8')))
+const port: number = await freePort()
+writeFileSync(
+  manifestPath,
+  `${JSON.stringify(
+    {
+      ...manifest,
+      airness: {
+        ...asRecord(manifest['airness']),
+        serverUrl: `http://127.0.0.1:${String(port)}`,
+      },
+    },
+    null,
+    JSON_INDENT,
+  )}\n`,
+)
+const appRoot: string = path.join(directory, 'src', 'app')
+mkdirSync(appRoot, { recursive: true })
+writeFileSync(path.join(appRoot, 'page.tsx'), pageSource(mode === 'valid'))
+// The seeded proxy's policy admits scripts by a per-request nonce, which Next stamps only on a page it
+// renders per request. Reading the request headers in the root layout is what makes it do so; a page
+// that opts into prerendering with `force-static` still prerenders.
+writeFileSync(
+  path.join(appRoot, 'layout.tsx'),
+  [
+    "import './globals.css'",
+    "import { headers } from 'next/headers'",
+    "export const metadata = { title: 'Accessibility contract' }",
+    'export default async function Layout({ children }: { children: React.ReactNode }): Promise<React.JSX.Element> {',
+    '  await headers()',
+    '  return <html lang="en"><body>{children}</body></html>',
+    '}',
+    '',
+  ].join('\n'),
+)
+writeFileSync(
+  path.join(appRoot, 'globals.css'),
+  [
+    'body { background: white; color: black; font-family: sans-serif; }',
+    'main { padding: 2rem; }',
+    'input, button { display: block; min-width: 100px; min-height: 32px; margin: 24px; }',
+    '',
+  ].join('\n'),
+)
+
+// Fixture cases share their installed packages with a sibling template. Turbopack must see both.
+// The seeded proxy sends a per-request nonce policy. A second, static policy beside it would forbid the
+// nonce-loaded chunks and leave every page unhydrated, so the static one applies only without a proxy.
+const SECURITY_POLICY: string = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "frame-ancestors 'none'",
+].join('; ')
+writeFileSync(
+  path.join(directory, 'next.config.ts'),
+  [
+    `export default { turbopack: { root: ${JSON.stringify(path.dirname(directory))} },`,
+    // The development server refuses its hot-reload socket to an origin it does not know, and without it
+    // no client component hydrates. The fixture serves on 127.0.0.1.
+    "  allowedDevOrigins: ['127.0.0.1'],",
+    '  async headers() { return [{ source: "/:path*", headers: [',
+    '    { key: "X-Content-Type-Options", value: "nosniff" },',
+    '    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },',
+    ...(existsSync(path.join(directory, 'src', 'proxy.ts'))
+      ? []
+      : [`    { key: "Content-Security-Policy", value: ${JSON.stringify(SECURITY_POLICY)} },`]),
+    '  ] }] } }',
+    '',
+  ].join('\n'),
+)

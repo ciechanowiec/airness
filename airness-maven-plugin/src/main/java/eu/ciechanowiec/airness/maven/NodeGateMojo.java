@@ -2,15 +2,18 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.maven.NodeProjects.NodeProject;
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -28,6 +31,8 @@ import org.jspecify.annotations.Nullable;
  */
 @Mojo(name = "node-gate", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public final class NodeGateMojo extends AbstractGovernanceMojo {
+
+    private static final String BROWSER_GATE = "e2e";
 
     /**
      * The gate id, which the result file must repeat. Only an execution an Airness parent binds names it: no
@@ -99,7 +104,9 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
         try {
             Files.createDirectories(results);
             clear(result);
-            int exit = tools.pnpm(bound.arguments(result), project.directory(), log, environment(this.project()));
+            int exit = runner(bound, tools).pnpm(
+                bound.arguments(result), project.directory(), log, this.gateEnvironment(bound, log)
+            );
             NodeGateResult read = NodeGateResult.read(bound.id(), project.key(), result, exit);
             if (!read.findings().clean()) {
                 AbstractNodeMojo.replay(log, this.getLog());
@@ -113,10 +120,23 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
         }
     }
 
+    private static NodeTools runner(NodeGate gate, NodeTools tools) {
+        return BROWSER_GATE.equals(gate.id())
+            ? new NodeTools(tools.node(), tools.pnpm(), Duration.ofHours(6)) : tools;
+    }
+
+    private Map<String, String> gateEnvironment(NodeGate gate, Path log) {
+        Map<String, String> environment = new HashMap<>(this.environment());
+        if (BROWSER_GATE.equals(gate.id())) {
+            environment.put(NodeTools.PROGRESS_LOG, log.toString());
+        }
+        return Map.copyOf(environment);
+    }
+
     /**
      * The variables every gate runs with: the parents' versions and the module's own version and identity, which
-     * wiring compares, and the browser cache of the Playwright version Airness pins, which the e2e gate drives: the
-     * same Chromium the report renderer uses, installed by report-browser-install.
+     * wiring compares, and the verification mode. The report browser cache remains available to tools that
+     * render reports. The node browser suite connects to its independently pinned container image.
      *
      * @param module the module the gate runs in
      * @return the variables
@@ -126,6 +146,18 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
         environment.put(HarnessVersions.VARIABLE, HarnessVersions.of(module).value());
         environment.put(HarnessVersions.MODULE_VARIABLE, module.getVersion());
         environment.put(HarnessVersions.IDENTITY_VARIABLE, module.getGroupId() + ':' + module.getArtifactId());
+        environment.put("AIRNESS_VERIFICATION_MODE", ReportProjects.active(module, "delta") ? "delta" : "full");
+        return Map.copyOf(environment);
+    }
+
+    private Map<String, String> environment() {
+        Map<String, String> environment = new HashMap<>(environment(this.project()));
+        environment.put("AIRNESS_REPOSITORY_ROOT", this.repositoryRoot().toString());
+        environment.put(
+            "AIRNESS_NODE_ROOTS", this.session().getAllProjects().stream()
+                .flatMap(project -> NpmEvidence.directories(project).stream())
+                .map(Path::toString).distinct().collect(Collectors.joining(File.pathSeparator))
+        );
         return Map.copyOf(environment);
     }
 

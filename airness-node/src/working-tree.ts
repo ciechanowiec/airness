@@ -28,7 +28,9 @@ export const presentWorkingTreeFiles = (root: string): readonly string[] =>
 
 const fileState = (root: string, file: string): readonly (string | number)[] => {
   const full: string = path.join(root, file)
-  const stat: ReturnType<typeof lstatSync> | undefined = lstatSync(full, { throwIfNoEntry: false })
+  const stat: ReturnType<typeof lstatSync> | undefined = lstatSync(full, {
+    throwIfNoEntry: false,
+  })
   if (stat === undefined) {
     return [file, 'absent']
   }
@@ -47,3 +49,13 @@ export const workingTreeFingerprint = (root: string): string =>
       JSON.stringify(workingTreeFiles(root).map((file: string): readonly (string | number)[] => fileState(root, file))),
     )
     .digest('hex')
+
+/** Untracked inputs participate in a delta just as staged and committed inputs do. */
+export const untrackedWorkingTreeFiles = (root: string): readonly string[] =>
+  execFileSync('git', ['ls-files', '-z', '--others', '--exclude-standard'], {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+    .split('\0')
+    .filter((file: string): boolean => file.length > 0)

@@ -73,7 +73,15 @@
     "./biome": "./configs/airness-biome.json",
     "./tsconfig": "./configs/tsconfig.json",
     "./tsconfig.json": "./configs/tsconfig.json",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./sweep": {
+      "types": "./dist/sweep.d.ts",
+      "default": "./dist/sweep.js"
+    },
+    "./clock": {
+      "types": "./dist/clock-preload.d.ts",
+      "default": "./dist/clock-preload.js"
+    }
   },
   "files": [
     "dist",
@@ -82,7 +90,18 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "package": "pnpm pack --pack-destination target",
-    "test": "vitest run"
+    "test": "vitest run",
+    "browser-contracts": "tsc -p tsconfig.browser.json",
+    "browser:geometry-probe": "node scripts/browser/geometry-probe.ts",
+    "browser:compare-geometry": "node scripts/browser/compare-geometry.ts",
+    "browser:engine-webgl": "node scripts/browser/engine-webgl.ts",
+    "browser:settle-fonts": "node scripts/browser/settle-fonts.ts",
+    "browser:create-a11y-page": "node scripts/browser/create-a11y-page.ts",
+    "browser:create-visual-pages": "node scripts/browser/create-visual-pages.ts",
+    "browser:create-layout-pages": "node scripts/browser/create-layout-pages.ts",
+    "browser:create-clock-case": "node scripts/browser/create-clock-case.ts",
+    "browser:create-scope-case": "node scripts/browser/create-scope-case.ts",
+    "browser:server-lifecycle": "node scripts/browser/server-lifecycle.ts"
   },
   "engines": {
     "node": ">=26"
@@ -93,7 +112,7 @@
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
     "@next/eslint-plugin-next": "16.4.2",
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.64.1",
     "@typescript-eslint/parser": "8.72.0",
     "@vitest/coverage-v8": "5.0.5",
     "@vitest/eslint-plugin": "1.6.27",
@@ -168,6 +187,30 @@
       {
         "pattern": "src/browser-servers.ts",
         "reason": "the TCP probe of the browser endpoint, which opens sockets and resolves hostnames; the decisions it feeds are measured in browser-server-policy.ts"
+      },
+      {
+        "pattern": "src/{scanner,browser-scope,focus-region,font-settle}.ts",
+        "reason": "browser measurements and trusted view scoping execute inside the real Playwright contracts; pure snapshot policies have their own measured unit suites"
+      },
+      {
+        "pattern": "src/sweep{,-disclosures,-discovery,-interaction,-interaction-plan,-progress-log,-reflow,-resting,-shared,-workers}.ts",
+        "reason": "the shipped sweep executes inside Playwright workers against real pages; its verdict policies, queue and deadlines are measured separately"
+      },
+      {
+        "pattern": "src/pinned-browsers.ts",
+        "reason": "the Docker browser launcher is exercised by the browser server contracts; its ownership, arguments and capacity policies are measured in browser-run"
+      },
+      {
+        "pattern": "src/clock-preload.ts",
+        "reason": "the preload replaces Date in child processes; clock contracts exercise those processes and browser-run measures the clock policy"
+      },
+      {
+        "pattern": "scripts/browser/**",
+        "reason": "fixture generators and browser contract entry points run as separate processes in the integration suite, against real pages and pinned browser containers"
+      },
+      {
+        "pattern": "src/browser-suite.ts",
+        "reason": "the browser process orchestration runs only in the real browser integration contracts; its scope, precondition, clock and container policies have unit coverage"
       }
     ],
     "generatedArtefacts": [
@@ -175,6 +218,12 @@
         "pattern": "tests/fixtures/cyclonedx/**",
         "reason": "the CycloneDX 1.6 JSON schema, vendored verbatim from the CycloneDX specification so the SBOM spec validates offline"
       }
-    ]
+    ],
+    "browserImage": "mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea"
+  },
+  "imports": {
+    "#browser/pinned-server": "./scripts/browser/pinned-server.ts",
+    "#browser/visual-components": "./scripts/browser/visual-busy-components.ts",
+    "#harness/*": "./dist/*.js"
   }
 }

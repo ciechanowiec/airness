@@ -1,9 +1,12 @@
 // Text that overlaps other text, text cut off by its own box, and a page wider than its viewport.
+import { intersectionOf, outerBoxOf, visibleRectsOf } from './layout-clip.js'
 import {
   hasArea,
   isAncestorOf,
   isInAriaHidden,
   isInClip,
+  isInTurn,
+  isOpaqueBackground,
   type LayoutNode,
   type LayoutRect,
   type LayoutSnapshot,
@@ -47,19 +50,94 @@ const lineBoxOf = (rect: LayoutRect, lineHeight: number): LayoutRect => {
     return rect
   }
   const inset: number = (height - lineHeight) / LEADING_SIDES
-  return { ...rect, top: Math.round(rect.top + inset), bottom: Math.round(rect.bottom - inset) }
+  return {
+    ...rect,
+    top: Math.round(rect.top + inset),
+    bottom: Math.round(rect.bottom - inset),
+  }
 }
 
 const lineBoxesOf = (node: LayoutNode): readonly LayoutRect[] =>
   node.textRects.map((rect: LayoutRect): LayoutRect => lineBoxOf(rect, node.lineHeight))
 
-const isIntersecting = (first: LayoutRect, second: LayoutRect): boolean =>
-  Math.min(first.right, second.right) - Math.max(first.left, second.left) > TEXT_OVERLAP_TOLERANCE &&
-  Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top) > TEXT_OVERLAP_TOLERANCE
+const isIntersecting = (first: LayoutRect, second: LayoutRect): boolean => {
+  const shared: LayoutRect = intersectionOf(first, second)
+  return shared.right - shared.left > TEXT_OVERLAP_TOLERANCE && shared.bottom - shared.top > TEXT_OVERLAP_TOLERANCE
+}
 
-const hasCollidingText = (first: LayoutNode, second: LayoutNode): boolean =>
-  lineBoxesOf(first).some((left: LayoutRect): boolean =>
-    lineBoxesOf(second).some((right: LayoutRect): boolean => isIntersecting(left, right)),
+const STATIC: string = 'static'
+
+// What of an element's text a reader can see: each line box, cut by every ancestor that clips it.
+const visibleLineBoxesOf = (snapshot: LayoutSnapshot, node: LayoutNode): readonly LayoutRect[] =>
+  visibleRectsOf(snapshot, node, lineBoxesOf(node))
+
+const ancestorsOf = (snapshot: LayoutSnapshot, node: LayoutNode): readonly LayoutNode[] => {
+  const parent: LayoutNode | undefined = snapshot.nodes[node.parent]
+  return parent === undefined ? [] : [parent, ...ancestorsOf(snapshot, parent)]
+}
+
+const isSelfOrAncestorOf = (snapshot: LayoutSnapshot, candidate: LayoutNode, node: LayoutNode): boolean =>
+  candidate === node || isAncestorOf(snapshot, candidate, node)
+
+const stackLevelOf = (node: LayoutNode): number => (node.zIndex === 'auto' ? 0 : Number(node.zIndex) || 0)
+
+const nearestPositioned = (snapshot: LayoutSnapshot, node: LayoutNode, other: LayoutNode): LayoutNode | undefined =>
+  [node, ...ancestorsOf(snapshot, node)].find(
+    (candidate: LayoutNode): boolean =>
+      candidate.position !== STATIC && !isSelfOrAncestorOf(snapshot, candidate, other),
+  )
+
+const coversRegion = (outer: LayoutRect, inner: LayoutRect): boolean =>
+  outer.left <= inner.left && outer.top <= inner.top && outer.right >= inner.right && outer.bottom >= inner.bottom
+
+// Whether `cover` paints an opaque background over all of `region` without containing `under`.
+const isOpaqueOver = (snapshot: LayoutSnapshot, cover: LayoutNode, under: LayoutNode, region: LayoutRect): boolean => {
+  const box: LayoutRect | undefined = outerBoxOf(cover)
+  return (
+    box !== undefined &&
+    isOpaqueBackground(cover) &&
+    coversRegion(box, region) &&
+    !isSelfOrAncestorOf(snapshot, cover, under)
+  )
+}
+
+// Whether the positioned layer `cover` is painted in is painted after `under`'s text.
+const isPaintedAfter = (snapshot: LayoutSnapshot, cover: LayoutNode, under: LayoutNode): boolean => {
+  const layer: LayoutNode | undefined = nearestPositioned(snapshot, cover, under)
+  if (layer === undefined) {
+    return false
+  }
+  const beneath: LayoutNode | undefined = nearestPositioned(snapshot, under, cover)
+  if (beneath === undefined) {
+    return stackLevelOf(layer) >= 0
+  }
+  return (
+    stackLevelOf(layer) > stackLevelOf(beneath) ||
+    (stackLevelOf(layer) === stackLevelOf(beneath) && layer.index > beneath.index)
+  )
+}
+
+// Whether `under`'s text at `region` is painted beneath an opaque background of `over` or of one of its
+// ancestors, such as an open menu panel laid over the page. In one stacking context every in-flow
+// background is painted before any text, so only a positioned layer covers text: it is painted after
+// the in-flow content beside it, and after another positioned layer of no higher `z-index` before it in
+// the document.
+const isCoveredBy = (snapshot: LayoutSnapshot, under: LayoutNode, over: LayoutNode, region: LayoutRect): boolean =>
+  [over, ...ancestorsOf(snapshot, over)].some(
+    (cover: LayoutNode): boolean =>
+      isOpaqueOver(snapshot, cover, under, region) && isPaintedAfter(snapshot, cover, under),
+  )
+
+const hasCollidingText = (snapshot: LayoutSnapshot, first: LayoutNode, second: LayoutNode): boolean =>
+  visibleLineBoxesOf(snapshot, first).some((left: LayoutRect): boolean =>
+    visibleLineBoxesOf(snapshot, second).some((right: LayoutRect): boolean => {
+      const region: LayoutRect = intersectionOf(left, right)
+      return (
+        isIntersecting(left, right) &&
+        !isCoveredBy(snapshot, first, second, region) &&
+        !isCoveredBy(snapshot, second, first, region)
+      )
+    }),
   )
 
 /** Two elements whose own text overlaps. */
@@ -69,13 +147,16 @@ export interface TextFinding {
 }
 
 /**
- * Every pair of unrelated elements whose own text overlaps.
+ * Every pair of unrelated elements whose visible text overlaps.
+ *
+ * Text inside a rotated or skewed subtree is not compared: its rects are the upright boxes around the
+ * turned lines, which meet where the glyphs do not.
  * @param snapshot the measured page.
  * @returns one finding per pair, in document order.
  */
 export const findOverlappingText = (snapshot: LayoutSnapshot): readonly TextFinding[] => {
-  const readable: readonly LayoutNode[] = snapshot.nodes.filter((node: LayoutNode): boolean =>
-    isReadableText(snapshot, node),
+  const readable: readonly LayoutNode[] = snapshot.nodes.filter(
+    (node: LayoutNode): boolean => isReadableText(snapshot, node) && !isInTurn(snapshot, node),
   )
   return readable.flatMap((first: LayoutNode, index: number): readonly TextFinding[] =>
     readable
@@ -83,7 +164,7 @@ export const findOverlappingText = (snapshot: LayoutSnapshot): readonly TextFind
       .filter(
         (second: LayoutNode): boolean =>
           !(isAncestorOf(snapshot, first, second) || isAncestorOf(snapshot, second, first)) &&
-          hasCollidingText(first, second),
+          hasCollidingText(snapshot, first, second),
       )
       .map((second: LayoutNode): TextFinding => ({ first, second })),
   )

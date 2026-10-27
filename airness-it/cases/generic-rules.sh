@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 YAML
-    printf '\nRead `docs/missing-guide.md` before changing the build.\n' >> "${generic_consumer}/AGENTS.md"
+    printf '\nRead %sdocs/missing-guide.md%s before changing the build.\n' '`' '`' >> "${generic_consumer}/AGENTS.md"
     printf '# Release notes\n\nDrafts release notes.\n' \
         > "${generic_consumer}/.claude/skills/Release_Notes/SKILL.md"
     printf 'FROM alpine:3.22\nUSER 65532\nRUN apk add curl\n' > "${generic_consumer}/Dockerfile"

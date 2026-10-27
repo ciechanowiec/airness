@@ -1,3 +1,4 @@
+import { clockedEnvironment } from './clock-environment.js'
 // The Next.js facet's production build, which the bundle gate then measures and the e2e gate serves. It runs
 // the member's own `next`, so the build is of the framework version the member locked, and records the build
 // it produced, so the later gates judge this build of this tree and no other. Next writes its output to the
@@ -21,7 +22,13 @@ export const build = (member: Member): GateResult => {
     ])
   }
   const built: GateResult = fromRun(
-    runNode(next, ['build'], { cwd: member.root, env: NEXT_ENVIRONMENT }),
+    runNode(next, ['build'], {
+      cwd: member.root,
+      env: {
+        ...NEXT_ENVIRONMENT,
+        ...clockedEnvironment(member, '--no-deprecation'),
+      },
+    }),
     'the production build succeeds',
     'the production build failed',
   )

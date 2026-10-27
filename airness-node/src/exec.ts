@@ -1,7 +1,10 @@
 // Process execution for the gates, and the single result shape every gate returns. A uniform shape lets
 // the runner present one verdict whether a gate shelled out to a tool or evaluated a rule in process.
-import { type SpawnSyncReturns, spawnSync } from 'node:child_process'
+import { type ChildProcessByStdio, type SpawnSyncReturns, spawn, spawnSync } from 'node:child_process'
 import path from 'node:path'
+import { createInterface } from 'node:readline'
+import { PassThrough, type Readable } from 'node:stream'
+import { text } from 'node:stream/consumers'
 
 /** The outcome of one gate. */
 export interface GateResult {
@@ -67,7 +70,7 @@ export const withOutput = (result: GateResult, output: string): GateResult =>
 /** Where and how to run a child process. */
 export interface RunOptions {
   readonly cwd: string
-  readonly env?: Readonly<Record<string, string>>
+  readonly env?: Readonly<Record<string, string | undefined>>
   /** Text to write to the child's stdin, for a tool that reads its subject there. */
   readonly input?: string
   /**
@@ -126,7 +129,11 @@ const startupFailure = (error: Error): RunResult => {
     }
   }
   return error.message.includes(TIMED_OUT)
-    ? { code: TIMED_OUT_CODE, output: `${TIMED_OUT}: ${error.message}`, stdout: '' }
+    ? {
+        code: TIMED_OUT_CODE,
+        output: `${TIMED_OUT}: ${error.message}`,
+        stdout: '',
+      }
     : { code: COMMAND_NOT_FOUND, output: error.message, stdout: '' }
 }
 
@@ -150,7 +157,7 @@ const describeSignal = (signal: NodeJS.Signals | null): readonly string[] =>
 // same-named one already on PATH.
 const withProjectBinaries = (
   cwd: string,
-  overrides: Readonly<Record<string, string>> | undefined,
+  overrides: Readonly<Record<string, string | undefined>> | undefined,
 ): Record<string, string | undefined> => {
   const binaries: string = path.join(cwd, 'node_modules', '.bin')
   const inherited: string | undefined = process.env['PATH']
@@ -161,7 +168,7 @@ const withProjectBinaries = (
   }
 }
 
-const run = (command: string, commandArguments: readonly string[], options: RunOptions): RunResult => {
+export const run = (command: string, commandArguments: readonly string[], options: RunOptions): RunResult => {
   const result: SpawnSyncReturns<string> = spawnSync(command, [...commandArguments], {
     cwd: options.cwd,
     encoding: 'utf8',
@@ -181,6 +188,63 @@ const run = (command: string, commandArguments: readonly string[], options: RunO
     stdout: result.stdout,
   }
 }
+
+/** A captured process that also publishes progress lines. */
+export interface StreamingOptions extends RunOptions {
+  readonly onLine: (line: string) => void
+}
+
+const teed = async (source: Readable, onLine: (line: string) => void): Promise<string> => {
+  const whole: PassThrough = new PassThrough()
+  const lines: PassThrough = new PassThrough()
+  source.pipe(whole)
+  source.pipe(lines)
+  createInterface({ input: lines }).on('line', onLine)
+  return await text(whole)
+}
+
+/**
+ * Run a command as `run` does, and hand each line it writes to `onLine` while it runs.
+ *
+ * For a command that works for a long time and says how far it has got, which a captured run keeps to
+ * itself until it ends. There is no deadline: the one caller, the browser suite, bounds itself.
+ * @param command the executable.
+ * @param commandArguments its arguments.
+ * @param options where to run it, its environment, and where each line goes.
+ * @returns the outcome, with both streams collected as `run` collects them.
+ */
+export const runStreaming = async (
+  command: string,
+  commandArguments: readonly string[],
+  options: StreamingOptions,
+): Promise<RunResult> =>
+  await new Promise<RunResult>((resolve): void => {
+    const child: ChildProcessByStdio<null, Readable, Readable> = spawn(command, [...commandArguments], {
+      cwd: options.cwd,
+      env: withProjectBinaries(options.cwd, options.env),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const collected: Promise<readonly [string, string]> = Promise.all([
+      teed(child.stdout, options.onLine),
+      teed(child.stderr, options.onLine),
+    ])
+    const finished = async (code: number | null, signal: NodeJS.Signals | null): Promise<RunResult> => {
+      const [stdout, stderr]: readonly [string, string] = await collected
+      return {
+        code: code ?? 1,
+        output: [`${stdout}${stderr}`.trim(), ...describeSignal(signal)]
+          .filter((part: string): boolean => part.length > 0)
+          .join('\n'),
+        stdout,
+      }
+    }
+    child.once('error', (error: Error): void => {
+      resolve(startupFailure(error))
+    })
+    child.once('close', (code: number | null, signal: NodeJS.Signals | null): void => {
+      resolve(finished(code, signal))
+    })
+  })
 
 /** Run a Node-based tool through the current interpreter, so no shim or PATH entry is required. */
 export const runNode = (script: string, commandArguments: readonly string[], options: RunOptions): RunResult =>

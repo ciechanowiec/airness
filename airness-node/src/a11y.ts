@@ -1,25 +1,31 @@
 // What the shipped browser sweep cannot know about the project it runs in, and the scans a project's own
 // specifications share with it.
 //
-// The sweep is a harness-owned specification that runs from the harness itself, so a project never holds a
-// copy it could edit, and this module is the whole of its configuration surface. The settings it reads are
-// one-directional: a project may add a route prefix the crawl must not follow and may lower the route
-// ceiling, and can do neither in the other direction.
+// The sweep is a managed file, byte-identical in every consumer, so this module is the whole of its
+// configuration surface. The first two entries are one-directional: a project may add a route prefix
+// the crawl must not follow and may lower the route ceiling, and can do neither in the other
+// direction.
 //
-// The rules are not configuration at all. They live in pure modules beside this one, where a Vitest spec
-// exercises them against captured axe output, probe shapes and layout snapshots no browser has to produce on
+// The rules are not configuration at all. They live in the pure policy modules, where a spec exercises
+// them against captured axe output, probe shapes and layout snapshots no browser has to produce on
 // demand, and they are re-exported here because the sweep imports through one entry point.
 //
-// The scans are a third kind again: I/O the sweep cannot do without and cannot keep to itself. They are here
-// rather than inside the sweep because a project has to write its own scans for the pages the crawl cannot
-// discover - an unlinked page, a page behind a sign-in - and two definitions of a scan would drift.
-// `expectSweptPage` runs both of the sweep's scans, so one call covers such a page.
+// The scans are a third kind again: I/O the sweep cannot do without and cannot keep to itself. They are
+// here rather than in the pure policy modules because that package forbids I/O, and here rather than
+// inside the sweep because a project has to write its own scans for the pages the crawl cannot discover
+// - an unlinked page, a page behind a sign-in, a custom admin view - and two definitions of a scan would
+// drift. `expectSweptPage` runs both of the sweep's scans, so one call covers such a page.
 
-export type { HitTargetClassification, HitTargetProbe, HitTargetVerdict } from './a11y-hit-target.js'
+export type {
+  HitTargetClassification,
+  HitTargetProbe,
+  HitTargetVerdict,
+} from './a11y-hit-target.js'
 export { classifyHitTarget } from './a11y-hit-target.js'
 export { findDefiniteIncomplete } from './a11y-incomplete.js'
-export { expectNoLayoutDefects, LAYOUT_SCAN_VIEWPORTS, layoutDefectsOf } from './layout.js'
-export { settleForScan } from './settle.js'
+export { LAYOUT_SCAN_VIEWPORTS } from './layout.js'
+export { expectNoLayoutDefects, layoutDefectsOf } from './scanner.js'
+export { type SettleOutcome, settleForScan } from './settle.js'
 
 import { type Dirent, existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -27,21 +33,19 @@ import { AxeBuilder } from '@axe-core/playwright'
 import { expect, type Page } from '@playwright/test'
 import { findDefiniteIncomplete } from './a11y-incomplete.js'
 import type { SpecSource } from './axe-coverage.js'
-import { expectNoLayoutDefects } from './layout.js'
+import { type BrowserFinding, findingLine } from './browser-findings.js'
 import { projectSettings } from './project-settings.js'
 import { findUnsweptRoutes, type UnsweptRoute } from './route-coverage.js'
 import { isSkippedRoute } from './route-exclusions.js'
-import { appRootOf, declaredRoutesOf } from './route-map.js'
-import { settleForScan } from './settle.js'
+import { appRootOf, type DeclaredRoute, declaredRoutesOf } from './route-map.js'
+import { locationOf, scanPageInPlace } from './scanner.js'
 
-/** Every route prefix the crawl does not follow: the layers' and the project's. */
 export const SKIPPED_ROUTE_PREFIXES: readonly string[] = projectSettings.accessibilitySkipRoutes
 
 /** Whether the configured sweep excludes this path. Shared with its completeness check. */
 export const isSkippedSweepRoute = (route: string): boolean =>
   isSkippedRoute(route, SKIPPED_ROUTE_PREFIXES, projectSettings.accessibilityCustomSkipRoutes)
 
-/** How many routes the crawl may discover before the sweep fails. */
 export const MAX_SWEEP_ROUTES: number = projectSettings.accessibilityRouteBudget
 
 /** What axe answers, taken from the builder's own surface rather than from a transitive package. */
@@ -69,25 +73,25 @@ export const expectNoAxeDefects = (scan: AxeResults, label: string): void => {
 }
 
 /**
- * Run both of the sweep's scans on a page: axe in its default state, then layout at every viewport.
+ * Run the sweep's resting scan on a page: axe, and the layout, text and media rules at every viewport.
  *
  * The one call a project's own specification needs for a page the crawl cannot reach. The route
- * coverage check reads it as evidence of both scans.
+ * coverage check reads it as evidence of both scans. The page is resized in place rather than reloaded,
+ * so the state the specification drove it into is what is judged.
  * @param page the page, already on the route and in the state to judge.
- * @returns nothing; it fails the test on the first scan that finds a defect.
+ * @returns nothing; it fails the test with one line per defect.
  */
 export const expectSweptPage = async (page: Page): Promise<void> => {
-  await settleForScan(page)
-  const builder: AxeBuilder = await scopedAxe(page)
-  expectNoAxeDefects(await builder.analyze(), `default-state a11y on ${new URL(page.url()).pathname}`)
-  await expectNoLayoutDefects(page)
+  const scanned: readonly BrowserFinding[] = await scanPageInPlace(page, true)
+  const findings: readonly string[] = scanned.map((finding: BrowserFinding): string => findingLine(finding))
+  expect(findings, `defects on ${locationOf(page)}`).toEqual([])
 }
 
 // What the sweep cannot work out from inside the browser: which pages this project declares.
 //
 // The crawl knows what it reached. Only the file tree knows what exists, so the completeness check
 // needs both, and reading the tree is I/O - which is why the walk is here and every DECISION it feeds
-// is in the pure route modules, where a coverage floor measures it. What follows is a directory walk
+// is in the pure policy modules, where a coverage floor measures it. What follows is a directory walk
 // and two file reads; which file is a route file, and what address it answers at, are not decided
 // here.
 //
@@ -103,7 +107,7 @@ const WALKED_ROOTS: readonly string[] = ['src', 'app', 'tests']
 // keeps the corpus small; the rule still decides what a `page.tsx` means.
 const READ_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.jsx', '.js', '.mdx']
 
-/** Where a project's specifications live, which is a harness convention rather than a setting. */
+/** Where a project's specifications live, which is an Airness convention rather than a setting. */
 const SPEC_ROOT: string = 'tests/'
 
 const filesUnder = (root: string, relative: string): readonly string[] => {
@@ -135,6 +139,16 @@ const readSpecs = (root: string, paths: readonly string[]): readonly SpecSource[
         source: readFileSync(path.join(root, file), 'utf8'),
       }),
     )
+
+/**
+ * The routes this project's file tree declares, for grouping crawled routes by template.
+ * @returns every declared route, or none when the member declares no application routes.
+ */
+export const declaredRoutes = (): readonly DeclaredRoute[] => {
+  const paths: readonly string[] = projectFiles(process.cwd())
+  const appRoot: string | undefined = appRootOf(paths)
+  return appRoot === undefined ? [] : declaredRoutesOf(paths, appRoot)
+}
 
 /**
  * The pages this project declares that the sweep did not cover, each with what to do about it.
