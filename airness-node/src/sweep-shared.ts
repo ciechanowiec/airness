@@ -166,7 +166,7 @@ export const PROBE_ATTRIBUTE: string = 'data-airness-probe'
 export const DISCLOSURE_ATTRIBUTE: string = 'data-airness-disclosure'
 
 // Motion is disabled so every run measures the same frame: what a reader is left looking at.
-export const STILL_STYLE: string =
+const STILL_STYLE: string =
   '*, *::before, *::after { animation-duration: 0s !important; animation-delay: 0s !important; ' +
   'transition-duration: 0s !important; transition-delay: 0s !important; caret-color: transparent !important; ' +
   'scroll-behavior: auto !important; }'
