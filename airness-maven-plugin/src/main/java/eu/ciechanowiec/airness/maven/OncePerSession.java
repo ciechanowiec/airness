@@ -4,7 +4,6 @@ import eu.ciechanowiec.airness.Justification;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
@@ -27,8 +26,7 @@ import org.eclipse.aether.SessionData;
 @UtilityClass
 final class OncePerSession {
 
-    private static final Object KEY = new Object();
-    private static final Lock LOCK = new ReentrantLock();
+    private static final String KEY = OncePerSession.class.getName();
 
     /**
      * Whether this is the first time the given goal has been reached in this session.
@@ -53,10 +51,11 @@ final class OncePerSession {
         return claim(data, goal.getName() + ':' + scope);
     }
 
-    @Justification("Maven session data is untyped, and this private key stores only this immutable set type")
+    @Justification("Maven session data is untyped, and this Airness key stores only this immutable set type")
     @SuppressWarnings("unchecked")
     private static boolean claim(SessionData data, String marker) {
-        LOCK.lock();
+        Lock lock = SessionLock.of(data);
+        lock.lock();
         try {
             Object current = data.get(KEY);
             Set<String> reached = Optional.ofNullable(current)
@@ -70,7 +69,7 @@ final class OncePerSession {
             data.set(KEY, update);
             return true;
         } finally {
-            LOCK.unlock();
+            lock.unlock();
         }
     }
 }
