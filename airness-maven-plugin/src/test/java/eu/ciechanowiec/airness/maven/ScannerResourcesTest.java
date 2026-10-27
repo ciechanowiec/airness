@@ -43,14 +43,14 @@ class ScannerResourcesTest {
         String checkstyle = "pkg:maven/org.apache.maven.plugins/maven-checkstyle-plugin@3.6.0?type=jar";
         Path generic = Files.createDirectories(directory.resolve("generic"));
         Path written = ScannerResources.copyApplicable(
-            "tool-suppressions.xml", generic, List.of("pkg:maven/eu.ciechanowiec/airness-maven-plugin@1?type=jar")
+            generic, List.of("pkg:maven/eu.ciechanowiec/airness-maven-plugin@1?type=jar")
         );
         String none = Files.readString(written);
         assertFalse(none.contains("<suppress>"), "a module on airness-parent resolves neither wrapper: " + none);
         assertTrue(new SuppressionDocument(written).problems().isEmpty());
         Path partial = Files.createDirectories(directory.resolve("partial"));
         String checkstyleOnly = Files.readString(
-            ScannerResources.copyApplicable("tool-suppressions.xml", partial, List.of(checkstyle))
+            ScannerResources.copyApplicable(partial, List.of(checkstyle))
         );
         assertTrue(checkstyleOnly.contains("maven-checkstyle-plugin"));
         assertFalse(checkstyleOnly.contains("maven-pmd-plugin"));
@@ -59,7 +59,7 @@ class ScannerResourcesTest {
         Path shipped = ScannerResources.copy("tool-suppressions.xml", Files.createDirectories(directory.resolve("x")));
         assertEquals(
             Files.readString(shipped),
-            Files.readString(ScannerResources.copyApplicable("tool-suppressions.xml", java, List.of(checkstyle, pmd))),
+            Files.readString(ScannerResources.copyApplicable(java, List.of(checkstyle, pmd))),
             "a Java module that resolves both wrappers keeps the file as shipped"
         );
     }

@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
@@ -104,6 +105,8 @@ final class ClaudeSettings {
         try {
             Files.createDirectories(file.toAbsolutePath().getParent());
             Files.writeString(file, JSON.writer(PRINTER).writeValueAsString(settings) + '\n');
+        } catch (JsonProcessingException exception) {
+            throw new UncheckedIOException("Could not serialize the settings for " + file, exception);
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not write " + file, exception);
         }

@@ -117,7 +117,7 @@ final class ArchiveServer implements AutoCloseable {
      * @param content the file content, empty for anything but a file
      * @param link    the link target, empty for anything but a link
      */
-    record Entry(String name, byte flag, int mode, String content, String link) {
+    public record Entry(String name, byte flag, int mode, String content, String link) {
 
         // rwxr-xr-x and rw-r--r--, written 0755 and 0644 in octal.
         private static final int EXECUTABLE = 0x1ED;
@@ -139,8 +139,8 @@ final class ArchiveServer implements AutoCloseable {
             return new Entry(name, TarConstants.LF_SYMLINK, EXECUTABLE, "", target);
         }
 
-        static Entry hardLink(String name, String target) {
-            return new Entry(name, TarConstants.LF_LINK, READABLE, "", target);
+        static Entry hardLink() {
+            return new Entry("tool-1.0.0/hard", TarConstants.LF_LINK, READABLE, "", "tool-1.0.0/README");
         }
 
         void writeTo(TarArchiveOutputStream tar) throws IOException {

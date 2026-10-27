@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -92,7 +93,7 @@ class AssetOverrideTest {
         assertTrue(Capability.PAYLOAD.refines(Capability.NODE), "a Payload project is a node project");
         assertEquals(
             List.of(),
-            List.of(Capability.values()).stream()
+            Stream.of(Capability.values())
                 .filter(capability -> capability != Capability.NODE)
                 .filter(Capability.PAYLOAD::refines)
                 .toList(),
@@ -100,7 +101,7 @@ class AssetOverrideTest {
         );
         assertEquals(
             List.of(),
-            List.of(Capability.values()).stream().filter(capability -> capability.refines(Capability.GENERIC)).toList(),
+            Stream.of(Capability.values()).filter(capability -> capability.refines(Capability.GENERIC)).toList(),
             "nothing replaces a generic file, which root blocks share instead"
         );
     }

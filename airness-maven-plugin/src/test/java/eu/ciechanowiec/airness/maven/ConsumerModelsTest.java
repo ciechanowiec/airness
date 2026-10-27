@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Plugin;
@@ -99,7 +100,7 @@ class ConsumerModelsTest {
         parent.getModel().setBuild(build);
         assertEquals(Set.of("node-gate-eslint", "node-gate-knip"), ConsumerModels.inherited(this.child(parent, "x")));
         SessionData data = new DefaultSessionData();
-        List<String> problems = List.of("node-gate-eslint", "node-gate-knip").stream()
+        List<String> problems = Stream.of("node-gate-eslint", "node-gate-knip")
             .flatMap(id -> ConsumerModels.problems(this.child(parent, id), data, this.directory).stream())
             .filter(problem -> problem.contains("airness-maven-plugin"))
             .toList();

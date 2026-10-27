@@ -110,7 +110,7 @@ class PinnedArchiveTest {
 
     @Test
     void refusesAnEntryThatIsNeitherFileDirectoryNorSymbolicLink() {
-        PinnedArchive hard = this.pinned(List.of(Entry.hardLink("tool-1.0.0/hard", "tool-1.0.0/README")));
+        PinnedArchive hard = this.pinned(List.of(Entry.hardLink()));
         IOException refusal = assertThrows(IOException.class, () -> hard.unpackedIn(this.cache));
         assertTrue(Objects.requireNonNull(refusal.getMessage()).contains("tool-1.0.0/hard"), refusal.getMessage());
     }

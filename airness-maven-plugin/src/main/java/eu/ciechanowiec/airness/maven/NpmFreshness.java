@@ -105,12 +105,6 @@ record NpmFreshness(int scanned, List<VersionUpdate> updates, List<String> trail
         return new OwnedCoordinate(owner, new DeclaredCoordinate("npm", name, version));
     }
 
-    private static String latest(OwnedCoordinate entry, List<String> versions) {
-        return versions.stream().filter(NpmFreshness::stable)
-            .max(Comparator.comparing(ComparableVersion::new))
-            .orElseThrow(() -> new IllegalStateException("no stable release of " + entry.coordinate().artifactId()));
-    }
-
     private static boolean newer(VersionUpdate update) {
         return new ComparableVersion(update.latest())
             .compareTo(new ComparableVersion(update.declared().coordinate().version())) > 0;
@@ -130,10 +124,18 @@ record NpmFreshness(int scanned, List<VersionUpdate> updates, List<String> trail
      */
     private record Lookup(OwnedCoordinate entry, Optional<String> latest, Optional<String> problem) {
 
+        private static String latest(OwnedCoordinate entry, List<String> versions) {
+            return versions.stream().filter(NpmFreshness::stable)
+                .max(Comparator.comparing(ComparableVersion::new))
+                .orElseThrow(
+                    () -> new IllegalStateException("no stable release of " + entry.coordinate().artifactId())
+                );
+        }
+
         static Lookup of(OwnedCoordinate entry, Function<OwnedCoordinate, List<String>> versions) {
             try {
                 return new Lookup(
-                    entry, Optional.of(NpmFreshness.latest(entry, versions.apply(entry))), Optional.empty()
+                    entry, Optional.of(latest(entry, versions.apply(entry))), Optional.empty()
                 );
             } catch (IllegalStateException exception) {
                 return new Lookup(

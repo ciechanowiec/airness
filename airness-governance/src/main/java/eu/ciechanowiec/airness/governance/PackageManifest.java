@@ -31,16 +31,6 @@ public record PackageManifest(Set<String> scripts, Set<String> dependencies, Set
     }
 
     /**
-     * A manifest that declares no peer, so every declared dependency is installed.
-     *
-     * @param scripts      the script names
-     * @param dependencies the dependency names
-     */
-    public PackageManifest(Set<String> scripts, Set<String> dependencies) {
-        this(scripts, dependencies, dependencies);
-    }
-
-    /**
      * Whether the package installs a dependency of this name.
      *
      * @param name the package name

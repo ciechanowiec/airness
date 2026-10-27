@@ -20,20 +20,20 @@ class JavaParentsTest {
 
     @Test
     void refusesJavaSourcesUnderTheGenericParentAndNamesTheJavaOne() {
-        MavenProject module = this.module("src/main/java/com/example/Example.java", "airness-parent");
+        MavenProject module = this.module("src/main/java/com/example/Example.java");
         String problem = JavaParents.problem(module).orElseThrow();
         assertTrue(problem.contains("Name airness-parent-java"), problem);
     }
 
     @Test
     void refusesTestSourcesAloneUnderTheGenericParent() {
-        MavenProject module = this.module("src/test/java/com/example/ExampleTest.java", "airness-parent");
+        MavenProject module = this.module("src/test/java/com/example/ExampleTest.java");
         assertTrue(JavaParents.problem(module).isPresent());
     }
 
     @Test
     void acceptsJavaSourcesThatReachTheJavaParentThroughTheSpringOne() {
-        MavenProject module = this.module("src/main/java/com/example/Example.java", "airness-parent");
+        MavenProject module = this.module("src/main/java/com/example/Example.java");
         MavenProject spring = project("airness-parent-spring-boot");
         MavenProject java = project("airness-parent-java");
         spring.setParent(java);
@@ -44,19 +44,19 @@ class JavaParentsTest {
 
     @Test
     void acceptsAModuleWithoutJavaUnderTheGenericParent() {
-        MavenProject module = this.module("src/main/java/com/example/notes.txt", "airness-parent");
+        MavenProject module = this.module("src/main/java/com/example/notes.txt");
         assertEquals(Optional.empty(), JavaParents.problem(module));
     }
 
     @Test
     void acceptsAModuleWithoutSourceDirectories() {
-        MavenProject module = this.module("README.md", "airness-parent");
+        MavenProject module = this.module("README.md");
         assertEquals(Optional.empty(), JavaParents.problem(module));
     }
 
     @Test
     void readsASameNamedParentOfAnotherGroupAsNoJavaParent() {
-        MavenProject module = this.module("src/main/java/com/example/Example.java", "airness-parent");
+        MavenProject module = this.module("src/main/java/com/example/Example.java");
         MavenProject foreign = project("airness-parent-java");
         foreign.setGroupId("com.example");
         module.setParent(foreign);
@@ -64,13 +64,13 @@ class JavaParentsTest {
     }
 
     @SneakyThrows
-    private MavenProject module(String file, String parent) {
+    private MavenProject module(String file) {
         Path source = this.directory.resolve(file);
         Files.createDirectories(source.getParent());
         Files.writeString(source, "content\n");
         MavenProject module = project("module");
         module.setFile(Files.writeString(this.directory.resolve("pom.xml"), "<project/>\n").toFile());
-        module.setParent(project(parent));
+        module.setParent(project("airness-parent"));
         return module;
     }
 

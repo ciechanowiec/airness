@@ -146,7 +146,7 @@ class CompletionOrderTest {
         assertEquals(List.of(), new CompletionOrder(List.of(failsafe)).declared(CompletionOrder.declaredBy(child)));
     }
 
-    private static MavenProject declaring(boolean managed, boolean profiled) {
+    private static Build build(boolean managed) {
         Plugin plugin = new Plugin();
         plugin.setArtifactId("maven-failsafe-plugin");
         PluginExecution execution = new PluginExecution();
@@ -160,6 +160,11 @@ class CompletionOrderTest {
         } else {
             build.addPlugin(plugin);
         }
+        return build;
+    }
+
+    private static MavenProject declaring(boolean managed, boolean profiled) {
+        Build build = build(managed);
         Model model = new Model();
         model.setGroupId("com.example");
         model.setArtifactId("consumer");

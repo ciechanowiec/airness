@@ -30,8 +30,8 @@ class NodeToolsTest {
     private Path directory;
 
     @SneakyThrows
-    private Path executable(String name, String script) {
-        Path file = Files.writeString(this.directory.resolve(name), script);
+    private Path executable(String script) {
+        Path file = Files.writeString(this.directory.resolve("pnpm"), script);
         Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rwxr-xr-x"));
         return file;
     }
@@ -40,9 +40,11 @@ class NodeToolsTest {
     @SneakyThrows
     void runsPnpmInItsDirectoryWithTheHarnessToolsFirstOnThePath() {
         Path pnpm = this.executable(
-            "pnpm",
-            "#!/bin/sh\nprintf '%s|%s|%s|%s\\n' \"$*\" \"$(pwd -P)\" \"$PATH\" "
-                + "\"$pnpm_config_manage_package_manager_versions\"\nexit 3\n"
+            """
+                #!/bin/sh
+                printf '%s|%s|%s|%s\\n' "$*" "$(pwd -P)" "$PATH" "$pnpm_config_manage_package_manager_versions"
+                exit 3
+                """
         );
         Path node = this.directory.resolve("node-dist/bin/node");
         Path log = this.directory.resolve("logs/run.log");
@@ -61,7 +63,7 @@ class NodeToolsTest {
     @Test
     @SneakyThrows
     void stopsACommandThatOutlivesTheTimeout() {
-        Path pnpm = this.executable("pnpm", "#!/bin/sh\nsleep 30\n");
+        Path pnpm = this.executable("#!/bin/sh\nsleep 30\n");
         NodeTools tools = new NodeTools(pnpm, pnpm, BRIEF);
         Path log = this.directory.resolve("slow.log");
         IOException refusal = assertThrows(
@@ -82,7 +84,7 @@ class NodeToolsTest {
     @Test
     @SneakyThrows
     void runsPnpmWithTheVariablesTheCallerAdds() {
-        Path pnpm = this.executable("pnpm", "#!/bin/sh\nprintf '%s\\n' \"$AIRNESS_HARNESS_VERSIONS\"\n");
+        Path pnpm = this.executable("#!/bin/sh\nprintf '%s\\n' \"$AIRNESS_HARNESS_VERSIONS\"\n");
         Path log = this.directory.resolve("logs/run.log");
         new NodeTools(this.directory.resolve("node"), pnpm, GENEROUS).pnpm(
             List.of("exec", "gate"), this.directory, log, Map.of("AIRNESS_HARNESS_VERSIONS", "@airness/node=2.0.0")
@@ -94,7 +96,7 @@ class NodeToolsTest {
     @SneakyThrows
     void streamsBrowserProgressWhileTheNodeRunnerRetainsItsCompleteLog() {
         Path pnpm = this.executable(
-            "pnpm", "#!/bin/sh\nprintf 'browser detail\\n' >> \"$AIRNESS_GATE_LOG\"\nprintf 'browser progress\\n'\n"
+            "#!/bin/sh\nprintf 'browser detail\\n' >> \"$AIRNESS_GATE_LOG\"\nprintf 'browser progress\\n'\n"
         );
         Path log = this.directory.resolve("logs/browser.log");
         int exit = new NodeTools(pnpm, pnpm, GENEROUS).pnpm(

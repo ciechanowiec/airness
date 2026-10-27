@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -29,7 +30,7 @@ import java.util.stream.Stream;
  * @param pnpm the pinned pnpm archive
  * @param pins the pin file the archives were read from, which also names the executable inside each
  */
-record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Properties pins) {
+record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Map<String, String> pins) {
 
     private static final String RESOURCE = "/eu/ciechanowiec/airness/node/toolchain.properties";
     private static final String NODE = "node";
@@ -43,6 +44,10 @@ record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Properties pins) {
     private static final Map<String, String> ARCHITECTURES = Map.of(
         "aarch64", "arm64", "arm64", "arm64", "amd64", "x64", "x86_64", "x64"
     );
+
+    NodeToolchain {
+        pins = Map.copyOf(pins);
+    }
 
     /**
      * The toolchain the installed Airness release pins, for the platform this JVM runs on.
@@ -60,10 +65,8 @@ record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Properties pins) {
      * @param platform the platform, such as {@code darwin-arm64}
      * @return the toolchain
      */
-    static NodeToolchain of(Properties pins, String platform) {
-        Properties copy = new Properties();
-        copy.putAll(pins);
-        return new NodeToolchain(archive(copy, NODE, platform), archive(copy, PNPM, platform), copy);
+    static NodeToolchain of(Map<String, String> pins, String platform) {
+        return new NodeToolchain(archive(pins, NODE, platform), archive(pins, PNPM, platform), pins);
     }
 
     /**
@@ -213,29 +216,31 @@ record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Properties pins) {
         return required(this.pins, tool + '.' + key);
     }
 
-    private static PinnedArchive archive(Properties pins, String tool, String platform) {
+    private static PinnedArchive archive(Map<String, String> pins, String tool, String platform) {
         String version = required(pins, tool + ".version");
         String source = required(pins, tool + ".source").replace("{version}", version).replace("{platform}", platform);
-        String sha256 = Optional.ofNullable(pins.getProperty(tool + ".sha256." + platform)).orElseThrow(
+        String sha256 = Optional.ofNullable(pins.get(tool + ".sha256." + platform)).orElseThrow(
             () -> new IllegalStateException("Airness pins no " + tool + " archive for " + platform)
         );
         return new PinnedArchive(tool + '-' + version + '-' + platform, URI.create(source), sha256);
     }
 
-    private static String required(Properties pins, String key) {
-        return Optional.ofNullable(pins.getProperty(key)).orElseThrow(
+    private static String required(Map<String, String> pins, String key) {
+        return Optional.ofNullable(pins.get(key)).orElseThrow(
             () -> new IllegalStateException("The Node toolchain pins carry no " + key)
         );
     }
 
-    private static Properties packaged() {
+    private static Map<String, String> packaged() {
         URL resource = Optional.ofNullable(NodeToolchain.class.getResource(RESOURCE)).orElseThrow(
             () -> new IllegalStateException("The plugin jar carries no Node toolchain pins at " + RESOURCE)
         );
         try (InputStream input = resource.openStream()) {
             Properties pins = new Properties();
             pins.load(input);
-            return pins;
+            return pins.stringPropertyNames().stream().collect(
+                Collectors.toUnmodifiableMap(key -> key, pins::getProperty)
+            );
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read the Node toolchain pins", exception);
         }

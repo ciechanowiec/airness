@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The coordinates of a module's effective build: every plugin it binds or manages, wherever it was declared,
@@ -42,7 +43,7 @@ final class PluginCoordinates {
         return coordinate(dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion());
     }
 
-    private static DeclaredCoordinate coordinate(String group, String artifact, String version) {
+    private static DeclaredCoordinate coordinate(String group, String artifact, @Nullable String version) {
         return new DeclaredCoordinate(group, artifact, Optional.ofNullable(version).orElse(""));
     }
 }

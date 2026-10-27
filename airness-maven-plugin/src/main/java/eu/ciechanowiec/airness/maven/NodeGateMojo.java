@@ -32,6 +32,25 @@ import org.jspecify.annotations.Nullable;
 @Mojo(name = "node-gate", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public final class NodeGateMojo extends AbstractGovernanceMojo {
 
+    /**
+     * The environment variable a node gate reads the versions from.
+     */
+    private static final String VARIABLE = "AIRNESS_HARNESS_VERSIONS";
+
+    /**
+     * The environment variable a node gate reads the module's own version from. A harness package's own
+     * repository, such as ploaness-node, which inherits {@code airness-parent-node}, releases the package at
+     * that version, and no parent in its chain names it.
+     */
+    private static final String MODULE_VARIABLE = "AIRNESS_MODULE_VERSION";
+
+    /**
+     * The environment variable a node gate reads the module's own identity from, as {@code groupId:artifactId}.
+     * Only the module that builds a harness package may name its node project after it and link it to itself.
+     * the mapping lives in airness-node's {@code harness-packages.ts}.
+     */
+    private static final String IDENTITY_VARIABLE = "AIRNESS_MODULE";
+
     private static final String BROWSER_GATE = "e2e";
 
     /**
@@ -143,9 +162,9 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
      */
     static Map<String, String> environment(MavenProject module) {
         Map<String, String> environment = new HashMap<>(ReportBrowser.environment());
-        environment.put(HarnessVersions.VARIABLE, HarnessVersions.of(module).value());
-        environment.put(HarnessVersions.MODULE_VARIABLE, module.getVersion());
-        environment.put(HarnessVersions.IDENTITY_VARIABLE, module.getGroupId() + ':' + module.getArtifactId());
+        environment.put(VARIABLE, HarnessVersions.of(module).value());
+        environment.put(MODULE_VARIABLE, module.getVersion());
+        environment.put(IDENTITY_VARIABLE, module.getGroupId() + ':' + module.getArtifactId());
         environment.put("AIRNESS_VERIFICATION_MODE", ReportProjects.active(module, "delta") ? "delta" : "full");
         return Map.copyOf(environment);
     }

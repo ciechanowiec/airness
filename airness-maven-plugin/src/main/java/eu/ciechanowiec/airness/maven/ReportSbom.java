@@ -138,7 +138,7 @@ final class ReportSbom {
     @Justification("JSON objects read as maps hold lists of maps under properties, as the CycloneDX schema has them")
     private static Map<String, Object> richer(Map<String, Object> first, Map<String, Object> second) {
         List<Object> properties = Stream.of(first, second)
-            .flatMap(component -> ((List<Object>) component.getOrDefault("properties", List.of())).stream())
+            .flatMap(component -> ((Collection<Object>) component.getOrDefault("properties", List.of())).stream())
             .distinct().toList();
         Map<String, Object> merged = new LinkedHashMap<>(first);
         merged.put("properties", properties);

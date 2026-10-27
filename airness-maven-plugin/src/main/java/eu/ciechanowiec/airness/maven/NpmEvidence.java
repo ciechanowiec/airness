@@ -76,7 +76,7 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
         JsonNode packages = inventory.path(PACKAGES);
         if (
             inventory.path(CONTRACT_FIELD).asInt() != CONTRACT || !packages.isArray()
-                || !packages.valueStream().allMatch(NpmPackage::complete)
+                || !packages.valueStream().allMatch(NpmEvidence::complete)
         ) {
             throw new IllegalStateException(
                 this.subject() + ": " + INVENTORY + " is not the contract " + CONTRACT + " inventory, whose every"
@@ -137,6 +137,13 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
         }
     }
 
+    // A field the inventory leaves out is refused rather than defaulted, so a drifted producer cannot make the
+    // policies read a package as direct or installed when it said nothing.
+    private static boolean complete(JsonNode entry) {
+        boolean named = Stream.of("name", "version", "license").allMatch(field -> entry.path(field).isTextual());
+        return named && Stream.of("direct", "installed").allMatch(field -> entry.path(field).isBoolean());
+    }
+
     /**
      * One resolved npm package as the inventory lists it.
      *
@@ -146,7 +153,7 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
      * @param direct    whether a member of the project depends on it directly
      * @param installed whether this host installed it, which a package limited to other platforms is not
      */
-    record NpmPackage(String name, String version, String license, boolean direct, boolean installed) {
+    public record NpmPackage(String name, String version, String license, boolean direct, boolean installed) {
 
         private static final String NAME = "name";
         private static final String VERSION = "version";
@@ -159,13 +166,6 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
                 entry.path(NAME).asText(), entry.path(VERSION).asText(), entry.path(LICENSE).asText(),
                 entry.path(DIRECT).asBoolean(), entry.path(INSTALLED).asBoolean()
             );
-        }
-
-        // A field the inventory leaves out is refused rather than defaulted, so a drifted producer cannot make the
-        // policies read a package as direct or installed when it said nothing.
-        static boolean complete(JsonNode entry) {
-            boolean named = Stream.of(NAME, VERSION, LICENSE).allMatch(field -> entry.path(field).isTextual());
-            return named && Stream.of(DIRECT, INSTALLED).allMatch(field -> entry.path(field).isBoolean());
         }
 
         /**

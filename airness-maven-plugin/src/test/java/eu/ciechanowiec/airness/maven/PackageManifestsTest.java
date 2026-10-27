@@ -61,7 +61,7 @@ class PackageManifestsTest {
     void readsAManifestWithoutScriptsOrDependenciesAsDeclaringNone() {
         Files.writeString(this.directory.resolve(MANIFEST), "{ \"name\": \"bare\", \"scripts\": [] }\n");
         assertEquals(
-            Optional.of(new PackageManifest(Set.of(), Set.of())), PackageManifests.in(this.directory),
+            Optional.of(new PackageManifest(Set.of(), Set.of(), Set.of())), PackageManifests.in(this.directory),
             "a missing or malformed section declares nothing"
         );
     }
