@@ -1,14 +1,14 @@
 // The facet gates against real projects in temporary working trees: each reads as not applicable where its
 // facet is absent, and reaches its finding where the facet is present.
 
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { type GateResult, passed } from '@/exec.js'
 import { build } from '@/gate-build.js'
 import { bundle } from '@/gate-bundle.js'
 import { configReferences } from '@/gate-config-references.js'
-import { css } from '@/gate-css.js'
+import { css, cssWrite } from '@/gate-css.js'
 import { tailwindTokens } from '@/gate-tailwind-tokens.js'
 import { tests } from '@/gate-tests.js'
 import type { Member } from '@/project.js'
@@ -222,10 +222,24 @@ describe('tests: spec roles', PROCESS_TIME, () => {
       tests,
     )
     expect(result.findings).toEqual([
-      'src/total.spec.ts is a spec no runner collects; unit specs are tests/**/*.spec.ts and the end-to-end ' +
+      'src/total.spec.ts is a spec no runner collects; unit specs are tests/**/*.spec.{ts,tsx} and the end-to-end ' +
         'specs of a browser application tests/e2e/**/*.e2e.spec.ts',
       'tests/e2e/home.e2e.spec.ts is an end-to-end spec in a member that is no browser application, so nothing ' +
         'runs it',
     ])
+  })
+})
+
+describe('stylesheet formatting', PROCESS_TIME, () => {
+  it('writes SCSS with the same selection and options its gate checks', () => {
+    const root: string = temporaryProject({ 'src/site.scss': '.box{margin:4px}\n' })
+    try {
+      const member: Member = memberAt(root)
+      expect(cssWrite(member).ok).toBe(true)
+      expect(readFileSync(path.join(root, 'src/site.scss'), 'utf8')).toContain('    margin: 4px;')
+      expect(css(member).ok).toBe(true)
+    } finally {
+      removeProject(root)
+    }
   })
 })

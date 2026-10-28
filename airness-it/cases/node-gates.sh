@@ -227,8 +227,9 @@ start_airness_node_registry() {
         tar -czf "${fixture_staging}.tgz" -C "${fixture_staging}" package
         set -- "$@" "${fixture_staging}.tgz"
     done
-    python3 "${repository}/airness-it/npm-registry.py" "${registry_port_file}" \
-        "${repository}/airness-node/target/airness-node-${harness_version}.tgz" "$@" \
+    python3 "${repository}/airness-assets/src/main/resources/airness/project-files/node/.airness/npm-registry.py.asset" \
+        --port-file "${registry_port_file}" \
+        --fresh "${repository}/airness-node/target/airness-node-${harness_version}.tgz" --old "$@" \
         > "${registry_staging}/registry.log" 2>&1 &
     registry_waited=0
     while [ ! -s "${registry_port_file}" ]; do

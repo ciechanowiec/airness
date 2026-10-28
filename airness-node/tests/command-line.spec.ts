@@ -27,6 +27,7 @@ describe('the command line', PROCESS_TIME, () => {
 
   it('refuses an unknown command, an unknown gate and a malformed option', async () => {
     expect(await runCommandLine(['verify'], process.cwd())).toBe(1)
+    expect(await runCommandLine(['format', '--unknown'], process.cwd())).toBe(1)
     expect(await runCommandLine(['gate', 'unknown'], process.cwd())).toBe(1)
     expect(await runCommandLine(['gate'], process.cwd())).toBe(1)
     expect(await runCommandLine(['gate', 'wiring', '--result'], process.cwd())).toBe(1)

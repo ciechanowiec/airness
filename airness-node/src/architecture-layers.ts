@@ -58,7 +58,7 @@ export const pureLogicRule = (
       `${pureLogicRoots.join(' and ')} are the pure-logic floor: they must depend on nothing else under ` +
       `${sourceRoots.join(', ')} (only types and third-party libraries). Pass framework data in as a plain value.`,
     from: { path: `^(${floor})` },
-    to: { path: `^(${alternation(sourceRoots)})`, pathNot: `^(${floor})` },
+    to: { path: `^(${alternation(sourceRoots)})`, pathNot: `^(${floor})`, dependencyTypesNot: ['type-only'] },
   }
 }
 

@@ -45,6 +45,8 @@ export interface Lockfile {
   readonly roots: readonly string[]
   /** Each snapshot key with the snapshot keys it depends on, optional dependencies included. */
   readonly edges: ReadonlyMap<string, readonly string[]>
+  /** Security replacements are judged against the harness catalogue, with their selected graph edges. */
+  readonly overrides?: unknown
   /**
    * What the lockfile records of an install-time rewrite: an override, a patch, a package extension or a
    * pnpmfile hook. Each one changes what a resolved name and version contain.
@@ -53,12 +55,7 @@ export interface Lockfile {
 }
 
 // The top-level sections pnpm writes when an install-time rewrite took part in the resolution.
-const REWRITE_SECTIONS: readonly string[] = [
-  'overrides',
-  'patchedDependencies',
-  'packageExtensionsChecksum',
-  'pnpmfileChecksum',
-]
+const REWRITE_SECTIONS: readonly string[] = ['patchedDependencies', 'packageExtensionsChecksum', 'pnpmfileChecksum']
 
 // A snapshot key carries the hash of the patch applied to it, `name@1.0.0(patch_hash=...)`.
 const PATCH_MARKER: string = 'patch_hash='
@@ -181,5 +178,6 @@ export const readLockfile = (text: string): Lockfile | undefined => {
       ),
     ),
     rewrites: rewritesIn(document),
+    overrides: document['overrides'],
   }
 }

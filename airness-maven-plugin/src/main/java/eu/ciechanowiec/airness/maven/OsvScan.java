@@ -12,10 +12,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -26,8 +26,8 @@ import java.util.stream.Stream;
  * <p>The npm SBOM names every resolved package by its package URL, which is what OSV's batch query takes, so the
  * scan needs no Docker, no credential and no lockfile reader of its own. It runs under the extended profile with
  * the compliance report, as the Maven scan does. A query or an advisory that cannot be read fails the scan: an
- * unreachable database is never a clean result. A withdrawn advisory is passed over. No npm advisory can be
- * excused yet, so every one it reports is open and fails the build.
+ * unreachable database is never a clean result. A withdrawn advisory is passed over. The findings retain the
+ * database's aliases so project mitigations can identify the exact advisory they address.
  *
  * @param base   the OSV API, ending in a slash
  * @param client the HTTP client every request of one scan shares
@@ -57,14 +57,14 @@ record OsvScan(String base, HttpClient client) {
     }
 
     /**
-     * The open advisories of the given packages.
+     * The findings and database-supplied advisory aliases of the given packages.
      *
      * @param purls  the package URLs of the resolved packages
      * @param module the module the packages belong to
      * @return one advisory per vulnerability and package, most severe first
      * @throws IllegalStateException when OSV cannot be read
      */
-    List<ReportAdvisory> advisories(Collection<String> purls, String module) {
+    List<OsvAdvisory> findings(Collection<String> purls, String module) {
         List<String> queried = purls.stream().distinct().sorted().toList();
         List<Map.Entry<String, String>> found = IntStream.range(0, (queried.size() + BATCH - 1) / BATCH)
             .mapToObj(batch -> queried.subList(batch * BATCH, Math.min(queried.size(), (batch + 1) * BATCH)))
@@ -74,8 +74,8 @@ record OsvScan(String base, HttpClient client) {
         return found.stream()
             .map(entry -> Map.entry(entry.getKey(), Objects.requireNonNull(details.get(entry.getValue()))))
             .filter(entry -> !entry.getValue().has("withdrawn"))
-            .map(entry -> advisory(entry.getValue(), entry.getKey(), module))
-            .sorted(ReportAdvisory.TRIAGE).toList();
+            .map(entry -> OsvAdvisory.of(entry.getValue(), entry.getKey(), module))
+            .sorted(Comparator.comparing(OsvAdvisory::advisory, ReportAdvisory.TRIAGE)).toList();
     }
 
     // Each package with the identifier of every vulnerability OSV lists for it.
@@ -134,16 +134,5 @@ record OsvScan(String base, HttpClient client) {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("OSV could not be read at " + address, exception);
         }
-    }
-
-    private static ReportAdvisory advisory(JsonNode vulnerability, String purl, String module) {
-        String summary = vulnerability.path("summary").asText();
-        String description = summary.isBlank()
-            ? vulnerability.path("details").asText().lines().findFirst().orElse("") : summary;
-        String severity = Optional.of(vulnerability.path("database_specific").path("severity").asText())
-            .filter(text -> !text.isBlank()).orElse("Unknown");
-        return new ReportAdvisory(
-            vulnerability.path("id").asText(), severity, purl, List.of(module), description, Optional.empty()
-        );
     }
 }

@@ -3,8 +3,10 @@
 // a second module registry.
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { runApp } from './app-process.js'
+import { clockedEnvironment } from './clock-environment.js'
 import { coverageCandidates } from './coverage-policy.js'
-import { failed, fromRun, type GateResult, passed, runNode } from './exec.js'
+import { failed, fromRun, type GateResult, passed } from './exec.js'
 import { isBrowserApp } from './facets.js'
 import { matchesGlob } from './file-roles.js'
 import { isHarnessPackage } from './harness-packages.js'
@@ -12,6 +14,7 @@ import { asRecord, asStringRecord, asText } from './json-shapes.js'
 import { harnessDirectory, type Member, readJson } from './project.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'
 import { misplacedSpecs } from './spec-roles.js'
+import { withPretest } from './test-invocation.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
 const VITEST: string = 'vitest'
@@ -47,13 +50,15 @@ const suite = (member: Member): GateResult => {
     ])
   }
   const config: string = path.join(harnessDirectory(), 'dist', 'vitest.js')
-  return fromRun(
-    runNode(vitest, ['run', '--config', config, '--coverage'], {
-      cwd: member.root,
-      env: { NODE_OPTIONS: '--no-deprecation' },
-    }),
-    'the suite passes and every measured file meets the coverage floor',
-    'the suite failed, or a file is below the coverage floor',
+  return withPretest(member, () =>
+    fromRun(
+      runApp(member, [vitest, 'run', '--config', config, '--coverage'], {
+        cwd: member.root,
+        env: clockedEnvironment(member, '--no-deprecation'),
+      }),
+      'the suite passes and every measured file meets the coverage floor',
+      'the suite failed, or a file is below the coverage floor',
+    ),
   )
 }
 

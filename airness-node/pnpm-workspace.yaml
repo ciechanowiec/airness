@@ -3,3 +3,7 @@ allowBuilds: {}
 minimumReleaseAge: 1440
 
 minimumReleaseAgeStrict: true
+
+# GHSA-ggr8-5vv4-36mx: the harness approves this exact dependency edge.
+overrides:
+  "eslint-plugin-functional@10.0.1>deepmerge-ts": "8.0.2"

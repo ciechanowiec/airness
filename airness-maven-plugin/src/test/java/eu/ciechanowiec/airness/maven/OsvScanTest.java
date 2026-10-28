@@ -21,15 +21,15 @@ class OsvScanTest {
     @Test
     void reportsEveryAdvisoryButAWithdrawnOne() {
         try (ArchiveServer server = NpmFixture.osv()) {
-            List<ReportAdvisory> advisories = OsvScan.of(server.uri("/").toString()).advisories(
+            List<ReportAdvisory> advisories = OsvScan.of(server.uri("/").toString()).findings(
                 List.of("pkg:npm/left-pad@1.3.0", KIT, "pkg:npm/%40esbuild/linux-x64@0.25.0", KIT), "web"
-            );
+            ).stream().map(OsvAdvisory::advisory).toList();
             assertEquals(1, advisories.size());
             ReportAdvisory advisory = advisories.getFirst();
             assertEquals(KIT, advisory.artifact());
             assertEquals("HIGH", advisory.severity());
             assertEquals("Prototype pollution", advisory.description());
-            assertTrue(advisory.open(), "no npm advisory can be excused, so each one fails the build");
+            assertTrue(advisory.open(), "the raw scan retains every open advisory before project mitigations");
         }
     }
 
@@ -38,7 +38,8 @@ class OsvScanTest {
         try (ArchiveServer server = new ArchiveServer()) {
             server.serve("/v1/querybatch", bytes("{\"results\": [{\"vulns\": [{\"id\": \"OSV-1\"}]}]}"));
             server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"details\": \"First line.\\nSecond.\"}"));
-            ReportAdvisory advisory = OsvScan.of(server.uri("/").toString()).advisories(List.of(KIT), "web").getFirst();
+            ReportAdvisory advisory = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), "web").getFirst()
+                .advisory();
             assertEquals("First line.", advisory.description());
             assertEquals("Unknown", advisory.severity());
         }
@@ -47,15 +48,15 @@ class OsvScanTest {
     @Test
     void failsWhenOsvCannotBeReadOrAnswersWrongly() {
         IllegalStateException unreachable = assertThrows(
-            IllegalStateException.class, () -> OsvScan.of("http://127.0.0.1:9/").advisories(List.of(KIT), "web")
+            IllegalStateException.class, () -> OsvScan.of("http://127.0.0.1:9/").findings(List.of(KIT), "web")
         );
         assertTrue(Objects.requireNonNull(unreachable.getMessage()).contains("rather than passing without it"));
         try (ArchiveServer server = new ArchiveServer()) {
             String base = server.uri("/").toString();
-            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).advisories(List.of(KIT), "web"));
+            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), "web"));
             server.serve("/v1/querybatch", bytes("{\"results\": []}"));
-            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).advisories(List.of(KIT), "web"));
-            assertEquals(List.of(), OsvScan.of(base).advisories(List.of(), "web"), "nothing resolved, nothing asked");
+            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), "web"));
+            assertEquals(List.of(), OsvScan.of(base).findings(List.of(), "web"), "nothing resolved, nothing asked");
         }
     }
 

@@ -3,6 +3,7 @@
 // what it holds; the second would move the store the gates read the installed packages from.
 import { asRecord, isRecord } from './json-shapes.js'
 import type { NpmConfig } from './npmrc.js'
+import { type SecurityOverride, securityOverrideFindings } from './security-overrides.js'
 
 /** What the install-config rules read at the project root. */
 export interface InstallConfigInputs {
@@ -18,13 +19,7 @@ export interface InstallConfigInputs {
 
 const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
 
-const WORKSPACE_REWRITES: readonly string[] = [
-  'overrides',
-  'patchedDependencies',
-  'packageExtensions',
-  'pnpmfile',
-  'globalPnpmfile',
-]
+const WORKSPACE_REWRITES: readonly string[] = ['patchedDependencies', 'packageExtensions', 'pnpmfile', 'globalPnpmfile']
 const MANIFEST_REWRITES: readonly string[] = ['overrides', 'resolutions']
 const MANIFEST_PNPM_REWRITES: readonly string[] = ['overrides', 'patchedDependencies', 'packageExtensions']
 const NPMRC_REWRITES: readonly string[] = ['pnpmfile', 'global-pnpmfile']
@@ -41,7 +36,11 @@ const present = (record: unknown, keys: readonly string[]): readonly string[] =>
  * @param inputs the project's configuration.
  * @returns one finding per rewrite.
  */
-export const rewriteFindings = (inputs: InstallConfigInputs): readonly string[] => [
+export const rewriteFindings = (
+  inputs: InstallConfigInputs,
+  approved: readonly SecurityOverride[] = [],
+): readonly string[] => [
+  ...securityOverrideFindings(asRecord(inputs.workspace)['overrides'], approved, WORKSPACE_FILE),
   ...present(inputs.workspace, WORKSPACE_REWRITES).map(
     (key: string): string => `${WORKSPACE_FILE} ${key}: ${REWRITE_REPAIR}`,
   ),

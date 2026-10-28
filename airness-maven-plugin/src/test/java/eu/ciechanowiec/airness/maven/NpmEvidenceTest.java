@@ -115,6 +115,43 @@ class NpmEvidenceTest {
     }
 
     @Test
+    @SneakyThrows
+    void aMitigationInOneNodeProjectDoesNotExcuseTheOtherProject() {
+        MavenProject project = NpmFixture.module(this.directory, true);
+        Files.createDirectories(this.directory.resolve("other"));
+        Files.writeString(this.directory.resolve("other/package.json"), "{}");
+        project.getProperties().setProperty("airness.node.projects", "web,other");
+        NpmEvidence other = NpmEvidence.of(project).getLast();
+        Files.createDirectories(other.results());
+        Files.writeString(other.results().resolve(NpmEvidence.INVENTORY), NpmFixture.INVENTORY);
+        Files.writeString(other.results().resolve(NpmEvidence.SBOM), NpmFixture.SBOM);
+        NpmEvidence web = NpmEvidence.of(project).getFirst();
+        Files.writeString(
+            web.directory().resolve("package.json"), ReportJson.encode(
+                Map.of(
+                    "airness", Map.of(
+                        "vulnerabilityAllowlist", List.of(
+                            Map.of(
+                                "package", "@scope/kit", "advisory", "GHSA-0000-0000-0001",
+                                "reason", "This project does not load the affected parser.",
+                                "mitigation", "Remove the package when the build tool upgrades.", "addedOn",
+                                "2026-10-28"
+                            )
+                        )
+                    )
+                )
+            )
+        );
+        try (ArchiveServer server = NpmFixture.osv()) {
+            List<ReportAdvisory> advisories = NpmReportInputs.read(
+                project, Instant.EPOCH, OsvScan.of(server.uri("/").toString())
+            ).advisories();
+            assertEquals(2, advisories.size());
+            assertEquals(1L, advisories.stream().filter(ReportAdvisory::open).count());
+        }
+    }
+
+    @Test
     void namesAnUnscopedAndAnUnversionedPackageAndOneDeclaringNoLicense() {
         NpmEvidence.NpmPackage app = new NpmEvidence.NpmPackage("app", "", "", true, true);
         assertEquals("pkg:npm/app", app.purl());

@@ -102,6 +102,34 @@ export const layerDefaultsFor = (
     (layer: LayerPackage): LayerDefaults => layerDefaultsOf(layer.manifest),
   )
 
+const testDependenciesOf = (layer: LayerPackage): readonly string[] => {
+  const value: unknown = layerBlock(layer.manifest)['vitestInlineDependencies']
+  if (value === undefined) {
+    return []
+  }
+  if (
+    !(isArray(value) && value.every((entry: unknown): boolean => typeof entry === 'string' && entry.trim().length > 0))
+  ) {
+    throw new TypeError(
+      `The stack layer ${layer.name} must name vitestInlineDependencies as an array of dependency names`,
+    )
+  }
+  return texts(value)
+}
+
+/** Dependencies a trusted framework layer needs Vite to transform, including their stylesheet imports. */
+export const layerTestDependenciesFor = (
+  directory: string,
+  packageJson: unknown,
+  readManifest: (file: string) => unknown,
+): readonly string[] => [
+  ...new Set(
+    layerPackagesFor(directory, packageJson, readManifest).flatMap((layer: LayerPackage): readonly string[] =>
+      testDependenciesOf(layer),
+    ),
+  ),
+]
+
 // A seam the layer's manifest names: undefined when it names none, and refused, never passed over, when it
 // names one in a shape the seam cannot use, since a harness seam that falls back silently fails open.
 const layerField = (layer: LayerPackage, key: string, isValid: (value: string) => boolean): string | undefined => {

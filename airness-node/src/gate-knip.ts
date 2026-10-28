@@ -5,8 +5,10 @@
 // declared stack layer package as used, because the harness reads it by name: node-gate runs its gates and the
 // layer seams read its defaults, ESLint blocks and end-to-end specifications, none of which an import shows.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { localEnvironment } from './environment-files.js'
 import { fromRun, type GateResult, runNode } from './exec.js'
 import { HARNESS_PACKAGE } from './harness-packages.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
@@ -47,6 +49,26 @@ const declaredLayers = (member: Member): readonly string[] => {
   return LAYER_PACKAGES.filter((name: string): boolean => Object.hasOwn(declared, name))
 }
 
+// Vite loads optional transforms through peers. A project supplying one is using it through its
+// test engine, even when no application source imports the transform package directly.
+const testEnginePeers = (member: Member): readonly string[] => {
+  const declared: Readonly<Record<string, string>> = declaredDependencies(member.packageJson)
+  if (!Object.hasOwn(declared, 'vitest')) {
+    return []
+  }
+  try {
+    const project: NodeJS.Require = createRequire(path.join(member.root, 'package.json'))
+    const test: NodeJS.Require = createRequire(project.resolve('vitest/package.json'))
+    const engine: unknown = readJson(test.resolve('vite/package.json'))
+    return Object.keys(asRecord(readKey(engine, 'peerDependencies'))).filter((name: string): boolean =>
+      Object.hasOwn(declared, name),
+    )
+  } catch {
+    // Missing test tools are reported by wiring; they cannot excuse a dependency here.
+    return []
+  }
+}
+
 // CloudFront provides its own module; no npm package supplies it. The exemption applies only when
 // a declared CloudFront file actually exists in this member, including its sibling boundaries.
 const runtimeModules = (member: Member, files: readonly string[]): readonly string[] =>
@@ -75,6 +97,7 @@ const knipConfig = (member: Member): string => {
       ...texts(shipped['ignoreDependencies']),
       ...ownDependencies(member),
       ...declaredLayers(member),
+      ...testEnginePeers(member),
       ...runtimeModules(member, files),
     ],
     ignore: [...texts(shipped['ignore']), ...boundaries, ...member.settings.generatedArtefacts],
@@ -90,6 +113,7 @@ export const knip = (member: Member): GateResult => {
     return fromRun(
       runNode(resolveTool('knip'), ['--config', config, '--no-progress'], {
         cwd: member.root,
+        env: localEnvironment(member.root),
       }),
       'no dead code or unused dependency',
       'dead code or an unused dependency was found',

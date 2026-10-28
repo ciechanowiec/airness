@@ -11,6 +11,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
@@ -80,12 +82,28 @@ record NpmReportInputs(
                 .map(entry -> npm(entry, project.getId())),
             NodeToolchain.pinned().packages(project.getId()).stream()
         ).toList();
-        List<String> purls = evidence.stream().flatMap(entry -> entry.packages().stream()).map(NpmPackage::purl)
-            .toList();
         return new NpmReportInputs(
             packages, roots.isEmpty() ? Map.of() : Map.of(project.getId(), roots), ReportJson.encode(documents),
-            osv.advisories(purls, project.getId())
+            advisories(evidence, osv, project.getId())
         );
+    }
+
+    private static List<ReportAdvisory> advisories(List<NpmEvidence> evidence, OsvScan osv, String module) {
+        Map<NpmEvidence, Set<String>> packages = evidence.stream().collect(
+            Collectors.toUnmodifiableMap(
+                entry -> entry, entry -> entry.packages().stream().map(NpmPackage::purl).collect(
+                    Collectors.toUnmodifiableSet()
+                )
+            )
+        );
+        List<OsvAdvisory> findings = osv.findings(packages.values().stream().flatMap(Set::stream).toList(), module);
+        return evidence.stream().flatMap(
+            entry -> NpmMitigations.read(entry.directory()).apply(
+                findings.stream().filter(
+                    finding -> Objects.requireNonNull(packages.get(entry)).contains(finding.advisory().artifact())
+                ).toList()
+            ).stream()
+        ).toList();
     }
 
     /**

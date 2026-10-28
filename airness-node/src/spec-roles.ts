@@ -5,7 +5,7 @@ import path from 'node:path'
 import { JAVASCRIPT_EXTENSIONS, matchesGlob, TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
 
 /** The unit specs the shipped Vitest configuration collects. */
-export const UNIT_SPEC_GLOB: string = 'tests/**/*.spec.ts'
+export const UNIT_SPEC_GLOB: string = 'tests/**/*.spec.{ts,tsx}'
 
 /** The end-to-end specs the e2e gate collects in a browser application, which Vitest leaves out. */
 export const END_TO_END_SPEC_GLOB: string = 'tests/e2e/**'

@@ -91,11 +91,11 @@ describe('the lockfile', () => {
       '',
     ].join('\n')
     expect(readLockfile(rewritten)?.rewrites).toEqual([
-      'pnpm-lock.yaml records overrides',
       'pnpm-lock.yaml records patchedDependencies',
       'pnpm-lock.yaml records pnpmfileChecksum',
       'pnpm-lock.yaml resolves the patched @airness/node',
     ])
+    expect(readLockfile(rewritten)?.overrides).toEqual({ knip: 'npm:empty-npm-package@1.0.0' })
     expect(readLockfile(rewritten)?.edges.get('@airness/node@2.0.0(patch_hash=abc)')).toEqual(['knip@6.42.1'])
   })
 

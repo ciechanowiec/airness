@@ -5,6 +5,21 @@ import { clockedEnvironment } from '@/clock-environment.js'
 import { readSettings } from '@/settings.js'
 
 describe('the browser startup inputs', () => {
+  it('retains inherited runtime security options alongside the verification clock', () => {
+    const fixed: Readonly<Record<string, string>> = clockedEnvironment(
+      { settings: readSettings({}) },
+      '--no-deprecation',
+      '--disable-proto=throw',
+    )
+    expect(fixed['NODE_OPTIONS']).toContain('--disable-proto=throw --no-deprecation --import=')
+    expect(
+      clockedEnvironment(
+        { settings: readSettings({ airness: { clock: 'real' } }) },
+        '--no-deprecation',
+        '--disable-proto=throw',
+      )['NODE_OPTIONS'],
+    ).toBe('--disable-proto=throw --no-deprecation')
+  })
   it('keeps complete auxiliary servers and rejects incomplete entries', () => {
     expect(
       browserSettings({
@@ -26,10 +41,13 @@ describe('the browser startup inputs', () => {
     const fixed: Readonly<Record<string, string>> = clockedEnvironment(
       { settings: readSettings({}) },
       '--no-deprecation',
+      '',
     )
     expect(fixed[CLOCK_ENVIRONMENT_VARIABLE]).toBe(DEFAULT_CLOCK_INSTANT)
     expect(fixed['NODE_OPTIONS']).toContain('--import=file:')
-    expect(clockedEnvironment({ settings: readSettings({ airness: { clock: 'real' } }) }, '--no-deprecation')).toEqual({
+    expect(
+      clockedEnvironment({ settings: readSettings({ airness: { clock: 'real' } }) }, '--no-deprecation', ''),
+    ).toEqual({
       NODE_OPTIONS: '--no-deprecation',
     })
   })

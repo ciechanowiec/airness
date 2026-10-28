@@ -10,6 +10,7 @@ import { isBrowserApp, isNextApp } from './facets.js'
 import { asStringRecord, readKey } from './json-shapes.js'
 import { currentBuild, type StampedBuild } from './next-build.js'
 import type { Member } from './project.js'
+import { withPretestAsync } from './test-invocation.js'
 
 const SERVE_EXAMPLE: string = '"airness": { "serve": "<script>" }'
 
@@ -71,5 +72,5 @@ export const endToEnd = async (member: Member, context: GateContext = EMPTY_CONT
   if (occupied.length > 0) {
     return failed('the browser endpoint is not free', occupied)
   }
-  return await runBrowserSweep(member, context)
+  return await withPretestAsync(member, async (): Promise<GateResult> => await runBrowserSweep(member, context))
 }

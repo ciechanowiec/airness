@@ -9,12 +9,15 @@ import {
   MODULE_VERSION_VARIABLE,
   readHarnessVersions,
 } from './harness-packages.js'
-import { rewriteFindings } from './install-config.js'
+import { type InstallConfigInputs, rewriteFindings } from './install-config.js'
 import { installConfigOf } from './install-config-files.js'
-import { asStringRecord, readKey } from './json-shapes.js'
+import { asRecord, asStringRecord, readKey } from './json-shapes.js'
+import { layerPackagesFor } from './layer.js'
 import { LOCKFILE, type Lockfile, type ResolvedPackage, readLockfile } from './lockfile.js'
 import { isFromItsRegistry, type NpmConfig, npmConfigOf } from './npmrc.js'
 import { harnessDirectory, type Member, readJson, readText } from './project.js'
+import { securityOverrideCatalog } from './security-override-catalog.js'
+import { type SecurityOverride, securityOverrideLockFindings } from './security-overrides.js'
 import { wiringFindings } from './wiring-policy.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
@@ -32,11 +35,22 @@ export const wiring = (member: Member): GateResult => {
   const text: string | undefined = readText(path.join(member.projectRoot, LOCKFILE))
   const lockfile: Lockfile | undefined = text === undefined ? undefined : readLockfile(text)
   const config: NpmConfig = npmConfigOf(member.projectRoot)
+  const installation: InstallConfigInputs = installConfigOf(member.projectRoot)
+  const approved: readonly SecurityOverride[] = securityOverrideCatalog(
+    layerPackagesFor(member.root, member.packageJson, readJson),
+  )
   const findings: readonly string[] = wiringFindings({
     memberPath: member.path,
     manifest: member.packageJson,
     lockfile,
-    rewrites: [...rewriteFindings(installConfigOf(member.projectRoot)), ...(lockfile?.rewrites ?? [])],
+    rewrites: [
+      ...rewriteFindings(installation, approved),
+      ...(member.path === '.' || readKey(readKey(member.packageJson, 'airness'), 'vulnerabilityAllowlist') === undefined
+        ? []
+        : ['airness.vulnerabilityAllowlist belongs in the root package.json of the declared Node project']),
+      ...(lockfile?.rewrites ?? []),
+      ...securityOverrideLockFindings(asRecord(installation.workspace)['overrides'], lockfile, approved),
+    ],
     expected: readHarnessVersions(process.env[HARNESS_VERSIONS_VARIABLE]),
     moduleVersion: process.env[MODULE_VERSION_VARIABLE],
     module: process.env[MODULE_VARIABLE],

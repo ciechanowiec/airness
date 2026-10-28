@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 // scope, clock, ownership and result policies are measured by their unit suites.
 import { appendFileSync, copyFileSync } from 'node:fs'
 import path from 'node:path'
+import { streamApp } from './app-process.js'
 import {
   BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE,
   BROWSER_TUNNEL_ENVIRONMENT_VARIABLE,
@@ -13,7 +14,7 @@ import { judgeRun } from './browser-verdict.js'
 import { isScopeFailure, sweepScopeFor, withScopeFile } from './change-scope.js'
 import { SWEEP_SCOPE_ENVIRONMENT_VARIABLE, type SweepScope, scopeHeadline } from './change-scope-policy.js'
 import { clockedEnvironment } from './clock-environment.js'
-import { type GateContext, type GateResult, runStreaming } from './exec.js'
+import type { GateContext, GateResult } from './exec.js'
 import { isStartFailure, type PinnedBrowsers, startPinnedBrowsers } from './pinned-browsers.js'
 import { harnessDirectory, type Member, resolveTool } from './project.js'
 import { isProgressLine } from './sweep-progress.js'
@@ -49,32 +50,28 @@ const runSuite = async (member: Member, scopeFile?: string): Promise<GateResult>
   const config: string = path.join(harnessDirectory(), 'dist', 'playwright.js')
   try {
     return judgeRun(
-      await runStreaming(
-        process.execPath,
-        [resolveTool('@playwright/test', 'playwright'), 'test', '--config', config],
-        {
-          cwd: member.root,
-          onLine: (line: string): void => {
-            const log: string | undefined = process.env['AIRNESS_GATE_LOG']
-            if (log !== undefined) {
-              appendFileSync(log, `${line}\n`)
-            }
-            if (isProgressLine(line)) {
-              console.info(line)
-            }
-          },
-          env: {
-            NODE_ENV: 'production',
-            [VERIFICATION_ENVIRONMENT_VARIABLE]: '1',
-            NEXT_TELEMETRY_DISABLED: '1',
-            ...clockedEnvironment(member, '--no-deprecation'),
-            [BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE]: browsers.endpoint,
-            [SWEEP_WORKERS_ENVIRONMENT_VARIABLE]: String(browsers.workers),
-            [SWEEP_SCOPE_ENVIRONMENT_VARIABLE]: scopeFile,
-            [BROWSER_TUNNEL_ENVIRONMENT_VARIABLE]: browsers.isTunnelled ? '1' : undefined,
-          },
+      await streamApp(member, [resolveTool('@playwright/test', 'playwright'), 'test', '--config', config], {
+        cwd: member.root,
+        onLine: (line: string): void => {
+          const log: string | undefined = process.env['AIRNESS_GATE_LOG']
+          if (log !== undefined) {
+            appendFileSync(log, `${line}\n`)
+          }
+          if (isProgressLine(line)) {
+            console.info(line)
+          }
         },
-      ),
+        env: {
+          NODE_ENV: 'production',
+          [VERIFICATION_ENVIRONMENT_VARIABLE]: '1',
+          NEXT_TELEMETRY_DISABLED: '1',
+          ...clockedEnvironment(member, '--no-deprecation'),
+          [BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE]: browsers.endpoint,
+          [SWEEP_WORKERS_ENVIRONMENT_VARIABLE]: String(browsers.workers),
+          [SWEEP_SCOPE_ENVIRONMENT_VARIABLE]: scopeFile,
+          [BROWSER_TUNNEL_ENVIRONMENT_VARIABLE]: browsers.isTunnelled ? '1' : undefined,
+        },
+      }),
     )
   } finally {
     browsers.stop()

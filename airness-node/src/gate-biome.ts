@@ -50,32 +50,32 @@ export const nextBiomeConfig = (shipped: string): Readonly<Record<string, unknow
   return { ...config, linter: { ...linter, domains: { ...asRecord(linter['domains']), ...NEXT_DOMAINS } } }
 }
 
-const check = (member: Member, files: readonly string[], configPath: string): GateResult =>
+const check = (member: Member, files: readonly string[], configPath: string, mode: 'check' | 'write'): GateResult =>
   fromRun(
     runNode(
       resolveTool('@biomejs/biome', 'biome'),
-      ['check', '--error-on-warnings', '--config-path', configPath, ...files],
+      ['check', ...(mode === 'write' ? ['--write'] : []), '--error-on-warnings', '--config-path', configPath, ...files],
       { cwd: member.root },
     ),
     `Biome reports no formatting or lint defect in ${String(files.length)} file(s)`,
     'Biome reports a formatting or lint defect',
   )
 
-const checkNext = (member: Member, files: readonly string[]): GateResult => {
+const checkNext = (member: Member, files: readonly string[], mode: 'check' | 'write'): GateResult => {
   mkdirSync(path.join(member.root, 'node_modules', '.airness'), { recursive: true })
   const directory: string = mkdtempSync(path.join(member.root, 'node_modules', '.airness', 'biome-'))
   try {
     const config: string = path.join(directory, 'biome.json')
     const shipped: string = readFileSync(shippedConfig(), 'utf8')
     writeFileSync(config, `${JSON.stringify(nextBiomeConfig(shipped), null, JSON_INDENT)}\n`)
-    return check(member, files, config)
+    return check(member, files, config, mode)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
 }
 
 /** Formatting and fast lint, bounded to the member's working-tree files. */
-export const biome = (member: Member): GateResult => {
+const biomeRun = (member: Member, mode: 'check' | 'write'): GateResult => {
   const inventory: readonly string[] = presentWorkingTreeFiles(member.root)
   const problems: readonly string[] = [
     ...schemaProblems(),
@@ -94,5 +94,11 @@ export const biome = (member: Member): GateResult => {
   if (files.length === 0) {
     return passed('no owned file is selected for Biome')
   }
-  return isNextApp(member) ? checkNext(member, files) : check(member, files, shippedConfig())
+  return isNextApp(member) ? checkNext(member, files, mode) : check(member, files, shippedConfig(), mode)
 }
+
+/** Judge formatting without changing the working tree. */
+export const biome = (member: Member): GateResult => biomeRun(member, 'check')
+
+/** Apply Biome's safe fixes to exactly the files the gate judges. */
+export const biomeWrite = (member: Member): GateResult => biomeRun(member, 'write')
