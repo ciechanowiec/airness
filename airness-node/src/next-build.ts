@@ -15,7 +15,7 @@ import { workingTreeFingerprint } from './working-tree.js'
 export const NEXT_ENVIRONMENT: Readonly<Record<string, string>> = {
   NEXT_TELEMETRY_DISABLED: '1',
   NODE_ENV: 'production',
-  NODE_OPTIONS: '--no-deprecation',
+  NODE_OPTIONS: `${process.env['NODE_OPTIONS'] ?? ''} --no-deprecation`.trim(),
 }
 
 const PROBE_TIMEOUT_MS: number = 120_000

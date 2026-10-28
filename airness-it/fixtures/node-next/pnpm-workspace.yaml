@@ -6,3 +6,7 @@ minimumReleaseAgeStrict: true
 
 minimumReleaseAgeExclude:
   - "@airness/node"
+
+# The installed harness approves the patched functional-lint dependency.
+overrides:
+  "eslint-plugin-functional@10.0.1>deepmerge-ts": "8.0.2"

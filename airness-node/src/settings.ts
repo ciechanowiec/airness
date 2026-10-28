@@ -8,6 +8,7 @@ import { type AuxiliaryServer, browserSettings } from './browser-settings.js'
 // field that turns a gate off. An exclusion is an exclusion by file role, so an entry that names no role
 // is not honoured, which leaves the gate stricter rather than looser.
 import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesGlob, matchesRole, type RolePattern } from './file-roles.js'
+import { type InvocationSettings, invocationSettings } from './invocation-settings.js'
 import { isJavascriptRuntime, JAVASCRIPT_RUNTIMES, type RuntimeRole } from './javascript-runtimes.js'
 import { asRecord, asText, isArray, isRecord } from './json-shapes.js'
 import { isSubtreePrefix } from './route-exclusions.js'
@@ -30,7 +31,7 @@ export interface DeclaredExclusion {
 }
 
 /** The settings a gate reads, every field populated. */
-export interface Settings {
+export interface Settings extends InvocationSettings {
   /** The verification clock, or real for time-dependent applications. */
   readonly clock: string
   /** Servers started before the application, such as a sibling CMS or Storybook. */
@@ -284,12 +285,18 @@ const appSettings = (
 }
 
 /** The raw `airness` block of a manifest, before any default is applied. */
-export const settingsBlock = (packageJson: unknown): Record<string, unknown> =>
-  asRecord(asRecord(packageJson)[SETTINGS_KEY])
+export const settingsBlock = (packageJson: unknown): Record<string, unknown> => {
+  const declared: unknown = asRecord(packageJson)[SETTINGS_KEY]
+  if (declared !== undefined && (!isRecord(declared) || isArray(declared))) {
+    throw new Error('package.json airness must be an object; process isolation cannot be silently discarded')
+  }
+  return asRecord(declared)
+}
 
 /**
  * Read the `airness` key of a parsed package.json into fully defaulted settings. A malformed value falls
- * back to the strict default rather than failing the read, so a typo can never widen a rule.
+ * back to the strict policy default. Malformed process declarations are refused, because ignoring one
+ * could run an application without the isolation its author intended.
  * @param packageJson the parsed package.json of the node project.
  * @param layers the defaults of every layer package the project declares.
  * @returns the effective settings, with every field populated.
@@ -318,6 +325,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     (layer: LayerDefaults): readonly RuntimeRole[] => layer.javascriptRuntimes,
   )
   return {
+    ...invocationSettings(raw),
     // Additive: replacing the default would let a project declare `["src"]` and silently drop `tests`
     // and `scripts` from every gate that reads source roots.
     sourceRoots: [

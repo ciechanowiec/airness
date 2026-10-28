@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { portOf, RUN_ENVIRONMENT_FILES, runEnvironmentFiles } from '@/environment-files.js'
+import { localEnvironment, portOf, RUN_ENVIRONMENT_FILES, runEnvironmentFiles } from '@/environment-files.js'
 
 // A real (not mocked) isExistingFile backed by a set of known paths - the pure core takes it as a value,
 // which is exactly why no test double is needed.
@@ -11,6 +14,20 @@ const existenceCheckOver =
 const filesPresent = (paths: readonly string[]): readonly string[] => runEnvironmentFiles(existenceCheckOver(paths))
 
 describe('runEnvironmentFiles', () => {
+  it('loads actual local files while preserving process values and local override precedence', () => {
+    const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-local-environment-'))
+    try {
+      expect(localEnvironment(directory, {})).toEqual({})
+      writeFileSync(path.join(directory, '.env'), 'PROJECT_MODE=base\nPROJECT_PORT=3000\nPROJECT_LABEL="a value"\n')
+      writeFileSync(path.join(directory, '.env.local'), 'PROJECT_MODE=local\nPROJECT_PORT=4000\n')
+      expect(localEnvironment(directory, { PROJECT_PORT: '5000' })).toEqual({
+        PROJECT_MODE: 'local',
+        PROJECT_LABEL: 'a value',
+      })
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
   it('reads nothing when the project keeps no environment file', () => {
     expect(filesPresent([])).toEqual([])
   })

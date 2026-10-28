@@ -11,11 +11,21 @@ import { eslintArguments } from './workspace.js'
  * `eslint-layered`, which refuses, and so fails the gate, a stack layer block that would weaken the node
  * layer's verdict. The project names neither it nor the layer's blocks.
  */
-export const eslint = (member: Member): GateResult => {
+const eslintRun = (member: Member, mode: 'check' | 'write'): GateResult => {
   const config: string = path.join(harnessDirectory(), 'dist', 'eslint-layered.js')
   return fromRun(
-    runNode(resolveTool('eslint'), [...eslintArguments(config, member.siblingPaths)], { cwd: member.root }),
+    runNode(
+      resolveTool('eslint'),
+      [...eslintArguments(config, member.siblingPaths), ...(mode === 'write' ? ['--fix'] : [])],
+      { cwd: member.root },
+    ),
     'ESLint reports no defect',
     'ESLint reports at least one defect',
   )
 }
+
+/** Judge the member with the harness-owned layered configuration. */
+export const eslint = (member: Member): GateResult => eslintRun(member, 'check')
+
+/** Apply fixable lint rules within the gate's own member and generated-file boundaries. */
+export const eslintWrite = (member: Member): GateResult => eslintRun(member, 'write')

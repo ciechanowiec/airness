@@ -31,6 +31,7 @@ const MANIFEST: Readonly<Record<string, unknown>> = {
   private: true,
   type: 'module',
   main: 'src/total.ts',
+  scripts: { verify: 'mvn clean verify' },
   devDependencies: { '@airness/node': '2.0.0', vitest: '5.0.5', '@vitest/coverage-v8': '5.0.5' },
 }
 
@@ -103,6 +104,16 @@ describe('arch', PROCESS_TIME, () => {
         expect(findings).toContain('nothing-imports-app')
         expect(findings).toContain('pure-logic-stays-pure')
       })
+      withProject(
+        {
+          'src/document-types.ts': 'export interface Document { readonly amount: number }\n',
+          'src/lib/price.ts':
+            "import type { Document } from '../document-types.js'\nexport const price = (doc: Document): number => doc.amount\n",
+        },
+        (root: string): void => {
+          expect(architecture(memberAt(root, floor)).ok).toBe(true)
+        },
+      )
     },
     TOOL_TIMEOUT_MS,
   )
@@ -136,6 +147,17 @@ describe('type-coverage', PROCESS_TIME, () => {
 })
 
 describe('knip', PROCESS_TIME, () => {
+  it('counts a supplied Vite transform peer as used by the declared test engine', () => {
+    const manifest: Readonly<Record<string, unknown>> = {
+      ...MANIFEST,
+      devDependencies: { ...asRecordOf(MANIFEST['devDependencies']), esbuild: '0.28.2' },
+    }
+    withProject({ 'package.json': JSON.stringify(manifest) }, (root: string): void => {
+      expect(knip(memberAt(root, manifest)).ok).toBe(true)
+      const withoutTests: Readonly<Record<string, unknown>> = { devDependencies: { esbuild: '0.28.2' } }
+      expect(findingsOf(knip(memberAt(root, withoutTests)))).toContain('esbuild')
+    })
+  })
   it(
     'passes a project whose every file and export is used, and fails an unused file',
     () => {

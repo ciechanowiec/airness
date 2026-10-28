@@ -101,13 +101,13 @@ describe('wiring', PROCESS_TIME, () => {
       const findings: string = findingsOf(wiring(memberAt(root)))
       delete process.env['AIRNESS_HARNESS_VERSIONS']
       for (const rewrite of [
-        'pnpm-workspace.yaml overrides:',
+        'pnpm-workspace.yaml override knip:',
         'pnpm-workspace.yaml packageExtensions:',
         'package.json resolutions:',
         'package.json pnpm.patchedDependencies:',
         '.npmrc pnpmfile:',
         '.pnpmfile.cjs: a pnpmfile hook',
-        'pnpm-lock.yaml records overrides',
+        'pnpm-lock.yaml override knip:',
       ]) {
         expect(findings).toContain(rewrite)
       }

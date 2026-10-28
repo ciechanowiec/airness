@@ -2,7 +2,7 @@
 // SCSS file is formatted as the shipped Prettier options format it. A member without a stylesheet has no
 // facet to judge. The project cannot keep its own Stylelint configuration or ignore file, because either
 // would decide which rules or files the verdict reads.
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { failed, fromRun, type GateResult, notApplicable, passed, type RunResult, runNode } from './exec.js'
 import { hasExtension, STYLESHEET_EXTENSIONS } from './file-roles.js'
@@ -41,7 +41,7 @@ const formatScss = (member: Member, text: string): RunResult =>
     { cwd: member.root, input: text },
   )
 
-const scssFindings = (member: Member, files: readonly string[]): readonly string[] =>
+const scssFindings = (member: Member, files: readonly string[], mode: 'check' | 'write'): readonly string[] =>
   files
     .filter((file: string): boolean => file.endsWith('.scss'))
     .flatMap((file: string): readonly string[] => {
@@ -50,11 +50,15 @@ const scssFindings = (member: Member, files: readonly string[]): readonly string
       if (formatted.code !== 0) {
         return [`${file}: SCSS formatting failed: ${formatted.output}`]
       }
+      if (mode === 'write') {
+        writeFileSync(path.join(member.root, file), formatted.stdout)
+        return []
+      }
       return formatted.stdout === text ? [] : [`${file}: SCSS formatting differs from the shipped Prettier options`]
     })
 
 /** Judge every authored stylesheet with Stylelint, and every SCSS file's formatting. */
-export const css = (member: Member): GateResult => {
+const cssRun = (member: Member, mode: 'check' | 'write'): GateResult => {
   const tracked: readonly string[] = presentWorkingTreeFiles(member.root)
   const owned: readonly string[] = memberFiles(tracked, member.siblingPaths).filter((file: string): boolean =>
     PROJECT_CONFIGURATION.test(file),
@@ -70,17 +74,27 @@ export const css = (member: Member): GateResult => {
     return notApplicable('the member has no authored stylesheet')
   }
   const lint: GateResult = fromRun(
-    runNode(resolveTool('stylelint'), ['--config', STYLELINT_CONFIG(), '--max-warnings=0', ...files], {
-      cwd: member.root,
-    }),
+    runNode(
+      resolveTool('stylelint'),
+      ['--config', STYLELINT_CONFIG(), '--max-warnings=0', ...(mode === 'write' ? ['--fix'] : []), ...files],
+      {
+        cwd: member.root,
+      },
+    ),
     'stylesheets pass Stylelint',
     'a stylesheet does not pass Stylelint',
   )
   if (!lint.ok) {
     return lint
   }
-  const findings: readonly string[] = scssFindings(member, files)
+  const findings: readonly string[] = scssFindings(member, files, mode)
   return findings.length === 0
     ? passed(`${String(files.length)} stylesheet(s) pass Stylelint and formatting`)
     : failed('SCSS formatting differs', findings)
 }
+
+/** Check every authored stylesheet without writing to the project. */
+export const css = (member: Member): GateResult => cssRun(member, 'check')
+
+/** Fix and format the same authored stylesheets the CSS gate reads. */
+export const cssWrite = (member: Member): GateResult => cssRun(member, 'write')

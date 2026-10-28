@@ -8,7 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.ciechanowiec.airness.governance.ComplianceReport;
+import eu.ciechanowiec.airness.governance.ReportAdvisory;
 import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
+import eu.ciechanowiec.airness.governance.ReportMitigation;
 import eu.ciechanowiec.airness.governance.ReportSource;
 import eu.ciechanowiec.airness.governance.TreeFingerprint;
 import java.lang.reflect.Method;
@@ -110,6 +112,35 @@ class ReportGenerationTest {
                 assertEquals(readBefore.invoke(before), readAfter.invoke(after), field);
             }
         }
+    }
+
+    @Test
+    void retainsOpenFindingsAndEveryDifferentMitigationAcrossModules() {
+        Path root = this.repository();
+        ReportGeneration generation = new ReportGeneration(
+            ReportSource.read(root, "2026-10-28T00:00:00Z"), project(root), List.of()
+        );
+        List<ReportModule> modules = List.of(
+            advisoryModule("open", Optional.empty()),
+            advisoryModule(
+                "first", Optional.of(new ReportMitigation("First scope.", "First plan.", "2026-10-28", false))
+            ),
+            advisoryModule(
+                "second", Optional.of(new ReportMitigation("Second scope.", "Second plan.", "2026-10-28", false))
+            )
+        );
+        ComplianceReport report = generation.assemble(modules);
+        assertEquals(1, report.inventory().open().size());
+        assertEquals(2, report.inventory().mitigated().size());
+        assertFalse(report.inventory().withinPolicy());
+    }
+
+    private static ReportModule advisoryModule(String name, Optional<ReportMitigation> mitigation) {
+        String coordinate = "example:" + name + ":pom:1";
+        ReportAdvisory advisory = new ReportAdvisory(
+            "GHSA-0000-0000-0001", "HIGH", "pkg:npm/kit@1.0.0", List.of(coordinate), "A finding.", mitigation
+        );
+        return new ReportModule(coordinate, List.of(), List.of(advisory), module().evidence());
     }
 
     @Test

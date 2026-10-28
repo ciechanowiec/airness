@@ -1,61 +1,95 @@
-// The Vitest configuration the `tests` gate runs every member's suite under, and the one a project's
-// managed `vitest.config.mts` re-exports for an editor. The gate passes this file to Vitest itself, so a
-// project file that drops the coverage floor or the fixed order changes nothing the verdict reads.
+// Every collected test has its runtime and setup fixed by the harness. Database-backed application
+// suites are serial, while plain library suites retain the ordinary Node worker pool.
+import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { defineConfig, type ViteUserConfig } from 'vitest/config'
+import { fileURLToPath } from 'node:url'
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config'
 import { coverageExclusions, coverageIncludes } from './coverage-policy.js'
-import { layerDefaultsFor } from './layer.js'
+import { isBrowserAppAt } from './facets.js'
+import { TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
+import { declaredDependencies } from './json-shapes.js'
+import { layerDefaultsFor, layerTestDependenciesFor } from './layer.js'
 import { readJson } from './project.js'
-import { readSettings, type Settings } from './settings.js'
-import { END_TO_END_SPEC_GLOB, UNIT_SPEC_GLOB } from './spec-roles.js'
+import { PROJECT_SETUP_FILE, readSettings, type Settings } from './settings.js'
 import { testReporters } from './test-reporters.js'
+import { escapeForRegex } from './text-escapes.js'
+import { TEST_SEQUENCE, type TestSuite, testSuites } from './vitest-policy.js'
 import { hasOwnRuntime } from './workspace.js'
 
-/** The per-file floor every measured file is held to, for lines, branches, functions and statements. */
+/** The per-file floor for lines, branches, functions and statements. */
 export const COVERAGE_THRESHOLD: number = 80
 
-// The order a shuffled suite runs in, fixed so the suite reaches one verdict on an unchanged tree. One
-// seed samples one order rather than proving every order, but it is not the order the files are written
-// in, which is the coupling that accumulates unseen.
-const TEST_ORDER_SEED: number = 1_734_000_002
+const GLOBAL_SETUP_FILE: string = 'vitest.global-setup.ts'
 
-// The settings of the member the run starts in, with the defaults of its layer packages, read the way every
-// gate reads them.
-const manifest: unknown = readJson(path.join(process.cwd(), 'package.json'))
-const settings: Settings = readSettings(manifest, layerDefaultsFor(process.cwd(), manifest, readJson))
+const TRANSFORM_INCLUDE: RegExp = new RegExp(
+  `(?:${[...TYPESCRIPT_SOURCE_EXTENSIONS, '.jsx'].map((extension: string): string => escapeForRegex(extension)).join('|')})$`,
+)
 
-const config: ViteUserConfig = defineConfig({
-  resolve: { tsconfigPaths: true },
-  test: {
-    environment: 'node',
-    reporters: [...testReporters(process.env)],
-    include: [UNIT_SPEC_GLOB],
-    // The end-to-end specs are Playwright's, which the e2e gate runs against a served application.
-    exclude: [END_TO_END_SPEC_GLOB, '**/node_modules/**'],
-    sequence: {
-      shuffle: { files: true, tests: true },
-      seed: TEST_ORDER_SEED,
-      concurrent: false,
-      hooks: 'stack',
-      setupFiles: 'list',
+const workerSetup = (directory: string): readonly string[] => [
+  fileURLToPath(import.meta.resolve('#harness/vitest-setup')),
+  ...(existsSync(path.join(directory, PROJECT_SETUP_FILE)) ? [`./${PROJECT_SETUP_FILE}`] : []),
+]
+
+const globalSetup = (directory: string): readonly string[] =>
+  existsSync(path.join(directory, GLOBAL_SETUP_FILE))
+    ? [fileURLToPath(import.meta.resolve('#harness/vitest-global-setup')), path.join(directory, GLOBAL_SETUP_FILE)]
+    : []
+
+/** Construct the shipped configuration from a real project directory, without changing process state. */
+export const vitestConfig = (directory: string): Readonly<Record<string, unknown>> => {
+  const manifest: unknown = readJson(path.join(directory, 'package.json'))
+  const settings: Settings = readSettings(manifest, layerDefaultsFor(directory, manifest, readJson))
+  const hasReact: boolean = Object.hasOwn(declaredDependencies(manifest), 'react')
+  const isBrowser: boolean = hasReact || isBrowserAppAt(manifest, settings)
+  const setup: readonly string[] = workerSetup(directory)
+  const inline: readonly string[] = layerTestDependenciesFor(directory, manifest, readJson)
+
+  const project = (suite: TestSuite): Record<string, unknown> => ({
+    extends: false,
+    plugins: hasReact ? [react()] : [],
+    oxc: { include: TRANSFORM_INCLUDE },
+    resolve: { tsconfigPaths: true },
+    test: {
+      name: suite.name,
+      environment: suite.environment,
+      include: [...suite.include],
+      exclude: [...suite.exclude],
+      setupFiles: [...setup],
+      server: { deps: { inline: [...inline] } },
+      sequence: TEST_SEQUENCE,
+      fileParallelism: !(isBrowser || settings.testWrapper.length > 0),
     },
-    coverage: {
-      provider: 'v8',
-      // The verdict is the floor; the report goes to the build log, and the scratch below node_modules, so
-      // a run writes nothing into the tree.
-      reporter: ['text'],
-      reportsDirectory: 'node_modules/.airness/coverage',
-      include: [...coverageIncludes(settings.sourceRoots)],
-      exclude: [...coverageExclusions(settings, hasOwnRuntime(manifest))],
-      thresholds: {
-        perFile: true,
-        lines: COVERAGE_THRESHOLD,
-        branches: COVERAGE_THRESHOLD,
-        functions: COVERAGE_THRESHOLD,
-        statements: COVERAGE_THRESHOLD,
+  })
+
+  return {
+    ...defineConfig({
+      resolve: { tsconfigPaths: true },
+      oxc: { include: TRANSFORM_INCLUDE },
+      test: {
+        reporters: [...testReporters(process.env)],
+        globalSetup: [...globalSetup(directory)],
+        sequence: TEST_SEQUENCE,
+        projects: testSuites(isBrowser).map((suite: TestSuite): Record<string, unknown> => project(suite)),
+        coverage: {
+          provider: 'v8',
+          reporter: ['text'],
+          reportsDirectory: 'node_modules/.airness/coverage',
+          include: [...coverageIncludes(settings.sourceRoots)],
+          exclude: [...coverageExclusions(settings, hasOwnRuntime(manifest))],
+          thresholds: {
+            perFile: true,
+            lines: COVERAGE_THRESHOLD,
+            branches: COVERAGE_THRESHOLD,
+            functions: COVERAGE_THRESHOLD,
+            statements: COVERAGE_THRESHOLD,
+          },
+        },
       },
-    },
-  },
-})
+    }),
+  }
+}
 
+// Do not make a consuming config resolve Vite's transitive types merely to re-export this value.
+const config: Readonly<Record<string, unknown>> = vitestConfig(process.cwd())
 export default config

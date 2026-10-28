@@ -89,7 +89,7 @@ Airness governs all of the following domains:
   `deno` are refused, because they run a Node other than the one the checks use. Each node project declares
   `@airness/node` as a development dependency, installed by its version, and in `verify` each of its gates runs
   in every declared project and in each member of a declared pnpm workspace: `wiring` (the lockfile resolves
-  `@airness/node` at the version of the module's `airness-parent`, never from a local path, with no override,
+  `@airness/node` at the version of the module's `airness-parent`, never from a local path, with no unapproved override,
   patch, package extension or pnpmfile hook, and `vitest`,
   `@vitest/coverage-v8` and `typescript` at the versions the harness runs), `types` (the project's `tsconfig.json` extends
   `@airness/node/tsconfig.json`, sets no compiler option but `paths`, `baseUrl`, `plugins`, `types`, `rootDir`
@@ -296,6 +296,46 @@ Payload layer supplies its admin-view content selectors through `airness.layer.b
 and release full-verification workflow in a repository with node projects. Scaffolds belong to the project:
 ordinary `assets-sync` and verification neither require nor recreate them. Customize the workflow's services
 and environment, or delete it when verification runs elsewhere.
+
+### Node Application Preparation and Security Corrections
+
+A node project may declare `airness.pretest` and `airness.testWrapper` as arrays of literal command
+arguments in its root `package.json`. The preparation runs before tests, production builds and browser
+verification. The wrapper receives the pinned Node command and its arguments, so it can provide a disposable
+database or another isolated environment. Its failure and the actual child command's failure both fail the
+gate; a wrapper that never completes the requested command fails too. Malformed arrays are refused.
+
+Vitest collects TypeScript and TSX specifications. Server integration specs run in Node, component specs in
+Happy DOM with native dialog and fetch support, and browser-application unit specs retain their jsdom environment. Application suites and wrapped suites
+run files serially. The harness network guard loads before an optional project `vitest.setup.ts`, whose imports
+therefore register matchers and property-test settings against the project's own dependencies.
+An optional `vitest.global-setup.ts` runs in Vitest's Node host, after the same network guard, and may
+start real local services for component tests. Use Vitest's provided context to share their addresses and
+return a teardown that closes them; server code stays out of the jsdom realm.
+
+`airness-node format` applies the same member boundaries, generated-file exclusions and configurations as the
+Biome, ESLint and stylesheet gates. Review its edits before running Maven verification.
+
+Only exact security replacements approved by the installed harness are allowed under `overrides` in
+`pnpm-workspace.yaml`. The generic catalogue belongs to Airness; the trusted Payload layer supplies its own
+`airness.layer.securityOverrides`. Each approval names a parent at an exact version, its dependency, the exact
+patched version, the advisory identifiers, its reason and date. The workspace declaration and lockfile must
+agree, every selected dependency edge must resolve to that version, and an unused override fails. Arbitrary
+replacements, aliases, patches, package extensions and pnpmfile hooks remain forbidden.
+
+Until the harness npm packages are published, the managed `.airness/npm-registry.py` helper can serve their
+installed Maven tarballs from a temporary loopback registry. Bind its startup and readiness checks at validate,
+write its endpoint only to an ignored `.npmrc`, and keep its lifetime inside the Maven process. Other packages
+retain their public registry metadata and release-age checks. Only the unpublished harness packages may be
+excluded from the age floor.
+
+A root node project may record `airness.vulnerabilityAllowlist` entries with `package`, `advisory`, `reason`,
+`mitigation` and `addedOn`. Name one exact npm package and one literal advisory identifier or an alias OSV
+supplies, explain why it cannot be exploited here, state the removal plan, and use a YYYY-MM-DD calendar date.
+Prefer an available, compatible upgrade or an approved security replacement. An exception belongs only to that
+node project's inventory: it cannot excuse another module or frontend. Missing fields, malformed declarations,
+unused entries and overlapping entries fail verification. The report keeps each mitigated advisory and its
+explanation, while any remaining open finding still fails. A scanner that cannot run cannot be waived.
 
 ### Compliance Reports
 

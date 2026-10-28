@@ -1,4 +1,7 @@
 // The environment files a browser run reads outside verification, and the port of the origin it drives.
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { parseEnv } from 'node:util'
 
 /**
  * The environment files a run reads, highest precedence first. `.env.local` leads because it is the
@@ -14,6 +17,28 @@ export const RUN_ENVIRONMENT_FILES: readonly string[] = ['.env.local', '.env']
  */
 export const runEnvironmentFiles = (isExistingFile: (relativePath: string) => boolean): readonly string[] =>
   RUN_ENVIRONMENT_FILES.filter((file: string): boolean => isExistingFile(file))
+
+/** Read local application configuration for tools that import it, preserving the caller's environment. */
+export const localEnvironment = (
+  directory: string,
+  inherited: Readonly<Record<string, string | undefined>> = process.env,
+): Readonly<Record<string, string>> => {
+  const files: readonly string[] = runEnvironmentFiles((file: string): boolean =>
+    existsSync(path.join(directory, file)),
+  )
+  return Object.fromEntries(
+    files
+      .toReversed()
+      .flatMap((file: string): readonly [string, string | undefined][] => {
+        const content: string = readFileSync(path.join(directory, file), 'utf8')
+        return Object.entries(parseEnv(content))
+      })
+      .filter(
+        (entry: [string, string | undefined]): entry is [string, string] =>
+          entry[1] !== undefined && inherited[entry[0]] === undefined,
+      ),
+  )
+}
 
 /**
  * The port an origin names, as a string a child process's environment can carry.

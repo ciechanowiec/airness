@@ -84,7 +84,10 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
             packages,
             List.copyOf(
                 modules.stream().flatMap(module -> module.advisories().stream()).collect(
-                    Collectors.toMap(ReportAdvisory::key, advisory -> advisory, ReportAdvisory::merge)
+                    Collectors.toMap(
+                        advisory -> Map.entry(advisory.key(), advisory.mitigation()), advisory -> advisory,
+                        ReportAdvisory::merge
+                    )
                 ).values()
             ),
             this.project.policy()

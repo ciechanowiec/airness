@@ -21,7 +21,7 @@ import {
   typeAwareParsing,
   vitestPlugin,
 } from './eslint-core.js'
-import { END_TO_END_FILES, endToEndBlocks, nextBlocks } from './eslint-next.js'
+import { componentTestBlocks, END_TO_END_FILES, endToEndBlocks, nextBlocks } from './eslint-next.js'
 import { cloudFrontBlock } from './eslint-runtime.js'
 import { JAVASCRIPT_EXTENSIONS, TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
@@ -105,6 +105,7 @@ const config: ReturnType<typeof compose> = compose(
   } satisfies FlatConfigBlock,
   ...(isNextProject ? nextBlocks : []),
   ...(isBrowserProject ? endToEndBlocks : []),
+  ...(isBrowserProject ? componentTestBlocks : []),
   reexportConfigBlock,
   commonJavaScriptBlock(settings.javascriptAllowlist, projectDirectory),
   commonTypeScriptBlock(),

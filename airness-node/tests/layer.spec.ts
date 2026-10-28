@@ -10,6 +10,7 @@ import {
   layerPackagesFor,
   layerProjectsFor,
   layerSpecificationsOf,
+  layerTestDependenciesFor,
 } from '@/layer.js'
 import { readJson } from '@/project.js'
 import { readSettings, type Settings } from '@/settings.js'
@@ -22,6 +23,7 @@ const LAYER_MANIFEST: Readonly<Record<string, unknown>> = {
     layer: {
       generatedArtefacts: ['src/payload-types.ts'],
       frameworkGlue: ['src/app/(payload)/**'],
+      vitestInlineDependencies: ['@payloadcms/next', '@payloadcms/ui', 'react-image-crop'],
       javascriptAllowlist: [
         { pattern: String.raw`importMap\.js$`, runtime: 'node' },
         { pattern: String.raw`^nothing\.js$`, runtime: 'deno' },
@@ -55,6 +57,31 @@ describe('the defaults a layer package contributes', PROCESS_TIME, () => {
         ['src/payload-types.ts'],
       ])
       expect(layerDefaultsFor(root, { devDependencies: { impostor: '1.0.0' } }, readJson)).toEqual([])
+      expect(layerTestDependenciesFor(root, declared, readJson)).toEqual([
+        '@payloadcms/next',
+        '@payloadcms/ui',
+        'react-image-crop',
+      ])
+      expect(
+        layerTestDependenciesFor(
+          root,
+          {
+            devDependencies: { impostor: '1.0.0' },
+            airness: { vitestInlineDependencies: ['untrusted'] },
+          },
+          readJson,
+        ),
+      ).toEqual([])
+      writeFileSync(
+        path.join(root, 'node_modules/ploaness/package.json'),
+        JSON.stringify({
+          name: 'ploaness',
+          airness: { layer: { vitestInlineDependencies: 'not-an-array' } },
+        }),
+      )
+      expect(() => layerTestDependenciesFor(root, declared, readJson)).toThrow('array of dependency names')
+      writeFileSync(path.join(root, 'node_modules/ploaness/package.json'), JSON.stringify({ name: 'ploaness' }))
+      expect(layerTestDependenciesFor(root, declared, readJson)).toEqual([])
     } finally {
       removeProject(root)
     }

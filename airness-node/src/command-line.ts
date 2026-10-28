@@ -4,6 +4,7 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { GateContext } from './exec.js'
+import { formatCommand } from './format-command.js'
 import { crashedResult, type GateStatus, type MemberOutcome, type ResultFile, resultOf } from './gate-result.js'
 import { GATES, type Gate, gateById } from './gates.js'
 import { type Member, membersOf } from './project.js'
@@ -25,6 +26,7 @@ const USAGE: string = `airness-node, the JS/TS gates of the Airness node layer
 
   airness-node gate <id> [--result <file>] [--verbose]   run one gate in this node project
   airness-node scope [--json]                         explain the browser scope of this change
+  airness-node format                                    apply the harness formatters
   airness-node gates                                     list the gates
 
 One gate is a diagnosis, not a verdict. Run mvn verify for the verdict.`
@@ -117,6 +119,27 @@ const listGates = (): number => {
   return 0
 }
 
+const utilityCommand = (
+  command: string | undefined,
+  rest: readonly string[],
+  directory: string,
+): number | undefined => {
+  if (rest.length > 0) {
+    return undefined
+  }
+  switch (command ?? '') {
+    case 'format': {
+      return formatCommand(directory)
+    }
+    case 'gates': {
+      return listGates()
+    }
+    default: {
+      return undefined
+    }
+  }
+}
+
 /**
  * Run one command line.
  * @param commandLine the arguments after the executable, such as `gate wiring --result r.json`.
@@ -128,8 +151,9 @@ export const runCommandLine = async (commandLine: readonly string[], directory: 
   if (isScopeCommand(command, rest)) {
     return scopeCommand(directory, rest.includes('--json'))
   }
-  if (command === 'gates' && rest.length === 0) {
-    return listGates()
+  const utility: number | undefined = utilityCommand(command, rest, directory)
+  if (utility !== undefined) {
+    return utility
   }
   const invocation: GateInvocation | undefined = command === 'gate' ? parseGate(rest) : undefined
   if (invocation === undefined) {
