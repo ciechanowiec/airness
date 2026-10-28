@@ -36,6 +36,7 @@ const isCloudFrontFile: (filePath: string) => boolean = allowlistedJavaScript(
 
 // `next-env.d.ts` is the ambient declaration file `next build` writes and rewrites, whatever a project keeps.
 const IGNORED: readonly string[] = [
+  'target/**',
   'dist/**',
   'node_modules/**',
   'coverage/**',
