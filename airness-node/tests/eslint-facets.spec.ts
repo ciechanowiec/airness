@@ -17,6 +17,12 @@ const rulesAt = async (file: string): Promise<Record<string, unknown>> => {
 }
 
 describe('the application lint scopes', () => {
+  it('ignores Maven scanner copies without excluding the corresponding authored source', async () => {
+    expect(await eslint.isPathIgnored(path.resolve('target/airness/actions/scan/input/src/page.ts'))).toBe(true)
+    expect(await eslint.isPathIgnored(path.resolve('src/page.ts'))).toBe(false)
+    expect((await rulesAt('src/page.ts'))['@typescript-eslint/no-explicit-any']).toEqual([2])
+  })
+
   it('allows test literals and setup in Playwright while retaining production checks', async () => {
     const browser: Record<string, unknown> = await rulesAt('tests/e2e/example.e2e.spec.ts')
     expect(browser['@typescript-eslint/no-magic-numbers']).toEqual(expect.arrayContaining([0]))
