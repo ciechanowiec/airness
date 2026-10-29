@@ -33,10 +33,11 @@
     <build>
         <plugins>
             <!--
-                The package's own build: the TypeScript compiled into dist before verify, where the gates run that
-                build, its own Vitest suite included, and then packed into target as the tarball a consumer installs,
-                which the integration fixtures install. Both run under -DskipTests too, so the tarball always
-                matches the built package.
+                The package's own build: the TypeScript compiled into an emptied dist before verify, where the gates
+                run that build, its own Vitest suite included, and then packed into target as the tarball a consumer
+                installs, which the integration fixtures install. The files allowlist of package.json packs only the
+                compiled JavaScript, its declarations and the shipped configurations. All three executions run under
+                -DskipTests too, so the tarball always matches the built package.
             -->
             <plugin>
                 <groupId>eu.ciechanowiec</groupId>
@@ -62,6 +63,24 @@
                         <configuration>
                             <project>.</project>
                             <script>package</script>
+                        </configuration>
+                    </execution>
+                    <!--
+                        The proof that the pack is reproducible: the package rebuilt from an emptied dist and packed
+                        again into target/repack must equal the tarball above byte for byte, ship no build by-product
+                        and carry every file its manifest exports. Every consumer lockfile records the integrity of
+                        the tarball it installed, so a rebuild of an unchanged tree that packs other bytes would
+                        invalidate those locks. A difference fails the build naming the entries that differ.
+                    -->
+                    <execution>
+                        <id>node-repack</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>node-run</goal>
+                        </goals>
+                        <configuration>
+                            <project>.</project>
+                            <script>package:reproducible</script>
                         </configuration>
                     </execution>
                 </executions>

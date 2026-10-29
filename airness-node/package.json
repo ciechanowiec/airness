@@ -84,12 +84,14 @@
     }
   },
   "files": [
-    "dist",
-    "configs"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "configs/*.json"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
     "package": "pnpm pack --pack-destination target",
+    "package:reproducible": "pnpm run build && pnpm pack --pack-destination target/repack && node scripts/package/compare-packs.ts target target/repack",
     "test": "vitest run",
     "browser-contracts": "tsc -p tsconfig.browser.json",
     "browser:geometry-probe": "node scripts/browser/geometry-probe.ts",
@@ -242,6 +244,7 @@
   "imports": {
     "#browser/pinned-server": "./scripts/browser/pinned-server.ts",
     "#browser/visual-components": "./scripts/browser/visual-busy-components.ts",
+    "#package/compare-packs": "./scripts/package/compare-packs.ts",
     "#harness/*": "./dist/*.js"
   }
 }
