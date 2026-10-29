@@ -12,6 +12,7 @@ run_scanner_cases() {
     run_maven shell_failure scanners "${scanner_consumer}" airness:shellcheck
     expect_exit shell_failure 'scanners: an unsafe expansion fails enforcement' 1
     expect_match shell_failure 'scanners: the actual ShellCheck rule is reported' 'SC2086'
+    discard_scanner_evidence shell_failure
 
     printf '# shell%s source=/dev/null\n. run.sh\n' check > "${scanner_consumer}/hint.sh"
     run_maven shell_hint scanners "${scanner_consumer}" airness:shellcheck -Dairness.enforce=false
@@ -32,6 +33,7 @@ run_scanner_cases() {
     run_maven checkov_failure scanners "${scanner_consumer}" airness:checkov
     expect_exit checkov_failure 'scanners: the installed Checkov policy rejects a root runtime' 1
     expect_match checkov_failure 'scanners: the Checkov rule is actionable' 'CKV_DOCKER_8'
+    discard_scanner_evidence checkov_failure
     printf 'soft-fail: true\n' > "${scanner_consumer}/.checkov.yaml"
     run_maven checkov_override scanners "${scanner_consumer}" airness:checkov -Dairness.enforce=false
     expect_exit checkov_override 'scanners: a native policy override cannot create a pass' 1
@@ -60,6 +62,7 @@ run_scanner_lifecycle() {
         'shellcheck \(airness-shell-and-iac\)'
     expect_no_match shell_bound 'scanners: shell defects stop before Qodana' \
         'qodana \(airness-qodana\)'
+    discard_scanner_evidence shell_bound
     printf '#!/bin/sh\nprintf "%%s\\n" ready\n' > "${scanner_consumer}/run.sh"
     printf 'FROM alpine:3.22\nUSER root\n' > "${scanner_consumer}/Dockerfile"
     run_maven checkov_bound scanners "${scanner_consumer}" clean verify -Pextended
@@ -68,6 +71,7 @@ run_scanner_lifecycle() {
         'checkov \(airness-shell-and-iac\)'
     expect_no_match checkov_bound 'scanners: IaC defects stop before Qodana' \
         'qodana \(airness-qodana\)'
+    discard_scanner_evidence checkov_bound
 }
 
 run_scanner_frameworks() {
@@ -97,9 +101,11 @@ YAML
     run_maven checkov_terraform scanners "${scanner_consumer}" airness:checkov
     expect_exit checkov_terraform 'scanners: real Terraform security findings block verification' 1
     expect_match checkov_terraform 'scanners: Terraform findings retain their Checkov identifiers' 'CKV.*AWS_'
+    discard_scanner_evidence checkov_terraform
     printf 'resource "aws_s3_bucket" "broken" {\n' > "${scanner_consumer}/infra/terraform/main.tf"
     run_maven checkov_parse scanners "${scanner_consumer}" airness:checkov -Dairness.enforce=false
     expect_exit checkov_parse 'scanners: an IaC parse failure is never report-only success' 1
+    discard_scanner_evidence checkov_parse
     rm -rf "${scanner_consumer}/infra"
 }
 
@@ -116,6 +122,7 @@ HCL
     run_maven checkov_zones_open scanners "${scanner_consumer}" airness:checkov
     expect_exit checkov_zones_open 'scanners: an attribute filter still permits silent zone expansion' 1
     expect_match checkov_zones_open 'scanners: the new availability-zone rule is enforced' 'CKV_AWS_394'
+    discard_scanner_evidence checkov_zones_open
 
     cat > "${scanner_consumer}/infra/terraform/main.tf" <<'HCL'
 data "aws_availability_zones" "selected" {

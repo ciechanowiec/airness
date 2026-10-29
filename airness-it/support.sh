@@ -390,6 +390,33 @@ expect_file_no_match() {
     fi
 }
 
+# A scanner keeps its staged tree when it reports a finding or fails, and prints where. A case that
+# provokes one on purpose has read what it needed by the time it calls this, so the tree that execution
+# named is removed, and nothing else: each path comes from the execution's own log and must be a direct
+# child of the scanner cache, which a parallel lane or an earlier run never shares with it.
+discard_scanner_evidence() {
+    discard_cache="${HOME}/.cache/airness/scan"
+    discard_log="$(execution_log "$1")"
+    discard_trees="$(sed -n 's/^.*Scanner evidence: //p' "${discard_log}")"
+    while IFS= read -r discard_tree; do
+        case "${discard_tree}" in
+            '')
+                ;;
+            */../*|*/..|"${discard_cache}"/*/*)
+                fail "scanners: execution $1 named a scanner tree outside the cache" "${discard_tree}"
+                ;;
+            "${discard_cache}"/?*)
+                rm -rf "${discard_tree}"
+                ;;
+            *)
+                fail "scanners: execution $1 named a scanner tree outside the cache" "${discard_tree}"
+                ;;
+        esac
+    done <<DISCARD
+${discard_trees}
+DISCARD
+}
+
 clone_tree() {
     rm -rf "$2"
     if ! cp -c -R "$1" "$2" 2>/dev/null; then

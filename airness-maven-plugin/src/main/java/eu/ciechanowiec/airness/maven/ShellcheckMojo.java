@@ -27,16 +27,18 @@ public final class ShellcheckMojo extends AbstractRepositoryMojo {
     List<Findings> findings() {
         ScannerInventory inventory = new ScannerInventory(this.repositoryRoot());
         try {
-            Path output = Path.of(this.project().getBuild().getDirectory(), "airness", "shellcheck");
-            ScannerTree tree = ScannerTree.create(output, inventory);
-            ScannerProcess process = new ScannerProcess(Objects.requireNonNull(this.image), tree);
-            process.validate("shellcheck");
-            this.getLog().info("ShellCheck: " + inventory.scripts().size() + " script(s); " + process.image());
-            this.getLog().info("Scanner evidence: " + tree.directory());
-            return List.of(new Findings("ShellCheck", this.scan(process, inventory)));
+            ScannerTree tree = ScannerTree.create(ScannerTree.cache(), "shellcheck", inventory);
+            return tree.conclude(this.getLog()::info, () -> this.verdicts(tree, inventory));
         } catch (IOException exception) {
             throw new UncheckedIOException("ShellCheck did not complete", exception);
         }
+    }
+
+    private List<Findings> verdicts(ScannerTree tree, ScannerInventory inventory) throws IOException {
+        ScannerProcess process = new ScannerProcess(Objects.requireNonNull(this.image), tree);
+        process.validate("shellcheck");
+        this.getLog().info("ShellCheck: " + inventory.scripts().size() + " script(s); " + process.image());
+        return List.of(new Findings("ShellCheck", this.scan(process, inventory)));
     }
 
     private List<String> scan(ScannerProcess process, ScannerInventory inventory) throws IOException {

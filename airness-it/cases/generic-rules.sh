@@ -59,6 +59,7 @@ YAML
         '^  compose[.]yaml: '
     expect_match generic_batch 'generic rules: the workflow is linted by the pinned actionlint' \
         '[.]github/workflows/ci[.]yml:9 [[]expression[]]'
+    discard_scanner_evidence generic_batch
 
     run_maven generic_enforced scanners "${generic_consumer}" clean verify
     expect_exit generic_enforced 'generic rules: the findings fail an enforcing Default build' 1

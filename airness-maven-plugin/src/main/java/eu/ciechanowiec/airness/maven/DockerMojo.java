@@ -55,16 +55,20 @@ public final class DockerMojo extends AbstractRepositoryMojo {
             return List.of(new Findings(LINT, List.of()), new Findings(UNLOADABLE, List.of()));
         }
         try {
-            Path output = Path.of(this.project().getBuild().getDirectory(), "airness", "docker");
-            ScannerTree tree = ScannerTree.create(output, new ScannerInventory(root));
-            this.getLog().info("Scanner evidence: " + tree.directory());
-            return List.of(
-                new Findings(LINT, this.lint(new ScannerProcess(this.image(), tree), root, dockerfiles)),
-                new Findings(UNLOADABLE, validate(tree, root, compose))
-            );
+            ScannerTree tree = ScannerTree.create(ScannerTree.cache(), "docker", new ScannerInventory(root));
+            return tree.conclude(this.getLog()::info, () -> this.verdicts(tree, root, dockerfiles, compose));
         } catch (IOException exception) {
             throw new UncheckedIOException("The container definition check did not complete", exception);
         }
+    }
+
+    private List<Findings> verdicts(
+        ScannerTree tree, Path root, List<Path> dockerfiles, List<Path> compose
+    ) throws IOException {
+        return List.of(
+            new Findings(LINT, this.lint(new ScannerProcess(this.image(), tree), root, dockerfiles)),
+            new Findings(UNLOADABLE, validate(tree, root, compose))
+        );
     }
 
     private List<String> lint(ScannerProcess process, Path root, List<Path> dockerfiles) throws IOException {

@@ -17,8 +17,8 @@ const rulesAt = async (file: string): Promise<Record<string, unknown>> => {
 }
 
 describe('the application lint scopes', () => {
-  it('ignores Maven scanner copies without excluding the corresponding authored source', async () => {
-    expect(await eslint.isPathIgnored(path.resolve('target/airness/actions/scan/input/src/page.ts'))).toBe(true)
+  it('ignores a copy in Maven build output without excluding the corresponding authored source', async () => {
+    expect(await eslint.isPathIgnored(path.resolve('target/generated-sources/copy/src/page.ts'))).toBe(true)
     expect(await eslint.isPathIgnored(path.resolve('src/page.ts'))).toBe(false)
     const production: Record<string, unknown> = await rulesAt('src/page.ts')
     expect(production['@typescript-eslint/no-explicit-any']).toEqual([2])
