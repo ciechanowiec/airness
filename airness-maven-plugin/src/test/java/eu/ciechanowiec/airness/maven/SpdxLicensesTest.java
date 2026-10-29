@@ -28,6 +28,14 @@ class SpdxLicensesTest {
     }
 
     @Test
+    void normalizesOnlyTheReviewedZeroClauseBsdSpelling() {
+        assertEquals(List.of("0BSD"), SpdxLicenses.alternatives("BSD-0-Clause"));
+        assertEquals("0BSD", SpdxLicenses.spelling("bsd-0-clause"));
+        assertEquals("BSD-3-Clause", SpdxLicenses.spelling("BSD-3-Clause"));
+        assertTrue(SpdxLicenses.spelling("BSD-0-Clause-extra").startsWith("not an SPDX license"));
+    }
+
+    @Test
     void judgesALicenseWithAKnownExceptionAsTheLicense() {
         assertTrue(SpdxLicenses.exception("llvm-exception"));
         assertFalse(SpdxLicenses.exception("Made-Up-exception"));
