@@ -31,7 +31,7 @@ class HarnessVersionsTest {
         payload.setParent(node);
         MavenProject module = project("cms", "9.0.0");
         module.setParent(payload);
-        assertEquals("ploaness=1.4.0,@airness/node=2.0.0", HarnessVersions.of(module).value());
+        assertEquals("@airness/payload=1.4.0,@airness/node=2.0.0", HarnessVersions.of(module).value());
     }
 
     @Test
@@ -60,11 +60,11 @@ class HarnessVersionsTest {
     void handsEveryGateTheChainsVersionsAndTheModulesOwnVersionAndIdentity() {
         MavenProject node = project("airness-parent-node", "2.0.0");
         node.setParent(project("airness-parent", "2.0.0"));
-        MavenProject library = project("ploaness-node", "3.1.0");
+        MavenProject library = project("library-node", "3.1.0");
         library.setParent(node);
         Map<String, String> environment = NodeGateMojo.environment(library);
         assertEquals("@airness/node=2.0.0", environment.get("AIRNESS_HARNESS_VERSIONS"));
         assertEquals("3.1.0", environment.get("AIRNESS_MODULE_VERSION"));
-        assertEquals("eu.ciechanowiec:ploaness-node", environment.get("AIRNESS_MODULE"));
+        assertEquals("eu.ciechanowiec:library-node", environment.get("AIRNESS_MODULE"));
     }
 }

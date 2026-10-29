@@ -7,16 +7,14 @@ answers the package-document and tarball requests for the tarballs it is given. 
 requested, so a tarball packed after the registry started is served as it is now. The harness tarballs are dated
 now, as a fresh release is; the others are dated years back, so the release-age floor admits them.
 
-A scoped harness package can be routed here by a scope line alone. ploaness is unscoped, so a project that
-installs it names this registry as its default one, and with --upstream every other request is answered from the
-public registry, the tarball addresses in its documents rewritten to come through here, so the lockfile records
-plain registry resolutions.
+A harness package is scoped, such as one under @airness, and is routed here by a scope line alone, so every other
+package keeps the registry it is installed from and every other request is answered as not found.
 
-    npm-registry.py (--port <port> | --port-file <file>) --fresh <tarball> ... [--old <tarball> ...] [--upstream]
+    npm-registry.py (--port <port> | --port-file <file>) --fresh <tarball> ... [--old <tarball> ...]
                     [--npmrc <file> --scope <scope>] [--lockfile <pnpm-lock.yaml>]
 
 With --npmrc it writes the scope line naming the bound port into that file before the port file, so a build that
-waits for the port file finds the configuration already in place.
+waits for the port file finds the configuration already in place. --npmrc needs --scope.
 
 With --lockfile it first compares the sha512 integrity of each --fresh tarball, byte for byte, with the one the
 lockfile records for that exact name@version, and exits with an error before binding when they differ, rather
@@ -48,16 +46,11 @@ import sys
 import tarfile
 import threading
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 OLD_RELEASE = '2020-01-01T00:00:00.000Z'
 PARENT_POLL_SECONDS = 2
-UPSTREAM = 'https://registry.npmjs.org'
-UPSTREAM_TIMEOUT_SECONDS = 120
-CHUNK = 1 << 16
 
 
 def manifest_of(content):
@@ -139,11 +132,13 @@ def parse_arguments():
     where.add_argument('--port-file')
     parser.add_argument('--fresh', nargs='+', default=[], help='tarballs dated now')
     parser.add_argument('--old', nargs='*', default=[], help='tarballs dated years back')
-    parser.add_argument('--upstream', action='store_true', help='answer every other request from npmjs')
     parser.add_argument('--npmrc', help='the .npmrc to write the scope line into once the port is bound')
     parser.add_argument('--scope', help='the scope the .npmrc routes here, such as @airness')
     parser.add_argument('--lockfile', help='the pnpm-lock.yaml whose integrity each --fresh tarball must match')
-    return parser.parse_args()
+    arguments = parser.parse_args()
+    if arguments.npmrc and not arguments.scope:
+        parser.error('--npmrc needs --scope, the scope the .npmrc routes here')
+    return arguments
 
 
 def main():
@@ -180,34 +175,7 @@ def main():
                     if requested == tarball_path(name, version):
                         self.reply(200, 'application/octet-stream', package['content'])
                         return
-            if arguments.upstream:
-                self.proxy()
-                return
             self.reply(404, 'application/json', b'{"error":"not found"}')
-
-        def proxy(self):
-            headers = {'Accept': self.headers.get('Accept', 'application/json'), 'Accept-Encoding': 'identity'}
-            request = urllib.request.Request(UPSTREAM + self.path, headers=headers)
-            try:
-                with urllib.request.urlopen(request, timeout=UPSTREAM_TIMEOUT_SECONDS) as answer:
-                    content_type = answer.headers.get('Content-Type', 'application/octet-stream')
-                    if 'json' in content_type:
-                        local = f'http://{self.headers.get("Host")}'
-                        body = answer.read().replace(UPSTREAM.encode(), local.encode())
-                        self.reply(answer.status, content_type, body)
-                        return
-                    self.send_response(answer.status)
-                    self.send_header('Content-Type', content_type)
-                    length = answer.headers.get('Content-Length')
-                    if length is not None:
-                        self.send_header('Content-Length', length)
-                    self.end_headers()
-                    while chunk := answer.read(CHUNK):
-                        self.wfile.write(chunk)
-            except urllib.error.HTTPError as error:
-                self.reply(error.code, 'application/json', error.read())
-            except (urllib.error.URLError, TimeoutError) as error:
-                self.reply(502, 'application/json', json.dumps({'error': str(error)}).encode())
 
         def document(self, name, versions):
             latest = next(iter(versions))
@@ -258,8 +226,7 @@ def main():
     threading.Thread(target=stop_with_parent, daemon=True).start()
     if arguments.npmrc:
         with open(arguments.npmrc, 'w', encoding='utf-8') as stream:
-            key = f'{arguments.scope}:registry' if arguments.scope else 'registry'
-            stream.write(f'{key}=http://127.0.0.1:{server.server_address[1]}/\n')
+            stream.write(f'{arguments.scope}:registry=http://127.0.0.1:{server.server_address[1]}/\n')
     if arguments.port_file:
         with open(arguments.port_file + '.partial', 'w', encoding='utf-8') as stream:
             stream.write(str(server.server_address[1]))

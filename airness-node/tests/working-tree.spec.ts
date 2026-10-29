@@ -62,6 +62,6 @@ describe('working-tree evidence', PROCESS_TIME, () => {
   })
 
   it('fails when Git cannot enumerate the directory', () => {
-    expect(() => workingTreeFingerprint(path.join(tmpdir(), 'absent-ploaness-tree'))).toThrow()
+    expect(() => workingTreeFingerprint(path.join(tmpdir(), 'absent-airness-tree'))).toThrow()
   })
 })

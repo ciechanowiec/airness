@@ -5,38 +5,121 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!--
-        The Payload layer's inputs to the generic managed-file and generated-file mechanisms, read off the plugin
+        The Payload stack's inputs to the generic managed-file and generated-file mechanisms, read off the plugin
         classpath: airness-parent-payload adds this jar to airness-maven-plugin, so the catalogue sees
         airness/manifest/payload.tsv and the generated-file denial sees airness/generated/payload.txt. It holds
-        resources only, so it inherits the generic parent.
+        resources only and is built like airness-assets, under the aggregator's own checks.
     -->
     <parent>
         <groupId>eu.ciechanowiec</groupId>
-        <artifactId>airness-parent</artifactId>
+        <artifactId>airness</artifactId>
         <version>1.0.9-SNAPSHOT</version>
-        <relativePath/>
     </parent>
 
-    <groupId>eu.ciechanowiec</groupId>
-    <artifactId>ploaness-assets</artifactId>
-    <version>2.0.1-SNAPSHOT</version>
+    <artifactId>airness-payload-assets</artifactId>
     <packaging>jar</packaging>
 
-    <name>ploaness-assets</name>
+    <name>airness-payload-assets</name>
     <description>
-        The managed files, the generated files and the agent guidance the Airness Payload layer adds to a
+        The managed files, the generated files and the agent guidance the Airness Payload stack adds to a
         repository with a Payload CMS module. Each canonical file is stored under an added .asset suffix, so a
         stored .gitignore cannot take effect over the directory it is stored in.
     </description>
 
-    <licenses>
-        <license>
-            <name>MIT</name>
-            <url>https://opensource.org/license/mit</url>
-        </license>
-    </licenses>
+    <build>
+        <plugins>
+            <!--
+                Airness answers to the dependency rules it ships. The rules themselves live in the root
+                pluginManagement, so this execution names only the goal and the phase.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-enforce-dependencies</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The unused and undeclared dependency report, and the licence allowlist, both read the
+                module's own resolved graph, so each module runs them for itself. The configuration is in
+                the root pluginManagement, mirroring what airness-parent binds for a consumer.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-analyze-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-check-dependency-licenses</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>add-third-party</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Extended verification for Airness, exactly as it is for a consumer: the phase property is
+                'none' by default and 'package' under the extended profile.
+            -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-known-vulnerabilities</id>
+                        <phase>${airness.self.vulnerabilities.phase}</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
-    <properties>
-        <airness.package.root>eu.ciechanowiec.ploaness</airness.package.root>
-    </properties>
+    <profiles>
+        <profile>
+            <!-- The module has resources but no Java API, so its Central Javadoc artifact is explanatory. -->
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-placeholder-javadocs</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>javadoc</classifier>
+                                    <classesDirectory>${project.basedir}/src/main/javadoc</classesDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

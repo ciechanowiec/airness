@@ -38,7 +38,7 @@ describe('reading the airness block of package.json', () => {
   })
 
   it('reads no other key than airness', () => {
-    expect(readSettings({ ploaness: { generatedArtefacts: [{ pattern: 'src/api/**', reason: REASON }] } })).toEqual(
+    expect(readSettings({ other: { generatedArtefacts: [{ pattern: 'src/api/**', reason: REASON }] } })).toEqual(
       readSettings({}),
     )
   })

@@ -1,4 +1,4 @@
-// The `ploaness` command line. It runs one Payload gate in the node project it is started in and gives no
+// The `airness-payload` command line. It runs one Payload gate in the node project it is started in and gives no
 // verdict on the project as a whole: `mvn verify` is the only full run, and it runs every gate through
 // `airness:node-gate`, which reads the result file this writes in the node layer's contract.
 import { writeFileSync } from 'node:fs'
@@ -26,10 +26,10 @@ const JSON_INDENT: number = 2
 // Wide enough for the longest gate id, so the listing stays aligned.
 const GATE_ID_COLUMN: number = 22
 
-const USAGE: string = `ploaness, the Payload gates of the Airness Payload layer
+const USAGE: string = `airness-payload, the Payload gates of the Airness Payload stack
 
-  ploaness gate <id> [--result <file>] [--verbose]   run one gate in this node project
-  ploaness gates                                     list the gates
+  airness-payload gate <id> [--result <file>] [--verbose]   run one gate in this node project
+  airness-payload gates                                     list the gates
 
 One gate is a diagnosis, not a verdict. Run mvn verify for the verdict.`
 
@@ -85,7 +85,7 @@ const describeError = (error: unknown): string => (error instanceof Error ? erro
 const gateCommand = (invocation: GateInvocation, directory: string): number => {
   const gate: Gate | undefined = gateById(invocation.id)
   if (gate === undefined) {
-    console.error(`unknown gate "${invocation.id}". Run \`ploaness gates\` to list them.`)
+    console.error(`unknown gate "${invocation.id}". Run \`airness-payload gates\` to list them.`)
     return 1
   }
   const result: ResultFile = ((): ResultFile => {
@@ -117,7 +117,7 @@ const listGates = (): number => {
 const probeCommand = async (rest: readonly string[]): Promise<number> => {
   const [configFile, defaultAccessFile, ...extra] = rest
   if (configFile === undefined || defaultAccessFile === undefined || extra.length > 0) {
-    console.error(`usage: ploaness ${PROBE_COMMAND.join(' ')} <payload.config.ts> <defaultAccess.js>`)
+    console.error(`usage: airness-payload ${PROBE_COMMAND.join(' ')} <payload.config.ts> <defaultAccess.js>`)
     return 1
   }
   console.info(await inheritedAccessProbe(configFile, defaultAccessFile))

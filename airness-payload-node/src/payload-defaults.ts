@@ -51,7 +51,7 @@ export const accessOperationsFor = (traits: PayloadSubjectTraits): readonly stri
  * The prefix the probe prints its report behind. A plugin may log on import, and a line the parser can
  * name is what separates the report from that chatter.
  */
-export const INHERITED_ACCESS_REPORT_MARKER: string = 'ploaness-inherited-access:'
+export const INHERITED_ACCESS_REPORT_MARKER: string = 'airness-payload-inherited-access:'
 
 /** One entity of the built configuration and the operations it left to Payload's default. */
 export interface InheritedAccessEntry {
@@ -376,7 +376,7 @@ const CURRENT_DIRECTORY_PREFIX: string = './'
 
 /**
  * The path of the Payload configuration a member's tsconfig aliases as `@payload-config`, which is the
- * alias `ploaness init` writes and Payload's own CLI resolves through.
+ * alias a Payload scaffold writes and Payload's own CLI resolves through.
  * @param tsconfig the parsed tsconfig, or anything when it could not be read.
  * @returns the configured path relative to the member root, or the default path.
  */

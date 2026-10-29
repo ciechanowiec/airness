@@ -13,8 +13,8 @@ const APPROVAL: SecurityOverride = {
 }
 
 const layer = (securityOverrides: unknown): LayerPackage => ({
-  name: 'ploaness',
-  directory: '/installed/ploaness',
+  name: '@airness/payload',
+  directory: '/installed/@airness/payload',
   manifest: { airness: { layer: { securityOverrides } } },
 })
 

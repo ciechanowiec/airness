@@ -17,7 +17,7 @@ const NODE: readonly unknown[] = [
 ]
 
 const layered = (...blocks: readonly unknown[]): readonly unknown[] =>
-  composeLayered(NODE, [{ name: 'ploaness', config: [...NODE, ...blocks] }])
+  composeLayered(NODE, [{ name: '@airness/payload', config: [...NODE, ...blocks] }])
 
 const refusal = (...blocks: readonly unknown[]): string => {
   try {
@@ -44,7 +44,7 @@ describe('a stack layer joining the node ESLint configuration', () => {
 
   it('refuses a node rule turned off, lowered or given options that do not extend it', () => {
     expect(refusal({ files: ['src/**'], rules: { 'no-magic-numbers': 'off' } })).toContain(
-      'block 0 of the stack layer ploaness weakens the node rule no-magic-numbers',
+      'block 0 of the stack layer @airness/payload weakens the node rule no-magic-numbers',
     )
     expect(refusal({ files: ['src/**'], rules: { 'no-magic-numbers': ['warn', { ignore: [0, 1] }] } })).toContain(
       'no-magic-numbers',
@@ -60,10 +60,10 @@ describe('a stack layer joining the node ESLint configuration', () => {
     expect(refusal({ ignores: ['src/**'] })).toContain('ignores files for every block')
     expect(refusal({ files: ['src/**'], languageOptions: {} })).toContain('sets languageOptions')
     expect(refusal('blocks')).toContain('is no configuration block')
-    expect(() => composeLayered(NODE, [{ name: 'ploaness', config: [NODE[1], NODE[0]] }])).toThrow(
+    expect(() => composeLayered(NODE, [{ name: '@airness/payload', config: [NODE[1], NODE[0]] }])).toThrow(
       "does not start with the node layer's blocks",
     )
-    expect(() => composeLayered(NODE, [{ name: 'ploaness', config: 'none' }])).toThrow('does not start')
+    expect(() => composeLayered(NODE, [{ name: '@airness/payload', config: 'none' }])).toThrow('does not start')
   })
 
   it('admits the relaxations the harness lists for the layer, for exactly the files it lists', () => {

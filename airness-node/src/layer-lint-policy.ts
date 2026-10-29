@@ -19,19 +19,19 @@ export interface LayerRelaxation {
 /** The relaxations each layer needs, owned by the harness rather than by the layer. */
 export const LAYER_RELAXATIONS: readonly LayerRelaxation[] = [
   {
-    layer: 'ploaness',
+    layer: '@airness/payload',
     rule: 'unicorn/no-top-level-side-effects',
     files: ['src/payload.config.ts'],
     reason: 'Payload consumes an eagerly built configuration; its boot-time writes belong to payload-source-rules',
   },
   {
-    layer: 'ploaness',
+    layer: '@airness/payload',
     rule: 'unicorn/filename-case',
     files: ['src/migrations/**/*.ts'],
     reason: '`payload migrate:create` writes `<date>_<time>_<name>.ts`, which is snake case',
   },
   {
-    layer: 'ploaness',
+    layer: '@airness/payload',
     rule: 'functional/immutable-data',
     files: ['src/hooks/**'],
     reason: "Payload hooks carry a request's state on `req.context`, the one object hookContextBlock lets them write",

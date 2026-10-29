@@ -350,7 +350,7 @@ describe('parseInheritedAccessReport over the drafts half', () => {
 })
 
 describe('payloadConfigPathOf', () => {
-  it('reads the alias ploaness init writes, without its leading ./', () => {
+  it('reads the alias a Payload scaffold writes, without its leading ./', () => {
     const tsconfig: unknown = {
       compilerOptions: { paths: { '@payload-config': ['./src/payload.config.ts'] } },
     }

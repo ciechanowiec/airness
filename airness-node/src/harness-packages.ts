@@ -9,7 +9,7 @@ export const HARNESS_PACKAGES: readonly string[] = [HARNESS_PACKAGE, ...LAYER_PA
 
 /**
  * The environment variable `airness:node-gate` names the parents' versions in, as `name=version` pairs
- * separated by commas, such as `@airness/node=2.0.0,ploaness=1.4.0`. The versions come from the module's
+ * separated by commas, such as `@airness/node=2.0.0,@airness/layer=2.0.0`. The versions come from the module's
  * Maven parent chain, which no file of the node project can state.
  */
 export const HARNESS_VERSIONS_VARIABLE: string = 'AIRNESS_HARNESS_VERSIONS'
@@ -33,7 +33,7 @@ export const MODULE_VARIABLE: string = 'AIRNESS_MODULE'
  */
 export const HARNESS_MODULES: ReadonlyMap<string, string> = new Map([
   [HARNESS_PACKAGE, 'eu.ciechanowiec:airness-node'],
-  ['ploaness', 'eu.ciechanowiec:ploaness-node'],
+  ['@airness/payload', 'eu.ciechanowiec:airness-payload-node'],
 ])
 
 /**

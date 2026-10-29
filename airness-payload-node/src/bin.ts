@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The `ploaness` executable: the command line, started in the node project it judges.
+// The `airness-payload` executable: the command line, started in the node project it judges.
 import { runCommandLine } from './command-line.js'
 
 // argv begins with the node binary and the script path; the command follows them.

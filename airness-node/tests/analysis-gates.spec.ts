@@ -181,11 +181,11 @@ describe('knip', PROCESS_TIME, () => {
     () => {
       const layered: Readonly<Record<string, unknown>> = {
         ...MANIFEST,
-        devDependencies: { ...asRecordOf(MANIFEST['devDependencies']), ploaness: '2.0.0' },
+        devDependencies: { ...asRecordOf(MANIFEST['devDependencies']), '@airness/payload': '2.0.0' },
       }
       // Installed, as a real member has it, since the shipped Vitest configuration knip loads reads its defaults.
       const installed: Readonly<Record<string, string>> = {
-        'node_modules/ploaness/package.json': '{ "name": "ploaness", "version": "2.0.0" }\n',
+        'node_modules/@airness/payload/package.json': '{ "name": "@airness/payload", "version": "2.0.0" }\n',
       }
       withProject(
         { ...installed, 'package.json': `${JSON.stringify(layered, null, JSON_INDENT)}\n` },
@@ -202,7 +202,7 @@ describe('knip', PROCESS_TIME, () => {
         (root: string): void => {
           const findings: string = findingsOf(knip(memberAt(root, unused)))
           expect(findings).toContain('left-pad')
-          expect(findings).not.toContain('ploaness')
+          expect(findings).not.toContain('@airness/payload')
         },
       )
     },
@@ -306,7 +306,7 @@ describe('a layer package', PROCESS_TIME, () => {
     'leaves the files it generates out of the floor in the suite run, as in every gate',
     () => {
       const layer: string = JSON.stringify({
-        name: 'ploaness',
+        name: '@airness/payload',
         version: '1.4.0',
         airness: { layer: { generatedArtefacts: ['src/generated.ts'] } },
       })
@@ -316,13 +316,13 @@ describe('a layer package', PROCESS_TIME, () => {
           '@airness/node': '2.0.0',
           vitest: '5.0.5',
           '@vitest/coverage-v8': '5.0.5',
-          ploaness: '1.4.0',
+          '@airness/payload': '1.4.0',
         },
       }
       withProject(
         {
           'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
-          'node_modules/ploaness/package.json': `${layer}\n`,
+          'node_modules/@airness/payload/package.json': `${layer}\n`,
           'src/generated.ts': SIGN_SOURCE,
         },
         (root: string): void => {

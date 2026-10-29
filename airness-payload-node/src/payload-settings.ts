@@ -1,11 +1,11 @@
-// The facts a Payload member may declare under the `ploaness` key of its package.json. The node layer's
+// The facts a Payload member may declare under the `airnessPayload` key of its package.json. The node layer's
 // settings live under `airness`; these two exist only because Payload does, so they belong to this layer.
 // Every default is strict: a member that declares nothing grants no anonymous permission, and the analysis
 // placeholders are the two variables Payload itself requires.
 import { asRecord, asStringRecord, asText, isArray, readKey } from './json-shapes.js'
 
 /** The key of package.json a Payload member declares its Payload settings under. */
-const PAYLOAD_SETTINGS_KEY: string = 'ploaness'
+const PAYLOAD_SETTINGS_KEY: string = 'airnessPayload'
 
 /**
  * One anonymous permission a project grants on purpose, with the reason it does.
@@ -44,8 +44,8 @@ export interface PayloadSettings {
 // The two variables Payload itself requires of every project. Inert placeholders: no host is contacted and no
 // token is signed with them.
 const DEFAULT_ANALYSIS_ENV: Readonly<Record<string, string>> = {
-  PAYLOAD_SECRET: 'ploaness-static-analysis-placeholder',
-  DATABASE_URL: 'postgres://127.0.0.1:5432/ploaness-static-analysis',
+  PAYLOAD_SECRET: 'airness-payload-static-analysis-placeholder',
+  DATABASE_URL: 'postgres://127.0.0.1:5432/airness-payload-static-analysis',
 }
 
 const asTexts = (raw: unknown): readonly string[] =>

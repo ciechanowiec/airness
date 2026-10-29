@@ -5,44 +5,46 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!--
-        The npm package ploaness, governed as the TypeScript library it is. It inherits airness-parent-node,
-        not airness-parent-payload: the library is no Payload application, so the Payload gates have nothing
-        to judge here. The Payload layer is proven by the Payload applications ploaness-it builds.
+        The npm package @airness/payload, governed as the TypeScript library it is. It inherits
+        airness-parent-node, not airness-parent-payload: the library is no Payload application, so the Payload
+        gates have nothing to judge here. The Payload stack is proven by the Payload applications of the payload
+        integration domain. The relativePath is written out because the default would resolve to the aggregator
+        in the directory above.
     -->
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
         <version>1.0.9-SNAPSHOT</version>
-        <relativePath/>
+        <relativePath>../airness-parent-node/pom.xml</relativePath>
     </parent>
 
-    <groupId>eu.ciechanowiec</groupId>
-    <artifactId>ploaness-node</artifactId>
-    <version>2.0.1-SNAPSHOT</version>
+    <artifactId>airness-payload-node</artifactId>
     <packaging>pom</packaging>
 
-    <name>ploaness-node</name>
+    <name>airness-payload-node</name>
     <description>
-        The Payload gates of the Airness Payload layer, published to npm as ploaness: the gates airness:node-gate
-        runs in a Payload module, the layer defaults the node gates read, and the Payload ESLint configuration.
+        The Payload gates of the Airness Payload stack, published to npm as @airness/payload: the gates
+        airness:node-gate runs in a Payload module, the stack defaults the node gates read, and the Payload ESLint
+        configuration.
     </description>
 
-    <licenses>
-        <license>
-            <name>MIT</name>
-            <url>https://opensource.org/license/mit</url>
-        </license>
-    </licenses>
-
     <properties>
-        <airness.package.root>eu.ciechanowiec.ploaness</airness.package.root>
-        <!--
-            The @airness/node tarball this module installs until the package is published: the one the Airness
-            release this repository pins attaches to its airness-node artifact, read from the local repository and
-            served by the local registry below.
-        -->
-        <ploaness.airness-node.tarball>${settings.localRepository}/eu/ciechanowiec/airness-node/${airness.version}/airness-node-${airness.version}.tgz</ploaness.airness-node.tarball>
+        <airness.package.root>eu.ciechanowiec.airness</airness.package.root>
     </properties>
+
+    <!--
+        The @airness/node tarball this module installs is the one the reactor has just packed in airness-node. This
+        dependency only orders the reactor, so that airness-node is packed before the registry below serves it.
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-node</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
@@ -50,7 +52,9 @@
                 The local registry that serves @airness/node until it is published, on a port of its own: it binds a free
                 port, writes the scope line into the ignored .npmrc, then the port file, and stops when Maven exits.
                 The stale port file goes first and the build waits for the new one, so node-dependencies, at
-                initialize, installs only once the registry answers, and two concurrent builds never share one.
+                initialize, installs only once the registry answers, and two concurrent builds never share one. Given
+                the lockfile, the registry refuses to start when the tarball's integrity differs from the one the
+                lockfile records, and prints the command that refreshes the lock.
             -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -89,8 +93,10 @@
                                 <argument>${project.basedir}/.npmrc</argument>
                                 <argument>--scope</argument>
                                 <argument>@airness</argument>
+                                <argument>--lockfile</argument>
+                                <argument>${project.basedir}/pnpm-lock.yaml</argument>
                                 <argument>--fresh</argument>
-                                <argument>${ploaness.airness-node.tarball}</argument>
+                                <argument>${project.basedir}/../airness-node/target/airness-node-${project.version}.tgz</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -142,6 +148,21 @@
                             <script>package</script>
                         </configuration>
                     </execution>
+                    <!--
+                        The proof that the pack is reproducible, as airness-node gives it, with the comparison script
+                        of airness-node: a consumer lockfile records the integrity of the tarball it installed.
+                    -->
+                    <execution>
+                        <id>node-repack</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>node-run</goal>
+                        </goals>
+                        <configuration>
+                            <project>.</project>
+                            <script>package:reproducible</script>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -155,7 +176,7 @@
                         <configuration>
                             <artifacts>
                                 <artifact>
-                                    <file>${project.build.directory}/ploaness-${project.version}.tgz</file>
+                                    <file>${project.build.directory}/airness-payload-${project.version}.tgz</file>
                                     <type>tgz</type>
                                 </artifact>
                             </artifacts>

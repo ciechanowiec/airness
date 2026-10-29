@@ -39,7 +39,7 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
 
     /**
      * The environment variable a node gate reads the module's own version from. A harness package's own
-     * repository, such as ploaness-node, which inherits {@code airness-parent-node}, releases the package at
+     * module, such as airness-node, which inherits {@code airness-parent-node}, releases the package at
      * that version, and no parent in its chain names it.
      */
     private static final String MODULE_VARIABLE = "AIRNESS_MODULE_VERSION";

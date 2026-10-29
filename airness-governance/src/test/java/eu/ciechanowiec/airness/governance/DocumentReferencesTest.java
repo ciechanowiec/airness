@@ -45,10 +45,10 @@ class DocumentReferencesTest {
     @Test
     void readsThePackageAModuleSpecifierStartsWith() {
         assertEquals(
-            List.of("@airness/node", "ploaness"),
+            List.of("@airness/node", "library"),
             List.of(
                 DocumentReferences.specifierPackage("@airness/node/tsconfig.json"),
-                DocumentReferences.specifierPackage("ploaness/tsconfig.json")
+                DocumentReferences.specifierPackage("library/tsconfig.json")
             ),
             "a scoped specifier names its scope and package, an unscoped one its first segment"
         );

@@ -16,7 +16,10 @@
       "Edit(airness-node/eslint.config.mjs)",
       "Edit(airness-node/vitest.config.mts)",
       "Edit(airness-node/tests/fixtures/cyclonedx/**)",
-      "Edit(airness-node/.airness/npm-registry.py)"
+      "Edit(airness-node/.airness/npm-registry.py)",
+      "Edit(airness-payload-node/eslint.config.mjs)",
+      "Edit(airness-payload-node/vitest.config.mts)",
+      "Edit(airness-payload-node/.airness/npm-registry.py)"
     ]
   }
 }

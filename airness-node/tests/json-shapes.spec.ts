@@ -12,7 +12,7 @@ import {
 
 describe('isRecord', () => {
   it('accepts a parsed object', () => {
-    expect(isRecord({ name: 'ploaness' })).toBe(true)
+    expect(isRecord({ name: 'library' })).toBe(true)
   })
 
   it('rejects null, which typeof reports as an object', () => {
@@ -20,7 +20,7 @@ describe('isRecord', () => {
   })
 
   it('rejects a primitive', () => {
-    expect(isRecord('ploaness')).toBe(false)
+    expect(isRecord('library')).toBe(false)
   })
 
   // An array narrowed to a record before these functions were shared, and a caller reading a manifest
@@ -32,7 +32,7 @@ describe('isRecord', () => {
 
 describe('asRecord', () => {
   it('returns the object it was given', () => {
-    expect(asRecord({ name: 'ploaness' })).toEqual({ name: 'ploaness' })
+    expect(asRecord({ name: 'library' })).toEqual({ name: 'library' })
   })
 
   // A malformed manifest leaves a rule reading its defaults, which are the strict end of every setting.
@@ -88,7 +88,7 @@ describe('asText', () => {
 })
 
 // A rule reads `undefined` as "nothing was declared, so there is nothing to apply". Reading it as the
-// empty string instead would turn "ploaness pins no package manager" into "ploaness requires the empty
+// empty string instead would turn "a package pins no package manager" into "a package requires the empty
 // string", which fails every project rather than none.
 describe('asOptionalText', () => {
   it('returns the string it was given', () => {

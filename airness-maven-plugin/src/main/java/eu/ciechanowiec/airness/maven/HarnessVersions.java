@@ -12,8 +12,8 @@ import org.apache.maven.project.MavenProject;
 /**
  * The version each harness npm package must resolve to in a module's node projects, read from the Airness
  * parents in the module's Maven parent chain: {@code @airness/node} at the version of {@code airness-parent},
- * which {@code airness-parent-java} and {@code airness-parent-node} share, and {@code ploaness} at the version
- * of {@code airness-parent-payload}, which ploaness releases on its own schedule.
+ * which {@code airness-parent-java} and {@code airness-parent-node} share, and the package of each stack layer
+ * at the version of the parent that layer publishes.
  *
  * <p>The wiring gate reads them from the environment variable this names, because no file of a node project
  * can state which parent the Maven module inherits.
@@ -25,7 +25,7 @@ record HarnessVersions(Map<String, String> versions) {
     private static final String GROUP = "eu.ciechanowiec";
     private static final Map<String, String> PACKAGES = Map.of(
         "airness-parent", "@airness/node",
-        "airness-parent-payload", "ploaness"
+        "airness-parent-payload", "@airness/payload"
     );
 
     /**

@@ -10,7 +10,7 @@ import { payloadConfigPathOf } from './payload-defaults.js'
 import { type PublicAccess, readPayloadSettings } from './payload-settings.js'
 
 /**
- * The anonymous permissions the member declares under `ploaness.publicAccess`.
+ * The anonymous permissions the member declares under `airnessPayload.publicAccess`.
  * @returns the declared grants; none when the member declares none.
  */
 export const declaredPublicAccess = (): readonly PublicAccess[] => {

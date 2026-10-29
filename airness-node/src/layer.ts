@@ -10,8 +10,8 @@ import { isJavascriptRuntime, type RuntimeRole } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, isArray } from './json-shapes.js'
 import type { LayerDefaults } from './settings.js'
 
-/** The npm packages that are stack layers above this one: the Payload layer. */
-export const LAYER_PACKAGES: readonly string[] = ['ploaness']
+/** The npm packages that are stack layers above this one. */
+export const LAYER_PACKAGES: readonly string[] = ['@airness/payload']
 
 const texts = (raw: unknown): readonly string[] =>
   isArray(raw) ? raw.filter((entry: unknown): entry is string => typeof entry === 'string') : []

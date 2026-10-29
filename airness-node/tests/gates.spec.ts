@@ -339,22 +339,22 @@ describe('eslint', PROCESS_TIME, () => {
         name: 'conforming',
         private: true,
         type: 'module',
-        devDependencies: { ploaness: '1.0.0' },
+        devDependencies: { '@airness/payload': '1.0.0' },
       }
       const layer: Manifest = {
-        name: 'ploaness',
+        name: '@airness/payload',
         type: 'module',
         exports: { './eslint': './eslint.js', './package.json': './package.json' },
         airness: { layer: { eslint: './eslint' } },
       }
       const writeLayer = (root: string, blocks: string): void => {
-        writeFileSync(path.join(root, 'node_modules', 'ploaness', 'eslint.js'), layerConfig(blocks))
+        writeFileSync(path.join(root, 'node_modules', '@airness/payload', 'eslint.js'), layerConfig(blocks))
       }
       withPlanted(
         {
           'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
-          'node_modules/ploaness/package.json': JSON.stringify(layer),
-          'node_modules/ploaness/eslint.js': layerConfig(
+          'node_modules/@airness/payload/package.json': JSON.stringify(layer),
+          'node_modules/@airness/payload/eslint.js': layerConfig(
             "[...node, { files: ['src/**/*.ts'], rules: { 'id-denylist': ['error', 'left'] } }]",
           ),
           // The project's own configuration turns everything off, and the verdict does not move.
@@ -370,7 +370,7 @@ describe('eslint', PROCESS_TIME, () => {
           expect(findingsOf(eslint(memberAt(root, manifest)))).toContain('ignores files for every block')
           // A layer that names no configuration leaves the node layer's in place.
           writeFileSync(
-            path.join(root, 'node_modules', 'ploaness', 'package.json'),
+            path.join(root, 'node_modules', '@airness/payload', 'package.json'),
             JSON.stringify({ ...layer, airness: { layer: {} } }),
           )
           expect(eslint(memberAt(root, manifest)).findings).toEqual([])

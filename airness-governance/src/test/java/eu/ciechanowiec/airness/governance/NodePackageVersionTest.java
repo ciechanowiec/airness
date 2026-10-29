@@ -6,11 +6,12 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
- * The npm package {@code @airness/node} carries the version of the Airness release it belongs to, which is
+ * Each npm package this reactor builds carries the version of the Airness release it belongs to, which is
  * the version the wiring of a node project compares it with. Its browser image matches its own Playwright,
  * independently of the Java Playwright that renders compliance reports.
  */
@@ -25,15 +26,23 @@ class NodePackageVersionTest {
     private static final Pattern VERSION = Pattern.compile("^ {2}\"version\": \"([^\"]+)\",$", Pattern.MULTILINE);
 
     @Test
-    @SneakyThrows
     void carriesTheVersionOfTheReactor() {
-        String manifest = Files.readString(SelfModules.repository().resolve("airness-node").resolve("package.json"));
-        Matcher matcher = VERSION.matcher(manifest);
+        String reactor = Xml.text(ProjectFiles.document(ProjectFiles.rootPom()), "version").orElseThrow();
         assertEquals(
-            List.of(Xml.text(ProjectFiles.document(ProjectFiles.rootPom()), "version").orElseThrow()),
-            matcher.find() ? List.of(matcher.group(1)) : List.of(),
-            "a release that raises the poms raises airness-node/package.json with them"
+            List.of(),
+            Stream.of("airness-node", "airness-payload-node")
+                .filter(module -> !reactor.equals(declaredVersion(module)))
+                .toList(),
+            "a release that raises the poms raises the package.json of every npm package with them"
         );
+    }
+
+    @SneakyThrows
+    private static String declaredVersion(String module) {
+        Matcher matcher = VERSION.matcher(
+            Files.readString(SelfModules.repository().resolve(module).resolve("package.json"))
+        );
+        return matcher.find() ? matcher.group(1) : module + " declares no version";
     }
 
     @Test

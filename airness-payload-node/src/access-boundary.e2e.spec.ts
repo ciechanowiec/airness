@@ -1,6 +1,6 @@
 // The Payload layer owns this specification and ships it compiled, so a project never holds a copy of it. The
 // one thing a project declares about it, the anonymous permissions it grants on purpose, goes under the
-// `ploaness` key of package.json, as `publicAccess`.
+// `airnessPayload` key of package.json, as `publicAccess`.
 //
 // The static rules read the access block a project wrote. They cannot see what `read: anyone` decides, because
 // that is a name, and they cannot see what Payload made of the whole configuration after sanitisation. Payload
@@ -41,13 +41,13 @@ test.describe('Access boundary', () => {
     expect(
       undeclaredGrants(report, declared, dataless),
       'the running application grants these to anyone, and the project has not said it meant to. Close the ' +
-        'access rule, or record the grant under ploaness.publicAccess with the reason it is intended',
+        'access rule, or record the grant under airnessPayload.publicAccess with the reason it is intended',
     ).toEqual([])
     // An entry the application does not bear out records a decision with no effect, and covers the field the
     // day it is exposed again.
     expect(
       staleDeclarations(report, declared, dataless),
-      'the project declares these under ploaness.publicAccess, and the running application grants none of ' +
+      'the project declares these under airnessPayload.publicAccess, and the running application grants none of ' +
         'them to anyone. Correct the path, or remove the entry',
     ).toEqual([])
   })
