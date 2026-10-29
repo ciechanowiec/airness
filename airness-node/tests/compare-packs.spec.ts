@@ -173,11 +173,11 @@ describe('packContentFindings', () => {
 describe('tarballName', () => {
   it('names the tarball as pnpm pack does, for a scoped and an unscoped package', () => {
     expect(tarballName(MANIFEST)).toBe('airness-node-1.0.0.tgz')
-    expect(tarballName(JSON.stringify({ name: 'ploaness', version: '2.0.1' }))).toBe('ploaness-2.0.1.tgz')
+    expect(tarballName(JSON.stringify({ name: 'library', version: '2.0.1' }))).toBe('library-2.0.1.tgz')
   })
 
   it('refuses a manifest without a version', () => {
-    expect(() => tarballName(JSON.stringify({ name: 'ploaness' }))).toThrow('package.json declares no version')
+    expect(() => tarballName(JSON.stringify({ name: 'library' }))).toThrow('package.json declares no version')
     expect(() => tarballName('[]')).toThrow('package.json declares no name')
   })
 })

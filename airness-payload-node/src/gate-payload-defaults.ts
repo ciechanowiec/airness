@@ -25,8 +25,8 @@ import {
 import { type RunResult, runNode } from './process-run.js'
 
 // Where Payload keeps the function it fills an undeclared operation with. Named by path because the package's
-// exports map does not expose it; the layer pins `payload` exactly, so a layout change arrives with a ploaness
-// release, and an absent file fails closed below.
+// exports map does not expose it; the stack pins `payload` exactly, so a layout change arrives with an
+// @airness/payload release, and an absent file fails closed below.
 const DEFAULT_ACCESS_MODULE: readonly string[] = ['dist', 'auth', 'defaultAccess.js']
 // Building a configuration opens no socket, but a plugin might, and a hung import must end as a verdict.
 const PROBE_TIMEOUT_MS: number = 120_000

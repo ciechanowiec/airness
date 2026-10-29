@@ -25,7 +25,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 @Mojo(name = "npm-dependencies", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class NpmDependenciesMojo extends AbstractGovernanceMojo {
 
-    private static final Set<String> HARNESS_PACKAGES = Set.of("@airness/node", "ploaness");
+    private static final Set<String> HARNESS_PACKAGES = Set.of("@airness/node", "@airness/payload");
 
     @Override
     boolean applies() {

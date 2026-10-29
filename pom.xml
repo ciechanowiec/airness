@@ -57,6 +57,9 @@
         <module>airness-parent-spring-boot</module>
         <module>airness-parent-node</module>
         <module>airness-node</module>
+        <module>airness-payload-assets</module>
+        <module>airness-parent-payload</module>
+        <module>airness-payload-node</module>
     </modules>
 
     <properties>
@@ -1198,12 +1201,13 @@
                     <excludes>
                         <exclude>**/target/**</exclude>
                         <!--
-                            The installed packages, the compiled output and the TypeScript build cache of
-                            airness-node, all of which git ignores. The package links to itself, so its
+                            The installed packages, the compiled output and the TypeScript build cache of the
+                            npm package modules, all of which git ignores. airness-node links to itself, so its
                             node_modules would never end being walked.
                         -->
                         <exclude>**/node_modules/**</exclude>
                         <exclude>airness-node/dist/**</exclude>
+                        <exclude>airness-payload-node/dist/**</exclude>
                         <exclude>**/*.tsbuildinfo</exclude>
                         <exclude>.git/**</exclude>
                         <exclude>.idea/**</exclude>
@@ -1618,13 +1622,14 @@
                             <waitUntil>published</waitUntil>
                             <waitMaxTime>7200</waitMaxTime>
                             <!--
-                                airness-node is the npm package @airness/node, built and governed by this reactor.
-                                It attaches its packed tarball (type tgz) so mvn install puts it in the local
-                                repository, but npm is where it is published, so neither its pom nor the tarball
-                                is sent to Central.
+                                Each module listed here builds an npm package, such as @airness/node, governed by
+                                this reactor. It attaches its packed tarball (type tgz) so mvn install puts it in the
+                                local repository, but npm is where it is published, so neither its pom nor the
+                                tarball is sent to Central.
                             -->
                             <excludeArtifacts>
                                 <excludeArtifact>airness-node</excludeArtifact>
+                                <excludeArtifact>airness-payload-node</excludeArtifact>
                             </excludeArtifacts>
                         </configuration>
                     </plugin>

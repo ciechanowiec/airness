@@ -28,10 +28,11 @@ final class ProjectFiles {
     private static final String NODE_PARENT = "airness-parent-node";
     /*
      * The modules that inherit a parent Airness publishes rather than the aggregator: the parents, and the
-     * npm package, which is governed as a consumer's node module is.
+     * npm packages, which are governed as a consumer's node module is.
      */
     private static final Set<String> PARENTS = Set.of(
-        PARENT, JAVA_PARENT, "airness-parent-spring-boot", NODE_PARENT, "airness-node"
+        PARENT, JAVA_PARENT, "airness-parent-spring-boot", NODE_PARENT, "airness-node", "airness-parent-payload",
+        "airness-payload-node"
     );
     private static final String MAIN = "src/main/java";
     private static final String POM = "pom.xml";

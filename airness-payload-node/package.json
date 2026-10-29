@@ -1,24 +1,23 @@
 {
-  "name": "ploaness",
-  "version": "2.0.1-SNAPSHOT",
-  "description": "The Payload gates of the Airness Payload layer, the layer defaults the node gates read, and the Payload ESLint configuration.",
+  "name": "@airness/payload",
+  "version": "1.0.9-SNAPSHOT",
+  "description": "The Payload gates of the Airness Payload stack, the stack defaults the node gates read, and the Payload ESLint configuration.",
   "keywords": [
     "payload",
     "payloadcms",
     "airness",
     "governance"
   ],
-  "license": "MIT",
+  "license": "MIT-0",
   "author": "Herman Ciechanowiec <herman@ciechanowiec.eu>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ciechanowiec/ploaness.git",
-    "directory": "ploaness-node"
+    "url": "git+https://github.com/ciechanowiec/airness.git",
+    "directory": "airness-payload-node"
   },
-  "homepage": "https://github.com/ciechanowiec/ploaness#readme",
   "type": "module",
   "bin": {
-    "ploaness": "./dist/bin.js"
+    "airness-payload": "./dist/bin.js"
   },
   "exports": {
     "./eslint": {
@@ -32,11 +31,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist/**/*.js",
+    "dist/**/*.d.ts"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
-    "package": "pnpm pack --pack-destination target"
+    "package": "pnpm pack --pack-destination target",
+    "package:reproducible": "pnpm run build && pnpm pack --pack-destination target/repack && node ../airness-node/scripts/package/compare-packs.ts target target/repack"
   },
   "engines": {
     "node": ">=26"

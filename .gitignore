@@ -113,3 +113,6 @@ playwright-report/
 blob-report/
 playwright/.cache/
 # END AIRNESS MANAGED: node
+
+# The scope line the build writes for its local @airness/node registry until the package is published.
+airness-payload-node/.npmrc

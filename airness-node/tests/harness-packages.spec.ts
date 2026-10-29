@@ -3,10 +3,10 @@ import { isHarnessPackage, readHarnessVersions } from '@/harness-packages.js'
 
 describe('the harness packages', () => {
   it('reads the versions the parents name, scoped names included', () => {
-    expect(readHarnessVersions('@airness/node=2.0.0, ploaness=1.4.0')).toEqual(
+    expect(readHarnessVersions('@airness/node=2.0.0, @airness/payload=1.4.0')).toEqual(
       new Map([
         ['@airness/node', '2.0.0'],
-        ['ploaness', '1.4.0'],
+        ['@airness/payload', '1.4.0'],
       ]),
     )
   })
@@ -20,7 +20,7 @@ describe('the harness packages', () => {
 
   it('knows its own packages and no other', () => {
     expect(isHarnessPackage('@airness/node')).toBe(true)
-    expect(isHarnessPackage('ploaness')).toBe(true)
+    expect(isHarnessPackage('@airness/payload')).toBe(true)
     expect(isHarnessPackage('vitest')).toBe(false)
   })
 })

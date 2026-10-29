@@ -23,7 +23,7 @@ const PAYLOAD_LAYER: LayerDefaults = layerDefaultsOf(
  * @returns the project directory.
  */
 const temporaryProject = (files: Readonly<Record<string, string>>): string => {
-  const root: string = mkdtempSync(path.join(packageRoot, 'tests', 'ploaness project '))
+  const root: string = mkdtempSync(path.join(packageRoot, 'tests', 'airness-payload project '))
   for (const [relative, content] of Object.entries(files)) {
     const file: string = path.join(root, relative)
     mkdirSync(path.dirname(file), { recursive: true })
@@ -80,7 +80,7 @@ export const projectForTest = (files: Readonly<Record<string, string>>): string 
  * @returns the project directory.
  */
 export const detachedProjectForTest = (files: Readonly<Record<string, string>>): string => {
-  const root: string = mkdtempSync(path.join(os.tmpdir(), 'ploaness project '))
+  const root: string = mkdtempSync(path.join(os.tmpdir(), 'airness-payload project '))
   for (const [relative, content] of Object.entries(files)) {
     const file: string = path.join(root, relative)
     mkdirSync(path.dirname(file), { recursive: true })

@@ -11,7 +11,7 @@ describe('the release-age settings', () => {
       releaseAgeSettingFindings({
         minimumReleaseAge: 1440,
         minimumReleaseAgeStrict: true,
-        minimumReleaseAgeExclude: ['@airness/node', 'ploaness@1.4.0'],
+        minimumReleaseAgeExclude: ['@airness/node', '@airness/payload@1.4.0'],
       }),
     ).toEqual([])
   })

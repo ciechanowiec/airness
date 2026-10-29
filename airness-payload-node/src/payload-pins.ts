@@ -1,5 +1,5 @@
 // The versions the Payload layer decides for a Payload application: Payload, the packages Payload declares as
-// peers, every first-party Payload package, and the Next.js and React it renders with. ploaness imports none
+// peers, every first-party Payload package, and the Next.js and React it renders with. @airness/payload imports none
 // of them, so it cannot pin them by declaring a dependency, and declaring them would install a second Payload
 // into a project that already has one. This list is that one source instead, and the preflight gate holds
 // what the application installed to it.

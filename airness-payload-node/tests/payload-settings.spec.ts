@@ -12,7 +12,7 @@ describe('readPayloadSettings', () => {
 
   it('reads the grants a project declares with their reasons and fields', () => {
     const settings: PayloadSettings = readPayloadSettings({
-      ploaness: {
+      airnessPayload: {
         publicAccess: [{ entity: 'posts', operation: 'read', reason: 'the published blog', fields: ['title', 7] }],
       },
     })
@@ -23,14 +23,14 @@ describe('readPayloadSettings', () => {
 
   it('drops a grant that names no reason, which restores the finding', () => {
     const settings: PayloadSettings = readPayloadSettings({
-      ploaness: { publicAccess: [{ entity: 'posts', operation: 'read' }, 'posts', null] },
+      airnessPayload: { publicAccess: [{ entity: 'posts', operation: 'read' }, 'posts', null] },
     })
     expect(settings.publicAccess).toStrictEqual([])
   })
 
   it('adds the analysis variables a project declares to the placeholders', () => {
     const settings: PayloadSettings = readPayloadSettings({
-      ploaness: { analysisEnv: { SMTP_HOST: 'localhost', BROKEN: 1 } },
+      airnessPayload: { analysisEnv: { SMTP_HOST: 'localhost', BROKEN: 1 } },
     })
     expect(settings.analysisEnv['SMTP_HOST']).toBe('localhost')
     expect(settings.analysisEnv['BROKEN']).toBeUndefined()
@@ -38,6 +38,6 @@ describe('readPayloadSettings', () => {
   })
 
   it('reads a malformed block as the defaults', () => {
-    expect(readPayloadSettings({ ploaness: { publicAccess: 'posts' } }).publicAccess).toStrictEqual([])
+    expect(readPayloadSettings({ airnessPayload: { publicAccess: 'posts' } }).publicAccess).toStrictEqual([])
   })
 })

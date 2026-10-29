@@ -24,7 +24,7 @@ const VIEWER_REQUEST: string = readFileSync(
   'utf8',
 )
 
-const directory: string = mkdtempSync(path.join(tmpdir(), 'ploaness-cloudfront-runtime-'))
+const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-cloudfront-runtime-'))
 mkdirSync(path.join(directory, 'src'))
 mkdirSync(path.join(directory, 'edge'))
 mkdirSync(path.join(directory, 'tools'))
