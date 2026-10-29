@@ -27,15 +27,17 @@ public final class CheckovMojo extends AbstractRepositoryMojo {
     List<Findings> findings() {
         ScannerInventory inventory = new ScannerInventory(this.repositoryRoot());
         try {
-            Path output = Path.of(this.project().getBuild().getDirectory(), "airness", "checkov");
-            ScannerTree tree = ScannerTree.create(output, inventory);
-            ScannerProcess process = new ScannerProcess(Objects.requireNonNull(this.image), tree);
-            this.getLog().info("Checkov: " + inventory.files().size() + " repository file(s); " + process.image());
-            this.getLog().info("Scanner evidence: " + tree.directory());
-            return List.of(new Findings("Checkov", this.scan(process, inventory)));
+            ScannerTree tree = ScannerTree.create(ScannerTree.cache(), "checkov", inventory);
+            return tree.conclude(this.getLog()::info, () -> this.verdicts(tree, inventory));
         } catch (IOException exception) {
             throw new UncheckedIOException("Checkov did not complete", exception);
         }
+    }
+
+    private List<Findings> verdicts(ScannerTree tree, ScannerInventory inventory) throws IOException {
+        ScannerProcess process = new ScannerProcess(Objects.requireNonNull(this.image), tree);
+        this.getLog().info("Checkov: " + inventory.files().size() + " repository file(s); " + process.image());
+        return List.of(new Findings("Checkov", this.scan(process, inventory)));
     }
 
     private List<String> scan(ScannerProcess process, ScannerInventory inventory) throws IOException {
@@ -74,7 +76,7 @@ public final class CheckovMojo extends AbstractRepositoryMojo {
     private List<String> scanFramework(
         ScannerProcess parent, ScannerInventory inventory, String framework, List<Path> selected
     ) throws IOException {
-        ScannerTree tree = ScannerTree.empty(parent.tree().directory().resolve(framework));
+        ScannerTree tree = ScannerTree.empty(parent.tree().directory(), framework);
         Path input = CheckovScan.input(tree);
         for (Path file : selected) {
             ScannerTree.copy(file, input.resolve(inventory.root().relativize(file)));

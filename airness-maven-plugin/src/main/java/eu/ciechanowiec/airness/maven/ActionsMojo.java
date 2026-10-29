@@ -42,21 +42,23 @@ public final class ActionsMojo extends AbstractRepositoryMojo {
             return List.of(new Findings(HEADLINE, List.of()));
         }
         try {
-            Path output = Path.of(this.project().getBuild().getDirectory(), "airness", "actions");
-            ScannerTree tree = ScannerTree.create(output, new ScannerInventory(root));
-            Files.createDirectory(tree.input().resolve(".git"));
-            ScannerProcess process = new ScannerProcess(pinned, tree);
-            process.validate(ACTIONLINT);
-            this.getLog().info("Scanner evidence: " + tree.directory());
-            int exit = AbstractDockerCheckMojo.executeScanner(
-                process, ACTIONLINT, List.of("-no-color", "-format", ActionlintReport.FORMAT)
-            );
-            Path report = tree.directory().resolve("report.json");
-            List<String> findings = ActionlintReport.read(report);
-            ScannerJson.exit(exit, !findings.isEmpty(), report);
-            return List.of(new Findings(HEADLINE, findings));
+            ScannerTree tree = ScannerTree.create(ScannerTree.cache(), ACTIONLINT, new ScannerInventory(root));
+            return tree.conclude(this.getLog()::info, () -> lint(tree, pinned));
         } catch (IOException exception) {
             throw new UncheckedIOException("actionlint did not complete", exception);
         }
+    }
+
+    private static List<Findings> lint(ScannerTree tree, String pinned) throws IOException {
+        Files.createDirectory(tree.input().resolve(".git"));
+        ScannerProcess process = new ScannerProcess(pinned, tree);
+        process.validate(ACTIONLINT);
+        int exit = AbstractDockerCheckMojo.executeScanner(
+            process, ACTIONLINT, List.of("-no-color", "-format", ActionlintReport.FORMAT)
+        );
+        Path report = tree.directory().resolve("report.json");
+        List<String> findings = ActionlintReport.read(report);
+        ScannerJson.exit(exit, !findings.isEmpty(), report);
+        return List.of(new Findings(HEADLINE, findings));
     }
 }

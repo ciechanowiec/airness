@@ -185,7 +185,11 @@ Airness governs all of the following domains:
   commercial security service, or signing product. A CLI container needs no health endpoint. A release workflow
   may declare manual inputs. Extended verification also lints every Dockerfile with hadolint at its default
   info threshold, loads every compose project with `docker compose config`, and lints every workflow with actionlint.
-  These checks run before Qodana, from staged copies of the committable tree.
+  These checks run before Qodana, from staged copies of the committable tree. Each copy is staged in
+  `~/.cache/airness/scan/<tool>-<number>`, beneath the home directory because Docker mounts a folder it does not
+  share as an empty one, and Colima shares only the home directory by default. A scan that passes deletes its
+  copy. A finding or a failure keeps it, with the scanner output beside it, and prints
+  `Scanner evidence: <path>`. `mvn clean` does not remove a kept copy, so delete it by hand once it has been read.
   Missing tools, unreadable inputs, incomplete reports and parsing failures fail verification.
 
 Do not treat a domain omitted from one command's output as ungoverned. The parent POM, bundled configurations, and
