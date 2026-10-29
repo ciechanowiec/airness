@@ -349,9 +349,11 @@ replacements, aliases, patches, package extensions and pnpmfile hooks remain for
 
 Until the harness npm packages are published, the managed `.airness/npm-registry.py` helper can serve their
 installed Maven tarballs from a temporary loopback registry. Bind its startup and readiness checks at validate,
-write its endpoint only to an ignored `.npmrc`, and keep its lifetime inside the Maven process. Other packages
-retain their public registry metadata and release-age checks. Only the unpublished harness packages may be
-excluded from the age floor.
+write its endpoint only to an ignored `.npmrc`, and keep its lifetime inside the Maven process. Given the
+project's lockfile with `--lockfile`, it refuses to start when a served tarball's integrity differs from the
+one the lockfile records, and names the lockfile-only `pnpm install` that refreshes the lock against it. Other
+packages retain their public registry metadata and release-age checks. Only the unpublished harness packages may
+be excluded from the age floor.
 
 A root node project may record `airness.vulnerabilityAllowlist` entries with `package`, `advisory`, `reason`,
 `mitigation` and `addedOn`. Name one exact npm package and one literal advisory identifier or an alias OSV
