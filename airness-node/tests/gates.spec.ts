@@ -1,6 +1,6 @@
 // Each gate against a real project in a temporary git working tree: one conforming project, and one
 // planted defect per gate, so a gate that stopped judging would let the defect through.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { GateResult } from '@/exec.js'
@@ -288,6 +288,21 @@ describe('types', PROCESS_TIME, () => {
       expect(types(memberAt(conforming)).findings).toEqual([])
       withPlanted({ 'src/wrong.ts': "export const wrong: number = 'text'\n" }, (root: string) => {
         expect(findingsOf(types(memberAt(root)))).toContain("Type 'string' is not assignable to type 'number'")
+      })
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  // A library publishes its outDir, where the compiler would otherwise write the incremental cache, and a
+  // cache that ships changes the package's bytes on every rebuild of an unchanged tree.
+  it(
+    'keeps its incremental cache below node_modules rather than in the declared outDir',
+    () => {
+      const withOutput: string = TSCONFIG.replace('"types": []', '"types": [],\n    "outDir": "dist"')
+      withPlanted({ 'tsconfig.json': withOutput }, (root: string) => {
+        expect(types(memberAt(root)).findings).toEqual([])
+        expect(existsSync(path.join(root, 'dist', 'tsconfig.tsbuildinfo'))).toBe(false)
+        expect(existsSync(path.join(root, 'node_modules', '.airness', 'types.tsbuildinfo'))).toBe(true)
       })
     },
     TOOL_TIMEOUT_MS,
