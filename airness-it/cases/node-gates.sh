@@ -57,24 +57,14 @@ POM
     lock_version="$(printf '%s' "${harness_version}" | sed 's/[.]/[.]/g')"
     expect_file_match "${node_library}/pnpm-lock.yaml" \
         'node gates: the lockfile resolves @airness/node by its version' "'@airness/node@${lock_version}':"
-    if python3 - "${repository}/airness-node/target/airness-node-${harness_version}.tgz" \
-        "${node_library}/pnpm-lock.yaml" <<'PY'
-import base64
-import hashlib
-import re
-import sys
-
-packed = 'sha512-' + base64.b64encode(hashlib.sha512(open(sys.argv[1], 'rb').read()).digest()).decode()
-lockfile = open(sys.argv[2], encoding='utf-8').read()
-match = re.search(r"'@airness/node@[^']+':\s*\n\s*resolution: \{integrity: ([^,}\s]+)", lockfile)
-sys.exit(0 if match and match.group(1) == packed else 1)
-PY
-    then
+    if python3 -c "${locks_packed_integrity}" "${repository}/airness-node/target/airness-node-${harness_version}.tgz" \
+        "${node_library}/pnpm-lock.yaml"; then
         pass 'node gates: the fixture installs the @airness/node this build packed, by its integrity'
     else
         fail 'node gates: the fixture installs the @airness/node this build packed, by its integrity' \
             'the lockfile integrity differs from airness-node/target, so a cached older build was installed'
     fi
+    run_reproducible_pack_cases
     for node_gate in ${node_gates}; do
         expect_match node_library "node gates: ${node_gate} runs through node-gate and passes" \
             "Node gate ${node_gate} in [.] passed"
@@ -201,6 +191,199 @@ PY
     expect_exit node_library_enforced 'node gates: a planted gate finding fails an enforcing build' 1
     expect_match node_library_enforced 'node gates: wiring, the first gate of verify, stops the enforcing build' \
         'Node gate wiring in [.] failed'
+}
+
+# Exits 0 when the lockfile given second records, for @airness/node, the integrity of the tarball given first.
+# The comparison is of the sha512 text exactly, as pnpm compares it, never of the content behind it.
+locks_packed_integrity='
+import base64
+import hashlib
+import re
+import sys
+
+packed = "sha512-" + base64.b64encode(hashlib.sha512(open(sys.argv[1], "rb").read()).digest()).decode()
+lockfile = open(sys.argv[2], encoding="utf-8").read()
+match = re.search(r"\x27@airness/node@[^\x27]+\x27:\s*\n\s*resolution: \{integrity: ([^,}\s]+)", lockfile)
+sys.exit(0 if match and match.group(1) == packed else 1)
+'
+
+# The @airness/node tarball is reproducible, so reinstalling an unchanged harness leaves every consumer lock
+# valid. The reactor packed it, rebuilt the package from an emptied dist, packed it again under target/repack
+# and failed on any byte that differed. This proves both packs are the installed one and that no TypeScript
+# build cache is packed, and that the files allowlist rather than an emptied dist keeps such by-products out.
+# The registry helper then refuses a lock that records another integrity and names the refresh, starts once
+# that refresh has run as printed, with the pinned pnpm, and starts against a lockfile that resolves no
+# @airness/node at the served version or does not exist yet.
+run_reproducible_pack_cases() {
+    packed_tarball="${repository}/airness-node/target/airness-node-${harness_version}.tgz"
+    installed_tarball="${local_repository}/eu/ciechanowiec/airness-node/${harness_version}"
+    installed_tarball="${installed_tarball}/airness-node-${harness_version}.tgz"
+    if cmp -s "${packed_tarball}" "${repository}/airness-node/target/repack/airness-node-${harness_version}.tgz" \
+        && cmp -s "${packed_tarball}" "${installed_tarball}"; then
+        pass 'node gates: two packs of the unchanged @airness/node tree are byte-identical and installed'
+    else
+        fail 'node gates: two packs of the unchanged @airness/node tree are byte-identical and installed' \
+            'airness-node/target/repack is missing or differs from the packed or the installed tarball'
+    fi
+    packed_entries="${scratch}/airness-node-entries.txt"
+    tar -tzf "${installed_tarball}" > "${packed_entries}"
+    expect_file_match "${packed_entries}" 'node gates: the @airness/node tarball packs its compiled entry point' \
+        '^package/dist/bin[.]js$'
+    expect_file_no_match "${packed_entries}" 'node gates: the @airness/node tarball packs no TypeScript build cache' \
+        '[.]tsbuildinfo$'
+    run_planted_by_product_case
+
+    lock_case="${scratch}/node-lock-refresh"
+    mkdir -p "${lock_case}"
+    for lock_file in package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc; do
+        cp "${node_library}/${lock_file}" "${lock_case}/${lock_file}"
+    done
+    # Another well-formed integrity, the one of no bytes at all, where the lock records @airness/node.
+    python3 - "${lock_case}/pnpm-lock.yaml" <<'PY'
+import re
+import sys
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as stream:
+    lockfile = stream.read()
+other = 'sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg=='
+pattern = r"('@airness/node@[^']+':\s*\n\s*resolution: \{integrity: )[^,}\s]+"
+altered, count = re.subn(pattern, lambda match: match.group(1) + other, lockfile)
+if count != 1:
+    sys.exit('the fixture lockfile records no @airness/node integrity')
+with open(path, 'w', encoding='utf-8') as stream:
+    stream.write(altered)
+PY
+    mkdir -p "${lock_case}/other-version"
+    python3 - "${lock_case}/pnpm-lock.yaml" "${lock_case}/other-version/pnpm-lock.yaml" "${harness_version}" <<'PY'
+import sys
+
+source, target, version = sys.argv[1:]
+with open(source, encoding='utf-8') as stream:
+    lockfile = stream.read()
+served = f'@airness/node@{version}'
+if served not in lockfile:
+    sys.exit('the fixture lockfile names no @airness/node at the served version')
+with open(target, 'w', encoding='utf-8') as stream:
+    stream.write(lockfile.replace(served, '@airness/node@0.0.0-other'))
+PY
+    start_lock_registry stale "${lock_case}/pnpm-lock.yaml"
+    if [ "${lock_registry_outcome}" = refused ]; then
+        pass 'node gates: the registry refuses a lockfile that records another @airness/node integrity'
+    else
+        fail 'node gates: the registry refuses a lockfile that records another @airness/node integrity' \
+            "npm-registry.py ${lock_registry_outcome} although the lockfile records another integrity"
+    fi
+    expect_file_match "${lock_case}/stale.log" \
+        'node gates: the refusal names the package and both integrities' \
+        "@airness/node@${lock_version}: the lockfile records sha512-z4PhNX7vuL3x.*, but .* has sha512-"
+    expect_file_match "${lock_case}/stale.log" \
+        'node gates: the refusal prints the lockfile-only install that refreshes the lock' \
+        'pnpm_config_cache_dir="[$][(]mktemp -d[)]" pnpm install --lockfile-only --fix-lockfile --ignore-scripts'
+
+    # The printed refresh, run as printed with the pinned pnpm against the registry the fixtures install from,
+    # which the scope line of the copied .npmrc names.
+    refresh_log="${lock_case}/refresh.log"
+    refresh_cache="$(mktemp -d "${scratch}/.pnpm-refresh-XXXXXX")"
+    if (cd "${lock_case}" && PATH="${node_home}/bin:${pnpm_home}:${PATH}" \
+        pnpm_config_manage_package_manager_versions=false pnpm_config_store_dir="${scratch}/.pnpm-store" \
+        pnpm_config_cache_dir="${refresh_cache}" \
+        "${pnpm_home}/pnpm" install --lockfile-only --fix-lockfile --ignore-scripts) > "${refresh_log}" 2>&1 \
+        && python3 -c "${locks_packed_integrity}" "${packed_tarball}" "${lock_case}/pnpm-lock.yaml"; then
+        pass 'node gates: the printed refresh records the served integrity with the pinned pnpm'
+    else
+        fail 'node gates: the printed refresh records the served integrity with the pinned pnpm' \
+            "see ${refresh_log}"
+    fi
+
+    start_lock_registry current "${lock_case}/pnpm-lock.yaml"
+    if [ "${lock_registry_outcome}" = served ]; then
+        pass 'node gates: the registry starts against a lockfile that records the served integrity'
+    else
+        fail 'node gates: the registry starts against a lockfile that records the served integrity' \
+            "npm-registry.py ${lock_registry_outcome}; see ${lock_case}/current.log"
+    fi
+
+    # The stale integrity kept, but under another version: the comparison is by exact name@version, so a lock
+    # that resolves no @airness/node at the served version is no mismatch.
+    start_lock_registry other-version "${lock_case}/other-version/pnpm-lock.yaml"
+    if [ "${lock_registry_outcome}" = served ]; then
+        pass 'node gates: the registry starts against a lockfile without the served @airness/node version'
+    else
+        fail 'node gates: the registry starts against a lockfile without the served @airness/node version' \
+            "npm-registry.py ${lock_registry_outcome}; see ${lock_case}/other-version.log"
+    fi
+    start_lock_registry missing "${lock_case}/missing/pnpm-lock.yaml"
+    if [ "${lock_registry_outcome}" = served ]; then
+        pass 'node gates: the registry starts against a lockfile not written yet'
+    else
+        fail 'node gates: the registry starts against a lockfile not written yet' \
+            "npm-registry.py ${lock_registry_outcome}; see ${lock_case}/missing.log"
+    fi
+}
+
+# Every pack the reactor makes starts from an emptied dist, so it cannot show that the files allowlist keeps a
+# by-product out. This packs the built package, copied with a TypeScript build cache and a source map planted
+# in its dist, with the pinned pnpm: neither may be packed, and the pack must be the installed tarball's bytes.
+# A files entry that packed all of dist again would list both and change the bytes.
+run_planted_by_product_case() {
+    planted_package="${scratch}/airness-node-planted"
+    mkdir -p "${planted_package}"
+    cp -R "${repository}/airness-node/package.json" "${repository}/airness-node/dist" \
+        "${repository}/airness-node/configs" "${planted_package}/"
+    printf '{}\n' > "${planted_package}/dist/tsconfig.tsbuildinfo"
+    printf '{}\n' > "${planted_package}/dist/x.js.map"
+    planted_tarball="${scratch}/airness-node-planted-pack/airness-node-${harness_version}.tgz"
+    planted_entries="${scratch}/airness-node-planted-entries.txt"
+    if (cd "${planted_package}" && PATH="${node_home}/bin:${pnpm_home}:${PATH}" \
+        pnpm_config_manage_package_manager_versions=false \
+        "${pnpm_home}/pnpm" pack --pack-destination "${scratch}/airness-node-planted-pack") \
+        > "${scratch}/airness-node-planted-pack.log" 2>&1; then
+        tar -tzf "${planted_tarball}" > "${planted_entries}"
+    else
+        fail 'node gates: the pinned pnpm packs the built @airness/node with planted by-products' \
+            "see ${scratch}/airness-node-planted-pack.log"
+    fi
+    expect_file_no_match "${planted_entries}" \
+        'node gates: a TypeScript build cache planted in dist is not packed' '[.]tsbuildinfo$'
+    expect_file_no_match "${planted_entries}" 'node gates: a source map planted in dist is not packed' '[.]map$'
+    if cmp -s "${planted_tarball}" "${installed_tarball}"; then
+        pass 'node gates: planted by-products leave the pack byte-identical to the installed tarball'
+    else
+        fail 'node gates: planted by-products leave the pack byte-identical to the installed tarball' \
+            "${planted_tarball} is missing or differs from ${installed_tarball}"
+    fi
+}
+
+# Starts the managed registry helper on the packed tarball, named $1 for its port file and log and checked
+# against the lockfile $2, and waits until it serves, exits or 30 seconds pass. It never outlives the wait, so a helper that should have
+# refused cannot hang the suite. Sets lock_registry_outcome to served, refused (a non-zero exit before the port
+# file), "exited with 0", "wrote its port file and exited" or "neither served nor exited".
+start_lock_registry() {
+    python3 "${repository}/airness-node/.airness/npm-registry.py" --port-file "${lock_case}/$1.port" \
+        --fresh "${packed_tarball}" --lockfile "$2" > "${lock_case}/$1.log" 2>&1 &
+    lock_registry=$!
+    lock_registry_waited=0
+    while [ ! -s "${lock_case}/$1.port" ] && kill -0 "${lock_registry}" 2>/dev/null \
+        && [ "${lock_registry_waited}" -lt 30 ]; do
+        command sleep 1
+        lock_registry_waited=$((lock_registry_waited + 1))
+    done
+    if kill -0 "${lock_registry}" 2>/dev/null; then
+        if [ -s "${lock_case}/$1.port" ]; then
+            lock_registry_outcome=served
+        else
+            lock_registry_outcome='neither served nor exited'
+        fi
+        kill "${lock_registry}" 2>/dev/null || true
+        wait "${lock_registry}" 2>/dev/null || true
+    elif wait "${lock_registry}"; then
+        lock_registry_outcome='exited with 0'
+    elif [ -e "${lock_case}/$1.port" ]; then
+        lock_registry_outcome='wrote its port file and exited'
+    else
+        lock_registry_outcome=refused
+    fi
 }
 
 # Every Default gate airness-parent binds that applies to every node project, in the order the result files are
