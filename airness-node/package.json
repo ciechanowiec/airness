@@ -1,6 +1,6 @@
 {
   "name": "@airness/node",
-  "version": "1.0.8-SNAPSHOT",
+  "version": "1.0.9-SNAPSHOT",
   "description": "The JS/TS gates of the Airness node layer, the analyzer configurations they read, and the pinned analyzers.",
   "license": "MIT-0",
   "author": "Herman Ciechanowiec <herman@ciechanowiec.eu>",
@@ -101,7 +101,9 @@
     "browser:create-layout-pages": "node scripts/browser/create-layout-pages.ts",
     "browser:create-clock-case": "node scripts/browser/create-clock-case.ts",
     "browser:create-scope-case": "node scripts/browser/create-scope-case.ts",
-    "browser:server-lifecycle": "node scripts/browser/server-lifecycle.ts"
+    "browser:server-lifecycle": "node scripts/browser/server-lifecycle.ts",
+    "browser:create-browser-evidence-case": "node scripts/browser/create-browser-evidence-case.ts",
+    "browser:create-locale-not-found-case": "node scripts/browser/create-locale-not-found-case.ts"
   },
   "engines": {
     "node": ">=26"
@@ -223,6 +225,10 @@
       {
         "pattern": "src/vitest-{setup,global-setup}.ts",
         "reason": "The host and worker bootstraps install runtime guards in the runner processes; real transport contracts prove interception, while network-policy.ts measures every policy branch."
+      },
+      {
+        "pattern": "src/{perceivable,sweep-not-found}.ts",
+        "reason": "These probes execute browser visibility and real application error states through Playwright; the browser evidence contracts exercise their actual outcomes, while not-found route policy is measured in Vitest."
       }
     ],
     "generatedArtefacts": [

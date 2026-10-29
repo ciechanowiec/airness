@@ -292,6 +292,26 @@ of each server the application needs before it starts, with an optional member-r
 finds Storybook stories on those servers. The node harness owns the general browser rules; the installed
 Payload layer supplies its admin-view content selectors through `airness.layer.browser`.
 
+Resting and reflow measurements keep motion reduced and animations still. Keyboard and disclosure checks
+also run with normal motion, preserving transitions and animations. They verify that activation opens the
+disclosure and that focus becomes perceivable, including ancestor opacity, clipping and inert state. Pointer
+geometry and pixel-contrast comparisons remain in the still passes. Text clipped by a non-scrollable ancestor
+is a finding; inactive subtrees and text deliberately outside a scrollable region are distinguished from it.
+
+Authored Next.js `not-found` boundaries are scanned through their real application layouts, with concrete
+locale and dynamic prefixes taken from discovered routes. The expected top-level document 404 is allowed;
+failed subresources remain findings. A boundary with no resolvable public prefix fails discovery.
+
+A route delegated to project specifications needs a completed `expectSweptPage(page)` scan from
+`@airness/node/a11y` in the current run. The helper records evidence only after every required viewport passes
+and the URL remains unchanged. Discovery clears earlier evidence before dependent specifications start;
+teardown checks it after they finish. A source-level call that never executes fails as `route-unexecuted`.
+Project and layer specifications depend on discovery. Playwright's `--no-deps` is available for a focused
+diagnostic, which establishes no complete sweep verdict.
+
+`expectPerceivable(control)` from `@airness/node/a11y` checks painted visibility within 1.5 seconds, without
+moving focus or scrolling on the test's behalf. Use it for time-sensitive keyboard regressions.
+
 `mvn airness:assets-init` synchronizes managed files and creates absent optional scaffolds, including a nightly
 and release full-verification workflow in a repository with node projects. Scaffolds belong to the project:
 ordinary `assets-sync` and verification neither require nor recreate them. Customize the workflow's services

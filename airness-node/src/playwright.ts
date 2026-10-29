@@ -232,6 +232,7 @@ const declared: ReturnType<typeof defineConfig> = defineConfig({
   projects: [
     {
       name: 'harness',
+      dependencies: [SWEEP_DISCOVERY],
       testDir: here,
       testMatch: SHIPPED_SPECS,
       testIgnore: SWEEP_SPEC,
@@ -241,12 +242,14 @@ const declared: ReturnType<typeof defineConfig> = defineConfig({
     ...sweepProjects,
     ...layerProjects.map((project: LayerProject) => ({
       ...project,
+      dependencies: [SWEEP_DISCOVERY],
       workers: 1,
     })),
     ...(existsSync(PROJECT_SPECS)
       ? [
           {
             name: 'project',
+            dependencies: [SWEEP_DISCOVERY],
             testDir: PROJECT_SPECS,
             testMatch: '**/*.e2e.spec.ts',
             workers: 1,

@@ -16,11 +16,14 @@
 import { readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, type TestInfo, test } from '@playwright/test'
+import { unsweptRoutes } from './a11y.js'
 import type { TemplateSample } from './browser-discovery.js'
 import { type DeclaredExemption, staleExemptions, type UsedExemption } from './browser-exemptions.js'
 import { type BrowserFinding, distinctFindings, findingLine } from './browser-findings.js'
 import { BROWSER_ENGINES, enginePassParts, type Shard, type SweepPass } from './browser-run.js'
 import { coversEveryEngine } from './change-scope-policy.js'
+import { projectSettings } from './project-settings.js'
+import { completedScanRoutes } from './scan-evidence.js'
 import {
   type Discovery,
   type DiscoveryReport,
@@ -117,6 +120,8 @@ const NOTHING_DISCOVERED: Discovery = {
 }
 
 const NO_DISCOVERY_REPORT: DiscoveryReport = {
+  visitedRoutes: [],
+  answeredRoutes: [],
   findings: [],
   problems: [],
   places: 0,
@@ -213,6 +218,18 @@ const readRecord = (info: TestInfo): SweepRecord => {
   }
 }
 
+const summaryProblems = (record: SweepRecord, info: TestInfo): readonly string[] =>
+  record.discovery === undefined || record.discoveryReport === undefined
+    ? ['discovery did not record what to scan; its own test names the reason']
+    : [
+        ...record.discoveryReport.problems,
+        ...unsweptRoutes(
+          record.discoveryReport.visitedRoutes,
+          record.discoveryReport.answeredRoutes,
+          completedScanRoutes(info.project.outputDir, new URL(projectSettings.serverUrl).origin),
+        ),
+      ]
+
 /**
  * Judge discovery's problems and findings and the exemptions no part of a pass used, write the report
  * and the coverage summary, and fail when a part of a pass did not finish. It runs as the sweep's
@@ -221,10 +238,7 @@ const readRecord = (info: TestInfo): SweepRecord => {
 export const expectSweepSummary = async (): Promise<void> => {
   const info: TestInfo = test.info()
   const record: SweepRecord = readRecord(info)
-  const problems: readonly string[] =
-    record.discovery === undefined || record.discoveryReport === undefined
-      ? ['discovery did not record what to scan; its own test names the reason']
-      : record.discoveryReport.problems
+  const problems: readonly string[] = summaryProblems(record, info)
   const discoveryFindings: readonly BrowserFinding[] = distinctFindings(record.discoveryReport?.findings ?? [])
   const stale: readonly BrowserFinding[] = record.engines.flatMap((engine: string): readonly BrowserFinding[] =>
     staleIn(engine, record.reports),

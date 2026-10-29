@@ -19,7 +19,7 @@ run_node_gate_cases() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
-        <version>1.0.8-SNAPSHOT</version>
+        <version>1.0.9-SNAPSHOT</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>library</artifactId>
@@ -219,6 +219,8 @@ start_airness_node_registry() {
     fi
     registry_staging="$(mktemp -d "${scratch}/.airness-node-registry-XXXXXX")"
     registry_port_file="${registry_staging}/port"
+    registry_archive="${registry_staging}/airness-node.tgz"
+    cp "${repository}/airness-node/target/airness-node-${harness_version}.tgz" "${registry_archive}"
     set --
     for fixture_package in "${repository}"/airness-it/fixtures/node-packages/*; do
         fixture_staging="${registry_staging}/packages/$(basename "${fixture_package}")"
@@ -229,7 +231,7 @@ start_airness_node_registry() {
     done
     python3 "${repository}/airness-assets/src/main/resources/airness/project-files/node/.airness/npm-registry.py.asset" \
         --port-file "${registry_port_file}" \
-        --fresh "${repository}/airness-node/target/airness-node-${harness_version}.tgz" --old "$@" \
+        --fresh "${registry_archive}" --old "$@" \
         > "${registry_staging}/registry.log" 2>&1 &
     registry_waited=0
     while [ ! -s "${registry_port_file}" ]; do
@@ -310,7 +312,7 @@ run_node_next_cases() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
-        <version>1.0.8-SNAPSHOT</version>
+        <version>1.0.9-SNAPSHOT</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>site</artifactId>

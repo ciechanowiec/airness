@@ -13,7 +13,7 @@ fi
 
 selected_domain="${1-}"
 case "${selected_domain}" in
-    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser)
+    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser|browser-evidence)
         ;;
     *)
         printf 'Unknown Airness integration domain: %s\n' "${selected_domain}" >&2
@@ -95,6 +95,7 @@ fi
 . "${repository}/airness-it/cases/node-projects.sh"
 . "${repository}/airness-it/cases/node-gates.sh"
 . "${repository}/airness-it/cases/node-browser.sh"
+. "${repository}/airness-it/cases/browser-evidence.sh"
 
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -167,6 +168,9 @@ case "${selected_domain}" in
         ;;
     browser)
         run_node_browser_cases
+        ;;
+    browser-evidence)
+        run_browser_evidence_cases
         ;;
     node)
         run_node_project_cases

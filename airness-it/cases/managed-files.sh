@@ -18,7 +18,7 @@ run_managed_file_cases() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent</artifactId>
-        <version>1.0.8-SNAPSHOT</version>
+        <version>1.0.9-SNAPSHOT</version>
         <relativePath/>
     </parent>
     <groupId>com.example</groupId>
@@ -41,7 +41,7 @@ POM
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-java</artifactId>
-        <version>1.0.8-SNAPSHOT</version>
+        <version>1.0.9-SNAPSHOT</version>
         <relativePath/>
     </parent>
     <groupId>com.example</groupId>
@@ -60,7 +60,7 @@ POM
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent</artifactId>
-        <version>1.0.8-SNAPSHOT</version>
+        <version>1.0.9-SNAPSHOT</version>
         <relativePath/>
     </parent>
     <groupId>com.example</groupId>
