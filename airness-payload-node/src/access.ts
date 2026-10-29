@@ -4,8 +4,9 @@
 // there. What the running application's answer means is decided in access-boundary.ts.
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { readKey } from '@airness/node/json-shapes'
 import { type DatalessFields, datalessFieldsIn } from './access-boundary.js'
-import { readJsonFile, readKey } from './json-shapes.js'
+import { readJsonFile } from './json-file.js'
 import { payloadConfigPathOf } from './payload-defaults.js'
 import { type PublicAccess, readPayloadSettings } from './payload-settings.js'
 

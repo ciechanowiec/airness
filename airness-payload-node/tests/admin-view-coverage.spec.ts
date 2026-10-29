@@ -1,6 +1,6 @@
+import type { SpecSource } from '@airness/node/axe-coverage'
 import { describe, expect, it } from 'vitest'
 import { type DeclaredAdminView, findDeclaredAdminViews, findUnscannedAdminViews } from '@/admin-view-coverage.js'
-import type { SpecSource } from '@/axe-coverage.js'
 
 const CONFIG: string = `
 export default buildConfig({

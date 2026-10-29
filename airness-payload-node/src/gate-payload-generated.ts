@@ -3,11 +3,13 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { failed, type GateResult, notApplicable, passed, withOutput } from '@airness/node/gate-result'
+import { readKey } from '@airness/node/json-shapes'
 import { findGeneratedDrift, type RegeneratedArtefact } from './generated-drift.js'
-import { readJsonFile, readKey } from './json-shapes.js'
-import { asFindings, failed, type GateResult, notApplicable, passed, withOutput } from './outcome.js'
+import { readJsonFile } from './json-file.js'
 import { analysisEnvironment, PAYLOAD_PACKAGE, type PayloadMember } from './payload-member.js'
 import { type RunResult, runNode } from './process-run.js'
+import { asFindings } from './tool-findings.js'
 
 /** The files the Payload CLI generates in a member that keeps Payload's layout. */
 const PAYLOAD_GENERATED_FILES: readonly string[] = [

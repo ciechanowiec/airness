@@ -1,6 +1,10 @@
-// The result file: the only contract between `airness:node-gate` and a gate.
+// The result file: the only contract between `airness:node-gate` and a gate, and the outcome of one gate in one
+// member, which a stack layer's gates build with the same constructors as the node layer's.
 import type { GateResult } from './exec.js'
 import { ROOT_MEMBER_PATH } from './workspace.js'
+
+export type { GateResult } from './exec.js'
+export { failed, notApplicable, passed, withOutput } from './exec.js'
 
 /** The version of the result-file shape this package writes. */
 export const RESULT_CONTRACT: number = 1

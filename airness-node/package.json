@@ -50,6 +50,18 @@
       "types": "./dist/source-text.d.ts",
       "default": "./dist/source-text.js"
     },
+    "./json-shapes": {
+      "types": "./dist/json-shapes.d.ts",
+      "default": "./dist/json-shapes.js"
+    },
+    "./axe-coverage": {
+      "types": "./dist/axe-coverage.d.ts",
+      "default": "./dist/axe-coverage.js"
+    },
+    "./text-escapes": {
+      "types": "./dist/text-escapes.d.ts",
+      "default": "./dist/text-escapes.js"
+    },
     "./gate-result": {
       "types": "./dist/gate-result.d.ts",
       "default": "./dist/gate-result.js"

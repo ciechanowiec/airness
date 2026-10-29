@@ -10,8 +10,8 @@
 // multiplies both the resolution machinery and the false-positive surface with no evidence that it is
 // needed, so the depth stops at the one that reaches the defect.
 
+import type { SpecSource } from '@airness/node/axe-coverage'
 import { balancedArguments, NOT_FOUND, occurrences, stripComments } from '@airness/node/source-text'
-import type { SpecSource } from './axe-coverage.js'
 import { type FoundRootConfig, rootConfigsIn } from './payload-database.js'
 import { LOCAL_API_CALLS, PAYLOAD_RECEIVER } from './payload-policy.js'
 import { depthOneValue, type PayloadViolation } from './payload-source.js'

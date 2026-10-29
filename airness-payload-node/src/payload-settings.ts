@@ -2,7 +2,7 @@
 // settings live under `airness`; these two exist only because Payload does, so they belong to this layer.
 // Every default is strict: a member that declares nothing grants no anonymous permission, and the analysis
 // placeholders are the two variables Payload itself requires.
-import { asRecord, asStringRecord, asText, isArray, readKey } from './json-shapes.js'
+import { asRecord, asStringRecord, asText, isArray, readKey } from '@airness/node/json-shapes'
 
 /** The key of package.json a Payload member declares its Payload settings under. */
 const PAYLOAD_SETTINGS_KEY: string = 'airnessPayload'

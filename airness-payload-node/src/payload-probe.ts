@@ -14,7 +14,7 @@
 // register the same module twice under two URLs, and a project function cannot be byte-identical to Payload's
 // by accident. Nothing here imports `payload` by name: the copy that matters is the one the project installed.
 import { pathToFileURL } from 'node:url'
-import { isArray, isRecord, readKey } from './json-shapes.js'
+import { isArray, isRecord, readKey } from '@airness/node/json-shapes'
 import {
   type AnonymousRead,
   accessOperationsFor,

@@ -1,5 +1,5 @@
+import type { SpecSource } from '@airness/node/axe-coverage'
 import { describe, expect, it } from 'vitest'
-import type { SpecSource } from '@/axe-coverage.js'
 import {
   type BootstrapHook,
   bootstrapHooksIn,

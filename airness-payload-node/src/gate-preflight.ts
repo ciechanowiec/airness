@@ -3,8 +3,9 @@
 // Payload, its first-party packages and its renderer the layer decides. A workspace may hold packages that
 // are no Payload application, such as a shared library, so the refusal is asked of the whole node project.
 import path from 'node:path'
-import { declaredDependencies, readJsonFile, readKey } from './json-shapes.js'
-import { failed, type GateResult, passed } from './outcome.js'
+import { failed, type GateResult, passed } from '@airness/node/gate-result'
+import { declaredDependencies, readKey } from '@airness/node/json-shapes'
+import { readJsonFile } from './json-file.js'
 import type { PayloadMember } from './payload-member.js'
 import { findPinViolations, type InstalledPackage, pinnedVersionOf, REQUIRED_PINS } from './payload-pins.js'
 

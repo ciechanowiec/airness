@@ -3,9 +3,9 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { failed, type GateResult, notApplicable, passed } from '@airness/node/gate-result'
 import { memberFiles } from '@airness/node/source-selection'
 import { workingTreeFiles } from '@airness/node/working-tree'
-import { failed, type GateResult, notApplicable, passed } from './outcome.js'
 import {
   type DockerfileSource,
   ENVIRONMENT_EXAMPLE_FILES,

@@ -2,8 +2,9 @@
 // framework-neutral entries (MongoDB drivers, Elastic, Ghostscript wrappers and the rest) are the generic
 // layer's; these exist because of Payload: its MongoDB adapter, and the drivers of database servers Payload has
 // no adapter for, which a project could reach only to run a second, proprietary database beside its own.
+
+import { asRecord, readKey } from '@airness/node/json-shapes'
 import { parse } from 'yaml'
-import { asRecord, readKey } from './json-shapes.js'
 
 /** One refused package, with why it is refused and what to use instead. */
 export interface BlockedPackage {

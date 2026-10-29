@@ -1,7 +1,7 @@
 // Require static test evidence for authored admin views excluded from the anonymous crawl.
 
+import { containsRoute, reachesAxe, type SpecSource } from '@airness/node/axe-coverage'
 import { balancedArguments, lineOf, stripComments } from '@airness/node/source-text'
-import { containsRoute, reachesAxe, type SpecSource } from './axe-coverage.js'
 import type { PayloadViolation } from './payload-source.js'
 
 /** A custom admin view a Payload configuration declares, and where it declares it. */

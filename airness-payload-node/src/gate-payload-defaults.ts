@@ -7,8 +7,8 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readJsonFile } from './json-shapes.js'
-import { asFindings, failed, type GateResult, notApplicable, passed, withOutput } from './outcome.js'
+import { failed, type GateResult, notApplicable, passed, withOutput } from '@airness/node/gate-result'
+import { readJsonFile } from './json-file.js'
 import {
   findInheritedAccess,
   findUnconstrainedDraftReads,
@@ -23,6 +23,7 @@ import {
   parsePayloadSecurityReport,
 } from './payload-security.js'
 import { type RunResult, runNode } from './process-run.js'
+import { asFindings } from './tool-findings.js'
 
 // Where Payload keeps the function it fills an undeclared operation with. Named by path because the package's
 // exports map does not expose it; the stack pins `payload` exactly, so a layout change arrives with an

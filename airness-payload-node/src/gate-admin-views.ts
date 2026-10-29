@@ -4,9 +4,10 @@
 // credential. A custom view is the project's markup behind that exemption, and nothing else in the harness looks
 // at it. The harness cannot scan it, since it cannot sign in and does not know which container is the project's
 // rather than the framework's, so it requires the project to have scanned it instead.
+
+import type { SpecSource } from '@airness/node/axe-coverage'
+import { failed, type GateResult, notApplicable, passed } from '@airness/node/gate-result'
 import { type DeclaredAdminView, findDeclaredAdminViews, findUnscannedAdminViews } from './admin-view-coverage.js'
-import type { SpecSource } from './axe-coverage.js'
-import { failed, type GateResult, notApplicable, passed } from './outcome.js'
 import type { PayloadMember } from './payload-member.js'
 import type { PayloadViolation } from './payload-source.js'
 import { payloadSourcesOf } from './payload-sources.js'

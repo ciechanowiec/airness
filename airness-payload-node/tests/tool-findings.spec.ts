@@ -1,28 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { asFindings, failed, notApplicable, passed, withOutput } from '@/outcome.js'
-
-describe('gate outcomes', () => {
-  it('passes with a summary and no finding', () => {
-    expect(passed('clean')).toStrictEqual({ ok: true, findings: [], summary: 'clean' })
-  })
-
-  it('fails with the findings to act on', () => {
-    expect(failed('broken', ['fix it'])).toStrictEqual({ ok: false, findings: ['fix it'], summary: 'broken' })
-  })
-
-  it('marks a member without anything to judge as not applicable rather than as a pass', () => {
-    expect(notApplicable('no Payload')).toStrictEqual({
-      ok: true,
-      findings: [],
-      summary: 'no Payload',
-      isApplicable: false,
-    })
-  })
-
-  it('carries the tool output beside the verdict', () => {
-    expect(withOutput(passed('clean'), 'printed').output).toBe('printed')
-  })
-})
+import { asFindings } from '@/tool-findings.js'
 
 describe('asFindings', () => {
   it('keeps the non-blank lines of the output', () => {

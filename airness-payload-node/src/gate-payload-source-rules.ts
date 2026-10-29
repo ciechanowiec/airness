@@ -3,9 +3,9 @@
 // The language half, which holds in any package, is the node layer's source-rules gate.
 import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
+import type { SpecSource } from '@airness/node/axe-coverage'
+import { failed, type GateResult, notApplicable, passed } from '@airness/node/gate-result'
 import { stripComments } from '@airness/node/source-text'
-import type { SpecSource } from './axe-coverage.js'
-import { failed, type GateResult, notApplicable, passed } from './outcome.js'
 import { findBootstrapWrites } from './payload-bootstrap.js'
 import {
   declaredMigrationDirectoryIn,

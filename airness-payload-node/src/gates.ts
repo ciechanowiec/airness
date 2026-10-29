@@ -1,6 +1,8 @@
 // The Payload gates, each bound by airness-parent-payload as one airness:node-gate execution. Registry order is
 // the order the parent binds them in: the precondition first, then the source reads, then the gates that
 // import the configuration.
+
+import type { GateResult } from '@airness/node/gate-result'
 import { adminViews } from './gate-admin-views.js'
 import { payloadBlocklist } from './gate-payload-blocklist.js'
 import { payloadDefaults } from './gate-payload-defaults.js'
@@ -8,7 +10,6 @@ import { payloadEnvironment } from './gate-payload-environment.js'
 import { payloadGenerated } from './gate-payload-generated.js'
 import { payloadSourceRules } from './gate-payload-source-rules.js'
 import { preflight } from './gate-preflight.js'
-import type { GateResult } from './outcome.js'
 import type { PayloadMember } from './payload-member.js'
 
 /** One Payload gate. */

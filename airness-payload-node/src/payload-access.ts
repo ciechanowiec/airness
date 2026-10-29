@@ -15,9 +15,9 @@ import {
   topLevelKeys,
   topLevelSlice,
 } from '@airness/node/source-text'
+import { escapeForRegex } from '@airness/node/text-escapes'
 import { type FoundPayloadConfig, type PayloadConfigKind, payloadConfigsIn } from './payload-configs.js'
 import { configBody, depthOneBlockKeys, depthOneValue, type PayloadViolation } from './payload-source.js'
-import { escapeForRegex } from './text-escapes.js'
 
 const eachConfig = (
   source: string,
