@@ -12,7 +12,7 @@
 // with the reason each. No project setting widens the list: a rule a project can edit is not a rule, and
 // the repair is always available - write the access explicitly, through the override the framework
 // offers for the entity it built.
-import { asRecord, asText, isArray, isRecord, readKey } from './json-shapes.js'
+import { asRecord, asText, isArray, isRecord, readKey } from '@airness/node/json-shapes'
 
 /** The operations a collection must decide; the static rule holds a written config to the same list. */
 export const COLLECTION_OPERATIONS: readonly string[] = ['create', 'read', 'update', 'delete']

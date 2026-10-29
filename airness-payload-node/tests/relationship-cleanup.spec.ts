@@ -4,8 +4,9 @@
 // every exemption is asserted as well as the finding. That balance is the point: each exemption is a
 // way the rule could fire on a configuration that is correct, and a rule that cried wolf on
 // `hasMany: true` would be worse than no rule, because a project would learn to ignore it.
+
+import type { SpecSource } from '@airness/node/axe-coverage'
 import { describe, expect, it } from 'vitest'
-import type { SpecSource } from '@/axe-coverage.js'
 import { findUnguardedRelationships, type LocatedViolation } from '@/relationship-cleanup.js'
 
 const GUARDED_TARGET: SpecSource = {

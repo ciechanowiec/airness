@@ -3,7 +3,7 @@
 // rules where it applies the node ones.
 import nodeConfig from '@airness/node/eslint'
 import { hookContextBlock, NO_MOCK_PROPERTIES } from '@airness/node/eslint-core'
-import { isArray } from './json-shapes.js'
+import { isArray } from '@airness/node/json-shapes'
 import { VALIDATED_ENVIRONMENT_MODULE } from './payload-environment.js'
 
 // Where a Payload project writes its hooks, and therefore the one place `req.context` is written.

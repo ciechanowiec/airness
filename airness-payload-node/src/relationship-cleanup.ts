@@ -1,7 +1,7 @@
 // Require cleanup when a required relationship would otherwise prevent deletion of the referenced document.
 
+import type { SpecSource } from '@airness/node/axe-coverage'
 import { enclosingLiteral, occurrences, stripComments } from '@airness/node/source-text'
-import type { SpecSource } from './axe-coverage.js'
 import { type FoundPayloadConfig, payloadConfigsIn } from './payload-configs.js'
 import { depthOneBlockKeys, depthOneValue, type PayloadViolation } from './payload-source.js'
 

@@ -2,9 +2,9 @@
 // roots that a commit would carry, without the files a generator owns or another member's files.
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import type { SpecSource } from '@airness/node/axe-coverage'
 import { matchesAnyGlob, memberFiles } from '@airness/node/source-selection'
 import { workingTreeFiles } from '@airness/node/working-tree'
-import type { SpecSource } from './axe-coverage.js'
 import type { PayloadMember } from './payload-member.js'
 
 /** The extensions of TypeScript source. */

@@ -1,5 +1,5 @@
 // Compare Payload anonymous grants with explicit entity and field declarations, including stale exceptions.
-import { isArray, readKey } from './json-shapes.js'
+import { isArray, readKey } from '@airness/node/json-shapes'
 import { COLLECTION_OPERATIONS, READ_VERSIONS_OPERATION, UNLOCK_OPERATION } from './payload-defaults.js'
 import type { PublicAccess } from './payload-settings.js'
 

@@ -2,7 +2,7 @@
 // at any depth is judged. The lockfile belongs to the node project, so the project member answers for all.
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { failed, type GateResult, passed } from './outcome.js'
+import { failed, type GateResult, passed } from '@airness/node/gate-result'
 import { findBlockedPackages, resolvedPackagesIn } from './payload-blocklist.js'
 import type { PayloadMember } from './payload-member.js'
 

@@ -1,9 +1,9 @@
+import type { GateResult } from '@airness/node/gate-result'
 import { describe, expect, it } from 'vitest'
 import { adminViews } from '@/gate-admin-views.js'
 import { payloadBlocklist } from '@/gate-payload-blocklist.js'
 import { payloadEnvironment } from '@/gate-payload-environment.js'
 import { payloadSourceRules } from '@/gate-payload-source-rules.js'
-import type { GateResult } from '@/outcome.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { payloadMemberAt, projectForTest } from './helpers/temporary-project.js'
 

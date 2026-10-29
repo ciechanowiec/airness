@@ -1,5 +1,5 @@
 // Security decisions over the configuration Payload actually resolves, including plugin contributions.
-import { isArray, isRecord, readKey } from './json-shapes.js'
+import { isArray, isRecord, readKey } from '@airness/node/json-shapes'
 import { parsePayloadReport } from './payload-defaults.js'
 
 /** Authentication values observed after Payload has applied its defaults and plugins. */

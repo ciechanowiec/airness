@@ -3,8 +3,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { parseEnv } from 'node:util'
+import { declaredDependencies } from '@airness/node/json-shapes'
 import type { Member } from '@airness/node/project'
-import { declaredDependencies } from './json-shapes.js'
 import { type PayloadSettings, readPayloadSettings } from './payload-settings.js'
 
 /** The package whose declaration makes a member a Payload application. */
