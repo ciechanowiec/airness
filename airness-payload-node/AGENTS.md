@@ -1,0 +1,5 @@
+<!-- BEGIN AIRNESS MANAGED: node -->
+## Airness node layer
+
+This directory is a node project, listed in `airness.node.projects` by its module. Follow the repository-root `AGENTS.md` first, then the node rules the harness checks here.
+<!-- END AIRNESS MANAGED: node -->

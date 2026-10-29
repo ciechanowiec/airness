@@ -1,0 +1,3 @@
+## Airness Payload layer
+
+In every module that inherits `airness-parent-payload`, also follow `.airness/agent-guide-payload.md`.

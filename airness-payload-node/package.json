@@ -1,0 +1,168 @@
+{
+  "name": "ploaness",
+  "version": "2.0.1-SNAPSHOT",
+  "description": "The Payload gates of the Airness Payload layer, the layer defaults the node gates read, and the Payload ESLint configuration.",
+  "keywords": [
+    "payload",
+    "payloadcms",
+    "airness",
+    "governance"
+  ],
+  "license": "MIT",
+  "author": "Herman Ciechanowiec <herman@ciechanowiec.eu>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ciechanowiec/ploaness.git",
+    "directory": "ploaness-node"
+  },
+  "homepage": "https://github.com/ciechanowiec/ploaness#readme",
+  "type": "module",
+  "bin": {
+    "ploaness": "./dist/bin.js"
+  },
+  "exports": {
+    "./eslint": {
+      "types": "./dist/eslint.d.ts",
+      "default": "./dist/eslint.js"
+    },
+    "./package.json": "./package.json",
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "package": "pnpm pack --pack-destination target"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "dependencies": {
+    "@airness/node": "1.0.9-SNAPSHOT",
+    "tsx": "4.23.15",
+    "yaml": "2.9.1"
+  },
+  "peerDependencies": {
+    "@playwright/test": "1.64.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "@vitest/coverage-v8": "5.0.5",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  },
+  "airness": {
+    "layer": {
+      "generatedArtefacts": [
+        "src/payload-types.ts",
+        "src/payload-generated-schema.ts",
+        "src/app/?payload?/**"
+      ],
+      "frameworkGlue": [
+        "src/payload.config.ts"
+      ],
+      "javascriptAllowlist": [
+        {
+          "pattern": "(^|/)src/app/\\(payload\\)/admin/importMap\\.js$",
+          "runtime": "node"
+        }
+      ],
+      "pureLogicRoots": [
+        "src/access",
+        "src/lib"
+      ],
+      "accessibilitySkipRoutes": [
+        "/admin",
+        "/api"
+      ],
+      "e2eSpecs": "dist",
+      "eslint": "./eslint",
+      "browser": "./browser",
+      "securityOverrides": [
+        {
+          "parent": "@esbuild-kit/core-utils@3.3.2",
+          "dependency": "esbuild",
+          "version": "0.28.2",
+          "advisories": [
+            "GHSA-67mh-4wv8-2f99"
+          ],
+          "reason": "The database adapter reaches the old esbuild-kit loader through drizzle-kit; this patched release retains its transform API and satisfies the Vite optional peer used by verification.",
+          "addedOn": "2026-10-28"
+        },
+        {
+          "parent": "monaco-editor@0.57.0",
+          "dependency": "dompurify",
+          "version": "3.4.17",
+          "advisories": [
+            "GHSA-55q2-fjhq-7xh7",
+            "GHSA-6688-9rhm-gjv2",
+            "GHSA-c2j3-45gr-mqc4",
+            "GHSA-c6gr-qvv4-5v3f",
+            "GHSA-cg2g-xh64-v4q7",
+            "GHSA-cmwh-pvxp-8882",
+            "GHSA-mrv2-3pqr-j5jr",
+            "GHSA-vxr8-fq34-vvx9",
+            "GHSA-p98j-92pf-mc4p"
+          ],
+          "reason": "The Payload code editor pins a vulnerable DOMPurify patch; the corrected patch retains the sanitizer API.",
+          "addedOn": "2026-10-28"
+        },
+        {
+          "parent": "payload@3.91.0",
+          "dependency": "undici",
+          "version": "7.30.1",
+          "advisories": [
+            "GHSA-2m5v-pch6-74hx",
+            "GHSA-4qv8-2p9j-2685",
+            "GHSA-4w7w-5xrc-9h26",
+            "GHSA-55wc-3pg8-jfw6",
+            "GHSA-9fm3-97px-rjf6",
+            "GHSA-f72v-6w45-q472",
+            "GHSA-qrxm-fqhp-jwvm",
+            "GHSA-xjj6-f33q-929c"
+          ],
+          "reason": "Payload pins the HTTP client to an affected 7.x release; this repair stays within that major.",
+          "addedOn": "2026-10-28"
+        },
+        {
+          "parent": "@lexical/headless@0.50.0",
+          "dependency": "happy-dom",
+          "version": "21.0.4",
+          "advisories": [
+            "GHSA-834v-8h66-3h79"
+          ],
+          "reason": "The Payload rich-text dependency still requests happy-dom 20; its optional DOM entry uses the same Window API from the corrected release.",
+          "addedOn": "2026-10-28"
+        }
+      ],
+      "vitestInlineDependencies": [
+        "@payloadcms/next",
+        "@payloadcms/ui",
+        "react-image-crop"
+      ]
+    },
+    "coverageExclude": [
+      {
+        "pattern": "src/bin.ts",
+        "reason": "the executable's entry point, which runs only as a process of its own; the command line it starts is measured"
+      },
+      {
+        "pattern": "src/eslint.ts",
+        "reason": "the ESLint configuration a Payload project's editor loads in a process of its own; nothing in this package's suite runs ESLint"
+      },
+      {
+        "pattern": "src/access.ts",
+        "reason": "read only by the shipped access-boundary specification, inside a Playwright worker started in a Payload application; the decisions it feeds are measured in access-boundary.ts"
+      },
+      {
+        "pattern": "src/browser.ts",
+        "reason": "the Payload template selectors are consumed by the browser adapter inside Playwright; the real Payload browser fixture proves which content is scanned"
+      }
+    ]
+  }
+}

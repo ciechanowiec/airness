@@ -1,0 +1,8 @@
+# The files Payload writes in each node project of a Payload module: the types and the database schema its CLI
+# generates from the configuration, and the admin and API glue under src/app/(payload), which create-payload-app
+# scaffolds with the header "THIS FILE WAS GENERATED AUTOMATICALLY BY PAYLOAD. DO NOT MODIFY IT" and whose import
+# map the CLI regenerates. Agents may not edit them; payload-generated regenerates the types and the import map
+# and fails on drift.
+src/payload-types.ts	NODE_PROJECT
+src/payload-generated-schema.ts	NODE_PROJECT
+src/app/(payload)/**	NODE_PROJECT

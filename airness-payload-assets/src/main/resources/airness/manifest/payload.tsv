@@ -1,0 +1,10 @@
+# Files a repository carries when any of its modules inherits airness-parent-payload: at the repository root,
+# and in every node project of such a module. The columns and policies are the ones generic.tsv describes.
+# A Payload project's ESLint configuration names the Payload layer's, which extends the node layer's, so the
+# Payload capability overrides the node body of that one file.
+
+.airness/agent-guide-payload.md	PINNED
+AGENTS.md	SECTION
+AGENTS.md	SECTION	NODE_PROJECT
+.gitignore	SECTION	NODE_PROJECT
+eslint.config.mjs	PINNED	NODE_PROJECT	OVERRIDES node
