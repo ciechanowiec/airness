@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The parent a Payload CMS module inherits. It is built and versioned in the ploaness repository, at the
+        ploaness version, on the airness-parent-node release named below: the two numbers are independent, and
+        the wiring gate holds the resolved ploaness package to this parent's version and @airness/node to the
+        node parent's.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent-node</artifactId>
+        <version>1.0.9-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent-payload</artifactId>
+    <version>2.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>airness-parent-payload</name>
+    <description>
+        The parent a Payload CMS module inherits: the node parent, plus the Payload gates the ploaness npm package
+        ships, each run by airness:node-gate, and the Payload layer's managed files. A consumer inheriting it
+        declares pom packaging and depends on the ploaness npm package at this parent's version.
+    </description>
+    <url>https://github.com/ciechanowiec/ploaness</url>
+
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/license/mit</url>
+        </license>
+    </licenses>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <!--
+                    The Payload layer's managed files and generated-file declarations, on the classpath the asset
+                    catalogue and the generated-file denial read. The version is written out rather than taken from
+                    project.version, which in a consumer is the consumer's own; it is this parent's version.
+                -->
+                <dependencies>
+                    <dependency>
+                        <groupId>eu.ciechanowiec</groupId>
+                        <artifactId>ploaness-assets</artifactId>
+                        <version>2.0.1-SNAPSHOT</version>
+                    </dependency>
+                </dependencies>
+                <!--
+                    One node-gate execution per Payload gate, each running the gate the ploaness package ships. The
+                    precondition runs once the dependencies are installed, before anything else is judged. The others
+                    run at post-integration-test, the last phase before verify: closing is the last execution of verify,
+                    and a verify execution a child parent binds would run after it, which completion-order refuses.
+                -->
+                <executions>
+                    <execution>
+                        <id>node-gate-preflight</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>preflight</gate>
+                            <command>ploaness gate preflight</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-payload-blocklist</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>payload-blocklist</gate>
+                            <command>ploaness gate payload-blocklist</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-payload-source-rules</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>payload-source-rules</gate>
+                            <command>ploaness gate payload-source-rules</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-admin-views</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>admin-views</gate>
+                            <command>ploaness gate admin-views</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-payload-environment</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>payload-environment</gate>
+                            <command>ploaness gate payload-environment</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-payload-generated</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>payload-generated</gate>
+                            <command>ploaness gate payload-generated</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-payload-defaults</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>payload-defaults</gate>
+                            <command>ploaness gate payload-defaults</command>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

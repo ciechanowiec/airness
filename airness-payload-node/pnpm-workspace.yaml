@@ -1,0 +1,13 @@
+allowBuilds:
+  esbuild: true
+
+minimumReleaseAge: 1440
+
+minimumReleaseAgeStrict: true
+
+minimumReleaseAgeExclude:
+  - "@airness/node"
+
+# The generic harness approves the patched dependency of its functional lint plugin.
+overrides:
+  "eslint-plugin-functional@10.0.1>deepmerge-ts": "8.0.2"

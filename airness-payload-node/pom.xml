@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The npm package ploaness, governed as the TypeScript library it is. It inherits airness-parent-node,
+        not airness-parent-payload: the library is no Payload application, so the Payload gates have nothing
+        to judge here. The Payload layer is proven by the Payload applications ploaness-it builds.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent-node</artifactId>
+        <version>1.0.9-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>ploaness-node</artifactId>
+    <version>2.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>ploaness-node</name>
+    <description>
+        The Payload gates of the Airness Payload layer, published to npm as ploaness: the gates airness:node-gate
+        runs in a Payload module, the layer defaults the node gates read, and the Payload ESLint configuration.
+    </description>
+
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/license/mit</url>
+        </license>
+    </licenses>
+
+    <properties>
+        <airness.package.root>eu.ciechanowiec.ploaness</airness.package.root>
+        <!--
+            The @airness/node tarball this module installs until the package is published: the one the Airness
+            release this repository pins attaches to its airness-node artifact, read from the local repository and
+            served by the local registry below.
+        -->
+        <ploaness.airness-node.tarball>${settings.localRepository}/eu/ciechanowiec/airness-node/${airness.version}/airness-node-${airness.version}.tgz</ploaness.airness-node.tarball>
+    </properties>
+
+    <build>
+        <plugins>
+            <!--
+                The local registry that serves @airness/node until it is published, on a port of its own: it binds a free
+                port, writes the scope line into the ignored .npmrc, then the port file, and stops when Maven exits.
+                The stale port file goes first and the build waits for the new one, so node-dependencies, at
+                initialize, installs only once the registry answers, and two concurrent builds never share one.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>harness-registry-reset</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>mkdir -p "$0" &amp;&amp; rm -f "$0/registry.port"</argument>
+                                <argument>${project.build.directory}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>harness-registry</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>python3</executable>
+                            <async>true</async>
+                            <asyncDestroyOnShutdown>true</asyncDestroyOnShutdown>
+                            <arguments>
+                                <argument>${project.basedir}/.airness/npm-registry.py</argument>
+                                <argument>--port-file</argument>
+                                <argument>${project.build.directory}/registry.port</argument>
+                                <argument>--npmrc</argument>
+                                <argument>${project.basedir}/.npmrc</argument>
+                                <argument>--scope</argument>
+                                <argument>@airness</argument>
+                                <argument>--fresh</argument>
+                                <argument>${ploaness.airness-node.tarball}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>harness-registry-ready</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>waited=0; until [ -s "$0" ]; do [ "$waited" -ge 300 ] &amp;&amp; { echo "the local registry did not start" &gt;&amp;2; exit 1; }; sleep 0.1; waited=$((waited + 1)); done</argument>
+                                <argument>${project.build.directory}/registry.port</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The package's own build: the TypeScript compiled into dist before verify, where the gates run, and
+                then packed into target as the tarball the integration fixtures install. Both run under
+                -DskipTests too, so the tarball always matches the built package.
+            -->
+            <plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>node-build</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>node-run</goal>
+                        </goals>
+                        <configuration>
+                            <project>.</project>
+                            <script>build</script>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-pack</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>node-run</goal>
+                        </goals>
+                        <configuration>
+                            <project>.</project>
+                            <script>package</script>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-npm-package</id>
+                        <phase>package</phase>
+                        <goals><goal>attach-artifact</goal></goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>${project.build.directory}/ploaness-${project.version}.tgz</file>
+                                    <type>tgz</type>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

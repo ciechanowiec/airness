@@ -1,0 +1,13 @@
+{
+  "extends": "@airness/node/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"]
+}

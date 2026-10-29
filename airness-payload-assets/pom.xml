@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The Payload layer's inputs to the generic managed-file and generated-file mechanisms, read off the plugin
+        classpath: airness-parent-payload adds this jar to airness-maven-plugin, so the catalogue sees
+        airness/manifest/payload.tsv and the generated-file denial sees airness/generated/payload.txt. It holds
+        resources only, so it inherits the generic parent.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent</artifactId>
+        <version>1.0.9-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>ploaness-assets</artifactId>
+    <version>2.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>ploaness-assets</name>
+    <description>
+        The managed files, the generated files and the agent guidance the Airness Payload layer adds to a
+        repository with a Payload CMS module. Each canonical file is stored under an added .asset suffix, so a
+        stored .gitignore cannot take effect over the directory it is stored in.
+    </description>
+
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/license/mit</url>
+        </license>
+    </licenses>
+
+    <properties>
+        <airness.package.root>eu.ciechanowiec.ploaness</airness.package.root>
+    </properties>
+</project>
