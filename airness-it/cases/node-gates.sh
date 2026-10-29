@@ -54,8 +54,9 @@ POM
         'node gates: the node project carries the managed ESLint configuration' "@airness/node/eslint"
     expect_file_match "${node_library}/vitest.config.mts" \
         'node gates: the node project carries the managed Vitest configuration' "@airness/node/vitest"
+    lock_version="$(printf '%s' "${harness_version}" | sed 's/[.]/[.]/g')"
     expect_file_match "${node_library}/pnpm-lock.yaml" \
-        'node gates: the lockfile resolves @airness/node by its version' "'@airness/node@1[.]0[.]8-SNAPSHOT':"
+        'node gates: the lockfile resolves @airness/node by its version' "'@airness/node@${lock_version}':"
     if python3 - "${repository}/airness-node/target/airness-node-${harness_version}.tgz" \
         "${node_library}/pnpm-lock.yaml" <<'PY'
 import base64
