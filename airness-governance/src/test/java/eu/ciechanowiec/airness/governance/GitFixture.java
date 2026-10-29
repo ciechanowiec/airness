@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 
 /**
- * A real git working tree under {@code target/}, built one file at a time.
+ * A real git working tree in the system temporary directory, built one file at a time.
  *
  * <p>The checks read a repository through {@code git} itself, so a fixture that stood in for one would
  * be testing the stand-in. What a check does with an ignored file, an untracked file, or a path that is
@@ -21,10 +23,21 @@ import lombok.SneakyThrows;
  * one is using. Every command pins both the Git directory and working tree, so even a damaged fixture
  * cannot discover and modify the repository containing the tests. Hooks and signing are turned off,
  * because a fixture commit must not depend on how the machine running it is configured.
+ *
+ * <p>Every fixture of one test JVM sits beneath a single directory of the system temporary directory,
+ * outside the project, so that no nested repository is left in the build output. The directory is created
+ * with the first fixture and created again when a fixture follows its removal. A fixture's location is the
+ * real path, because git answers with the resolved top level, and on macOS the temporary directory is
+ * reached through a symbolic link. {@link GitFixtureCleanup} removes the directory whenever a launcher
+ * execution ends, unless a failure has been recorded in it. A recorded failure stays for the rest of the
+ * JVM, so the repositories of a failure are kept, named, and never removed by a later passing execution.
  */
 record GitFixture(Path root) {
 
-    private static final Path SCRATCH = Path.of("target", "fixtures");
+    private static final Path SCRATCH = Path.of(
+        System.getProperty("java.io.tmpdir"), "airness-git-fixtures-" + UUID.randomUUID()
+    );
+    private static final Path FAILED = SCRATCH.resolve(".failed");
 
     @SneakyThrows
     GitFixture(String name) {
@@ -132,9 +145,39 @@ record GitFixture(Path root) {
         }
     }
 
+    /**
+     * Records that a test of this JVM failed, so that its fixtures outlive every later execution.
+     */
+    @SneakyThrows
+    static void recordFailure() {
+        Files.createDirectories(SCRATCH);
+        Files.writeString(FAILED, "A test of this run failed.\n");
+    }
+
+    /**
+     * Ends an execution's fixtures: deletes them unless a failure was recorded, and names where they are then.
+     */
+    static void conclude() {
+        if (Files.exists(FAILED)) {
+            System.getLogger(GitFixture.class.getName())
+                .log(System.Logger.Level.WARNING, "Git fixtures kept for inspection: {0}", SCRATCH);
+        } else if (Files.isDirectory(SCRATCH)) {
+            delete();
+        }
+    }
+
+    @SneakyThrows
+    private static void delete() {
+        try (Stream<Path> paths = Files.walk(SCRATCH)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.delete(path);
+            }
+        }
+    }
+
     @SneakyThrows
     private static Path location(String name) {
         Files.createDirectories(SCRATCH);
-        return Files.createTempDirectory(SCRATCH, name + '-').toAbsolutePath().normalize();
+        return Files.createTempDirectory(SCRATCH, name + '-').toRealPath();
     }
 }
