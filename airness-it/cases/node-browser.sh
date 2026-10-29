@@ -48,6 +48,7 @@ expect_browser_line() {
 }
 
 run_node_browser_cases() {
+    run_browser_evidence_cases
     prepare_browser_fixture browser-visual
     # A scaffold is created only by initialization, remains editable, and stays deleted after normal sync.
     prepare_maven browser_init node "${browser_fixture}" --quiet airness:assets-init

@@ -41,6 +41,8 @@ Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
 - `sh airness-it/verify.sh browser` diagnoses the browser contracts alone against installed artifacts. It is a
   partial run; the complete integration verdict still requires the command without a domain.
+- `sh airness-it/verify.sh browser-evidence` diagnoses motion, ancestor clipping, missing-page layouts and
+  completed project scans. These cases also run in the browser domain and the complete integration suite.
 
 ## Coding Style & Naming Conventions
 

@@ -20,7 +20,8 @@ describe('the application lint scopes', () => {
   it('ignores Maven scanner copies without excluding the corresponding authored source', async () => {
     expect(await eslint.isPathIgnored(path.resolve('target/airness/actions/scan/input/src/page.ts'))).toBe(true)
     expect(await eslint.isPathIgnored(path.resolve('src/page.ts'))).toBe(false)
-    expect((await rulesAt('src/page.ts'))['@typescript-eslint/no-explicit-any']).toEqual([2])
+    const production: Record<string, unknown> = await rulesAt('src/page.ts')
+    expect(production['@typescript-eslint/no-explicit-any']).toEqual([2])
   })
 
   it('allows test literals and setup in Playwright while retaining production checks', async () => {
