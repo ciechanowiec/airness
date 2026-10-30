@@ -79,6 +79,24 @@ class StackConfinementTest {
         ),
         new Entry(".gitignore", Set.of(NODE_MODULE), "the .npmrc the stack's local registry writes"),
         new Entry(
+            "README.adoc",
+            Set.of(
+                NPM_PACKAGE, PRODUCT, WORD, PARENT, ASSETS_MODULE, NODE_MODULE, "agent-guide-payload.md",
+                "airnessPayload.publicAccess", "payload-blocklist", "payload-defaults", "payload-environment",
+                "payload-generated", "payload-source-rules", "payload-stack", "payload.sh", "payloadcms.com"
+            ),
+            "the Payload stack section: what it adds, how to attach it and how to remove it"
+        ),
+        new Entry(
+            "AGENTS.md", Set.of(NPM_PACKAGE, PRODUCT, WORD, PARENT, ASSETS_MODULE, NODE_MODULE),
+            "the project text naming the stack's modules and its integration domain"
+        ),
+        new Entry(".adocent/vocabulary.txt", Set.of(PRODUCT), "the product name the stack's documentation spells"),
+        new Entry(
+            ".github/workflows/release.yml", Set.of(PARENT, ASSETS_MODULE),
+            "the stack's Central artifacts in the publication inspection"
+        ),
+        new Entry(
             "airness-it/verify.sh",
             Set.of(
                 WORD, "payload.sh", "payload_package", "payload_mismatched_package", "prepare_payload_packages",

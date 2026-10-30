@@ -356,6 +356,34 @@ A pnpm workspace root and each of its members are judged as their own packages, 
 . The complete sweep belongs in release verification and in the nightly workflow scaffold. A delta sweep narrows only the automatic page and story sweep; its summary and compliance report retain that qualification.
 . `pnpm exec airness-node gate <id> --verbose` runs one gate in the node project it is started in and prints what the tool wrote. It diagnoses one finding and gives no verdict.
 
+[[payload-stack]]
+== Payload Stack
+
+. The Payload stack holds the rules that make sense only where https://payloadcms.com[Payload CMS^] is installed. Everything else a Payload repository is held to, from secrets and commit history to TypeScript, lint, tests and the browser sweep, is the generic and node rules above.
+. It applies to a module that inherits `airness-parent-payload`. That parent inherits `airness-parent-node`, so the module is a xref:#node-projects[node project] as well, and binds one `airness:node-gate` execution per gate the npm package `@airness/payload` ships: `preflight`, `payload-blocklist`, `payload-source-rules`, `admin-views`, `payload-environment`, `payload-generated` and `payload-defaults`. The managed agent guide, `.airness/agent-guide-payload.md`, states what each checks.
+. Every member that declares `@airness/payload` receives Payload's generated files, framework glue, pure-logic floor and admin routes as defaults of the node settings, and its ESLint configuration adds the Payload blocks to the node ones. `preflight` holds Payload, its first-party packages, `graphql`, `sharp`, Next.js and React to the versions the stack decides. The `airness-payload-assets` jar adds the Payload agent guide, the Payload blocks of `AGENTS.md` and `.gitignore`, the Payload ESLint configuration, and the generated files agents may not edit.
+. The Extended `e2e` gate runs the stack's access-boundary specification, which asks Payload's `/api/access` what an anonymous caller may do and fails on every grant the project did not declare under `airnessPayload.publicAccess` in its `package.json`. A custom admin view is scanned within Payload's template through the stack's `airness.layer.browser` export.
+. Attach the stack to a Payload module:
+.. Inherit the parent and declare `pom` packaging:
++
+[source,xml,subs="attributes+"]
+----
+<parent>
+    <groupId>eu.ciechanowiec</groupId>
+    <artifactId>airness-parent-payload</artifactId>
+    <version>{airness-version}</version>
+</parent>
+<packaging>pom</packaging>
+----
+.. Declare `@airness/payload` and `@airness/node` as development dependencies at `{airness-version}`. Until both are published, install them from the local registry the managed `.airness/npm-registry.py` serves, with the scope line it writes for `@airness`.
+.. Run `mvn airness:assets-sync` to write the managed files, then `mvn clean verify`.
+. The stack is built in this repository by three modules: `airness-payload-assets`, `airness-parent-payload` and `airness-payload-node`, which is the npm package and is never sent to Maven Central. `sh airness-it/verify.sh payload` proves it against a real Payload application, including an admin view and the access boundary on an isolated PostgreSQL, and needs Docker.
+. To remove the stack, only delete, so that no text is added, moved or reworded:
+.. Delete every path the stack-path list of `StackConfinementTest` in `airness-governance` names: the three modules, the `payload` integration domain (`airness-it/cases/payload.sh` and `airness-it/fixtures/payload`) and the one registration test of each core module.
+.. Delete this section.
+.. At every other registration point that test lists, delete what names the stack: its lines, its sentences and its list elements, each element with the separator that sets it apart. The three deny rules of `airness-payload-node` in `.claude/settings.json` are deleted by hand too, because `mvn airness:assets-sync` adds missing rules and never removes one.
+.. Delete every entry of the stack-path and registration lists of `StackConfinementTest`, with the line breaks around them, and the names only those entries read, which leaves both lists as `List.of()`. The generic uses it lists, where the word means a request body or the data of a PNG chunk, stay.
+
 [[configuration]]
 == Configuration
 

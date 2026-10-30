@@ -29,6 +29,8 @@ Each directory a module lists in `airness.node.projects` is a node project and c
 
 Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java 25. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, and formatter rules), `airness-error-prone` (compiler-side rules that need resolved types), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-spring-evidence` (test-scope Spring Boot runtime evidence), `airness-web-evidence` (test-scope accessibility auditing of a rendered page), `airness-parent` (the generic parent with the repository rules), `airness-parent-java` (the parent a Java project inherits, adding the Java rules), `airness-parent-spring-boot` (the parent a Spring Boot project inherits instead), `airness-parent-node` (the parent a JS/TS module inherits), `airness-node` (the npm package `@airness/node`: the JS/TS gates, their analyzer configurations and the pinned analyzers, written in TypeScript under `airness-node/src`), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
 
+The root `pom.xml` also aggregates the Payload stack: `airness-payload-assets` (the Payload managed files and generated-file declarations), `airness-parent-payload` (the parent a Payload CMS module inherits) and `airness-payload-node` (the npm package `@airness/payload`: the Payload gates, under `airness-payload-node/src`). The Payload stack is named in the core only at the registration points `StackConfinementTest` lists; keep any other core change generic.
+
 ## Build, Test, and Development Commands
 
 - `sh airness-it/report-browser.sh` installs the pinned Chromium used by report tests. Add `--with-deps` on Linux
@@ -41,6 +43,8 @@ Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
 - `sh airness-it/verify.sh browser` diagnoses the browser contracts alone against installed artifacts. It is a
   partial run; the complete integration verdict still requires the command without a domain.
+- `sh airness-it/verify.sh payload` diagnoses the Payload stack alone against a real Payload application and an
+  isolated PostgreSQL; it needs Docker. The complete integration verdict still requires the command without a domain.
 - `sh airness-it/verify.sh browser-evidence` diagnoses motion, ancestor clipping, missing-page layouts and
   completed project scans. These cases also run in the browser domain and the complete integration suite.
 
