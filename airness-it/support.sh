@@ -565,6 +565,42 @@ start_lane() {
     printf '%s\n' "$!" > "${lane_results}/${lane_name}.pid"
 }
 
+# Lists a process and every process it started, parents first.
+process_tree() {
+    printf '%s\n' "$1"
+    for tree_child in $(pgrep -P "$1" 2>/dev/null); do
+        process_tree "${tree_child}"
+    done
+}
+
+# Waits until every named lane has ended, but stops the others as soon as one dies: a dead lane already
+# denies the verdict, so letting the rest run on would only hold the failure back for the rest of their run.
+# A lane has died when it has ended without writing its counts. Each sleep is a foreground command, so the
+# shell reaps any lane that ended meanwhile, and kill -0 no longer finds it.
+await_lanes() {
+    while :; do
+        lanes_running=no
+        for lane_name in "$@"; do
+            if kill -0 "$(cat "${lane_results}/${lane_name}.pid")" 2>/dev/null; then
+                lanes_running=yes
+            elif [ ! -f "${lane_results}/${lane_name}.counts" ]; then
+                for lane_other in "$@"; do
+                    lane_pid="$(cat "${lane_results}/${lane_other}.pid")"
+                    if [ "${lane_other}" != "${lane_name}" ] && kill -0 "${lane_pid}" 2>/dev/null; then
+                        printf '%s' "${lane_name}" > "${lane_results}/${lane_other}.stopped"
+                        process_tree "${lane_pid}" | xargs kill 2>/dev/null || true
+                    fi
+                done
+                return
+            fi
+        done
+        if [ "${lanes_running}" = no ]; then
+            return
+        fi
+        command sleep 5
+    done
+}
+
 join_lane() {
     lane_name="$1"
     lane_pid="$(cat "${lane_results}/${lane_name}.pid")"
@@ -573,6 +609,12 @@ join_lane() {
     lane_status=$?
     set -e
     cat "${lane_results}/${lane_name}.out"
+    if [ -f "${lane_results}/${lane_name}.stopped" ]; then
+        lane_cause="$(cat "${lane_results}/${lane_name}.stopped")"
+        fail "lanes: the ${lane_name} lane was stopped when the ${lane_cause} lane died" \
+            'the assertions printed above are not counted'
+        return
+    fi
     if [ "${lane_status}" -ne 0 ] || [ ! -f "${lane_results}/${lane_name}.counts" ]; then
         fail "lanes: the ${lane_name} lane died before it reported a result" \
             "it exited ${lane_status}, so the assertions printed above are not counted"
