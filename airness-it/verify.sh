@@ -13,7 +13,7 @@ fi
 
 selected_domain="${1-}"
 case "${selected_domain}" in
-    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser|browser-evidence)
+    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser|browser-evidence|payload)
         ;;
     *)
         printf 'Unknown Airness integration domain: %s\n' "${selected_domain}" >&2
@@ -96,6 +96,7 @@ fi
 . "${repository}/airness-it/cases/node-gates.sh"
 . "${repository}/airness-it/cases/node-browser.sh"
 . "${repository}/airness-it/cases/browser-evidence.sh"
+. "${repository}/airness-it/cases/payload.sh"
 
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -110,6 +111,7 @@ if [ -n "${selected_domain}" ]; then
 else
     printf '  %stwo lanes: spring, containers and maven | streaming, repository and the short domains%s\n' \
         "${style_dim}" "${style_off}"
+    printf '  %sthe spring lane ends with the payload domain%s\n' "${style_dim}" "${style_off}"
     printf '  %seach lane is replayed whole when it is joined; follow one live under %s%s\n' \
         "${style_dim}" "${lane_results}" "${style_off}"
 fi
@@ -130,8 +132,10 @@ case "${selected_domain}" in
         ensure_consumer_template
         # Started here, in the shell that outlives both lanes, so neither lane's end stops the server the other
         # still installs from.
-        start_airness_node_registry
-        start_lane spring run_spring_cases run_container_cases run_maven_cases
+        # It also serves the stack packages the payload cases install.
+        prepare_payload_packages
+        start_airness_node_registry "${payload_package}" "${payload_mismatched_package}"
+        start_lane spring run_spring_cases run_container_cases run_maven_cases run_payload_cases
         start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases \
             run_analysis_cases run_template_message_cases run_web_accessibility_cases run_template_cases \
             run_stylesheet_cases run_node_project_cases run_node_gate_cases run_node_next_cases run_node_browser_cases
@@ -176,6 +180,9 @@ case "${selected_domain}" in
         run_node_project_cases
         run_node_gate_cases
         run_node_next_cases
+        ;;
+    payload)
+        run_payload_cases
         ;;
     *)
         exit 2

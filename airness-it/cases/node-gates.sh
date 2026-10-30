@@ -397,6 +397,8 @@ node_facet_gates='css tailwind-tokens'
 # lanes and both lanes share that one server for the whole run. A lane that starts one of its own, as a single
 # domain does, gets its own port file and staging directory: sharing them let a lane read the port of the other
 # lane's server and lose it, mid-case, when that lane finished first.
+# Further tarballs a caller names, such as a stack layer's packages, are served as fresh releases beside
+# @airness/node. The registry is started once per run, so a caller that needs them starts it first.
 start_airness_node_registry() {
     if [ -n "${airness_node_registry-}" ]; then
         return
@@ -405,17 +407,15 @@ start_airness_node_registry() {
     registry_port_file="${registry_staging}/port"
     registry_archive="${registry_staging}/airness-node.tgz"
     cp "${repository}/airness-node/target/airness-node-${harness_version}.tgz" "${registry_archive}"
-    set --
     for fixture_package in "${repository}"/airness-it/fixtures/node-packages/*; do
         fixture_staging="${registry_staging}/packages/$(basename "${fixture_package}")"
         mkdir -p "${fixture_staging}/package"
         cp -R "${fixture_package}/." "${fixture_staging}/package/"
         tar -czf "${fixture_staging}.tgz" -C "${fixture_staging}" package
-        set -- "$@" "${fixture_staging}.tgz"
     done
     python3 "${repository}/airness-assets/src/main/resources/airness/project-files/node/.airness/npm-registry.py.asset" \
         --port-file "${registry_port_file}" \
-        --fresh "${registry_archive}" --old "$@" \
+        --fresh "${registry_archive}" "$@" --old "${registry_staging}"/packages/*.tgz \
         > "${registry_staging}/registry.log" 2>&1 &
     registry_waited=0
     while [ ! -s "${registry_port_file}" ]; do

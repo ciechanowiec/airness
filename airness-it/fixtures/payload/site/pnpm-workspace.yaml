@@ -1,0 +1,14 @@
+allowBuilds:
+  esbuild: true
+
+minimumReleaseAge: 1440
+
+minimumReleaseAgeStrict: true
+
+minimumReleaseAgeExclude:
+  - "@airness/node"
+  - "@airness/payload"
+
+# The generic harness approves this exact security correction.
+overrides:
+  "eslint-plugin-functional@10.0.1>deepmerge-ts": "8.0.2"
