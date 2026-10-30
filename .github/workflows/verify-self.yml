@@ -137,7 +137,7 @@ jobs:
           echo "$RUNNER_TEMP/apache-maven-3.10.0/bin" >> "$GITHUB_PATH"
 
       - name: 'Build the pinned node harness'
-        run: mvn --batch-mode -pl airness-node -am package -DskipTests
+        run: mvn --batch-mode -pl airness-error-prone,airness-node -am package -DskipTests
       - name: 'Pull the pinned sweep browsers'
         run: |
           image='mcr.microsoft.com/playwright:v1.64.1-noble@sha256:'
@@ -188,7 +188,7 @@ jobs:
           echo "$RUNNER_TEMP/apache-maven-3.10.0/bin" >> "$GITHUB_PATH"
 
       - name: 'Build the comparison against the pinned node harness'
-        run: mvn --batch-mode -pl airness-node -am package -DskipTests
+        run: mvn --batch-mode -pl airness-error-prone,airness-node -am package -DskipTests
       - name: 'Fetch both measurements'
         working-directory: airness-node
         env:
