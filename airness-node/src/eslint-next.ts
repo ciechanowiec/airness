@@ -55,7 +55,7 @@ export const componentTestBlocks: readonly FlatConfigBlock[] = [
     files: ['tests/{int,unit,component}/**/*.{ts,tsx}'],
     ignores: [...END_TO_END_FILES],
     plugins: { 'testing-library': testingLibrary },
-    // Payload's findByID is a database call, not a custom Testing Library query.
+    // A CMS client's findByID is a database call, not a custom Testing Library query.
     settings: { 'testing-library/custom-queries': 'off' },
     rules: {
       'testing-library/await-async-queries': 'error',

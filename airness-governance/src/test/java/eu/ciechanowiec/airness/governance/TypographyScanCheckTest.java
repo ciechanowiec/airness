@@ -67,12 +67,12 @@ class TypographyScanCheckTest {
     void leavesTheFilesAGeneratorOwnsUnreadWithoutReportingAGlobThatMatchesNothing() {
         Path root = new GitFixture("typography-generated")
             .write(README, PLAIN)
-            .write("src/payload-types.ts", OFFENDING)
-            .write("web/src/app/(payload)/admin/page.tsx", OFFENDING)
+            .write("src/generated-types.ts", OFFENDING)
+            .write("web/src/app/(admin)/admin/page.tsx", OFFENDING)
             .write("web/src/app/other.ts", OFFENDING)
             .root();
         TypographyScanCheck check = new TypographyScanCheck(
-            root, List.of(), List.of("src/payload-types.ts", "web/src/app/?payload?/**", "src/absent.ts")
+            root, List.of(), List.of("src/generated-types.ts", "web/src/app/?admin?/**", "src/absent.ts")
         );
         List<String> offences = Verdicts.offences(check.findings(), "Banned typography");
         assertEquals(1, offences.size(), "only the file no generator owns: " + offences);

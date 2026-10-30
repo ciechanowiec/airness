@@ -293,8 +293,8 @@ The node setting `clock` selects an ISO instant or `real`; by default the build,
 browser start at `2100-01-01T12:00:00.000Z`. Application clocks advance normally; browser Date stays fixed
 while timers and animation clocks continue. `auxiliaryServers` names the command and URL
 of each server the application needs before it starts, with an optional member-relative `cwd`. The sweep
-finds Storybook stories on those servers. The node harness owns the general browser rules; the installed
-Payload layer supplies its admin-view content selectors through `airness.layer.browser`.
+finds Storybook stories on those servers. The node harness owns the general browser rules; an installed
+stack layer supplies the content selectors of its framework's views through `airness.layer.browser`.
 
 Resting and reflow measurements keep motion reduced and animations still. Keyboard and disclosure checks
 also run with normal motion, preserving transitions and animations. They verify that activation opens the
@@ -341,7 +341,7 @@ return a teardown that closes them; server code stays out of the jsdom realm.
 Biome, ESLint and stylesheet gates. Review its edits before running Maven verification.
 
 Only exact security replacements approved by the installed harness are allowed under `overrides` in
-`pnpm-workspace.yaml`. The generic catalogue belongs to Airness; the trusted Payload layer supplies its own
+`pnpm-workspace.yaml`. The generic catalogue belongs to Airness; a trusted stack layer supplies its own
 `airness.layer.securityOverrides`. Each approval names a parent at an exact version, its dependency, the exact
 patched version, the advisory identifiers, its reason and date. The workspace declaration and lockfile must
 agree, every selected dependency edge must resolve to that version, and an unused override fails. Arbitrary

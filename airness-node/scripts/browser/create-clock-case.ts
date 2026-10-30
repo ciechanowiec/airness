@@ -111,7 +111,7 @@ writeModule(path.join(appRoot, 'session', 'sign-in', 'route.ts'), SIGN_IN_ROUTE)
 writeModule(path.join(appRoot, 'session', 'account', 'page.tsx'), ACCOUNT_PAGE)
 writeModule(path.join(directory, 'src', 'session.ts'), SESSION_LIBRARY)
 writeModule(path.join(directory, 'tests', 'e2e', 'clock.e2e.spec.ts'), SPEC)
-// This minimal Next application serves no Payload endpoint for the access-boundary sweep to ask.
+// This minimal Next application serves no access endpoint for a stack layer's access-boundary spec to ask.
 rmSync(path.join(directory, 'tests', 'e2e', 'access-boundary.e2e.spec.ts'), { force: true })
 // A prerendered page cannot carry the per-request nonce the seeded policy admits scripts by, so it does
 // not hydrate there; the spec above reads its server-rendered year, and the sweep leaves it out.

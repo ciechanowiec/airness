@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  * {@code NEXT_PUBLIC_} read must be declared by an {@code ARG} in every Dockerfile that builds the application,
  * because docker discards a {@code --build-arg} the Dockerfile never named and warns rather than failing. A
  * Dockerfile builds the node package whose directory most closely holds it. The variables application code
- * reads through a validated environment module are a Payload layer input, and the generic layer reads none.
+ * reads through a validated environment module are a stack layer input, and the generic layer reads none.
  */
 public final class EnvironmentCheck {
 

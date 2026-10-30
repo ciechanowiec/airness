@@ -18,6 +18,7 @@ export interface LayerRelaxation {
 
 /** The relaxations each layer needs, owned by the harness rather than by the layer. */
 export const LAYER_RELAXATIONS: readonly LayerRelaxation[] = [
+  // Each relaxation names a registered layer package, and goes with that layer's registration.
   {
     layer: '@airness/payload',
     rule: 'unicorn/no-top-level-side-effects',
@@ -34,7 +35,7 @@ export const LAYER_RELAXATIONS: readonly LayerRelaxation[] = [
     layer: '@airness/payload',
     rule: 'functional/immutable-data',
     files: ['src/hooks/**'],
-    reason: "Payload hooks carry a request's state on `req.context`, the one object hookContextBlock lets them write",
+    reason: "Payload hooks carry a request's state on `req.context`, the one object the hooks block lets them write",
   },
 ]
 

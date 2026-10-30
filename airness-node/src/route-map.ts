@@ -18,7 +18,7 @@ const PAGE_FILES: ReadonlySet<string> = new Set<string>(['page.tsx', 'page.ts', 
 // directory apart from a directory that happens to be called `app`.
 const ROOT_LAYOUTS: ReadonlySet<string> = new Set<string>(['layout.tsx', 'layout.ts', 'layout.jsx', 'layout.js'])
 
-// `src/app` first, because that is where a Payload application puts it and where a stray top-level
+// `src/app` first, because that is where a CMS application puts it and where a stray top-level
 // `app/` is least likely to be mistaken for one.
 const APP_ROOTS: readonly string[] = ['src/app', 'app']
 
@@ -29,8 +29,8 @@ const SEGMENT_SEPARATOR: string = '/'
 /**
  * Whether a file is the root layout of an app directory: the layout every route below it renders in.
  *
- * Next.js requires one, and allows it to sit inside route groups rather than at the top: a Payload
- * application has no `src/app/layout.tsx` at all, because `(frontend)` and `(payload)` each carry their
+ * Next.js requires one, and allows it to sit inside route groups rather than at the top: a CMS
+ * application has no `src/app/layout.tsx` at all, because its site and admin route groups each carry their
  * own. Requiring the top-level file found no app directory in the commonest project this harness
  * governs, and the check then passed by doing nothing - which is the one way a rule like this fails that
  * nobody notices.

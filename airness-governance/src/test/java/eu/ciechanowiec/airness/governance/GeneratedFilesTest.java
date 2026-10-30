@@ -30,22 +30,22 @@ class GeneratedFilesTest {
     @Test
     void placesEachDeclarationAtTheSitesOfItsCapabilityAndLocation(@TempDir Path classpath) {
         GeneratedFiles files = declaring(
-            classpath, Capability.PAYLOAD, "# Payload output\nsrc/payload-types.ts\tNODE_PROJECT\nroot-schema.json\n"
+            classpath, Capability.NODE, "# generator output\nsrc/generated-types.ts\tNODE_PROJECT\nroot-schema.json\n"
         );
         List<AssetSite> sites = List.of(
-            AssetSite.root(Set.of(Capability.NODE, Capability.PAYLOAD)),
-            new AssetSite("cms", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE, Capability.PAYLOAD)),
-            new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
+            AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
+            new AssetSite("cms", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
+            new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Capability.JAVA))
         );
         assertEquals(
-            List.of("root-schema.json", "cms/src/payload-types.ts"), files.paths(sites),
-            "a node-project declaration lands in each Payload project and nowhere else"
+            List.of("root-schema.json", "cms/src/generated-types.ts"), files.paths(sites),
+            "a node-project declaration lands in each project of the declaring capability and nowhere else"
         );
     }
 
     @Test
     void declaresNothingForACapabilityWithoutADeclarationFile(@TempDir Path classpath) {
-        GeneratedFiles files = declaring(classpath, Capability.PAYLOAD, "src/payload-types.ts\tNODE_PROJECT\n");
+        GeneratedFiles files = declaring(classpath, Capability.NODE, "src/generated-types.ts\tNODE_PROJECT\n");
         assertEquals(
             List.of(), files.paths(List.of(AssetSite.root(Set.of(Capability.JAVA)))),
             "a repository without the declaring capability denies nothing"

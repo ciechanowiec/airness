@@ -147,7 +147,7 @@ const describeSignal = (signal: NodeJS.Signals | null): readonly string[] =>
   signal === null ? [] : [`the process was killed by ${signal}`]
 
 /** Run a command, capturing stdout and stderr both together and apart. */
-// `runNode` invokes a tool through the interpreter so ploaness needs no shim of its own, but a tool it
+// `runNode` invokes a tool through the interpreter so the harness needs no shim of its own, but a tool it
 // starts can start further processes, and those resolve through PATH like anything else. Playwright's
 // `webServer` runs `next dev` through `/bin/sh`, which found nothing: the project's `node_modules/.bin`
 // was on PATH only for a project whose `testWrapper` happened to route the run through a package

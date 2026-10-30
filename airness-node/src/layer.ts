@@ -10,8 +10,18 @@ import { isJavascriptRuntime, type RuntimeRole } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, isArray } from './json-shapes.js'
 import type { LayerDefaults } from './settings.js'
 
-/** The npm packages that are stack layers above this one. */
-export const LAYER_PACKAGES: readonly string[] = ['@airness/payload']
+/**
+ * The npm packages that are stack layers above this one, each with the one Maven module that builds it, as
+ * `groupId:artifactId`. A deliberate trust allowlist: only a package named here is read as a layer. Each layer is
+ * one line of its own, so a layer is registered and removed by that line alone.
+ */
+export const LAYER_PACKAGES: Readonly<Record<string, string>> = {
+  // One line per stack layer: its npm package, then the Maven module that builds it.
+  '@airness/payload': 'eu.ciechanowiec:airness-payload-node',
+}
+
+/** The registered layer package names: what every seam reads as layers unless a caller names others. */
+export const LAYER_NAMES: readonly string[] = Object.keys(LAYER_PACKAGES)
 
 const texts = (raw: unknown): readonly string[] =>
   isArray(raw) ? raw.filter((entry: unknown): entry is string => typeof entry === 'string') : []
@@ -64,17 +74,20 @@ export interface LayerPackage {
  * @param directory the member's directory.
  * @param packageJson the member's parsed package.json.
  * @param readManifest how a manifest file is read.
+ * @param layers the packages read as layers, the registered ones unless a caller names others.
  * @returns one entry per declared layer package.
  */
 export const layerPackagesFor = (
   directory: string,
   packageJson: unknown,
   readManifest: (file: string) => unknown,
+  layers: readonly string[] = LAYER_NAMES,
 ): readonly LayerPackage[] => {
   const declared: Record<string, string> = declaredDependencies(packageJson)
   const ownName: string = asText(asRecord(packageJson)['name'])
   const resolveFrom: NodeJS.Require = createRequire(path.join(directory, 'package.json'))
-  return LAYER_PACKAGES.filter((name: string): boolean => Object.hasOwn(declared, name) && name !== ownName)
+  return layers
+    .filter((name: string): boolean => Object.hasOwn(declared, name) && name !== ownName)
     .map((name: string): LayerPackage => {
       const manifestFile: string = resolveFrom.resolve(`${name}/package.json`)
       return {
@@ -91,14 +104,16 @@ export const layerPackagesFor = (
  * @param directory the member's directory.
  * @param packageJson the member's parsed package.json.
  * @param readManifest how a manifest file is read.
+ * @param layers the packages read as layers, the registered ones unless a caller names others.
  * @returns one entry per declared layer package.
  */
 export const layerDefaultsFor = (
   directory: string,
   packageJson: unknown,
   readManifest: (file: string) => unknown,
+  layers: readonly string[] = LAYER_NAMES,
 ): readonly LayerDefaults[] =>
-  layerPackagesFor(directory, packageJson, readManifest).map(
+  layerPackagesFor(directory, packageJson, readManifest, layers).map(
     (layer: LayerPackage): LayerDefaults => layerDefaultsOf(layer.manifest),
   )
 
@@ -122,9 +137,10 @@ export const layerTestDependenciesFor = (
   directory: string,
   packageJson: unknown,
   readManifest: (file: string) => unknown,
+  layers: readonly string[] = LAYER_NAMES,
 ): readonly string[] => [
   ...new Set(
-    layerPackagesFor(directory, packageJson, readManifest).flatMap((layer: LayerPackage): readonly string[] =>
+    layerPackagesFor(directory, packageJson, readManifest, layers).flatMap((layer: LayerPackage): readonly string[] =>
       testDependenciesOf(layer),
     ),
   ),
@@ -196,20 +212,16 @@ export interface LayerProject {
  * The Playwright projects of the specifications each declared stack layer ships, which the shipped Playwright
  * configuration runs beside the node layer's own. Playwright runs a project whose directory is missing or holds
  * no specification as zero tests and passes, so a declared directory that holds none is refused here instead.
- * @param directory the member's directory.
- * @param packageJson the member's parsed package.json.
- * @param readManifest how a manifest file is read.
+ * @param layers the layer packages the member declares, as {@link layerPackagesFor} reads them.
  * @param use the browser every project drives.
  * @returns one project per layer that ships specifications.
  * @throws {Error} when a layer names an unusable value or a directory without specifications.
  */
 export const layerProjectsFor = (
-  directory: string,
-  packageJson: unknown,
-  readManifest: (file: string) => unknown,
+  layers: readonly LayerPackage[],
   use: Readonly<Record<string, unknown>>,
 ): readonly LayerProject[] =>
-  layerPackagesFor(directory, packageJson, readManifest).flatMap((layer: LayerPackage): readonly LayerProject[] => {
+  layers.flatMap((layer: LayerPackage): readonly LayerProject[] => {
     const specifications: LayerSpecifications | undefined = layerSpecificationsOf(layer)
     if (specifications === undefined) {
       return []

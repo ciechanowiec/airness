@@ -29,7 +29,7 @@ import {
 import { coversEveryEngine } from './change-scope-policy.js'
 import { clockedEnvironment } from './clock-environment.js'
 import { portOf, runEnvironmentFiles } from './environment-files.js'
-import { type LayerProject, layerProjectsFor, SHIPPED_SPECS } from './layer.js'
+import { type LayerProject, layerPackagesFor, layerProjectsFor, SHIPPED_SPECS } from './layer.js'
 import { loadProductionEnvironment } from './production-environment.js'
 import { shellArgument } from './production-output.js'
 import { readJson } from './project.js'
@@ -197,7 +197,10 @@ const sweepProjects: NonNullable<ReturnType<typeof defineConfig>['projects']> = 
 // The specifications each declared stack layer ships, as harness-owned as the node layer's own: read from the
 // installed layer package, never from a file of the project. A layer that names a directory holding none fails
 // the run while this configuration loads, rather than letting Playwright pass a project with no tests.
-const layerProjects: readonly LayerProject[] = layerProjectsFor(projectDirectory, manifest, readJson, browser)
+const layerProjects: readonly LayerProject[] = layerProjectsFor(
+  layerPackagesFor(projectDirectory, manifest, readJson),
+  browser,
+)
 
 // Structural rather than Playwright's own `PlaywrightTestConfig`: the harness owns the config and the run
 // resolves the runner, so an emitted declaration should not make the runner's types a condition of reading

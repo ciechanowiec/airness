@@ -1,10 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { asRecord, isArray } from '@/json-shapes.js'
 import { testReporters } from '@/test-reporters.js'
 import config, { COVERAGE_THRESHOLD, vitestConfig } from '@/vitest.js'
+
+// A layer package this spec names as a layer: a fixture's, so the seam is measured whatever the harness registers.
+const LAYER: string = 'layer-a'
 
 describe('the shipped Vitest configuration', () => {
   it.each([{ dependencies: { react: '19.3.1' } }, { airness: { testWrapper: ['node', 'wrapper.js'] } }])(
@@ -35,6 +38,23 @@ describe('the shipped Vitest configuration', () => {
       }
     },
   )
+  it('leaves the files a declared layer generates out of the floor, and only while it is named as a layer', () => {
+    const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-vitest-config-'))
+    try {
+      writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ devDependencies: { [LAYER]: '1.0.0' } }))
+      mkdirSync(path.join(directory, 'node_modules', LAYER), { recursive: true })
+      writeFileSync(
+        path.join(directory, 'node_modules', LAYER, 'package.json'),
+        JSON.stringify({ name: LAYER, airness: { layer: { generatedArtefacts: ['src/generated.ts'] } } }),
+      )
+      const layered: Record<string, unknown> = asRecord(asRecord(vitestConfig(directory, [LAYER])['test'])['coverage'])
+      expect(layered['exclude']).toContain('src/generated.ts')
+      const unnamed: Record<string, unknown> = asRecord(asRecord(vitestConfig(directory)['test'])['coverage'])
+      expect(unnamed['exclude']).not.toContain('src/generated.ts')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
   it('keeps GitHub failure annotations without writing a separate library job summary', () => {
     expect(testReporters({})).toEqual(['default'])
     expect(testReporters({ GITHUB_ACTIONS: 'false' })).toEqual(['default'])

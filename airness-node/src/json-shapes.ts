@@ -34,7 +34,7 @@ const withoutTrailingCommas = (text: string): string =>
  * Parse JSON that may carry comments and trailing commas.
  *
  * `tsconfig.json` legally carries both, and so does a Biome config - which meant the rules that judge
- * them threw a SyntaxError out of a pure function on a project scaffolded by `create-payload-app`. The
+ * them threw a SyntaxError out of a pure function on a project a framework's scaffolder created. The
  * gate that caught it is a precondition, so the whole run halted saying only that the gate "could not
  * run". Comments are stripped by the same reader the source rules use rather than by a second regex,
  * because the hard part is not finding `//` but knowing when it is inside a string.
@@ -103,8 +103,8 @@ export const asText = (raw: unknown): string => (typeof raw === 'string' ? raw :
  *
  * Distinct from `asText` because the two answer different questions. An empty string is a value a rule
  * compares against; `undefined` says the value was never declared, which is how a caller states that a
- * rule has nothing to apply. Collapsing the two would turn "ploaness pins no package manager" into
- * "ploaness requires the package manager to be the empty string".
+ * rule has nothing to apply. Collapsing the two would turn "the project pins no package manager" into
+ * "the project requires the package manager to be the empty string".
  * @param raw the value to read.
  * @returns the string, or undefined.
  */
@@ -132,7 +132,7 @@ export const declaredDependencies = (packageJson: unknown): Record<string, strin
   ...asStringRecord(readKey(packageJson, 'dependencies')),
   ...asStringRecord(readKey(packageJson, 'devDependencies')),
   // Optional dependencies are INSTALLED dependencies whose absence is tolerated, so every rule about a
-  // declared version applies to them: a range still floats, a pin still has to match, and a Payload
+  // declared version applies to them: a range still floats, a pin still has to match, and a framework
   // package still has to agree with its family. Left out, they were the one block a project could put a
   // stale version in and have nothing notice - which is where a real consumer's platform-specific image
   // packages sat, still naming the sharp release the project had just moved off.

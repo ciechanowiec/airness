@@ -6,7 +6,9 @@ import { architecture } from '@/gate-architecture.js'
 import { knip } from '@/gate-knip.js'
 import { tests } from '@/gate-tests.js'
 import { typeCoverage } from '@/gate-type-coverage.js'
+import { type Gate, gateById } from '@/gates.js'
 import { asRecord as asRecordOf } from '@/json-shapes.js'
+import type { Member } from '@/project.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
@@ -51,6 +53,9 @@ const CONFORMING: Readonly<Record<string, string>> = {
   ].join('\n'),
 }
 
+// A layer package these specs name as a layer: a fixture's, so the seam is measured whatever the harness registers.
+const LAYER: string = 'layer-a'
+
 // A function with a branch no conforming spec covers, so a file holding it falls below the floor.
 const SIGN_SOURCE: string =
   'export const sign = (value: number): string => {\n  if (value < 0) {\n    return "negative"\n  }\n' +
@@ -66,6 +71,15 @@ const withProject = (files: Readonly<Record<string, string>>, use: (root: string
 }
 
 const findingsOf = (result: GateResult): string => result.findings.join('\n')
+
+// The gate as node-gate runs it, through the registry, with the layers and the configuration it reads by default.
+const registered = async (id: string, member: Member): Promise<GateResult> => {
+  const gate: Gate | undefined = gateById(id)
+  if (gate === undefined) {
+    throw new Error(`the registry ships no gate ${id}`)
+  }
+  return await gate.run(member, { evidenceDirectory: undefined })
+}
 
 describe('arch', PROCESS_TIME, () => {
   it(
@@ -177,34 +191,22 @@ describe('knip', PROCESS_TIME, () => {
   )
 
   it(
-    'counts a declared stack layer package as used, and no other dependency nothing imports',
-    () => {
+    'counts a declared layer package as used only while the harness names it as a layer',
+    async () => {
       const layered: Readonly<Record<string, unknown>> = {
         ...MANIFEST,
-        devDependencies: { ...asRecordOf(MANIFEST['devDependencies']), '@airness/payload': '2.0.0' },
+        devDependencies: { ...asRecordOf(MANIFEST['devDependencies']), [LAYER]: '2.0.0' },
       }
-      // Installed, as a real member has it, since the shipped Vitest configuration knip loads reads its defaults.
-      const installed: Readonly<Record<string, string>> = {
-        'node_modules/@airness/payload/package.json': '{ "name": "@airness/payload", "version": "2.0.0" }\n',
+      const root: string = temporaryProject({
+        ...CONFORMING,
+        'package.json': `${JSON.stringify(layered, null, JSON_INDENT)}\n`,
+      })
+      try {
+        expect(knip(memberAt(root, layered), [LAYER]).findings).toEqual([])
+        expect(findingsOf(await registered('knip', memberAt(root, layered)))).toContain(LAYER)
+      } finally {
+        removeProject(root)
       }
-      withProject(
-        { ...installed, 'package.json': `${JSON.stringify(layered, null, JSON_INDENT)}\n` },
-        (root: string): void => {
-          expect(knip(memberAt(root, layered)).findings).toEqual([])
-        },
-      )
-      const unused: Readonly<Record<string, unknown>> = {
-        ...layered,
-        devDependencies: { ...asRecordOf(layered['devDependencies']), 'left-pad': '1.3.0' },
-      }
-      withProject(
-        { ...installed, 'package.json': `${JSON.stringify(unused, null, JSON_INDENT)}\n` },
-        (root: string): void => {
-          const findings: string = findingsOf(knip(memberAt(root, unused)))
-          expect(findings).toContain('left-pad')
-          expect(findings).not.toContain('@airness/payload')
-        },
-      )
     },
     TOOL_TIMEOUT_MS,
   )
@@ -296,39 +298,6 @@ describe('a project configuration of its own', PROCESS_TIME, () => {
       withProject({ ...Cycle, '.dependency-cruiser.json': '{ "forbidden": [] }\n' }, (root: string): void => {
         expect(findingsOf(architecture(memberAt(root)))).toContain('no-circular')
       })
-    },
-    TOOL_TIMEOUT_MS,
-  )
-})
-
-describe('a layer package', PROCESS_TIME, () => {
-  it(
-    'leaves the files it generates out of the floor in the suite run, as in every gate',
-    () => {
-      const layer: string = JSON.stringify({
-        name: '@airness/payload',
-        version: '1.4.0',
-        airness: { layer: { generatedArtefacts: ['src/generated.ts'] } },
-      })
-      const manifest: Readonly<Record<string, unknown>> = {
-        ...MANIFEST,
-        devDependencies: {
-          '@airness/node': '2.0.0',
-          vitest: '5.0.5',
-          '@vitest/coverage-v8': '5.0.5',
-          '@airness/payload': '1.4.0',
-        },
-      }
-      withProject(
-        {
-          'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
-          'node_modules/@airness/payload/package.json': `${layer}\n`,
-          'src/generated.ts': SIGN_SOURCE,
-        },
-        (root: string): void => {
-          expect(tests(memberAt(root, manifest)).findings).toEqual([])
-        },
-      )
     },
     TOOL_TIMEOUT_MS,
   )

@@ -43,7 +43,6 @@ final class RepositorySites {
     private static final String GROUP = "eu.ciechanowiec";
     private static final String SELF = "airness";
     private static final String JAVA_PARENT = "airness-parent-java";
-    private static final String PAYLOAD_PARENT = "airness-parent-payload";
     private static final String NODE_PROJECTS = "airness.node.projects";
     private static final String POM = "pom.xml";
     private static final String PACKAGE = "package.json";
@@ -56,6 +55,12 @@ final class RepositorySites {
     private static final String SEPARATOR = ",";
     private static final String PARENT_DIRECTORY = "..";
     private static final Set<String> PRUNED = Set.of("target", "node_modules", ".git");
+
+    /**
+     * The parent of each stack, by artifactId, with the capability a module inheriting it carries. A stack's
+     * entry is the whole of its registration here.
+     */
+    private static final Map<String, Capability> STACK_PARENTS = Map.of("airness-parent-payload", Capability.PAYLOAD);
 
     /**
      * Reads the sites of the repository from every project file in it.
@@ -87,11 +92,12 @@ final class RepositorySites {
      *
      * <p>A module inheriting {@code airness-parent-java} is Java, and so is a module of the Airness build
      * itself, whose modules inherit its aggregator rather than the parent they publish. A module inheriting
-     * {@code airness-parent-payload} is Payload. Every directory holding a {@code package.json} that a module
-     * lists in {@code airness.node.projects} is a node project, and a Payload module's node projects are
-     * Payload projects as well. A listed directory without a {@code package.json} receives nothing, so a
-     * typo never has files written into it. The parents Airness publishes are not consumers, so a default
-     * one of them declares for its children says nothing about the parent's own directory.
+     * the parent of a stack carries that stack's capability. Every directory holding a {@code package.json}
+     * that a module lists in {@code airness.node.projects} is a node project, and carries as well each
+     * capability of the module that refines the node capability. A listed directory without a
+     * {@code package.json} receives nothing, so a typo never has files written into it. The parents Airness
+     * publishes are not consumers, so a default one of them declares for its children says nothing about the
+     * parent's own directory.
      *
      * @param root    the repository root
      * @param modules the models of every module in the repository
@@ -154,16 +160,17 @@ final class RepositorySites {
     }
 
     private static Stream<Capability> capabilities(MavenProject module) {
-        return Stream.of(
-            Optional.of(Capability.JAVA).filter(_ -> inherits(module, JAVA_PARENT) || selfBuild(module)),
-            Optional.of(Capability.PAYLOAD).filter(_ -> inherits(module, PAYLOAD_PARENT))
-        ).flatMap(Optional::stream);
+        Stream<Capability> java = Stream.of(Capability.JAVA)
+            .filter(_ -> inherits(module, JAVA_PARENT) || selfBuild(module));
+        Stream<Capability> stacks = STACK_PARENTS.entrySet().stream()
+            .filter(stack -> inherits(module, stack.getKey()))
+            .map(Map.Entry::getValue);
+        return Stream.concat(java, stacks);
     }
 
     private static Set<Capability> nodeCapabilities(MavenProject module) {
-        return inherits(module, PAYLOAD_PARENT)
-            ? Set.of(Capability.NODE, Capability.PAYLOAD)
-            : Set.of(Capability.NODE);
+        Stream<Capability> refining = capabilities(module).filter(capability -> capability.refines(Capability.NODE));
+        return Stream.concat(Stream.of(Capability.NODE), refining).collect(Collectors.toSet());
     }
 
     private static Stream<String> nodeDirectories(Path repository, MavenProject module) {

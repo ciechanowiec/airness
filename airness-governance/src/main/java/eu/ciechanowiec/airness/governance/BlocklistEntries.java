@@ -264,7 +264,7 @@ final class BlocklistEntries {
         ),
         BlockedImage.of(
             "directus/directus", "Directus is under the Business Source License, which is not open source",
-            "Payload, which the Payload layer governs"
+            "an open-source headless CMS under an OSI-approved license"
         ),
         BlockedImage.of(
             "ghcr.io/apollographql/router",

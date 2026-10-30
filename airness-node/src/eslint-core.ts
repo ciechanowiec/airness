@@ -25,8 +25,8 @@ import { PROJECT_SETUP_FILE } from './settings.js'
  * Those declarations name symbols from deep inside the dependency tree - `Immutability` from
  * is-immutable-type, `RuleEnforcementComparator` from eslint-plugin-functional - which a declaration
  * file emitted beside this module cannot reference portably, and naming them would make each of those
- * packages resolvable-from-here a condition of consuming this one. `packages/ploaness` records the same
- * decision for its own re-exports. A module that composes blocks and hands them to ESLint needs their
+ * packages resolvable-from-here a condition of consuming this one. A stack layer's configuration makes the
+ * same decision for its own re-exports. A module that composes blocks and hands them to ESLint needs their
  * shape, not their provenance; ESLint validates the result it is given.
  */
 export type FlatConfigBlock = Readonly<Record<string, unknown>>
@@ -76,7 +76,7 @@ const MIN_NAME_LENGTH: number = 2
 // The governing standard's "short structural-value allowlist".
 const STRUCTURAL_NUMBERS: readonly number[] = [-1, 0, 1]
 
-// No mocks. Tests run against real objects and real services (a real Payload instance, a real
+// No mocks. Tests run against real objects and real services (a real framework instance, a real
 // database, real in-process servers) - never test doubles. These are the Vitest entry points that
 // create mocks/stubs/spies, plus the third-party mocking libraries, all banned build-wide.
 const NO_MOCKS_MESSAGE: string =
@@ -256,7 +256,7 @@ export const withoutWarnings = (layer: unknown): FlatConfigBlock => {
     : { ...layer }
 }
 
-/** The preset layers every ploaness-governed project runs, none of which may report at `warn`. */
+/** The preset layers every governed project runs, none of which may report at `warn`. */
 export const baseLayers: readonly FlatConfigBlock[] = [
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
@@ -307,7 +307,7 @@ export const guidelineRules: RuleTable = {
   // `noNonNullAssertion` in `biome-core.json` and again through `noNonNullAssertedOptionalChain` in the
   // recommended preset it enables.
   //
-  // The two meet inside a single `ploaness format`, which runs Biome and then the ESLint fixers: the
+  // The two meet inside a single `airness-node format`, which runs Biome and then the ESLint fixers: the
   // fixer rewrites the cast to `x!`, and the next `verify` fails on the character the harness itself
   // just wrote. Nothing the author typed was wrong, no third spelling satisfies both tools, and the
   // suggested repair the developer is left holding is a suppression.
@@ -329,7 +329,7 @@ export const guidelineRules: RuleTable = {
   // `.then(undefined, fn)` are both reported by `unicorn/prefer-await`, which arrives on by preset.
   // That leaves `void`, which `no-floating-promises` names in its own error text as the marker to
   // use - and Biome's `noVoid` banned it, so a governed project had NO legal spelling at all.
-  // `ploaness format` drove a project into the wall rather than around it: ESLint's autofix inserts
+  // `airness-node format` drove a project into the wall rather than around it: ESLint's autofix inserts
   // `void`, and the next Biome pass rejected what it had just written.
   //
   // So `noVoid` is gone from `biome-core.json` and the ban is stated here instead, where it can carry
@@ -341,7 +341,7 @@ export const guidelineRules: RuleTable = {
   '@typescript-eslint/no-misused-promises': 'error',
   '@typescript-eslint/default-param-last': 'error',
   '@typescript-eslint/require-array-sort-compare': ['error', { ignoreStringArrays: true }],
-  // Ban calls into APIs marked `@deprecated` - yours or a framework's (Payload/Next/React). The
+  // Ban calls into APIs marked `@deprecated` - yours or a framework's (Next/React or a CMS). The
   // type-checker reads the JSDoc tag and fails the build at the call site, so deprecated usage is
   // caught statically rather than at runtime. (AI models especially reach for deprecated APIs from
   // stale training data; this stops that at the gate.)
@@ -375,7 +375,7 @@ export const guidelineRules: RuleTable = {
   // and allows "a short structural-value allowlist, such as 0 and 1". -1 earns its place beside them
   // as the indexOf/findIndex sentinel, which is a structural value rather than a magic one.
   // The @typescript-eslint variant, not the base rule: only it understands enums, numeric literal
-  // types, and type indexes, all of which a Payload project has. Biome's noMagicNumbers is
+  // types, and type indexes, all of which a framework project has. Biome's noMagicNumbers is
   // deliberately NOT enabled alongside it - that rule has no allowlist option, so it cannot express
   // the carve-out the standard grants, and it would double-report every finding across two gates.
   '@typescript-eslint/no-magic-numbers': [
@@ -421,12 +421,12 @@ export const guidelineRules: RuleTable = {
   'default-case': 'error',
   'no-else-return': ['error', { allowElseIf: false }],
 
-  // Unicorn tuned for the Payload/Next reality.
+  // Unicorn tuned for the reality of the frameworks a project builds on.
   'unicorn/prevent-abbreviations': 'off', // req/params/props/config are intentional here.
   // Keep the sibling name-replacements rule ON (it catches genuine abbreviations like refs/dev), but
   // exempt the words the frameworks mandate verbatim: `params` (the Next.js App Router route prop and
-  // its `generateStaticParams` export) and `req`/`doc` (Payload's fixed hook/endpoint argument names -
-  // every Payload hook, access function, and endpoint handler receives `req`, and change/read hooks
+  // its `generateStaticParams` export) and `req`/`doc` (the fixed hook/endpoint argument names of a CMS -
+  // every hook, access function, and endpoint handler of one receives `req`, and change/read hooks
   // receive `doc`). `repository` is exempt for the same kind of reason one layer up: it is the domain
   // term the scope model is built from - a repository holds members, and a rule is repository-scope or
   // package-scope - so every comment, type name and finding string says it. Shortening the identifiers
@@ -486,7 +486,7 @@ export const guidelineRules: RuleTable = {
   'unicorn/no-repeated-call-wrappers': 'error',
   // Explicit arguments document behavior even when they match today's dependency defaults.
   'unicorn/no-unnecessary-default-arguments': 'off',
-  // ploaness exists to invoke analyzers, and it invokes them by name so the project's own installed
+  // The harness exists to invoke analyzers, and it invokes them by name so the project's own installed
   // version is the one that runs. Resolving each to an absolute path would pin the harness to one
   // layout and defeat that. The governing standard says nothing about PATH.
   'sonarjs/no-os-command-from-path': 'off',
@@ -496,7 +496,7 @@ export const guidelineRules: RuleTable = {
   'unicorn/prefer-iterator-zip': 'off',
   'unicorn/no-array-sort': 'off',
   'unicorn/prefer-set-methods': 'off',
-  'unicorn/no-null': 'off', // React and Payload use `null` deliberately.
+  'unicorn/no-null': 'off', // React and the frameworks above it use `null` deliberately.
   // Defaults handle undefined only; this syntax-only rule also proposes them for nullish fallbacks.
   'unicorn/prefer-default-parameters': 'off',
   'unicorn/no-keyword-prefix': 'off',
@@ -541,7 +541,7 @@ export const guidelineRules: RuleTable = {
   //
   // What makes this different from a disagreement is that they meet inside a single `eslint --fix`.
   // The fixer rewrites `Array.from(label)` to `[...label]`, and the same run then reports the text it
-  // just wrote. `ploaness format` therefore hands a developer a file it authored and rejects, on a
+  // just wrote. `airness-node format` therefore hands a developer a file it authored and rejects, on a
   // line they did not write, with a message whose suggested repair is a suppression. A contradiction
   // a person can walk around by choosing a different spelling is one thing; one the harness walks
   // INTO on their behalf is another, and it is why this could not be left as guidance.
@@ -565,15 +565,15 @@ export const guidelineRules: RuleTable = {
   // `prefer-dom-node-append` rewrites `parent.appendChild(child)` to `parent.append(child)` and
   // `prefer-dom-node-remove` rewrites `parent.removeChild(child)` to `child.remove()`. Both are correct
   // in a browser, where every node has both spellings, and neither rule is type-aware, so they say the
-  // same about any object with a method of that name. A Payload server has one: an XML parser such as
+  // same about any object with a method of that name. A server application has one: an XML parser such as
   // `@xmldom/xmldom`, which a project reaches for to sanitise an uploaded SVG - the very thing the
   // upload rules ask of it - implements the older methods and not the newer ones. The fixer therefore
-  // wrote `append` and `remove` into a file whose types have neither, and `ploaness format` handed the
+  // wrote `append` and `remove` into a file whose types have neither, and `airness-node format` handed the
   // project code the `types` gate then rejected. A React component loses nothing: the browser DOM
   // carries both spellings, and Biome's own rules still hold the markup.
   'unicorn/prefer-dom-node-append': 'off',
   'unicorn/prefer-dom-node-remove': 'off',
-  // Two more fixers that write what another gate then rejects, so `ploaness format` left a project
+  // Two more fixers that write what another gate then rejects, so `airness-node format` left a project
   // failing on code it had just produced.
   //
   // `prefer-ternary` folds `if (allowed) { return true } return rule(user)` into
@@ -587,8 +587,8 @@ export const guidelineRules: RuleTable = {
   'unicorn/prefer-ternary': 'off',
   'unicorn/no-useless-concat': 'off',
   // New in unicorn 73. It would expand every concise one-line `/** ... */` export doc into a
-  // three-line block, and would also rewrite the `GENERATED AUTOMATICALLY BY PAYLOAD` /
-  // `DO NOT MODIFY` headers that Payload writes into the `src/app/(payload)` scaffolding.
+  // three-line block, and would also rewrite the `GENERATED AUTOMATICALLY` /
+  // `DO NOT MODIFY` headers a framework writes into the scaffolding it generates.
   'unicorn/single-line-block-comment-style': 'off',
   'unicorn/filename-case': ['error', { cases: { camelCase: true, pascalCase: true, kebabCase: true } }],
 
@@ -681,8 +681,8 @@ export const testIntegrityRules: RuleTable = {
  * cap still applies. See the entry itself for the argument.
  *
  * Shared by every shipped config rather than stated in each, because what earns the exemption is being a
- * SPEC rather than being a Payload application's spec. Stated twice it drifted: a library consumer's
- * tests were held to the bare-number ban a Payload consumer's were not, and neither config was wrong
+ * SPEC rather than being an application's spec. Stated twice it drifted: a library consumer's
+ * tests were held to the bare-number ban an application consumer's were not, and neither config was wrong
  * read on its own, which is why nothing found it for as long as it stood.
  */
 export const testIdiomRules: RuleTable = {
@@ -710,7 +710,7 @@ export const testIdiomRules: RuleTable = {
 // Setting that global seed is the project's job, in its own `vitest.setup.ts`. It cannot be done from
 // the shipped setup file: that file lives inside node_modules, and a `fast-check` reached from there is
 // a different module record from the one the suite loads, so configuring it would configure nothing. The
-// message therefore says whose job it is rather than claiming ploaness has already done it.
+// message therefore says whose job it is rather than claiming the harness has already done it.
 const NO_FAST_CHECK_SEED: readonly RestrictedSyntax[] = [
   {
     selector:
@@ -818,7 +818,7 @@ const NO_TEST_ORDER_ESCAPE: readonly RestrictedSyntax[] = [
  * rule anybody can read; it has silently dropped the fifth. The library config listed none of them and
  * kept only the inheritance ban it inherited from the guideline layer, so a library's specs could assert
  * a literal against itself, pin their own order, seed a property test per-call, and open a transport the
- * network guard cannot reach - seventeen selectors, none of them Payload-specific.
+ * network guard cannot reach - seventeen selectors, none of them framework-specific.
  *
  * A table rather than the bare setting, so a call site spreads it as it spreads every other table here.
  * Handed out as a setting it has to be re-wrapped under its key at each call site, and that re-wrapping
@@ -909,13 +909,13 @@ export const javascriptBlock = (files: readonly FileMatcher[]): FlatConfigBlock 
 // Assigning it is the ONLY spelling of that verdict this config leaves legal: `unicorn/no-process-exit`
 // arrives on by preset, so `process.exit()` is banned too, and with no carve-out here a Node entry point
 // cannot report a non-zero exit at all. Every governed `scripts/` therefore paid a suppression for the
-// one line it exists to end on - ploaness's own `bin.ts` among them, which is how this was found.
+// one line it exists to end on - a harness package's own `bin.ts` among them, which is how this was found.
 const PROCESS_VERDICT: string = 'process.exitCode'
 
 // The environment, exempt in the setup file alone, because configuring the process before any spec reads
 // it is that file's whole job.
 //
-// ploaness exempts its OWN setup file from this rule and shipped no equivalent, while closing every
+// The harness once exempted its OWN setup file from this rule and shipped no equivalent, while closing every
 // sanctioned alternative a project had: `vi.stubEnv` is banned outright by `NO_MOCK_PROPERTIES`, the
 // Vitest config must be a bare re-export so `test.env` cannot be added, and the `tests` gate runs the
 // runner directly rather than through a package script that could carry the assignment. A rule that
@@ -925,7 +925,7 @@ const PROCESS_ENVIRONMENT: string = 'process.env.*'
 // The global object, exempt in the setup file alone, so a project can supply an API its test runtime
 // does not implement.
 //
-// ploaness MANDATES jsdom for `tests/component/**` - the suite table in `vitest.ts` is not a project's
+// The harness MANDATES jsdom for `tests/component/**` - the suite table in `vitest.ts` is not a project's
 // to change - and jsdom implements no `matchMedia`, no `ResizeObserver`, no `IntersectionObserver`. A
 // component that reads one cannot be rendered until something supplies it, and every way of supplying
 // it was closed: `vi.stubGlobal` by `NO_MOCK_PROPERTIES`, `test.environmentOptions` by the Vitest
@@ -940,17 +940,6 @@ const PROCESS_ENVIRONMENT: string = 'process.env.*'
 // two rules were pointing at each other, one banning the assignment and naming `defineProperty` as its
 // fix, the other banning `defineProperty`. Same shape as the `void` marker, resolved the same way.
 const RUNTIME_GLOBALS: string = 'globalThis'
-
-// A hook's per-request state, exempt where a Payload project writes its hooks.
-//
-// Payload hands every hook the same `req.context` object and documents writing to it as the way one
-// hook passes a value to the next and stops a loop it would otherwise start. That is the framework's
-// contract rather than a data structure the project owns, and a rule that reported it made every
-// governed hook spend a suppression on the framework's own idiom. Written as `req.context.*.**` rather
-// than `req.context.**`, because the plugin reads `**` as ANY depth including none: the shorter pattern
-// would also admit `req.context = {}`, and replacing the bag is not writing into it. `req.file` stays
-// reported, because replacing an upload on the request is rare enough to deserve its stated reason.
-const REQUEST_CONTEXT: string = 'req.context.*.**'
 
 // One constructor rather than an option object written at each site. A block that sets this rule REPLACES
 // its options rather than adding to them, so the setup file's block has to restate the base carve-out to
@@ -978,7 +967,7 @@ export const immutabilityBlock = (files: readonly string[], ignores: readonly st
  * The setup file's role, which is to configure the process rather than to hold program logic.
  *
  * A block of its own rather than a whole-file entry in `immutabilityBlock`'s `ignores`, so the file is
- * still held to `no-let` and to every mutation that is not the environment. ploaness's own exemption is
+ * still held to `no-let` and to every mutation that is not the environment. The harness's own exemption is
  * whole-file because installing a guard on `net.Socket.prototype` IS mutation of an existing object; a
  * consumer's setup file needs the environment and nothing more.
  */
@@ -1018,22 +1007,6 @@ export const specEnvironmentBlock = (): FlatConfigBlock => ({
   plugins: { functional },
   rules: {
     'functional/immutable-data': immutableData([PROCESS_ENVIRONMENT]),
-  },
-})
-
-/**
- * The hook directories' role, which is to carry a request's state between Payload hooks.
- *
- * Mounted by the Payload configuration alone: a library has no request to carry state on. Built with the
- * shared constructor, so the base carve-out survives the replacement a block that sets this rule
- * performs, and with the plugin re-mounted, for the reason `processConfigBlock` states.
- * @param files the globs the project's hooks live under.
- */
-export const hookContextBlock = (files: readonly string[]): FlatConfigBlock => ({
-  files: [...files],
-  plugins: { functional },
-  rules: {
-    'functional/immutable-data': immutableData([REQUEST_CONTEXT]),
   },
 })
 

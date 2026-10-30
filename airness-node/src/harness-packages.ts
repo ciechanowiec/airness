@@ -1,11 +1,11 @@
 // The harness's own npm packages, and the versions the module's Airness parents name for them.
-import { LAYER_PACKAGES } from './layer.js'
+import { LAYER_NAMES, LAYER_PACKAGES } from './layer.js'
 
 /** The package this harness ships, which every node project resolves. */
 export const HARNESS_PACKAGE: string = '@airness/node'
 
 /** Every package a harness layer ships: this one and each stack layer above it. */
-export const HARNESS_PACKAGES: readonly string[] = [HARNESS_PACKAGE, ...LAYER_PACKAGES]
+export const HARNESS_PACKAGES: readonly string[] = [HARNESS_PACKAGE, ...LAYER_NAMES]
 
 /**
  * The environment variable `airness:node-gate` names the parents' versions in, as `name=version` pairs
@@ -33,7 +33,7 @@ export const MODULE_VARIABLE: string = 'AIRNESS_MODULE'
  */
 export const HARNESS_MODULES: ReadonlyMap<string, string> = new Map([
   [HARNESS_PACKAGE, 'eu.ciechanowiec:airness-node'],
-  ['@airness/payload', 'eu.ciechanowiec:airness-payload-node'],
+  ...Object.entries(LAYER_PACKAGES),
 ])
 
 /**

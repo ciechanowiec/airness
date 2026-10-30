@@ -132,39 +132,35 @@ class RepositorySitesTest {
     }
 
     @Test
-    void readsTheAirnessBuildAsJavaAndAPayloadModuleAsANodeAndPayloadProject() {
+    void readsTheAirnessBuildAsJavaAndANodeModuleAsANodeProject() {
         Path root = this.directory.resolve("self");
         MavenProject self = project(root.resolve("airness-assets"), "airness-assets", project(root, "airness", null));
-        MavenProject payload = project(
-            root.resolve(CMS), CMS, project(root.resolve("parent"), "airness-parent-payload", null)
-        );
-        payload.getProperties().setProperty(NODE_PROJECTS, ".");
+        MavenProject node = project(root.resolve(CMS), CMS, null);
+        node.getProperties().setProperty(NODE_PROJECTS, ".");
         write(root.resolve(CMS).resolve(PACKAGE), PACKAGE_BODY);
         assertEquals(
             List.of(
-                AssetSite.root(Set.of(Capability.JAVA, Capability.NODE, Capability.PAYLOAD)),
-                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE, Capability.PAYLOAD))
+                AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
+                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
             ),
-            RepositorySites.of(root, List.of(self, payload))
+            RepositorySites.of(root, List.of(self, node))
         );
     }
 
     @Test
     void mergesTwoModulesListingOneDirectoryIntoOneSite() {
         Path root = this.directory.resolve("merged");
-        MavenProject payload = project(
-            root.resolve(CMS), CMS, project(root.resolve("parent"), "airness-parent-payload", null)
-        );
-        payload.getProperties().setProperty(NODE_PROJECTS, ".");
+        MavenProject node = project(root.resolve(CMS), CMS, null);
+        node.getProperties().setProperty(NODE_PROJECTS, ".");
         MavenProject plain = project(root.resolve("tools"), "tools", null);
         plain.getProperties().setProperty(NODE_PROJECTS, "../cms");
         write(root.resolve(CMS).resolve(PACKAGE), PACKAGE_BODY);
         assertEquals(
             List.of(
-                AssetSite.root(Set.of(Capability.NODE, Capability.PAYLOAD)),
-                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE, Capability.PAYLOAD))
+                AssetSite.root(Set.of(Capability.NODE)),
+                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
             ),
-            RepositorySites.of(root, List.of(plain, payload)),
+            RepositorySites.of(root, List.of(plain, node)),
             "one directory is one site, so it never receives two competing bodies for one file"
         );
     }
@@ -249,7 +245,7 @@ class RepositorySitesTest {
     }
 
     @SneakyThrows
-    private static MavenProject project(Path basedir, String artifact, @Nullable MavenProject parent) {
+    static MavenProject project(Path basedir, String artifact, @Nullable MavenProject parent) {
         Files.createDirectories(basedir);
         MavenProject project = new MavenProject();
         project.setGroupId(GROUP);
@@ -260,7 +256,7 @@ class RepositorySitesTest {
     }
 
     @SneakyThrows
-    private static void write(Path file, String content) {
+    static void write(Path file, String content) {
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-# The repository rules ported from ploaness: image integrity, environment coherence, agent documentation
+# The generic repository rules: image integrity, environment coherence, agent documentation
 # references, skill manifests, generated-file denial, container definitions and workflows. Their variants
 # are unit-tested in airness-governance and airness-maven-plugin. These runs prove each goal is bound in
 # the installed parent: one report-only run up to the Extended scanners carries a planted defect for every

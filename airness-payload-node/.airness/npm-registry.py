@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Serves npm package tarballs as a registry on a local port, until the harness packages are published.
 
-Neither @airness/node nor ploaness is on npm yet, and a node project must install a harness package by its
+The harness npm packages are not on npm yet, and a node project must install a harness package by its
 version from a registry rather than from a path, because the wiring and release-age gates refuse a path. This
 answers the package-document and tarball requests for the tarballs it is given. Each tarball is read when it is
 requested, so a tarball packed after the registry started is served as it is now. The harness tarballs are dated

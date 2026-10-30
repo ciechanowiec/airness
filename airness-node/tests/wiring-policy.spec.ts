@@ -16,8 +16,9 @@ const lockfileOf = (
   packages: readonly ResolvedPackage[],
 ): Lockfile => ({ importers: new Map(Object.entries(importers)), packages, roots: [], edges: new Map(), rewrites: [] })
 
-const resolved = (name: string, version: string): ResolvedPackage => ({
-  name,
+// The harness at one version, as the lockfile resolves it.
+const resolvedHarness = (version: string): ResolvedPackage => ({
+  name: '@airness/node',
   version,
   source: 'registry',
   tarball: '',
@@ -27,7 +28,7 @@ const resolved = (name: string, version: string): ResolvedPackage => ({
 const CONFORMING: WiringInputs = {
   memberPath: '.',
   manifest: { name: 'shop' },
-  lockfile: lockfileOf({ '.': [HARNESS, ...SUITE] }, [resolved('@airness/node', '2.0.0')]),
+  lockfile: lockfileOf({ '.': [HARNESS, ...SUITE] }, [resolvedHarness('2.0.0')]),
   expected: new Map([['@airness/node', '2.0.0']]),
   pins: PINS,
   hasSource: true,
@@ -58,14 +59,13 @@ describe('wiring', () => {
     ])
   })
 
-  it('fails a resolved harness whose version is not the parent version, transitive or direct', () => {
-    const lockfile: Lockfile = lockfileOf({ '.': SUITE }, [
-      resolved('@airness/node', '1.9.0'),
-      resolved('@airness/payload', '1.4.0'),
-    ])
+  it('fails a resolved harness whose version is not the parent version, or that no parent names', () => {
+    const lockfile: Lockfile = lockfileOf({ '.': SUITE }, [resolvedHarness('1.9.0')])
     expect(wiringFindings({ ...CONFORMING, lockfile })).toEqual([
       "pnpm-lock.yaml resolves @airness/node 1.9.0, but the module's Airness parent names 2.0.0; install 2.0.0",
-      "pnpm-lock.yaml resolves @airness/payload 1.4.0, but no parent in the module's chain names a version of it",
+    ])
+    expect(wiringFindings({ ...CONFORMING, lockfile, expected: new Map() })).toEqual([
+      "pnpm-lock.yaml resolves @airness/node 1.9.0, but no parent in the module's chain names a version of it",
     ])
   })
 
@@ -73,7 +73,7 @@ describe('wiring', () => {
     const linked: DirectDependency = { name: '@airness/node', specifier: 'link:../node', version: 'link:../node' }
     const local: WiringInputs = {
       ...CONFORMING,
-      lockfile: lockfileOf({ '.': [linked, ...SUITE] }, [resolved('@airness/node', '2.0.0')]),
+      lockfile: lockfileOf({ '.': [linked, ...SUITE] }, [resolvedHarness('2.0.0')]),
     }
     expect(wiringFindings(local)).toEqual([
       'package.json declares @airness/node as "link:../node"; install the released package by its version, ' +
@@ -102,12 +102,12 @@ describe('wiring', () => {
       { name: 'yaml', specifier: '2.8.0', version: '2.8.0' },
     ]
     expect(
-      wiringFindings({ ...CONFORMING, lockfile: lockfileOf({ '.': drifted }, [resolved('@airness/node', '2.0.0')]) }),
+      wiringFindings({ ...CONFORMING, lockfile: lockfileOf({ '.': drifted }, [resolvedHarness('2.0.0')]) }),
     ).toEqual(['vitest resolves to 5.0.4, but the harness runs 5.0.5; declare it at exactly 5.0.5'])
   })
 
   it('asks a member with source for the suite libraries, and a member without none', () => {
-    const bare: Lockfile = lockfileOf({ '.': [HARNESS] }, [resolved('@airness/node', '2.0.0')])
+    const bare: Lockfile = lockfileOf({ '.': [HARNESS] }, [resolvedHarness('2.0.0')])
     expect(wiringFindings({ ...CONFORMING, lockfile: bare })).toEqual([
       "vitest is not declared; the tests gate runs the member's own copy, so declare it as a development " +
         'dependency at 5.0.5',
@@ -119,7 +119,7 @@ describe('wiring', () => {
   })
 
   it('judges a nested member by its own importer only', () => {
-    const lockfile: Lockfile = lockfileOf({ '.': [HARNESS, ...SUITE], gate: [] }, [resolved('@airness/node', '2.0.0')])
+    const lockfile: Lockfile = lockfileOf({ '.': [HARNESS, ...SUITE], gate: [] }, [resolvedHarness('2.0.0')])
     expect(
       wiringFindings({ ...CONFORMING, memberPath: 'gate', lockfile, hasSource: false, expected: undefined }),
     ).toEqual([])
@@ -131,70 +131,57 @@ describe('wiring', () => {
     expect(wiringFindings({ ...CONFORMING, rewrites, expected: undefined })[0]).toBe(rewrites[0])
   })
 
-  it('lets any harness package link itself in its own repository, and no other', () => {
-    const self: DirectDependency = { name: '@airness/payload', specifier: 'link:.', version: 'link:.' }
-    const layerPackage: WiringInputs = {
+  it('lets a harness package link itself in its own repository, and no other', () => {
+    const self: DirectDependency = { name: '@airness/node', specifier: 'link:.', version: 'link:.' }
+    const harness: WiringInputs = {
       ...CONFORMING,
-      manifest: { name: '@airness/payload', version: '1.4.0' },
-      lockfile: lockfileOf({ '.': [self, HARNESS, ...SUITE] }, [resolved('@airness/node', '2.0.0')]),
-      expected: new Map([
-        ['@airness/node', '2.0.0'],
-        ['@airness/payload', '1.4.0'],
-      ]),
-      moduleVersion: '1.4.0',
-      module: 'eu.ciechanowiec:airness-payload-node',
+      manifest: { name: '@airness/node', version: '2.0.0' },
+      lockfile: lockfileOf({ '.': [self, ...SUITE] }, []),
+      moduleVersion: '2.0.0',
+      module: 'eu.ciechanowiec:airness-node',
     }
-    expect(wiringFindings(layerPackage)).toEqual([])
-    expect(wiringFindings({ ...layerPackage, manifest: { name: 'shop' } }).join('\n')).toContain(
-      'package.json declares @airness/payload as "link:."',
+    expect(wiringFindings(harness)).toEqual([])
+    expect(wiringFindings({ ...harness, manifest: { name: 'shop' } }).join('\n')).toContain(
+      'package.json declares @airness/node as "link:."',
     )
   })
 
   it('holds a harness package whose chain does not name it to the version of the module that builds it', () => {
-    const self: DirectDependency = { name: '@airness/payload', specifier: 'link:.', version: 'link:.' }
+    const self: DirectDependency = { name: '@airness/node', specifier: 'link:.', version: 'link:.' }
     const library: WiringInputs = {
       ...CONFORMING,
-      manifest: { name: '@airness/payload', version: '2.0.0-SNAPSHOT' },
-      lockfile: lockfileOf({ '.': [self, HARNESS, ...SUITE] }, [resolved('@airness/node', '2.0.0')]),
+      manifest: { name: '@airness/node', version: '2.0.0-SNAPSHOT' },
+      lockfile: lockfileOf({ '.': [self, ...SUITE] }, []),
+      expected: new Map(),
       moduleVersion: '2.0.0-SNAPSHOT',
-      module: 'eu.ciechanowiec:airness-payload-node',
+      module: 'eu.ciechanowiec:airness-node',
     }
     expect(wiringFindings(library)).toEqual([])
     expect(wiringFindings({ ...library, moduleVersion: '2.0.1' })).toEqual([
-      "package.json versions @airness/payload 2.0.0-SNAPSHOT, but the module that builds it is 2.0.1; release the package at the module's version",
+      "package.json versions @airness/node 2.0.0-SNAPSHOT, but the module that builds it is 2.0.1; release the package at the module's version",
     ])
     expect(wiringFindings({ ...library, moduleVersion: undefined }).join('\n')).toContain(
       "the module's own version was not supplied in AIRNESS_MODULE_VERSION",
     )
-    // A consumer is judged as before: a harness package it resolves needs a parent that names its version.
-    const consumer: Lockfile = lockfileOf({ '.': [HARNESS, ...SUITE] }, [
-      resolved('@airness/node', '2.0.0'),
-      resolved('@airness/payload', '2.0.0-SNAPSHOT'),
-    ])
-    expect(wiringFindings({ ...CONFORMING, lockfile: consumer, moduleVersion: '2.0.0-SNAPSHOT' })).toEqual([
-      "pnpm-lock.yaml resolves @airness/payload 2.0.0-SNAPSHOT, but no parent in the module's chain names a version of it",
-    ])
   })
 
   it('refuses a consumer posing as a harness package, at the root and in any member', () => {
-    const self: DirectDependency = { name: '@airness/payload', specifier: 'link:.', version: 'link:.' }
+    const self: DirectDependency = { name: '@airness/node', specifier: 'link:.', version: 'link:.' }
     const poser: WiringInputs = {
       ...CONFORMING,
-      manifest: { name: '@airness/payload', version: '1.0.0' },
-      lockfile: lockfileOf({ '.': [self, HARNESS, ...SUITE] }, [resolved('@airness/node', '2.0.0')]),
-      moduleVersion: '1.0.0',
+      manifest: { name: '@airness/node', version: '2.0.0' },
+      lockfile: lockfileOf({ '.': [self, ...SUITE] }, [resolvedHarness('2.0.0')]),
+      moduleVersion: '2.0.0',
       module: 'com.example:shop',
     }
     const posing: string =
-      'package.json names the package @airness/payload, which only the module eu.ciechanowiec:airness-payload-node builds, and ' +
+      'package.json names the package @airness/node, which only the module eu.ciechanowiec:airness-node builds, and ' +
       'this module is com.example:shop; give the package a name of its own'
     const linked: string =
-      'package.json declares @airness/payload as "link:."; install the released package by its version, which is what the ' +
+      'package.json declares @airness/node as "link:."; install the released package by its version, which is what the ' +
       'gates are proven against'
     expect(wiringFindings(poser)).toEqual([posing, linked])
-    const member: Lockfile = lockfileOf({ '.': [HARNESS, ...SUITE], gate: [self] }, [
-      resolved('@airness/node', '2.0.0'),
-    ])
+    const member: Lockfile = lockfileOf({ '.': [HARNESS, ...SUITE], gate: [self] }, [resolvedHarness('2.0.0')])
     expect(wiringFindings({ ...poser, memberPath: 'gate', lockfile: member, hasSource: false })).toEqual([
       posing,
       linked,

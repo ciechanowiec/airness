@@ -41,7 +41,7 @@ POM
 
     run_maven node_library node "${node_library}" clean verify
     expect_exit node_library 'node gates: a conforming pure TypeScript module passes' 0
-    # mvn install attached the packed tarball to airness-node's artifact, where a consumer such as ploaness
+    # mvn install attached the packed tarball to airness-node's artifact, where a consumer such as a stack layer
     # resolves it from the local repository rather than from a sibling checkout.
     if cmp -s "${local_repository}/eu/ciechanowiec/airness-node/${harness_version}/airness-node-${harness_version}.tgz" \
         "${repository}/airness-node/target/airness-node-${harness_version}.tgz"; then

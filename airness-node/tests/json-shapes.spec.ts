@@ -43,17 +43,17 @@ describe('asRecord', () => {
 
 describe('asStringRecord', () => {
   it('keeps the keys whose values are strings', () => {
-    expect(asStringRecord({ payload: '3.88.0' })).toEqual({ payload: '3.88.0' })
+    expect(asStringRecord({ lodash: '4.17.21' })).toEqual({ lodash: '4.17.21' })
   })
 
   it('drops a key whose value is not a string', () => {
-    expect(asStringRecord({ payload: '3.88.0', engines: { node: '>=26' } })).toEqual({
-      payload: '3.88.0',
+    expect(asStringRecord({ lodash: '4.17.21', engines: { node: '>=26' } })).toEqual({
+      lodash: '4.17.21',
     })
   })
 
   it('returns no keys for a value that is not an object', () => {
-    expect(asStringRecord('payload')).toEqual({})
+    expect(asStringRecord('lodash')).toEqual({})
   })
 })
 
@@ -142,12 +142,12 @@ describe('declaredDependencies and the optional block', () => {
 
   it('keeps all three installed blocks together', () => {
     const declared: Record<string, string> = declaredDependencies({
-      dependencies: { payload: '3.88.0' },
+      dependencies: { lodash: '4.17.21' },
       devDependencies: { vitest: '4.1.11' },
       optionalDependencies: { sharp: '0.35.3' },
     })
     expect(Object.keys(declared).sort((left: string, right: string): number => left.localeCompare(right))).toEqual([
-      'payload',
+      'lodash',
       'sharp',
       'vitest',
     ])

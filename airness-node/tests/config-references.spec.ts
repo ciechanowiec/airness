@@ -19,7 +19,7 @@ describe('extractLiteralSourcePaths', () => {
   })
 
   it('strips a leading `!` negation (Biome)', () => {
-    expect(extractLiteralSourcePaths("'!src/payload-generated-schema.ts'")).toEqual(['src/payload-generated-schema.ts'])
+    expect(extractLiteralSourcePaths("'!src/generated-schema.ts'")).toEqual(['src/generated-schema.ts'])
   })
 
   it('accepts single, double, and backtick quotes', () => {
@@ -33,7 +33,7 @@ describe('extractLiteralSourcePaths', () => {
   })
 
   it('ignores dependency-cruiser path regexes', () => {
-    const content: string = String.raw`"^src/(access|lib)/|^src/payload-types\.ts$"`
+    const content: string = String.raw`"^src/(access|lib)/|^src/generated-types\.ts$"`
     expect(extractLiteralSourcePaths(content)).toEqual([])
   })
 
@@ -48,11 +48,8 @@ describe('extractLiteralSourcePaths', () => {
   })
 
   it('extracts the real-world carve-out that motivated the gate', () => {
-    const biomeIncludes: string = '["src/**/*", "!src/payload-types.ts", "!src/payload-generated-schema.ts"]'
-    expect(extractLiteralSourcePaths(biomeIncludes)).toEqual([
-      'src/payload-generated-schema.ts',
-      'src/payload-types.ts',
-    ])
+    const biomeIncludes: string = '["src/**/*", "!src/generated-types.ts", "!src/generated-schema.ts"]'
+    expect(extractLiteralSourcePaths(biomeIncludes)).toEqual(['src/generated-schema.ts', 'src/generated-types.ts'])
   })
 })
 

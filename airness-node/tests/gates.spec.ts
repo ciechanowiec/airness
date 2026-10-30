@@ -2,6 +2,7 @@
 // planted defect per gate, so a gate that stopped judging would let the defect through.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { GateResult } from '@/exec.js'
 import { formatCommand } from '@/format-command.js'
@@ -12,9 +13,9 @@ import { javascriptAllowlist } from '@/gate-javascript-allowlist.js'
 import { oxlint } from '@/gate-oxlint.js'
 import { sourceRules } from '@/gate-source-rules.js'
 import { types } from '@/gate-types.js'
-import { GATES, gateById } from '@/gates.js'
+import { GATES, type Gate, gateById } from '@/gates.js'
 import { layerDefaultsOf } from '@/layer.js'
-import type { Member } from '@/project.js'
+import { harnessDirectory, type Member } from '@/project.js'
 import { readSettings } from '@/settings.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
@@ -22,11 +23,25 @@ import { memberAt, removeProject, temporaryProject } from './helpers/temporary-p
 // The type-aware lint and the compiler each start a process that reads the whole project.
 const TOOL_TIMEOUT_MS: number = 60_000
 
+// A layer package these specs name as a layer: a fixture's, so the seam is measured whatever the harness registers.
+const LAYER: string = 'layer-a'
+
 // A stack layer's ESLint export, planted under node_modules: the node blocks, then the given ones.
 const layerConfig = (blocks: string): string => `import node from '@airness/node/eslint'\nexport default ${blocks}\n`
 
-// Five lint runs, one per layer configuration the spec plants.
-const LAYERED_TIMEOUT_MS: number = 300_000
+// The shipped layered configuration composed for the named layers, planted where ESLint lints nothing.
+const LAYERED_CONFIG: string = 'node_modules/.layered/eslint.config.mjs'
+
+const layeredConfigFor = (layers: readonly string[]): string => {
+  const shipped: string = pathToFileURL(path.join(harnessDirectory(), 'dist', 'eslint-layered.js')).href
+  return (
+    `import { composedConfig } from ${JSON.stringify(shipped)}\n` +
+    `export default await composedConfig(process.cwd(), ${JSON.stringify(layers)})\n`
+  )
+}
+
+// Six lint runs, one per layer configuration the spec plants and one under the shipped configuration.
+const LAYERED_TIMEOUT_MS: number = 360_000
 
 // Formatted the way Biome writes JSON, since Biome reads the manifest and the tsconfig too.
 const JSON_INDENT: number = 2
@@ -77,6 +92,15 @@ afterAll(() => {
 
 const findingsOf = (result: GateResult): string => result.findings.join('\n')
 
+// The gate as node-gate runs it, through the registry, with the layers and the configuration it reads by default.
+const registered = async (id: string, member: Member): Promise<GateResult> => {
+  const gate: Gate | undefined = gateById(id)
+  if (gate === undefined) {
+    throw new Error(`the registry ships no gate ${id}`)
+  }
+  return await gate.run(member, { evidenceDirectory: undefined })
+}
+
 /** A manifest declaring settings under the airness key. */
 type Manifest = Readonly<Record<string, unknown>>
 
@@ -105,7 +129,6 @@ describe('the gate registry', PROCESS_TIME, () => {
       'bundle',
       'e2e',
     ])
-    expect(gateById('payload-defaults')).toBeUndefined()
   })
 })
 
@@ -161,17 +184,17 @@ describe('source-rules', PROCESS_TIME, () => {
 
   it("passes over a generated artefact, the project's or a layer's, as a generator wrote it", () => {
     const scaffold: Readonly<Record<string, string>> = {
-      'src/app/(payload)/admin/page.tsx': "import { importMap } from '../importMap.js'\nexport { importMap }\n",
+      'src/app/(admin)/admin/page.tsx': "import { importMap } from '../importMap.js'\nexport { importMap }\n",
     }
     withPlanted(scaffold, (root: string) => {
       expect(findingsOf(sourceRules(memberAt(root)))).toContain('[no-deep-relative-imports]')
       const declared: Manifest = {
-        airness: { generatedArtefacts: [{ pattern: 'src/app/?payload?/**', reason: 'Payload writes it' }] },
+        airness: { generatedArtefacts: [{ pattern: 'src/app/?admin?/**', reason: 'the framework writes it' }] },
       }
       expect(sourceRules(memberAt(root, declared)).findings).toEqual([])
       const layered: Member = {
         ...memberAt(root),
-        settings: readSettings({}, [{ ...layerDefaultsOf({}), generatedArtefacts: ['src/app/?payload?/**'] }]),
+        settings: readSettings({}, [{ ...layerDefaultsOf({}), generatedArtefacts: ['src/app/?admin?/**'] }]),
       }
       expect(sourceRules(layered).findings).toEqual([])
     })
@@ -333,54 +356,6 @@ describe('eslint', PROCESS_TIME, () => {
   )
 
   it(
-    'adds the blocks of a declared stack layer after the node layer, and refuses one that weakens it',
-    () => {
-      const manifest: Manifest = {
-        name: 'conforming',
-        private: true,
-        type: 'module',
-        devDependencies: { '@airness/payload': '1.0.0' },
-      }
-      const layer: Manifest = {
-        name: '@airness/payload',
-        type: 'module',
-        exports: { './eslint': './eslint.js', './package.json': './package.json' },
-        airness: { layer: { eslint: './eslint' } },
-      }
-      const writeLayer = (root: string, blocks: string): void => {
-        writeFileSync(path.join(root, 'node_modules', '@airness/payload', 'eslint.js'), layerConfig(blocks))
-      }
-      withPlanted(
-        {
-          'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
-          'node_modules/@airness/payload/package.json': JSON.stringify(layer),
-          'node_modules/@airness/payload/eslint.js': layerConfig(
-            "[...node, { files: ['src/**/*.ts'], rules: { 'id-denylist': ['error', 'left'] } }]",
-          ),
-          // The project's own configuration turns everything off, and the verdict does not move.
-          'eslint.config.mjs': "export default [{ ignores: ['**'] }]\n",
-        },
-        (root: string) => {
-          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain('id-denylist')
-          writeLayer(root, "[...node, { files: ['src/**/*.ts'], rules: { 'no-magic-numbers': 'off' } }]")
-          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain('weakens the node rule no-magic-numbers')
-          writeLayer(root, "[{ files: ['**/*.ts'], rules: {} }]")
-          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain("does not start with the node layer's blocks")
-          writeLayer(root, "[...node, { ignores: ['src/**'] }]")
-          expect(findingsOf(eslint(memberAt(root, manifest)))).toContain('ignores files for every block')
-          // A layer that names no configuration leaves the node layer's in place.
-          writeFileSync(
-            path.join(root, 'node_modules', '@airness/payload', 'package.json'),
-            JSON.stringify({ ...layer, airness: { layer: {} } }),
-          )
-          expect(eslint(memberAt(root, manifest)).findings).toEqual([])
-        },
-      )
-    },
-    LAYERED_TIMEOUT_MS,
-  )
-
-  it(
     'passes a conforming project and fails a rule the harness configuration holds it to',
     () => {
       expect(eslint(memberAt(conforming)).findings).toEqual([])
@@ -389,6 +364,60 @@ describe('eslint', PROCESS_TIME, () => {
       })
     },
     TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'adds the blocks of a declared layer after the node layer, and refuses one that weakens it',
+    async () => {
+      const manifest: Manifest = {
+        name: 'conforming',
+        private: true,
+        type: 'module',
+        devDependencies: { [LAYER]: '1.0.0' },
+      }
+      const layer: Manifest = {
+        name: LAYER,
+        type: 'module',
+        exports: { './eslint': './eslint.js', './package.json': './package.json' },
+        airness: { layer: { eslint: './eslint' } },
+      }
+      const root: string = temporaryProject({
+        ...CONFORMING,
+        'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
+        [`node_modules/${LAYER}/package.json`]: JSON.stringify(layer),
+        [`node_modules/${LAYER}/eslint.js`]: layerConfig(
+          "[...node, { files: ['src/**/*.ts'], rules: { 'id-denylist': ['error', 'left'] } }]",
+        ),
+        [LAYERED_CONFIG]: layeredConfigFor([LAYER]),
+        // The project's own configuration turns everything off, and the verdict does not move.
+        'eslint.config.mjs': "export default [{ ignores: ['**'] }]\n",
+      })
+      const writeLayer = (blocks: string): void => {
+        writeFileSync(path.join(root, 'node_modules', LAYER, 'eslint.js'), layerConfig(blocks))
+      }
+      try {
+        const layered = (): GateResult => eslint(memberAt(root, manifest), path.join(root, LAYERED_CONFIG))
+        expect(findingsOf(layered())).toContain('id-denylist')
+        // A package the harness does not name as a layer adds nothing to the shipped configuration.
+        const shipped: GateResult = await registered('eslint', memberAt(root, manifest))
+        expect(shipped.findings).toEqual([])
+        writeLayer("[...node, { files: ['src/**/*.ts'], rules: { 'no-magic-numbers': 'off' } }]")
+        expect(findingsOf(layered())).toContain('weakens the node rule no-magic-numbers')
+        writeLayer("[{ files: ['**/*.ts'], rules: {} }]")
+        expect(findingsOf(layered())).toContain("does not start with the node layer's blocks")
+        writeLayer("[...node, { ignores: ['src/**'] }]")
+        expect(findingsOf(layered())).toContain('ignores files for every block')
+        // A layer that names no configuration leaves the node layer's in place.
+        writeFileSync(
+          path.join(root, 'node_modules', LAYER, 'package.json'),
+          JSON.stringify({ ...layer, airness: { layer: {} } }),
+        )
+        expect(layered().findings).toEqual([])
+      } finally {
+        removeProject(root)
+      }
+    },
+    LAYERED_TIMEOUT_MS,
   )
 })
 

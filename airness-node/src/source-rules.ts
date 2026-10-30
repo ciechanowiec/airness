@@ -1,6 +1,5 @@
-// The language half of ploaness's `payload-rules`: the source rules that hold in any JS/TS package,
-// whether or not it uses Payload. The Payload half stays with the Payload layer, so no rule here asks
-// whether the package is a Payload one.
+// The source rules that hold in any JS/TS package, whatever framework it uses. A framework's own source
+// rules stay with its stack layer, so no rule here asks which framework the package is built on.
 
 import type { TextRange } from 'typescript'
 import { literalRanges } from './source-comments.js'

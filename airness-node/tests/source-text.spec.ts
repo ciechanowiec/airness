@@ -1,4 +1,4 @@
-// The reader three layers now stand on: the Payload rules, the JSONC parser the wiring rule uses, and
+// The reader three layers now stand on: a stack layer's rules, the JSONC parser the wiring rule uses, and
 // the config-body lookup. Its edge cases used to be exercised only incidentally, through whichever rule
 // happened to call it, so a defect here would have been reported as a defect in that rule.
 import { describe, expect, it } from 'vitest'

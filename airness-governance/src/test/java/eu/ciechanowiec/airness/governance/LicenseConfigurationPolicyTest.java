@@ -71,9 +71,9 @@ class LicenseConfigurationPolicyTest {
     }
 
     @Test
-    void admitsTheUnconditionalGrantPayloadReachesButNoFontLicense() {
+    void admitsTheUnconditionalGrantOfTruncateUtf8BytesButNoFontLicense() {
         List<String> allowed = allowlist();
-        assertTrue(allowed.contains("WTFPL"), "Payload reaches truncate-utf8-bytes under WTFPL");
+        assertTrue(allowed.contains("WTFPL"), "sanitize-filename reaches truncate-utf8-bytes under WTFPL");
         assertFalse(allowed.contains("OFL-1.1"));
     }
 

@@ -9,7 +9,7 @@ import { coverageExclusions, coverageIncludes } from './coverage-policy.js'
 import { isBrowserAppAt } from './facets.js'
 import { TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
 import { declaredDependencies } from './json-shapes.js'
-import { layerDefaultsFor, layerTestDependenciesFor } from './layer.js'
+import { LAYER_NAMES, layerDefaultsFor, layerTestDependenciesFor } from './layer.js'
 import { readJson } from './project.js'
 import { PROJECT_SETUP_FILE, readSettings, type Settings } from './settings.js'
 import { testReporters } from './test-reporters.js'
@@ -36,14 +36,22 @@ const globalSetup = (directory: string): readonly string[] =>
     ? [fileURLToPath(import.meta.resolve('#harness/vitest-global-setup')), path.join(directory, GLOBAL_SETUP_FILE)]
     : []
 
-/** Construct the shipped configuration from a real project directory, without changing process state. */
-export const vitestConfig = (directory: string): Readonly<Record<string, unknown>> => {
+/** The configuration Vitest reads. */
+type VitestConfig = Readonly<Record<string, unknown>>
+
+/**
+ * Construct the shipped configuration from a real project directory, without changing process state.
+ * @param directory the project directory.
+ * @param layers the packages read as layers, the registered ones unless a caller names others.
+ * @returns the configuration.
+ */
+export const vitestConfig = (directory: string, layers: readonly string[] = LAYER_NAMES): VitestConfig => {
   const manifest: unknown = readJson(path.join(directory, 'package.json'))
-  const settings: Settings = readSettings(manifest, layerDefaultsFor(directory, manifest, readJson))
+  const settings: Settings = readSettings(manifest, layerDefaultsFor(directory, manifest, readJson, layers))
   const hasReact: boolean = Object.hasOwn(declaredDependencies(manifest), 'react')
   const isBrowser: boolean = hasReact || isBrowserAppAt(manifest, settings)
   const setup: readonly string[] = workerSetup(directory)
-  const inline: readonly string[] = layerTestDependenciesFor(directory, manifest, readJson)
+  const inline: readonly string[] = layerTestDependenciesFor(directory, manifest, readJson, layers)
 
   const project = (suite: TestSuite): Record<string, unknown> => ({
     extends: false,
@@ -91,5 +99,5 @@ export const vitestConfig = (directory: string): Readonly<Record<string, unknown
 }
 
 // Do not make a consuming config resolve Vite's transitive types merely to re-export this value.
-const config: Readonly<Record<string, unknown>> = vitestConfig(process.cwd())
+const config: VitestConfig = vitestConfig(process.cwd())
 export default config

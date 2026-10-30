@@ -157,7 +157,7 @@ const ownerAfterRemovingOrphans = (context: Context): BrowserServerOwner | GateR
   const started: string | undefined = processStart(context, process.pid)
   if (started === undefined) {
     return failed('the run could not read its own start time, which marks the browser server it starts', [
-      'ploaness reads it with `ps -o lstart= -p <pid>`; make `ps` available on the PATH',
+      'the harness reads it with `ps -o lstart= -p <pid>`; make `ps` available on the PATH',
     ])
   }
   const owner: BrowserServerOwner = {
