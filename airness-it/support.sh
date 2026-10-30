@@ -581,14 +581,16 @@ await_lanes() {
     while :; do
         lanes_running=no
         for lane_name in "$@"; do
-            if kill -0 "$(cat "${lane_results}/${lane_name}.pid")" 2>/dev/null; then
+            lane_pid="$(cat "${lane_results}/${lane_name}.pid")"
+            if kill -0 "${lane_pid}" 2>/dev/null; then
                 lanes_running=yes
             elif [ ! -f "${lane_results}/${lane_name}.counts" ]; then
                 for lane_other in "$@"; do
                     lane_pid="$(cat "${lane_results}/${lane_other}.pid")"
                     if [ "${lane_other}" != "${lane_name}" ] && kill -0 "${lane_pid}" 2>/dev/null; then
                         printf '%s' "${lane_name}" > "${lane_results}/${lane_other}.stopped"
-                        process_tree "${lane_pid}" | xargs kill 2>/dev/null || true
+                        lane_tree="$(process_tree "${lane_pid}")"
+                        printf '%s\n' "${lane_tree}" | xargs kill 2>/dev/null || true
                     fi
                 done
                 return
