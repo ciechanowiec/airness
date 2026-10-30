@@ -140,6 +140,7 @@ case "${selected_domain}" in
             run_analysis_cases run_template_message_cases run_web_accessibility_cases run_template_cases \
             run_stylesheet_cases run_node_project_cases run_node_gate_cases run_node_next_cases run_node_browser_cases
         # Joined in the order whose headings do not repeat across the seam.
+        await_lanes spring repository
         join_lane spring
         join_lane repository
         ;;
