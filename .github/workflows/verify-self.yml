@@ -80,6 +80,10 @@ jobs:
           docker pull "${image}"
 
       - name: 'Build, fully verify, and install Airness artifacts'
+        # The file linter follows the link airness-node keeps to itself through node_modules, so its walk of
+        # that module outgrows the default heap, which is a quarter of the runner's memory.
+        env:
+          MAVEN_OPTS: '-Xmx5g'
         run: mvn clean install -Pextended
 
       - name: 'Verify isolated consumers'
