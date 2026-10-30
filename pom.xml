@@ -40,13 +40,16 @@
         airness-config is first so that every module after it can carry the analyzer configurations on an
         isolated plugin classpath. A module built before it cannot resolve the artifact from the reactor,
         which is why airness-annotations once bound no analyzer at all. airness-error-prone follows it,
-        because every later module compiles with the checks it ships. None of the first four modules
+        because every later module compiles with the checks it ships. None of the first five modules
         depends on another, so declaration order alone decides, and SelfHarnessMirrorTest holds it here.
+        airness-payload-assets follows airness-assets, before airness-parent: the self-build plugin scan
+        there resolves the plugin dependencies of every module, airness-parent-payload's included.
     -->
     <modules>
         <module>airness-config</module>
         <module>airness-error-prone</module>
         <module>airness-assets</module>
+        <module>airness-payload-assets</module>
         <module>airness-annotations</module>
         <module>airness-governance</module>
         <module>airness-spring-evidence</module>
@@ -57,7 +60,6 @@
         <module>airness-parent-spring-boot</module>
         <module>airness-parent-node</module>
         <module>airness-node</module>
-        <module>airness-payload-assets</module>
         <module>airness-parent-payload</module>
         <module>airness-payload-node</module>
     </modules>
