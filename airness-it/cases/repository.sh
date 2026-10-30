@@ -4,6 +4,7 @@ run_repository_cases() {
     run_build_input_cases
     run_formatting_boundaries
     run_binary_formatting_boundary
+    run_ignored_output_boundary
     run_tree_boundary
     run_report_only_boundaries
     run_artifact_boundaries
@@ -83,6 +84,58 @@ run_binary_formatting_boundary() {
     expect_no_match audio_text 'formatting: a generated file is left to its generator' 'generated[.]txt'
     expect_no_match audio_text 'formatting: binaries stay outside the text finding' \
         'silence[.]wav@|module[.]wasm@|font[.]pfb@|map[.]bcmap@|tone[.]mp3@|clip[.]mov@'
+}
+
+# Output a build writes after validate to a path git ignores outside the build directory, as a compiled package
+# writes its output. The linter's exclusions are first listed at validate, when that output does not exist yet, so
+# only their second listing, which the check follows, keeps it out of the first build from a clean tree.
+run_ignored_output_boundary() {
+    new_consumer ignored-output
+    ignored_consumer="${consumer_directory}"
+    ignored_block="$(cat <<'XML'
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>write-ignored-output</id>
+                        <phase>compile</phase>
+                        <goals><goal>run</goal></goals>
+                        <configuration>
+                            <target>
+                                <echo file="dist/notes.txt" message="Written by the build.   ${line.separator}"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+XML
+)"
+    IGNORED_BLOCK="${ignored_block}" perl -0pi -e \
+        's{</project>}{$ENV{IGNORED_BLOCK}."\n</project>"}e' "${ignored_consumer}/pom.xml"
+    run_maven ignored_output repository "${ignored_consumer}" clean verify
+    expect_file_match "${ignored_consumer}/dist/notes.txt" \
+        'formatting: the build wrote an ignored file with trailing whitespace' ' $'
+    expect_exit ignored_output 'formatting: ignored output the build writes is not read on the first build' 0
+    expect_before ignored_output 'formatting: the exclusions are listed again before the check' \
+        '--- airness:[^ ]+:editorconfig-excludes [(]airness-editorconfig-excludes[)]' \
+        '--- editorconfig:[^ ]+:check [(]airness-editorconfig-check[)]'
+    expect_file_match "${ignored_consumer}/target/airness/editorconfig-excludes.txt" \
+        'formatting: the exclusions the check read name the ignored output' '^dist/[*][*]$'
+    expect_no_match ignored_output 'formatting: the ignored output is named nowhere' 'dist/notes[.]txt'
+
+    printf 'Committed notes.   \n' > "${ignored_consumer}/notes.txt"
+    git -C "${ignored_consumer}" add notes.txt
+    run_maven ignored_tracked repository "${ignored_consumer}" clean package
+    expect_exit ignored_tracked 'formatting: a tracked file with trailing whitespace still fails' 1
+    expect_match ignored_tracked 'formatting: the tracked file is the offending file' \
+        'notes[.]txt.*trim_trailing_whitespace'
+    expect_no_match ignored_tracked 'formatting: the ignored output stays unread beside it' 'dist/notes[.]txt'
 }
 
 run_tree_boundary() {
