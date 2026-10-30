@@ -452,10 +452,12 @@ install_airness_node() {
     # before would install the @airness/node an earlier build packed. The store is this run's too, so nothing a
     # fixture installs comes from outside the run. The lockfile then names the integrity of this build's tarball,
     # which node-dependencies installs by, frozen and content-addressed, whatever its own cache holds. pnpm 12
-    # reads these settings from pnpm_config_ variables only: an npm_config_ one is silently ignored.
+    # reads these settings from pnpm_config_ variables only: an npm_config_ one is silently ignored. The lockfile
+    # is written here, also over one a case's changed manifest outdates, so it is never frozen, as pnpm freezes it
+    # by default wherever CI is set.
     if ! (cd "$1" && PATH="${node_home}/bin:${pnpm_home}:${PATH}" pnpm_config_manage_package_manager_versions=false \
         pnpm_config_cache_dir="${scratch}/.pnpm-cache" pnpm_config_store_dir="${scratch}/.pnpm-store" \
-        "${pnpm_home}/pnpm" install --ignore-scripts) > "${install_log}" 2>&1; then
+        "${pnpm_home}/pnpm" install --no-frozen-lockfile --ignore-scripts) > "${install_log}" 2>&1; then
         printf '\n  %sinstalling the dependencies of %s failed%s\n' "${style_fail}" "$1" "${style_off}" >&2
         cat "${install_log}" >&2
         exit 1
