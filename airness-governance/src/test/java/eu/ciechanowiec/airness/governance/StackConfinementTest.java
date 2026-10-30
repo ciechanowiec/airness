@@ -58,13 +58,13 @@ class StackConfinementTest {
     private static final String PNG_CHUNK = "the data a PNG chunk carries";
 
     /**
-     * The paths the stack owns whole, which removing it deletes: its modules and the one test per core module that
-     * holds its registration.
+     * The paths the stack owns whole, which removing it deletes: its modules, its integration domain and the one
+     * test per core module that holds its registration.
      */
     private static final List<String> STACK_PATHS = List.of(
-        "airness-payload-assets/", "airness-parent-payload/", "airness-payload-node/",
-        GOVERNANCE_TESTS + "PayloadRegistrationTest.java", PLUGIN_TESTS + "PayloadRegistrationTest.java",
-        "airness-node/tests/payload-registration.spec.ts"
+        "airness-payload-assets/", "airness-parent-payload/", "airness-payload-node/", "airness-it/cases/payload.sh",
+        "airness-it/fixtures/payload/", GOVERNANCE_TESTS + "PayloadRegistrationTest.java",
+        PLUGIN_TESTS + "PayloadRegistrationTest.java", "airness-node/tests/payload-registration.spec.ts"
     );
 
     /**
@@ -78,6 +78,14 @@ class StackConfinementTest {
             "the reactor modules, the npm-only module kept out of Central, and its dist kept from the editor check"
         ),
         new Entry(".gitignore", Set.of(NODE_MODULE), "the .npmrc the stack's local registry writes"),
+        new Entry(
+            "airness-it/verify.sh",
+            Set.of(
+                WORD, "payload.sh", "payload_package", "payload_mismatched_package", "prepare_payload_packages",
+                "run_payload_cases"
+            ),
+            "the payload integration domain: its name, its case file, its lane and the packages its registry serves"
+        ),
         new Entry(
             ".claude/settings.json", Set.of(NODE_MODULE),
             "the deny rules assets-sync wrote for the managed files of the stack's node project; removing the stack"
