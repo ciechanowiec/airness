@@ -23,7 +23,9 @@ Run one gate with `pnpm exec airness-payload gate <id> --verbose` to diagnose it
 
 The node gates apply the Payload layer's additions too. The `eslint` gate runs the node rules plus the Payload
 blocks below, and the Extended `e2e` gate runs the layer's `access-boundary` specification, which asks Payload's
-`/api/access` what an anonymous caller may do and fails on every grant `publicAccess` does not declare.
+`/api/access` what an anonymous caller may do and fails on every grant `publicAccess` does not declare. The
+browser sweep scans a custom admin view within Payload's template: the layer supplies the template's content
+selectors through `airness.layer.browser`, so Payload's own navigation and header are not judged as the view's.
 
 ## Settings
 
