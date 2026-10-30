@@ -88,10 +88,12 @@
             <!--
                 The packed tarball, attached to this module's artifact as type tgz without a classifier, so
                 mvn install puts it in the local repository beside the pom, at
-                eu/ciechanowiec/airness-node/<version>/airness-node-<version>.tgz, where a consumer that installs
-                @airness/node before it is on npm, such as ploaness, resolves it with the dependency plugin rather
-                than from a sibling checkout. npm stays its publication channel: the release profile keeps the
-                whole module, this attachment included, out of the Central bundle.
+                eu/ciechanowiec/airness-node/<version>/airness-node-<version>.tgz, where a consumer outside this
+                reactor that installs @airness/node before it is on npm resolves it rather than from a sibling
+                checkout. A module of this reactor that installs it, such as a stack layer's package, serves the
+                tarball this module has just packed into its build directory instead. npm stays its publication
+                channel: the release profile keeps the whole module, this attachment included, out of the Central
+                bundle.
             -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

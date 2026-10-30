@@ -100,7 +100,7 @@ class EditorconfigExcludesTest {
     void namesAFileAGeneratorOwnsAsThePathItIsRelativeToTheModule() {
         Path root = generatedFixture("generated-file");
         assertEquals(
-            List.of("src/payload-types.ts"), generated(root, "web", "web/src/payload-types.ts"),
+            List.of("src/generated-types.ts"), generated(root, "web", "web/src/generated-types.ts"),
             "a generated file is left to its generator, named where the linter reads it"
         );
     }
@@ -109,8 +109,8 @@ class EditorconfigExcludesTest {
     void namesEveryFileABraceGlobMatchesBecauseTheLinterHasNoBraces() {
         Path root = generatedFixture("generated-braces");
         assertEquals(
-            List.of("src/payload-generated-schema.ts", "src/payload-types.ts"),
-            generated(root, "web", "web/src/{payload-types,payload-generated-schema}.ts"),
+            List.of("src/generated-schema.ts", "src/generated-types.ts"),
+            generated(root, "web", "web/src/{generated-types,generated-schema}.ts"),
             "each alternative is matched here and written as the path it matched"
         );
     }
@@ -119,7 +119,7 @@ class EditorconfigExcludesTest {
     void namesTheFilesAGlobOpeningWithAWildcardMatchesInASubmodule() {
         Path root = generatedFixture("generated-wildcard-first");
         assertEquals(
-            List.of("src/app/(payload)/admin/importMap.js"), generated(root, "web", "**/(payload)/**"),
+            List.of("src/app/(admin)/admin/importMap.js"), generated(root, "web", "**/(admin)/**"),
             "a glob naming no module still reaches the module whose files it matches"
         );
     }
@@ -159,9 +159,9 @@ class EditorconfigExcludesTest {
 
     private static Path generatedFixture(String fixture) {
         return new GitFixture("editorconfig-" + fixture)
-            .write("web/src/payload-types.ts", "export {}")
-            .write("web/src/payload-generated-schema.ts", "export {}")
-            .write("web/src/app/(payload)/admin/importMap.js", "export {}")
+            .write("web/src/generated-types.ts", "export {}")
+            .write("web/src/generated-schema.ts", "export {}")
+            .write("web/src/app/(admin)/admin/importMap.js", "export {}")
             .write("web/src/page.ts", "export {}\n")
             .write("other/src/gen.ts", "export {}")
             .commit("feat(core): add generated sources")

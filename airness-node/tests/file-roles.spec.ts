@@ -86,11 +86,11 @@ describe('hasExtension', () => {
 
 describe('matchesRole', () => {
   it('excludes a path a declared pattern names', () => {
-    expect(matchesRole('src/payload-types.ts', [String.raw`payload-types\.ts$`])).toBe(true)
+    expect(matchesRole('src/generated-types.ts', [String.raw`generated-types\.ts$`])).toBe(true)
   })
 
   it('leaves a path no pattern names', () => {
-    expect(matchesRole('src/lib/reads.ts', [String.raw`payload-types\.ts$`])).toBe(false)
+    expect(matchesRole('src/lib/reads.ts', [String.raw`generated-types\.ts$`])).toBe(false)
   })
 
   it('excludes nothing when no role is declared', () => {
@@ -104,7 +104,7 @@ describe('isGovernedCode', () => {
   })
 
   it('does not govern a file a declared generated role excludes', () => {
-    expect(isGovernedCode('src/payload-types.ts', [String.raw`payload-types\.ts$`])).toBe(false)
+    expect(isGovernedCode('src/generated-types.ts', [String.raw`generated-types\.ts$`])).toBe(false)
   })
 
   it('does not govern prose, which the Code Rules are not about', () => {
@@ -117,11 +117,11 @@ describe('isGovernedCode', () => {
 // exclusion that uses it.
 describe('matchesGlob', () => {
   it('matches a literal path with no token in it', () => {
-    expect(matchesGlob('src/payload-types.ts', 'src/payload-types.ts')).toBe(true)
+    expect(matchesGlob('src/generated-types.ts', 'src/generated-types.ts')).toBe(true)
   })
 
   it('reads a period as a period rather than as any character', () => {
-    expect(matchesGlob('src/payload-types.ts', 'src/payload/types.ts')).toBe(false)
+    expect(matchesGlob('src/generated-types.ts', 'src/generated/types.ts')).toBe(false)
   })
 
   it('lets a single star cross no directory boundary', () => {
@@ -133,7 +133,7 @@ describe('matchesGlob', () => {
   })
 
   it('lets a double star cross any number of boundaries', () => {
-    expect(matchesGlob('src/app/**', 'src/app/(payload)/admin/page.tsx')).toBe(true)
+    expect(matchesGlob('src/app/**', 'src/app/(admin)/admin/page.tsx')).toBe(true)
   })
 
   it('lets a double-star segment stand for no directory at all', () => {

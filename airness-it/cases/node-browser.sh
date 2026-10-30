@@ -84,17 +84,11 @@ run_node_browser_cases() {
 
     prepare_browser_fixture browser-layout
     browser_generate create-layout-pages "${browser_fixture}" repaired
-    # Payload view ownership is exercised against real Payload by ploaness-it/browser.sh. This bare
-    # Next fixture carries only the generic layout and dynamic-route contracts.
-    rm -rf "${browser_fixture}/src/app/admin"
-    rm "${browser_fixture}/tests/e2e/admin.e2e.spec.ts"
     commit_browser_fixture 'repaired layout pages'
     run_maven browser_layout_valid node "${browser_fixture}" -Pextended,delta \
         airness:node-gate@node-gate-build airness:node-gate@node-gate-e2e
     expect_exit browser_layout_valid 'browser layout: real repaired pages and a scanned dynamic route pass' 0
     browser_generate create-layout-pages "${browser_fixture}" defects
-    rm -rf "${browser_fixture}/src/app/admin"
-    rm "${browser_fixture}/tests/e2e/admin.e2e.spec.ts"
     commit_browser_fixture 'planted layout defects'
     run_maven browser_layout_defects node "${browser_fixture}" -Pextended,delta \
         airness:node-gate@node-gate-build airness:node-gate@node-gate-e2e

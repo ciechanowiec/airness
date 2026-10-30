@@ -23,12 +23,12 @@ class SuppressionFormsTest {
     @SneakyThrows
     void readsTheFormsOfTheLayersPresent(@TempDir Path jar) {
         Path declarations = Files.createDirectories(jar.resolve("airness/suppressions"));
-        Files.writeString(declarations.resolve("payload.txt"), "# the Payload markers\npayload-ignore\n\n");
+        Files.writeString(declarations.resolve("node.txt"), "# the layer markers\nlayer-ignore\n\n");
         try (URLClassLoader classes = new URLClassLoader(new URL[] {jar.toUri().toURL()}, null)) {
             SuppressionForms forms = new SuppressionForms(classes);
             assertEquals(
-                List.of("payload-ignore"),
-                forms.forms(Set.of(Capability.PAYLOAD, Capability.NODE)).stream().map(Pattern::pattern).toList()
+                List.of("layer-ignore"),
+                forms.forms(Set.of(Capability.NODE)).stream().map(Pattern::pattern).toList()
             );
             assertEquals(List.of(), forms.forms(Set.of(Capability.JAVA)));
         }

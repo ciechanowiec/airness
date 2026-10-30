@@ -28,7 +28,7 @@ class BlocklistImageTest {
     }
 
     @Test
-    void refusesTheSourceAvailableServicesTheOldPayloadListRefused() {
+    void refusesTheSourceAvailableServicesTheFormerLayerListRefused() {
         assertTrue(reason(Blocklist.image("n8nio/n8n:1.80.0")).orElse("").contains("Sustainable Use License"));
         assertTrue(reason(Blocklist.image("n8nio/runners:1.80.0")).isPresent(), "every n8n repository");
         assertTrue(reason(Blocklist.image("directus/directus:11.5.1")).orElse("").contains("Business Source"));

@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * What a part of a repository contains, which decides the managed files and agent guidance it receives.
@@ -11,29 +12,36 @@ import java.util.Locale;
  * needs a block from every stack beneath it.
  *
  * <p>The constants are declared from the most general to the most specific, and that order is the order
- * in which the managed blocks of one file are written.
+ * in which the managed blocks of one file are written. A constant names the capability it refines, if any, so a
+ * stack's constant is the whole of its registration here.
  */
 public enum Capability {
 
     /**
      * Present in every repository.
      */
-    GENERIC,
+    GENERIC(Optional.empty()),
 
     /**
      * Present where a module inherits {@code airness-parent-java}.
      */
-    JAVA,
+    JAVA(Optional.empty()),
 
     /**
      * Present where a module declares a node project.
      */
-    NODE,
+    NODE(Optional.empty()),
 
     /**
      * Present where a module inherits {@code airness-parent-payload}, which is a node project as well.
      */
-    PAYLOAD;
+    PAYLOAD(Optional.of(NODE));
+
+    private final Optional<Capability> refined;
+
+    Capability(Optional<Capability> refined) {
+        this.refined = refined;
+    }
 
     /**
      * The name a manifest, a block marker and an asset directory use for this capability.
@@ -47,14 +55,14 @@ public enum Capability {
     /**
      * Whether this capability is a more specific form of another, and so may replace a file it owns.
      *
-     * <p>Only Payload refines anything: a Payload project is a node project with Payload installed. Node
-     * does not refine the generic layer, which shares its root files through blocks instead.
+     * <p>A capability refines only what its constant names: a stack installed on a node project refines the
+     * node capability. Nothing refines the generic layer, which shares its root files through blocks instead.
      *
      * @param other the capability that owns the file
      * @return whether this capability may override it
      */
     public boolean refines(Capability other) {
-        return this == PAYLOAD && other == NODE;
+        return this.refined.filter(other::equals).isPresent();
     }
 
     /**

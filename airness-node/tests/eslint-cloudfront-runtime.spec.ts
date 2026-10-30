@@ -5,7 +5,7 @@ import path from 'node:path'
 import { ESLint, type Linter } from 'eslint'
 import { defineConfig } from 'eslint/config'
 import { afterAll, describe, expect, it } from 'vitest'
-import payloadConfig from '@/eslint.js'
+import nodeConfig from '@/eslint.js'
 import { allowlistedJavaScript, commonJavaScriptBlock, javascriptBlock } from '@/eslint-core.js'
 import { cloudFrontBlock } from '@/eslint-runtime.js'
 
@@ -41,7 +41,7 @@ const eslint: ESLint = new ESLint({
   cwd: directory,
   overrideConfigFile: true,
   overrideConfig: defineConfig([
-    ...payloadConfig,
+    ...nodeConfig,
     {
       languageOptions: {
         parserOptions: { projectService: false, project: './tsconfig.json', tsconfigRootDir: directory },

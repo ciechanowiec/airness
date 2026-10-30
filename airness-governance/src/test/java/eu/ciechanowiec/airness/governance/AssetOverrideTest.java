@@ -7,16 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Every path has one owner per location, a more specific capability replaces a file only by naming the
- * one it replaces, and any other disagreement between manifests is refused when they are read.
+ * Every path has one owner per location, a capability replaces a file only by naming the one it replaces,
+ * and any other disagreement between manifests is refused when they are read.
  *
  * <p>A refusal here is a harness bug caught by the harness's own tests. Were two claims resolved by
  * order instead, which body a consumer received would depend on which jar the classpath listed first.
+ * Every refusal below is decided before whether one capability refines another, so a second manifest of
+ * any capability exercises it.
  */
 class AssetOverrideTest {
 
@@ -26,33 +27,14 @@ class AssetOverrideTest {
     @TempDir
     private Path directory;
 
-    private AssetFixture fixture(String node, String payload) {
+    private AssetFixture fixture(String node, String java) {
         return new AssetFixture(this.directory, ".editorconfig\tPINNED\n")
             .manifest(Capability.NODE, node)
-            .manifest(Capability.PAYLOAD, payload);
+            .manifest(Capability.JAVA, java);
     }
 
     private static String message(AssetFixture fixture) {
         return String.valueOf(assertThrows(IllegalStateException.class, fixture::catalogue).getMessage());
-    }
-
-    @Test
-    void replacesTheNodeBodyOnlyWherePayloadIsPresent() {
-        AssetCatalogue catalogue = this.fixture(NODE_ROW, "eslint.config.mjs\tPINNED\tNODE_PROJECT\tOVERRIDES node\n")
-            .catalogue();
-        assertEquals(
-            List.of(Capability.NODE),
-            catalogue.select(AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)).stream().map(ManagedAsset::owner)
-                .toList(),
-            "a plain node project keeps the node body"
-        );
-        assertEquals(
-            List.of(Capability.PAYLOAD),
-            catalogue.select(AssetLocation.NODE_PROJECT, Set.of(Capability.NODE, Capability.PAYLOAD)).stream()
-                .map(ManagedAsset::owner)
-                .toList(),
-            "a Payload project gets exactly one body, the Payload one"
-        );
     }
 
     @Test
@@ -71,7 +53,7 @@ class AssetOverrideTest {
     @Test
     void rejectsTwoCapabilitiesClaimingOneFileWithoutAnOverride() {
         String refusal = message(this.fixture(NODE_ROW, NODE_ROW));
-        assertTrue(refusal.contains("[node, payload]"), refusal);
+        assertTrue(refusal.contains("[java, node]"), refusal);
     }
 
     @Test
@@ -86,24 +68,6 @@ class AssetOverrideTest {
             .manifest(Capability.NODE, ".editorconfig\tPINNED\tROOT\tOVERRIDES generic\n");
         String refusal = message(fixture);
         assertTrue(refusal.contains("node is not a more specific form of generic"), refusal);
-    }
-
-    @Test
-    void letsPayloadRefineNodeAlone() {
-        assertTrue(Capability.PAYLOAD.refines(Capability.NODE), "a Payload project is a node project");
-        assertEquals(
-            List.of(),
-            Stream.of(Capability.values())
-                .filter(capability -> capability != Capability.NODE)
-                .filter(Capability.PAYLOAD::refines)
-                .toList(),
-            "Payload replaces node files only, never generic or Java ones"
-        );
-        assertEquals(
-            List.of(),
-            Stream.of(Capability.values()).filter(capability -> capability.refines(Capability.GENERIC)).toList(),
-            "nothing replaces a generic file, which root blocks share instead"
-        );
     }
 
     @Test

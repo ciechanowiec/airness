@@ -72,8 +72,8 @@ const harnessSourceFindings = (
         'registry configured for it; install the released package from its registry',
     )
 
-// A harness package's own repository installs that package through its link to itself, as airness-node
-// and ploaness-node do, so its own name is the one harness package it may link. Which repository that is
+// A harness package's own repository installs that package through its link to itself, as the npm
+// package modules of the Airness reactor do, so its own name is the one harness package it may link. Which repository that is
 // comes from the module's Maven identity, never from the manifest: a manifest's name is the project's to write.
 const ownHarnessName = (manifest: unknown, module: string | undefined): string | undefined => {
   const name: string = asText(readKey(manifest, 'name'))
@@ -91,7 +91,7 @@ const versionFinding = (name: string, found: string, expected: ReadonlyMap<strin
 }
 
 // A harness package's own repository releases the package at the module's own Maven version, and its chain
-// need not name it: ploaness-node inherits airness-parent-node, which names only @airness/node. A chain that
+// need not name it: a stack layer's module inherits airness-parent-node, which names only @airness/node. A chain that
 // does name it, as airness-node's does, still holds it to the parent's version too.
 const selfFindings = (
   manifest: unknown,

@@ -76,14 +76,14 @@ class NodeSuppressionsTest {
             /* istanbul ignore if */
             const key = 'fixture' // gitleaks:allow
             const box = <div data-airness-layout="overlap" />
-            // payload-ignore: generated
+            // layer-ignore: generated
             """;
         assertEquals(
             List.of(
                 "line 1: v8 ignore", "line 3: c8 ignore", "line 4: istanbul ignore", "line 5: gitleaks:allow",
-                "line 6: data-airness-layout=", "line 7: payload-ignore"
+                "line 6: data-airness-layout=", "line 7: layer-ignore"
             ),
-            NodeSuppressions.in(source, List.of(Pattern.compile("payload-ignore"))),
+            NodeSuppressions.in(source, List.of(Pattern.compile("layer-ignore"))),
             "the stop of a range was counted at its start"
         );
     }

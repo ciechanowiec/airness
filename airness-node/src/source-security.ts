@@ -1,4 +1,4 @@
-// Security defects visible from source syntax alone, independent of Payload configuration.
+// Security defects visible from source syntax alone, independent of any framework configuration.
 //
 // The rules here reject the shape of a fail-open credential guard rather than guessing whether a route
 // is called cron, webhook, or callback. The same defect has two spellings, and each is invisible to the

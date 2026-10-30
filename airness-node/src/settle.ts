@@ -77,7 +77,7 @@ const BUSY_BUDGET_MS: number = 30_000
 
 // The browser surface the page function touches, declared rather than pulled in with lib.dom. This
 // package builds under `lib: ["ES2023"]`, and `tsconfig.lint.json` compiles every package as ONE
-// program - so adding "DOM" here would put `document` in scope for `@ploaness/governance` too, a
+// program - so adding "DOM" here would put `document` in scope for a governance package too, a
 // package whose whole claim is that it cannot reach a browser. It would also pair lib.dom's `fetch`,
 // `Response` and `WebSocket` against the same names from `@types/node`. Three identifiers do not buy
 // that. They resolve in the PAGE at run time, where they are real. Same move, same reason, as the

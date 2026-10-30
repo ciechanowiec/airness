@@ -99,7 +99,7 @@ export const LAYOUT_MINIMUM_GAP: number = 4
 
 /**
  * The defaults a layer package contributes to every member that declares it: a stack layer above the node
- * layer, such as the Payload one, knows which files its framework generates and writes to a fixed shape. They
+ * layer knows which files its framework generates and writes to a fixed shape. They
  * are the harness's own, so they need no reason and are not judged as the project's exclusions.
  */
 export interface LayerDefaults {

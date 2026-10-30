@@ -41,7 +41,7 @@ type ToAttempt = (callArguments: readonly unknown[]) => NetworkAttempt
 const isIntercepted = (value: unknown): value is Intercepted => typeof value === 'function'
 
 // Read here for the reason the Playwright config reads them: an integration spec boots the project,
-// and a Payload configuration validates `process.env` as the module loads, so the spec dies on
+// and a framework configuration validates `process.env` as the module loads, so the spec dies on
 // configuration rather than on code. A project could put this in its own `vitest.setup.ts` and many
 // did, but then the promise that a gate running the application uses the real environment holds only
 // for the projects that remembered. Nothing loaded here replaces a value already set, so a project

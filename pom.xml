@@ -735,9 +735,9 @@
                                 without them every node project fails this list; each obliges attribution, which
                                 the compliance report gives.
 
-                                WTFPL grants every use without condition. It is admitted because Payload, which the Payload
-                                layer governs, reaches truncate-utf8-bytes under it through sanitize-filename, so
-                                without it every Payload application fails this list. Font licenses are not admitted.
+                                WTFPL grants every use without condition. It is admitted because truncate-utf8-bytes,
+                                which sanitize-filename reaches, carries it, so without it every application that
+                                depends on sanitize-filename fails this list. Font licenses are not admitted.
                             -->
                             <includedLicense>AFL-2.1</includedLicense>
                             <includedLicense>AFL-3.0</includedLicense>

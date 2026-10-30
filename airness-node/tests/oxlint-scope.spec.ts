@@ -31,8 +31,8 @@ describe('native source coverage', () => {
       'src/generated/api.ts',
       'cms/src/main.ts',
     ]
-    expect(oxlintSourceFiles([...excluded, 'src/app/(payload)/layout.tsx'], ['src/generated/**'], ['cms'])).toEqual([
-      'src/app/(payload)/layout.tsx',
+    expect(oxlintSourceFiles([...excluded, 'src/app/(admin)/layout.tsx'], ['src/generated/**'], ['cms'])).toEqual([
+      'src/app/(admin)/layout.tsx',
     ])
   })
 
@@ -58,7 +58,7 @@ describe('native source coverage', () => {
   })
 
   it.each([true, false])('holds a framework scaffold to the filename rule with runtime %s', (runtime) => {
-    const scaffold: string = 'src/app/(payload)/admin/[[...segments]]/not-found.tsx'
+    const scaffold: string = 'src/app/(admin)/admin/[[...segments]]/not-found.tsx'
     const groups: readonly OxlintGroup[] = oxlintGroups([scaffold], runtime)
     expect(groups).toHaveLength(1)
     expect(oxlintConfig(groups[0]?.rules ?? [])['rules']).toHaveProperty('react/jsx-filename-extension', [

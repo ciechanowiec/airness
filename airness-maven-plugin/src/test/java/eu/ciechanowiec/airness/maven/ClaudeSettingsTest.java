@@ -27,14 +27,14 @@ class ClaudeSettingsTest {
                 {
                   // The runtime accepts comments and trailing commas.
                   "permissions": {
-                    "deny": ["Edit(src/payload-types.ts)", 7, "Edit(src/importMap.js)",],
+                    "deny": ["Edit(src/generated-types.ts)", 7, "Edit(src/importMap.js)",],
                     "allow": ["Bash(mvn verify)"]
                   }
                 }
                 """
         );
         assertEquals(
-            List.of("Edit(src/payload-types.ts)", "Edit(src/importMap.js)"),
+            List.of("Edit(src/generated-types.ts)", "Edit(src/importMap.js)"),
             ClaudeSettings.permissions(settings, DENY),
             "only string rules are rules, and comments and trailing commas are read as the runtime reads them"
         );

@@ -7,7 +7,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import nodeConfig from './eslint.js'
 import { asRecord } from './json-shapes.js'
-import { type LayerPackage, layerEslintConfigOf, layerPackagesFor } from './layer.js'
+import { LAYER_NAMES, type LayerPackage, layerEslintConfigOf, layerPackagesFor } from './layer.js'
 import { composeLayered, type LayerConfig } from './layer-lint-policy.js'
 import { projectDirectory } from './project-settings.js'
 
@@ -20,26 +20,38 @@ const readManifest = (file: string): unknown => {
   }
 }
 
-const manifest: unknown = readManifest(path.join(projectDirectory, 'package.json'))
+/**
+ * The node layer's configuration, then the blocks of every layer package the project declares.
+ * @param directory the project directory.
+ * @param layers the packages read as layers, the registered ones unless a caller names others.
+ * @returns the composed configuration.
+ * @throws {Error} naming every layer block that would weaken the node layer's verdict.
+ */
+export const composedConfig = async (
+  directory: string,
+  layers: readonly string[] = LAYER_NAMES,
+): Promise<readonly unknown[]> => {
+  const manifest: unknown = readManifest(path.join(directory, 'package.json'))
+  const declared: readonly (readonly [string, string])[] = layerPackagesFor(
+    directory,
+    manifest,
+    readManifest,
+    layers,
+  ).flatMap((layer: LayerPackage): readonly (readonly [string, string])[] => {
+    const file: string | undefined = layerEslintConfigOf(layer, directory)
+    return file === undefined ? [] : [[layer.name, file]]
+  })
+  const configs: readonly LayerConfig[] = await Promise.all(
+    declared.map(
+      async ([name, file]: readonly [string, string]): Promise<LayerConfig> => ({
+        name,
+        config: asRecord(await import(pathToFileURL(file).href))['default'],
+      }),
+    ),
+  )
+  return composeLayered(nodeConfig, configs)
+}
 
-const declared: readonly (readonly [string, string])[] = layerPackagesFor(
-  projectDirectory,
-  manifest,
-  readManifest,
-).flatMap((layer: LayerPackage): readonly (readonly [string, string])[] => {
-  const file: string | undefined = layerEslintConfigOf(layer, projectDirectory)
-  return file === undefined ? [] : [[layer.name, file]]
-})
-
-const layers: readonly LayerConfig[] = await Promise.all(
-  declared.map(
-    async ([name, file]: readonly [string, string]): Promise<LayerConfig> => ({
-      name,
-      config: asRecord(await import(pathToFileURL(file).href))['default'],
-    }),
-  ),
-)
-
-const config: readonly unknown[] = composeLayered(nodeConfig, layers)
+const config: readonly unknown[] = await composedConfig(projectDirectory)
 
 export default config

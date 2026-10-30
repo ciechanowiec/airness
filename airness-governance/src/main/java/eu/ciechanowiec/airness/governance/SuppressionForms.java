@@ -13,9 +13,9 @@ import lombok.SneakyThrows;
  *
  * <p>A layer declares its forms in {@code airness/suppressions/<capability>.txt} on the plugin classpath, one
  * regular expression per line, as it declares its generated files in {@code airness/generated/}. The generated
- * files it declares there leave the ceiling's line count, and these forms join the directives it counts. A layer
- * published from another repository adds both through its own jar, which is how the Payload layer contributes
- * its generated types and its own suppression markers without a change here.
+ * files it declares there leave the ceiling's line count, and these forms join the directives it counts. A layer adds
+ * both through its own jar, which is how a stack layer contributes its generated types and its own suppression
+ * markers without a change here.
  *
  * @param classes the classloader carrying the layer declarations
  */

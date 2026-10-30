@@ -11,12 +11,12 @@ import org.junit.jupiter.api.Test;
  */
 class GeneratedDenialTest {
 
-    private static final List<String> GENERATED = List.of("src/payload-types.ts", "web/src/importMap.js");
+    private static final List<String> GENERATED = List.of("src/generated-types.ts", "web/src/importMap.js");
 
     @Test
     void namesEveryGeneratedFileWithoutAnEditDenial() {
         GeneratedDenial denial = new GeneratedDenial(
-            GENERATED, List.of("Edit(src/payload-types.ts)", "Write(web/src/importMap.js)"), List.of()
+            GENERATED, List.of("Edit(src/generated-types.ts)", "Write(web/src/importMap.js)"), List.of()
         );
         assertEquals(
             List.of("Edit(web/src/importMap.js)"), Verdicts.offences(denial.findings(), "may still edit"),
@@ -28,11 +28,11 @@ class GeneratedDenialTest {
     void namesALocalAllowThatGivesADenialBack() {
         GeneratedDenial denial = new GeneratedDenial(
             GENERATED,
-            List.of("Edit(src/payload-types.ts)", "Edit(web/src/importMap.js)"),
-            List.of("Edit(src/payload-types.ts)", "Bash(mvn verify)")
+            List.of("Edit(src/generated-types.ts)", "Edit(web/src/importMap.js)"),
+            List.of("Edit(src/generated-types.ts)", "Bash(mvn verify)")
         );
         assertEquals(
-            List.of("Edit(src/payload-types.ts)"),
+            List.of("Edit(src/generated-types.ts)"),
             Verdicts.offences(denial.findings(), "local agent settings give back"),
             "the local allow undoes the denial, and an unrelated allow is the project's own"
         );

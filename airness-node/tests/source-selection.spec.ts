@@ -69,7 +69,7 @@ describe('brace alternatives', () => {
     ])
     expect(matchesGlob('src/{one,two}.ts', 'src/one.ts')).toBe(true)
     expect(matchesGlob('src/{one,two}.ts', 'src/three.ts')).toBe(false)
-    expect(matchesGlob('src/app/(payload)/**', 'src/app/(payload)/custom.scss')).toBe(true)
+    expect(matchesGlob('src/app/(admin)/**', 'src/app/(admin)/custom.scss')).toBe(true)
     expect(matchesGlob('**/*.ts', '.generated/schema.ts')).toBe(true)
   })
 

@@ -1,7 +1,7 @@
 // One escaper, because two rules build a pattern out of text a project supplies.
 //
-// `secret-policy.ts` renders a declared exception path into a scanner's allowlist, and
-// `payload-source.ts` searches for a literal call expression such as `payload.find(`. Both had their
+// `secret-policy.ts` renders a declared exception path into a scanner's allowlist, and a
+// stack layer's source rules search for a literal call expression such as `client.find(`. Both had their
 // own copy of this function, character for character, in modules that never import each other - which
 // is the shape of duplication that survives a review precisely because neither copy looks wrong.
 const REGEX_METACHARACTERS: RegExp = /[.*+?^${}()|[\]\\]/g

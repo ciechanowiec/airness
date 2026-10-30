@@ -6,14 +6,18 @@ import { harnessDirectory, type Member, resolveTool } from './project.js'
 import { eslintArguments } from './workspace.js'
 
 /**
- * ESLint with the harness configuration. `--max-warnings=0` is the backstop behind the severity
- * escalation in `eslint-core.ts`: it fails the gate on a warning whatever its source. The configuration is
- * `eslint-layered`, which refuses, and so fails the gate, a stack layer block that would weaken the node
- * layer's verdict. The project names neither it nor the layer's blocks.
+ * The shipped configuration, `eslint-layered`, which refuses, and so fails the gate, a stack layer block that
+ * would weaken the node layer's verdict. The project names neither it nor the layer's blocks.
+ * @returns the absolute path of the configuration.
  */
-const eslintRun = (member: Member, mode: 'check' | 'write'): GateResult => {
-  const config: string = path.join(harnessDirectory(), 'dist', 'eslint-layered.js')
-  return fromRun(
+const shippedConfig = (): string => path.join(harnessDirectory(), 'dist', 'eslint-layered.js')
+
+/**
+ * ESLint with the given configuration. `--max-warnings=0` is the backstop behind the severity escalation in
+ * `eslint-core.ts`: it fails the gate on a warning whatever its source.
+ */
+const eslintRun = (member: Member, mode: 'check' | 'write', config: string): GateResult =>
+  fromRun(
     runNode(
       resolveTool('eslint'),
       [...eslintArguments(config, member.siblingPaths), ...(mode === 'write' ? ['--fix'] : [])],
@@ -22,10 +26,15 @@ const eslintRun = (member: Member, mode: 'check' | 'write'): GateResult => {
     'ESLint reports no defect',
     'ESLint reports at least one defect',
   )
-}
 
-/** Judge the member with the harness-owned layered configuration. */
-export const eslint = (member: Member): GateResult => eslintRun(member, 'check')
+/**
+ * Judge the member with the harness-owned layered configuration.
+ * @param member the member to judge.
+ * @param config the configuration ESLint runs, the shipped one unless a caller names another.
+ * @returns the verdict.
+ */
+export const eslint = (member: Member, config: string = shippedConfig()): GateResult =>
+  eslintRun(member, 'check', config)
 
 /** Apply fixable lint rules within the gate's own member and generated-file boundaries. */
-export const eslintWrite = (member: Member): GateResult => eslintRun(member, 'write')
+export const eslintWrite = (member: Member): GateResult => eslintRun(member, 'write', shippedConfig())

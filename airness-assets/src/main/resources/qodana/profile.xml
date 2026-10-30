@@ -128,7 +128,7 @@
            root element, which is served to every reader because nothing strips a declaration the
            template engine does not own
          - EditorConfigNoMatchingFiles: reports a section of .editorconfig that matches no file of the
-           project. The pinned .editorconfig is shared with ploaness and adocent byte for byte, and it
+           project. The pinned .editorconfig is shared by every governed repository byte for byte, and it
            carries sections for script and JSON files that a Java project usually has none of. A
            project cannot drop a section from a pinned file, so the finding has no repair
          - TestMethodWithoutAssertion: recognizes an assertion only by the class that declares it, so a

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
  */
 class HarnessVersionsTest {
 
-    private static MavenProject project(String artifact, String version) {
+    static MavenProject project(String artifact, String version) {
         Model model = new Model();
         model.setGroupId("eu.ciechanowiec");
         model.setArtifactId(artifact);
@@ -23,15 +23,13 @@ class HarnessVersionsTest {
     }
 
     @Test
-    void readsEachPackageFromItsOwnParentInTheChain() {
+    void readsTheNodePackageFromTheGenericParentRatherThanTheImmediateOne() {
         MavenProject root = project("airness-parent", "2.0.0");
-        MavenProject node = project("airness-parent-node", "2.0.0");
+        MavenProject node = project("airness-parent-node", "3.0.0");
         node.setParent(root);
-        MavenProject payload = project("airness-parent-payload", "1.4.0");
-        payload.setParent(node);
-        MavenProject module = project("cms", "9.0.0");
-        module.setParent(payload);
-        assertEquals("@airness/payload=1.4.0,@airness/node=2.0.0", HarnessVersions.of(module).value());
+        MavenProject module = project("web", "9.0.0");
+        module.setParent(node);
+        assertEquals("@airness/node=2.0.0", HarnessVersions.of(module).value());
     }
 
     @Test
