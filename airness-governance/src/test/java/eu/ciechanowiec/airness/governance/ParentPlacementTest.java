@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -24,8 +25,21 @@ import org.w3c.dom.Node;
  */
 class ParentPlacementTest {
 
-    private static final String AIRNESS = "airness-maven-plugin:";
+    private static final String AIRNESS_PLUGIN = "airness-maven-plugin";
+    private static final String AIRNESS = AIRNESS_PLUGIN + ':';
     private static final String PROFILE = "profile";
+    private static final String PACKAGE = "package";
+    /*
+     * The Airness goals a profile or a child parent binds at package. They merge after the generic build's own
+     * executions, so each runs after the linter's exclusions are listed again and before the linter reads the
+     * tree, and one that wrote an ignored file outside the build directory would put it in front of the linter.
+     * A project's own Airness executions are refused at prepare-package and later, so none of them can join.
+     */
+    private static final Map<String, String> BETWEEN_LISTING_AND_LINTER = Map.of(
+        "extended:airness-governance-extended@package",
+        "the history and secret checks read the repository, the scanner through a read-only mount",
+        "extended:airness-qodana@package", "the inspection engine writes its results under target/qodana"
+    );
 
     @Test
     void bindsOnlyRepositoryRulesInTheGenericParent() {
@@ -149,6 +163,58 @@ class ParentPlacementTest {
                 + "binds, so only that build binds the plugin in verify, ending with module-complete; the JaCoCo "
                 + "plugin precedes it, and signing alone may follow it"
         );
+    }
+
+    @Test
+    void listsTheIgnoredFilesAgainBeforeTheLinterReadsTheTree() {
+        List<String> packaged = ProjectFiles.elementChildren(
+            ProjectFiles.child(ProjectFiles.document(ProjectFiles.parentPom()), "build", "plugins")
+        ).flatMap(ParentPlacementTest::packagedGoals).toList();
+        assertEquals(
+            List.of(AIRNESS + "editorconfig-excludes", "editorconfig-maven-plugin:check"),
+            packaged.subList(Math.max(0, packaged.size() - 2), packaged.size()),
+            "Maven runs the goals of one phase in the order of the plugins that bind them, and an inherited plugin "
+                + "keeps the parent's place whatever a child declares, so with the linter declared after the Airness "
+                + "plugin and the listing last among its package executions here, the check follows the listing"
+        );
+    }
+
+    @Test
+    void runsOnlyNamedAirnessGoalsBetweenTheIgnoredListAndTheLinter() {
+        Set<String> between = ProjectFiles.parentFiles().stream()
+            .flatMap(ParentPlacementTest::mergedAfterTheListing)
+            .map(ParentPlacementTest::idAtPhase)
+            .collect(Collectors.toCollection(TreeSet::new));
+        assertEquals(
+            new TreeSet<>(BETWEEN_LISTING_AND_LINTER.keySet()),
+            between,
+            "an Airness goal a profile or a child parent binds at package runs after the ignored files are listed "
+                + "again and before the linter reads the tree, so each is named with why it writes no ignored file "
+                + "outside the build directory: " + BETWEEN_LISTING_AND_LINTER
+        );
+    }
+
+    // The Airness executions one project file binds at package that Maven merges after the generic build's own:
+    // every one a child parent binds, and every one a profile binds, the generic parent's profiles included.
+    private static Stream<Element> mergedAfterTheListing(Path pom) {
+        boolean generic = pom.equals(ProjectFiles.parentPom());
+        return plugins(ProjectFiles.document(pom))
+            .filter(plugin -> Xml.text(plugin, "artifactId").map(AIRNESS_PLUGIN::equals).orElse(false))
+            .flatMap(plugin -> ProjectFiles.descendants(plugin, "execution"))
+            .filter(ParentPlacementTest::packaged)
+            .filter(execution -> !generic || profileOf(execution).isPresent());
+    }
+
+    private static Stream<String> packagedGoals(Element plugin) {
+        String artifact = Xml.text(plugin, "artifactId").orElseThrow();
+        return ProjectFiles.descendants(plugin, "execution")
+            .filter(ParentPlacementTest::packaged)
+            .flatMap(execution -> ProjectFiles.descendants(execution, "goal"))
+            .map(goal -> artifact + ':' + goal.getTextContent().strip());
+    }
+
+    private static boolean packaged(Element execution) {
+        return Xml.text(execution, "phase").map(PACKAGE::equals).orElse(false);
     }
 
     private static String idAtPhase(Element execution) {

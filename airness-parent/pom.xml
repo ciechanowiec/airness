@@ -75,114 +75,6 @@
             </plugin>
             <plugin>
                 <!--
-                    Holds every committable text file to the .editorconfig the harness owns. Binaries,
-                    IDE metadata, and build output are exempt by role.
-                -->
-                <groupId>org.ec4j.maven</groupId>
-                <artifactId>editorconfig-maven-plugin</artifactId>
-                <configuration>
-                    <skip>${skipTests}</skip>
-                    <failOnFormatViolation>${airness.enforce}</failOnFormatViolation>
-                    <failOnNoMatchingProperties>true</failOnNoMatchingProperties>
-                    <!--
-                        What git is configured never to carry, written at validate by
-                        airness:editorconfig-excludes. A file git ignores is build output or a tool's
-                        scratch rather than content this style governs, and the linter has no notion of
-                        git, so without this it reads them and reports a missing newline in a directory
-                        nobody wrote. A project cannot answer that itself: these exclusions are the
-                        parent's and no Airness setting reaches them.
-                    -->
-                    <excludesFile>${project.build.directory}/airness/editorconfig-excludes.txt</excludesFile>
-                    <!--
-                        What git does carry and this style still does not govern. Binaries the linter
-                        would read as text, and data whose format is a tab. These are a different
-                        question from the one above and stay stated by hand.
-                    -->
-                    <excludes>
-                        <exclude>**/target/**</exclude>
-                        <!--
-                            Installed node packages, which node-dependencies writes at initialize. The ignored
-                            files above are listed at validate, before any package is installed, so they
-                            cannot name these.
-                        -->
-                        <exclude>**/node_modules/**</exclude>
-                        <exclude>.git/**</exclude>
-                        <exclude>.idea/**</exclude>
-                        <exclude>**/*.png</exclude>
-                        <exclude>**/*.ttf</exclude>
-                        <exclude>**/*.docx</exclude>
-                        <!--
-                            A picture like the ones above it, but WEBP postdates the binary suffixes the
-                            linter passes over of its own accord, so without this it reads the file as
-                            text and reports every carriage return in it as a line ending to repair. The
-                            five below it are the same case, reached the same way: a newer picture, the
-                            font format the web ships and the one a designer hands over, and video.
-                        -->
-                        <exclude>**/*.webp</exclude>
-                        <exclude>**/*.avif</exclude>
-                        <exclude>**/*.woff2</exclude>
-                        <exclude>**/*.otf</exclude>
-                        <exclude>**/*.mp4</exclude>
-                        <exclude>**/*.webm</exclude>
-                        <!-- RIFF audio has binary samples and no text line-ending requirements. -->
-                        <exclude>**/*.wav</exclude>
-                        <!-- WebAssembly, binary Type 1 fonts and compressed character maps carry bytes, not lines. -->
-                        <exclude>**/*.wasm</exclude>
-                        <exclude>**/*.pfb</exclude>
-                        <exclude>**/*.bcmap</exclude>
-                        <!--
-                            What the linter's own suffix list does not reach. That list belongs to a dependency and
-                            answers for the formats it knew about, which is why a committed .jpg passes and a
-                            committed .jpeg does not. The gap closes a suffix at a time and no project can close it
-                            from inside itself, so what a gap actually buys is a workaround invented locally, and a
-                            media file committed as encoded text is worse than the finding it answered. The suffixes
-                            above are kept even where that list already names them, because a list carried by a
-                            dependency can change underneath this one and a policy worth having is stated here.
-                        -->
-                        <exclude>**/*.jpeg</exclude>
-                        <exclude>**/*.heic</exclude>
-                        <exclude>**/*.heif</exclude>
-                        <exclude>**/*.psd</exclude>
-                        <exclude>**/*.svgz</exclude>
-                        <!-- Encoded sound: samples rather than lines, and none of them a line ending. -->
-                        <exclude>**/*.mp3</exclude>
-                        <exclude>**/*.m4a</exclude>
-                        <exclude>**/*.aac</exclude>
-                        <exclude>**/*.ogg</exclude>
-                        <exclude>**/*.oga</exclude>
-                        <exclude>**/*.opus</exclude>
-                        <exclude>**/*.flac</exclude>
-                        <exclude>**/*.wma</exclude>
-                        <!-- Moving pictures, beside the two forms above them that a browser plays. -->
-                        <exclude>**/*.mov</exclude>
-                        <exclude>**/*.m4v</exclude>
-                        <exclude>**/*.avi</exclude>
-                        <exclude>**/*.mkv</exclude>
-                        <exclude>**/*.wmv</exclude>
-                        <exclude>**/*.flv</exclude>
-                        <!-- Compressed archives and a loadable object, which carry bytes rather than lines. -->
-                        <exclude>**/*.tgz</exclude>
-                        <exclude>**/*.bz2</exclude>
-                        <exclude>**/*.xz</exclude>
-                        <exclude>**/*.7z</exclude>
-                        <exclude>**/*.zst</exclude>
-                        <exclude>**/*.dylib</exclude>
-                        <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
-                        <exclude>**/*.tsv</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>airness-editorconfig-check</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!--
                     Fails the build on a dependency whose license the allowlist does not admit, and on
                     one whose license cannot be read at all.
                 -->
@@ -341,6 +233,21 @@
                         <phase>package</phase>
                         <goals>
                             <goal>dependency-freshness</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        The linter's exclusions listed again, in the phase of the check that reads them and before
+                        it, because what git ignores grows as the build runs: a step after validate that writes an
+                        ignored file outside the build directory, as a compiled package does, leaves it off the list
+                        airness-preflight wrote, and the linter then reports a file nobody committed. It is the
+                        last package execution here, so only an Airness goal a profile or a child parent binds at
+                        package runs between it and the check, and ParentPlacementTest names each one.
+                    -->
+                    <execution>
+                        <id>airness-editorconfig-excludes</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>editorconfig-excludes</goal>
                         </goals>
                     </execution>
                     <!--
@@ -610,6 +517,123 @@
                         <phase>verify</phase>
                         <goals>
                             <goal>module-complete</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!--
+                    Holds every committable text file to the .editorconfig the harness owns. Binaries,
+                    IDE metadata, and build output are exempt by role.
+
+                    Declared last, after the Airness plugin. Maven runs the goals of one phase in the order of
+                    the plugins that bind them, and an inherited plugin keeps its place here whatever a child
+                    declares, so in every module the check follows airness-editorconfig-excludes at package. An
+                    Airness goal a profile or a child parent binds at package merges after that execution, and
+                    so runs between the two.
+                -->
+                <groupId>org.ec4j.maven</groupId>
+                <artifactId>editorconfig-maven-plugin</artifactId>
+                <configuration>
+                    <skip>${skipTests}</skip>
+                    <failOnFormatViolation>${airness.enforce}</failOnFormatViolation>
+                    <failOnNoMatchingProperties>true</failOnNoMatchingProperties>
+                    <!--
+                        What git is configured never to carry, written by airness:editorconfig-excludes at
+                        validate, for a linter goal named after that phase on the command line, and again at
+                        package, which the check follows, so the list names what the build itself wrote to an
+                        ignored path in between. A file git ignores is build output or a tool's
+                        scratch rather than content this style governs, and the linter has no notion of
+                        git, so without this it reads them and reports a missing newline in a directory
+                        nobody wrote. A project cannot answer that itself: these exclusions are the
+                        parent's and no Airness setting reaches them.
+                    -->
+                    <excludesFile>${project.build.directory}/airness/editorconfig-excludes.txt</excludesFile>
+                    <!--
+                        What git does carry and this style still does not govern. Binaries the linter
+                        would read as text, and data whose format is a tab. These are a different
+                        question from the one above and stay stated by hand.
+                    -->
+                    <excludes>
+                        <exclude>**/target/**</exclude>
+                        <!--
+                            Installed node packages, which node-dependencies writes at initialize. A linter goal
+                            named after validate on the command line reads the ignored files as validate listed
+                            them, which in a fresh tree is before any package is installed, so that list cannot
+                            be relied on to name these.
+                        -->
+                        <exclude>**/node_modules/**</exclude>
+                        <exclude>.git/**</exclude>
+                        <exclude>.idea/**</exclude>
+                        <exclude>**/*.png</exclude>
+                        <exclude>**/*.ttf</exclude>
+                        <exclude>**/*.docx</exclude>
+                        <!--
+                            A picture like the ones above it, but WEBP postdates the binary suffixes the
+                            linter passes over of its own accord, so without this it reads the file as
+                            text and reports every carriage return in it as a line ending to repair. The
+                            five below it are the same case, reached the same way: a newer picture, the
+                            font format the web ships and the one a designer hands over, and video.
+                        -->
+                        <exclude>**/*.webp</exclude>
+                        <exclude>**/*.avif</exclude>
+                        <exclude>**/*.woff2</exclude>
+                        <exclude>**/*.otf</exclude>
+                        <exclude>**/*.mp4</exclude>
+                        <exclude>**/*.webm</exclude>
+                        <!-- RIFF audio has binary samples and no text line-ending requirements. -->
+                        <exclude>**/*.wav</exclude>
+                        <!-- WebAssembly, binary Type 1 fonts and compressed character maps carry bytes, not lines. -->
+                        <exclude>**/*.wasm</exclude>
+                        <exclude>**/*.pfb</exclude>
+                        <exclude>**/*.bcmap</exclude>
+                        <!--
+                            What the linter's own suffix list does not reach. That list belongs to a dependency and
+                            answers for the formats it knew about, which is why a committed .jpg passes and a
+                            committed .jpeg does not. The gap closes a suffix at a time and no project can close it
+                            from inside itself, so what a gap actually buys is a workaround invented locally, and a
+                            media file committed as encoded text is worse than the finding it answered. The suffixes
+                            above are kept even where that list already names them, because a list carried by a
+                            dependency can change underneath this one and a policy worth having is stated here.
+                        -->
+                        <exclude>**/*.jpeg</exclude>
+                        <exclude>**/*.heic</exclude>
+                        <exclude>**/*.heif</exclude>
+                        <exclude>**/*.psd</exclude>
+                        <exclude>**/*.svgz</exclude>
+                        <!-- Encoded sound: samples rather than lines, and none of them a line ending. -->
+                        <exclude>**/*.mp3</exclude>
+                        <exclude>**/*.m4a</exclude>
+                        <exclude>**/*.aac</exclude>
+                        <exclude>**/*.ogg</exclude>
+                        <exclude>**/*.oga</exclude>
+                        <exclude>**/*.opus</exclude>
+                        <exclude>**/*.flac</exclude>
+                        <exclude>**/*.wma</exclude>
+                        <!-- Moving pictures, beside the two forms above them that a browser plays. -->
+                        <exclude>**/*.mov</exclude>
+                        <exclude>**/*.m4v</exclude>
+                        <exclude>**/*.avi</exclude>
+                        <exclude>**/*.mkv</exclude>
+                        <exclude>**/*.wmv</exclude>
+                        <exclude>**/*.flv</exclude>
+                        <!-- Compressed archives and a loadable object, which carry bytes rather than lines. -->
+                        <exclude>**/*.tgz</exclude>
+                        <exclude>**/*.bz2</exclude>
+                        <exclude>**/*.xz</exclude>
+                        <exclude>**/*.7z</exclude>
+                        <exclude>**/*.zst</exclude>
+                        <exclude>**/*.dylib</exclude>
+                        <!-- Tab-separated data: a tab is the format there, not an indentation choice. -->
+                        <exclude>**/*.tsv</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>airness-editorconfig-check</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>

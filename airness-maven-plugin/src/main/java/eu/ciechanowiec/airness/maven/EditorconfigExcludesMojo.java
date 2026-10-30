@@ -27,6 +27,13 @@ import org.eclipse.aether.SessionData;
  * answer is written to a file it is pointed at instead. That file is rewritten on every build, because
  * what a tree ignores changes as the tools working in it come and go.
  *
+ * <p>It is rewritten within the build too. The parent binds this goal at validate, for a linter goal named on the
+ * command line after that phase, and again at package, which the linter's check follows in the same phase,
+ * because what a tree ignores also grows while the build runs: a step after validate that writes an ignored file
+ * outside the build directory, as a compiled package writes its output, leaves it off the first list, and the
+ * linter reading that list reports a file nobody committed. An Airness goal a profile or a child parent binds at
+ * package runs between the second listing and the check, so none of them may write such a file.
+ *
  * <p>The files a generator owns are written beside them, as the typography and source-rule checks skip them:
  * those the stack layers, the {@code airness.generated.files} property and each node project's
  * {@code airness.generatedArtefacts} declare. Which globs those are is a question about the whole repository,

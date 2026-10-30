@@ -117,6 +117,20 @@ final class ProjectFiles {
     }
 
     /**
+     * The project file of every declared module that inherits a parent Airness publishes rather than the
+     * aggregator, the parents among them.
+     *
+     * @return their paths, in the order the root project file declares the modules
+     */
+    static List<Path> parentFiles() {
+        Path root = SelfModules.repository();
+        return modules().stream()
+            .filter(PARENTS::contains)
+            .map(module -> root.resolve(module).resolve(POM))
+            .toList();
+    }
+
+    /**
      * The project file of every module that holds production Java.
      *
      * @return their paths
