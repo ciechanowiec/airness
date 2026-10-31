@@ -11,15 +11,20 @@ if [ "${declared}" != "${harness_version}" ]; then
     exit 1
 fi
 
-selected_domain="${1-}"
-case "${selected_domain}" in
-    ''|maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser|browser-evidence|payload)
-        ;;
-    *)
-        printf 'Unknown Airness integration domain: %s\n' "${selected_domain}" >&2
-        exit 2
-        ;;
-esac
+# No domain runs the complete suite; one or more run only those domains, in the order named.
+selected_domains="$*"
+for selected_domain in "$@"; do
+    case "${selected_domain}" in
+        maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser|payload)
+            ;;
+        browser-evidence)
+            ;;
+        *)
+            printf 'Unknown Airness integration domain: %s\n' "${selected_domain}" >&2
+            exit 2
+            ;;
+    esac
+done
 
 # Lowered once here, before anything forks, because niceness is inherited: every lane and every Maven
 # process under it runs at this priority. On a workstation the suite is a background chore that must not
@@ -105,90 +110,96 @@ trap 'exit 143' TERM
 printf '\n  %sAirness consumer integration verification%s\n' "${style_bold}" "${style_off}"
 printf '  %sharness %s, installed-artifact and process boundaries%s\n' \
     "${style_dim}" "${harness_version}" "${style_off}"
-if [ -n "${selected_domain}" ]; then
-    printf '  %spartial domain: %s; this run cannot claim the full integration verdict%s\n' \
-        "${style_dim}" "${selected_domain}" "${style_off}"
+if [ -n "${selected_domains}" ]; then
+    printf '  %spartial domains: %s; this run cannot claim the full integration verdict%s\n' \
+        "${style_dim}" "${selected_domains}" "${style_off}"
 else
-    printf '  %stwo lanes: spring, containers and maven | streaming, repository and the short domains%s\n' \
+    printf '  %stwo lanes: spring, containers, maven, payload | repository, the short domains, node, browser%s\n' \
         "${style_dim}" "${style_off}"
-    printf '  %sthe spring lane ends with the payload domain%s\n' "${style_dim}" "${style_off}"
     printf '  %seach lane is replayed whole when it is joined; follow one live under %s%s\n' \
         "${style_dim}" "${lane_results}" "${style_off}"
 fi
 
-case "${selected_domain}" in
-    '')
-        # The consumer template is built once here rather than inside a lane, because every lane clones
-        # it. The partition is measured rather than chosen: each lane carries about half of the summed
-        # execution time, and the Extended executions that hold the exclusive lock are split so that
-        # neither lane spends most of its time waiting for the other to release it. No case reads a
-        # fixture another lane builds.
-        #
-        # Two lanes rather than three, because a consumer build is not one processor: the compiler is
-        # forked, and the analysis, the coverage agent and the test fork all want their own. Three of
-        # them on a four-processor runner cost 2.07x on every execution, which is more than the third
-        # lane returned. Two leave the runner subscribed rather than oversubscribed, and leave a
-        # workstation running this a processor to answer its owner with.
-        ensure_consumer_template
-        # Started here, in the shell that outlives both lanes, so neither lane's end stops the server the other
-        # still installs from.
-        # It also serves the stack packages the payload cases install.
-        prepare_payload_packages
-        start_airness_node_registry "${payload_package}" "${payload_mismatched_package}"
-        start_lane spring run_spring_cases run_container_cases run_maven_cases run_payload_cases
-        start_lane repository run_streaming_timeout_cases run_repository_cases run_scanner_cases \
-            run_analysis_cases run_template_message_cases run_web_accessibility_cases run_template_cases \
-            run_stylesheet_cases run_node_project_cases run_node_gate_cases run_node_next_cases run_node_browser_cases
-        # Joined in the order whose headings do not repeat across the seam.
-        await_lanes spring repository
-        join_lane spring
-        join_lane repository
-        ;;
-    maven)
-        run_maven_cases
-        ;;
-    analysis)
-        run_analysis_cases
-        ;;
-    templates)
-        run_template_cases
-        ;;
-    stylesheets)
-        run_stylesheet_cases
-        ;;
-    repository)
-        run_repository_cases
-        ;;
-    spring)
-        run_spring_cases
-        run_streaming_timeout_cases
-        run_template_message_cases
-        run_web_accessibility_cases
-        ;;
-    containers)
-        run_container_cases
-        ;;
-    scanners)
-        run_scanner_cases
-        ;;
-    browser)
-        run_node_browser_cases
-        ;;
-    browser-evidence)
-        run_browser_evidence_cases
-        ;;
-    node)
-        run_node_project_cases
-        run_node_gate_cases
-        run_node_next_cases
-        ;;
-    payload)
-        run_payload_cases
-        ;;
-    *)
-        exit 2
-        ;;
-esac
+# Every case belongs to exactly one domain, and the complete suite, a partial run and each shard of the CI
+# workflow all reach the cases through this mapping only, so the domains together are the complete suite.
+run_domain() {
+    case "$1" in
+        maven)
+            run_maven_cases
+            ;;
+        analysis)
+            run_analysis_cases
+            ;;
+        templates)
+            run_template_cases
+            ;;
+        stylesheets)
+            run_stylesheet_cases
+            ;;
+        repository)
+            run_repository_cases
+            ;;
+        spring)
+            run_spring_cases
+            run_streaming_timeout_cases
+            run_template_message_cases
+            run_web_accessibility_cases
+            ;;
+        containers)
+            run_container_cases
+            ;;
+        scanners)
+            run_scanner_cases
+            ;;
+        browser)
+            run_node_browser_cases
+            ;;
+        browser-evidence)
+            run_browser_evidence_cases
+            ;;
+        node)
+            run_node_project_cases
+            run_node_gate_cases
+            run_node_next_cases
+            ;;
+        payload)
+            run_payload_cases
+            ;;
+        *)
+            exit 2
+            ;;
+    esac
+}
+
+# Started here, in the shell that outlives every lane and domain, so that no lane's end stops the server another
+# still installs from, and so that it serves the stack packages the payload cases install whichever domain
+# installs first.
+prepare_payload_packages
+start_airness_node_registry "${payload_package}" "${payload_mismatched_package}"
+if [ -z "${selected_domains}" ]; then
+    # The consumer template is built once here rather than inside a lane, because every lane clones
+    # it. The partition is measured rather than chosen: each lane carries about half of the summed
+    # execution time, and the Extended executions that hold the exclusive lock are split so that
+    # neither lane spends most of its time waiting for the other to release it. No case reads a
+    # fixture another lane builds.
+    #
+    # Two lanes rather than three, because a consumer build is not one processor: the compiler is
+    # forked, and the analysis, the coverage agent and the test fork all want their own. Three of
+    # them on a four-processor runner cost 2.07x on every execution, which is more than the third
+    # lane returned. Two leave the runner subscribed rather than oversubscribed, and leave a
+    # workstation running this a processor to answer its owner with.
+    ensure_consumer_template
+    start_lane spring spring containers maven payload
+    start_lane repository repository scanners analysis templates stylesheets node browser
+    # Joined in the order whose headings do not repeat across the seam.
+    await_lanes spring repository
+    join_lane spring
+    join_lane repository
+else
+    for selected_domain in "$@"; do
+        run_domain "${selected_domain}"
+    done
+fi
 
 print_timing_summary
 total=$((passed + failures))
@@ -206,9 +217,9 @@ if [ "${failures}" -ne 0 ]; then
         "${duration_label}"
     exit 1
 fi
-if [ -n "${selected_domain}" ]; then
-    printf '  %spartial %s domain: all %s assertions passed%s, %s\n' \
-        "${style_pass}" "${selected_domain}" "${total}" "${style_off}" \
+if [ -n "${selected_domains}" ]; then
+    printf '  %spartial %s: all %s assertions passed%s, %s\n' \
+        "${style_pass}" "${selected_domains}" "${total}" "${style_off}" \
         "${duration_label}"
 else
     printf '  %sall %s boundary assertions passed%s, %s\n' \
