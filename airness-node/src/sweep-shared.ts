@@ -122,6 +122,8 @@ export interface DiscoveryReport {
   readonly scope: ScopeRecord
   readonly visitedRoutes: readonly string[]
   readonly answeredRoutes: readonly string[]
+  /** The htmx fragments the crawled pages requested that rendered, kept apart from the pages swept whole. */
+  readonly fragmentRoutes: readonly string[]
 }
 
 /** What visiting one item of a pass yields. */
@@ -254,7 +256,7 @@ export const isDiscovery = (value: unknown): value is Discovery =>
  */
 export const isDiscoveryReport = (value: unknown): value is DiscoveryReport =>
   isRecord(value) &&
-  hasArrays(value, ['findings', 'problems', 'locations', 'visitedRoutes', 'answeredRoutes']) &&
+  hasArrays(value, ['findings', 'problems', 'locations', 'visitedRoutes', 'answeredRoutes', 'fragmentRoutes']) &&
   hasNumbers(value, ['places', 'elapsedMs']) &&
   isRecord(value['scope']) &&
   typeof value['scope']['isScoped'] === 'boolean' &&

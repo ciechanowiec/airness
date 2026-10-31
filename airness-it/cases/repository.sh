@@ -29,6 +29,11 @@ JAVA
 color : red ;
      background:blue}
 CSS
+    # A stylesheet a Java module serves belongs to a frontend tooling project; the module itself is one here.
+    write_node_consumer "${formatting_consumer}" '.' ''
+    printf '{\n  "name": "formatting-state",\n  "private": true,\n  "airness": { "sourceRoots": ["src/main/resources/static"] }\n}\n' \
+        > "${formatting_consumer}/package.json"
+    prepare_maven formatting_assets repository "${formatting_consumer}" --quiet airness:assets-sync
     run_maven formatting_before repository "${formatting_consumer}" process-resources
     expect_exit formatting_before 'formatting: unformatted source or stylesheet is rejected' 1
     expect_match formatting_before 'formatting: the check names formatting rather than compilation' \

@@ -24,10 +24,11 @@ import java.util.stream.StreamSupport;
  * version, a gate other than the one asked for, a nonzero exit beside a status that is not {@code failed}, a
  * failure that names no finding, a pass that lists some, and evidence the gate did not write.
  *
- * @param findings the verdict, clean exactly when the gate passed or did not apply and the file was sound
- * @param line     one line for the build log stating what the gate said
+ * @param findings   the verdict, clean exactly when the gate passed or did not apply and the file was sound
+ * @param line       one line for the build log stating what the gate said
+ * @param applicable whether the gate judged the project at all, false only for a sound {@code not-applicable}
  */
-record NodeGateResult(Findings findings, String line) {
+record NodeGateResult(Findings findings, String line, boolean applicable) {
 
     /**
      * The one schema version this Airness reads.
@@ -35,7 +36,8 @@ record NodeGateResult(Findings findings, String line) {
     static final int CONTRACT = 1;
 
     private static final String FAILED = "failed";
-    private static final Set<String> STATUSES = Set.of("passed", FAILED, "not-applicable");
+    private static final String NOT_APPLICABLE = "not-applicable";
+    private static final Set<String> STATUSES = Set.of("passed", FAILED, NOT_APPLICABLE);
     private static final String FINDINGS = "findings";
     private static final String EVIDENCE = "evidence";
     private static final Pattern PLAIN = Pattern.compile("[^/\\\\]+");
@@ -120,7 +122,8 @@ record NodeGateResult(Findings findings, String line) {
         String headline = reading.subject() + ": " + text(document, "title");
         return new NodeGateResult(
             new Findings(headline, offences),
-            reading.subject() + ' ' + status.replace('-', ' ') + (summary.isBlank() ? "" : ": " + summary)
+            reading.subject() + ' ' + status.replace('-', ' ') + (summary.isBlank() ? "" : ": " + summary),
+            !NOT_APPLICABLE.equals(status)
         );
     }
 
@@ -188,7 +191,8 @@ record NodeGateResult(Findings findings, String line) {
 
     private static NodeGateResult broken(String subject, String problem) {
         return new NodeGateResult(
-            new Findings(subject + ": a result the contract can read", List.of(problem)), subject + " is broken"
+            new Findings(subject + ": a result the contract can read", List.of(problem)), subject + " is broken",
+            true
         );
     }
 

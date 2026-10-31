@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SpecSource } from '@/axe-coverage.js'
-import { findUnsweptRoutes, type RouteSweep, type UnsweptRoute } from '@/route-coverage.js'
+import { coversRequestedRoute, findUnsweptRoutes, type RouteSweep, type UnsweptRoute } from '@/route-coverage.js'
 import type { DeclaredRoute } from '@/route-map.js'
 
 // The pages the crawl never reached, and whether anything else looked at them.
@@ -352,5 +352,27 @@ describe('completed project scans', () => {
       }),
     ).toEqual(['/posts/[slug]'])
     expect(routesOf({ declaredRoutes: [routeOf('/profile')], completedRoutes: ['/other'] })).toEqual(['/profile'])
+  })
+})
+
+describe('coversRequestedRoute', () => {
+  // A protected page sends an anonymous visitor to its sign-in form with a temporary redirect; the sign-in form
+  // answering says nothing about the page asked for.
+  it.each([302, 303, 307])('credits only the landing page of a %i redirect', (status: number) => {
+    expect(coversRequestedRoute([status], '/account', '/login')).toBe(false)
+  })
+
+  it('credits the source of a permanent move, wherever it leads', () => {
+    expect(coversRequestedRoute([301], '/old', '/new')).toBe(true)
+    expect(coversRequestedRoute([308, 301], '/old', '/admin')).toBe(true)
+  })
+
+  it('does not credit a chain that holds a temporary hop', () => {
+    expect(coversRequestedRoute([308, 302], '/account/', '/login')).toBe(false)
+  })
+
+  it('credits an answer at the address asked for, and not one the page replaced on its own', () => {
+    expect(coversRequestedRoute([], '/about/', '/about')).toBe(true)
+    expect(coversRequestedRoute([], '/account', '/login')).toBe(false)
   })
 })

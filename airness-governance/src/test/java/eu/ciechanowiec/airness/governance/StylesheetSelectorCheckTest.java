@@ -125,12 +125,19 @@ class StylesheetSelectorCheckTest {
     }
 
     @Test
-    void readsNothingThatSomebodyElsePublished() {
+    void readsAStylesheetKeptInADirectoryNamedVendor() {
         Path root = new GitFixture("selectors-vendored")
             .write("src/main/resources/static/vendor/published.css", BROKEN).root();
-        assertTrue(
-            Verdicts.clean(findings(root)),
-            "a stylesheet a project may not edit is not a stylesheet it can be held to"
+        assertEquals(1, offences(root).size(), "a directory's name is no evidence of who wrote what it holds");
+    }
+
+    @Test
+    void readsTheCheckedSourceRootsOfANodeProjectItIsGiven() {
+        Path root = new GitFixture("selectors-node").write("frontend/src/styles/theme.css", BROKEN).root();
+        List<Path> roots = List.of(Path.of("src", "main", "resources"), Path.of("frontend", "src"));
+        assertEquals(
+            1, new StylesheetSelectorCheck(root, roots).findings().getFirst().offences().size(),
+            "a stylesheet moved into the tooling project keeps the rule it had among the resources"
         );
     }
 

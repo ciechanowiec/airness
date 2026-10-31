@@ -3,36 +3,28 @@ package eu.ciechanowiec.airness.governance;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.StreamSupport;
 import lombok.experimental.UtilityClass;
 
 /**
  * Every stylesheet a module ships.
+ *
+ * <p>A directory named {@code vendor} is read like any other. Its name is no evidence that somebody else
+ * wrote what it holds, and a stylesheet a project ships is one it is held to. A published distribution is
+ * taken from a dependency instead of being kept among the module's resources.
  */
 @UtilityClass
 final class StylesheetResources {
 
     private static final String SUFFIX = ".css";
 
-    // A stylesheet a project did not write and may not edit. The formatter of this harness already
-    // passes over this directory for the same reason, so a rule about how a selector is written would
-    // otherwise report a published file against a style its publisher never agreed to.
-    private static final String VENDORED = "vendor";
-
     /**
-     * Answers every stylesheet under the given resource directories that the project itself wrote.
+     * Answers every stylesheet under the given directories.
      *
      * @param root          repository root the files are resolved against
-     * @param resourceRoots resource directories of the module
+     * @param resourceRoots resource directories of the module, and the checked source roots of its node projects
      * @return the stylesheets, in the order git reports them
      */
     static List<Path> of(Path root, Collection<Path> resourceRoots) {
-        return ModuleResources.of(root, resourceRoots, SUFFIX).stream().filter(StylesheetResources::written).toList();
-    }
-
-    // A file is the project's own unless a directory on its path is the one vendored parts are kept in.
-    // Whole segments are compared, so a directory merely beginning with the same letters is still read.
-    private static boolean written(Path file) {
-        return StreamSupport.stream(file.spliterator(), false).map(Path::toString).noneMatch(VENDORED::equals);
+        return ModuleResources.of(root, resourceRoots, SUFFIX);
     }
 }

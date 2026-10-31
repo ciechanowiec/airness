@@ -36,7 +36,7 @@ public final class StylesheetSelectorCheck {
      * Creates a check over the stylesheets one module ships.
      *
      * @param root          repository root the offences are reported relative to
-     * @param resourceRoots resource directories of the module
+     * @param resourceRoots resource directories of the module, and the checked source roots of its node projects
      */
     public StylesheetSelectorCheck(Path root, Collection<Path> resourceRoots) {
         this.root = root;

@@ -14,10 +14,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.maven.model.Resource;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.jspecify.annotations.Nullable;
 
@@ -28,8 +31,15 @@ import org.jspecify.annotations.Nullable;
  * command runs inside each node project as {@code pnpm exec <command> --result <file>} on the harness's Node
  * and pnpm, and the result file, under {@code target/airness/node/<project>/<gate>.json}, is the only
  * contract between Maven and the gate. The rule logic stays in the gate.
+ *
+ * <p>The {@code e2e} gate of a module that serves HTML itself is also handed what sweeping that interface takes,
+ * prepared by {@link WebSweepLaunch}: the artifact this invocation packaged, the build's Java runtime and the
+ * inventory of routes the sweep must cover. Such an interface left unassessed fails the gate.
  */
-@Mojo(name = "node-gate", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
+@Mojo(
+    name = "node-gate", defaultPhase = LifecyclePhase.VERIFY, requiresDependencyResolution = ResolutionScope.COMPILE,
+    threadSafe = true
+)
 public final class NodeGateMojo extends AbstractGovernanceMojo {
 
     /**
@@ -52,6 +62,7 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
     private static final String IDENTITY_VARIABLE = "AIRNESS_MODULE";
 
     private static final String BROWSER_GATE = "e2e";
+    private static final String ASSESSED = ": an assessed web interface";
 
     /**
      * The gate id, which the result file must repeat. Only an execution an Airness parent binds names it: no
@@ -100,20 +111,56 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
                 )
             );
         }
-        NodeGate bound = named.orElseThrow();
+        return this.gated(named.orElseThrow());
+    }
+
+    // The gate in every declared project, held to the web interface the module serves when it sweeps one.
+    private List<Findings> gated(NodeGate bound) {
+        MavenProject module = this.project();
+        WebInterface web = BROWSER_GATE.equals(bound.id())
+            ? WebInterfaceMojo.of(module) : new WebInterface(List.of(), "the gate sweeps no browser");
+        WebSweepLaunch launch = web.detected() ? this.launch(module) : new WebSweepLaunch(Map.of(), List.of());
+        if (!launch.problems().isEmpty()) {
+            return List.of(new Findings(this.subject(bound) + ASSESSED, launch.problems()));
+        }
         try {
             NodeTools tools = AbstractNodeMojo.install(this.session(), this.getLog());
-            return this.projects().projects().stream().map(project -> this.run(bound, project, tools)).toList();
+            List<NodeGateResult> results = this.projects().projects().stream()
+                .map(project -> this.run(bound, project, tools, launch.environment()))
+                .toList();
+            Stream<Findings> unassessed = WebSweepLaunch.unassessed(module.getArtifactId(), web, results).stream()
+                .map(problem -> new Findings(this.subject(bound) + ASSESSED, List.of(problem)));
+            return Stream.concat(results.stream().map(NodeGateResult::findings), unassessed).toList();
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not install the pinned Node and pnpm", exception);
         }
     }
 
-    private Findings run(NodeGate bound, NodeProject project, NodeTools tools) {
+    private String subject(NodeGate bound) {
+        return "Node gate " + bound.id() + " in " + this.project().getArtifactId();
+    }
+
+    private WebSweepLaunch launch(MavenProject module) {
+        WebSweepLaunch.Packaged build = new WebSweepLaunch.Packaged(
+            Optional.ofNullable(module.getArtifact().getFile()).map(File::toPath),
+            Path.of(module.getBuild().getDirectory()),
+            this.session().getStartTime().toInstant().toEpochMilli()
+        );
+        return WebSweepLaunch.prepare(
+            module.getArtifactId(), build,
+            module.getResources().stream().map(Resource::getDirectory).map(Path::of).toList(),
+            System.getProperty("java.home")
+        );
+    }
+
+    private NodeGateResult run(NodeGate bound, NodeProject project, NodeTools tools, Map<String, String> launch) {
         if (project.outside() || !project.hasManifest()) {
-            return new Findings(
-                "Node gate " + bound.id() + " in " + project.key() + ": a node project to run in",
-                List.of(project.key() + " is no node project inside the module, so the gate cannot run there")
+            return new NodeGateResult(
+                new Findings(
+                    "Node gate " + bound.id() + " in " + project.key() + ": a node project to run in",
+                    List.of(project.key() + " is no node project inside the module, so the gate cannot run there")
+                ),
+                project.key() + " is no node project", true
             );
         }
         Path build = Path.of(this.project().getBuild().getDirectory());
@@ -124,14 +171,14 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
             Files.createDirectories(results);
             clear(result);
             int exit = runner(bound, tools).pnpm(
-                bound.arguments(result), project.directory(), log, this.gateEnvironment(bound, log)
+                bound.arguments(result), project.directory(), log, this.gateEnvironment(bound, log, launch)
             );
             NodeGateResult read = NodeGateResult.read(bound.id(), project.key(), result, exit);
             if (!read.findings().clean()) {
                 AbstractNodeMojo.replay(log, this.getLog());
             }
             this.getLog().info(read.line());
-            return read.findings();
+            return read;
         } catch (IOException exception) {
             throw new UncheckedIOException(
                 "Could not run the node gate " + bound.id() + " in " + project.key(), exception
@@ -144,10 +191,11 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
             ? new NodeTools(tools.node(), tools.pnpm(), Duration.ofHours(6)) : tools;
     }
 
-    private Map<String, String> gateEnvironment(NodeGate gate, Path log) {
+    private Map<String, String> gateEnvironment(NodeGate gate, Path log, Map<String, String> launch) {
         Map<String, String> environment = new HashMap<>(this.environment());
         if (BROWSER_GATE.equals(gate.id())) {
             environment.put(NodeTools.PROGRESS_LOG, log.toString());
+            environment.putAll(launch);
         }
         return Map.copyOf(environment);
     }

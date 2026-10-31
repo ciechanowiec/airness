@@ -1,7 +1,8 @@
 // The gates this package ships. Each one judges one member at a time; `node-gate` runs each in every
 // declared node project through `airness-node gate <id> --result <file>`.
 
-import type { GateContext, GateResult } from './exec.js'
+import { type GateContext, type GateResult, notApplicable } from './exec.js'
+import { hasScriptSources } from './facets.js'
 import { architecture } from './gate-architecture.js'
 import { biome } from './gate-biome.js'
 import { build } from './gate-build.js'
@@ -34,21 +35,35 @@ export interface Gate {
   readonly run: (member: Member, context: GateContext) => GateResult | Promise<GateResult>
 }
 
+// A gate that judges code, which a member keeping no script source of its own, such as a stylesheet-only tooling
+// project beside a Java application, has nothing for: it would otherwise fail on a tsconfig.json the member has no
+// use for, or report the harness's pinned configuration as an unused file.
+const forScripts =
+  (run: Gate['run']): Gate['run'] =>
+  (member: Member, context: GateContext): GateResult | Promise<GateResult> =>
+    hasScriptSources(member)
+      ? run(member, context)
+      : notApplicable(`${member.path} holds no JavaScript or TypeScript source of its own`)
+
 /** Every gate this package ships, in the order the parent binds them. */
 export const GATES: readonly Gate[] = [
   { id: 'wiring', title: 'harness wiring', run: wiring },
-  { id: 'types', title: 'strict type check', run: types },
+  { id: 'types', title: 'strict type check', run: forScripts(types) },
   { id: 'biome', title: 'formatting and fast lint', run: biome },
   { id: 'oxlint', title: 'native JavaScript and TypeScript rules', run: oxlint },
-  { id: 'eslint', title: 'type-aware lint', run: (member: Member): GateResult => eslint(member) },
+  { id: 'eslint', title: 'type-aware lint', run: forScripts((member: Member): GateResult => eslint(member)) },
   { id: 'source-rules', title: 'source rules', run: sourceRules },
   { id: 'config-refs', title: 'config references', run: configReferences },
   { id: 'javascript-allowlist', title: 'no hand-written JavaScript', run: javascriptAllowlist },
   { id: 'css', title: 'style sheets', run: css },
   { id: 'tailwind-tokens', title: 'token-bound Tailwind values', run: tailwindTokens },
-  { id: 'arch', title: 'module architecture', run: architecture },
-  { id: 'type-coverage', title: 'type coverage', run: typeCoverage },
-  { id: 'knip', title: 'dead code and unused dependencies', run: (member: Member): GateResult => knip(member) },
+  { id: 'arch', title: 'module architecture', run: forScripts(architecture) },
+  { id: 'type-coverage', title: 'type coverage', run: forScripts(typeCoverage) },
+  {
+    id: 'knip',
+    title: 'dead code and unused dependencies',
+    run: forScripts((member: Member): GateResult => knip(member)),
+  },
   { id: 'tests', title: 'suite and coverage', run: tests },
   { id: 'install-scripts', title: 'install-script decisions', run: installScripts },
   { id: 'release-age', title: 'release-age floor', run: releaseAge },

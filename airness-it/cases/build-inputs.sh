@@ -27,7 +27,13 @@ run_ignored_build_inputs() {
     git -C "${input_consumer}" add -f "${input_java}" "${input_resource}"
     printf 'New untracked resource\n' > "${input_consumer}/src/main/resources/new.txt"
     run_maven inputs_tracked repository "${input_consumer}" validate
-    expect_exit inputs_tracked 'build inputs: tracked ignored-pattern files and new ordinary files pass' 0
+    expect_no_match inputs_tracked 'build inputs: tracked ignored-pattern files and new ordinary files pass' \
+        'ignored build input'
+    # Tracking the script ends the build-input finding, and the frontend inventory then holds it to a gate: a
+    # directory named vendor is no evidence that somebody else wrote it.
+    expect_exit inputs_tracked 'build inputs: a tracked script under a vendor directory still needs a gate' 1
+    expect_match inputs_tracked 'build inputs: the frontend inventory names the vendored script' \
+        'vendor/build/viewer[.]mjs lies in no declared node project'
     perl -0pi -e 's{<artifactId>airness-parent-java</artifactId>}{<artifactId>airness-parent-spring-boot</artifactId>}' \
         "${input_consumer}/pom.xml"
     printf 'Another local module\n' > "${input_consumer}/src/main/resources/vendor/build/missing.mjs"

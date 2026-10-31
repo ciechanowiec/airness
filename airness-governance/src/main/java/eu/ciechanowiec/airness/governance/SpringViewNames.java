@@ -18,7 +18,9 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -50,6 +52,9 @@ final class SpringViewNames {
     private static final Pattern CONSTANT = Pattern.compile("[A-Z][A-Z0-9_]*");
     private static final Set<String> MODELLED = Set.of("ModelAndView", "org.springframework.web.servlet.ModelAndView");
     private static final SpringViewScope OUTSIDE = new SpringViewScope(Set.of(), false);
+    private static final Set<String> NAMING = Set.of(
+        "String", "java.lang.String", "ModelAndView", "org.springframework.web.servlet.ModelAndView"
+    );
 
     /**
      * Reads statically written references while keeping every original source offset.
@@ -58,10 +63,24 @@ final class SpringViewNames {
      * @return the written values and the positions that report them
      */
     static List<Reference> in(SpringTypes.Declared source) {
-        return CANDIDATE.matcher(source.code()).find() ? parsed(source) : List.of();
+        return CANDIDATE.matcher(source.code()).find() ? parsed(source).references() : List.of();
     }
 
-    private static List<Reference> parsed(SpringTypes.Declared source) {
+    /**
+     * The places a handler that names a view returns one chosen when the request is answered.
+     *
+     * <p>Such a view is not a fact about the source, so no rule over the markup can read it. These are
+     * named rather than passed over in silence, because which template answers is then a question only
+     * a run of the application settles, by reaching the handler's address.
+     *
+     * @param source the production source being checked
+     * @return the source offset of each return or construction whose view is chosen at runtime
+     */
+    static List<Integer> chosen(SpringTypes.Declared source) {
+        return CANDIDATE.matcher(source.code()).find() ? parsed(source).chosen() : List.of();
+    }
+
+    private static ViewReferences parsed(SpringTypes.Declared source) {
         JavaCompiler compiler = Optional.ofNullable(ToolProvider.getSystemJavaCompiler()).orElseThrow();
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         try (
@@ -83,7 +102,7 @@ final class SpringViewNames {
             if (!errors.isEmpty()) {
                 throw new IllegalArgumentException(source.source() + ": cannot read view references: " + errors);
             }
-            return reading.references();
+            return reading;
         } catch (IOException exception) {
             throw new UncheckedIOException("Cannot read view references in " + source.source(), exception);
         }
@@ -106,11 +125,15 @@ final class SpringViewNames {
         private final CompilationUnitTree unit;
         private final SourcePositions positions;
         private final List<Reference> names;
+        private final List<Integer> runtime;
+        private final Deque<Boolean> naming;
 
         private ViewReferences(CompilationUnitTree unit, SourcePositions positions) {
             this.unit = unit;
             this.positions = positions;
             this.names = new ArrayList<>();
+            this.runtime = new ArrayList<>();
+            this.naming = new ArrayDeque<>();
         }
 
         @Override
@@ -120,7 +143,16 @@ final class SpringViewNames {
 
         @Override
         public @Nullable Void visitMethod(MethodTree tree, SpringViewScope scope) {
-            return super.visitMethod(tree, scope.method(tree));
+            boolean namesView = Optional.ofNullable(tree.getReturnType())
+                .map(Tree::toString)
+                .filter(NAMING::contains)
+                .isPresent();
+            this.naming.push(namesView);
+            try {
+                return super.visitMethod(tree, scope.method(tree));
+            } finally {
+                this.naming.pop();
+            }
         }
 
         @Override
@@ -131,7 +163,9 @@ final class SpringViewNames {
         @Override
         public @Nullable Void visitReturn(ReturnTree tree, SpringViewScope scope) {
             if (scope.view()) {
-                Optional.ofNullable(tree.getExpression()).ifPresent(expression -> this.keep(tree, expression));
+                Optional.ofNullable(tree.getExpression()).ifPresent(
+                    expression -> this.keep(tree, expression, Boolean.TRUE.equals(this.naming.peek()))
+                );
             }
             return super.visitReturn(tree, scope);
         }
@@ -139,7 +173,7 @@ final class SpringViewNames {
         @Override
         public @Nullable Void visitNewClass(NewClassTree tree, SpringViewScope scope) {
             if (MODELLED.contains(tree.getIdentifier().toString()) && !tree.getArguments().isEmpty()) {
-                this.keep(tree, tree.getArguments().getFirst());
+                this.keep(tree, tree.getArguments().getFirst(), true);
             }
             return super.visitNewClass(tree, scope);
         }
@@ -148,9 +182,19 @@ final class SpringViewNames {
             return List.copyOf(this.names);
         }
 
-        private void keep(Tree tree, ExpressionTree expression) {
+        List<Integer> chosen() {
+            return List.copyOf(this.runtime);
+        }
+
+        // An expression that is neither a literal nor a constant names a view only where what is returned
+        // is one, which a handler answering an entity or a number does not.
+        private void keep(Tree tree, ExpressionTree expression, boolean naming) {
             int offset = Math.toIntExact(this.positions.getStartPosition(this.unit, tree));
-            written(expression).ifPresent(value -> this.names.add(new Reference(value, offset)));
+            Optional<String> written = written(expression);
+            written.ifPresent(value -> this.names.add(new Reference(value, offset)));
+            if (written.isEmpty() && naming && !(expression instanceof LiteralTree)) {
+                this.runtime.add(offset);
+            }
         }
 
         private static Optional<String> written(ExpressionTree expression) {

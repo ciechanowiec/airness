@@ -95,6 +95,19 @@ Airness governs all of the following domains in a Java module:
   opted-in module has no integration tests. Run through `verify`: coverage combines both test phases,
   Spring runtime evidence reads both, and the final tree check includes integration-test writes.
   Build Helper's source and resource roots and Assembly's distribution descriptors belong to the project.
+- **Inline code in markup:** every markup resource is held to the code it carries. An executable `<script>`
+  without a source (no type, `module` or a JavaScript type), a `<style>` element, an `on*`, `th:on*` or
+  `data-th-on*` handler attribute, a `javascript:` address and `th:inline` set to `javascript` or `css` are
+  refused: move the code into a checked file of the frontend tooling project and reference it. Data blocks such as
+  `application/json`, `application/ld+json`, `importmap` and `speculationrules` stay. Thymeleaf, htmx and Alpine
+  expression attributes are template syntax rather than standalone JavaScript; the static checks above read the
+  Thymeleaf ones, and the Extended browser sweep assesses what any of them does when the page runs.
+- **Static and runtime template assessment:** the template checks resolve fragments, scopes, literal view names
+  and literal message keys from the markup and sources alone. A view name a handler chooses at run time is
+  logged as statically unassessed; its page is assessed by the browser sweep through the route its handler maps,
+  which the route inventory requires to be swept, scanned by a project specification or skipped with a reason.
+  An application that starts proves only that it starts: rendered states, roles and validation failures need
+  project specifications driving them to an `expectSweptPage` scan.
 - **Thymeleaf message keys in Spring Boot applications:** literal `#{key}` references in production HTML
   `th:*` and `data-th-*` processing attributes must resolve through the message source used by the application's
   template engine during its existing startup tests. Bare or quoted keys may contain ASCII letters, digits, dots,
@@ -250,6 +263,14 @@ Airness governs all of the following domains in a Java module:
 
 ## Layer 5: Java Exceptions and Repairs
 
+- Connect a Java web interface to the browser sweep without rewriting it: list a frontend tooling directory in
+  `airness.node.projects` (the module itself works, with `sourceRoots` naming `src/main/resources/static`), move
+  each authored script and stylesheet under its checked roots, replace copied distributions with a WebJar or a
+  `node-run` copy from npm, name a `serve` script launching `$AIRNESS_APPLICATION_ARTIFACT` on `$PORT`, start
+  the database and other services through `airness.testWrapper` with fixture data of its own, and add
+  `tests/e2e/**/*.e2e.spec.ts` specifications that sign in as each representative role and call
+  `expectSweptPage(page)` on the pages the anonymous crawl cannot reach. Keep the existing Selenium tests; they
+  remain project tests beside the automatic sweep.
 - Read a resource the JAR carries by resolving `Class.getResource` through `Optional.ofNullable(...)` and
   `orElseThrow(...)` to a `URL`, and only then opening the stream in a plain try-with-resources. A stream opened
   before the missing-resource check, or checked inside the resource specifier, is unclosed on the throwing edge,

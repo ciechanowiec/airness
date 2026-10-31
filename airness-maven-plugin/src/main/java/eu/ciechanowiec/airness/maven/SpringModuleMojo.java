@@ -29,6 +29,14 @@ public final class SpringModuleMojo extends AbstractGovernanceMojo {
             "Spring module read " + check.scanned() + " Java source(s) declaring " + check.types() + " type(s)"
         );
         Scope.requireJavaSources(check.scanned(), this.moduleSourceRoots());
+        List<String> unassessed = check.unassessedViews();
+        if (!unassessed.isEmpty()) {
+            this.getLog().info(
+                "Spring module left " + unassessed.size() + " view(s) statically unassessed;"
+                    + " route accounting of the browser sweep covers their handlers' addresses:"
+            );
+            unassessed.forEach(line -> this.getLog().info("  " + line));
+        }
         return check.findings();
     }
 }

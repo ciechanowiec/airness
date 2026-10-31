@@ -11,6 +11,7 @@ import { configReferences } from '@/gate-config-references.js'
 import { css, cssWrite } from '@/gate-css.js'
 import { tailwindTokens } from '@/gate-tailwind-tokens.js'
 import { tests } from '@/gate-tests.js'
+import { type Gate, gateById } from '@/gates.js'
 import type { Member } from '@/project.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
@@ -242,4 +243,37 @@ describe('stylesheet formatting', PROCESS_TIME, () => {
       removeProject(root)
     }
   })
+})
+
+describe('a stylesheet-only tooling project', PROCESS_TIME, () => {
+  // The shape a Java application's frontend tooling directory takes: the pinned configurations and its stylesheets.
+  const Tooling: Readonly<Record<string, string>> = {
+    'eslint.config.mjs': "export { default } from '@airness/node/eslint'\n",
+    'vitest.config.mts': "import config from '@airness/node/vitest'\n\nexport default config\n",
+    'src/main/resources/static/css/site.css': 'a {\n  color: red;\n}\n',
+  }
+  const Manifest: unknown = { airness: { sourceRoots: ['src/main/resources/static'] } }
+
+  it.each(['types', 'eslint', 'arch', 'type-coverage', 'knip'])(
+    'reports %s as not applicable rather than asking for a tsconfig.json or a script',
+    async (id: string) => {
+      const gate: Gate | undefined = gateById(id)
+      if (gate === undefined) {
+        throw new Error(`no gate ${id}`)
+      }
+      const result: GateResult = await withMember(Tooling, Manifest, (member: Member) =>
+        gate.run(member, { evidenceDirectory: undefined }),
+      )
+      expect(result).toMatchObject({ ok: true, isApplicable: false })
+    },
+  )
+
+  it(
+    'still judges its stylesheets',
+    async () => {
+      const result: GateResult = await withMember(Tooling, Manifest, css)
+      expect(result).toMatchObject({ ok: true, summary: '1 stylesheet(s) pass Stylelint and formatting' })
+    },
+    TOOL_TIMEOUT_MS,
+  )
 })

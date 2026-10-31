@@ -27,8 +27,8 @@ CSS
         'theme[.]css:1.*a space joins two refusals'
     expect_no_match stylesheet_report_only 'stylesheets: a group written inside something is left alone' \
         'theme[.]css:5'
-    expect_no_match stylesheet_report_only 'stylesheets: a stylesheet somebody else published is not read' \
-        'published[.]css'
+    expect_match stylesheet_report_only 'stylesheets: a vendor directory is no evidence that somebody else wrote it' \
+        'published[.]css:1.*a space joins two refusals'
 
     run_maven stylesheet_enforcement stylesheets "${stylesheet_consumer}" airness:stylesheet-selectors
     expect_exit stylesheet_enforcement 'stylesheets: a selector meaning something else fails enforcement' 1

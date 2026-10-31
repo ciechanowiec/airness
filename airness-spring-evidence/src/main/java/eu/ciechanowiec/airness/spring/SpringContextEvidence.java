@@ -36,7 +36,9 @@ import org.springframework.util.ClassUtils;
  * <p>Four facts are written. The primary source classes of the run, which say that the production
  * application was started at all, the mappings its security chain leaves open to an anonymous caller,
  * which say what starting it exposed, and the beans its security expressions name and the context
- * cannot resolve, which say which guards would have thrown rather than decided. Template message assessments are also
+ * cannot resolve, which say which guards would have thrown rather than decided. The addresses at which the
+ * application renders a page are recorded wherever a servlet stack maps them, as the route inventory the
+ * browser sweep is reconciled with. Template message assessments are also
  * recorded when the Maven manifest is present. Each additional fact
  * is written on its own prefixed line, so a reader looking for an application class still finds one
  * bare line per source and nothing that could be mistaken for one.
@@ -58,6 +60,15 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
      * both answer no and neither loads a class that would not resolve.
      */
     private static final boolean SERVLET_SECURITY = present();
+
+    /**
+     * Whether this JVM has the servlet stack that maps pages, which the route inventory reads. An
+     * application without one answers no and loads no class that would not resolve.
+     */
+    private static final boolean SERVLET_PAGES = ClassUtils.isPresent(
+        "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping",
+        SpringContextEvidence.class.getClassLoader()
+    );
 
     /**
      * Whether this JVM has the annotations whose expressions the guard evidence reads. A project that
@@ -101,9 +112,18 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
         return sources.isEmpty()
             ? sources
             : Stream.of(
-                sources, this.decided(context, sources), messages(context, sources, destination),
-                streaming(context, sources, destination)
+                sources, this.decided(context, sources), pages(context, sources),
+                messages(context, sources, destination), streaming(context, sources, destination)
             ).flatMap(Collection::stream).toList();
+    }
+
+    // The addresses the browser sweep accounts for, asked only where the servlet stack that maps pages
+    // is on the classpath, so an application without one loads no class that would not resolve.
+    private static List<String> pages(ConfigurableApplicationContext context, Collection<String> sources) {
+        return Optional.of(context)
+            .filter(_ -> SERVLET_PAGES)
+            .map(ready -> SpringHtmlRoutes.rendered(ready, roots(sources)))
+            .orElseGet(List::of);
     }
 
     /**
