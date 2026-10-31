@@ -329,12 +329,13 @@ JSON
 }
 
 # Packs the artifact inside the sweep's own invocation, as package would, and then runs e2e with the static
-# node gates a CSS-only tooling project answers.
+# node gates a CSS-only tooling project answers. Biome runs over the module root, where its source roots reach
+# the Thymeleaf templates, whose th:href anchors it must leave to the template checks and the sweep.
 sweep_java_web() {
     run_maven "$1" browser "${java_web}" -Pextended,delta \
         clean prepare-package jar:jar spring-boot:repackage@repackage-application \
-        airness:node-gate@node-gate-types airness:node-gate@node-gate-eslint airness:node-gate@node-gate-knip \
-        airness:node-gate@node-gate-css airness:node-gate@node-gate-e2e
+        airness:node-gate@node-gate-types airness:node-gate@node-gate-biome airness:node-gate@node-gate-eslint \
+        airness:node-gate@node-gate-knip airness:node-gate@node-gate-css airness:node-gate@node-gate-e2e
 }
 
 run_java_web_cases() {
@@ -384,6 +385,8 @@ PY
     sweep_java_web java_web_covered
     expect_exit java_web_covered \
         'java web: a CSS-only Thymeleaf application refusing inline style passes the shared sweep' 0
+    expect_no_match java_web_covered 'java web: Biome leaves the Thymeleaf templates to the template checks' \
+        'useValidAnchor|noLabelWithoutControl'
     expect_match java_web_covered 'java web: the script gates do not apply to a project with no script' \
         'types.*not applicable|not applicable.*types'
     java_web_discovery="${java_web}/node_modules/.airness/e2e/test-results/airness-sweep/discovery.json"

@@ -58,5 +58,23 @@ export const biomeSelection = (
     )
   })
 
+// Thymeleaf writes its attributes and elements under the `th` prefix, or as `data-th-` attributes in its
+// HTML5 dialect, and a template declares the namespace on its root.
+const THYMELEAF_MARKUP: RegExp = /<th:[\w-]+|\sxmlns:th\s*=|\s(?:th:|data-th-)[\w-]+\s*=/u
+
+/**
+ * Whether a selected file is a server-side template rather than HTML a browser receives as written.
+ *
+ * Biome reads markup as the HTML it would serve, so a Thymeleaf template reads to it as an anchor without an
+ * address where `th:href` supplies one and a label without a control where `th:for` names it. What such a file
+ * renders is judged where the template engine is understood: by the Java template checks against its source, and
+ * by the browser sweep against the HTML it renders. Plain markup stays Biome's.
+ * @param file the path of the file, relative to the member.
+ * @param read reads a file's contents, asked only of markup.
+ * @returns true when the file is markup carrying Thymeleaf syntax.
+ */
+export const isServerTemplate = (file: string, read: (file: string) => string): boolean =>
+  /\.html?$/u.test(file) && THYMELEAF_MARKUP.test(read(file))
+
 /** A Biome configuration file, dotted or not, which the gate supplies itself and a project may keep only at its root. */
 export const isNestedBiomeConfig = (file: string): boolean => /\/\.?biome\.jsonc?$/u.test(file)

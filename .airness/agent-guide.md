@@ -107,7 +107,8 @@ Airness governs all of the following domains:
   `@vitest/coverage-v8` and `typescript` at the versions the harness runs), `types` (the project's `tsconfig.json` extends
   `@airness/node/tsconfig.json`, sets no compiler option but `paths`, `baseUrl`, `plugins`, `types`, `rootDir`
   and `outDir`, keeps the include and exclude the harness names, and type-checks), `biome` (formatting and fast lint under the shipped configuration, with
-  no `biome.json` or `.biome.json` below the project root), `oxlint` (native rules, with no project Oxlint configuration),
+  no `biome.json` or `.biome.json` below the project root, passing over Thymeleaf templates, which the Java template
+  checks and the browser sweep judge), `oxlint` (native rules, with no project Oxlint configuration),
   `eslint` (type-aware lint under the shipped configuration, whatever the project keeps, with no warning
   allowed and at least one file to lint), `source-rules` (no parent-relative import under a source root, no credential guard that opens when
   the credential is unset), `config-refs` (every carve-out and declared exclusion reaches a file) and
