@@ -12,6 +12,7 @@ import { bisectionWidth, failingRanges, STRESS_VIEWPORTS, SWEEP_HEIGHT, sweepWid
 import { measurePage } from './layout.js'
 import { REFLOW_RULES, reflowCandidates } from './layout-defects.js'
 import type { LayoutSnapshot } from './layout-snapshot.js'
+import { adoptStyle } from './page-style.js'
 import { type PlaceScan, settleFindings } from './scanner.js'
 import { settleForScan } from './settle.js'
 import {
@@ -107,7 +108,7 @@ const applyStress = async (page: Page, mode: StressMode): Promise<readonly Resiz
   if (mode === 'text-resize') {
     return await page.evaluate(doubleTextInPage)
   }
-  await page.addStyleTag({ content: SPACING_STYLE })
+  await adoptStyle(page, SPACING_STYLE)
   return []
 }
 
