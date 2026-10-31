@@ -21,6 +21,7 @@ import type {
   LayoutSnapshot,
   MediaFacts,
 } from './layout-snapshot.js'
+import { adoptStyle } from './page-style.js'
 import { projectSettings } from './project-settings.js'
 
 /** The viewports every layout scan runs at, the harness's own first. */
@@ -598,7 +599,7 @@ export const measurePage = async (page: Page, route: string, isMinimal: boolean 
  * @param indices the measured-node indices.
  */
 export const outlineElements = async (page: Page, indices: readonly number[]): Promise<void> => {
-  await page.addStyleTag({ content: OUTLINE_STYLE })
+  await adoptStyle(page, OUTLINE_STYLE)
   await page.evaluate(`(${String(outlineDocument)})(${toolsSource(STEPS)}, ${JSON.stringify(indices)})`)
 }
 

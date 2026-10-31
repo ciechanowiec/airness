@@ -36,6 +36,7 @@ import { withinLimit } from './deadline.js'
 import { isArray, isRecord } from './json-shapes.js'
 import { outlineElements } from './layout.js'
 import { type JudgedPage, LAYOUT_RULES } from './layout-defects.js'
+import { adoptStyle } from './page-style.js'
 import { projectSettings } from './project-settings.js'
 import { engineOf, type HealthReading, healthFindings, type PlaceScan } from './scanner.js'
 import { passStartLine } from './sweep-progress.js'
@@ -393,7 +394,7 @@ export const loadLocation = async (
   await page.setViewportSize(viewport)
   await page.goto(location.url)
   if (place.motion !== 'no-preference') {
-    await page.addStyleTag({ content: STILL_STYLE })
+    await adoptStyle(page, STILL_STYLE)
   }
   if (!location.isStory) {
     return []

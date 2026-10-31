@@ -209,7 +209,7 @@
         "reason": "the TCP probe of the browser endpoint, which opens sockets and resolves hostnames; the decisions it feeds are measured in browser-server-policy.ts"
       },
       {
-        "pattern": "src/{scanner,browser-scope,focus-region,font-settle}.ts",
+        "pattern": "src/{scanner,browser-scope,focus-region,font-settle,page-style}.ts",
         "reason": "browser measurements and trusted view scoping execute inside the real Playwright contracts; pure snapshot policies have their own measured unit suites"
       },
       {

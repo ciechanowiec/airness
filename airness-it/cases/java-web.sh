@@ -174,7 +174,7 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 @Configuration(proxyBeanMethods = false)
 public final class Security {
 
-    private static final String POLICY = "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'";
+    private static final String POLICY = "default-src 'self'; frame-ancestors 'none'";
 
     /**
      * Builds the chain every request is decided by.
@@ -382,7 +382,8 @@ PY
         --message 'test(it): cover every route of the Thymeleaf application' \
         --message 'The unlinked pages gain links and the protected page is declared out of scope with its reason.'
     sweep_java_web java_web_covered
-    expect_exit java_web_covered 'java web: a CSS-only Thymeleaf application passes the shared sweep' 0
+    expect_exit java_web_covered \
+        'java web: a CSS-only Thymeleaf application refusing inline style passes the shared sweep' 0
     expect_match java_web_covered 'java web: the script gates do not apply to a project with no script' \
         'types.*not applicable|not applicable.*types'
     java_web_discovery="${java_web}/node_modules/.airness/e2e/test-results/airness-sweep/discovery.json"
