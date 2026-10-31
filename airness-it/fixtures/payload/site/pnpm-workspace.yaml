@@ -9,6 +9,11 @@ minimumReleaseAgeExclude:
   - "@airness/node"
   - "@airness/payload"
 
-# The generic harness approves this exact security correction.
+# The generic harness approves these exact security corrections.
 overrides:
   "eslint-plugin-functional@10.0.1>deepmerge-ts": "8.0.2"
+  "@eslint/config-array@0.23.5>minimatch": "11.0.3"
+  "@typescript-eslint/typescript-estree@8.72.0>minimatch": "11.0.3"
+  "eslint-plugin-sonarjs@4.2.2>minimatch": "11.0.3"
+  "eslint@10.13.0>minimatch": "11.0.3"
+  "type-coverage-core@2.30.4>minimatch": "11.0.3"
