@@ -541,7 +541,7 @@ print_timing_summary() {
     printf '    timings: %s\n' "${timings}"
 }
 
-# Runs the named case functions in a subshell whose output is held back until the lane is joined, so
+# Runs the named domains in a subshell whose output is held back until the lane is joined, so
 # that concurrent lanes cannot interleave a transcript. The counts are the last thing the lane writes:
 # a lane that dies leaves none, and the parent reads that as a failure rather than as nothing to add.
 start_lane() {
@@ -556,8 +556,8 @@ start_lane() {
     fi
     (
         trap release_exclusive_on_exit EXIT
-        for lane_case in "$@"; do
-            "${lane_case}"
+        for lane_domain in "$@"; do
+            run_domain "${lane_domain}"
         done
         printf '%s %s\n' "${passed}" "${failures}" > "${lane_results}/${lane_name}.counts"
         printf '%s' "${failed_cases}" > "${lane_results}/${lane_name}.failed"

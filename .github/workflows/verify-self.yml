@@ -11,9 +11,27 @@ permissions:
   contents: read
 
 jobs:
+  # The self-verification build and the consumer suite run side by side, each on its own runner. The consumer
+  # suite is split into groups of its domains, which together are the complete suite, and each group verifies
+  # artifacts it installs from this commit without the gates the build entry runs, which packs the same bytes.
   verify:
+    name: 'verify (${{ matrix.part }})'
+    strategy:
+      matrix:
+        include:
+          - part: 'build'
+          - part: 'consumers: spring'
+            domains: 'spring'
+          - part: 'consumers: maven, containers'
+            domains: 'maven containers'
+          - part: 'consumers: browser'
+            domains: 'browser'
+          - part: 'consumers: node, payload'
+            domains: 'node payload'
+          - part: 'consumers: repository and the short domains'
+            domains: 'repository scanners analysis templates stylesheets'
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 90
     steps:
       # The check images, the consumer fixtures and their node packages outgrow what the runner image leaves
       # free, so the toolchains this build never uses are removed first.
@@ -90,25 +108,31 @@ jobs:
           docker pull "${image}"
 
       - name: 'Build, fully verify, and install Airness artifacts'
+        if: ${{ !matrix.domains }}
         # The file linter follows the link airness-node keeps to itself through node_modules, so its walk of
         # that module outgrows the default heap, which is a quarter of the runner's memory.
         env:
           MAVEN_OPTS: '-Xmx5g'
         run: mvn clean install -Pextended
 
+      - name: 'Install Airness artifacts for the consumers'
+        if: ${{ matrix.domains }}
+        run: mvn --batch-mode install -DskipTests
+
       - name: 'Verify isolated consumers'
+        if: ${{ matrix.domains }}
         run: |
           set -eu
           version="$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
           case "$version" in
             *-SNAPSHOT)
-              sh airness-it/verify.sh
+              sh airness-it/verify.sh ${{ matrix.domains }}
               ;;
             *)
               artifact_url="https://repo.maven.apache.org/maven2/eu/ciechanowiec/airness/$version/airness-$version.pom"
               status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$artifact_url")"
               if [ "$status" = '200' ]; then
-                sh airness-it/verify.sh
+                sh airness-it/verify.sh ${{ matrix.domains }}
               elif [ "$status" = '404' ]; then
                 echo "Airness $version is not published yet; the release workflow verifies consumers after publication."
               else
