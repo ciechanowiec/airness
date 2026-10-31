@@ -25,6 +25,24 @@ export const SECURITY_OVERRIDES: readonly SecurityOverride[] = [
       'the deepmerge API used to compose its rule options and schemas.',
     addedOn: '2026-10-28',
   },
+  ...[
+    '@eslint/config-array@0.23.5',
+    '@typescript-eslint/typescript-estree@8.72.0',
+    'eslint-plugin-sonarjs@4.2.2',
+    'eslint@10.13.0',
+    'type-coverage-core@2.30.4',
+  ].map(
+    (parent: string): SecurityOverride => ({
+      parent,
+      dependency: 'minimatch',
+      version: '11.0.3',
+      advisories: ['GHSA-g3hv-75wg-m249'],
+      reason:
+        'The lint and type-coverage analyzers still request version 10; version 11 bounds the globstar ' +
+        'expansion and retains the Minimatch class, match and minimatch calls they use.',
+      addedOn: '2026-10-31',
+    }),
+  ),
 ]
 
 /** The exact pnpm selector for the edge this approval covers. */
