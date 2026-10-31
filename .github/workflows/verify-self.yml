@@ -12,24 +12,25 @@ permissions:
 
 jobs:
   # The self-verification build and the consumer suite run side by side, each on its own runner. The consumer
-  # suite is split into groups of its domains, which together are the complete suite, and each group verifies
-  # artifacts it installs from this commit without the gates the build entry runs, which packs the same bytes.
+  # suite runs as the groups of its domains that verify.sh defines, which together are the complete suite, and
+  # each group verifies artifacts it installs from this commit without the gates the build entry runs, which
+  # packs the same bytes.
   verify:
     name: 'verify (${{ matrix.part }})'
     strategy:
       matrix:
         include:
           - part: 'build'
-          - part: 'consumers: spring'
-            domains: 'spring'
-          - part: 'consumers: maven, containers'
-            domains: 'maven containers'
-          - part: 'consumers: browser'
-            domains: 'browser'
-          - part: 'consumers: node, payload'
-            domains: 'node payload'
-          - part: 'consumers: repository and the short domains'
-            domains: 'repository scanners analysis templates stylesheets'
+          - part: 'consumers, group-1'
+            group: 'group-1'
+          - part: 'consumers, group-2'
+            group: 'group-2'
+          - part: 'consumers, group-3'
+            group: 'group-3'
+          - part: 'consumers, group-4'
+            group: 'group-4'
+          - part: 'consumers, group-5'
+            group: 'group-5'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -108,7 +109,7 @@ jobs:
           docker pull "${image}"
 
       - name: 'Build, fully verify, and install Airness artifacts'
-        if: ${{ !matrix.domains }}
+        if: ${{ !matrix.group }}
         # The file linter follows the link airness-node keeps to itself through node_modules, so its walk of
         # that module outgrows the default heap, which is a quarter of the runner's memory.
         env:
@@ -116,23 +117,23 @@ jobs:
         run: mvn clean install -Pextended
 
       - name: 'Install Airness artifacts for the consumers'
-        if: ${{ matrix.domains }}
+        if: ${{ matrix.group }}
         run: mvn --batch-mode install -DskipTests
 
       - name: 'Verify isolated consumers'
-        if: ${{ matrix.domains }}
+        if: ${{ matrix.group }}
         run: |
           set -eu
           version="$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
           case "$version" in
             *-SNAPSHOT)
-              sh airness-it/verify.sh ${{ matrix.domains }}
+              sh airness-it/verify.sh ${{ matrix.group }}
               ;;
             *)
               artifact_url="https://repo.maven.apache.org/maven2/eu/ciechanowiec/airness/$version/airness-$version.pom"
               status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$artifact_url")"
               if [ "$status" = '200' ]; then
-                sh airness-it/verify.sh ${{ matrix.domains }}
+                sh airness-it/verify.sh ${{ matrix.group }}
               elif [ "$status" = '404' ]; then
                 echo "Airness $version is not published yet; the release workflow verifies consumers after publication."
               else
