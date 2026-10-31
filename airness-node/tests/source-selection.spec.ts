@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { biomeSelection } from '@/biome-selection.js'
+import { biomeSelection, isServerTemplate } from '@/biome-selection.js'
 import { matchesGlob } from '@/file-roles.js'
 import { globAlternatives } from '@/glob-alternatives.js'
 import { findUnreachedExclusionsBySetting, readSettings, type Settings } from '@/settings.js'
@@ -16,6 +16,11 @@ const script = (pattern: string): { readonly pattern: string; readonly reason: s
   runtime: 'node',
 })
 
+// A reader for files the selection must not open.
+const unreadable = (file: string): string => {
+  throw new Error(`${file} was read`)
+}
+
 describe('source selection', () => {
   it('selects formatter inputs without descending into generated directories or other members', () => {
     expect(
@@ -28,6 +33,29 @@ describe('source selection', () => {
     expect(biomeSelection(['src/generated.ts', 'src/read.ts'], ['src/**/*', '!src/generated.ts'], [])).toEqual([
       'src/read.ts',
     ])
+  })
+  it('leaves Thymeleaf templates to the checks that understand them and keeps plain markup', () => {
+    const files: Readonly<Record<string, string>> = {
+      'src/main/resources/templates/page.html':
+        '<html lang="en" xmlns:th="http://www.thymeleaf.org"><a th:href="@{/}">Home</a></html>',
+      'src/main/resources/templates/fragment.html': '<label class="field" th:for="*{name}">Name</label>',
+      'src/main/resources/templates/dialect.html': '<a data-th-href="@{/}">Home</a>',
+      'src/main/resources/templates/block.html': '<th:block th:each="row : *{rows}"><p>Row</p></th:block>',
+      'src/main/resources/static/offline.html': '<html lang="en"><a href="/">Home</a></html>',
+      'src/main/resources/templates/row.html': '<p>A row with no template syntax</p>',
+      'src/table.html': '<table><th>Heading</th></table>',
+    }
+    const read = (file: string): string => files[file] ?? ''
+    expect(Object.keys(files).filter((file: string): boolean => isServerTemplate(file, read))).toEqual([
+      'src/main/resources/templates/page.html',
+      'src/main/resources/templates/fragment.html',
+      'src/main/resources/templates/dialect.html',
+      'src/main/resources/templates/block.html',
+    ])
+  })
+  it('reads only markup when looking for template syntax', () => {
+    expect(isServerTemplate('src/main/resources/static/logo.png', unreadable)).toBe(false)
+    expect(isServerTemplate('src/view.ts', unreadable)).toBe(false)
   })
   it('admits only JavaScript and excludes nested member entry points', () => {
     expect(

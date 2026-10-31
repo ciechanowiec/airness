@@ -1,7 +1,7 @@
 // Formatting and fast lint, under the shipped Biome configuration, over the files the member owns.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { biomeIncludes, biomeSelection, isNestedBiomeConfig } from './biome-selection.js'
+import { biomeIncludes, biomeSelection, isNestedBiomeConfig, isServerTemplate } from './biome-selection.js'
 import { failed, fromRun, type GateResult, passed, runNode } from './exec.js'
 import { isNextApp } from './facets.js'
 import { asRecord } from './json-shapes.js'
@@ -74,6 +74,8 @@ const checkNext = (member: Member, files: readonly string[], mode: 'check' | 'wr
   }
 }
 
+const readMarkup = (member: Member, file: string): string => readFileSync(path.join(member.root, file), 'utf8')
+
 /** Formatting and fast lint, bounded to the member's working-tree files. */
 const biomeRun = (member: Member, mode: 'check' | 'write'): GateResult => {
   const inventory: readonly string[] = presentWorkingTreeFiles(member.root)
@@ -86,11 +88,12 @@ const biomeRun = (member: Member, mode: 'check' | 'write'): GateResult => {
   if (problems.length > 0) {
     return failed('Biome wiring is violated', problems)
   }
+  // Server templates are left to the checks that understand their engine; see isServerTemplate.
   const files: readonly string[] = biomeSelection(
     inventory,
     biomeIncludes(member.settings.sourceRoots, member.settings.generatedArtefacts),
     member.siblingPaths,
-  )
+  ).filter((file: string): boolean => !isServerTemplate(file, (markup: string): string => readMarkup(member, markup)))
   if (files.length === 0) {
     return passed('no owned file is selected for Biome')
   }
