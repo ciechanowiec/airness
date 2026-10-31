@@ -60,7 +60,7 @@ jobs:
         run: |
           set -eu
           archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 \
             'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
             --output "$archive"
           printf '%s  %s\n' \
@@ -166,7 +166,7 @@ jobs:
         run: |
           set -eu
           archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 \
             'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
             --output "$archive"
           printf '%s  %s\n' \
@@ -217,7 +217,7 @@ jobs:
         run: |
           set -eu
           archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 \
             'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
             --output "$archive"
           printf '%s  %s\n' \
