@@ -91,6 +91,21 @@ class SpringContextEvidenceTest {
     }
 
     @Test
+    @SneakyThrows
+    void recordsTheAddressesTheReadyApplicationRendersAPageAt() {
+        Path evidence = this.directory.resolve("pages.evidence");
+
+        this.ready(new SpringApplication(ApplicationSource.class), evidence, this.pages());
+
+        assertTrue(
+            Files.readAllLines(evidence).containsAll(
+                List.of("html-route\t/rooms\tPages#room", "html-route\t/rooms/{id}\tPages#room")
+            ),
+            "the route inventory the browser sweep is reconciled with is written beside the other facts"
+        );
+    }
+
+    @Test
     void namesNoRootForAnApplicationInTheDefaultPackage() {
         assertEquals(
             Set.of(),
@@ -201,6 +216,17 @@ class SpringContextEvidenceTest {
             )
         );
         context.registerBean(PublicEndpoint.class);
+        context.refresh();
+        return context;
+    }
+
+    /**
+     * A ready web application whose controller renders pages and builds no security chain.
+     */
+    private ConfigurableApplicationContext pages() {
+        GenericWebApplicationContext context = new GenericWebApplicationContext(new MockServletContext());
+        context.registerBean("mapping", RequestMappingHandlerMapping.class);
+        context.registerBean(Pages.class);
         context.refresh();
         return context;
     }

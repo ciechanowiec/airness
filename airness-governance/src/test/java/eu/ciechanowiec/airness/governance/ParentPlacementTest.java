@@ -78,8 +78,9 @@ class ParentPlacementTest {
                     "build-inputs", "comment-prose", "compiler-parameters", "javadoc-links", "message-parity",
                     "package-cycles", "prepare-test-evidence", "qodana", "source-formatting",
                     "stylesheet-selectors", "template-calls", "template-expressions", "template-fragments",
-                    "template-links", "template-output", "template-parse", "template-reach",
-                    "template-replacements", "template-scope", "test-assertions", "web-accessibility"
+                    "template-inline", "template-links", "template-output", "template-parse", "template-reach",
+                    "template-replacements", "template-scope", "test-assertions", "web-accessibility",
+                    "web-interface"
                 ).map(AIRNESS::concat),
                 Stream.of(
                     "jacoco-maven-plugin:check", "jacoco-maven-plugin:prepare-agent", "jacoco-maven-plugin:report",

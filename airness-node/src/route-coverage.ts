@@ -1,6 +1,6 @@
 import { containsBuiltRoute, containsRoute, reachesAxe, reachesLayoutScan, type SpecSource } from './axe-coverage.js'
 import { isSkippedRoute } from './route-exclusions.js'
-import { type DeclaredRoute, resolvedRouteOf, staticPrefixOf } from './route-map.js'
+import { type DeclaredRoute, normalisedRoute, resolvedRouteOf, staticPrefixOf } from './route-map.js'
 
 // The pages the accessibility sweep never reached, and nobody was told about.
 //
@@ -25,8 +25,13 @@ export interface RouteSweep {
   readonly declaredRoutes: readonly DeclaredRoute[]
   /** The addresses the crawl reached AND scanned. */
   readonly visitedRoutes: readonly string[]
-  /** The addresses that answered, including those that forwarded off the public surface. */
+  /**
+   * The addresses credited for answering, including those that moved permanently, even off the public surface.
+   * An address that forwarded temporarily is not among them: see `coversRequestedRoute`.
+   */
   readonly answeredRoutes: readonly string[]
+  /** The htmx fragments the crawl requested that rendered, which cover the routes that render them. */
+  readonly fragmentRoutes?: readonly string[]
   /** Every prefix the sweep skips, the layers' and the project's. */
   readonly skippedPrefixes: readonly string[]
   /** The prefixes the project itself declared, which match as written rather than at a segment boundary. */
@@ -50,16 +55,42 @@ const REMEDIES: string =
   '`expectSweptPage(page)` from `@airness/node/a11y`, or declare it in `airness.accessibilitySkipRoutes` ' +
   'with the reason it is out of scope'
 
-// An answered redirect is covered at its source address even if it leaves the public surface.
+// The statuses that move an address for good. Any other redirect is temporary: the answer of this request,
+// such as a sign-in page shown in place of the protected one, not a description of the page asked for.
+const MOVED_PERMANENTLY: number = 301
+const PERMANENT_REDIRECT: number = 308
+const PERMANENT_REDIRECTS: ReadonlySet<number> = new Set<number>([MOVED_PERMANENTLY, PERMANENT_REDIRECT])
+
+/**
+ * Whether an answered request covers the address it asked for, rather than only the page it landed on.
+ *
+ * A permanent redirect is the address's whole content, so it covers its source wherever it leads. A temporary
+ * one, or an address the page replaced on its own, says nothing of the page asked for: a protected page that
+ * sends an anonymous crawl to the sign-in form is not covered by the sign-in form, so only where the request
+ * landed is credited.
+ * @param redirects the status of every redirect the request followed, in any order.
+ * @param requested the address the crawl asked for.
+ * @param landed the address the page shows after it answered.
+ * @returns true when the requested address is covered.
+ */
+export const coversRequestedRoute = (redirects: readonly number[], requested: string, landed: string): boolean =>
+  redirects.length === 0
+    ? normalisedRoute(requested) === normalisedRoute(landed)
+    : redirects.every((status: number): boolean => PERMANENT_REDIRECTS.has(status))
+
+// A credited redirect is covered at its source address even if it leaves the public surface.
 // Both visits and redirects credit only the declaration selected from the complete route set.
 const coveredFiles = (sweep: RouteSweep): ReadonlySet<string> =>
   new Set(
-    [...sweep.visitedRoutes, ...sweep.answeredRoutes, ...(sweep.completedRoutes ?? [])].flatMap(
-      (visited: string): readonly string[] => {
-        const route: DeclaredRoute | undefined = resolvedRouteOf(sweep.declaredRoutes, visited)
-        return route === undefined ? [] : [route.file]
-      },
-    ),
+    [
+      ...sweep.visitedRoutes,
+      ...sweep.answeredRoutes,
+      ...(sweep.fragmentRoutes ?? []),
+      ...(sweep.completedRoutes ?? []),
+    ].flatMap((visited: string): readonly string[] => {
+      const route: DeclaredRoute | undefined = resolvedRouteOf(sweep.declaredRoutes, visited)
+      return route === undefined ? [] : [route.file]
+    }),
   )
 
 // What counts as a specification driving this route. A static address can be looked for as itself; a

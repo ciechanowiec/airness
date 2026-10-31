@@ -8,12 +8,14 @@ import { describe, expect, it } from 'vitest'
 import { APPLICATION_LAYER_RULE, layerRules, pureLogicRule } from '@/architecture-layers.js'
 import { BUILD_DIRECTORY_MARKER, evaluateBundle, parseBuildDirectory } from '@/bundle-budget.js'
 import { notApplicable, passed } from '@/exec.js'
+import { scriptSourcesOf } from '@/facets.js'
 import { nextBiomeConfig } from '@/gate-biome.js'
 import { resultOf } from '@/gate-result.js'
 import { asRecord } from '@/json-shapes.js'
 import type { Lockfile } from '@/lockfile.js'
 import type { ResolvedSet } from '@/resolved-set.js'
 import { npmPackageUrl, type SbomSubject, sbomOf } from '@/sbom.js'
+import { readSettings } from '@/settings.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 describe('evaluateBundle', PROCESS_TIME, () => {
@@ -182,5 +184,35 @@ describe('sbomOf against the CycloneDX 1.6 schema', PROCESS_TIME, () => {
       { ref: 'pkg:npm/%40scope/tool@1.0.0', dependsOn: ['pkg:npm/fsevents@2.3.3', 'pkg:npm/left-pad@1.3.0'] },
       { ref: 'pkg:npm/left-pad@1.3.0', dependsOn: [] },
     ])
+  })
+})
+
+describe('scriptSourcesOf', PROCESS_TIME, () => {
+  it('counts no script in a stylesheet-only member that carries the pinned configurations', () => {
+    expect(
+      scriptSourcesOf(
+        ['eslint.config.mjs', 'vitest.config.mts', 'package.json', 'src/main/resources/static/css/site.css'],
+        readSettings({}),
+        [],
+      ),
+    ).toEqual([])
+  })
+
+  it('counts every other script, whatever its directory, but not a generated or a nested member one', () => {
+    expect(
+      scriptSourcesOf(
+        [
+          'tests/e2e/home.e2e.spec.ts',
+          'public/menu.js',
+          'src/generated/api.ts',
+          'ui/src/main.ts',
+          'nested/eslint.config.mjs',
+        ],
+        readSettings({
+          airness: { generatedArtefacts: [{ pattern: 'src/generated/**', reason: 'a client generator writes it' }] },
+        }),
+        ['ui'],
+      ),
+    ).toEqual(['tests/e2e/home.e2e.spec.ts', 'public/menu.js', 'nested/eslint.config.mjs'])
   })
 })

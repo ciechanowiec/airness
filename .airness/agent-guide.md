@@ -77,6 +77,19 @@ Airness governs all of the following domains:
   denies `Edit(...)` of every generated file a stack layer, `airness.generated.files` or a node project's
   `airness.generatedArtefacts` declares and of every pinned managed file, with no local settings allowing one
   back. `mvn airness:assets-sync` writes those rules beside the project's own.
+- **Frontend resources:** at `validate`, every module inventories the scripts (`.js`, `.mjs`, `.cjs`, `.jsx`,
+  `.ts`, `.mts`, `.cts`, `.tsx`) and stylesheets (`.css`, `.scss`) a commit would carry, whether or not it has a
+  `package.json`. Each must lie in a declared node project and under one of its checked source roots (`src`,
+  `tests`, `scripts` and `airness.sourceRoots`); a script directly in a project's top directory is a tooling file
+  the linters and the type check read. `.sass` and `.less` files are refused because no gate reads them. Only a
+  file a generator owns (a stack layer, `airness.generated.files` or `airness.generatedArtefacts`) or the harness
+  places is passed over; a `vendor` directory or a minified name is not evidence of third-party ownership, so take
+  a distribution from a dependency (a WebJar, or an npm package a `node-run` build copies under `target/`). An
+  ignored file the Maven build consumes is refused by `build-inputs`; a file only a custom tool reads from outside
+  both the Maven inputs and the commit is beyond the inventory. A Java application keeps its Java runtime: declare
+  a frontend tooling directory, which may be the module itself with `sourceRoots` naming its static resources.
+  A tooling project with stylesheets and no script of its own needs no TypeScript, no tests and no server: the
+  script gates report not applicable and the `css` gate judges the stylesheets.
 - **Node projects:** every `package.json` in a module belongs to a node project the module lists in
   `airness.node.projects`, or to a member of a listed pnpm workspace, and every listed directory holds one. A
   module that lists nothing is checked too. A module that lists a project gets the Node and pnpm the Airness
@@ -275,7 +288,8 @@ it is published, only a fresh history satisfies the rule.
 
 ### Browser Verification
 
-Default verification opens no browser. Extended verification runs the complete browser sweep, including
+Default verification runs no automatic browser sweep; browser tests a project writes itself may run there as
+ordinary tests. Extended verification runs the complete browser sweep, including
 Chromium, Firefox and WebKit, alongside the security-header, stack-layer and project specifications. Prepare
 the Playwright image matching the node harness's pinned `@playwright/test` before the run. A missing image
 fails with its pull command. The host Chromium used for compliance reports is a separate toolchain.
@@ -288,6 +302,24 @@ release and a full assessment. `pnpm exec airness-node scope --json` explains th
 running verification. The baseline is the remote default branch's merge-base; committed, staged, unstaged and
 untracked changes all count. Unknown baselines and global inputs broaden the sweep, while unreadable graphs
 fail. No pass or scope is cached.
+
+The sweep applies to every module that serves user-facing HTML, whatever its backend language. A Java module
+is a web interface when it resolves `spring-webmvc` or `spring-webflux` and declares a `@Controller`, view
+controllers or a static HTML page under `static`, `public`, `resources` or `META-INF/resources`; a library or a
+JSON-only service is not, and no setting relabels a detected interface. At `validate`, a web interface must
+declare a node project whose `airness.serve` script launches `$AIRNESS_APPLICATION_ARTIFACT`, for example
+`"$JAVA_HOME/bin/java" -jar "$AIRNESS_APPLICATION_ARTIFACT" --server.port=$PORT`, and start what the application
+needs through `airness.testWrapper`, never against a developer's data. In Extended, `e2e` exports the artifact
+this invocation packaged, the Maven JVM's `JAVA_HOME` and a route inventory: the HTML handler routes the
+application's startup tests recorded in this build, and its static pages. A missing artifact, missing or stale
+evidence, an empty inventory, or a web interface whose every `e2e` result is not applicable is unassessed, and
+unassessed fails. An inventory route the crawl does not reach needs a completed `expectSweptPage` scan in a
+project specification, which is how authenticated roles and prepared states are covered, or an
+`accessibilitySkipRoutes` entry with its reason. A temporary redirect (302, 303, 307) credits only the page it
+lands on, so a protected page answered by the sign-in page stays uncovered; a permanent redirect still credits
+its source. Same-origin `hx-get` fragments found on swept and scanned pages are requested with the page's
+session, must answer HTML, and are reported as fragment coverage apart from swept pages. A Java web interface is
+always swept completely, because no Java change maps to its pages.
 
 The node setting `clock` selects an ISO instant or `real`; by default the build, application, test worker and
 browser start at `2100-01-01T12:00:00.000Z`. Application clocks advance normally; browser Date stays fixed

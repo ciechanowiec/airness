@@ -115,6 +115,16 @@ public final class SpringModuleCheck {
     }
 
     /**
+     * The views a controller of the module returns that no static rule reads, which are reported rather
+     * than judged because a view chosen at runtime is ordinary.
+     *
+     * @return one line per such view, by source and line
+     */
+    public List<String> unassessedViews() {
+        return SpringViewRules.unassessedViews(this.types);
+    }
+
+    /**
      * Every module-wide rule and the sources that break it.
      *
      * @return one verdict per rule

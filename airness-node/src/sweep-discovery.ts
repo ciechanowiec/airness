@@ -32,6 +32,7 @@ import { clearCompletedScans } from './scan-evidence.js'
 import { engineOf } from './scanner.js'
 import { securityHeaderProblems } from './security-headers.js'
 import { settleForScan } from './settle.js'
+import { type CrawledFragments, coversItsRoute, crawledFragments } from './sweep-answers.js'
 import { discoverNotFound, type NotFoundDiscovery } from './sweep-not-found.js'
 import {
   armBudget,
@@ -88,6 +89,8 @@ interface PageFacts {
   readonly controls: number
   readonly hrefs: readonly string[]
   readonly alternates: readonly AlternateLink[]
+  /** The `hx-get` values of the page, the fragments htmx would request from it. */
+  readonly fragments: readonly string[]
 }
 
 // Read through the CSSOM, so a breakpoint in any stylesheet the page loaded counts, nested at-rules
@@ -139,6 +142,10 @@ const pageFactsInPage = (controls: string): PageFacts => {
         href: link.getAttribute('href') ?? '',
       }),
     ),
+    fragments: Array.from(
+      document.querySelectorAll<HTMLElement>('[hx-get], [data-hx-get]'),
+      (element: HTMLElement): string => element.getAttribute('hx-get') ?? element.dataset['hxGet'] ?? '',
+    ),
   }
 }
 
@@ -153,6 +160,12 @@ interface CrawlState {
   readonly seen: ReadonlySet<string>
   readonly dropped: ReadonlySet<string>
   readonly answered: ReadonlySet<string>
+  /** The answered addresses that cover themselves, rather than only the page a temporary redirect showed. */
+  readonly credited: ReadonlySet<string>
+  /** The fragment addresses already requested, so each is asked for once. */
+  readonly requestedFragments: ReadonlySet<string>
+  /** The paths of the fragments that rendered. */
+  readonly fragments: ReadonlySet<string>
   readonly reachable: readonly SweepLocation[]
   readonly findings: readonly BrowserFinding[]
 }
@@ -242,6 +255,9 @@ const crawl = async (page: Page, state: CrawlState): Promise<CrawlState> => {
   const answered: CrawlState = {
     ...next,
     answered: new Set<string>([...next.answered, queued.route]),
+    credited: (await coversItsRoute(response, queued.route, page))
+      ? new Set<string>([...next.credited, queued.route])
+      : next.credited,
   }
   if (toRoute(page.url()) === undefined) {
     return await crawl(page, answered)
@@ -249,13 +265,15 @@ const crawl = async (page: Page, state: CrawlState): Promise<CrawlState> => {
   await settleForScan(page)
   const facts: PageFacts = await page.evaluate(pageFactsInPage, CONTROLS)
   const location: SweepLocation = routeLocation(page.url(), facts)
+  const fragments: CrawledFragments = await crawledFragments(page, answered, facts.fragments, queued.route)
   return await crawl(
     page,
     enqueue(
       {
         ...answered,
+        ...fragments,
         reachable: [...answered.reachable, location],
-        findings: [...answered.findings, ...htmlHeaderFindings(response, queued.route, page)],
+        findings: [...answered.findings, ...fragments.findings, ...htmlHeaderFindings(response, queued.route, page)],
       },
       [...facts.hrefs, ...alternateHrefs(facts.alternates)].flatMap((href: string): readonly string[] => {
         const address: string | undefined = localAddress(href, page.url(), facts.canonical, origin)
@@ -373,6 +391,9 @@ const crawlStart = (fromSitemap: readonly string[]): CrawlState =>
       seen: new Set<string>([SEED_ROUTE]),
       dropped: new Set<string>(),
       answered: new Set<string>(),
+      credited: new Set<string>(),
+      requestedFragments: new Set<string>(),
+      fragments: new Set<string>(),
       reachable: [],
       findings: [],
     },
@@ -534,7 +555,8 @@ export const expectDiscoveredSite = async (page: Page): Promise<void> => {
   const stories: readonly DiscoveredStory[] = discovery.stories
   const report: DiscoveryReport = {
     visitedRoutes: crawled.reachable.map((location: SweepLocation): string => location.location),
-    answeredRoutes: [...crawled.answered],
+    answeredRoutes: [...crawled.credited],
+    fragmentRoutes: [...crawled.fragments],
     findings: crawled.findings,
     problems: [...missing.problems, ...problemsOf(crawled), ...(problem === undefined ? [] : [problem])],
     places: crawled.answered.size + stories.length,

@@ -39,8 +39,20 @@ final class NodeManifests {
      * @return the manifests, sorted
      */
     static List<Path> in(Path module, Collection<Path> skipped) {
-        return Repository.committableFiles(module).orElseGet(() -> walked(module)).stream()
+        return files(module, skipped).stream()
             .filter(file -> MANIFEST.equals(String.valueOf(file.getFileName())))
+            .toList();
+    }
+
+    /**
+     * Lists every file of one module that a commit would carry, read the way {@link #in} reads manifests.
+     *
+     * @param module  the module directory, absolute and normalized
+     * @param skipped the directories that belong to something else: child modules and the build directory
+     * @return the files, sorted
+     */
+    static List<Path> files(Path module, Collection<Path> skipped) {
+        return Repository.committableFiles(module).orElseGet(() -> walked(module)).stream()
             .map(Path::normalize)
             .filter(file -> skipped.stream().noneMatch(file::startsWith))
             .sorted()
@@ -52,26 +64,26 @@ final class NodeManifests {
         try {
             Files.walkFileTree(module, walk);
         } catch (IOException exception) {
-            throw new UncheckedIOException("Could not walk " + module + " for package.json files", exception);
+            throw new UncheckedIOException("Could not walk " + module + " for its files", exception);
         }
-        return walk.manifests();
+        return walk.files();
     }
 
     /**
-     * Collects every {@code package.json} below a module, without entering output or installation directories.
+     * Collects every file below a module, without entering output or installation directories.
      */
     private static final class ManifestWalk implements FileVisitor<Path> {
 
         private final Path module;
-        private final List<Path> manifests;
+        private final List<Path> files;
 
         ManifestWalk(Path module) {
             this.module = module;
-            this.manifests = new ArrayList<>();
+            this.files = new ArrayList<>();
         }
 
-        List<Path> manifests() {
-            return List.copyOf(this.manifests);
+        List<Path> files() {
+            return List.copyOf(this.files);
         }
 
         @Override
@@ -82,8 +94,8 @@ final class NodeManifests {
 
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
-            if (attributes.isRegularFile() && MANIFEST.equals(String.valueOf(file.getFileName()))) {
-                this.manifests.add(file);
+            if (attributes.isRegularFile()) {
+                this.files.add(file);
             }
             return FileVisitResult.CONTINUE;
         }

@@ -22,7 +22,9 @@ import lombok.experimental.UtilityClass;
  * <p>A name is read where it is written plainly, which in practice means a constant rather than a
  * literal, because a handler that returns the same view from four branches names it once and returns
  * the name. A name this cannot resolve to a written string is passed over rather than guessed at, and
- * so is a name a handler builds, since a view chosen at runtime is not a fact about the source.
+ * so is a name a handler builds, since a view chosen at runtime is not a fact about the source. Both
+ * are named as statically unassessed rather than left out in silence, so a report cannot read the
+ * rules as having checked them.
  *
  * <p>What a redirect or a forward names is an address rather than a template, so neither is read here.
  * An address is answered by a mapping, which is a different question from the one this asks.
@@ -69,6 +71,39 @@ final class SpringViewRules {
             .filter(SpringTypes.Declared::production)
             .flatMap(source -> miscounted(source, index))
             .toList();
+    }
+
+    /**
+     * Every view a controller of the module hands back that no static rule can read, because it is
+     * chosen when the request is answered or named by a constant this source does not declare.
+     *
+     * <p>These are not offences: a view selected at runtime is ordinary. They are named so that a
+     * report does not present the view rules as having read them. What renders is assessed only by a run
+     * of the application reaching the handler's address, which the browser sweep's route accounting
+     * requires.
+     *
+     * @param types the module already read
+     * @return one line per such view, by source and line
+     */
+    static List<String> unassessedViews(SpringTypes types) {
+        return types.all().stream()
+            .filter(SpringTypes.Declared::production)
+            .flatMap(SpringViewRules::unassessed)
+            .toList();
+    }
+
+    private static Stream<String> unassessed(SpringTypes.Declared source) {
+        Map<String, String> constants = constants(source.quoted());
+        Stream<Integer> foreign = SpringViewNames.in(source).stream()
+            .filter(found -> value(constants, found.written()).isEmpty())
+            .map(SpringViewNames.Reference::offset);
+        return Stream.concat(SpringViewNames.chosen(source).stream(), foreign)
+            .sorted()
+            .map(
+                at -> source.source() + ": line " + JavaCode.lineOf(source.text(), at)
+                    + ": the view is not written in this source, so no template rule reads it;"
+                    + " a run reaching the handler's address assesses what it renders"
+            );
     }
 
     private static Stream<String> unresolved(SpringTypes.Declared source, TemplateIndex index) {

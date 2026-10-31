@@ -14,17 +14,27 @@ export const clearCompletedScans = (outputDirectory: string): void => {
   rmSync(directoryOf(outputDirectory), { recursive: true, force: true })
 }
 
+/** What a record proves: a page scanned whole, or an htmx fragment it requested that rendered. */
+export type ScanKind = 'page' | 'fragment'
+
 /**
- * Record a successful combined scan, after every required viewport has been judged.
+ * Record a successful combined scan, after every required viewport has been judged, or a fragment the scanned
+ * page requested that rendered. The kind keeps the two apart in the evidence; both cover their route.
  * @param outputDirectory the shared output directory of the current Playwright run.
  * @param testId the identity supplied by the running test.
- * @param url the unchanged URL whose complete page was scanned.
+ * @param url the unchanged URL whose complete page was scanned, or the fragment's URL.
+ * @param kind what the record proves.
  */
-export const recordCompletedScan = (outputDirectory: string, testId: string, url: string): void => {
+export const recordCompletedScan = (
+  outputDirectory: string,
+  testId: string,
+  url: string,
+  kind: ScanKind = 'page',
+): void => {
   const directory: string = directoryOf(outputDirectory)
-  const name: string = createHash('sha256').update(`${testId}\n${url}`).digest('hex')
+  const name: string = createHash('sha256').update(`${testId}\n${kind}\n${url}`).digest('hex')
   mkdirSync(directory, { recursive: true })
-  writeFileSync(path.join(directory, `${name}.json`), JSON.stringify({ url, testId }))
+  writeFileSync(path.join(directory, `${name}.json`), JSON.stringify({ url, testId, kind }))
 }
 
 /**

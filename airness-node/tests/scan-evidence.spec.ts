@@ -40,6 +40,20 @@ describe('completed browser scan evidence', () => {
     })
   })
 
+  it('keeps a fragment record apart from the page record of the same test, and credits both', () => {
+    inDirectory((directory: string): void => {
+      recordCompletedScan(directory, 'board-test', 'http://localhost:8080/board')
+      recordCompletedScan(directory, 'board-test', 'http://localhost:8080/board', 'fragment')
+      recordCompletedScan(directory, 'board-test', 'http://localhost:8080/board/row', 'fragment')
+      expect(readdirSync(path.join(directory, 'airness-project-scans'))).toHaveLength(3)
+      expect(
+        completedScanRoutes(directory, 'http://localhost:8080').toSorted((left: string, right: string): number =>
+          left.localeCompare(right),
+        ),
+      ).toEqual(['/board', '/board', '/board/row'])
+    })
+  })
+
   it('clears previous scan evidence without removing other output', () => {
     inDirectory((directory: string): void => {
       const retained: string = path.join(directory, 'trace.zip')

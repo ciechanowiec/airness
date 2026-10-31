@@ -122,6 +122,7 @@ const NOTHING_DISCOVERED: Discovery = {
 const NO_DISCOVERY_REPORT: DiscoveryReport = {
   visitedRoutes: [],
   answeredRoutes: [],
+  fragmentRoutes: [],
   findings: [],
   problems: [],
   places: 0,
@@ -227,6 +228,7 @@ const summaryProblems = (record: SweepRecord, info: TestInfo): readonly string[]
           record.discoveryReport.visitedRoutes,
           record.discoveryReport.answeredRoutes,
           completedScanRoutes(info.project.outputDir, new URL(projectSettings.serverUrl).origin),
+          record.discoveryReport.fragmentRoutes,
         ),
       ]
 

@@ -418,6 +418,18 @@
                             <goal>prepare-test-evidence</goal>
                         </goals>
                     </execution>
+                    <!--
+                        Whether the module serves user-facing HTML is known from the repository alone, so a web
+                        interface that declares no way for the Extended browser sweep to launch it is named in
+                        Default verification, before anything is built.
+                    -->
+                    <execution>
+                        <id>airness-web-interface</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>web-interface</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>airness-main-build-inputs</id>
                         <phase>process-resources</phase>
@@ -461,6 +473,7 @@
                             <goal>template-links</goal>
                             <goal>template-calls</goal>
                             <goal>template-output</goal>
+                            <goal>template-inline</goal>
                             <goal>template-expressions</goal>
                             <goal>template-reach</goal>
                             <goal>template-scope</goal>

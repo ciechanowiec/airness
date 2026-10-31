@@ -31,14 +31,22 @@ export { type SettleOutcome, settleForScan } from './settle.js'
 import { type Dirent, existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { AxeBuilder } from '@axe-core/playwright'
-import { expect, type Page, type TestInfo, test } from '@playwright/test'
+import { type APIResponse, expect, type Page, type TestInfo, test } from '@playwright/test'
 import { findDefiniteIncomplete } from './a11y-incomplete.js'
 import type { SpecSource } from './axe-coverage.js'
 import { type BrowserFinding, findingLine } from './browser-findings.js'
+import {
+  FRAGMENT_SELECTOR,
+  type FragmentAnswer,
+  type FragmentVerdict,
+  fragmentUrls,
+  judgeFragments,
+} from './htmx-fragments.js'
 import { type NotFoundBoundary, notFoundBoundaries } from './not-found-routes.js'
 import { projectSettings } from './project-settings.js'
 import { findUnsweptRoutes, type UnsweptRoute } from './route-coverage.js'
 import { isSkippedRoute } from './route-exclusions.js'
+import { inventoryRoutes } from './route-inventory.js'
 import { appRootOf, type DeclaredRoute, declaredRoutesOf } from './route-map.js'
 import { recordCompletedScan } from './scan-evidence.js'
 import { locationOf, scanPageInPlace } from './scanner.js'
@@ -90,8 +98,55 @@ export const expectSweptPage = async (page: Page): Promise<void> => {
   const findings: readonly string[] = scanned.map((finding: BrowserFinding): string => findingLine(finding))
   expect(findings, `defects on ${locationOf(page)}`).toEqual([])
   expect(page.url(), 'the page changed address during its scan').toBe(url)
+  const fragments: FragmentVerdict = await requestedFragments(page, await fragmentValues(page))
+  expect(fragments.problems, `htmx fragments of ${locationOf(page)}`).toEqual([])
   const info: TestInfo = test.info()
   recordCompletedScan(info.project.outputDir, info.testId, url)
+  for (const fragment of fragments.credited) {
+    recordCompletedScan(info.project.outputDir, info.testId, new URL(fragment, url).href, 'fragment')
+  }
+}
+
+/**
+ * The `hx-get` values the page renders, in either spelling.
+ * @param page the page.
+ * @returns the values, as rendered.
+ */
+export const fragmentValues = async (page: Page): Promise<readonly string[]> =>
+  await page
+    .locator(FRAGMENT_SELECTOR)
+    .evaluateAll((elements: readonly (HTMLElement | SVGElement)[]): string[] =>
+      elements.map(
+        (element: HTMLElement | SVGElement): string => element.getAttribute('hx-get') ?? element.dataset['hxGet'] ?? '',
+      ),
+    )
+
+const answerOf = async (page: Page, url: string): Promise<FragmentAnswer> => {
+  try {
+    const response: APIResponse<unknown> = await page.request.get(url, {
+      headers: { 'HX-Request': 'true', 'HX-Current-URL': page.url() },
+      maxRedirects: 0,
+      failOnStatusCode: false,
+    })
+    return { url, status: response.status(), contentType: response.headers()['content-type'] }
+  } catch {
+    return { url, status: 0, contentType: undefined }
+  }
+}
+
+/**
+ * Request the fragments a page names, as htmx would, in the page's own session: a fragment behind a sign-in is
+ * reached with the specification's signed-in context, and a redirect is not followed, so a sign-in form never
+ * stands in for the fragment.
+ * @param page the page, whose origin and session the requests use.
+ * @param values the `hx-get` values the page renders.
+ * @returns the verdict over every distinct fragment on the page's origin.
+ */
+export const requestedFragments = async (page: Page, values: readonly string[]): Promise<FragmentVerdict> => {
+  const urls: readonly string[] = fragmentUrls(values, page.url(), new URL(page.url()).origin)
+  return judgeFragments(
+    await Promise.all(urls.map(async (url: string): Promise<FragmentAnswer> => await answerOf(page, url))),
+  )
 }
 
 // What the sweep cannot work out from inside the browser: which pages this project declares.
@@ -147,15 +202,18 @@ const readSpecs = (root: string, paths: readonly string[]): readonly SpecSource[
       }),
     )
 
+// The routes of the application: its app directory's, or, for an application this member serves without one,
+// such as a Java web application, the inventory its build wrote. Undefined when neither declares any.
+const appRoutes = (paths: readonly string[]): readonly DeclaredRoute[] | undefined => {
+  const appRoot: string | undefined = appRootOf(paths)
+  return appRoot === undefined ? inventoryRoutes(process.env) : declaredRoutesOf(paths, appRoot)
+}
+
 /**
- * The routes this project's file tree declares, for grouping crawled routes by template.
+ * The routes this project declares, for grouping crawled routes by template.
  * @returns every declared route, or none when the member declares no application routes.
  */
-export const declaredRoutes = (): readonly DeclaredRoute[] => {
-  const paths: readonly string[] = projectFiles(process.cwd())
-  const appRoot: string | undefined = appRootOf(paths)
-  return appRoot === undefined ? [] : declaredRoutesOf(paths, appRoot)
-}
+export const declaredRoutes = (): readonly DeclaredRoute[] => appRoutes(projectFiles(process.cwd())) ?? []
 
 /** Authored error boundaries that belong to the public browser sweep. */
 export const declaredNotFoundBoundaries = (): readonly NotFoundBoundary[] => {
@@ -171,28 +229,33 @@ export const declaredNotFoundBoundaries = (): readonly NotFoundBoundary[] => {
 /**
  * The pages this project declares that the sweep did not cover, each with what to do about it.
  *
- * Answers with nothing when the member declares no application routes at all, which is the honest
- * result for a package that has no app directory rather than a claim that its pages are covered.
+ * Answers with nothing when the member declares no application routes at all, neither an app directory nor
+ * a route inventory, which is the honest result for a package without pages rather than a claim that its
+ * pages are covered.
  * @param visitedRoutes the addresses the crawl reached and scanned.
- * @param answeredRoutes the addresses that answered, forwarding ones included.
+ * @param answeredRoutes the addresses credited for answering, permanently forwarding ones included.
+ * @param completedRoutes the addresses completed project scans reached, when the run's teardown reads them.
+ * @param fragmentRoutes the htmx fragments the crawl requested that rendered.
  * @returns one sentence per uncovered page, ready to be shown as a failure.
  */
 export const unsweptRoutes = (
   visitedRoutes: readonly string[],
   answeredRoutes: readonly string[],
   completedRoutes?: readonly string[],
+  fragmentRoutes: readonly string[] = [],
 ): readonly string[] => {
   const root: string = process.cwd()
   const paths: readonly string[] = projectFiles(root)
-  const appRoot: string | undefined = appRootOf(paths)
-  if (appRoot === undefined) {
+  const declared: readonly DeclaredRoute[] | undefined = appRoutes(paths)
+  if (declared === undefined) {
     return []
   }
   const specs: readonly SpecSource[] = readSpecs(root, paths)
   return findUnsweptRoutes({
-    declaredRoutes: declaredRoutesOf(paths, appRoot),
+    declaredRoutes: declared,
     visitedRoutes,
     answeredRoutes,
+    fragmentRoutes,
     skippedPrefixes: SKIPPED_ROUTE_PREFIXES,
     customSkippedPrefixes: projectSettings.accessibilityCustomSkipRoutes,
     specs,

@@ -43,6 +43,42 @@ class SpringViewNamesTest {
     }
 
     @Test
+    void namesTheViewsAHandlerChoosesAtRuntime() {
+        String source = """
+            @Controller class Page {
+                @GetMapping String dynamic() { return view(); }
+                @GetMapping String parameter(String value) { return value; }
+                @GetMapping String literal() { return "room/list"; }
+                @GetMapping String absent() { return null; }
+                @GetMapping Object entity() { return body(); }
+                Object model(String chosen) { return new ModelAndView(chosen); }
+            }
+            """;
+        Path path = Path.of("src/main/java/sample/Page.java");
+        List<Integer> chosen = SpringViewNames.chosen(
+            new SpringTypes.Declared(path, "Page", JavaCode.blanked(source), source)
+        );
+        assertEquals(
+            List.of(
+                source.indexOf("return view()"), source.indexOf("return value"), source.indexOf("new ModelAndView")
+            ),
+            chosen,
+            "a computed view in a handler that names one is unassessed; a literal, null or entity is not"
+        );
+    }
+
+    @Test
+    void namesNoRuntimeViewInASourceThatCannotReturnOne() {
+        String source = "class Plain { String text(String value) { return value; } }";
+        Path path = Path.of("src/main/java/sample/Plain.java");
+        assertEquals(
+            List.of(),
+            SpringViewNames.chosen(new SpringTypes.Declared(path, "Plain", JavaCode.blanked(source), source)),
+            "a source naming no controller or model returns no view at all"
+        );
+    }
+
+    @Test
     void readsAnExplicitModelOutsideAController() {
         String source = "class Page { Object model() { return new ModelAndView(\"room/list\"); } }";
         List<SpringViewNames.Reference> references = names(source);

@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -53,6 +54,7 @@ class NodeGateResultTest {
         assertTrue(result.findings().clean());
         assertEquals("Node gate knip in src/main/frontend passed: 2 unused", result.line());
         assertEquals("Node gate knip in src/main/frontend: dead code", result.findings().headline());
+        assertTrue(result.applicable(), "a pass judged the project");
     }
 
     @Test
@@ -63,6 +65,7 @@ class NodeGateResultTest {
         );
         assertTrue(result.findings().clean());
         assertEquals("Node gate knip in src/main/frontend not applicable", result.line());
+        assertFalse(result.applicable(), "a gate that did not apply judged nothing, which a caller can tell apart");
     }
 
     @Test

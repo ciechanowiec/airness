@@ -120,9 +120,11 @@ fi
 . "${repository}/airness-it/cases/scanners.sh"
 . "${repository}/airness-it/cases/generic-rules.sh"
 . "${repository}/airness-it/cases/node-projects.sh"
+. "${repository}/airness-it/cases/frontend-coverage.sh"
 . "${repository}/airness-it/cases/node-gates.sh"
 . "${repository}/airness-it/cases/node-browser.sh"
 . "${repository}/airness-it/cases/browser-evidence.sh"
+. "${repository}/airness-it/cases/java-web.sh"
 . "${repository}/airness-it/cases/payload.sh"
 
 trap cleanup EXIT
@@ -175,12 +177,14 @@ run_domain() {
             ;;
         browser)
             run_node_browser_cases
+            run_java_web_cases
             ;;
         browser-evidence)
             run_browser_evidence_cases
             ;;
         node)
             run_node_project_cases
+            run_frontend_coverage_cases
             run_node_gate_cases
             run_node_next_cases
             ;;

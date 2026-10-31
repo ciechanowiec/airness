@@ -47,6 +47,21 @@ HTML
 </body>
 </html>
 HTML
+    cat > "${template_consumer}/src/main/resources/templates/inline.html" <<'HTML'
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<style>.inline { color: red; }</style>
+<script type="application/json" id="data">{"ready": true}</script>
+<script src="/js/page.js" type="module"></script>
+</head>
+<body>
+<script>window.ready = true;</script>
+<button type="button" onclick="go()">Go</button>
+<button type="button" x-on:click="open = !open" hx-get="/rows" th:text="${label}">Toggle</button>
+</body>
+</html>
+HTML
 
     run_maven template_report_only templates "${template_consumer}" \
         airness:template-parse \
@@ -55,13 +70,14 @@ HTML
         airness:template-links \
         airness:template-calls \
         airness:template-output \
+        airness:template-inline \
         airness:template-expressions \
         airness:template-reach \
         airness:template-scope \
         -Dairness.enforce=false
     expect_exit template_report_only 'templates: compatible packaged goals share one report-only execution' 0
     expect_count template_report_only 'templates: every requested packaged goal executed exactly once' \
-        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output|expressions|reach|scope) \(default-cli\)' 9
+        'airness:[^ ]+:template-(parse|fragments|replacements|links|calls|output|inline|expressions|reach|scope) \(default-cli\)' 10
     expect_match template_report_only 'templates: fragment arity is visible at its fixture' \
         'fragments[.]html.*takes 6 arguments'
     expect_match template_report_only 'templates: discarded conditions stay visible at their fixture' \
@@ -84,6 +100,22 @@ HTML
         'page[.]html.*words[.]of[(][.][.][.][)] is written where nothing evaluates it'
     expect_match template_report_only 'templates: a name bound above a fragment stays visible at its fixture' \
         'scoped[.]html.*the fragment reads ordered'
+
+    expect_match template_report_only 'templates: a style block is visible at its fixture' \
+        'inline[.]html:4:.*a style block holds a stylesheet'
+    expect_match template_report_only 'templates: an inline script is visible at its fixture' \
+        'inline[.]html:9:.*a script block holds code'
+    expect_match template_report_only 'templates: an event handler attribute is visible at its fixture' \
+        'inline[.]html:10:.*onclick is an event handler written as an attribute'
+    expect_no_match template_report_only 'templates: a data block and a script file are not inline code' \
+        'inline[.]html:[56]:'
+    expect_no_match template_report_only 'templates: Alpine, htmx and Thymeleaf attributes are template syntax' \
+        'inline[.]html:11:'
+
+    run_maven template_inline_enforcement templates "${template_consumer}" airness:template-inline
+    expect_exit template_inline_enforcement 'templates: inline code fails enforcement' 1
+    expect_match template_inline_enforcement 'templates: enforcement names the inline code and its repair' \
+        'inline[.]html.*Move it into a checked file of the project'"'"'s frontend tooling project'
 
     run_maven template_enforcement templates "${template_consumer}" airness:template-fragments
     expect_exit template_enforcement 'templates: a representative installed-goal finding fails enforcement' 1
