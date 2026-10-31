@@ -11,6 +11,28 @@ if [ "${declared}" != "${harness_version}" ]; then
     exit 1
 fi
 
+# The groups the verification workflow runs side by side, each on a runner of its own. Together they are every
+# domain the complete suite runs, and each holds about a fifth of its execution time.
+case "$*" in
+    group-1)
+        set -- spring
+        ;;
+    group-2)
+        set -- maven containers
+        ;;
+    group-3)
+        set -- browser
+        ;;
+    group-4)
+        set -- node payload
+        ;;
+    group-5)
+        set -- repository scanners analysis templates stylesheets
+        ;;
+    *)
+        ;;
+esac
+
 # No domain runs the complete suite; one or more run only those domains, in the order named.
 selected_domains="$*"
 for selected_domain in "$@"; do
