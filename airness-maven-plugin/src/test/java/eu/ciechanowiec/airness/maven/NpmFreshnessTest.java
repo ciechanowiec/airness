@@ -152,6 +152,34 @@ class NpmFreshnessTest {
     }
 
     @Test
+    void countsNoReleaseItsPublisherHasNotTaggedLatest() {
+        try (ArchiveServer server = new ArchiveServer()) {
+            server.serve(
+                "/npm/htmx.org", bytes(
+                    "{\"dist-tags\": {\"latest\": \"2.0.11\", \"next\": \"4.0.0\"}, \"versions\": {\"2.0.10\": {},"
+                        + " \"4.0.0-beta1\": {}, \"4.0.0\": {}, \"2.0.11\": {}}}"
+                )
+            );
+            server.serve(
+                "/npm/tagged",
+                bytes("{\"dist-tags\": {\"latest\": \"next-build\"}, \"versions\": {\"1.0.0\": {}, \"3.0.0\": {}}}")
+            );
+            NpmRegistries registries = new NpmRegistries(
+                Map.of("registry", server.uri("/npm").toString()), HttpClient.newHttpClient()
+            );
+            assertEquals(List.of("2.0.10", "2.0.11"), registries.versions("htmx.org"));
+            assertEquals(
+                List.of("1.0.0", "3.0.0"), registries.versions("tagged"), "a tag naming no release is no ceiling"
+            );
+            NpmFreshness verdict = NpmFreshness.of(
+                List.of(NpmFreshness.npm("app", "htmx.org", "2.0.11")), _ -> registries.versions("htmx.org")
+            );
+            assertEquals(List.of(), verdict.trailing(), "the line npm installs by default is the stable one");
+            assertEquals(List.of(), verdict.updates());
+        }
+    }
+
+    @Test
     void readsTheVersionsAndTheLongTermReleasesAListingNames() {
         try (ArchiveServer server = new ArchiveServer()) {
             server.serve("/npm/vitest", bytes("{\"versions\": {\"5.0.5\": {}, \"6.0.0\": {}}}"));
