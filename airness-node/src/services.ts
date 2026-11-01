@@ -6,7 +6,7 @@
 // A run that is asked to stop, by SIGINT, SIGTERM or SIGHUP, passes the signal on to the command and removes
 // its containers once the command has exited. A wrapper ended outright, or ended with the process group a
 // package manager runs it in, cannot, so before it starts anything each run also starts a guard of its own,
-// outside every group the wrapper belongs to, which removes them once the wrapper is gone. Each container
+// outside the wrapper's process tree and deaf to the stop signals, which removes them once the wrapper is gone. Each container
 // also records the run that owns it, as the pinned browser server does, so a machine that went down with
 // both leaves containers the next run removes. Everything a run creates carries the run's own random prefix,
 // and every removal finds it by that prefix, so a step that failed halfway leaves nothing a removal misses.
@@ -149,22 +149,36 @@ export interface GuardStart {
   readonly script?: string
   /** The Node executable that runs it. */
   readonly command?: string
+  /** The shell that starts it in the background and leaves it behind. */
+  readonly shell?: string
   /** Where a guard that could not be started is reported. */
   readonly complain?: (line: string) => void
 }
 
+// Started in the background by a shell that ends at once, the guard is left to the system, so it is no longer
+// under the wrapper: what stops a run, which sends its signal to every process under the command it ran, does
+// not reach it. The guard also ignores the stop signals itself, since Node resets every signal a shell set to
+// be ignored, so only SIGKILL ends it before its work is done.
+const GUARD_LAUNCH: string = '"$@" &'
+
 /**
  * Start the guard of a run as a process of its own: detached, so it leads a session of its own that no
- * terminal signal and no end of the wrapper's process group reaches, and writing nowhere, so no output pipe
- * that closes with the wrapper can end it. The wrapper does not wait for it.
+ * terminal signal and no end of the wrapper's process group reaches, outside the wrapper's process tree, and
+ * writing nowhere, so no output pipe that closes with the wrapper can end it. The wrapper does not wait for it.
  * @param prefix the run's prefix.
  * @param start where the guard comes from, the harness's own entry point run by this Node unless a test says.
  */
 export const startGuard = (prefix: string, start: GuardStart = {}): void => {
   const script: string = start.script ?? fileURLToPath(import.meta.resolve('#harness/services-guard-main'))
   const guard: ChildProcess = spawn(
-    start.command ?? process.execPath,
-    [...guardArguments(script, process.pid, prefix)],
+    start.shell ?? '/bin/sh',
+    [
+      '-c',
+      GUARD_LAUNCH,
+      'airness-services-guard',
+      start.command ?? process.execPath,
+      ...guardArguments(script, process.pid, prefix),
+    ],
     {
       detached: true,
       stdio: 'ignore',
