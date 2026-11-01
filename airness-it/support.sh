@@ -51,6 +51,21 @@ execution_log() {
     printf '%s/%s.log\n' "${execution_logs}" "$1"
 }
 
+# What a failed check prints of a log. Its start names the command and what was set up, and its end is where
+# Maven names the goal that failed and why, which in a log of thousands of lines lies far beyond its first few
+# hundred. A log short enough to read whole is printed whole.
+excerpt_log() {
+    [ -f "$1" ] || return 0
+    excerpt_lines="$(awk 'END { print NR }' "$1")"
+    if [ "${excerpt_lines}" -le 220 ]; then
+        cat "$1"
+    else
+        sed -n '1,60p' "$1"
+        printf '  [... %s lines left out ...]\n' "$((excerpt_lines - 220))"
+        tail -n 160 "$1"
+    fi
+}
+
 execution_status() {
     sed -n '1p' "${execution_logs}/$1.status"
 }
@@ -273,7 +288,7 @@ prepare_maven() {
     if [ "${preparation_status}" -ne 0 ]; then
         printf '\n  %ssetup %s failed in %s%s\n' \
             "${style_fail}" "${preparation_id}" "${preparation_directory}" "${style_off}" >&2
-        sed -n '1,220p' "${preparation_log}" >&2
+        excerpt_log "${preparation_log}" >&2
         exit 1
     fi
 }
@@ -288,7 +303,7 @@ expect_exit() {
         pass "${assertion_label}"
     else
         fail "${assertion_label}" "execution ${assertion_execution} exited ${assertion_status}, expected ${assertion_expected}"
-        sed -n '1,220p' "${assertion_log}" >&2
+        excerpt_log "${assertion_log}" >&2
     fi
 }
 
@@ -301,7 +316,7 @@ expect_match() {
         pass "${assertion_label}"
     else
         fail "${assertion_label}" "execution ${assertion_execution} did not match /${assertion_pattern}/"
-        sed -n '1,220p' "${assertion_log}" >&2
+        excerpt_log "${assertion_log}" >&2
     fi
 }
 
@@ -312,7 +327,7 @@ expect_no_match() {
     assertion_pattern="$3"
     if grep -Eq "${assertion_pattern}" "${assertion_log}"; then
         fail "${assertion_label}" "execution ${assertion_execution} unexpectedly matched /${assertion_pattern}/"
-        sed -n '1,220p' "${assertion_log}" >&2
+        excerpt_log "${assertion_log}" >&2
     else
         pass "${assertion_label}"
     fi
@@ -362,7 +377,7 @@ expect_count() {
     else
         fail "${assertion_label}" \
             "execution ${assertion_execution} matched /${assertion_pattern}/ ${assertion_actual} time(s), expected ${assertion_expected}"
-        sed -n '1,220p' "${assertion_log}" >&2
+        excerpt_log "${assertion_log}" >&2
     fi
 }
 

@@ -277,7 +277,7 @@ run_payload_cases() {
         browser_build_log="$(execution_log payload_browser)"
         fail 'payload: the real admin view and the shipped access-boundary spec pass' \
             "see ${scratch}/payload-browser.log and ${browser_build_log}"
-        sed -n '1,220p' "${scratch}/payload-browser.log" >&2
+        excerpt_log "${scratch}/payload-browser.log" >&2
     fi
 
     plant_payload_defects
