@@ -16,9 +16,9 @@ Airness governs all of the following domains in a Java module:
   and two of its members are required rather than merely allowed. Every production package declares its nullness
   with `@NullMarked` on its `package-info`, which the parent supplies the annotation for: a package that declares
   none leaves every type in it undecided, and a class implementing a marked framework interface then states a
-  weaker contract than the one it overrides. Markup and stylesheets are formatted too, every markup resource a
-  module ships is read by the parser the template engines use, so a fragment no page calls yet is still proved to
-  parse, and a fragment is held to the argument cap a callable is held to, because a fragment is invoked by name
+  weaker contract than the one it overrides. Markup is formatted too, and stylesheets are formatted by the node
+  project that checks them. Every markup resource a module ships is read by the parser the template engines use,
+  so a fragment no page calls yet is still proved to parse, and a fragment is held to the argument cap a callable is held to, because a fragment is invoked by name
   with a positional list like any other callable. An element a fragment replaces carries nothing else the dialect
   reads, because the replacement discards the element and everything written on it, which no other check reaches:
   the markup parses, the page renders, and the condition beside the replacement decided nothing. Markup a page

@@ -369,8 +369,7 @@
             </plugin>
             <plugin>
                 <!--
-                    Formats the markup and the stylesheets, which is the half of the tree the Java
-                    formatter never reads. The guideline asks for a formatter wherever the platform has
+                    Formats the markup, which is the part of the tree the Java formatter never reads. The guideline asks for a formatter wherever the platform has
                     one, and .editorconfig settles only line endings, encoding and trailing whitespace:
                     how a nested element or a declaration block is laid out was left to whoever wrote it.
 
@@ -383,6 +382,11 @@
                     Only the roots a project owns are read. A vendored library is third-party text that
                     this project neither wrote nor may reformat, and minified text would be rewritten
                     into something no upstream release matches.
+
+                    Stylesheets are not read here. Every authored stylesheet a module ships lies in a
+                    declared node project, which the frontend inventory enforces, and that project's biome
+                    and css gates format and lint it. A second formatter over the same file lays a
+                    multi-value declaration out differently, so no form of the file would satisfy both.
                 -->
                 <groupId>com.hubspot.maven.plugins</groupId>
                 <artifactId>prettier-maven-plugin</artifactId>
@@ -390,9 +394,7 @@
                     <skip>${skipTests}</skip>
                     <fail>${airness.enforce}</fail>
                     <inputGlobs>
-                        <inputGlob>src/main/resources/**/*.css</inputGlob>
                         <inputGlob>src/main/resources/**/*.html</inputGlob>
-                        <inputGlob>src/test/resources/**/*.css</inputGlob>
                         <inputGlob>src/test/resources/**/*.html</inputGlob>
                         <inputGlob>!**/vendor/**</inputGlob>
                     </inputGlobs>

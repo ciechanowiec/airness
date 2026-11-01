@@ -286,6 +286,9 @@ main {
 .links a {
     display: inline-block;
     padding: 12px 0;
+    transition:
+        color 120ms ease-out,
+        background-color 120ms ease-out;
 }
 
 form {
@@ -331,6 +334,8 @@ JSON
 # Packs the artifact inside the sweep's own invocation, as package would, and then runs e2e with the static
 # node gates a CSS-only tooling project answers. Biome runs over the module root, where its source roots reach
 # the Thymeleaf templates, whose th:href anchors it must leave to the template checks and the sweep.
+# The stylesheet's multi-value transition is laid out as Biome formats it; the Java parent's markup formatter,
+# which the fixture's format run applies, must leave stylesheets to the node project that checks them.
 sweep_java_web() {
     run_maven "$1" browser "${java_web}" -Pextended,delta \
         clean prepare-package jar:jar spring-boot:repackage@repackage-application \
