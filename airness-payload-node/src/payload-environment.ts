@@ -48,6 +48,8 @@ export interface EnvironmentInputs {
   readonly example: string | undefined
   /** The Dockerfiles that build the member. */
   readonly dockerfiles: readonly DockerfileSource[]
+  /** The variables the member reads its own origin from, which verification sets for each run. */
+  readonly serverUrlVariables: readonly string[]
 }
 
 /**
@@ -106,6 +108,18 @@ const undeclaredArguments = (module: string, dockerfiles: readonly DockerfileSou
     )
 }
 
+// Verification serves the application on a port chosen for each run and names the origin in these variables
+// only once the build is made, so a read the bundler replaces at build time would keep the build's value.
+const inlinedOrigins = (module: string, variables: readonly string[]): readonly string[] =>
+  uniqueSorted([...namesMatching(module, INLINED_DOTTED_READ), ...namesMatching(module, INLINED_BRACKETED_READ)])
+    .filter((name: string): boolean => variables.includes(name))
+    .map(
+      (name: string): string =>
+        `${name}: named in airness.serverUrlVariables but inlined at build time by ${VALIDATED_ENVIRONMENT_MODULE}, ` +
+        'so the application keeps the origin it was built with rather than the one a verification run serves on; ' +
+        'read it from a parameter holding process.env, which the bundler cannot replace',
+    )
+
 /**
  * Every variable the validated environment module reads that does not reach where it has to.
  * @param inputs the files, already read.
@@ -114,4 +128,8 @@ const undeclaredArguments = (module: string, dockerfiles: readonly DockerfileSou
 export const findEnvironmentViolations = (inputs: EnvironmentInputs): readonly string[] =>
   inputs.module === undefined
     ? []
-    : [...undocumented(inputs.module, inputs.example), ...undeclaredArguments(inputs.module, inputs.dockerfiles)]
+    : [
+        ...undocumented(inputs.module, inputs.example),
+        ...undeclaredArguments(inputs.module, inputs.dockerfiles),
+        ...inlinedOrigins(inputs.module, inputs.serverUrlVariables),
+      ]
