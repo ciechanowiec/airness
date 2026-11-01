@@ -12,6 +12,7 @@
 // other binding exists.
 import type { Page } from '@playwright/test'
 import { type LayoutViewport, layoutViewportsWith } from './layout-defects.js'
+import { type PageInlineStyle, reservedBoxOf } from './layout-reserved.js'
 import type {
   FontFaceFacts,
   LayoutBorder,
@@ -58,6 +59,7 @@ interface PageBox {
 
 interface PageElement {
   readonly tagName: string
+  readonly style: PageInlineStyle
   readonly id: string
   readonly namespaceURI: string | null
   readonly classList: ArrayLike<string>
@@ -313,32 +315,6 @@ const describe = (element: PageElement, context: NodeContext, tools: LayoutTools
     fontFamily: read('font-family'),
     media: tools.mediaOf(element, style, context.sources, tools),
   }
-}
-
-// The space a replaced element reserves before its source arrives is the box the same element takes
-// with no source at all. A shallow copy with every source removed takes the element's own slot while the
-// element is out of layout, and is read and removed again in the same task, so nothing is painted. Laid
-// out beside the element instead, a flex or grid row would share its space between the two.
-const reservedBoxOf = (element: PageElement): PageBox => {
-  const placeholder: PageElement = element.cloneNode(false)
-  for (const source of ['src', 'srcset', 'poster', 'srcdoc', 'data']) {
-    placeholder.removeAttribute(source)
-  }
-  placeholder.removeAttribute('id')
-  placeholder.setAttribute('alt', '')
-  placeholder.setAttribute('aria-hidden', 'true')
-  const ownStyle: string | null = element.getAttribute('style')
-  placeholder.setAttribute('style', `${ownStyle ?? ''};visibility:hidden`)
-  element.setAttribute('style', `${ownStyle ?? ''};display:none`)
-  element.before(placeholder)
-  const measured: PageBox = placeholder.getBoundingClientRect()
-  placeholder.remove()
-  if (ownStyle === null) {
-    element.removeAttribute('style')
-  } else {
-    element.setAttribute('style', ownStyle)
-  }
-  return measured
 }
 
 const contentSizeOf = (box: PageBox, style: PageStyle): Pick<MediaFacts, 'contentHeight' | 'contentWidth'> => {
