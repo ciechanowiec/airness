@@ -70,7 +70,7 @@ public final class NodeProjectsMojo extends AbstractGovernanceMojo {
         NodeProjectCoverage coverage = new NodeProjectCoverage(basedir, projects, skipped);
         Path root = this.repositoryRoot();
         FrontendCoverage frontend = new FrontendCoverage(
-            new FrontendCoverage.Walk(root, basedir, skipped), projects,
+            new FrontendWalk(root, basedir, skipped), projects,
             () -> GeneratedDenialMojo.denied(
                 root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
                 Sentinel.optional(this.generated), Sentinel.optional(this.unmanaged)

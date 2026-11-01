@@ -66,7 +66,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
      * @return the probes, none for a check that reads only the repository
      * @throws MojoExecutionException when a probe cannot be built from the host
      */
-    List<MountProbe.Probe> probes() throws MojoExecutionException {
+    List<MountProbe> probes() throws MojoExecutionException {
         return List.of();
     }
 
@@ -104,7 +104,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
         this.requireReadable(
             MountProbe.repositoryCommand(root, this.image()), root, MountProbe.unreadableRepository(root)
         );
-        for (MountProbe.Probe probe : this.probes()) {
+        for (MountProbe probe : this.probes()) {
             this.requireReadable(probe.command(), probe.mount(), probe.unreadable());
         }
         int exit = this.runCheck();

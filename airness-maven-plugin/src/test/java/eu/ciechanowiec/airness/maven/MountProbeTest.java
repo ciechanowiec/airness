@@ -100,7 +100,7 @@ class MountProbeTest {
 
     @Test
     void readsAMountedInputAndNamesItWhenItArrivesEmpty(@TempDir Path directory) {
-        MountProbe.Probe probe = MountProbe.input(directory, IMAGE);
+        MountProbe probe = MountProbe.input(directory, IMAGE);
 
         assertEquals(MountProbe.inputCommand(directory, IMAGE), probe.command(), "the input probe of the image");
         assertEquals(directory, probe.mount(), "the directory a failed start names");
@@ -110,7 +110,7 @@ class MountProbeTest {
     @Test
     void keepsTheCommandAProbeWasGiven(@TempDir Path directory) {
         List<String> command = new ArrayList<>(List.of("docker", "run"));
-        MountProbe.Probe probe = new MountProbe.Probe(command, directory, "unreadable");
+        MountProbe probe = new MountProbe(command, directory, "unreadable");
         command.add("changed");
 
         assertEquals(List.of("docker", "run"), probe.command(), "the probe runs what it was built with");

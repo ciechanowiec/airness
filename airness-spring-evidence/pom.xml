@@ -120,6 +120,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>

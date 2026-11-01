@@ -53,13 +53,13 @@ public final class SecretScanMojo extends AbstractDockerCheckMojo {
      * it, it scans no commit, and it exits as it does when it found nothing.
      */
     @Override
-    List<MountProbe.Probe> probes() throws MojoExecutionException {
+    List<MountProbe> probes() throws MojoExecutionException {
         Path root = this.repositoryRoot();
         HistoryMount mount = this.mount();
         return Stream.concat(
             mount.linked().stream().map(directory -> MountProbe.input(directory, this.image())),
             Stream.of(
-                new MountProbe.Probe(
+                new MountProbe(
                     MountProbe.historyCommand(mount, this.image(), Repository.hasCommits(root)), root,
                     MountProbe.unreadableHistory(root)
                 )

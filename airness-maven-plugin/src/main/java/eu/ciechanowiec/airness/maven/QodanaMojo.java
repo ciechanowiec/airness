@@ -91,7 +91,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
      * thousand instead of the scan failing.
      */
     @Override
-    List<MountProbe.Probe> probes() throws MojoExecutionException {
+    List<MountProbe> probes() throws MojoExecutionException {
         try {
             return Stream.concat(
                 Stream.of(this.localRepository()), QodanaSnapshot.linked(this.repositoryRoot()).stream()

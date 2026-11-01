@@ -4,18 +4,21 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import lombok.experimental.UtilityClass;
 
 /**
- * Reads a bind mount from inside the image a Docker check runs, before the check is trusted with it.
+ * A container run that must succeed before a Docker check is trusted with its mounts: it reads a bind mount
+ * from inside the image the check runs.
  *
  * <p>The daemon answering is not the daemon seeing the files. A bind mount the host refuses to serve
  * arrives inside the container as a tree whose every open fails, and a folder the host does not share
  * with the machine Docker runs on arrives as an empty directory. A scanner reading either reports on
  * nothing, or exits the way it exits for a finding.
+ *
+ * @param command    the docker command that reads them
+ * @param mount      the host directory it reads, named when the container cannot start
+ * @param unreadable what the build says when the command fails
  */
-@UtilityClass
-final class MountProbe {
+record MountProbe(List<String> command, Path mount, String unreadable) {
 
     private static final String REPOSITORY = "/repo";
     private static final String INPUT = "/input";
@@ -62,6 +65,10 @@ final class MountProbe {
         + " local Maven repository by pointing maven.repo.local there, or add the directory to the mounts in"
         + " Colima's colima.yaml and restart Colima.";
 
+    MountProbe {
+        command = List.copyOf(command);
+    }
+
     static List<String> repositoryCommand(Path root, String image) {
         return List.of(
             "docker", "run", "--rm", "-v", root + ":" + REPOSITORY + ":ro",
@@ -105,21 +112,7 @@ final class MountProbe {
      * @param image the image the check runs
      * @return the probe, which names the directory and the fix when it arrives empty
      */
-    static Probe input(Path input, String image) {
-        return new Probe(inputCommand(input, image), input, emptyInput(input));
-    }
-
-    /**
-     * A container run that must succeed before a check is trusted with its mounts.
-     *
-     * @param command    the docker command that reads them
-     * @param mount      the host directory it reads, named when the container cannot start
-     * @param unreadable what the build says when the command fails
-     */
-    record Probe(List<String> command, Path mount, String unreadable) {
-
-        Probe {
-            command = List.copyOf(command);
-        }
+    static MountProbe input(Path input, String image) {
+        return new MountProbe(inputCommand(input, image), input, emptyInput(input));
     }
 }
