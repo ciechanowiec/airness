@@ -13,6 +13,7 @@ import {
   serviceRunArguments,
   withServices,
 } from '@/services.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 
 const OWNER: ContainerOwner = {
   pid: 4321,
@@ -370,7 +371,7 @@ describe('a run against disposable services', () => {
 
 const NODE: string = process.execPath
 
-describe('the machine the helper runs on', () => {
+describe('the machine the helper runs on', PROCESS_TIME, () => {
   it("starts the command with the run's environment and answers with its exit code", async () => {
     const stop: StopSignal = new AbortController().signal
     const code: number = await SYSTEM_RUNTIME.start({
