@@ -217,6 +217,7 @@ JAVA
             about) heading='About'; body='<p>An application rendered on the server.</p>' ;;
             hidden) heading='Hidden'; body='<p>A page no other page links to.</p>' ;;
             account) heading='Account'; body='<p>The account of the signed-in visitor.</p>' ;;
+            *) printf 'No template is written for the page %s\n' "${page}" >&2; return 1 ;;
         esac
         cat > "${java_web}/src/main/resources/templates/${page}.html" <<HTML
 <!DOCTYPE html>
@@ -446,6 +447,12 @@ PY
 # PostgreSQL of its own run on a port Docker chose, a run stopped by SIGTERM, whose containers are removed
 # all the same, and a run killed outright, whose guard removes them. The wrapper and its probe live in the
 # scratch directory, outside any governed tree.
+# The containers the services cases left behind: nothing once each run removed its own. A Docker that cannot be
+# asked answers with its error instead, which fails the check rather than passing it as nothing left.
+service_leftovers() {
+    docker ps --all --filter name=airness-it-services- --format '{{.Names}} {{.Status}}' 2>&1 || true
+}
+
 run_service_wrapper_cases() {
     service_wrapper="${scratch}/service-wrapper.mjs"
     service_probe="${scratch}/service-probe.mjs"
@@ -491,14 +498,15 @@ JS
         "${node_home}/bin/node" "${service_probe}" > "${service_log}" 2>&1; then
         pass 'services: the wrapped command reaches a disposable PostgreSQL on a port Docker chose'
     else
+        service_output="$(tail -n 20 "${service_log}")"
         fail 'services: the wrapped command reaches a disposable PostgreSQL on a port Docker chose' \
-            "$(tail -n 20 "${service_log}")"
+            "${service_output}"
     fi
-    if [ -z "$(docker ps --all --quiet --filter name=airness-it-services-)" ]; then
+    service_left="$(service_leftovers)"
+    if [ -z "${service_left}" ]; then
         pass 'services: the run removes the containers it started'
     else
-        fail 'services: the run removes the containers it started' \
-            "$(docker ps --all --filter name=airness-it-services-)"
+        fail 'services: the run removes the containers it started' "${service_left}"
     fi
 
     rm -f "${service_holding}"
@@ -516,14 +524,15 @@ JS
     if [ "${service_status}" -eq 143 ] && [ -f "${service_holding}" ]; then
         pass 'services: a run stopped by SIGTERM passes the signal on and answers with it'
     else
+        service_output="$(tail -n 20 "${service_log}")"
         fail 'services: a run stopped by SIGTERM passes the signal on and answers with it' \
-            "exit ${service_status}: $(tail -n 20 "${service_log}")"
+            "exit ${service_status}: ${service_output}"
     fi
-    if [ -z "$(docker ps --all --quiet --filter name=airness-it-services-)" ]; then
+    service_left="$(service_leftovers)"
+    if [ -z "${service_left}" ]; then
         pass 'services: a stopped run removes the containers it started'
     else
-        fail 'services: a stopped run removes the containers it started' \
-            "$(docker ps --all --filter name=airness-it-services-)"
+        fail 'services: a stopped run removes the containers it started' "${service_left}"
     fi
 
     # A wrapper ended by SIGKILL removes nothing itself, as one ended with the process group a package manager
@@ -541,15 +550,18 @@ JS
     kill -KILL "${service_pid}" 2> /dev/null || true
     wait "${service_pid}" 2> /dev/null || true
     service_waited=0
-    while [ -n "$(docker ps --all --quiet --filter name=airness-it-services-)" ] && [ "${service_waited}" -lt 20 ]; do
+    service_left="$(service_leftovers)"
+    while [ -n "${service_left}" ] && [ "${service_waited}" -lt 20 ]; do
         sleep 1
         service_waited=$((service_waited + 1))
+        service_left="$(service_leftovers)"
     done
     pkill -f "${service_probe}" 2> /dev/null || true
-    if [ -f "${service_holding}" ] && [ -z "$(docker ps --all --quiet --filter name=airness-it-services-)" ]; then
+    if [ -f "${service_holding}" ] && [ -z "${service_left}" ]; then
         pass 'services: the guard removes the containers of a run killed outright'
     else
+        service_output="$(tail -n 20 "${service_log}")"
         fail 'services: the guard removes the containers of a run killed outright' \
-            "$(docker ps --all --filter name=airness-it-services-) $(tail -n 20 "${service_log}")"
+            "${service_left} ${service_output}"
     fi
 }
