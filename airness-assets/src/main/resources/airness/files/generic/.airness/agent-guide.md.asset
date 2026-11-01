@@ -127,7 +127,8 @@ Airness governs all of the following domains:
   dependency evidence in `prepare-package` and judges nothing. In `package`, every npm package it lists that
   this host installed answers to the license allowlist the Maven artifacts answer to, read as its SPDX
   identifiers, every package it lists to the npm blocklist, every direct dependency but the harness packages
-  to the freshness bound, read from the registry pnpm installs it from with its configured token, and a node
+  to the freshness bound, read from the registry pnpm installs it from with its configured token, where a
+  release above the one the `latest` distribution tag names is not yet the stable line, and a node
   project without that evidence fails. The pinned Node answers to the bound in long-term-support lines, and
   pnpm to the ordinary bound. Extended verification adds `npm-sbom` (a CycloneDX
   document beside `dependencies.json`), and for a member that declares `next` `build` and `bundle` (gzipped

@@ -24,6 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 
 /**
  * Where an npm package's releases are listed, and the releases listed there, read as pnpm reads them.
@@ -51,6 +52,8 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
     static final String PUBLIC = "https://registry.npmjs.org/";
 
     private static final Pattern VARIABLE = Pattern.compile("\\$\\{([^}]+)}");
+    // A release with no pre-release or build part, which is what a latest tag naming the stable line reads as.
+    private static final Pattern PLAIN_RELEASE = Pattern.compile("\\d+(?:\\.\\d+)*");
     private static final String PNPM_PREFIX = "pnpm_config_";
     private static final String NPM_PREFIX = "npm_config_";
     private static final String CREDENTIAL = "//";
@@ -175,7 +178,13 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
     }
 
     /**
-     * Every version a package's listing names, read from its registry with its token.
+     * Every version a package's listing names that its publisher has released as the package, read from its
+     * registry with its token.
+     *
+     * <p>The {@code latest} distribution tag is what the registry installs when no version is asked for, so it is
+     * where a publisher says which line is the stable one. A release numbered above it, such as a new major published
+     * under {@code next} while it settles, is one the publisher has not made the package yet, and it is left out. A
+     * listing without that tag, or whose tag names no plain release, is read whole.
      *
      * @param name the package name, scoped or not
      * @return the versions
@@ -183,11 +192,28 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
      */
     List<String> versions(String name) {
         String registry = this.registry(name);
-        JsonNode versions = this.fetch(registry + name.replace(SLASH, "%2f"), this.token(registry)).path("versions");
+        JsonNode listing = this.fetch(registry + name.replace(SLASH, "%2f"), this.token(registry));
+        JsonNode versions = listing.path("versions");
         if (!versions.isObject()) {
             throw new IllegalStateException(redacted(registry) + " lists no versions of " + name);
         }
-        return versions.propertyStream().map(Map.Entry::getKey).toList();
+        List<String> named = versions.propertyStream().map(Map.Entry::getKey).toList();
+        return released(named, listing.path("dist-tags").path("latest").asText(""));
+    }
+
+    /**
+     * The versions a listing names, without those numbered above the release its {@code latest} tag names.
+     *
+     * @param versions every version the listing names
+     * @param latest   the version the {@code latest} tag names, empty when there is none
+     * @return the versions the publisher has released as the package
+     */
+    static List<String> released(List<String> versions, String latest) {
+        if (!PLAIN_RELEASE.matcher(latest).matches()) {
+            return versions;
+        }
+        ComparableVersion ceiling = new ComparableVersion(latest);
+        return versions.stream().filter(version -> new ComparableVersion(version).compareTo(ceiling) <= 0).toList();
     }
 
     /**
