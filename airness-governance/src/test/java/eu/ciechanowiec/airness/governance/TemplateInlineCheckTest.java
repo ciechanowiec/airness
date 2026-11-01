@@ -69,6 +69,15 @@ class TemplateInlineCheckTest {
     }
 
     @Test
+    void readsAnElementWhoseAttributeHasNoValue() {
+        Path root = fixture(
+            "inline-valueless",
+            "<script async>start();</script>\n<button hidden onclick=\"go()\">Go</button>\n<details open></details>"
+        );
+        assertEquals(2, inline(root).size(), "an attribute written without a value hides nothing beside it");
+    }
+
+    @Test
     void leavesAScriptThatLoadsAFileAlone() {
         Path root = fixture("inline-sourced", "<script th:src=\"@{/js/app.js}\" defer></script>");
         assertTrue(Verdicts.clean(findings(root)), "a referenced file is checked where it lives");
