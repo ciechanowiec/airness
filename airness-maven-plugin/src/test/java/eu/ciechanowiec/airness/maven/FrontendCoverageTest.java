@@ -39,8 +39,8 @@ class FrontendCoverageTest {
         this.write(file, "x\n");
     }
 
-    private FrontendCoverage.Walk walk() {
-        return new FrontendCoverage.Walk(this.module, this.module, List.of(this.module.resolve("target")));
+    private FrontendWalk walk() {
+        return new FrontendWalk(this.module, this.module, List.of(this.module.resolve("target")));
     }
 
     private FrontendCoverage coverage(@Nullable String declared, Supplier<List<String>> generated) {

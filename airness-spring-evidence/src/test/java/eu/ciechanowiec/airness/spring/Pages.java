@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.spring;
 
+import eu.ciechanowiec.airness.Justification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
  * they register. No request ever reaches them, so what each would return is never read.
  */
 @Controller
+@Justification(
+    "A handler that renders a page answers with the name of its view, which is the same on every request by"
+        + " design. What each handler here returns is never read, only the mapping it registers."
+)
+@SuppressWarnings("SameReturnValue")
 final class Pages {
 
     @GetMapping({"/rooms", "/rooms/{id}"})

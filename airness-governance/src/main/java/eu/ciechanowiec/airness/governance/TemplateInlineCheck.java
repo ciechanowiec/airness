@@ -100,18 +100,18 @@ public final class TemplateInlineCheck {
         private final Collection<String> offences;
 
         // The element whose attributes are read next: the one opened last.
-        private final Deque<String> element;
+        private final Deque<String> open;
 
         private InlineReading(Path named, Collection<String> offences) {
             this.named = named;
             this.offences = offences;
-            this.element = new ArrayDeque<>();
+            this.open = new ArrayDeque<>();
         }
 
         @Override
-        public void opened(String opened, int line, int column) {
-            this.element.push(opened.toLowerCase(Locale.ROOT));
-            if (STYLE.equals(this.element.peek())) {
+        public void opened(String element, int line, int column) {
+            this.open.push(element.toLowerCase(Locale.ROOT));
+            if (STYLE.equals(this.open.peek())) {
                 this.add(line, column, "a style block holds a stylesheet");
             }
         }
@@ -119,7 +119,7 @@ public final class TemplateInlineCheck {
         @Override
         public void read(Map<String, String> attributes, int line, int column) {
             Map<String, String> lowered = lowered(attributes);
-            if (SCRIPT.equals(this.element.peek()) && runsInline(lowered)) {
+            if (SCRIPT.equals(this.open.peek()) && runsInline(lowered)) {
                 this.add(line, column, "a script block holds code");
             }
             lowered.forEach((attribute, value) -> this.attribute(attribute, value, line, column));
@@ -149,7 +149,7 @@ public final class TemplateInlineCheck {
                 .collect(
                     Collectors.toMap(
                         entry -> entry.getKey().toLowerCase(Locale.ROOT),
-                        entry -> Optional.ofNullable(entry.getValue()).orElse(""),
+                        Map.Entry::getValue,
                         (first, _) -> first,
                         TreeMap::new
                     )

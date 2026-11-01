@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -72,7 +73,7 @@ final class FrontendCoverage {
      *                  otherwise unchecked file is stale and refused
      */
     FrontendCoverage(
-        Walk walk, NodeProjects declared, Supplier<List<String>> generated, Map<String, String> excused
+        FrontendWalk walk, NodeProjects declared, Supplier<List<String>> generated, Map<String, String> excused
     ) {
         Path root = walk.root();
         Path basedir = walk.basedir();
@@ -164,32 +165,11 @@ final class FrontendCoverage {
             .flatMap(List::stream)
             .filter(name::endsWith)
             .filter(suffix -> name.length() > suffix.length())
-            .max((left, right) -> Integer.compare(left.length(), right.length()));
+            .max(Comparator.comparingInt(String::length));
     }
 
     private static boolean installed(Path relative) {
         return StreamSupport.stream(relative.spliterator(), false).map(Path::toString).anyMatch(INSTALLED::equals);
-    }
-
-    /**
-     * Where a module lies and which of its directories the walk does not enter.
-     *
-     * @param root    the repository root the generated globs are relative to
-     * @param basedir the module directory
-     * @param skipped the directories the walk does not enter: child modules and the build directory
-     */
-    record Walk(Path root, Path basedir, Collection<Path> skipped) {
-
-        /**
-         * Copies the skipped directories, so the walk cannot change after it was described.
-         *
-         * @param root    the repository root
-         * @param basedir the module directory
-         * @param skipped the directories the walk does not enter
-         */
-        Walk {
-            skipped = List.copyOf(skipped);
-        }
     }
 
     /**

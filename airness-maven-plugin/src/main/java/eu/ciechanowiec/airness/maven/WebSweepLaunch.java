@@ -174,7 +174,7 @@ record WebSweepLaunch(Map<String, String> environment, List<String> problems) {
      * @param directory the module's build directory
      * @param started   when this invocation started, in epoch milliseconds
      */
-    record Packaged(Optional<Path> artifact, Path directory, long started) {
+    public record Packaged(Optional<Path> artifact, Path directory, long started) {
 
         /**
          * The Spring context evidence the module's startup tests write.
