@@ -23,6 +23,13 @@ export interface HitTargetProbe {
   readonly visibility: string
   /** Whether the control or an ancestor carries `inert`. */
   readonly isInert: boolean
+  /**
+   * Whether the box still lies wholly outside the viewport once it was scrolled into view, so no scrolling
+   * reaches it: the off-screen technique, such as a skip link parked above the page until focus brings it in.
+   * `elementFromPoint` answers nothing outside the viewport, so such a control owns no centre point without
+   * anything else answering there.
+   */
+  readonly isOutsidePage: boolean
 }
 
 /** How a control can be reached, and therefore which passes of the sweep apply to it. */
@@ -134,6 +141,14 @@ export const classifyHitTarget = (probe: HitTargetProbe): HitTargetClassificatio
       reason:
         'the control is hidden, inert or takes no pointer events, so the page offers a pointer ' +
         'nothing to hover or click there',
+    }
+  }
+  if (probe.isOutsidePage) {
+    return {
+      verdict: 'visually-hidden',
+      reason:
+        'the control lies wholly outside the page, where no scrolling reaches it, so a pointer has nothing ' +
+        'to hover until focus brings it in, and the keyboard pass judges it then',
     }
   }
   if (hasNoPaintedArea(probe)) {
