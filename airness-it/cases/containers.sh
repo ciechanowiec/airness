@@ -80,6 +80,33 @@ run_container_cases() {
     run_extended_consumer
     run_secret_scanner_control
     run_qodana_profile
+    run_linked_worktree_checks
+}
+
+# A worktree made by git worktree add keeps its history in the main clone. Mounted alone, it handed gitleaks
+# a pointer to nowhere, and gitleaks scanned no commit and reported a clean history; Qodana refused it. Both
+# now mount the clone's Git directories beside the worktree, so a worktree reads as the clone does.
+run_linked_worktree_checks() {
+    secret_worktree="${scratch}/secret-history-worktree"
+    git -C "${secret_consumer}" worktree add --quiet --detach "${secret_worktree}"
+    run_maven secret_worktree containers "${secret_worktree}" \
+        airness:scan-secrets -Dairness.enforce=false
+    expect_exit secret_worktree 'worktree: the secret scan runs in a linked worktree' 0
+    expect_match secret_worktree 'worktree: the secret scan reads the history the clone holds' \
+        'leaks found: 1'
+    expect_no_match secret_worktree 'worktree: Git inside the scanner finds the repository' \
+        'not a git repository'
+
+    git -C "${qodana_consumer}" add --all
+    git -C "${qodana_consumer}" commit --quiet --message 'test(qodana): record the inspected sources'
+    qodana_worktree="${scratch}/qodana-profile-worktree"
+    git -C "${qodana_consumer}" worktree add --quiet --detach "${qodana_worktree}"
+    run_maven qodana_worktree containers "${qodana_worktree}" airness:qodana
+    expect_exit qodana_worktree 'worktree: Qodana inspects a linked worktree and reports its findings' 1
+    expect_finding qodana_worktree 'worktree: Qodana places the findings in the worktree' \
+        qodana 'src/main/java/com/example/IncompleteDispatch.java:26' '^SwitchStatementsWithoutDefault '
+    expect_no_match qodana_worktree 'worktree: Qodana no longer asks for a standalone clone' \
+        'standalone clone'
 }
 
 run_extended_consumer() {
