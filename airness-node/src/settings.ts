@@ -60,8 +60,13 @@ export interface Settings extends InvocationSettings {
    * end-to-end suite starts. Undefined when the project declares none.
    */
   readonly serve: string | undefined
-  /** The origin the end-to-end suite drives. */
+  /**
+   * The origin the end-to-end suite drives outside verification. A verification run keeps its scheme, host and
+   * path and serves on a port chosen for the run.
+   */
   readonly serverUrl: string
+  /** Environment variables the application reads its own origin from, which verification sets to the served one. */
+  readonly serverUrlVariables: readonly string[]
   /** The gzipped client JavaScript ceiling of a Next.js application, which a project may only lower. */
   readonly bundleBudgetBytes: number
   /** Route prefixes the accessibility crawl does not follow. */

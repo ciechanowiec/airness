@@ -3,6 +3,7 @@ export { BROWSER_INSTALL_REPAIR, judgeRun } from './browser-verdict.js'
 // The end-to-end suite of a browser application: the harness's accessibility and layout sweep, its
 // security-header spec, and the member's own end-to-end specs, run by Playwright under the shipped
 // configuration against the application the configuration starts.
+import { freePorts, type ServedOrigins, servedOrigins } from './browser-origin.js'
 import { browserServerProblems } from './browser-servers.js'
 import { runBrowserSweep } from './browser-suite.js'
 import { failed, type GateContext, type GateResult, notApplicable } from './exec.js'
@@ -42,6 +43,27 @@ const staleBuild = (member: Member): string | undefined => {
   return 'problem' in recorded ? recorded.problem : undefined
 }
 
+/**
+ * The addresses a run serves on: the declared ones, each on a port the operating system chose for this run, so
+ * neither a developer's server on the declared port nor another verification on the same machine collides.
+ * @param member the browser application.
+ * @returns the application's address and the auxiliary servers', in declaration order.
+ */
+export const assignOrigins = async (member: Member): Promise<ServedOrigins> =>
+  servedOrigins(member.settings, await freePorts(member.settings.auxiliaryServers.length + 1))
+
+/**
+ * Why a run cannot serve on the addresses it chose, if it cannot. Checked before Playwright starts, because a
+ * verification run never reuses a server: something that took a chosen port in the moment since it was
+ * released would make Playwright's own readiness check fail with a message naming no cause.
+ * @param origins the addresses the run chose.
+ * @returns the failure, or undefined when every address is free.
+ */
+export const occupiedOrigins = async (origins: ServedOrigins): Promise<GateResult | undefined> => {
+  const occupied: readonly string[] = await browserServerProblems([origins.serverUrl, ...origins.auxiliaryUrls])
+  return occupied.length > 0 ? failed('the browser endpoint is not free', occupied) : undefined
+}
+
 const EMPTY_CONTEXT: GateContext = { evidenceDirectory: undefined }
 
 /**
@@ -63,14 +85,13 @@ export const endToEnd = async (member: Member, context: GateContext = EMPTY_CONT
   if (stale !== undefined) {
     return failed('no current production build to serve', [stale])
   }
-  // Refused before Playwright starts, because a verification run never reuses a server: a listener already
-  // on the port would make Playwright's own readiness check fail with a message naming no cause.
-  const occupied: readonly string[] = await browserServerProblems([
-    member.settings.serverUrl,
-    ...member.settings.auxiliaryServers.map((server): string => server.url),
-  ])
-  if (occupied.length > 0) {
-    return failed('the browser endpoint is not free', occupied)
+  const origins: ServedOrigins = await assignOrigins(member)
+  const occupied: GateResult | undefined = await occupiedOrigins(origins)
+  if (occupied !== undefined) {
+    return occupied
   }
-  return await withPretestAsync(member, async (): Promise<GateResult> => await runBrowserSweep(member, context))
+  return await withPretestAsync(
+    member,
+    async (): Promise<GateResult> => await runBrowserSweep(member, context, origins),
+  )
 }

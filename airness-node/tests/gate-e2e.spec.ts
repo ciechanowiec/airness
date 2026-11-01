@@ -1,13 +1,15 @@
 import { createServer, type Server } from 'node:net'
 import { describe, expect, it } from 'vitest'
+import type { ServedOrigins } from '@/browser-origin.js'
+import { browserServerProblems } from '@/browser-servers.js'
 import type { GateResult } from '@/exec.js'
-import { BROWSER_INSTALL_REPAIR, endToEnd, judgeRun, serveProblem } from '@/gate-e2e.js'
+import { assignOrigins, BROWSER_INSTALL_REPAIR, endToEnd, judgeRun, occupiedOrigins, serveProblem } from '@/gate-e2e.js'
 import type { Member } from '@/project.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 // Only the decisions the gate takes before it starts a browser - whether it applies, whether the member
-// says how it is served, whether its endpoint is free - and how it reads a run. Playwright itself is exercised
+// says how it is served, which addresses a run serves on - and how it reads a run. Playwright itself is exercised
 // by the Maven integration fixtures.
 
 const withProject = async (
@@ -72,45 +74,88 @@ const portOf = (server: Server): string => {
   return String(typeof address === 'object' && address !== null ? address.port : 0)
 }
 
-describe('an occupied browser endpoint', PROCESS_TIME, () => {
-  it('refuses an already-running auxiliary server before starting the suite', async () => {
-    const server: Server = await listening()
+describe('the addresses a verification run serves on', PROCESS_TIME, () => {
+  it('leaves a declared port that something already listens on to whatever holds it', async () => {
+    const declared: Server = await listening()
+    const auxiliary: Server = await listening()
     try {
-      const primary: Server = await listening()
-      const primaryUrl: string = `http://127.0.0.1:${portOf(primary)}`
-      await new Promise<void>((resolve): void => {
-        primary.close((): void => {
-          resolve()
-        })
-      })
       const manifest: unknown = {
         scripts: { serve: 'node server.js' },
         airness: {
           serve: 'serve',
-          serverUrl: primaryUrl,
-          auxiliaryServers: [{ command: 'node cms.js', url: `http://127.0.0.1:${portOf(server)}` }],
+          serverUrl: `http://127.0.0.1:${portOf(declared)}`,
+          auxiliaryServers: [
+            {
+              command: 'node cms.js',
+              url: `http://localhost:${portOf(auxiliary)}/cms`,
+            },
+          ],
         },
       }
-      const result: GateResult = await endToEnd(memberAt('/project', manifest))
-      expect(result.ok).toBe(false)
-      expect(result.findings.join('\n')).toContain(`:${portOf(server)}`)
+      const origins: ServedOrigins = await assignOrigins(memberAt('/project', manifest))
+      const primary: URL = new URL(origins.serverUrl)
+      const [cms = ''] = origins.auxiliaryUrls
+      expect(primary.hostname).toBe('127.0.0.1')
+      expect(primary.port).not.toBe(portOf(declared))
+      expect(new URL(cms).hostname).toBe('localhost')
+      expect(new URL(cms).pathname).toBe('/cms')
+      expect(new URL(cms).port).not.toBe(portOf(auxiliary))
+      expect(new URL(cms).port).not.toBe(primary.port)
+      expect(await browserServerProblems([origins.serverUrl, ...origins.auxiliaryUrls])).toEqual([])
     } finally {
-      server.close()
+      declared.close()
+      auxiliary.close()
     }
   })
-  it('is refused before Playwright starts', async () => {
-    const server: Server = await listening()
+
+  it('serves the default origin on a port the operating system chose, never on the default one', async () => {
+    const member: Member = memberAt('/project', {
+      scripts: { serve: 'vite preview' },
+      airness: { serve: 'serve' },
+    })
+    const origins: ServedOrigins = await assignOrigins(member)
+    expect(new URL(origins.serverUrl).hostname).toBe('localhost')
+    expect(new URL(origins.serverUrl).port).not.toBe('3000')
+    expect(origins.ports).toHaveLength(1)
+  })
+})
+
+describe('an address taken in the moment after it was chosen', PROCESS_TIME, () => {
+  it('is refused before Playwright starts, naming the address', async () => {
+    const holder: Server = await listening()
     try {
-      const manifest: unknown = {
-        scripts: { serve: 'vite preview' },
-        airness: { serve: 'serve', serverUrl: `http://127.0.0.1:${portOf(server)}` },
-      }
-      const result: GateResult = await endToEnd(memberAt('/project', manifest))
-      expect(result.ok).toBe(false)
-      expect(result.findings.join('\n')).toContain('is in use')
+      const taken: string = `http://127.0.0.1:${portOf(holder)}`
+      const result: GateResult | undefined = await occupiedOrigins({
+        serverUrl: 'http://127.0.0.1:1',
+        auxiliaryUrls: [taken],
+        ports: [1, Number(portOf(holder))],
+      })
+      expect(result?.ok).toBe(false)
+      expect(result?.summary).toBe('the browser endpoint is not free')
+      expect(result?.findings.join('\n')).toContain(`:${portOf(holder)}`)
     } finally {
-      server.close()
+      holder.close()
     }
+  })
+
+  it('runs the preparation the member declares once its addresses are free, and stops when it fails', async () => {
+    await withProject({}, async (root: string) => {
+      const result: GateResult = await endToEnd(
+        memberAt(root, {
+          scripts: { serve: 'vite preview' },
+          airness: { serve: 'serve', pretest: [process.execPath, '-e', 'process.exit(3)'] },
+        }),
+      )
+      expect(result.ok).toBe(false)
+      expect(result.summary).not.toBe('the browser endpoint is not free')
+    })
+  })
+
+  it('lets a run whose addresses are free go on', async () => {
+    const origins: ServedOrigins = await assignOrigins(
+      memberAt('/project', { scripts: { serve: 'vite preview' }, airness: { serve: 'serve' } }),
+    )
+    expect(await occupiedOrigins(origins)).toBeUndefined()
   })
 })
 
@@ -125,7 +170,11 @@ describe('the Playwright verdict', PROCESS_TIME, () => {
   })
 
   it('reports any other failure as the tool printed it', () => {
-    const result: GateResult = judgeRun({ code: 1, output: '1 failed', stdout: '' })
+    const result: GateResult = judgeRun({
+      code: 1,
+      output: '1 failed',
+      stdout: '',
+    })
     expect(result.findings).toEqual(['1 failed'])
   })
 })
@@ -137,12 +186,18 @@ describe('serving a browser application', PROCESS_TIME, () => {
   })
 
   it('accepts a serve script the manifest declares', () => {
-    const manifest: unknown = { scripts: { start: 'vite preview' }, airness: { serve: 'start' } }
+    const manifest: unknown = {
+      scripts: { start: 'vite preview' },
+      airness: { serve: 'start' },
+    }
     expect(serveProblem(memberAt('/project', manifest))).toBeUndefined()
   })
 
   it('still judges a serve script a Next.js application declares', () => {
-    const member: Member = { ...memberAt('/project', { airness: { serve: 'missing' } }), hasOwnRuntime: true }
+    const member: Member = {
+      ...memberAt('/project', { airness: { serve: 'missing' } }),
+      hasOwnRuntime: true,
+    }
     expect(serveProblem(member)).toContain('"missing"')
   })
 })

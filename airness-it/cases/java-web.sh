@@ -415,9 +415,18 @@ PY
     git -C "${java_web}" commit --quiet \
         --message 'test(it): cover every route of the Thymeleaf application' \
         --message 'The unlinked pages gain links and the protected page is declared out of scope with its reason.'
+    # The declared port is held by another listener for the whole run, as a developer's server or another
+    # verification would hold it: the sweep serves the application on a port of its own run instead.
+    python3 -c 'import socket, sys, time; s = socket.socket(); s.bind(("127.0.0.1", int(sys.argv[1]))); s.listen(); time.sleep(3600)' \
+        "${java_web_port}" &
+    java_web_holder=$!
     sweep_java_web java_web_covered
+    kill "${java_web_holder}" 2> /dev/null || true
+    wait "${java_web_holder}" 2> /dev/null || true
     expect_exit java_web_covered \
         'java web: a CSS-only Thymeleaf application refusing inline style passes the shared sweep' 0
+    expect_no_match java_web_covered 'java web: a server holding the declared port leaves the run on a port of its own' \
+        'browser endpoint is not free|in use; stop the existing server'
     expect_no_match java_web_covered 'java web: Biome leaves the Thymeleaf templates to the template checks' \
         'useValidAnchor|noLabelWithoutControl'
     expect_match java_web_covered 'java web: the script gates do not apply to a project with no script' \
@@ -429,5 +438,90 @@ PY
     else
         fail 'java web: the htmx fragment is recorded as fragment coverage, apart from swept pages' \
             "${java_web_discovery} lists no /fragment/row among its fragment routes"
+    fi
+    run_service_wrapper_cases
+}
+
+# The disposable services a test wrapper starts, through the installed @airness/node: a command that reaches a
+# PostgreSQL of its own run on a port Docker chose, and a run stopped by SIGTERM, whose containers are removed
+# all the same. The wrapper and its probe live in the scratch directory, outside any governed tree.
+run_service_wrapper_cases() {
+    service_wrapper="${scratch}/service-wrapper.mjs"
+    service_probe="${scratch}/service-probe.mjs"
+    service_holding="${scratch}/service-holding"
+    cat > "${service_wrapper}" <<'JS'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
+
+const located = createRequire(`${process.env.AIRNESS_IT_FIXTURE}/package.json`).resolve('@airness/node/services')
+const services = await import(pathToFileURL(located).href)
+const secret = services.randomSecret()
+process.exitCode = await services.withServices({
+  project: 'airness-it-services',
+  containers: [
+    {
+      key: 'db',
+      image: 'postgres:18-alpine',
+      environment: { POSTGRES_PASSWORD: secret },
+      ports: ['5432/tcp'],
+      ready: ['pg_isready', '--host=127.0.0.1', '--username=postgres'],
+    },
+  ],
+  environment: (running) => ({ IT_DATABASE_PORT: String(running.port('db', '5432/tcp')) }),
+})
+JS
+    cat > "${service_probe}" <<'JS'
+import { writeFileSync } from 'node:fs'
+import { connect } from 'node:net'
+
+const socket = connect(Number(process.env.IT_DATABASE_PORT), '127.0.0.1')
+socket.once('error', () => process.exit(1))
+socket.once('connect', () => {
+  socket.destroy()
+  if (process.argv[2] === undefined) {
+    process.exit(0)
+  }
+  writeFileSync(process.argv[2], 'holding\n')
+  setTimeout(() => process.exit(0), 600_000)
+})
+JS
+    service_log="${scratch}/service-wrapper.log"
+    if AIRNESS_IT_FIXTURE="${java_web}" "${node_home}/bin/node" "${service_wrapper}" -- \
+        "${node_home}/bin/node" "${service_probe}" > "${service_log}" 2>&1; then
+        pass 'services: the wrapped command reaches a disposable PostgreSQL on a port Docker chose'
+    else
+        fail 'services: the wrapped command reaches a disposable PostgreSQL on a port Docker chose' \
+            "$(tail -n 20 "${service_log}")"
+    fi
+    if [ -z "$(docker ps --all --quiet --filter name=airness-it-services-)" ]; then
+        pass 'services: the run removes the containers it started'
+    else
+        fail 'services: the run removes the containers it started' \
+            "$(docker ps --all --filter name=airness-it-services-)"
+    fi
+
+    rm -f "${service_holding}"
+    AIRNESS_IT_FIXTURE="${java_web}" "${node_home}/bin/node" "${service_wrapper}" -- \
+        "${node_home}/bin/node" "${service_probe}" "${service_holding}" > "${service_log}" 2>&1 &
+    service_pid=$!
+    service_waited=0
+    while [ ! -f "${service_holding}" ] && [ "${service_waited}" -lt 180 ] && kill -0 "${service_pid}" 2> /dev/null; do
+        sleep 1
+        service_waited=$((service_waited + 1))
+    done
+    kill -TERM "${service_pid}" 2> /dev/null || true
+    service_status=0
+    wait "${service_pid}" || service_status=$?
+    if [ "${service_status}" -eq 143 ] && [ -f "${service_holding}" ]; then
+        pass 'services: a run stopped by SIGTERM passes the signal on and answers with it'
+    else
+        fail 'services: a run stopped by SIGTERM passes the signal on and answers with it' \
+            "exit ${service_status}: $(tail -n 20 "${service_log}")"
+    fi
+    if [ -z "$(docker ps --all --quiet --filter name=airness-it-services-)" ]; then
+        pass 'services: a stopped run removes the containers it started'
+    else
+        fail 'services: a stopped run removes the containers it started' \
+            "$(docker ps --all --filter name=airness-it-services-)"
     fi
 }

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { appendFileSync, copyFileSync } from 'node:fs'
 import path from 'node:path'
 import { streamApp } from './app-process.js'
+import { originEnvironment, type ServedOrigins } from './browser-origin.js'
 import {
   BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE,
   BROWSER_TUNNEL_ENVIRONMENT_VARIABLE,
@@ -19,17 +20,27 @@ import { isStartFailure, type PinnedBrowsers, startPinnedBrowsers } from './pinn
 import { harnessDirectory, type Member, resolveTool } from './project.js'
 import { isProgressLine } from './sweep-progress.js'
 
-/** Run the complete or delta sweep and retain its scope evidence beside the gate result. */
-export const runBrowserSweep = async (member: Member, context: GateContext): Promise<GateResult> => {
+/**
+ * Run the complete or delta sweep and retain its scope evidence beside the gate result.
+ * @param member the browser application.
+ * @param context where the gate keeps its evidence.
+ * @param origins the addresses this run serves on.
+ * @returns the verdict.
+ */
+export const runBrowserSweep = async (
+  member: Member,
+  context: GateContext,
+  origins: ServedOrigins,
+): Promise<GateResult> => {
   if (process.env['AIRNESS_VERIFICATION_MODE'] === 'full') {
-    return await runSuite(member)
+    return await runSuite(member, origins)
   }
   const scope: SweepScope | GateResult = sweepScopeFor(member)
   if (isScopeFailure(scope)) {
     return scope
   }
   return await withScopeFile(scope, async (file: string): Promise<GateResult> => {
-    const outcome: GateResult = await runSuite(member, file)
+    const outcome: GateResult = await runSuite(member, origins, file)
     const name: string = `scope-${createHash('sha256').update(member.path).digest('hex')}.json`
     if (context.evidenceDirectory !== undefined) {
       copyFileSync(file, path.join(context.evidenceDirectory, name))
@@ -42,8 +53,8 @@ export const runBrowserSweep = async (member: Member, context: GateContext): Pro
   })
 }
 
-const runSuite = async (member: Member, scopeFile?: string): Promise<GateResult> => {
-  const browsers: PinnedBrowsers | GateResult = await startPinnedBrowsers(member)
+const runSuite = async (member: Member, origins: ServedOrigins, scopeFile?: string): Promise<GateResult> => {
+  const browsers: PinnedBrowsers | GateResult = await startPinnedBrowsers(member, origins.ports)
   if (isStartFailure(browsers)) {
     return browsers
   }
@@ -66,6 +77,7 @@ const runSuite = async (member: Member, scopeFile?: string): Promise<GateResult>
           [VERIFICATION_ENVIRONMENT_VARIABLE]: '1',
           NEXT_TELEMETRY_DISABLED: '1',
           ...clockedEnvironment(member, '--no-deprecation'),
+          ...originEnvironment(member.settings, origins),
           [BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE]: browsers.endpoint,
           [SWEEP_WORKERS_ENVIRONMENT_VARIABLE]: String(browsers.workers),
           [SWEEP_SCOPE_ENVIRONMENT_VARIABLE]: scopeFile,

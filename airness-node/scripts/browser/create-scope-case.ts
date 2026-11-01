@@ -65,7 +65,8 @@ const story = (name: string, module: string): string =>
     '',
   ].join('\n')
 
-const storyServer = (port: number): string => `import { createServer } from 'node:http'
+// The server listens on the port the harness hands it in PORT, which a verification run chooses for itself.
+const storyServer = (): string => `import { createServer } from 'node:http'
 
 const entry = (name, file) => ({
   type: 'story',
@@ -87,7 +88,7 @@ createServer((request, response) => {
   } else {
     response.writeHead(404).end()
   }
-}).listen(${String(port)}, '127.0.0.1')
+}).listen(Number(process.env.PORT), '127.0.0.1')
 `
 
 const appRoot: string = path.join(directory, 'src', 'app')
@@ -102,7 +103,7 @@ writeModule(path.join(directory, 'src', 'other.tsx'), component('Other', 'Other'
 writeModule(path.join(directory, 'src', 'badge.stories.tsx'), story('Badge', 'badge'))
 writeModule(path.join(directory, 'src', 'other.stories.tsx'), story('Other', 'other'))
 const storyPort: number = await freePort()
-writeModule(path.join(directory, 'story-server.mjs'), storyServer(storyPort))
+writeModule(path.join(directory, 'story-server.mjs'), storyServer())
 const manifestPath: string = path.join(directory, 'package.json')
 const manifest: Record<string, unknown> = asRecord(JSON.parse(readFileSync(manifestPath, 'utf8')))
 writeFileSync(

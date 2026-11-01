@@ -267,7 +267,8 @@ Airness governs all of the following domains in a Java module:
   `airness.node.projects` (the module itself works, with `sourceRoots` naming `src/main/resources/static`), move
   each authored script and stylesheet under its checked roots, replace copied distributions with a WebJar or a
   `node-run` copy from npm, name a `serve` script launching `$AIRNESS_APPLICATION_ARTIFACT` on `$PORT`, start
-  the database and other services through `airness.testWrapper` with fixture data of its own, and add
+  the database and other services through an `airness.testWrapper` written with `withServices` from
+  `@airness/node/services`, with fixture data of its own, and add
   `tests/e2e/**/*.e2e.spec.ts` specifications that sign in as each representative role and call
   `expectSweptPage(page)` on the pages the anonymous crawl cannot reach. Keep the existing Selenium tests; they
   remain project tests beside the automatic sweep.
