@@ -43,6 +43,17 @@ export const SECURITY_OVERRIDES: readonly SecurityOverride[] = [
       addedOn: '2026-10-31',
     }),
   ),
+  {
+    parent: '@typescript-eslint/typescript-estree@8.72.1',
+    dependency: 'minimatch',
+    version: '11.0.3',
+    advisories: ['GHSA-g3hv-75wg-m249'],
+    reason:
+      'The patch release a consumer resolves for the ranged typescript-eslint dependencies of the lint plugins ' +
+      'still requests version 10, beside the 8.72.0 the harness pins; version 11 bounds the globstar expansion ' +
+      'and retains the Minimatch class, match and minimatch calls it uses.',
+    addedOn: '2026-11-01',
+  },
 ]
 
 /** The exact pnpm selector for the edge this approval covers. */

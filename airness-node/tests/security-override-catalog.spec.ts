@@ -25,6 +25,17 @@ describe('the installed security-override catalogue', () => {
     expect(securityOverrideCatalog([layer([APPROVAL])])).toEqual([...SECURITY_OVERRIDES, APPROVAL])
   })
 
+  it('approves the patched minimatch under every typescript-estree release a consumer resolves', () => {
+    const parents: readonly string[] = SECURITY_OVERRIDES.filter(
+      (approval: SecurityOverride): boolean =>
+        approval.dependency === 'minimatch' && approval.parent.startsWith('@typescript-eslint/typescript-estree@'),
+    ).map((approval: SecurityOverride): string => approval.parent)
+    expect(parents).toEqual([
+      '@typescript-eslint/typescript-estree@8.72.0',
+      '@typescript-eslint/typescript-estree@8.72.1',
+    ])
+  })
+
   it('refuses malformed layer policy rather than silently granting an exception', () => {
     expect(() => securityOverrideCatalog([layer({})])).toThrow('must be an array')
     for (const entry of [
