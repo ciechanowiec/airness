@@ -5,6 +5,11 @@ import { run } from './exec.js'
 import { guardRun, isRunning } from './services-guard.js'
 
 const ARGUMENT_OFFSET: number = 2
+// A stop is meant for the run, not for what removes the run's services once it is gone: the guard ends by
+// itself once its work is done.
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+  process.on(signal, (): void => undefined)
+}
 const [pidArgument = '', prefix = '']: readonly (string | undefined)[] = process.argv.slice(ARGUMENT_OFFSET)
 const pid: number = Number(pidArgument)
 if (!Number.isSafeInteger(pid) || pid <= 0 || prefix.length === 0) {

@@ -5,6 +5,13 @@ import path from 'node:path'
 import { createInterface } from 'node:readline'
 import { PassThrough, type Readable } from 'node:stream'
 import { text } from 'node:stream/consumers'
+import {
+  type ForwardedStops,
+  forwardStops,
+  type ProcessRow,
+  readProcessTable,
+  type StopWiring,
+} from './process-tree.js'
 
 /** The outcome of one gate. */
 export interface GateResult {
@@ -189,6 +196,48 @@ export const run = (command: string, commandArguments: readonly string[], option
   }
 }
 
+const STOP_SIGNALS: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
+
+/** The machine itself, as a streamed command's tree is stopped on it. */
+export const SYSTEM_STOPS: StopWiring = {
+  machine: {
+    table: (): readonly ProcessRow[] =>
+      readProcessTable(
+        (command: string, commandArguments: readonly string[]): RunResult =>
+          run(command, commandArguments, { cwd: process.cwd() }),
+      ),
+    signal: (pid: number, signal: NodeJS.Signals): void => {
+      try {
+        process.kill(pid, signal)
+      } catch {
+        // A process of the tree that ended before the signal reached it needs no signal.
+      }
+    },
+    pause: async (milliseconds: number): Promise<void> => {
+      await new Promise<void>((resolve): void => {
+        setTimeout(resolve, milliseconds)
+      })
+    },
+    now: (): number => performance.now(),
+  },
+  subscribe: (handler: (signal: NodeJS.Signals) => void): (() => void) => {
+    for (const signal of STOP_SIGNALS) {
+      process.on(signal, handler)
+    }
+    return (): void => {
+      for (const signal of STOP_SIGNALS) {
+        process.off(signal, handler)
+      }
+    }
+  },
+  raise: (signal: NodeJS.Signals): void => {
+    process.kill(process.pid, signal)
+  },
+  report: (line: string): void => {
+    console.error(line)
+  },
+}
+
 /** A captured process that also publishes progress lines. */
 export interface StreamingOptions extends RunOptions {
   readonly onLine: (line: string) => void
@@ -207,16 +256,21 @@ const teed = async (source: Readable, onLine: (line: string) => void): Promise<s
  * Run a command as `run` does, and hand each line it writes to `onLine` while it runs.
  *
  * For a command that works for a long time and says how far it has got, which a captured run keeps to
- * itself until it ends. There is no deadline: the one caller, the browser suite, bounds itself.
+ * itself until it ends. There is no deadline: the one caller, the browser suite, bounds itself. A stop signal
+ * this process is sent while the command runs goes to every process under the command, which a package
+ * manager would otherwise leave unsignalled in groups of their own, and this process ends with it once they
+ * are gone.
  * @param command the executable.
  * @param commandArguments its arguments.
  * @param options where to run it, its environment, and where each line goes.
+ * @param wiring how stop signals arrive and the machine the command's tree runs on, replaced only by tests.
  * @returns the outcome, with both streams collected as `run` collects them.
  */
 export const runStreaming = async (
   command: string,
   commandArguments: readonly string[],
   options: StreamingOptions,
+  wiring: StopWiring = SYSTEM_STOPS,
 ): Promise<RunResult> =>
   await new Promise<RunResult>((resolve): void => {
     const child: ChildProcessByStdio<null, Readable, Readable> = spawn(command, [...commandArguments], {
@@ -238,11 +292,25 @@ export const runStreaming = async (
         stdout,
       }
     }
+    const stops: ForwardedStops | undefined = child.pid === undefined ? undefined : forwardStops(child.pid, wiring)
     child.once('error', (error: Error): void => {
+      stops?.release()
       resolve(startupFailure(error))
     })
     child.once('close', (code: number | null, signal: NodeJS.Signals | null): void => {
-      resolve(finished(code, signal))
+      // A stop under way keeps listening, so a signal sent again cannot end this process before the rest of
+      // the tree is gone, and ends this process itself once it is.
+      const stopping: Promise<void> | undefined = stops?.stopping()
+      if (stopping === undefined) {
+        stops?.release()
+        resolve(finished(code, signal))
+        return
+      }
+      const stopped = async (): Promise<RunResult> => {
+        await stopping
+        return await finished(code, signal)
+      }
+      resolve(stopped())
     })
   })
 

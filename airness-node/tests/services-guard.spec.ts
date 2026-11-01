@@ -13,6 +13,7 @@ import {
   isRunning,
   removeByPrefix,
 } from '@/services-guard.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
 
 const answered = (stdout: string = '', code: number = 0): RunResult => ({ code, output: stdout, stdout })
 
@@ -137,33 +138,44 @@ const waitFor = async (file: string): Promise<void> => {
   }
 }
 
-describe('the guard process', () => {
-  it('runs in a process group of its own, with the process it watches and the prefix', async () => {
+describe('the guard process', PROCESS_TIME, () => {
+  it('runs outside the process tree and group of its wrapper, with the process it watches and the prefix', async () => {
     const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-guard-'))
     const script: string = path.join(directory, 'guard.mjs')
     const report: string = path.join(directory, 'report.json')
-    // The stand-in guard reports what it was given and whether its group is its parent's, the test runner's.
+    // The stand-in guard waits for the shell that started it to leave it behind, and reports what it was given
+    // and where it runs.
     writeFileSync(
       script,
       [
         "import { execFileSync } from 'node:child_process'",
         "import { writeFileSync } from 'node:fs'",
-        "const group = (pid) => execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim()",
-        `writeFileSync(${JSON.stringify(report)}, JSON.stringify({`,
-        '  argv: process.argv.slice(2),',
-        '  separate: group(process.pid) !== group(process.ppid),',
-        '}))',
+        "const field = (name, pid) => execFileSync('ps', ['-o', name + '=', '-p', String(pid)], { encoding: 'utf8' }).trim()",
+        "const underShell = () => field('comm', process.ppid).endsWith('sh')",
+        'const deadline = Date.now() + 5000',
+        'const report = () => {',
+        '  if (underShell() && Date.now() < deadline) {',
+        '    setTimeout(report, 20)',
+        '    return',
+        '  }',
+        `  writeFileSync(${JSON.stringify(report)}, JSON.stringify({`,
+        '    argv: process.argv.slice(2),',
+        `    separate: field('pgid', process.pid) !== field('pgid', ${String(process.pid)}),`,
+        `    leftBehind: !underShell() && process.ppid !== ${String(process.pid)},`,
+        '  }))',
+        '}',
+        'setTimeout(report, 20)',
       ].join('\n'),
     )
     startGuard('teron-0a1b', { script })
     await waitFor(report)
     const written: unknown = JSON.parse(readFileSync(report, 'utf8'))
-    expect(written).toEqual({ argv: [String(process.pid), 'teron-0a1b'], separate: true })
+    expect(written).toEqual({ argv: [String(process.pid), 'teron-0a1b'], separate: true, leftBehind: true })
   })
 
   it('says so when it cannot be started, leaving the removal to the wrapper', async () => {
     const complaint: string = await new Promise<string>((resolve): void => {
-      startGuard('teron-0a1b', { command: '/nonexistent/airness-guard', script: 'guard.js', complain: resolve })
+      startGuard('teron-0a1b', { shell: '/nonexistent/airness-shell', script: 'guard.js', complain: resolve })
     })
     expect(complaint).toContain('the guard of teron-0a1b could not be started')
   })
