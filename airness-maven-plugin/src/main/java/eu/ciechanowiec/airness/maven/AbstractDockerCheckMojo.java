@@ -57,15 +57,16 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
     abstract boolean findingsExit(int exit);
 
     /**
-     * Host directories besides the repository that the check mounts read-only and needs populated.
+     * The container runs this check needs to succeed before it starts, after the repository mount was read.
      *
-     * <p>Each is read inside the image before the check starts, so that a mount the host does not serve
-     * fails with its path rather than as a check that runs on nothing.
+     * <p>Each runs in the check's own image. A directory mounted besides the repository is read there, so
+     * a mount the host does not serve fails with its path rather than as a check that runs on nothing, and
+     * a check whose tool can find nothing in a readable mount proves first that it finds what it will read.
      *
-     * @return the directories, none for a check that reads only the repository
-     * @throws MojoExecutionException when a directory cannot be resolved on the host
+     * @return the probes, none for a check that reads only the repository
+     * @throws MojoExecutionException when a probe cannot be built from the host
      */
-    List<Path> mountedInputs() throws MojoExecutionException {
+    List<MountProbe.Probe> probes() throws MojoExecutionException {
         return List.of();
     }
 
@@ -103,8 +104,8 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
         this.requireReadable(
             MountProbe.repositoryCommand(root, this.image()), root, MountProbe.unreadableRepository(root)
         );
-        for (Path input : this.mountedInputs()) {
-            this.requireReadable(MountProbe.inputCommand(input, this.image()), input, MountProbe.emptyInput(input));
+        for (MountProbe.Probe probe : this.probes()) {
+            this.requireReadable(probe.command(), probe.mount(), probe.unreadable());
         }
         int exit = this.runCheck();
         if (exit != 0) {

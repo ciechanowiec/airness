@@ -8,6 +8,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -19,6 +21,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Git selects the present committable working files before copying, including tracked files that
  * match ignore patterns and ordinary untracked work. Ignored output is never traversed by the copy.
+ *
+ * <p>A worktree made by {@code git worktree add} keeps its history in the main clone, so the container
+ * mounts that clone's Git directories beside it and the copy becomes a standalone repository at the
+ * worktree's commit, which the scan reads as it reads a clone.
  */
 @Mojo(name = "qodana", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class QodanaMojo extends AbstractDockerCheckMojo {
@@ -44,31 +50,39 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
         Path roots = output.resolve("trusted-roots.pem");
         this.trustedRoots(roots);
         QodanaPaths.Environment environment = new QodanaPaths.Environment(roots, this.localRepository());
-        return dockerCommand(new QodanaPaths(root, output, profile, environment), this.image());
+        return dockerCommand(
+            new QodanaPaths(root, output, profile, environment, QodanaSnapshot.volumes(root)), this.image()
+        );
     }
 
     static List<String> dockerCommand(QodanaPaths paths, String image) {
-        return List.of(
-            "docker", "run", "--rm",
+        String linked = paths.metadata().isEmpty() ? "" : " " + QodanaSnapshot.OWN + " " + QodanaSnapshot.COMMON;
+        List<String> mounts = List.of(
             "-v", paths.root() + ":/opt/project:ro",
             "-v", paths.output() + ":/data/results",
             "-v", paths.profile() + ":/opt/inspection-profile.xml:ro",
             "-v", paths.roots() + ":/opt/hostca.pem:ro",
-            "-v", paths.localRepository() + ":/opt/maven-repository:ro",
-            "--entrypoint", "/bin/sh", image, "-c",
-            "set -- /opt/project /data/project /data/results/source-files; "
-                + QodanaSnapshot.SCRIPT
-                + "mkdir -p /data/cache/.m2; "
-                + "cp -as /opt/maven-repository/. /data/cache/.m2/; "
-                + "find /data/cache/.m2 -type l \\( "
-                + "-name _remote.repositories -o -name resolver-status.properties "
-                + "-o -name '*.lastUpdated' -o -name 'maven-metadata*.xml' "
-                + "\\) -delete; "
-                + "bundle=\"$(readlink -f /etc/ssl/certs/ca-certificates.crt)\"; "
-                + "[ -s /opt/hostca.pem ] && cat /opt/hostca.pem >> \"$bundle\"; "
-                + "exec /opt/idea/bin/qodana scan --disable-update-checks "
-                + "--profile-path /opt/inspection-profile.xml"
+            "-v", paths.localRepository() + ":/opt/maven-repository:ro"
         );
+        return Stream.of(
+            Stream.of("docker", "run", "--rm"), mounts.stream(), paths.metadata().stream(),
+            Stream.of("--entrypoint", "/bin/sh", image, "-c", script(linked))
+        ).flatMap(Function.identity()).toList();
+    }
+
+    private static String script(String linked) {
+        return "set -- /opt/project /data/project /data/results/source-files" + linked + "; "
+            + QodanaSnapshot.SCRIPT
+            + "mkdir -p /data/cache/.m2; "
+            + "cp -as /opt/maven-repository/. /data/cache/.m2/; "
+            + "find /data/cache/.m2 -type l \\( "
+            + "-name _remote.repositories -o -name resolver-status.properties "
+            + "-o -name '*.lastUpdated' -o -name 'maven-metadata*.xml' "
+            + "\\) -delete; "
+            + "bundle=\"$(readlink -f /etc/ssl/certs/ca-certificates.crt)\"; "
+            + "[ -s /opt/hostca.pem ] && cat /opt/hostca.pem >> \"$bundle\"; "
+            + "exec /opt/idea/bin/qodana scan --disable-update-checks "
+            + "--profile-path /opt/inspection-profile.xml";
     }
 
     /**
@@ -77,11 +91,15 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
      * thousand instead of the scan failing.
      */
     @Override
-    List<Path> mountedInputs() throws MojoExecutionException {
+    List<MountProbe.Probe> probes() throws MojoExecutionException {
         try {
-            return List.of(this.localRepository());
+            return Stream.concat(
+                Stream.of(this.localRepository()), QodanaSnapshot.linked(this.repositoryRoot()).stream()
+            ).map(input -> MountProbe.input(input, this.image())).toList();
         } catch (IOException exception) {
-            throw new MojoExecutionException("Could not resolve the local Maven repository", exception);
+            throw new MojoExecutionException(
+                "Could not resolve the local Maven repository or the Git directories of the repository", exception
+            );
         }
     }
 

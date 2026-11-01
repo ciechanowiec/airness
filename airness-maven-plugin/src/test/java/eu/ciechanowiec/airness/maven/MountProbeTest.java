@@ -78,6 +78,122 @@ class MountProbeTest {
         assertTrue(message.contains("colima.yaml"), "the shared-folder setting that exposes it");
     }
 
+    @Test
+    @SneakyThrows
+    void readsTheHistoryOverTheSameMountsTheCheckTakes(@TempDir Path directory) {
+        HistoryMount mount = HistoryMount.of(directory);
+        List<String> command = MountProbe.historyCommand(mount, IMAGE, true);
+        int entrypoint = command.indexOf("--entrypoint");
+
+        assertEquals(mount.volumes(), command.subList(3, entrypoint), "the mounts the scan itself takes");
+        assertEquals(IMAGE, command.get(entrypoint + 2), "the Git of the image the check itself runs");
+        assertEquals(List.of("/repo", "commits"), command.subList(command.size() - 2, command.size()));
+    }
+
+    @Test
+    @SneakyThrows
+    void tellsTheProbeWhenHeadNamesNoCommitYet(@TempDir Path directory) {
+        List<String> command = MountProbe.historyCommand(HistoryMount.of(directory), IMAGE, false);
+
+        assertEquals("unborn", command.getLast(), "an unborn HEAD is only asked to be found");
+    }
+
+    @Test
+    void readsAMountedInputAndNamesItWhenItArrivesEmpty(@TempDir Path directory) {
+        MountProbe.Probe probe = MountProbe.input(directory, IMAGE);
+
+        assertEquals(MountProbe.inputCommand(directory, IMAGE), probe.command(), "the input probe of the image");
+        assertEquals(directory, probe.mount(), "the directory a failed start names");
+        assertEquals(MountProbe.emptyInput(directory), probe.unreadable(), "the fix for an unshared folder");
+    }
+
+    @Test
+    void keepsTheCommandAProbeWasGiven(@TempDir Path directory) {
+        List<String> command = new ArrayList<>(List.of("docker", "run"));
+        MountProbe.Probe probe = new MountProbe.Probe(command, directory, "unreadable");
+        command.add("changed");
+
+        assertEquals(List.of("docker", "run"), probe.command(), "the probe runs what it was built with");
+    }
+
+    @Test
+    @SneakyThrows
+    void acceptsAHistoryGitCanRead(@TempDir Path directory) {
+        Path root = committed(directory.resolve("clone"));
+
+        assertEquals(0, historyExit(root, "commits"), "a clone whose commits Git reads");
+    }
+
+    @Test
+    @SneakyThrows
+    void acceptsAnUnbornHeadAndRejectsAHistoryThatShouldBeThere(@TempDir Path directory) {
+        Path root = Files.createDirectory(directory.resolve("unborn"));
+        git(root, "init", "--quiet");
+
+        assertEquals(0, historyExit(root, "unborn"), "no commit yet is nothing to scan, not a failure");
+        assertTrue(historyExit(root, "commits") != 0, "a HEAD the host saw a commit behind must resolve");
+    }
+
+    @Test
+    @SneakyThrows
+    void rejectsAWorktreeWhoseCloneCannotBeReached(@TempDir Path directory) {
+        Path clone = committed(directory.resolve("clone"));
+        Path worktree = directory.resolve("worktree");
+        git(clone, "worktree", "add", "--quiet", "--detach", worktree.toString());
+        Files.move(clone, directory.resolve("unmounted"));
+
+        assertTrue(historyExit(worktree, "commits") != 0, "a pointer to nowhere is no history");
+    }
+
+    @Test
+    void namesTheRepositoryAndTheWorktreeWhenItsHistoryIsUnreadable(@TempDir Path directory) {
+        String message = MountProbe.unreadableHistory(directory);
+
+        assertTrue(message.contains(directory.toString()), "the repository whose history was not read");
+        assertTrue(message.contains("clean history"), "what the scan would have reported");
+        assertTrue(message.contains("git worktree add"), "the layout that needs the clone mounted beside it");
+    }
+
+    /**
+     * Runs the history probe on the host against a working tree, as the container runs it against the mount.
+     */
+    @SneakyThrows
+    private static int historyExit(Path workingTree, String head) {
+        List<String> command = MountProbe.historyCommand(new HistoryMount(List.of(), "/repo", List.of()), IMAGE, true);
+        List<String> local = new ArrayList<>(List.of("sh"));
+        local.addAll(command.subList(command.indexOf("-c"), command.size() - 2));
+        local.addAll(List.of(workingTree.toString(), head));
+        return new ProcessBuilder(local)
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+            .waitFor();
+    }
+
+    @SneakyThrows
+    private static Path committed(Path root) {
+        Files.createDirectories(root);
+        git(root, "init", "--quiet");
+        Files.writeString(root.resolve("file.txt"), "content\n");
+        git(root, "add", ".");
+        git(
+            root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
+            "commit", "--quiet", "--no-verify", "--message", "test: record a fixture"
+        );
+        return root;
+    }
+
+    @SneakyThrows
+    private static void git(Path root, String... arguments) {
+        List<String> command = new ArrayList<>(List.of("git", "-C", root.toString()));
+        command.addAll(List.of(arguments));
+        assertEquals(
+            0, new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start().waitFor(),
+            () -> String.join(" ", command)
+        );
+    }
+
     /**
      * Runs the probe the container would run, on the host, against the directory the mount would show.
      */

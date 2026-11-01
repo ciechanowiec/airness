@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Host paths mounted into the Qodana container.
@@ -9,10 +10,15 @@ import java.nio.file.Path;
  * @param output      Qodana output directory
  * @param profile     extracted inspection profile
  * @param environment host trust roots and resolved Maven repository
+ * @param metadata    the mounts of a linked worktree's Git directories, none for a clone
  */
 record QodanaPaths(
-    Path root, Path output, Path profile, Environment environment
+    Path root, Path output, Path profile, Environment environment, List<String> metadata
 ) {
+
+    QodanaPaths {
+        metadata = List.copyOf(metadata);
+    }
 
     Path roots() {
         return this.environment.roots();

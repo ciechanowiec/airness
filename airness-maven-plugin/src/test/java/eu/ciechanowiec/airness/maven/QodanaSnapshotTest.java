@@ -149,18 +149,54 @@ class QodanaSnapshotTest {
 
     @Test
     @SneakyThrows
-    void rejectsLinkedWorktreesBeforePreparingAnyCopy(@TempDir Path directory) {
+    void copiesALinkedWorktreeAsAStandaloneRepositoryAtItsCommit(@TempDir Path directory) {
         Path root = repository(directory);
-        write(root, TRACKED, "content\n");
+        write(root, TRACKED, "first\n");
         git(root, "add", ".");
-        git(root, "commit", "--quiet", "--message", "test: record a standalone repository fixture");
-        Path worktree = directory.resolve("worktree");
+        git(root, "commit", "--quiet", "--message", "test: record the first commit");
+        Path worktree = root.resolveSibling("worktree");
         git(root, "worktree", "add", "--quiet", "--detach", worktree.toString());
+        write(root, TRACKED, "the main tree moved on\n");
+        git(root, "commit", "--quiet", "--all", "--message", "test: move the main tree past the worktree");
+        write(worktree, TRACKED, "staged in the worktree\n");
+        git(worktree, "add", TRACKED);
+        write(worktree, TRACKED, "working bytes of the worktree\n");
+        Path manifest = QodanaSnapshot.prepare(worktree, directory.resolve(OUTPUT));
+        List<Path> linked = QodanaSnapshot.linked(worktree);
+
+        assertEquals(0, copy(worktree, manifest, linked.getFirst().toString(), linked.getLast().toString()));
+
+        Path destination = root.resolveSibling("copy");
+        assertTrue(Files.isDirectory(destination.resolve(".git")), "the copy is a clone, not a pointer");
+        assertFalse(Files.exists(destination.resolve(".git/worktrees")), "no other worktree comes with it");
+        assertEquals("working bytes of the worktree\n", Files.readString(destination.resolve(TRACKED)));
+        Path output = root.resolveSibling("git.txt");
+        git(destination, "rev-parse", "HEAD");
+        String copied = Files.readString(output);
+        git(worktree, "rev-parse", "HEAD");
+        assertEquals(Files.readString(output), copied, "the copy stands at the worktree's commit");
+        git(destination, "show", ":" + TRACKED);
+        assertEquals("staged in the worktree\n", Files.readString(output), "and holds its index");
+        git(root, "status", "--porcelain");
+        assertEquals("", Files.readString(output), "the main clone is left as it was");
+    }
+
+    @Test
+    @SneakyThrows
+    void namesARepositoryWithoutGitMetadataBeforePreparingAnyCopy(@TempDir Path directory) {
+        Path root = Files.createDirectory(directory.resolve("source"));
         IOException thrown = assertThrows(
-            IOException.class, () -> QodanaSnapshot.prepare(worktree, directory.resolve(OUTPUT))
+            IOException.class, () -> QodanaSnapshot.prepare(root, directory.resolve(OUTPUT))
         );
-        assertTrue(thrown.toString().contains("standalone clone"));
+        assertTrue(thrown.toString().contains(root.toString()), "the directory that has no history");
         assertFalse(Files.exists(directory.resolve(OUTPUT)));
+    }
+
+    @Test
+    @SneakyThrows
+    void mountsNoGitDirectoryBesidesTheTreeOfAClone(@TempDir Path directory) {
+        Path root = repository(directory);
+        assertEquals(List.of(), QodanaSnapshot.volumes(root), "a clone carries its .git in the tree");
     }
 
     @SneakyThrows
@@ -200,14 +236,15 @@ class QodanaSnapshotTest {
     }
 
     @SneakyThrows
-    private static int copy(Path root, Path manifest) {
+    private static int copy(Path root, Path manifest, String... linked) {
         Path directory = root.resolve("..").normalize();
-        return ScannerCommand.execute(
-            List.of(
+        List<String> command = Stream.concat(
+            Stream.of(
                 "sh", "-c", QodanaSnapshot.SCRIPT + "touch \"$destination/../continued\"\n", "qodana-snapshot",
                 root.toString(), directory.resolve("copy").toString(), manifest.toString()
             ),
-            directory.resolve("copy.txt")
-        );
+            Stream.of(linked)
+        ).toList();
+        return ScannerCommand.execute(command, directory.resolve("copy.txt"));
     }
 }
