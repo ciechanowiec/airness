@@ -9,7 +9,7 @@ run_qodana_profile() {
     qodana_sarif="${qodana_consumer}/target/qodana/qodana.sarif.json"
     if [ ! -f "${qodana_sarif}" ]; then
         fail 'qodana: the run left no report to read'
-        sed -n '1,220p' "${qodana_log}" >&2
+        excerpt_log "${qodana_log}" >&2
     else
         verify_early_qodana_findings "${qodana_sarif}"
         for dropped in InnerClassOnInterface ClassWithTooManyDependencies Singleton MagicNumber SwitchStatement; do
@@ -32,7 +32,7 @@ run_qodana_profile() {
             pass 'qodana: ClassCoupling still reports an over-coupled class'
         else
             fail 'qodana: ClassCoupling stopped reporting the over-coupled class'
-            sed -n '1,220p' "${qodana_log}" >&2
+            excerpt_log "${qodana_log}" >&2
         fi
         for spared in CommandRunner JdkHeavy; do
             if grep -q "'${spared}' is overly coupled" "${qodana_sarif}"; then
@@ -45,7 +45,7 @@ run_qodana_profile() {
             pass 'qodana: FieldCount still reports a class carrying too much state of its own'
         else
             fail 'qodana: FieldCount stopped reporting a class carrying too much state of its own'
-            sed -n '1,220p' "${qodana_log}" >&2
+            excerpt_log "${qodana_log}" >&2
         fi
         if grep -q "'Soundings' has too many fields" "${qodana_sarif}"; then
             fail 'qodana: FieldCount counted the constants a class holds as state of its own'

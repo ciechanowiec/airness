@@ -1104,7 +1104,7 @@ if grep -q 'Started Application' "${spring_run}"; then
 else
     record_timing "${spring_seconds}" spring spring_application 1 application java -jar "${spring_jar}"
     fail 'spring: the repackaged archive did not start'
-    sed -n '1,220p' "${spring_run}" >&2
+    excerpt_log "${spring_run}" >&2
 fi
 
 }
