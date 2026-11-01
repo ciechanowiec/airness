@@ -443,8 +443,9 @@ PY
 }
 
 # The disposable services a test wrapper starts, through the installed @airness/node: a command that reaches a
-# PostgreSQL of its own run on a port Docker chose, and a run stopped by SIGTERM, whose containers are removed
-# all the same. The wrapper and its probe live in the scratch directory, outside any governed tree.
+# PostgreSQL of its own run on a port Docker chose, a run stopped by SIGTERM, whose containers are removed
+# all the same, and a run killed outright, whose guard removes them. The wrapper and its probe live in the
+# scratch directory, outside any governed tree.
 run_service_wrapper_cases() {
     service_wrapper="${scratch}/service-wrapper.mjs"
     service_probe="${scratch}/service-probe.mjs"
@@ -523,5 +524,32 @@ JS
     else
         fail 'services: a stopped run removes the containers it started' \
             "$(docker ps --all --filter name=airness-it-services-)"
+    fi
+
+    # A wrapper ended by SIGKILL removes nothing itself, as one ended with the process group a package manager
+    # runs it in does not, so it is the run's guard that removes the container, within moments and without
+    # waiting for a later run. The probe the killed wrapper started outlives it and is ended here.
+    rm -f "${service_holding}"
+    AIRNESS_IT_FIXTURE="${java_web}" "${node_home}/bin/node" "${service_wrapper}" -- \
+        "${node_home}/bin/node" "${service_probe}" "${service_holding}" > "${service_log}" 2>&1 &
+    service_pid=$!
+    service_waited=0
+    while [ ! -f "${service_holding}" ] && [ "${service_waited}" -lt 180 ] && kill -0 "${service_pid}" 2> /dev/null; do
+        sleep 1
+        service_waited=$((service_waited + 1))
+    done
+    kill -KILL "${service_pid}" 2> /dev/null || true
+    wait "${service_pid}" 2> /dev/null || true
+    service_waited=0
+    while [ -n "$(docker ps --all --quiet --filter name=airness-it-services-)" ] && [ "${service_waited}" -lt 20 ]; do
+        sleep 1
+        service_waited=$((service_waited + 1))
+    done
+    pkill -f "${service_probe}" 2> /dev/null || true
+    if [ -f "${service_holding}" ] && [ -z "$(docker ps --all --quiet --filter name=airness-it-services-)" ]; then
+        pass 'services: the guard removes the containers of a run killed outright'
+    else
+        fail 'services: the guard removes the containers of a run killed outright' \
+            "$(docker ps --all --filter name=airness-it-services-) $(tail -n 20 "${service_log}")"
     fi
 }

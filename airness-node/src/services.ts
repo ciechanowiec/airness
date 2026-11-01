@@ -3,13 +3,16 @@
 // runs share a name, a port or the data of a stack somebody runs for real, so verifications of several
 // projects, or of two worktrees of one, can run on one machine at the same time.
 //
-// Each container records the run that owns it, as the pinned browser server does, so a run killed outright
-// leaves containers the next run removes. A run that is asked to stop, by SIGINT, SIGTERM or SIGHUP, passes
-// the signal on to the command and removes its containers once the command has exited. Everything a run
-// creates carries the run's own random prefix, and the removal finds it by that prefix, so a step that failed
-// halfway leaves nothing the removal does not see.
+// A run that is asked to stop, by SIGINT, SIGTERM or SIGHUP, passes the signal on to the command and removes
+// its containers once the command has exited. A wrapper ended outright, or ended with the process group a
+// package manager runs it in, cannot, so before it starts anything each run also starts a guard of its own,
+// outside every group the wrapper belongs to, which removes them once the wrapper is gone. Each container
+// also records the run that owns it, as the pinned browser server does, so a machine that went down with
+// both leaves containers the next run removes. Everything a run creates carries the run's own random prefix,
+// and every removal finds it by that prefix, so a step that failed halfway leaves nothing a removal misses.
 import { type ChildProcess, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { fileURLToPath } from 'node:url'
 import { type RunResult, run } from './exec.js'
 import {
   type ContainerOwner,
@@ -18,6 +21,7 @@ import {
   type OwnershipFailure,
   ownerLabelArguments,
 } from './owned-containers.js'
+import { guardArguments, removeByPrefix } from './services-guard.js'
 
 /** One container a run needs. */
 export interface ServiceContainer {
@@ -97,6 +101,8 @@ export interface ServicesRuntime {
   readonly pause: (milliseconds: number) => Promise<void>
   /** Subscribe to the stop signals; the returned function unsubscribes. */
   readonly onSignal: (handler: (signal: NodeJS.Signals) => void) => () => void
+  /** Start the guard that removes what the run with this prefix started once this process is gone. */
+  readonly guard: (prefix: string) => void
   readonly report: (line: string) => void
 }
 
@@ -137,6 +143,42 @@ const startCommand = async (launch: CommandLaunch): Promise<number> =>
     })
   })
 
+/** Where a guard comes from and where it says that it could not start, replaceable only by tests. */
+export interface GuardStart {
+  /** The guard's entry point. */
+  readonly script?: string
+  /** The Node executable that runs it. */
+  readonly command?: string
+  /** Where a guard that could not be started is reported. */
+  readonly complain?: (line: string) => void
+}
+
+/**
+ * Start the guard of a run as a process of its own: detached, so it leads a session of its own that no
+ * terminal signal and no end of the wrapper's process group reaches, and writing nowhere, so no output pipe
+ * that closes with the wrapper can end it. The wrapper does not wait for it.
+ * @param prefix the run's prefix.
+ * @param start where the guard comes from, the harness's own entry point run by this Node unless a test says.
+ */
+export const startGuard = (prefix: string, start: GuardStart = {}): void => {
+  const script: string = start.script ?? fileURLToPath(import.meta.resolve('#harness/services-guard-main'))
+  const guard: ChildProcess = spawn(
+    start.command ?? process.execPath,
+    [...guardArguments(script, process.pid, prefix)],
+    {
+      detached: true,
+      stdio: 'ignore',
+      cwd: process.cwd(),
+    },
+  )
+  guard.once('error', (error: Error): void => {
+    ;(start.complain ?? console.error)(
+      `${PREFIX} the guard of ${prefix} could not be started, so only this process removes it: ${error.message}`,
+    )
+  })
+  guard.unref()
+}
+
 /** The machine itself. */
 export const SYSTEM_RUNTIME: ServicesRuntime = {
   docker: (commandArguments: readonly string[]): RunResult => run('docker', commandArguments, { cwd: process.cwd() }),
@@ -156,6 +198,9 @@ export const SYSTEM_RUNTIME: ServicesRuntime = {
         process.off(signal, handler)
       }
     }
+  },
+  guard: (prefix: string): void => {
+    startGuard(prefix)
   },
   report: (line: string): void => {
     console.info(line)
@@ -261,25 +306,8 @@ const awaitReady = async (runtime: ServicesRuntime, awaited: Awaited): Promise<v
 // run created is removed. A failed removal is reported and never thrown: the command's verdict is what the run
 // answers with.
 const removeRun = (runtime: ServicesRuntime, prefix: string): void => {
-  const containers: readonly string[] = runtime
-    .docker(['ps', '--all', '--quiet', `--filter=name=${prefix}-`])
-    .stdout.split('\n')
-    .map((line: string): string => line.trim())
-    .filter((line: string): boolean => line.length > 0)
-  const networks: readonly string[] = runtime
-    .docker(['network', 'ls', '--quiet', `--filter=name=${prefix}`])
-    .stdout.split('\n')
-    .map((line: string): string => line.trim())
-    .filter((line: string): boolean => line.length > 0)
-  const removals: readonly (readonly string[])[] = [
-    ...(containers.length > 0 ? [['rm', '--force', ...containers]] : []),
-    ...networks.map((network: string): readonly string[] => ['network', 'rm', network]),
-  ]
-  for (const removal of removals) {
-    const result: RunResult = runtime.docker(removal)
-    if (result.code !== 0) {
-      console.error(`${PREFIX} docker ${removal.join(' ')} failed: ${result.output.trim()}`)
-    }
+  for (const failure of removeByPrefix(runtime.docker, prefix)) {
+    console.error(`${PREFIX} ${failure}`)
   }
   runtime.report(`${PREFIX} Removed what ${prefix} started.`)
 }
@@ -408,6 +436,7 @@ export const withServices = async (
     owner: claim,
     network: plan.network === true ? prefix : undefined,
   }
+  runtime.guard(prefix)
   const stopping: AbortController = new AbortController()
   const unsubscribe: () => void = runtime.onSignal((signal: NodeJS.Signals): void => {
     stopping.abort(signal)
