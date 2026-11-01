@@ -238,6 +238,10 @@
         "reason": "the browser process orchestration runs only in the real browser integration contracts; its scope, precondition, clock and container policies have unit coverage"
       },
       {
+        "pattern": "src/services-guard-main.ts",
+        "reason": "the services guard's entry point, which runs only as a detached process of its own; the decisions it makes are measured in services-guard.ts and the integration suite proves a killed wrapper's containers removed"
+      },
+      {
         "pattern": "src/app-child.ts",
         "reason": "the pinned child entry point executes in a separate process; the real wrapper contracts prove command execution, child failure and cleanup"
       },

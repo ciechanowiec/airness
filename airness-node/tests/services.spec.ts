@@ -32,6 +32,8 @@ interface Recorded {
   readonly launches: CommandLaunch[]
   readonly handlers: ((signal: NodeJS.Signals) => void)[]
   readonly unsubscribed: boolean[]
+  /** Each guard started, with how many docker calls the run had made by then. */
+  readonly guards: { readonly prefix: string; readonly dockerCalls: number }[]
 }
 
 interface Fake {
@@ -78,6 +80,7 @@ const fake = (options: FakeOptions = {}): Fake => {
     launches: [],
     handlers: [],
     unsubscribed: [],
+    guards: [],
   }
   const runtime: ServicesRuntime = {
     docker: (commandArguments: readonly string[]): RunResult => {
@@ -101,6 +104,9 @@ const fake = (options: FakeOptions = {}): Fake => {
       return (): void => {
         recorded.unsubscribed.push(true)
       }
+    },
+    guard: (prefix: string): void => {
+      recorded.guards.push({ prefix, dockerCalls: recorded.docker.length })
     },
     report: (line: string): void => {
       expect(line).toContain('[services]')
@@ -239,6 +245,17 @@ describe('a run against disposable services', () => {
     expect(removal).toHaveLength(4)
     expect(removal?.slice(2).every((name: string): boolean => name.startsWith('teron-'))).toBe(true)
     expect(recorded.unsubscribed).toEqual([true])
+  })
+
+  it('starts a guard for its prefix before it starts anything', async () => {
+    const { runtime, recorded }: Fake = fake()
+    expect(await withServices(PLAN, ARGV, runtime)).toBe(0)
+    const started: string =
+      recorded.docker
+        .flat()
+        .find((part: string): boolean => part.startsWith('--name='))
+        ?.slice('--name='.length) ?? ''
+    expect(recorded.guards).toEqual([{ prefix: started.slice(0, -'-db'.length), dockerCalls: 0 }])
   })
 
   it('gives two runs of one plan different names', async () => {
