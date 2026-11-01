@@ -45,7 +45,7 @@ importers:
 packages:
 
   '@airness/node@1.0.9-SNAPSHOT':
-    resolution: {integrity: sha512-5x505+24m7bm8TfMpiY/mrKsAUay7J4m5B6TqWwUWtQXOSh9BNE8XCHKV20UZfnX26Ud1BE6mbksiVhwZ+2TWQ==}
+    resolution: {integrity: sha512-SboSUz9DlCelznHdmvZRirZmjv7FQDLjZnfqTQ0+P7LHG1XgAX3ELXMgtpkoeE04bbpXtMEDv7V1iy6byCN35A==}
     engines: {node: '>=26'}
     hasBin: true
 
