@@ -21,7 +21,9 @@ import { presentWorkingTreeFiles } from './working-tree.js'
 const JSON_INDENT: number = 2
 
 // The harness itself reaches these by name, through the manifest resolution the gates share, which knip
-// cannot follow; and it runs its own gates through its link to itself. Only the harness package gets this.
+// cannot follow; and it runs its own gates through its link to itself. It also pins `type-coverage-core`, which
+// nothing imports: `type-coverage` asks for it by a range, and the pin holds that range to the release whose
+// security replacement the harness approved. Only the harness package gets this.
 const RESOLVED_BY_NAME: readonly string[] = [
   HARNESS_PACKAGE,
   '@biomejs/biome',
@@ -33,6 +35,7 @@ const RESOLVED_BY_NAME: readonly string[] = [
   'stylelint-config-standard',
   'stylelint-scss',
   'type-coverage',
+  'type-coverage-core',
 ]
 
 // The entries of a list the shipped configuration holds; a missing or misshapen one holds none.
