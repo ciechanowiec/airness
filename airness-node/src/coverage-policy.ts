@@ -42,7 +42,7 @@ export const coverageIncludes = (sourceRoots: readonly string[]): readonly strin
 // verifies. Route handlers, metadata routes and the error, forbidden and unauthorized boundaries are not driven
 // by any shipped spec, so they stay under the floor like any other logic; so do colocated helpers and
 // components.
-const APP_ENTRY_NAMES: readonly string[] = ['page', 'layout', 'template', 'loading', 'not-found']
+const APP_ENTRY_NAMES: readonly string[] = ['page', 'layout', 'template', 'loading', 'not-found', 'global-not-found']
 
 const NEXT_ENTRY_EXCLUDE: readonly string[] = [
   ...APP_ENTRY_NAMES.flatMap((name: string): readonly string[] => [`src/app/**/${name}.ts`, `src/app/**/${name}.tsx`]),

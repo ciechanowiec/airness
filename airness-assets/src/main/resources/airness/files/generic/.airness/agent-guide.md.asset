@@ -339,6 +339,8 @@ is a finding; inactive subtrees and text deliberately outside a scrollable regio
 Authored Next.js `not-found` boundaries are scanned through their real application layouts, with concrete
 locale and dynamic prefixes taken from discovered routes. The expected top-level document 404 is allowed;
 failed subresources remain findings. A boundary with no resolvable public prefix fails discovery.
+An application with several root layouts answers an address none of them claims with `global-not-found`,
+which is scanned at the root; without it Next.js serves its bare built-in page, and that page is judged.
 
 A route delegated to project specifications needs a completed `expectSweptPage(page)` scan from
 `@airness/node/a11y` in the current run. The helper records evidence only after every required viewport passes
