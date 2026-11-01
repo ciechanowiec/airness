@@ -77,6 +77,11 @@ const probeHitTarget = async (control: Locator): Promise<HitTargetProbe> => {
       pointerEvents: style.getPropertyValue('pointer-events'),
       visibility: style.getPropertyValue('visibility'),
       isInert: element.closest('[inert]') !== null,
+      isOutsidePage:
+        box.bottom <= 0 ||
+        box.right <= 0 ||
+        box.top >= element.ownerDocument.documentElement.clientHeight ||
+        box.left >= element.ownerDocument.documentElement.clientWidth,
     }
   })
 }

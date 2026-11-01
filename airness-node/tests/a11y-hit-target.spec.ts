@@ -10,6 +10,7 @@ const probe = (overrides: Partial<HitTargetProbe>): HitTargetProbe => ({
   pointerEvents: 'auto',
   visibility: 'visible',
   isInert: false,
+  isOutsidePage: false,
   ...overrides,
 })
 
@@ -24,6 +25,16 @@ describe('classifyHitTarget', () => {
     )
     expect(verdict.verdict).toBe('visually-hidden')
     expect(verdict.reason).toContain('no painted pixels')
+  })
+
+  it('calls a skip link parked outside the page visually hidden rather than obscured', () => {
+    const verdict: HitTargetClassification = classifyHitTarget(probe({ ownsCentrePoint: false, isOutsidePage: true }))
+    expect(verdict.verdict).toBe('visually-hidden')
+    expect(verdict.reason).toContain('keyboard pass')
+  })
+
+  it('still calls a control inside the page that something covers obscured', () => {
+    expect(classifyHitTarget(probe({ ownsCentrePoint: false, isOutsidePage: false })).verdict).toBe('obscured')
   })
 
   it('calls the legacy 1px clip-rect pattern visually hidden', () => {

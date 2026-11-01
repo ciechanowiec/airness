@@ -225,7 +225,8 @@ JAVA
     <link rel="stylesheet" th:href="@{/css/site.css}">
 </head>
 <body>
-    <main>
+    <a class="skip-link" href="#content">Skip to the content</a>
+    <main id="content">
         <h1>${heading}</h1>
         ${body}
     </main>
@@ -265,6 +266,23 @@ body {
     background: #fff;
     color: #111827;
     font-family: sans-serif;
+}
+
+.skip-link {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 8px 16px;
+    background: #fff;
+    color: #111827;
+    border: 1px solid #111827;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    outline: 3px solid #1d4ed8;
+    outline-offset: 2px;
+    transform: none;
 }
 
 main {
@@ -336,6 +354,8 @@ JSON
 # the Thymeleaf templates, whose th:href anchors it must leave to the template checks and the sweep.
 # The stylesheet's multi-value transition is laid out as Biome formats it; the Java parent's markup formatter,
 # which the fixture's format run applies, must leave stylesheets to the node project that checks them.
+# Each page opens with a skip link parked above the page until focus brings it in, which a pointer cannot reach
+# at rest and which is not therefore obscured.
 sweep_java_web() {
     run_maven "$1" browser "${java_web}" -Pextended,delta \
         clean prepare-package jar:jar spring-boot:repackage@repackage-application \
