@@ -37,7 +37,8 @@ text = text.replace(
 )
 pom.write_text(text)
 PY
-    mkdir -p "${java_web}/src/main/resources/templates" "${java_web}/src/main/resources/static/css"
+    mkdir -p "${java_web}/src/main/resources/templates" "${java_web}/src/main/resources/static/css" \
+        "${java_web}/src/main/resources/static/img"
     cat > "${java_web}/src/main/java/com/example/Pages.java" <<'JAVA'
 package com.example;
 
@@ -194,6 +195,7 @@ public final class Security {
                     .requestMatchers("/login").permitAll()
                     .requestMatchers("/fragment/row").permitAll()
                     .requestMatchers("/css/site.css").permitAll()
+                    .requestMatchers("/img/mark.svg").permitAll()
                     .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
             ).formLogin(form -> form.loginPage("/login")).headers(
@@ -206,7 +208,8 @@ public final class Security {
 JAVA
     for page in home about hidden account; do
         case "${page}" in
-            home) heading='Home'; body='<ul class="links">
+            home) heading='Home'; body='<img class="mark" src="/img/mark.svg" alt="The mark of the application" width="48" height="48">
+        <ul class="links">
             <li><a th:href="@{/about}">About</a></li>
             <li><a th:href="@{/account}">Account</a></li>
         </ul>
@@ -260,6 +263,9 @@ HTML
     cat > "${java_web}/src/main/resources/templates/row.html" <<'HTML'
 <p>A row the home page asks for</p>
 HTML
+    cat > "${java_web}/src/main/resources/static/img/mark.svg" <<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><title>The mark of the application</title><circle cx="24" cy="24" r="20" fill="#1d4ed8"/></svg>
+SVG
     cat > "${java_web}/src/main/resources/static/css/site.css" <<'CSS'
 body {
     margin: 0;
@@ -356,6 +362,8 @@ JSON
 # which the fixture's format run applies, must leave stylesheets to the node project that checks them.
 # Each page opens with a skip link parked above the page until focus brings it in, which a pointer cannot reach
 # at rest and which is not therefore obscured.
+# The home page draws an image, whose reserved space the layout scan measures without writing a style attribute
+# the page's policy would refuse.
 sweep_java_web() {
     run_maven "$1" browser "${java_web}" -Pextended,delta \
         clean prepare-package jar:jar spring-boot:repackage@repackage-application \
