@@ -3,8 +3,8 @@ import { type ChildProcessByStdio, spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import type { Readable } from 'node:stream'
 import { type Browser, type PinnedServer, startPinnedServer } from '#browser/pinned-server'
-import { browserServerListingArguments, listedBrowserServers } from '#harness/browser-run'
 import { type RunResult, run } from '#harness/exec'
+import { listedContainers, ownedContainerListingArguments } from '#harness/owned-containers'
 
 const READY: string = 'browser-server-ready'
 const ARGUMENT_OFFSET: number = 2
@@ -47,11 +47,11 @@ const stop = async (child: Child, signal: NodeJS.Signals): Promise<void> => {
 }
 
 const hasServer = (child: Child): boolean => {
-  const result: RunResult = run('docker', browserServerListingArguments, { cwd: process.cwd() })
+  const result: RunResult = run('docker', ownedContainerListingArguments, { cwd: process.cwd() })
   if (result.code !== 0) {
     throw new Error(result.output)
   }
-  return listedBrowserServers(result.stdout).some((server): boolean => server.owner?.pid === child.pid)
+  return listedContainers(result.stdout).some((server): boolean => server.owner?.pid === child.pid)
 }
 
 const verifyLifecycle = async (): Promise<void> => {

@@ -1,0 +1,421 @@
+// The disposable services a test wrapper runs one command against: containers of this run's own, published on
+// loopback ports Docker chooses, handed to the command through its environment, and removed afterwards. No two
+// runs share a name, a port or the data of a stack somebody runs for real, so verifications of several
+// projects, or of two worktrees of one, can run on one machine at the same time.
+//
+// Each container records the run that owns it, as the pinned browser server does, so a run killed outright
+// leaves containers the next run removes. A run that is asked to stop, by SIGINT, SIGTERM or SIGHUP, passes
+// the signal on to the command and removes its containers once the command has exited. Everything a run
+// creates carries the run's own random prefix, and the removal finds it by that prefix, so a step that failed
+// halfway leaves nothing the removal does not see.
+import { type ChildProcess, spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { type RunResult, run } from './exec.js'
+import {
+  type ContainerOwner,
+  claimOwnership,
+  isOwnershipFailure,
+  type OwnershipFailure,
+  ownerLabelArguments,
+} from './owned-containers.js'
+
+/** One container a run needs. */
+export interface ServiceContainer {
+  /** The name the plan refers to it by, unique within the plan. */
+  readonly key: string
+  readonly image: string
+  readonly environment?: Readonly<Record<string, string>>
+  /** The container ports published on a loopback port Docker chooses, such as `5432/tcp`. */
+  readonly ports: readonly string[]
+  /** The name other containers on the run's network reach it by. */
+  readonly alias?: string
+  /** Arguments passed after the image, replacing its default command's arguments. */
+  readonly command?: readonly string[]
+  /** A command run inside the container, which succeeds once the service answers. */
+  readonly ready: readonly string[]
+}
+
+/** The running services, as a plan's later steps see them. */
+export interface Services {
+  /**
+   * The loopback port a container port was published on.
+   * @param key the container's key.
+   * @param containerPort the container port, such as `5432/tcp`.
+   * @returns the host port.
+   */
+  readonly port: (key: string, containerPort: string) => number
+  /** The run's private network, when the plan asked for one. */
+  readonly network: string | undefined
+  /**
+   * Run a one-off container on the run's network, such as one that creates a bucket, and wait for it.
+   * @param image the image.
+   * @param commandArguments the arguments after the image.
+   * @param environment variables the container is started with, such as the credentials of a service.
+   */
+  readonly once: (
+    image: string,
+    commandArguments: readonly string[],
+    environment?: Readonly<Record<string, string>>,
+  ) => void
+}
+
+/** What a wrapper starts, and what it hands the command. */
+export interface ServicesPlan {
+  /** The prefix of every name this run creates; a random run identifier follows it. */
+  readonly project: string
+  readonly containers: readonly ServiceContainer[]
+  /** Whether the containers share a private network of this run's own. */
+  readonly network?: boolean
+  /** The variables the command reads its services from. */
+  readonly environment: (services: Services) => Readonly<Record<string, string>>
+  /** A step run once every service answers and before the command, such as applying migrations. */
+  readonly prepare?: (services: Services, environment: Readonly<Record<string, string>>) => void
+  /** How long every service together may take to answer. */
+  readonly readyTimeoutMs?: number
+}
+
+/** The abort signal of a run, whose reason is the stop signal the run was sent. */
+export interface StopSignal extends AbortSignal {
+  readonly reason: NodeJS.Signals | undefined
+}
+
+/** The command a run starts, with what it needs to be stopped. */
+export interface CommandLaunch {
+  readonly command: string
+  readonly commandArguments: readonly string[]
+  readonly environment: NodeJS.ProcessEnv
+  /** Aborted with the stop signal once the run is asked to stop, which the command is then sent. */
+  readonly stop: StopSignal
+}
+
+/** What the helper does to the machine, replaceable so its decisions can be measured without Docker. */
+export interface ServicesRuntime {
+  readonly docker: (commandArguments: readonly string[]) => RunResult
+  /** Start the command; the promise is its exit code, or 128 plus the signal number when a signal ended it. */
+  readonly start: (launch: CommandLaunch) => Promise<number>
+  readonly claim: () => ContainerOwner | OwnershipFailure
+  readonly pause: (milliseconds: number) => Promise<void>
+  /** Subscribe to the stop signals; the returned function unsubscribes. */
+  readonly onSignal: (handler: (signal: NodeJS.Signals) => void) => () => void
+  readonly report: (line: string) => void
+}
+
+const STOP_SIGNALS: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
+const SIGNAL_NUMBERS: Readonly<Record<string, number>> = {
+  SIGHUP: 1,
+  SIGINT: 2,
+  SIGTERM: 15,
+}
+const SIGNAL_EXIT_BASE: number = 128
+const RUN_ID_BYTES: number = 6
+const SECRET_BYTES: number = 18
+const READY_TIMEOUT_MS: number = 120_000
+const READY_INTERVAL_MS: number = 500
+const LOG_LINES: string = '40'
+const ARGV_FIRST_ARGUMENT: number = 2
+const PREFIX: string = '[services]'
+
+const signalled = (signal: NodeJS.Signals): number => SIGNAL_EXIT_BASE + (SIGNAL_NUMBERS[signal] ?? 0)
+
+const startCommand = async (launch: CommandLaunch): Promise<number> =>
+  await new Promise<number>((resolve): void => {
+    const child: ChildProcess = spawn(launch.command, [...launch.commandArguments], {
+      env: launch.environment,
+      stdio: 'inherit',
+    })
+    const forward = (): void => {
+      child.kill(launch.stop.reason ?? 'SIGTERM')
+    }
+    launch.stop.addEventListener('abort', forward, { once: true })
+    child.once('error', (error: Error): void => {
+      console.error(`${PREFIX} ${launch.command} could not be started: ${error.message}`)
+      resolve(1)
+    })
+    child.once('exit', (code: number | null, signal: NodeJS.Signals | null): void => {
+      launch.stop.removeEventListener('abort', forward)
+      resolve(code ?? (signal === null ? 1 : signalled(signal)))
+    })
+  })
+
+/** The machine itself. */
+export const SYSTEM_RUNTIME: ServicesRuntime = {
+  docker: (commandArguments: readonly string[]): RunResult => run('docker', commandArguments, { cwd: process.cwd() }),
+  start: startCommand,
+  claim: (): ContainerOwner | OwnershipFailure => claimOwnership(process.cwd()),
+  pause: async (milliseconds: number): Promise<void> => {
+    await new Promise<void>((resolve): void => {
+      setTimeout(resolve, milliseconds)
+    })
+  },
+  onSignal: (handler: (signal: NodeJS.Signals) => void): (() => void) => {
+    for (const signal of STOP_SIGNALS) {
+      process.on(signal, handler)
+    }
+    return (): void => {
+      for (const signal of STOP_SIGNALS) {
+        process.off(signal, handler)
+      }
+    }
+  },
+  report: (line: string): void => {
+    console.info(line)
+  },
+}
+
+/**
+ * A credential of this run's own, for a service the run starts.
+ * @returns letters and digits only, so it needs no quoting in a URL or a shell.
+ */
+export const randomSecret = (): string => randomBytes(SECRET_BYTES).toString('hex')
+
+/**
+ * The command a wrapper runs, read off argv, which begins with the node binary and the script path; an
+ * explicit `--` pushes the command one place further along.
+ * @param argv the process arguments.
+ * @returns the command and its arguments.
+ */
+export const commandAfterSeparator = (argv: readonly string[]): readonly [string, readonly string[]] => {
+  const index: number = argv[ARGV_FIRST_ARGUMENT] === '--' ? ARGV_FIRST_ARGUMENT + 1 : ARGV_FIRST_ARGUMENT
+  const command: string | undefined = argv[index]
+  if (command === undefined || command.length === 0) {
+    throw new Error(`${PREFIX} a command is required after \`--\``)
+  }
+  return [command, argv.slice(index + 1)]
+}
+
+/**
+ * Read the host port from what `docker port` printed: the first binding, which is the loopback one.
+ * @param printed what `docker port <container> <port>` wrote.
+ * @returns the port, or undefined when none is named.
+ */
+export const publishedPortOf = (printed: string): number | undefined => {
+  const first: string = printed.split('\n', 1)[0]?.trim() ?? ''
+  const port: number = Number(first.slice(first.lastIndexOf(':') + 1))
+  return first.includes(':') && Number.isSafeInteger(port) && port > 0 ? port : undefined
+}
+
+const environmentArguments = (environment: Readonly<Record<string, string>>): readonly string[] =>
+  Object.entries(environment).map(([key, value]: readonly [string, string]): string => `--env=${key}=${value}`)
+
+/** Where a run's containers are started: its prefix, its owner and its network. */
+export interface RunPlacement {
+  readonly prefix: string
+  readonly owner: ContainerOwner
+  readonly network: string | undefined
+}
+
+/**
+ * The `docker run` arguments that start one service.
+ * @param container the service.
+ * @param placement the run it belongs to.
+ * @returns the arguments.
+ */
+export const serviceRunArguments = (container: ServiceContainer, placement: RunPlacement): readonly string[] => [
+  'run',
+  '--detach',
+  '--rm',
+  `--name=${placement.prefix}-${container.key}`,
+  ...ownerLabelArguments(placement.owner),
+  ...(placement.network === undefined ? [] : [`--network=${placement.network}`]),
+  ...(placement.network === undefined || container.alias === undefined ? [] : [`--network-alias=${container.alias}`]),
+  ...container.ports.map((port: string): string => `--publish=127.0.0.1::${port}`),
+  ...environmentArguments(container.environment ?? {}),
+  container.image,
+  ...(container.command ?? []),
+]
+
+const docked = (runtime: ServicesRuntime, commandArguments: readonly string[], what: string): string => {
+  const result: RunResult = runtime.docker(commandArguments)
+  if (result.code !== 0) {
+    throw new Error(`${PREFIX} ${what} failed: ${result.output.trim()}`)
+  }
+  return result.stdout.trim()
+}
+
+/** One service being waited for. */
+interface Awaited {
+  readonly name: string
+  readonly ready: readonly string[]
+  readonly deadline: number
+  readonly stop: StopSignal
+}
+
+const awaitReady = async (runtime: ServicesRuntime, awaited: Awaited): Promise<void> => {
+  if (awaited.stop.aborted) {
+    throw new Error(`${PREFIX} stopped before ${awaited.name} answered`)
+  }
+  if (runtime.docker(['exec', awaited.name, ...awaited.ready]).code === 0) {
+    return
+  }
+  if (performance.now() > awaited.deadline) {
+    const logs: RunResult = runtime.docker(['logs', '--tail', LOG_LINES, awaited.name])
+    throw new Error(
+      `${PREFIX} ${awaited.name} did not answer \`${awaited.ready.join(' ')}\` in time:\n${logs.output.trim()}`,
+    )
+  }
+  await runtime.pause(READY_INTERVAL_MS)
+  await awaitReady(runtime, awaited)
+}
+
+// Found by the run's prefix rather than remembered, so whatever step failed, every container and network the
+// run created is removed. A failed removal is reported and never thrown: the command's verdict is what the run
+// answers with.
+const removeRun = (runtime: ServicesRuntime, prefix: string): void => {
+  const containers: readonly string[] = runtime
+    .docker(['ps', '--all', '--quiet', `--filter=name=${prefix}-`])
+    .stdout.split('\n')
+    .map((line: string): string => line.trim())
+    .filter((line: string): boolean => line.length > 0)
+  const networks: readonly string[] = runtime
+    .docker(['network', 'ls', '--quiet', `--filter=name=${prefix}`])
+    .stdout.split('\n')
+    .map((line: string): string => line.trim())
+    .filter((line: string): boolean => line.length > 0)
+  const removals: readonly (readonly string[])[] = [
+    ...(containers.length > 0 ? [['rm', '--force', ...containers]] : []),
+    ...networks.map((network: string): readonly string[] => ['network', 'rm', network]),
+  ]
+  for (const removal of removals) {
+    const result: RunResult = runtime.docker(removal)
+    if (result.code !== 0) {
+      console.error(`${PREFIX} docker ${removal.join(' ')} failed: ${result.output.trim()}`)
+    }
+  }
+  runtime.report(`${PREFIX} Removed what ${prefix} started.`)
+}
+
+const servicesOf = (runtime: ServicesRuntime, plan: ServicesPlan, placement: RunPlacement): Services => ({
+  port: (key: string, containerPort: string): number => {
+    if (!plan.containers.some((container: ServiceContainer): boolean => container.key === key)) {
+      throw new Error(`${PREFIX} ${plan.project} declares no service "${key}"`)
+    }
+    const name: string = `${placement.prefix}-${key}`
+    const port: number | undefined = publishedPortOf(
+      docked(runtime, ['port', name, containerPort], `docker port ${name}`),
+    )
+    if (port === undefined) {
+      throw new Error(`${PREFIX} ${name} publishes no ${containerPort}`)
+    }
+    return port
+  },
+  network: placement.network,
+  once: (
+    image: string,
+    commandArguments: readonly string[],
+    environment: Readonly<Record<string, string>> = {},
+  ): void => {
+    docked(
+      runtime,
+      [
+        'run',
+        '--rm',
+        ...(placement.network === undefined ? [] : [`--network=${placement.network}`]),
+        ...environmentArguments(environment),
+        image,
+        ...commandArguments,
+      ],
+      `the one-off ${image}`,
+    )
+  },
+})
+
+const startAll = async (
+  runtime: ServicesRuntime,
+  plan: ServicesPlan,
+  placement: RunPlacement,
+  stop: StopSignal,
+): Promise<Services> => {
+  if (placement.network !== undefined) {
+    docked(
+      runtime,
+      ['network', 'create', ...ownerLabelArguments(placement.owner), placement.network],
+      `creating the network ${placement.network}`,
+    )
+  }
+  for (const container of plan.containers) {
+    docked(runtime, serviceRunArguments(container, placement), `starting ${placement.prefix}-${container.key}`)
+  }
+  const deadline: number = performance.now() + (plan.readyTimeoutMs ?? READY_TIMEOUT_MS)
+  await Promise.all(
+    plan.containers.map(async (container: ServiceContainer): Promise<void> => {
+      await awaitReady(runtime, {
+        name: `${placement.prefix}-${container.key}`,
+        ready: container.ready,
+        deadline,
+        stop,
+      })
+    }),
+  )
+  return servicesOf(runtime, plan, placement)
+}
+
+/** A run with its command, its placement and the controller its stop signals abort. */
+interface Started {
+  readonly plan: ServicesPlan
+  readonly command: readonly [string, readonly string[]]
+  readonly placement: RunPlacement
+  readonly stopping: AbortController
+}
+
+const runAgainst = async (runtime: ServicesRuntime, started: Started): Promise<number> => {
+  const { plan, command, placement, stopping } = started
+  const stop: StopSignal = stopping.signal
+  try {
+    const services: Services = await startAll(runtime, plan, placement, stop)
+    const environment: Readonly<Record<string, string>> = plan.environment(services)
+    plan.prepare?.(services, environment)
+    if (stop.reason !== undefined) {
+      return signalled(stop.reason)
+    }
+    runtime.report(`${PREFIX} the services of ${placement.prefix} answer; running ${command[0]}.`)
+    return await runtime.start({
+      command: command[0],
+      commandArguments: command[1],
+      environment: { ...process.env, ...environment },
+      stop,
+    })
+  } catch (error: unknown) {
+    if (stop.reason !== undefined) {
+      return signalled(stop.reason)
+    }
+    console.error(error instanceof Error ? error.message : String(error))
+    return 1
+  }
+}
+
+/**
+ * Start a plan's services, run the command after `--` against them, and remove them again.
+ * @param plan what to start and what to hand the command.
+ * @param argv the process arguments, the command following the script path or `--`.
+ * @param runtime the machine, replaced only by tests.
+ * @returns the command's exit code, 1 when the services could not be started, or 128 plus the number of the
+ *   signal that stopped the run.
+ */
+export const withServices = async (
+  plan: ServicesPlan,
+  argv: readonly string[] = process.argv,
+  runtime: ServicesRuntime = SYSTEM_RUNTIME,
+): Promise<number> => {
+  const command: readonly [string, readonly string[]] = commandAfterSeparator(argv)
+  const claim: ContainerOwner | OwnershipFailure = runtime.claim()
+  if (isOwnershipFailure(claim)) {
+    console.error(`${PREFIX} ${claim.problem}\n${claim.details.join('\n')}`)
+    return 1
+  }
+  const prefix: string = `${plan.project}-${randomBytes(RUN_ID_BYTES).toString('hex')}`
+  const placement: RunPlacement = {
+    prefix,
+    owner: claim,
+    network: plan.network === true ? prefix : undefined,
+  }
+  const stopping: AbortController = new AbortController()
+  const unsubscribe: () => void = runtime.onSignal((signal: NodeJS.Signals): void => {
+    stopping.abort(signal)
+  })
+  try {
+    return await runAgainst(runtime, { plan, command, placement, stopping })
+  } finally {
+    unsubscribe()
+    removeRun(runtime, prefix)
+  }
+}

@@ -1,5 +1,6 @@
 // How a browser verification run is made reproducible and bounded: the clock it runs at, the pinned
 // browsers it connects to, the engines it measures in, and the time each pass may take.
+import { type ContainerOwner, ownerLabelArguments } from './owned-containers.js'
 
 /** The variable naming the instant the application's clock starts at, or absent for the real clock. */
 export const CLOCK_ENVIRONMENT_VARIABLE: string = 'AIRNESS_CLOCK'
@@ -237,87 +238,12 @@ export const enginePassParts = (engine: string, parts: number): number =>
 /** Where the container sees the host's Playwright, mounted read-only. */
 const CONTAINER_PLAYWRIGHT: string = '/airness/playwright-core'
 
-/**
- * The run that started a pinned browser server, recorded on its container. A run that is killed outright
- * cannot remove its container, so a later run removes it instead once this owner is gone.
- */
-export interface BrowserServerOwner {
-  readonly pid: number
-  /** When the owner process started, as `ps` reports it, which a process that later reuses the PID does not share. */
-  readonly started: string
-  /** The machine the owner ran on: a PID means nothing on another machine sharing the Docker engine. */
-  readonly host: string
-}
-
-/** The container labels that record a browser server's owner. */
-const BROWSER_SERVER_OWNER_LABELS: Readonly<Record<keyof BrowserServerOwner, string>> = {
-  pid: 'airness.owner.pid',
-  started: 'airness.owner.started',
-  host: 'airness.owner.host',
-}
-
-const LISTING_SEPARATOR: string = '|'
-
-/** The `docker` arguments that list every browser server recording its owner, one per line. */
-export const browserServerListingArguments: readonly string[] = [
-  'ps',
-  '--all',
-  `--filter=label=${BROWSER_SERVER_OWNER_LABELS.pid}`,
-  `--format=${[
-    '{{.Names}}',
-    `{{.Label "${BROWSER_SERVER_OWNER_LABELS.pid}"}}`,
-    `{{.Label "${BROWSER_SERVER_OWNER_LABELS.started}"}}`,
-    `{{.Label "${BROWSER_SERVER_OWNER_LABELS.host}"}}`,
-  ].join(LISTING_SEPARATOR)}`,
-]
-
-/** A listed browser server, and its owner when the labels name one completely. */
-export interface ListedBrowserServer {
-  readonly name: string
-  readonly owner: BrowserServerOwner | undefined
-}
-
-const ownerOf = (pid: string, started: string, host: string): BrowserServerOwner | undefined =>
-  started !== '' && host !== '' && /^[1-9]\d*$/u.test(pid) ? { pid: Number(pid), started, host } : undefined
-
-/**
- * Read the listing `browserServerListingArguments` produces.
- * @param listing what `docker` wrote.
- * @returns each listed server.
- */
-export const listedBrowserServers = (listing: string): readonly ListedBrowserServer[] =>
-  listing
-    .split('\n')
-    .filter((line: string): boolean => line.trim() !== '')
-    .map((line: string): ListedBrowserServer => {
-      const [name = '', pid = '', started = '', host = '']: readonly string[] = line.split(LISTING_SEPARATOR)
-      return {
-        name: name.trim(),
-        owner: ownerOf(pid.trim(), started.trim(), host.trim()),
-      }
-    })
-
-/**
- * Whether a browser server was left behind by a run that no longer exists. Only a server started on this
- * machine is judged, and its owner is gone when no process holds the PID or the one holding it started at
- * another time.
- * @param owner the owner recorded on the container.
- * @param host this machine's name.
- * @param running when the process now holding the owner's PID started, or undefined when none does.
- * @returns true when the server may be removed.
- */
-export const isOrphanedBrowserServer = (
-  owner: BrowserServerOwner,
-  host: string,
-  running: string | undefined,
-): boolean => running !== owner.started && owner.host === host
-
 /** What starting the pinned browser server needs to know. */
 export interface PinnedBrowserServer {
   readonly image: string
   readonly name: string
   readonly port: number
-  readonly owner: BrowserServerOwner
+  readonly owner: ContainerOwner
   /** The host's resolved `playwright-core` directory, which the container runs. */
   readonly playwrightCore: string
   /**
@@ -365,9 +291,7 @@ export const pinnedBrowserServerArguments = (server: PinnedBrowserServer): reado
   '--init',
   '--ipc=host',
   `--name=${server.name}`,
-  `--label=${BROWSER_SERVER_OWNER_LABELS.pid}=${String(server.owner.pid)}`,
-  `--label=${BROWSER_SERVER_OWNER_LABELS.started}=${server.owner.started}`,
-  `--label=${BROWSER_SERVER_OWNER_LABELS.host}=${server.owner.host}`,
+  ...ownerLabelArguments(server.owner),
   server.isHostNetwork ? '--network=host' : `--publish=127.0.0.1:${String(server.port)}:${String(server.port)}`,
   `--volume=${server.playwrightCore}:${CONTAINER_PLAYWRIGHT}:ro`,
   // The EGL path Firefox needs for software WebGL; see FIREFOX_WEBGL.

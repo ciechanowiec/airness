@@ -7,18 +7,14 @@
 import { randomBytes } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { createConnection, createServer, type Server, type Socket } from 'node:net'
-import { availableParallelism, hostname, totalmem } from 'node:os'
+import { createConnection, type Socket } from 'node:net'
+import { availableParallelism, totalmem } from 'node:os'
 import path from 'node:path'
+import { freePorts } from './browser-origin.js'
 import {
-  type BrowserServerOwner,
-  browserServerListingArguments,
   dockerCapacityArguments,
   dockerCapacityOf,
-  isOrphanedBrowserServer,
   isPinnedBrowserImage,
-  type ListedBrowserServer,
-  listedBrowserServers,
   type MachineCapacity,
   pinnedBrowserEndpoint,
   pinnedBrowserServerArguments,
@@ -26,6 +22,7 @@ import {
 } from './browser-run.js'
 import { failed, type GateResult, type RunResult, run } from './exec.js'
 import { asText, readKey } from './json-shapes.js'
+import { type ContainerOwner, claimOwnership, isOwnershipFailure, type OwnershipFailure } from './owned-containers.js'
 import { type Member as Context, harnessDirectory, readJson } from './project.js'
 
 const START_TIMEOUT_MS: number = 60_000
@@ -49,19 +46,6 @@ export interface PinnedBrowsers {
   /** The workers the sweep may use, given both the host and the machine the browsers run on. */
   readonly workers: number
 }
-
-const freePort = async (): Promise<number> =>
-  await new Promise<number>((resolve, reject): void => {
-    const server: Server = createServer()
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', (): void => {
-      const address: ReturnType<Server['address']> = server.address()
-      const port: number = typeof address === 'object' && address !== null ? address.port : 0
-      server.close((): void => {
-        resolve(port)
-      })
-    })
-  })
 
 const isListening = async (port: number): Promise<boolean> =>
   await new Promise<boolean>((resolve): void => {
@@ -111,61 +95,10 @@ const resolvePlaywrightCore = (context: Context): ResolvedPlaywright | undefined
   }
 }
 
-// When a process started, as `ps` reports it; undefined when no process holds the PID.
-const processStart = (context: Context, pid: number): string | undefined => {
-  const result: RunResult = run('ps', ['-o', 'lstart=', '-p', String(pid)], {
-    cwd: context.root,
-  })
-  const started: string = result.output.trim().replaceAll(/\s+/gu, ' ')
-  return started !== '' && result.code === 0 ? started : undefined
-}
-
-const isPresent = (context: Context, name: string): boolean =>
-  run('docker', ['container', 'inspect', name], { cwd: context.root }).code === 0
-
-// A run killed outright, by SIGKILL, a timeout or a machine that went to sleep, never removes its browser
-// server, so each run first removes the ones whose owner is gone. Another run may remove the same one at
-// the same moment, which is why a failed removal only counts while the container is still there.
-const removeOrphans = (context: Context, host: string): GateResult | undefined => {
-  const listed: RunResult = run('docker', [...browserServerListingArguments], {
-    cwd: context.root,
-  })
-  if (listed.code !== 0) {
-    return failed('the browser servers earlier runs started could not be listed', [listed.output])
-  }
-  const stuck: readonly string[] = listedBrowserServers(listed.output)
-    .filter(
-      (server: ListedBrowserServer): boolean =>
-        server.owner !== undefined &&
-        isOrphanedBrowserServer(server.owner, host, processStart(context, server.owner.pid)),
-    )
-    .filter(
-      (server: ListedBrowserServer): boolean =>
-        run('docker', ['rm', '--force', server.name], { cwd: context.root }).code !== 0 &&
-        isPresent(context, server.name),
-    )
-    .map((server: ListedBrowserServer): string => server.name)
-  return stuck.length === 0
-    ? undefined
-    : failed('a browser server left by a run that no longer exists could not be removed', [
-        `remove it with docker rm --force: ${stuck.join(', ')}`,
-      ])
-}
-
-// This run, recorded on the server it starts, once the servers of runs that are gone have been removed.
-const ownerAfterRemovingOrphans = (context: Context): BrowserServerOwner | GateResult => {
-  const started: string | undefined = processStart(context, process.pid)
-  if (started === undefined) {
-    return failed('the run could not read its own start time, which marks the browser server it starts', [
-      'the harness reads it with `ps -o lstart= -p <pid>`; make `ps` available on the PATH',
-    ])
-  }
-  const owner: BrowserServerOwner = {
-    pid: process.pid,
-    started,
-    host: hostname(),
-  }
-  return removeOrphans(context, owner.host) ?? owner
+// This run, recorded on the server it starts, once the containers of runs that are gone have been removed.
+const ownerAfterRemovingOrphans = (context: Context): ContainerOwner | GateResult => {
+  const claim: ContainerOwner | OwnershipFailure = claimOwnership(context.root)
+  return isOwnershipFailure(claim) ? failed(claim.problem, claim.details) : claim
 }
 
 const hostCapacity = (): MachineCapacity => ({
@@ -203,9 +136,13 @@ const readyImage = (context: Context, version: string): GateResult | { readonly 
 /**
  * Start the pinned browser server for one end-to-end run.
  * @param context the member under test.
+ * @param avoid the ports this run already chose for its own servers.
  * @returns the endpoint and its stop, or the failure that prevented starting it.
  */
-export const startPinnedBrowsers = async (context: Context): Promise<PinnedBrowsers | GateResult> => {
+export const startPinnedBrowsers = async (
+  context: Context,
+  avoid: readonly number[] = [],
+): Promise<PinnedBrowsers | GateResult> => {
   const playwright: ResolvedPlaywright | undefined = resolvePlaywrightCore(context)
   if (playwright === undefined) {
     return failed("playwright-core could not be resolved through the project's @playwright/test", [
@@ -217,7 +154,7 @@ export const startPinnedBrowsers = async (context: Context): Promise<PinnedBrows
     return ready
   }
   const image: string = ready.image
-  const owner: BrowserServerOwner | GateResult = ownerAfterRemovingOrphans(context)
+  const owner: ContainerOwner | GateResult = ownerAfterRemovingOrphans(context)
   if (!('pid' in owner)) {
     return owner
   }
@@ -233,6 +170,7 @@ export const startPinnedBrowsers = async (context: Context): Promise<PinnedBrows
             playwrightCore: playwright.directory,
             isHostNetwork: true,
             owner,
+            avoid,
           },
           HOST_NETWORK_PROBE_MS,
         )
@@ -245,6 +183,7 @@ export const startPinnedBrowsers = async (context: Context): Promise<PinnedBrows
           playwrightCore: playwright.directory,
           isHostNetwork: false,
           owner,
+          avoid,
         },
         START_TIMEOUT_MS,
       )
@@ -255,7 +194,9 @@ interface ServerPlan {
   readonly image: string
   readonly playwrightCore: string
   readonly isHostNetwork: boolean
-  readonly owner: BrowserServerOwner
+  readonly owner: ContainerOwner
+  /** Ports this run already chose for its own servers, which the browser server must not take. */
+  readonly avoid: readonly number[]
 }
 
 const startServer = async (
@@ -263,7 +204,7 @@ const startServer = async (
   plan: ServerPlan,
   timeoutMs: number,
 ): Promise<PinnedBrowsers | GateResult> => {
-  const port: number = await freePort()
+  const [port = 0] = await freePorts(1, plan.avoid)
   const name: string = `airness-browsers-${String(port)}`
   const secret: string = randomBytes(SECRET_BYTES).toString('hex')
   const started: RunResult = run('docker', pinnedBrowserServerArguments({ ...plan, name, port, secret }), {
@@ -272,9 +213,10 @@ const startServer = async (
   if (started.code !== 0) {
     return failed('the pinned browser server did not start', [started.output])
   }
-  const hooks: readonly { readonly signal: NodeJS.Signals; readonly handle: () => void }[] = (
-    ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
-  ).map((signal) => ({
+  const hooks: readonly {
+    readonly signal: NodeJS.Signals
+    readonly handle: () => void
+  }[] = (['SIGINT', 'SIGTERM', 'SIGHUP'] as const).map((signal) => ({
     signal,
     handle: (): void => {
       stop()

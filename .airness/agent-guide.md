@@ -139,7 +139,7 @@ Airness governs all of the following domains:
   pages the crawl renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets
   goal seeds `src/proxy.ts`. A node project declares only what
   the harness cannot know, under the `airness` key of its `package.json`: further `sourceRoots`, `serve`,
-  `serverUrl`, `clock`, `auxiliaryServers`, lower `bundleBudgetBytes` and `accessibilityRouteBudget`, and `generatedArtefacts`, `frameworkGlue`,
+  `serverUrl`, `serverUrlVariables`, `clock`, `auxiliaryServers`, lower `bundleBudgetBytes` and `accessibilityRouteBudget`, and `generatedArtefacts`, `frameworkGlue`,
   `coverageExclude`, `pureLogicRoots`, `accessibilitySkipRoutes` and `javascriptAllowlist` entries that each name a `pattern` and a
   `reason`, an allowlist entry also the `runtime` of `node` or `cloudfront-js-2.0` that runs it. Diagnose one
   finding with `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
@@ -327,7 +327,13 @@ The node setting `clock` selects an ISO instant or `real`; by default the build,
 browser start at `2100-01-01T12:00:00.000Z`. Application clocks advance normally; browser Date stays fixed
 while timers and animation clocks continue. `auxiliaryServers` names the command and URL
 of each server the application needs before it starts, with an optional member-relative `cwd`. The sweep
-finds Storybook stories on those servers. The node harness owns the general browser rules; an installed
+finds Storybook stories on those servers. In verification, `e2e` keeps the scheme, host and path of
+`serverUrl` and of each auxiliary URL but serves on a loopback port chosen for the run, handed to the server as
+`$PORT`, so a `serve` script and every auxiliary command listen on `$PORT`, such as
+`storybook dev --port $PORT`; the declared port matters only outside verification. Specifications reach the application through
+Playwright's `baseURL` or relative URLs, never a written-out origin. An application that builds absolute links
+or a list of accepted origins from its own variable names it in `serverUrlVariables`, which the run sets to the
+served origin, and reads it at runtime. The node harness owns the general browser rules; an installed
 stack layer supplies the content selectors of its framework's views through `airness.layer.browser`.
 
 Resting and reflow measurements keep motion reduced and animations still. Keyboard and disclosure checks
@@ -364,6 +370,36 @@ arguments in its root `package.json`. The preparation runs before tests, product
 verification. The wrapper receives the pinned Node command and its arguments, so it can provide a disposable
 database or another isolated environment. Its failure and the actual child command's failure both fail the
 gate; a wrapper that never completes the requested command fails too. Malformed arrays are refused.
+
+Write the wrapper with `withServices` from `@airness/node/services`, so verifications of several projects, or of
+two worktrees of one, can run on one machine at once:
+
+```ts
+import { randomSecret, withServices } from '@airness/node/services'
+
+const credential: string = randomSecret()
+process.exitCode = await withServices({
+  project: 'shop',
+  containers: [
+    {
+      key: 'db',
+      image: 'postgres:18-alpine',
+      environment: { POSTGRES_DB: 'shop', POSTGRES_USER: 'shop', POSTGRES_PASSWORD: credential },
+      ports: ['5432/tcp'],
+      ready: ['pg_isready', '--host=127.0.0.1', '--username=shop', '--dbname=shop'],
+    },
+  ],
+  environment: (services) => ({
+    DATABASE_URL: `postgres://shop:${credential}@127.0.0.1:${String(services.port('db', '5432/tcp'))}/shop`,
+  }),
+})
+```
+
+Each container is named for the run, published on a loopback port Docker chooses and removed afterwards, also
+when the run is stopped by a signal or killed outright. `network: true` gives the containers a private network,
+on which `prepare` can run a one-off container with `services.once`; `prepare` also runs steps such as
+migrations against the services before the command. Never start fixed-name containers on fixed ports, or reuse a
+developer's database, for verification.
 
 Vitest collects TypeScript and TSX specifications. Server integration specs run in Node, component specs in
 Happy DOM with native dialog and fetch support, and browser-application unit specs retain their jsdom environment. Application suites and wrapped suites

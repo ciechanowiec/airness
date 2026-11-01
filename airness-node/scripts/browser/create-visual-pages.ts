@@ -438,7 +438,8 @@ const SITEMAP_ROUTE: string = `export function GET(request: Request): Response {
 // focus. In the defects mode its button shows no change when focused.
 const STORY_RENDER_DELAY_MS: number = 600
 
-const storyServer = (port: number, mode: Mode): string => {
+// The server listens on the port the harness hands it in PORT, which a verification run chooses for itself.
+const storyServer = (mode: Mode): string => {
   const text: string = mode === 'defects' ? '<p style="font-size:10px">Tiny story text</p>' : '<p>Story text</p>'
   const action: string =
     mode === 'defects'
@@ -467,7 +468,7 @@ createServer((request, response) => {
   } else {
     response.writeHead(404).end()
   }
-}).listen(${String(port)}, '127.0.0.1')
+}).listen(Number(process.env.PORT), '127.0.0.1')
 `
 }
 
@@ -542,7 +543,7 @@ writeModule(
 )
 writeModule(path.join(directory, 'public', 'photo.png'), photo())
 const storyPort: number = await freePort()
-writeModule(path.join(directory, 'story-server.mjs'), storyServer(storyPort, mode))
+writeModule(path.join(directory, 'story-server.mjs'), storyServer(mode))
 const manifestPath: string = path.join(directory, 'package.json')
 const manifest: Record<string, unknown> = asRecord(JSON.parse(readFileSync(manifestPath, 'utf8')))
 const settings: Record<string, unknown> = asRecord(manifest['airness'])

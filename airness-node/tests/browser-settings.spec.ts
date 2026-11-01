@@ -24,17 +24,46 @@ describe('the browser startup inputs', () => {
     expect(
       browserSettings({
         auxiliaryServers: [
-          { command: 'storybook dev', url: 'http://localhost:6006', cwd: '../stories' },
+          {
+            command: 'storybook dev',
+            url: 'http://localhost:6006',
+            cwd: '../stories',
+          },
           { command: 'server', url: 'http://localhost:4000' },
           { command: 'incomplete' },
           null,
         ],
       }).auxiliaryServers,
     ).toEqual([
-      { command: 'storybook dev', url: 'http://localhost:6006', cwd: '../stories' },
+      {
+        command: 'storybook dev',
+        url: 'http://localhost:6006',
+        cwd: '../stories',
+      },
       { command: 'server', url: 'http://localhost:4000' },
     ])
     expect(browserSettings({}).auxiliaryServers).toEqual([])
+  })
+
+  it('takes the variables an application reads its own origin from, once each', () => {
+    expect(browserSettings({}).serverUrlVariables).toEqual([])
+    expect(
+      browserSettings({
+        serverUrlVariables: ['NEXT_PUBLIC_SERVER_URL', 'PUBLIC_ORIGIN', 'NEXT_PUBLIC_SERVER_URL'],
+      }).serverUrlVariables,
+    ).toEqual(['NEXT_PUBLIC_SERVER_URL', 'PUBLIC_ORIGIN'])
+  })
+
+  it('refuses an origin variable it could not set, or one the harness sets itself', () => {
+    expect(() => browserSettings({ serverUrlVariables: 'NEXT_PUBLIC_SERVER_URL' })).toThrow('must be an array')
+    expect(() => browserSettings({ serverUrlVariables: [1] })).toThrow('must be an array')
+    expect(() => browserSettings({ serverUrlVariables: ['public-origin'] })).toThrow('"public-origin" is not')
+    for (const owned of ['PORT', 'HOSTNAME', 'AIRNESS_SERVER_URL', 'NODE_OPTIONS', 'NEXT_TELEMETRY_DISABLED']) {
+      expect(() => browserSettings({ serverUrlVariables: [owned] })).toThrow(`"${owned}" is set by the harness`)
+    }
+    expect(browserSettings({ serverUrlVariables: ['PORTAL_URL', 'SERVER_HOSTNAME'] }).serverUrlVariables).toHaveLength(
+      2,
+    )
   })
 
   it('preloads the fixed clock and leaves an explicitly real clock alone', () => {

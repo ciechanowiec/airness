@@ -93,6 +93,10 @@
     "./clock": {
       "types": "./dist/clock-preload.d.ts",
       "default": "./dist/clock-preload.js"
+    },
+    "./services": {
+      "types": "./dist/services.d.ts",
+      "default": "./dist/services.js"
     }
   },
   "files": [

@@ -1,6 +1,7 @@
 // The settings of the node project ESLint was started in, read from the working directory.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { servedSettings } from './browser-origin.js'
 import { isBrowserAppAt } from './facets.js'
 import { layerDefaultsFor } from './layer.js'
 import { readSettings, type Settings } from './settings.js'
@@ -21,10 +22,16 @@ export const projectDirectory: string = process.cwd()
 
 const packageJson: unknown = readPackageJson(projectDirectory)
 
-/** The member's effective settings, with the defaults of every layer package it declares. */
-export const projectSettings: Settings = readSettings(
-  packageJson,
-  layerDefaultsFor(projectDirectory, packageJson, (file: string): unknown => JSON.parse(readFileSync(file, 'utf8'))),
+/**
+ * The member's effective settings, with the defaults of every layer package it declares, and in verification
+ * with the addresses the e2e gate assigned to this run.
+ */
+export const projectSettings: Settings = servedSettings(
+  readSettings(
+    packageJson,
+    layerDefaultsFor(projectDirectory, packageJson, (file: string): unknown => JSON.parse(readFileSync(file, 'utf8'))),
+  ),
+  process.env,
 )
 
 /** Whether the member is a Next.js application, which the Next.js facet's lint blocks apply to. */

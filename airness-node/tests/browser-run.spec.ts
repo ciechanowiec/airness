@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  type BrowserServerOwner,
   clockOf,
   DEFAULT_CLOCK_INSTANT,
   declaredSweepWorkers,
   dockerCapacityOf,
   enginePassParts,
-  isOrphanedBrowserServer,
   itemLimitMs,
-  listedBrowserServers,
   type MachineCapacity,
   partBudgetMs,
   passBudgetMs,
@@ -21,6 +18,7 @@ import {
   sweepWorkersFor,
 } from '@/browser-run'
 import { isPinnedBrowserImage } from '@/browser-run.js'
+import type { ContainerOwner } from '@/owned-containers.js'
 import { readSettings } from '@/settings'
 
 describe('the verification clock', () => {
@@ -75,7 +73,7 @@ describe('the budget of one part of a pass', () => {
   })
 })
 
-const OWNER: BrowserServerOwner = {
+const OWNER: ContainerOwner = {
   pid: 4321,
   started: 'Mon Oct 26 09:52:44 2026',
   host: 'builder',
@@ -136,39 +134,6 @@ describe('the pinned browser server', () => {
       hostArguments.some((part: string): boolean => part.startsWith('--publish')),
       hostArguments.at(-2),
     ]).toEqual([true, false, '--host=127.0.0.1'])
-  })
-})
-
-describe('a browser server left behind by its run', () => {
-  it('is read from the listing with its owner, and without one when a label is missing', () => {
-    expect(
-      listedBrowserServers(
-        [
-          'airness-browsers-4100|4321|Mon Oct 26 09:52:44 2026|builder',
-          '',
-          'airness-browsers-4200||Mon Oct 26 09:52:44 2026|builder',
-          'airness-browsers-4300|0|Mon Oct 26 09:52:44 2026|builder',
-        ].join('\n'),
-      ),
-    ).toEqual([
-      { name: 'airness-browsers-4100', owner: OWNER },
-      { name: 'airness-browsers-4200', owner: undefined },
-      { name: 'airness-browsers-4300', owner: undefined },
-    ])
-  })
-
-  it('is an orphan once no process holds its owner PID, or one that started at another time does', () => {
-    expect([
-      isOrphanedBrowserServer(OWNER, 'builder', undefined),
-      isOrphanedBrowserServer(OWNER, 'builder', 'Mon Oct 26 10:01:07 2026'),
-    ]).toEqual([true, true])
-  })
-
-  it('is kept while its owner runs, and whenever it was started on another machine', () => {
-    expect([
-      isOrphanedBrowserServer(OWNER, 'builder', OWNER.started),
-      isOrphanedBrowserServer(OWNER, 'another-machine', undefined),
-    ]).toEqual([false, false])
   })
 })
 

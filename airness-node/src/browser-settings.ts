@@ -33,13 +33,41 @@ const asAuxiliaryServers = (raw: unknown): readonly AuxiliaryServer[] =>
       })
     : []
 
+const VARIABLE_NAME: RegExp = /^[A-Z][A-Z0-9_]*$/u
+
+// The harness sets these itself for the servers it starts, so a project naming one would overwrite what the
+// harness relies on.
+const HARNESS_VARIABLE: RegExp = /^(?:AIRNESS_|NODE_|NEXT_TELEMETRY_)|^(?:PORT|HOSTNAME)$/u
+
+// Refused rather than skipped when malformed: a name that silently set nothing would leave the application
+// building its links and its accepted origins from an address the run does not serve on.
+const asServerUrlVariables = (raw: unknown): readonly string[] => {
+  if (raw === undefined) {
+    return []
+  }
+  if (!(isArray(raw) && raw.every((entry: unknown): entry is string => typeof entry === 'string'))) {
+    throw new Error('airness.serverUrlVariables must be an array of environment-variable names')
+  }
+  const malformed: string | undefined = raw.find((name: string): boolean => !VARIABLE_NAME.test(name))
+  if (malformed !== undefined) {
+    throw new Error(`airness.serverUrlVariables entry "${malformed}" is not an upper-case environment-variable name`)
+  }
+  const owned: string | undefined = raw.find((name: string): boolean => HARNESS_VARIABLE.test(name))
+  if (owned !== undefined) {
+    throw new Error(`airness.serverUrlVariables entry "${owned}" is set by the harness itself`)
+  }
+  return [...new Set<string>(raw)]
+}
+
 /** The browser inputs of a manifest, with a pinned clock unless explicitly changed. */
 export const browserSettings = (
   raw: Record<string, unknown>,
 ): {
   readonly clock: string
   readonly auxiliaryServers: readonly AuxiliaryServer[]
+  readonly serverUrlVariables: readonly string[]
 } => ({
   clock: clockOf(raw['clock']),
   auxiliaryServers: asAuxiliaryServers(raw['auxiliaryServers']),
+  serverUrlVariables: asServerUrlVariables(raw['serverUrlVariables']),
 })
