@@ -59,6 +59,7 @@ export const payloadEnvironment = (target: PayloadMember): GateResult => {
     module,
     example: exampleOf(repositoryRootOf(target.member.root)),
     dockerfiles: dockerfilesOf(target),
+    serverUrlVariables: target.member.settings.serverUrlVariables,
   })
   return findings.length > 0
     ? failed(`${String(findings.length)} environment variable(s) do not reach where they have to`, findings)

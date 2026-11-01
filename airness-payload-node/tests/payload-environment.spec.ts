@@ -18,7 +18,9 @@ const EXAMPLE: string = [
 
 describe('findEnvironmentViolations', () => {
   it('passes a module whose reads are documented and that ships no image', () => {
-    expect(findEnvironmentViolations({ module: MODULE, example: EXAMPLE, dockerfiles: [] })).toStrictEqual([])
+    expect(
+      findEnvironmentViolations({ module: MODULE, example: EXAMPLE, dockerfiles: [], serverUrlVariables: [] }),
+    ).toStrictEqual([])
   })
 
   it('names a bracketed read the example file does not document, and no dotted ambient read', () => {
@@ -26,6 +28,7 @@ describe('findEnvironmentViolations', () => {
       module: MODULE,
       example: 'PAYLOAD_SECRET=\n',
       dockerfiles: [],
+      serverUrlVariables: [],
     })
     expect(findings.map((finding: string): string => finding.split(':', 1)[0] ?? '')).toStrictEqual([
       'DATABASE_URL',
@@ -34,7 +37,9 @@ describe('findEnvironmentViolations', () => {
   })
 
   it('names every read when the repository documents no environment', () => {
-    expect(findEnvironmentViolations({ module: MODULE, example: undefined, dockerfiles: [] })).toHaveLength(3)
+    expect(
+      findEnvironmentViolations({ module: MODULE, example: undefined, dockerfiles: [], serverUrlVariables: [] }),
+    ).toHaveLength(3)
   })
 
   it('names an inlined variable no build argument of the image declares', () => {
@@ -42,6 +47,7 @@ describe('findEnvironmentViolations', () => {
       module: MODULE,
       example: EXAMPLE,
       dockerfiles: [{ file: 'Dockerfile', content: 'FROM node\nARG NEXT_PUBLIC_MAP_KEY=x \\\n  OTHER\nRUN build' }],
+      serverUrlVariables: [],
     })
     expect(findings).toHaveLength(1)
     expect(findings[0]).toContain('NEXT_PUBLIC_SITE_URL: inlined into the image at build time')
@@ -53,12 +59,41 @@ describe('findEnvironmentViolations', () => {
       module: MODULE,
       example: EXAMPLE,
       dockerfiles: [{ file: 'Dockerfile', content: 'ARG NEXT_PUBLIC_MAP_KEY \\\n  NEXT_PUBLIC_SITE_URL\n' }],
+      serverUrlVariables: [],
     })
     expect(findings).toStrictEqual([])
   })
 
+  it('names an origin variable the bundler would replace with the value it was built with', () => {
+    const findings: readonly string[] = findEnvironmentViolations({
+      module: MODULE,
+      example: `${EXAMPLE}\nNEXT_PUBLIC_SITE_URL=\n`,
+      dockerfiles: [],
+      serverUrlVariables: ['NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_MAP_KEY', 'PUBLIC_ORIGIN'],
+    })
+    expect(findings.map((finding: string): string => finding.split(':', 1)[0] ?? '')).toStrictEqual([
+      'NEXT_PUBLIC_MAP_KEY',
+      'NEXT_PUBLIC_SITE_URL',
+    ])
+    expect(findings[0]).toContain('read it from a parameter holding process.env')
+  })
+
+  it('passes an origin variable read through a parameter the bundler cannot replace', () => {
+    const module: string = "export const parse = (source: NodeJS.ProcessEnv) => source['NEXT_PUBLIC_SERVER_URL']"
+    expect(
+      findEnvironmentViolations({
+        module,
+        example: undefined,
+        dockerfiles: [],
+        serverUrlVariables: ['NEXT_PUBLIC_SERVER_URL'],
+      }),
+    ).toStrictEqual([])
+  })
+
   it('judges nothing in a member without a validated module', () => {
-    expect(findEnvironmentViolations({ module: undefined, example: undefined, dockerfiles: [] })).toStrictEqual([])
+    expect(
+      findEnvironmentViolations({ module: undefined, example: undefined, dockerfiles: [], serverUrlVariables: [] }),
+    ).toStrictEqual([])
   })
 })
 
