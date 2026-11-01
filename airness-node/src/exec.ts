@@ -236,6 +236,13 @@ export const SYSTEM_STOPS: StopWiring = {
   report: (line: string): void => {
     console.error(line)
   },
+  watch: (tick: () => void, periodMs: number): (() => void) => {
+    // The watch keeps nobody waiting: the command it watches holds the process open while it runs.
+    const timer: NodeJS.Timeout = setInterval(tick, periodMs).unref()
+    return (): void => {
+      clearInterval(timer)
+    }
+  },
 }
 
 /** A captured process that also publishes progress lines. */
