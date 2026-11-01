@@ -20,6 +20,12 @@ describe('not-found boundaries', () => {
       { file: 'src/app/[locale]/not-found.tsx', route: '/[locale]' },
     ])
   })
+  it('finds the global boundary that answers an address no root layout claims', () => {
+    expect(notFoundBoundaries(['src/app/global-not-found.tsx', 'src/app/(site)/not-found.tsx'], 'src/app')).toEqual([
+      { file: 'src/app/global-not-found.tsx', route: '/' },
+      { file: 'src/app/(site)/not-found.tsx', route: '/' },
+    ])
+  })
   it('probes a static prefix without needing a link to a broken address', () => {
     expect(notFoundProbes({ file: 'not-found.tsx', route: '/' }, [])).toEqual(['/__airness_missing_page__'])
     expect(notFoundProbes({ file: 'help/not-found.tsx', route: '/help' }, [])).toEqual([

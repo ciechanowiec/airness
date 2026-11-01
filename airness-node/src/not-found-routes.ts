@@ -3,7 +3,9 @@ import { type DeclaredRoute, declaredRouteOf, matchesRoute, normalisedRoute } fr
 
 export const NOT_FOUND_LOCATION_PREFIX: string = 'not-found:'
 const MISSING_SEGMENT: string = '__airness_missing_page__'
-const NOT_FOUND_FILE: RegExp = /(?:^|\/)not-found\.(?:tsx?|jsx?)$/u
+// A `global-not-found` module answers every address no root layout claims, which an application with several
+// root layouts needs, since none of its groups' boundaries can answer an address outside its own routes.
+const NOT_FOUND_FILE: RegExp = /(?:^|\/)(?:global-)?not-found\.(?:tsx?|jsx?)$/u
 
 /** One authored not-found boundary and the URL prefix whose layout contains it. */
 export interface NotFoundBoundary {
@@ -22,7 +24,7 @@ export const notFoundBoundaries = (files: readonly string[], appRoot: string): r
     if (!(file.startsWith(`${appRoot}/`) && NOT_FOUND_FILE.test(file))) {
       return []
     }
-    const relative: string = file.slice(appRoot.length + 1).replace(/not-found\.[^.]+$/u, 'page.tsx')
+    const relative: string = file.slice(appRoot.length + 1).replace(/(?:global-)?not-found\.[^.]+$/u, 'page.tsx')
     const route: DeclaredRoute | undefined = declaredRouteOf(relative)
     return route === undefined ? [] : [{ file, route: route.route }]
   })

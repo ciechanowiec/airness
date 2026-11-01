@@ -72,6 +72,7 @@ describe('the coverage floor of a Next.js application', () => {
     expect(coverageCandidates(files, readSettings({}), [], true)).toEqual(measured)
     expect(measurableFiles(files, readSettings({}), [], true)).toEqual(measured)
     expect(coverageExclusions(readSettings({}), true)).toContain('src/proxy.ts')
+    expect(coverageExclusions(readSettings({}), true)).toContain('src/app/**/global-not-found.tsx')
   })
 
   it('measures the same files in a member that is no Next.js application', () => {
