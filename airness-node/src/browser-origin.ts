@@ -61,9 +61,55 @@ export const servedOrigins = (settings: OriginSettings, ports: readonly number[]
   }
 }
 
+const DEFAULT_PORTS: Readonly<Record<string, number>> = { 'http:': 80, 'https:': 443 }
+
+/**
+ * The port a declared URL names, or its scheme's default.
+ * @param url the declared URL.
+ * @returns the port.
+ */
+export const declaredPort = (url: string): number => {
+  const parsed: URL = new URL(url)
+  return parsed.port === '' ? (DEFAULT_PORTS[parsed.protocol] ?? 0) : Number(parsed.port)
+}
+
+/**
+ * The declared ports of the auxiliary servers a run serves where they are declared, which no port it chooses
+ * for the others may be.
+ * @param settings the declared addresses.
+ * @returns the ports, in declaration order.
+ */
+export const fixedPorts = (settings: OriginSettings): readonly number[] =>
+  settings.auxiliaryServers
+    .filter((server: AuxiliaryServer): boolean => server.fixedPort === true)
+    .map((server: AuxiliaryServer): number => declaredPort(server.url))
+
+/**
+ * One port for the application and one per auxiliary server: a fixed server's declared port, and otherwise the
+ * next of the ports the run chose.
+ * @param settings the declared addresses.
+ * @param chosen the ports the run chose, the application's first, then one per auxiliary server not fixed.
+ * @returns the ports, in the order {@link servedOrigins} takes them.
+ */
+export const portsFor = (settings: OriginSettings, chosen: readonly number[]): readonly number[] => {
+  const [primary = 0, ...rest] = chosen
+  const auxiliary: readonly number[] = settings.auxiliaryServers.reduce<{
+    readonly ports: readonly number[]
+    readonly next: number
+  }>(
+    (state, server: AuxiliaryServer) =>
+      server.fixedPort === true
+        ? { ports: [...state.ports, declaredPort(server.url)], next: state.next }
+        : { ports: [...state.ports, rest[state.next] ?? 0], next: state.next + 1 },
+    { ports: [], next: 0 },
+  ).ports
+  return [primary, ...auxiliary]
+}
+
 /**
  * The environment that hands a run's addresses to Playwright, its workers and the servers it starts: the
- * harness's own two variables, and each variable the project reads its own origin from.
+ * harness's own two variables, each variable the project reads its own origin from, and each variable it
+ * reads an auxiliary server's origin from.
  * @param settings the project's settings.
  * @param origins the addresses this run serves on.
  * @returns the variables to set.
@@ -77,6 +123,16 @@ export const originEnvironment = (
       name,
       new URL(origins.serverUrl).origin,
     ]),
+  ),
+  ...Object.fromEntries(
+    settings.auxiliaryServers.flatMap(
+      (server: AuxiliaryServer, index: number): readonly (readonly [string, string])[] => {
+        const served: string | undefined = origins.auxiliaryUrls[index]
+        return served === undefined
+          ? []
+          : (server.urlVariables ?? []).map((name: string): readonly [string, string] => [name, new URL(served).origin])
+      },
+    ),
   ),
   [SERVER_URL_ENVIRONMENT_VARIABLE]: origins.serverUrl,
   [AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE]: JSON.stringify(origins.auxiliaryUrls),

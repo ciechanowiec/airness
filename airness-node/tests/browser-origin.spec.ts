@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE,
+  declaredPort,
+  fixedPorts,
   type OriginSettings,
   onPort,
   originEnvironment,
+  portsFor,
   SERVER_URL_ENVIRONMENT_VARIABLE,
   type ServedOrigins,
   servedOrigins,
@@ -51,6 +54,54 @@ describe('the addresses a run serves on', () => {
       [SERVER_URL_ENVIRONMENT_VARIABLE]: 'http://localhost:41000/app',
       [AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE]: '["http://localhost:41001"]',
     })
+  })
+
+  it("sets each variable an application reads an auxiliary server's origin from to the origin the run serves it on", () => {
+    const settings: OriginSettings = {
+      serverUrl: 'http://localhost:3000',
+      auxiliaryServers: [
+        { command: 'storybook dev', url: 'http://127.0.0.1:6006' },
+        {
+          command: 'node sibling.js',
+          url: 'http://127.0.0.1:4000/admin',
+          urlVariables: ['SIBLING_URL', 'SIBLING_ORIGIN'],
+        },
+      ],
+      serverUrlVariables: [],
+    }
+    const environment: Readonly<Record<string, string>> = originEnvironment(
+      settings,
+      servedOrigins(settings, [41_000, 41_001, 41_002]),
+    )
+    expect(environment['SIBLING_URL']).toBe('http://127.0.0.1:41002')
+    expect(environment['SIBLING_ORIGIN']).toBe('http://127.0.0.1:41002')
+    expect(Object.keys(environment)).toHaveLength(4)
+  })
+
+  it('keeps the declared port of a fixed auxiliary server and hands the chosen ports to the others in order', () => {
+    const settings: OriginSettings = {
+      serverUrl: 'http://localhost:3000',
+      auxiliaryServers: [
+        { command: 'storybook dev', url: 'http://127.0.0.1:6006' },
+        { command: 'node sibling.js', url: 'http://127.0.0.1:4000/admin', fixedPort: true },
+        { command: 'node other.js', url: 'http://127.0.0.1:5000' },
+      ],
+      serverUrlVariables: [],
+    }
+    expect(fixedPorts(settings)).toEqual([4000])
+    expect(portsFor(settings, [41_000, 41_001, 41_002])).toEqual([41_000, 41_001, 4000, 41_002])
+    expect(servedOrigins(settings, portsFor(settings, [41_000, 41_001, 41_002])).auxiliaryUrls).toEqual([
+      'http://127.0.0.1:41001',
+      'http://127.0.0.1:4000/admin',
+      'http://127.0.0.1:41002',
+    ])
+    expect(fixedPorts(declared)).toEqual([])
+  })
+
+  it('reads a declared port, or the default port of its scheme', () => {
+    expect(declaredPort('http://localhost:3000')).toBe(3000)
+    expect(declaredPort('http://localhost')).toBe(80)
+    expect(declaredPort('https://localhost/app')).toBe(443)
   })
 
   it('reads the assigned addresses back in place of the declared ones, and the declared ones without them', () => {

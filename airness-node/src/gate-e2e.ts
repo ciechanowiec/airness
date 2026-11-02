@@ -3,7 +3,7 @@ export { BROWSER_INSTALL_REPAIR, judgeRun } from './browser-verdict.js'
 // The end-to-end suite of a browser application: the harness's accessibility and layout sweep, its
 // security-header spec, and the member's own end-to-end specs, run by Playwright under the shipped
 // configuration against the application the configuration starts.
-import { freePorts, type ServedOrigins, servedOrigins } from './browser-origin.js'
+import { fixedPorts, freePorts, portsFor, type ServedOrigins, servedOrigins } from './browser-origin.js'
 import { browserServerProblems } from './browser-servers.js'
 import { runBrowserSweep } from './browser-suite.js'
 import { failed, type GateContext, type GateResult, notApplicable } from './exec.js'
@@ -45,12 +45,16 @@ const staleBuild = (member: Member): string | undefined => {
 
 /**
  * The addresses a run serves on: the declared ones, each on a port the operating system chose for this run, so
- * neither a developer's server on the declared port nor another verification on the same machine collides.
+ * neither a developer's server on the declared port nor another verification on the same machine collides. An
+ * auxiliary server declared with a fixed port keeps it, and no chosen port is one of those.
  * @param member the browser application.
  * @returns the application's address and the auxiliary servers', in declaration order.
  */
-export const assignOrigins = async (member: Member): Promise<ServedOrigins> =>
-  servedOrigins(member.settings, await freePorts(member.settings.auxiliaryServers.length + 1))
+export const assignOrigins = async (member: Member): Promise<ServedOrigins> => {
+  const fixed: readonly number[] = fixedPorts(member.settings)
+  const chosen: readonly number[] = await freePorts(member.settings.auxiliaryServers.length + 1 - fixed.length, fixed)
+  return servedOrigins(member.settings, portsFor(member.settings, chosen))
+}
 
 /**
  * Why a run cannot serve on the addresses it chose, if it cannot. Checked before Playwright starts, because a
