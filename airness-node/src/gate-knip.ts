@@ -104,6 +104,9 @@ const knipConfig = (member: Member, layers: readonly string[]): string => {
       ...runtimeModules(member, files),
     ],
     ignore: [...texts(shipped['ignore']), ...boundaries, ...member.settings.generatedArtefacts],
+    // A workspace root's run would otherwise analyse every member as a workspace of its own, loading each
+    // member's tool configurations without that member's environment. Each member is judged by its own run.
+    ignoreWorkspaces: [...texts(shipped['ignoreWorkspaces']), ...member.siblingPaths],
   }
   writeFileSync(rendered, `${JSON.stringify(config, null, JSON_INDENT)}\n`)
   return rendered
