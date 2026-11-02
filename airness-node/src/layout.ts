@@ -294,6 +294,11 @@ const describe = (element: PageElement, context: NodeContext, tools: LayoutTools
     ...tools.paintOrderOf(style),
     backgroundColor: read('background-color'),
     backgroundImage: read('background-image'),
+    // WebKit may report the clip only under its prefixed name.
+    isBackgroundClippedToText: [read('background-clip'), read('-webkit-background-clip')].some(
+      (clip: string): boolean =>
+        clip !== '' && clip.split(',').every((layer: string): boolean => layer.trim() === 'text'),
+    ),
     boxShadow: read('box-shadow'),
     borders: tools.bordersOf(style),
     isAriaHidden: element.getAttribute('aria-hidden') === 'true',

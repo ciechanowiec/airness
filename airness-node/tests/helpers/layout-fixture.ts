@@ -41,6 +41,7 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   rotate: 'none',
   backgroundColor: TRANSPARENT,
   backgroundImage: 'none',
+  isBackgroundClippedToText: false,
   boxShadow: 'none',
   borders: {
     top: NO_BORDER,

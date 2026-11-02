@@ -131,6 +131,20 @@ describe('what makes an element boxed', () => {
     expect(defectsOf(stacked({ backgroundImage: 'linear-gradient(red, blue)' }, {}))).toHaveLength(1)
   })
 
+  it('reads a background clipped to the text as the text, however far its padding reaches', () => {
+    // A gradient title whose padding reaches 6px past its line, above and below, to colour the marks over
+    // and under its letters, and gives the room back with a negative margin: its box overlaps the next line.
+    const title: Partial<LayoutNode> = {
+      label: 'span.title',
+      rects: [rect(0, -6, 200, 46)],
+      textRects: [rect(0, 0, 160, 40)],
+      backgroundImage: 'linear-gradient(90deg, rgb(255, 200, 0), rgb(255, 120, 0))',
+    }
+    const next: Partial<LayoutNode> = { label: 'p.date', textRects: [rect(0, 44, 120, 80)] }
+    expect(defectsOf(stacked({ ...title, isBackgroundClippedToText: true }, next, 44))).toEqual([])
+    expect(defectsOf(stacked(title, next, 44))).toHaveLength(1)
+  })
+
   it('treats a shadow as a box', () => {
     expect(defectsOf(stacked({ boxShadow: 'rgba(0, 0, 0, 0.2) 0px 1px 3px 0px' }, {}))).toHaveLength(1)
   })
