@@ -1,4 +1,5 @@
 // The strict type check, against the project's own tsconfig.json, which only points at the shipped one.
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { failed, fromRun, type GateResult, runNode } from './exec.js'
 import { type Member, readText, resolveTool } from './project.js'
@@ -17,6 +18,7 @@ export const types = (member: Member): GateResult => {
     readText(path.join(member.root, 'tsconfig.json')),
     member.hasOwnRuntime,
     member.siblingPaths,
+    existsSync(path.join(member.root, '.storybook')),
   )
   return problems.length > 0
     ? failed('the tsconfig.json relaxes the harness compiler options', problems)

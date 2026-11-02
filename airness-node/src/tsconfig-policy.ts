@@ -39,20 +39,30 @@ const APPLICATION_PATHS: Readonly<Record<string, readonly string[]>> = {
   exclude: ['node_modules', 'target'],
 }
 
+// Storybook reads its configuration from `.storybook`, and TypeScript's `**` passes over a directory whose name
+// starts with a dot, so only these patterns bring that configuration into the project the type check and the
+// type-aware lint read. ESLint walks the directory either way, and a file outside the project cannot be parsed.
+const STORYBOOK_CONFIGURATION: readonly string[] = ['.storybook/**/*.ts', '.storybook/**/*.tsx']
+
 /**
  * The include and exclude one member must carry. A recursive include at a workspace root would sweep every
  * nested member's sources into the root's project, under the root's `paths`, so each nested member is
  * excluded: it is compiled by its own run.
  * @param hasOwnRuntime whether the member is a Next application.
  * @param nestedMembers the members inside this one, relative to it.
+ * @param hasStorybook whether the member keeps a Storybook configuration directory, `.storybook`.
  * @returns the required include and exclude.
  */
 export const tsconfigPathsFor = (
   hasOwnRuntime: boolean,
   nestedMembers: readonly string[],
+  hasStorybook: boolean = false,
 ): Readonly<Record<string, readonly string[]>> => {
   const base: Readonly<Record<string, readonly string[]>> = hasOwnRuntime ? APPLICATION_PATHS : LIBRARY_PATHS
-  return { ...base, exclude: [...(base['exclude'] ?? []), ...nestedMembers] }
+  return {
+    include: [...(base['include'] ?? []), ...(hasStorybook ? STORYBOOK_CONFIGURATION : [])],
+    exclude: [...(base['exclude'] ?? []), ...nestedMembers],
+  }
 }
 
 const pathProblems = (
@@ -73,12 +83,14 @@ const pathProblems = (
  * @param config the file's text, or undefined when the project has none.
  * @param hasOwnRuntime whether the member is a Next application.
  * @param nestedMembers the members inside this one, relative to it.
+ * @param hasStorybook whether the member keeps a Storybook configuration directory, `.storybook`.
  * @returns one finding per departure.
  */
 export const tsconfigProblems = (
   config: string | undefined,
   hasOwnRuntime: boolean,
   nestedMembers: readonly string[],
+  hasStorybook: boolean = false,
 ): readonly string[] => {
   if (config === undefined) {
     return [`tsconfig.json is missing; write one that extends ${REQUIRED_TSCONFIG_EXTENDS}`]
@@ -98,6 +110,6 @@ export const tsconfigProblems = (
         (key: string): string =>
           `tsconfig.json compilerOptions.${key}: the harness owns this compiler option; remove the override`,
       ),
-    ...pathProblems(parsed, tsconfigPathsFor(hasOwnRuntime, nestedMembers)),
+    ...pathProblems(parsed, tsconfigPathsFor(hasOwnRuntime, nestedMembers, hasStorybook)),
   ]
 }
