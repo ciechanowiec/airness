@@ -46,6 +46,28 @@ class CheckovPolicyTest {
 
     @Test
     @SneakyThrows
+    void leavesDeploymentDecisionsToTheDeploymentButKeepsTheirSecurityControls() {
+        Set<String> excluded = CheckovPolicy.rows().stream()
+            .filter(row -> "exclude".equals(row.get(1)))
+            .map(List::getFirst)
+            .collect(Collectors.toUnmodifiableSet());
+        assertTrue(
+            excluded.containsAll(
+                Set.of(
+                    "CKV_AWS_310", "CKV_AWS_374", "CKV_AWS_338", "CKV2_AWS_61", "CKV_AWS_91", "CKV2_AWS_11",
+                    "CKV_AWS_336", "CKV_K8S_22"
+                )
+            )
+        );
+        assertFalse(excluded.contains("CKV_AWS_192"));
+        assertFalse(excluded.contains("CKV2_AWS_31"));
+        assertFalse(excluded.contains("CKV_AWS_31"));
+        assertFalse(excluded.contains("CKV_AWS_26"));
+        assertFalse(excluded.contains("CKV_AWS_23"));
+    }
+
+    @Test
+    @SneakyThrows
     void rejectsUnclassifiedOrMissingRules() {
         String listing = CheckovPolicy.rows().stream()
             .map(row -> "| 0 | " + row.getFirst() + " | type | resource | title | framework |")

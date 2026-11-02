@@ -197,8 +197,9 @@ Airness governs all of the following domains:
   optional checks are errors. Checkov reads supported infrastructure and CI inputs through their own framework,
   so application settings and analyzer configuration are not treated as cloud templates. The fleet policy keeps
   security requirements and omits requirements for a particular deployment architecture, availability target,
-  commercial security service, or signing product. A CLI container needs no health endpoint. A release workflow
-  may declare manual inputs. Extended verification also lints every Dockerfile with hadolint at its default
+  retention period, set of log sources, commercial security service, or signing product, and product decisions
+  such as an audience restricted by country. A CLI container needs no health endpoint. A release workflow may
+  declare manual inputs. Extended verification also lints every Dockerfile with hadolint at its default
   info threshold, loads every compose project with `docker compose config`, and lints every workflow with actionlint.
   These checks run before Qodana, from staged copies of the committable tree. Each copy is staged in
   `~/.cache/airness/scan/<tool>-<number>`, beneath the home directory because Docker mounts a folder it does not

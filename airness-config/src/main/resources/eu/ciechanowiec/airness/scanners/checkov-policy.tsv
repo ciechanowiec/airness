@@ -9,7 +9,7 @@ CKV2_ANSIBLE_5	enable	Portable security requirement.	Ensure that SSL validation 
 CKV2_ANSIBLE_6	enable	Portable security requirement.	Ensure that certificate validation isn't disabled with dnf
 CKV2_AWS_1	enable	Portable security requirement.	Ensure that all NACL are attached to subnets
 CKV2_AWS_10	enable	Portable security requirement.	Ensure CloudTrail trails are integrated with CloudWatch Logs
-CKV2_AWS_11	enable	Portable security requirement.	Ensure VPC flow logging is enabled in all VPCs
+CKV2_AWS_11	exclude	Which log sources a deployment keeps is part of its logging design.	Ensure VPC flow logging is enabled in all VPCs
 CKV2_AWS_12	enable	Portable security requirement.	Ensure the default security group of every VPC restricts all traffic
 CKV2_AWS_14	enable	Portable security requirement.	Ensure that IAM groups includes at least one IAM user
 CKV2_AWS_15	enable	Portable security requirement.	Ensure that auto Scaling groups that are associated with a load balancer are using Elastic Load Balancing health checks.
@@ -25,11 +25,11 @@ CKV2_AWS_27	enable	Portable security requirement.	Ensure Postgres RDS as aws_rds
 CKV2_AWS_28	exclude	Provisioning a WAF is an architecture decision.	Ensure public facing ALB are protected by WAF
 CKV2_AWS_29	exclude	Provisioning a WAF is an architecture decision.	Ensure public API gateway are protected by WAF
 CKV2_AWS_3	exclude	A paid security service is not mandatory for every deployment.	Ensure GuardDuty is enabled to specific org/region
-CKV2_AWS_30	enable	Portable security requirement.	Ensure Postgres RDS as aws_db_instance has Query Logging enabled
+CKV2_AWS_30	exclude	Which log sources a deployment keeps is part of its logging design.	Ensure Postgres RDS as aws_db_instance has Query Logging enabled
 CKV2_AWS_31	enable	Portable security requirement.	Ensure WAF2 has a Logging Configuration
 CKV2_AWS_32	enable	Portable security requirement.	Ensure CloudFront distribution has a response headers policy attached
 CKV2_AWS_33	exclude	Provisioning a WAF is an architecture decision.	Ensure AppSync is protected by WAF
-CKV2_AWS_34	enable	Portable security requirement.	AWS SSM Parameter should be Encrypted
+CKV2_AWS_34	exclude	A parameter may hold non-secret configuration; secrets belong in a secret store.	AWS SSM Parameter should be Encrypted
 CKV2_AWS_35	enable	Portable security requirement.	AWS NAT Gateways should be utilized for the default route
 CKV2_AWS_36	enable	Portable security requirement.	Ensure terraform is not sending SSM secrets to untrusted domains over HTTP
 CKV2_AWS_37	enable	Portable security requirement.	Ensure CodeCommit associates an approval rule
@@ -43,7 +43,7 @@ CKV2_AWS_43	enable	Portable security requirement.	Ensure S3 Bucket does not allo
 CKV2_AWS_44	enable	Portable security requirement.	Ensure AWS route table with VPC peering does not contain routes overly permissive to all traffic
 CKV2_AWS_45	enable	Portable security requirement.	Ensure AWS Config recorder is enabled to record all supported resources
 CKV2_AWS_46	enable	Portable security requirement.	Ensure AWS CloudFront Distribution with S3 have Origin Access set to enabled
-CKV2_AWS_47	enable	Portable security requirement.	Ensure AWS CloudFront attached WAFv2 WebACL is configured with AMR for Log4j Vulnerability
+CKV2_AWS_47	exclude	Blocking anonymising networks is a product decision; CKV_AWS_192 judges the Log4j rules.	Ensure AWS CloudFront attached WAFv2 WebACL is configured with AMR for Log4j Vulnerability
 CKV2_AWS_48	enable	Portable security requirement.	Ensure AWS Config must record all possible resources
 CKV2_AWS_49	enable	Portable security requirement.	Ensure AWS Database Migration Service endpoints have SSL configured
 CKV2_AWS_5	enable	Portable security requirement.	Ensure that Security Groups are attached to another resource
@@ -54,13 +54,13 @@ CKV2_AWS_53	enable	Portable security requirement.	Ensure AWS API gateway request
 CKV2_AWS_54	enable	Portable security requirement.	Ensure AWS CloudFront distribution is using secure SSL protocols for HTTPS communication
 CKV2_AWS_55	enable	Portable security requirement.	Ensure AWS EMR cluster is configured with security configuration
 CKV2_AWS_56	enable	Portable security requirement.	Ensure AWS Managed IAMFullAccess IAM policy is not used.
-CKV2_AWS_57	enable	Portable security requirement.	Ensure Secrets Manager secrets should have automatic rotation enabled
+CKV2_AWS_57	exclude	Automatic rotation needs a rotation function, which only some kinds of secret have.	Ensure Secrets Manager secrets should have automatic rotation enabled
 CKV2_AWS_58	exclude	Disposable environments and intentionally replaceable resources remain valid.	Ensure AWS Neptune cluster deletion protection is enabled
 CKV2_AWS_59	enable	Portable security requirement.	Ensure ElasticSearch/OpenSearch has dedicated master node enabled
 CKV2_AWS_6	enable	Portable security requirement.	Ensure that S3 bucket has a Public Access block
 CKV2_AWS_60	enable	Portable security requirement.	Ensure RDS instance with copy tags to snapshots is enabled
-CKV2_AWS_61	enable	Portable security requirement.	Ensure that an S3 bucket has a lifecycle configuration
-CKV2_AWS_62	enable	Portable security requirement.	Ensure S3 buckets should have event notifications enabled
+CKV2_AWS_61	exclude	Retention depends on the data and the deployment.	Ensure that an S3 bucket has a lifecycle configuration
+CKV2_AWS_62	exclude	Event notifications are an integration choice.	Ensure S3 buckets should have event notifications enabled
 CKV2_AWS_63	enable	Portable security requirement.	Ensure Network firewall has logging configuration defined
 CKV2_AWS_64	enable	Portable security requirement.	Ensure KMS key Policy is defined
 CKV2_AWS_65	enable	Portable security requirement.	Ensure access control lists for S3 buckets are disabled
@@ -280,7 +280,7 @@ CKV_AWS_114	enable	Portable security requirement.	Ensure that EMR clusters with 
 CKV_AWS_115	enable	Portable security requirement.	Ensure that AWS Lambda function is configured for function-level concurrent execution limit
 CKV_AWS_116	enable	Portable security requirement.	Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)
 CKV_AWS_117	enable	Portable security requirement.	Ensure that AWS Lambda function is configured inside a VPC
-CKV_AWS_118	enable	Portable security requirement.	Ensure that enhanced monitoring is enabled for Amazon RDS instances
+CKV_AWS_118	exclude	Tracing and performance monitoring depend on the workload.	Ensure that enhanced monitoring is enabled for Amazon RDS instances
 CKV_AWS_119	exclude	Encryption does not require a particular key ownership model.	Ensure DynamoDB Tables are encrypted using a KMS Customer Managed CMK
 CKV_AWS_12	enable	Portable security requirement.	Ensure IAM password policy requires at least one number
 CKV_AWS_120	enable	Portable security requirement.	Ensure API Gateway caching is enabled
@@ -290,7 +290,7 @@ CKV_AWS_123	enable	Portable security requirement.	Ensure that VPC Endpoint Servi
 CKV_AWS_124	enable	Portable security requirement.	Ensure that CloudFormation stacks are sending event notifications to an SNS topic
 CKV_AWS_126	enable	Portable security requirement.	Ensure that detailed monitoring is enabled for EC2 instances
 CKV_AWS_127	enable	Portable security requirement.	Ensure that Elastic Load Balancer(s) uses SSL certificates provided by AWS Certificate Manager
-CKV_AWS_129	enable	Portable security requirement.	Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled
+CKV_AWS_129	exclude	Which log sources a deployment keeps is part of its logging design.	Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled
 CKV_AWS_13	enable	Portable security requirement.	Ensure IAM password policy prevents password reuse
 CKV_AWS_130	enable	Portable security requirement.	Ensure VPC subnets do not assign public IP by default
 CKV_AWS_131	enable	Portable security requirement.	Ensure that ALB drops HTTP headers
@@ -344,7 +344,7 @@ CKV_AWS_176	enable	Portable security requirement.	Ensure Logging is enabled for 
 CKV_AWS_177	exclude	Encryption does not require a particular key ownership model.	Ensure Kinesis Video Stream is encrypted by KMS using a customer managed Key (CMK)
 CKV_AWS_178	exclude	Encryption does not require a particular key ownership model.	Ensure fx ontap file system is encrypted by KMS using a customer managed Key (CMK)
 CKV_AWS_179	exclude	Encryption does not require a particular key ownership model.	Ensure FSX Windows filesystem is encrypted by KMS using a customer managed Key (CMK)
-CKV_AWS_18	enable	Portable security requirement.	Ensure the S3 bucket has access logging enabled
+CKV_AWS_18	exclude	Which log sources a deployment keeps is part of its logging design.	Ensure the S3 bucket has access logging enabled
 CKV_AWS_180	exclude	Encryption does not require a particular key ownership model.	Ensure Image Builder component is encrypted by KMS using a customer managed Key (CMK)
 CKV_AWS_181	exclude	Encryption does not require a particular key ownership model.	Ensure S3 Object Copy is encrypted by KMS using a customer managed Key (CMK)
 CKV_AWS_182	exclude	Encryption does not require a particular key ownership model.	Ensure DocumentDB is encrypted by KMS using a customer managed Key (CMK)
@@ -431,7 +431,7 @@ CKV_AWS_255	enable	Portable security requirement.	Ensure DLM cross region schedu
 CKV_AWS_256	exclude	Encryption does not require a particular key ownership model.	Ensure DLM cross region schedules are encrypted using a Customer Managed Key
 CKV_AWS_257	exclude	The fleet merges agent work without mandatory human review.	Ensure CodeCommit branch changes have at least 2 approvals
 CKV_AWS_258	enable	Portable security requirement.	Ensure that Lambda function URLs AuthType is not None
-CKV_AWS_259	enable	Portable security requirement.	Ensure CloudFront response header policy enforces Strict Transport Security
+CKV_AWS_259	exclude	HSTS subdomain scope and preload depend on who owns the parent domain.	Ensure CloudFront response header policy enforces Strict Transport Security
 CKV_AWS_26	enable	Portable security requirement.	Ensure all data stored in the SNS topic is encrypted
 CKV_AWS_260	enable	Portable security requirement.	Ensure no security groups allow ingress from 0.0.0.0:0 to port 80
 CKV_AWS_261	enable	Portable security requirement.	Ensure HTTP HTTPS Target group defines Healthcheck
@@ -459,8 +459,8 @@ CKV_AWS_280	exclude	Encryption does not require a particular key ownership model
 CKV_AWS_281	exclude	Encryption does not require a particular key ownership model.	Ensure RedShift snapshot copy is encrypted by KMS using a customer managed Key (CMK)
 CKV_AWS_282	exclude	Encryption does not require a particular key ownership model.	Ensure that Redshift Serverless namespace is encrypted by KMS using a customer managed key (CMK)
 CKV_AWS_283	enable	Portable security requirement.	Ensure no IAM policies documents allow ALL or any AWS principal permissions to the resource
-CKV_AWS_284	enable	Portable security requirement.	Ensure State Machine has X-Ray tracing enabled
-CKV_AWS_285	enable	Portable security requirement.	Ensure State Machine has execution history logging enabled
+CKV_AWS_284	exclude	Tracing and performance monitoring depend on the workload.	Ensure State Machine has X-Ray tracing enabled
+CKV_AWS_285	exclude	Which log sources a deployment keeps is part of its logging design.	Ensure State Machine has execution history logging enabled
 CKV_AWS_286	enable	Portable security requirement.	Ensure IAM policies does not allow privilege escalation
 CKV_AWS_287	enable	Portable security requirement.	Ensure IAM policies does not allow credentials exposure
 CKV_AWS_288	enable	Portable security requirement.	Ensure IAM policies does not allow data exfiltration
@@ -482,13 +482,13 @@ CKV_AWS_301	exclude	A function may intentionally expose a public application end
 CKV_AWS_302	enable	Portable security requirement.	Ensure DB Snapshots are not Public
 CKV_AWS_303	enable	Portable security requirement.	Ensure SSM documents are not Public
 CKV_AWS_304	enable	Portable security requirement.	Ensure Secrets Manager secrets should be rotated within 90 days
-CKV_AWS_305	enable	Portable security requirement.	Ensure CloudFront distribution has a default root object configured
+CKV_AWS_305	exclude	An application origin or an edge function may answer the root path itself.	Ensure CloudFront distribution has a default root object configured
 CKV_AWS_306	enable	Portable security requirement.	Ensure SageMaker notebook instances should be launched into a custom VPC
 CKV_AWS_307	enable	Portable security requirement.	Ensure SageMaker Users should not have root access to SageMaker notebook instances
 CKV_AWS_308	enable	Portable security requirement.	Ensure API Gateway method setting caching is set to encrypted
 CKV_AWS_309	enable	Portable security requirement.	Ensure API GatewayV2 routes specify an authorization type
 CKV_AWS_31	enable	Portable security requirement.	Ensure all data stored in the ElastiCache Replication Group is securely encrypted at transit and has auth token
-CKV_AWS_310	enable	Portable security requirement.	Ensure CloudFront distributions should have origin failover configured
+CKV_AWS_310	exclude	Availability and replication depend on the deployment.	Ensure CloudFront distributions should have origin failover configured
 CKV_AWS_311	enable	Portable security requirement.	Ensure that CodeBuild S3 logs are encrypted
 CKV_AWS_312	enable	Portable security requirement.	Ensure Elastic Beanstalk environments have enhanced health reporting enabled
 CKV_AWS_313	enable	Portable security requirement.	Ensure RDS cluster configured to copy tags to snapshots
@@ -516,9 +516,9 @@ CKV_AWS_332	enable	Portable security requirement.	Ensure ECS Fargate services ru
 CKV_AWS_333	exclude	Public application tasks are a deployment choice.	Ensure ECS services do not have public IP addresses assigned to them automatically
 CKV_AWS_334	enable	Portable security requirement.	Ensure ECS containers should run as non-privileged
 CKV_AWS_335	enable	Portable security requirement.	Ensure ECS task definitions should not share the host's process namespace
-CKV_AWS_336	enable	Portable security requirement.	Ensure ECS containers are limited to read-only access to root filesystems
+CKV_AWS_336	exclude	Whether a root filesystem can be read-only depends on where the application writes.	Ensure ECS containers are limited to read-only access to root filesystems
 CKV_AWS_337	exclude	Encryption does not require a particular key ownership model.	Ensure SSM parameters are using KMS CMK
-CKV_AWS_338	enable	Portable security requirement.	Ensure CloudWatch log groups retains logs for at least 1 year
+CKV_AWS_338	exclude	Retention depends on the data and the deployment.	Ensure CloudWatch log groups retains logs for at least 1 year
 CKV_AWS_339	enable	Portable security requirement.	Ensure EKS clusters run on a supported Kubernetes version
 CKV_AWS_34	enable	Portable security requirement.	Ensure CloudFront distribution ViewerProtocolPolicy is set to HTTPS
 CKV_AWS_340	enable	Portable security requirement.	Ensure Elastic Beanstalk managed platform updates are enabled
@@ -558,11 +558,11 @@ CKV_AWS_370	enable	Portable security requirement.	Ensure Amazon SageMaker model 
 CKV_AWS_371	enable	Portable security requirement.	Ensure Amazon SageMaker Notebook Instance only allows for IMDSv2
 CKV_AWS_372	enable	Portable security requirement.	Ensure Amazon SageMaker Flow Definition uses KMS for output configurations
 CKV_AWS_373	exclude	Encryption does not require a particular key ownership model.	Ensure Bedrock Agent is encrypted with a CMK
-CKV_AWS_374	enable	Portable security requirement.	Ensure AWS CloudFront web distribution has geo restriction enabled
+CKV_AWS_374	exclude	Restricting an audience by country is a product decision.	Ensure AWS CloudFront web distribution has geo restriction enabled
 CKV_AWS_375	enable	Portable security requirement.	Ensure AWS S3 bucket does not have global view ACL permissions enabled
 CKV_AWS_376	enable	Portable security requirement.	Ensure AWS Elastic Load Balancer listener uses TLS/SSL
 CKV_AWS_377	enable	Portable security requirement.	Ensure Route 53 domains have transfer lock protection
-CKV_AWS_378	enable	Portable security requirement.	Ensure AWS Load Balancer doesn't use HTTP protocol
+CKV_AWS_378	exclude	TLS may end at the load balancer, with the hop behind it inside a private network.	Ensure AWS Load Balancer doesn't use HTTP protocol
 CKV_AWS_379	enable	Portable security requirement.	Ensure AWS S3 bucket is configured with secure data transport policy
 CKV_AWS_38	enable	Portable security requirement.	Ensure Amazon EKS public endpoint not accessible to 0.0.0.0/0
 CKV_AWS_380	enable	Portable security requirement.	Ensure AWS Transfer Server uses latest Security Policy
@@ -630,13 +630,13 @@ CKV_AWS_82	enable	Portable security requirement.	Ensure Athena Workgroup should 
 CKV_AWS_83	enable	Portable security requirement.	Ensure Elasticsearch Domain enforces HTTPS
 CKV_AWS_84	enable	Portable security requirement.	Ensure Elasticsearch Domain Logging is enabled
 CKV_AWS_85	enable	Portable security requirement.	Ensure DocumentDB Logging is enabled
-CKV_AWS_86	enable	Portable security requirement.	Ensure CloudFront distribution has Access Logging enabled
+CKV_AWS_86	exclude	Which log sources a deployment keeps is part of its logging design.	Ensure CloudFront distribution has Access Logging enabled
 CKV_AWS_87	enable	Portable security requirement.	Redshift cluster should not be publicly accessible
 CKV_AWS_88	exclude	Public compute is valid when access is governed.	EC2 instance should not have public IP.
 CKV_AWS_89	enable	Portable security requirement.	DMS replication instance should not be publicly accessible
 CKV_AWS_9	enable	Portable security requirement.	Ensure IAM password policy expires passwords within 90 days or less
 CKV_AWS_90	enable	Portable security requirement.	Ensure DocumentDB TLS is not disabled
-CKV_AWS_91	enable	Portable security requirement.	Ensure the ELBv2 (Application/Network) has access logging enabled
+CKV_AWS_91	exclude	Which log sources a deployment keeps is part of its logging design.	Ensure the ELBv2 (Application/Network) has access logging enabled
 CKV_AWS_92	enable	Portable security requirement.	Ensure the ELB has access logging enabled
 CKV_AWS_93	enable	Portable security requirement.	Ensure S3 bucket policy does not lockout all but root user. (Prevent lockouts needing root account fixes)
 CKV_AWS_94	enable	Portable security requirement.	Ensure Glue Data Catalog Encryption is enabled
@@ -1145,7 +1145,7 @@ CKV_K8S_19	enable	Portable security requirement.	Do not admit containers wishing
 CKV_K8S_2	enable	Portable security requirement.	Do not admit privileged containers
 CKV_K8S_20	enable	Portable security requirement.	Containers should not run with allowPrivilegeEscalation
 CKV_K8S_21	exclude	Namespace allocation is a deployment choice.	The default namespace should not be used
-CKV_K8S_22	enable	Portable security requirement.	Use read-only filesystem for containers where possible
+CKV_K8S_22	exclude	Whether a root filesystem can be read-only depends on where the application writes.	Use read-only filesystem for containers where possible
 CKV_K8S_23	enable	Portable security requirement.	Minimize the admission of root containers
 CKV_K8S_24	enable	Portable security requirement.	Do not allow containers with added capability
 CKV_K8S_25	enable	Portable security requirement.	Minimize the admission of containers with added capability

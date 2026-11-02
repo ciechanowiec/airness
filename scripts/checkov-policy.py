@@ -41,6 +41,28 @@ EXCEPTIONS = {
 for number in range(8, 14):
     EXCEPTIONS[f"CKV_K8S_{number}"] = "Probes and resource sizing depend on the workload."
 
+# These requirements are a deployment's or a product's decisions rather than portable security controls.
+EXCEPTIONS.update({
+    "CKV_AWS_374": "Restricting an audience by country is a product decision.",
+    "CKV_AWS_305": "An application origin or an edge function may answer the root path itself.",
+    "CKV_AWS_259": "HSTS subdomain scope and preload depend on who owns the parent domain.",
+    "CKV_AWS_378": "TLS may end at the load balancer, with the hop behind it inside a private network.",
+    "CKV2_AWS_47": "Blocking anonymising networks is a product decision; CKV_AWS_192 judges the Log4j rules.",
+    "CKV2_AWS_62": "Event notifications are an integration choice.",
+    "CKV2_AWS_34": "A parameter may hold non-secret configuration; secrets belong in a secret store.",
+    "CKV2_AWS_57": "Automatic rotation needs a rotation function, which only some kinds of secret have.",
+    "CKV_AWS_118": "Tracing and performance monitoring depend on the workload.",
+    "CKV_AWS_284": "Tracing and performance monitoring depend on the workload.",
+    "CKV2_AWS_61": "Retention depends on the data and the deployment.",
+    "CKV_AWS_338": "Retention depends on the data and the deployment.",
+    "CKV_AWS_336": "Whether a root filesystem can be read-only depends on where the application writes.",
+    "CKV_K8S_22": "Whether a root filesystem can be read-only depends on where the application writes.",
+})
+# A logging rule demands one log source; which sources a deployment keeps is its logging design.
+for identifier in ("CKV_AWS_18", "CKV_AWS_86", "CKV_AWS_91", "CKV_AWS_129", "CKV_AWS_285",
+                   "CKV2_AWS_11", "CKV2_AWS_30"):
+    EXCEPTIONS[identifier] = "Which log sources a deployment keeps is part of its logging design."
+
 # Match the policy's requirement, not the resource's name. For example a WAF rule's
 # security checks stay enabled; only the requirement to provision a WAF is omitted.
 REQUIREMENTS = (
@@ -48,7 +70,7 @@ REQUIREMENTS = (
      "The fleet merges agent work without mandatory human review."),
     (r"customer.managed|\bCMK\b|encrypted.*(?:using|with|by) (?:a )?KMS",
      "Encryption does not require a particular key ownership model."),
-    (r"multi.az|high.availability|cross.region replication|use replication|standard replication",
+    (r"multi.az|high.availability|cross.region replication|use replication|standard replication|origin failover",
      "Availability and replication depend on the deployment."),
     (r"(?:have|has|with|is|are|be) (?:a )?WAF enabled|WAF (?:is )?enabled|associated with.*WAF",
      "Provisioning a WAF is an architecture decision."),
