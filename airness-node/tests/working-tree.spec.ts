@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { workingTreeFiles, workingTreeFingerprint } from '@/working-tree.js'
+import { ignoredWorkingTreePaths, workingTreeFiles, workingTreeFingerprint } from '@/working-tree.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 const SPEC_DIRECTORY: string = path.dirname(fileURLToPath(import.meta.url))
@@ -27,6 +27,27 @@ describe('working-tree evidence', PROCESS_TIME, () => {
       writeFileSync(path.join(root, 'dist/output.js'), 'generated\n')
       expect(workingTreeFiles(root)).toEqual(['.gitignore', 'new source.ts', 'source.ts'])
     })
+  })
+
+  it('names an ignored directory once and passes over what Git would carry', () => {
+    withTree((root: string): void => {
+      mkdirSync(path.join(root, 'dist/nested'), { recursive: true })
+      writeFileSync(path.join(root, 'dist/nested/output.js'), 'generated\n')
+      writeFileSync(path.join(root, 'dist/output.js'), 'generated\n')
+      expect(ignoredWorkingTreePaths(root)).toEqual(['dist/'])
+    })
+  })
+
+  it('knows nothing to be ignored outside a repository', () => {
+    const outside: string = mkdtempSync(path.join(tmpdir(), 'airness outside '))
+    try {
+      writeFileSync(path.join(outside, '.gitignore'), 'dist/\n')
+      mkdirSync(path.join(outside, 'dist'))
+      writeFileSync(path.join(outside, 'dist/output.js'), 'generated\n')
+      expect(ignoredWorkingTreePaths(outside)).toEqual([])
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
   })
 
   it('detects newly created files and later edits to them', () => {

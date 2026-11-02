@@ -88,19 +88,41 @@ export const hasOwnRuntime = (packageJson: unknown): boolean =>
 export const analysisBoundaries = (siblingPaths: readonly string[]): readonly string[] =>
   siblingPaths.map((sibling: string): string => `${sibling}/**`)
 
+// The characters a glob reads as syntax, which a literal path escapes so that it names only itself.
+const GLOB_SYNTAX: RegExp = /[\\*?[\]{}()!+@]/gu
+
+/**
+ * One ignore pattern per path Git ignores, so ESLint judges what a commit would carry, as every other gate does:
+ * a directory, listed with its trailing slash, with everything under it, and a file alone.
+ * @param ignoredPaths the ignored paths, relative to the member, each directory ending with a slash.
+ * @returns the patterns, each path's glob syntax escaped.
+ */
+export const ignoredPatterns = (ignoredPaths: readonly string[]): readonly string[] =>
+  ignoredPaths.map((ignored: string): string => {
+    const literal: string = ignored.replaceAll(GLOB_SYNTAX, String.raw`\$&`)
+    return literal.endsWith('/') ? `${literal}**` : literal
+  })
+
 /**
  * The arguments an ESLint run takes to judge a member: the harness configuration, the warning backstop,
  * and the boundary at every nested member.
  * @param config the absolute path of the harness configuration.
  * @param siblingPaths the nested members' paths, relative to this member's directory.
+ * @param ignoredPaths the paths Git ignores in the member, relative to its directory.
  * @returns the full argument list, the target first.
  */
-export const eslintArguments = (config: string, siblingPaths: readonly string[]): readonly string[] => [
+export const eslintArguments = (
+  config: string,
+  siblingPaths: readonly string[],
+  ignoredPaths: readonly string[] = [],
+): readonly string[] => [
   '.',
   '--config',
   config,
   '--max-warnings=0',
   '--ext',
   [...TYPESCRIPT_SOURCE_EXTENSIONS, ...JAVASCRIPT_EXTENSIONS].join(','),
-  ...analysisBoundaries(siblingPaths).flatMap((pattern: string): readonly string[] => ['--ignore-pattern', pattern]),
+  ...[...analysisBoundaries(siblingPaths), ...ignoredPatterns(ignoredPaths)].flatMap(
+    (pattern: string): readonly string[] => ['--ignore-pattern', pattern],
+  ),
 ]

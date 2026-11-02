@@ -50,6 +50,30 @@ export const workingTreeFingerprint = (root: string): string =>
     )
     .digest('hex')
 
+/**
+ * The untracked paths Git ignores under the root, a directory named once with its trailing slash rather than
+ * file by file. A commit never carries them, so an analyzer that walks the directory itself, rather than reading
+ * the files a commit would carry, passes over them: build output such as a static site a server builds before a
+ * later gate runs. Outside a repository nothing is known to be ignored, so nothing is passed over.
+ * @param root the directory whose ignored paths to list, which the paths are relative to.
+ * @returns the ignored paths, sorted.
+ */
+export const ignoredWorkingTreePaths = (root: string): readonly string[] => {
+  try {
+    return execFileSync('git', ['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'], {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: MAX_OUTPUT_MIB * KIB_PER_MIB * BYTES_PER_KIB,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+      .split('\0')
+      .filter((file: string): boolean => file !== '')
+      .toSorted((left: string, right: string): number => left.localeCompare(right, 'en'))
+  } catch {
+    return []
+  }
+}
+
 /** Untracked inputs participate in a delta just as staged and committed inputs do. */
 export const untrackedWorkingTreeFiles = (root: string): readonly string[] =>
   execFileSync('git', ['ls-files', '-z', '--others', '--exclude-standard'], {
