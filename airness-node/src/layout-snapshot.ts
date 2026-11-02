@@ -59,6 +59,11 @@ export interface LayoutNode {
   readonly rotate: string
   readonly backgroundColor: string
   readonly backgroundImage: string
+  /**
+   * Whether every background layer is clipped to the text (`background-clip: text`), so the background
+   * colours the glyphs rather than the box.
+   */
+  readonly isBackgroundClippedToText: boolean
   readonly boxShadow: string
   readonly borders: LayoutBorders
   /** Whether the element itself carries `aria-hidden="true"`. */
@@ -193,7 +198,7 @@ const isOpaqueGradient = (image: string): boolean => {
  * @returns true for an opaque background colour, or a gradient of opaque stops only.
  */
 export const isOpaqueBackground = (node: LayoutNode): boolean =>
-  isOpaqueColor(node.backgroundColor) || isOpaqueGradient(node.backgroundImage)
+  !node.isBackgroundClippedToText && (isOpaqueColor(node.backgroundColor) || isOpaqueGradient(node.backgroundImage))
 
 /**
  * The background an element sits on: the nearest ancestor that paints one, or the page canvas.
@@ -210,14 +215,17 @@ const surroundingBackground = (snapshot: LayoutSnapshot, node: LayoutNode): stri
 }
 
 /**
- * Whether an element paints a background that stands out from what it sits on.
+ * Whether an element paints a background that stands out from what it sits on. A background clipped to the
+ * text paints the glyphs, which are measured as text, and no box: the padding that lets it reach the marks
+ * above and below a line draws nothing a reader sees.
  * @param snapshot the measured page.
  * @param node the element.
  * @returns true for an image or gradient, and for a visible colour unlike the surrounding one.
  */
 export const hasPaintedBackground = (snapshot: LayoutSnapshot, node: LayoutNode): boolean =>
-  node.backgroundImage !== 'none' ||
-  (isVisibleColor(node.backgroundColor) && node.backgroundColor !== surroundingBackground(snapshot, node))
+  !node.isBackgroundClippedToText &&
+  (node.backgroundImage !== 'none' ||
+    (isVisibleColor(node.backgroundColor) && node.backgroundColor !== surroundingBackground(snapshot, node)))
 
 /**
  * Whether one side of an element draws a border.
