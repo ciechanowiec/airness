@@ -225,6 +225,33 @@ describe('tests', PROCESS_TIME, () => {
             'export const sign = (value: number): string => {\n  if (value < 0) {\n    return "negative"\n  }\n' +
             '  return "positive"\n}\n',
         },
+  it(
+    'leaves a nested member to its own run, at a workspace root',
+    () => {
+      // The member's test configuration cannot load outside its own environment, as a configuration that reads
+      // the member's variables cannot.
+      const member: Readonly<Record<string, unknown>> = {
+        name: 'member-a',
+        private: true,
+        type: 'module',
+        devDependencies: { vitest: '5.0.5' },
+      }
+      withProject(
+        {
+          'pnpm-workspace.yaml': 'packages:\n  - member-a\n',
+          'member-a/package.json': `${JSON.stringify(member, null, JSON_INDENT)}\n`,
+          'member-a/vitest.config.mts': "throw new Error('the member environment is missing')\n",
+        },
+        (root: string): void => {
+          const result: GateResult = knip({ ...memberAt(root), siblingPaths: ['member-a'] })
+          expect(findingsOf(result)).not.toContain('member-a')
+          expect(result.ok).toBe(true)
+        },
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
         (root: string): void => {
           expect(findingsOf(tests(memberAt(root)))).toContain('src/sign.ts')
         },
