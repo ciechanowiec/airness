@@ -52,4 +52,27 @@ class NodeGeneratedArtefactsTest {
         assertTrue(denied.contains("web/src/generated/**"), "the node setting reaches the denial: " + denied);
         assertTrue(denied.contains("docs/api.md"), "beside the Maven property");
     }
+
+    @Test
+    @SneakyThrows
+    void deniesWhatEachWorkspaceMemberDeclaresGeneratedInItsOwnDirectory() {
+        Path project = Files.createDirectories(this.root.resolve("app"));
+        Files.writeString(project.resolve("pnpm-workspace.yaml"), "packages:\n  - members/*\n  - '!members/skipped'\n");
+        Files.writeString(
+            project.resolve(MANIFEST),
+            "{\"airness\": {\"generatedArtefacts\": [{\"pattern\": \"root.gen.ts\", \"reason\": \"a generator\"}]}}"
+        );
+        String member
+            = "{\"airness\": {\"generatedArtefacts\": [{\"pattern\": \"src/types.ts\", \"reason\": \"a generator\"}]}}";
+        Files.createDirectories(project.resolve("members/alpha"));
+        Files.writeString(project.resolve("members/alpha").resolve(MANIFEST), member);
+        Files.createDirectories(project.resolve("members/skipped"));
+        Files.writeString(project.resolve("members/skipped").resolve(MANIFEST), member);
+        Files.createDirectories(project.resolve("node_modules/members/beta"));
+        Files.writeString(project.resolve("node_modules/members/beta").resolve(MANIFEST), member);
+        List<AssetSite> sites = List.of(new AssetSite("app", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)));
+        assertEquals(
+            List.of("app/root.gen.ts", "app/members/alpha/src/types.ts"), NodeGeneratedArtefacts.paths(this.root, sites)
+        );
+    }
 }
