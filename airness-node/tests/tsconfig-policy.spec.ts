@@ -41,4 +41,15 @@ describe('the project tsconfig.json', () => {
   it('requires the Next type files of an application', () => {
     expect(tsconfigPathsFor(true, [])['include']).toContain('next-env.d.ts')
   })
+
+  it('brings a Storybook configuration directory into the project, which a recursive include passes over', () => {
+    expect(tsconfigPathsFor(true, [], true)['include']?.slice(-2)).toEqual([
+      '.storybook/**/*.ts',
+      '.storybook/**/*.tsx',
+    ])
+    expect(tsconfigPathsFor(false, [])['include']).not.toContain('.storybook/**/*.ts')
+    expect(tsconfigProblems(conforming(), false, [], true)).toEqual([
+      'tsconfig.json include: must be exactly ["**/*.ts","**/*.tsx","**/*.mts","**/*.cts",".storybook/**/*.ts",".storybook/**/*.tsx"]',
+    ])
+  })
 })
