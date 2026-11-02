@@ -3,6 +3,7 @@
 import path from 'node:path'
 import { fromRun, type GateResult, runNode } from './exec.js'
 import { harnessDirectory, type Member, resolveTool } from './project.js'
+import { ignoredWorkingTreePaths } from './working-tree.js'
 import { eslintArguments } from './workspace.js'
 
 /**
@@ -13,19 +14,18 @@ import { eslintArguments } from './workspace.js'
 const shippedConfig = (): string => path.join(harnessDirectory(), 'dist', 'eslint-layered.js')
 
 /**
- * ESLint with the given configuration. `--max-warnings=0` is the backstop behind the severity escalation in
+ * ESLint with the given configuration, over what a commit would carry: every path Git ignores, such as a static
+ * site an auxiliary server built, is passed over. `--max-warnings=0` is the backstop behind the severity escalation in
  * `eslint-core.ts`: it fails the gate on a warning whatever its source.
  */
-const eslintRun = (member: Member, mode: 'check' | 'write', config: string): GateResult =>
-  fromRun(
-    runNode(
-      resolveTool('eslint'),
-      [...eslintArguments(config, member.siblingPaths), ...(mode === 'write' ? ['--fix'] : [])],
-      { cwd: member.root },
-    ),
+const eslintRun = (member: Member, mode: 'check' | 'write', config: string): GateResult => {
+  const target: readonly string[] = eslintArguments(config, member.siblingPaths, ignoredWorkingTreePaths(member.root))
+  return fromRun(
+    runNode(resolveTool('eslint'), [...target, ...(mode === 'write' ? ['--fix'] : [])], { cwd: member.root }),
     'ESLint reports no defect',
     'ESLint reports at least one defect',
   )
+}
 
 /**
  * Judge the member with the harness-owned layered configuration.
