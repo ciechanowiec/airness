@@ -83,6 +83,41 @@ const registered = async (id: string, member: Member): Promise<GateResult> => {
 
 describe('arch', PROCESS_TIME, () => {
   it(
+    'lets a declared CloudFront function import the module its runtime provides, and nothing else',
+    () => {
+      const manifest: Readonly<Record<string, unknown>> = {
+        ...MANIFEST,
+        airness: {
+          sourceRoots: ['edge'],
+          javascriptAllowlist: [
+            { pattern: String.raw`^edge/function\.cjs$`, runtime: 'cloudfront-js-2.0', reason: 'the edge runtime' },
+          ],
+        },
+      }
+      withProject(
+        {
+          'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
+          'edge/function.cjs': "const cf = require('cloudfront')\n\nmodule.exports = { cf }\n",
+        },
+        (root: string): void => {
+          expect(findingsOf(architecture(memberAt(root, manifest)))).not.toContain('not-to-unresolvable')
+        },
+      )
+      withProject(
+        {
+          'package.json': `${JSON.stringify(manifest, null, JSON_INDENT)}\n`,
+          'edge/function.cjs': "const cf = require('cloudfront')\n\nmodule.exports = { cf }\n",
+          'src/edge.ts': "import cf from 'cloudfront'\n\nexport const edge = cf\n",
+        },
+        (root: string): void => {
+          expect(findingsOf(architecture(memberAt(root, manifest)))).toContain('not-to-unresolvable')
+        },
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
     'passes acyclic modules and fails a cycle',
     () => {
       withProject({}, (root: string): void => {
@@ -191,6 +226,33 @@ describe('knip', PROCESS_TIME, () => {
   )
 
   it(
+    'leaves a nested member to its own run, at a workspace root',
+    () => {
+      // The member's test configuration cannot load outside its own environment, as a configuration that reads
+      // the member's variables cannot.
+      const member: Readonly<Record<string, unknown>> = {
+        name: 'member-a',
+        private: true,
+        type: 'module',
+        devDependencies: { vitest: '5.0.5' },
+      }
+      withProject(
+        {
+          'pnpm-workspace.yaml': 'packages:\n  - member-a\n',
+          'member-a/package.json': `${JSON.stringify(member, null, JSON_INDENT)}\n`,
+          'member-a/vitest.config.mts': "throw new Error('the member environment is missing')\n",
+        },
+        (root: string): void => {
+          const result: GateResult = knip({ ...memberAt(root), siblingPaths: ['member-a'] })
+          expect(findingsOf(result)).not.toContain('member-a')
+          expect(result.ok).toBe(true)
+        },
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
     'counts a declared layer package as used only while the harness names it as a layer',
     async () => {
       const layered: Readonly<Record<string, unknown>> = {
@@ -225,33 +287,6 @@ describe('tests', PROCESS_TIME, () => {
             'export const sign = (value: number): string => {\n  if (value < 0) {\n    return "negative"\n  }\n' +
             '  return "positive"\n}\n',
         },
-  it(
-    'leaves a nested member to its own run, at a workspace root',
-    () => {
-      // The member's test configuration cannot load outside its own environment, as a configuration that reads
-      // the member's variables cannot.
-      const member: Readonly<Record<string, unknown>> = {
-        name: 'member-a',
-        private: true,
-        type: 'module',
-        devDependencies: { vitest: '5.0.5' },
-      }
-      withProject(
-        {
-          'pnpm-workspace.yaml': 'packages:\n  - member-a\n',
-          'member-a/package.json': `${JSON.stringify(member, null, JSON_INDENT)}\n`,
-          'member-a/vitest.config.mts': "throw new Error('the member environment is missing')\n",
-        },
-        (root: string): void => {
-          const result: GateResult = knip({ ...memberAt(root), siblingPaths: ['member-a'] })
-          expect(findingsOf(result)).not.toContain('member-a')
-          expect(result.ok).toBe(true)
-        },
-      )
-    },
-    TOOL_TIMEOUT_MS,
-  )
-
         (root: string): void => {
           expect(findingsOf(tests(memberAt(root)))).toContain('src/sign.ts')
         },

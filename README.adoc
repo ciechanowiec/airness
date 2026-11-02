@@ -310,7 +310,7 @@ The script writes its output under `target/`. With `-DskipTests`, a module that 
 | `source-rules` | No parent-relative import under a source root, and no credential guard that opens when the credential is unset.
 | `config-refs` | Every file a tool configuration carves out exists, and every exclusion the project declares reaches a file.
 | `javascript-allowlist` | No hand-written JavaScript outside the allowlist: by default `eslint.config.mjs` and a PostCSS configuration.
-| `arch` | Under the shipped dependency-cruiser contract: no cycle, no import that does not resolve, no production import of a spec or of a development-only dependency, no deprecated Node.js core module.
+| `arch` | Under the shipped dependency-cruiser contract: no cycle, no import that does not resolve but the `cloudfront` module a declared CloudFront function takes from its runtime, no production import of a spec or of a development-only dependency, no deprecated Node.js core module.
 | `type-coverage` | Every identifier of hand-written logic is typed, with no `any` and no type assertion. A `typeCoverage` key in `package.json` is refused.
 | `knip` | No unused file, export or dependency, under the shipped knip configuration. At a workspace root, each nested member is left to its own run.
 | `css` | A facet: every authored stylesheet under a source root passes Stylelint under the shipped configuration, and every SCSS file is formatted as the shipped Prettier options format it. A project Stylelint configuration or `.stylelintignore` is refused. Not applicable to a member without a stylesheet.

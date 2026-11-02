@@ -62,18 +62,65 @@ export const pureLogicRule = (
   }
 }
 
+// The module the CloudFront Functions runtime provides itself, which no package and no file supplies.
+const CLOUDFRONT_MODULE: string = 'cloudfront'
+
+const UNRESOLVABLE_RULE: string = 'not-to-unresolvable'
+
+const UNRESOLVABLE_COMMENT: string =
+  'An import that does not resolve is a broken path: a typo, a renamed file, a missing dependency.'
+
+const exactFiles = (files: readonly string[]): string =>
+  `^(${files.map((file: string): string => file.replaceAll(REGEX_METACHARACTERS, (character: string): string => escaped(character))).join('|')})$`
+
+/**
+ * The unresolvable-import rule, split so that the files a project declares for the CloudFront Functions runtime
+ * may import the module that runtime provides, and nothing else may. The first rule replaces the shipped one of
+ * the same name.
+ * @param cloudFrontFiles the member's declared CloudFront files, member-relative.
+ * @returns the two rules, or none when the member declares no CloudFront file.
+ */
+export const cloudFrontRules = (cloudFrontFiles: readonly string[]): readonly ArchitectureRule[] => {
+  if (cloudFrontFiles.length === 0) {
+    return []
+  }
+  const files: string = exactFiles(cloudFrontFiles)
+  return [
+    {
+      name: UNRESOLVABLE_RULE,
+      severity: 'error',
+      comment: UNRESOLVABLE_COMMENT,
+      from: { pathNot: files },
+      to: { couldNotResolve: true },
+    },
+    {
+      name: `${UNRESOLVABLE_RULE}-cloudfront`,
+      severity: 'error',
+      comment: `${UNRESOLVABLE_COMMENT} A CloudFront function may import only the ${CLOUDFRONT_MODULE} module its runtime provides.`,
+      from: { path: files },
+      to: { couldNotResolve: true, pathNot: `^${CLOUDFRONT_MODULE}$` },
+    },
+  ]
+}
+
 /**
  * The project-shaped rules one member is held to.
  * @param isNextApp whether the member is a Next.js application.
  * @param pureLogicRoots the member's declared pure-logic floor.
  * @param sourceRoots the member's source roots.
+ * @param cloudFrontFiles the member's declared CloudFront Functions files, member-relative.
  * @returns the rules to add to the shipped configuration.
  */
 export const layerRules = (
   isNextApp: boolean,
   pureLogicRoots: readonly string[],
   sourceRoots: readonly string[],
+  cloudFrontFiles: readonly string[] = [],
 ): readonly ArchitectureRule[] => {
   const floor: ArchitectureRule | undefined = pureLogicRule(pureLogicRoots, sourceRoots)
-  return [...(isNextApp ? [APPLICATION_LAYER_RULE] : []), ...(floor === undefined ? [] : [floor])]
+  return [
+    ...(isNextApp ? [APPLICATION_LAYER_RULE] : []),
+    ...(floor === undefined ? [] : [floor]),
+    ...cloudFrontRules(cloudFrontFiles),
+  ]
 }

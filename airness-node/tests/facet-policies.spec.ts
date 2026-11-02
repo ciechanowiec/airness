@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Ajv, type ValidateFunction } from 'ajv'
 import { describe, expect, it } from 'vitest'
-import { APPLICATION_LAYER_RULE, layerRules, pureLogicRule } from '@/architecture-layers.js'
+import { APPLICATION_LAYER_RULE, cloudFrontRules, layerRules, pureLogicRule } from '@/architecture-layers.js'
 import { BUILD_DIRECTORY_MARKER, evaluateBundle, parseBuildDirectory } from '@/bundle-budget.js'
 import { notApplicable, passed } from '@/exec.js'
 import { scriptSourcesOf } from '@/facets.js'
@@ -54,6 +54,12 @@ describe('architecture layers', PROCESS_TIME, () => {
   it('adds the application layer only to a Next.js application', () => {
     expect(layerRules(true, [], ['src'])).toEqual([APPLICATION_LAYER_RULE])
     expect(layerRules(false, [], ['src'])).toEqual([])
+    expect(cloudFrontRules([])).toEqual([])
+    expect(cloudFrontRules(['edge/function.cjs'])).toMatchObject([
+      { name: 'not-to-unresolvable', from: { pathNot: String.raw`^(edge/function\.cjs)$` } },
+      { from: { path: String.raw`^(edge/function\.cjs)$` }, to: { couldNotResolve: true, pathNot: '^cloudfront$' } },
+    ])
+    expect(layerRules(false, [], ['src'], ['edge/function.cjs'])).toHaveLength(2)
   })
 
   it('escapes a declared floor into the pure-logic rule', () => {

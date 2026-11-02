@@ -8,8 +8,11 @@ import { type ArchitectureRule, layerRules } from './architecture-layers.js'
 import { importGraphOf } from './change-scope-policy.js'
 import { failed, fromRun, type GateResult, passed, type RunResult, runNode } from './exec.js'
 import { isNextApp } from './facets.js'
+import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { parseJsonc } from './json-shapes.js'
 import { harnessDirectory, type Member, resolveTool } from './project.js'
+import { allowedJavaScriptFiles } from './source-selection.js'
+import { presentWorkingTreeFiles } from './working-tree.js'
 
 const JSON_INDENT: number = 2
 
@@ -29,6 +32,11 @@ const cruise = (member: Member, options: readonly string[]): RunResult => {
     isNextApp(member),
     member.settings.pureLogicRoots,
     member.settings.sourceRoots,
+    allowedJavaScriptFiles(
+      presentWorkingTreeFiles(member.root),
+      rolesFor(member.settings.javascriptRuntimes, CLOUDFRONT_RUNTIME),
+      member.siblingPaths,
+    ),
   )
   const directory: string | undefined =
     rules.length === 0 ? undefined : mkdtempSync(path.join(tmpdir(), 'airness-arch-'))
