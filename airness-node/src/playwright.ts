@@ -70,7 +70,8 @@ const loadEnvironment = (): void => {
   }
 }
 
-// eslint-disable-next-line unicorn/no-top-level-side-effects -- the environment must be loaded while this configuration is evaluated, in the runner and in every worker, before any spec module is imported
+// The environment must be loaded while this configuration is evaluated, in the runner and in every worker, before
+// any spec module is imported.
 loadEnvironment()
 
 if (process.env[CLOCK_ENVIRONMENT_VARIABLE] !== undefined) {
