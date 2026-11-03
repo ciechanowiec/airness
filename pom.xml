@@ -164,7 +164,7 @@
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <airness.plugin.snappy.version>0.5</airness.plugin.snappy.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
-        <pmd.version>7.28.0</pmd.version>
+        <pmd.version>7.29.0</pmd.version>
         <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
         <!--
             The field annotations NullAway treats as initializing a field it would otherwise call
@@ -175,14 +175,22 @@
         <airness.nullaway.excluded-field-annotations>org.apache.maven.plugins.annotations.Parameter,org.apache.maven.plugins.annotations.Component,org.junit.jupiter.api.io.TempDir,picocli.CommandLine.Option,picocli.CommandLine.Parameters,javax.inject.Inject,jakarta.inject.Inject</airness.nullaway.excluded-field-annotations>
         <airness.package.root>eu.ciechanowiec.airness</airness.package.root>
         <lombok.version>1.18.48</lombok.version>
-        <error-prone.version>2.50.0</error-prone.version>
-        <nullaway.version>0.14.2</nullaway.version>
+        <error-prone.version>2.52.0</error-prone.version>
+        <nullaway.version>0.14.3</nullaway.version>
         <junit.version>6.1.3</junit.version>
         <axe-core.version>4.13.0</axe-core.version>
         <maven-artifact.version>3.10.0</maven-artifact.version>
         <attoparser.version>2.0.9.RELEASE</attoparser.version>
         <jspecify.version>1.0.1</jspecify.version>
         <spotbugs-annotations.version>4.10.5</spotbugs-annotations.version>
+        <!--
+            Held at 14.3.0. Checkstyle 14.4.0 moved its XPath support to Saxon-HE 13, which removes the
+            net.sf.saxon.sxpath API that every PMD 7.x XPath rule is built on, and PMD 7.29.0 still asks for
+            Saxon 12 (pmd/pmd#6888). Each plugin brings its own Saxon in a build, but airness-governance
+            tests both engines in one JVM, and neither runs on the other's Saxon: 14.4.0 fails on 12.10 for
+            want of net.sf.saxon.om.GNode. The update report names 14.4.0 every build; this pin moves once PMD
+            releases on Saxon 13.
+        -->
         <checkstyle.version>14.3.0</checkstyle.version>
         <qulice-maven-plugin.version>0.36.1</qulice-maven-plugin.version>
     </properties>
