@@ -1,5 +1,5 @@
 # Qodana image: jetbrains/qodana-jvm-community:2026.2@sha256:3db2bdb1d846ddeca9f600a6737bc82b3993067e07e572ba7bf791d9fe41a9bf
-# PMD: 7.28.0; SpotBugs: 4.10.5; Checkstyle: 14.3.0
+# PMD: 7.29.0; SpotBugs: 4.10.5; Checkstyle: 14.3.0
 # existing means overlapping prevention, not an assertion that the two complete predicates are equivalent.
 # retained means no validated new counterpart; it does not claim a theoretical source implementation is impossible.
 analyzer	rule	coverage	counterpart	boundary
@@ -192,7 +192,7 @@ PMD	RemoteSessionInterfaceNamingConvention	retained	-	Retains original rule-spec
 PMD	ReplaceEnumerationWithIterator	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	ReplaceHashtableWithMap	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	ReplaceJavaUtilDate	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
-PMD	ReplaceVectorWithList	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
+PMD	ReplaceJavaUtilVector	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	ReturnEmptyCollectionRatherThanNull	existing	AirnessNullIsNeverReturned	Related source forms already fail this Checkstyle gate; the original retains its own scope and semantics.
 PMD	ReturnFromFinallyBlock	partial	PMD.ReturnFromFinallyBlock	Returns within finally, excluding nested methods and lambdas; conservatively excludes enclosing lambdas too.
 PMD	ShortClassName	full	PMD.ShortClassName	The configured minimum is three; PMD ClassDeclaration excludes records, enums and annotation types.
@@ -258,7 +258,6 @@ PMD	UnusedNullCheckInEquals	retained	-	Retains original rule-specific API, type,
 PMD	UnusedPrivateField	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	UnusedPrivateMethod	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	UnusedReturnValue	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
-PMD	UseArrayListInsteadOfVector	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	UseArraysAsList	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	UseCollectionIsEmpty	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.
 PMD	UseCorrectExceptionLogging	retained	-	Retains original rule-specific API, type, usage or data-flow analysis; no name-only or textual approximation is enabled.

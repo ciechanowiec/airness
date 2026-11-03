@@ -34,6 +34,12 @@
     TooManyStaticImports counts each assertion-method import even when all come from one class.
     Airness requires JUnit static imports, so that count can force a test into another file without
     changing what it checks. Import formatting and the existing size and complexity rules remain.
+
+    LocalVariableDeclarationShouldBeAtStartOfBlock, new in PMD 7.29.0, asks for every local to be declared
+    together at the top of its block and without an initializer. PrematureDeclaration, from the same category, asks
+    the opposite: it reports a local declared ahead of a return or throw that may leave it unread. A
+    method with an early exit has no declaration that satisfies both, so the newcomer is the one
+    excluded.
     -->
     <rule ref="category/java/codestyle.xml/LongVariable">
         <properties>
@@ -73,6 +79,7 @@
         <exclude name="GenericsNaming"/>
         <exclude name="LocalVariableCouldBeFinal"/>
         <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="LocalVariableDeclarationShouldBeAtStartOfBlock"/>
         <exclude name="OnlyOneReturn"/>
         <exclude name="TooManyStaticImports"/>
     </rule>

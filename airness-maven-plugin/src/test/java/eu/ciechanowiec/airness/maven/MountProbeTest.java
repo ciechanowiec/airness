@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -131,7 +132,7 @@ class MountProbeTest {
         git(root, "init", "--quiet");
 
         assertEquals(0, historyExit(root, "unborn"), "no commit yet is nothing to scan, not a failure");
-        assertTrue(historyExit(root, "commits") != 0, "a HEAD the host saw a commit behind must resolve");
+        assertNotEquals(0, historyExit(root, "commits"), "a HEAD the host saw a commit behind must resolve");
     }
 
     @Test
@@ -142,7 +143,7 @@ class MountProbeTest {
         git(clone, "worktree", "add", "--quiet", "--detach", worktree.toString());
         Files.move(clone, directory.resolve("unmounted"));
 
-        assertTrue(historyExit(worktree, "commits") != 0, "a pointer to nowhere is no history");
+        assertNotEquals(0, historyExit(worktree, "commits"), "a pointer to nowhere is no history");
     }
 
     @Test

@@ -22,7 +22,7 @@
         <notes><![CDATA[
             Added 2026-10-09. These advisories concern PMD engines through 5.8.1 and before 7.22.0,
             respectively, not the independently versioned Maven wrapper. Airness pins the separately
-            scanned engine to 7.28.0. No wrapper upgrade fixes this product mismatch.
+            scanned engine to 7.29.0. No wrapper upgrade fixes this product mismatch.
             https://github.com/pmd/pmd/issues/1650
             https://github.com/pmd/pmd/security/advisories/GHSA-8rr6-2qw5-pc7r
 
