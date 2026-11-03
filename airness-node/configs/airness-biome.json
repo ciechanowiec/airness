@@ -59,7 +59,8 @@
         "useImportExtensions": "off",
         "noUndeclaredDependencies": "off",
         "noUnresolvedImports": "off",
-        "usePlaywrightValidDescribeCallback": "off"
+        "usePlaywrightValidDescribeCallback": "off",
+        "noPlaywrightMissingAwait": "off"
       },
       "style": {
         "noNonNullAssertion": "error",
@@ -138,6 +139,18 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["**/tests/e2e/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noPlaywrightMissingAwait": "error"
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": true,
     "actions": {
