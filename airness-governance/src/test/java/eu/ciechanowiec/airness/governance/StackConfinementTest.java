@@ -93,8 +93,9 @@ class StackConfinementTest {
         ),
         new Entry(".adocent/vocabulary.txt", Set.of(PRODUCT), "the product name the stack's documentation spells"),
         new Entry(
-            ".github/workflows/release.yml", Set.of(PARENT, ASSETS_MODULE),
-            "the stack's Central artifacts in the publication inspection"
+            ".github/workflows/release.yml", Set.of(PARENT, ASSETS_MODULE, NODE_MODULE, NPM_PACKAGE),
+            "the stack's Central artifacts in the publication inspection, and its npm package in the npm"
+                + " publication order"
         ),
         new Entry(
             "airness-it/verify.sh",

@@ -1,10 +1,10 @@
-name: 'Publish Maven Central release'
+name: 'Publish Maven Central and npm release'
 
 on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Version already declared in pom.xml'
+        description: 'Version already declared in pom.xml and in every npm package.json'
         required: true
         default: '1.0.9'
         type: string
@@ -14,11 +14,15 @@ on:
         default: false
         type: boolean
 
+# id-token is npm trusted publishing: npm exchanges the workflow's OIDC token for a one-run publish
+# credential, and the same token signs the provenance attestation that ties each tarball to this
+# workflow and commit. No npm token is stored once the trusted publishers are configured.
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
-  group: 'maven-central-release'
+  group: 'release'
   cancel-in-progress: false
 
 jobs:
@@ -26,6 +30,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     environment: maven-central
+    env:
+      # The npm packages of one release, as module:package, in dependency order: a stack layer's package
+      # pins @airness/node at the release version, and npm does not check at publish time that a
+      # dependency exists, so only this order keeps a published package from being unresolvable.
+      NPM_PACKAGES: 'airness-node:@airness/node airness-payload-node:@airness/payload'
     steps:
       - name: 'Checkout complete history'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,6 +44,7 @@ jobs:
       - name: 'Validate release request'
         env:
           CONFIRM_PUBLISH: ${{ inputs.publish }}
+          IS_PRIVATE: ${{ github.event.repository.private }}
           RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           set -eu
@@ -54,6 +64,12 @@ jobs:
             echo 'Maven Central releases cannot use a SNAPSHOT version.' >&2
             exit 1
           fi
+          # npm signs provenance only for a public repository. Asked by npm, the refusal would come
+          # after the Extended verification, at the first package.
+          if [ "$IS_PRIVATE" != 'false' ]; then
+            echo 'npm provenance needs a public repository.' >&2
+            exit 1
+          fi
 
       - name: 'Validate release secrets'
         env:
@@ -61,8 +77,16 @@ jobs:
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -eu
+          # NPM_TOKEN is optional: it only bootstraps the first publication of a package, before npm
+          # lets a trusted publisher be attached to it. Without it, npm authenticates this run by OIDC.
+          if [ -n "$NPM_TOKEN" ]; then
+            echo '::warning::NPM_TOKEN is set, so npm publishes with it. Delete it once trusted publishing is configured.'
+          else
+            echo 'npm publishes through trusted publishing (OIDC).'
+          fi
           test -n "$MAVEN_CENTRAL_USERNAME" || { echo 'MAVEN_CENTRAL_USERNAME is missing.' >&2; exit 1; }
           test -n "$MAVEN_CENTRAL_PASSWORD" || { echo 'MAVEN_CENTRAL_PASSWORD is missing.' >&2; exit 1; }
           test -n "$GPG_PRIVATE_KEY" || { echo 'GPG_PRIVATE_KEY is missing.' >&2; exit 1; }
@@ -117,8 +141,39 @@ jobs:
           fi
           echo 'central_published=false' >> "$GITHUB_OUTPUT"
 
+      # A published npm version is immutable too, so each package is looked up on its own and a re-run
+      # after a partial publication publishes only what is missing.
+      - name: 'Validate npm availability'
+        id: npm_state
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          missing=0
+          for entry in $NPM_PACKAGES; do
+            module="${entry%%:*}"
+            name="${entry#*:}"
+            declared="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$module/package.json")"
+            if [ "$declared" != "$RELEASE_VERSION" ]; then
+              echo "$module/package.json declares $declared, not $RELEASE_VERSION." >&2
+              exit 1
+            fi
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              "https://registry.npmjs.org/$name/$RELEASE_VERSION")"
+            case "$status" in
+              200) echo "npm already contains $name@$RELEASE_VERSION." ;;
+              404) echo "npm does not contain $name@$RELEASE_VERSION yet."; missing=$((missing + 1)) ;;
+              *) echo "The npm availability check for $name returned HTTP $status." >&2; exit 1 ;;
+            esac
+          done
+          if [ "$missing" = 0 ]; then
+            echo 'npm_published=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'npm_published=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 'Pull the pinned check images while the build runs'
-        if: steps.release_state.outputs.central_published != 'true'
+        if: steps.release_state.outputs.central_published != 'true' || steps.npm_state.outputs.npm_published != 'true'
         run: |
           set -eu
           sed -n 's|^ *<[a-z]*\.image>\(.*\)</[a-z]*\.image> *$|\1|p' pom.xml > "$RUNNER_TEMP/images.txt"
@@ -145,11 +200,11 @@ jobs:
         run: sh airness-it/report-browser.sh --with-deps
 
       - name: 'Run Extended verification and install release artifacts'
-        if: steps.release_state.outputs.central_published != 'true'
+        if: steps.release_state.outputs.central_published != 'true' || steps.npm_state.outputs.npm_published != 'true'
         run: mvn --batch-mode --no-transfer-progress clean install -Pextended
 
       - name: 'Build and inspect publication artifacts'
-        if: steps.release_state.outputs.central_published != 'true'
+        if: steps.release_state.outputs.central_published != 'true' || steps.npm_state.outputs.npm_published != 'true'
         env:
           RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
@@ -175,6 +230,90 @@ jobs:
                 "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-content"
           done
 
+      # Before Maven Central, so that the parents Central publishes never name an npm package npm lacks:
+      # npm serves a version within minutes, while Central takes longer to synchronize.
+      #
+      # The tarballs published are the files the verified build packed, never a repack: the node-repack
+      # execution proves the pack reproducible, and a consumer lockfile records the integrity of exactly
+      # these bytes. npm is the one bundled with the pinned toolchain Node the build installed, which is new
+      # enough for trusted publishing (npm 11.5.1+), so no second Node is set up. The leading ./ keeps npm
+      # from reading module/target/x.tgz as a GitHub shorthand.
+      - name: 'Publish npm packages'
+        id: npm_publish
+        if: steps.npm_state.outputs.npm_published != 'true'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          properties='airness-maven-plugin/src/main/resources/eu/ciechanowiec/airness/node/toolchain.properties'
+          node_version="$(sed -n 's/^node\.version=//p' "$properties")"
+          case "$(uname -m)" in
+            x86_64) arch='x64' ;;
+            aarch64) arch='arm64' ;;
+            *) echo "No pinned Node for $(uname -m)." >&2; exit 1 ;;
+          esac
+          local_repository="$(mvn --quiet help:evaluate -Dexpression=settings.localRepository -DforceStdout)"
+          toolchain="$local_repository/.airness/toolchain/node-$node_version-linux-$arch/bin"
+          test -x "$toolchain/npm" || { echo "The verified build installed no npm under $toolchain." >&2; exit 1; }
+          export PATH="$toolchain:$PATH"
+          echo "Publishing with npm $(npm --version) on Node $(node --version)."
+          if [ -n "$NPM_TOKEN" ]; then
+            # npm expands the variable itself, so the token is never written to disk.
+            userconfig="$RUNNER_TEMP/npm-publish.npmrc"
+            printf '%s\n' "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > "$userconfig"
+            export NPM_CONFIG_USERCONFIG="$userconfig"
+          fi
+          for entry in $NPM_PACKAGES; do
+            module="${entry%%:*}"
+            name="${entry#*:}"
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              "https://registry.npmjs.org/$name/$RELEASE_VERSION")"
+            if [ "$status" = '200' ]; then
+              echo "$name@$RELEASE_VERSION is already published."
+              continue
+            fi
+            base="${name#@}"
+            tarball="./$module/target/${base/\//-}-$RELEASE_VERSION.tgz"
+            test -f "$tarball" || { echo "The verified build packed no $tarball." >&2; exit 1; }
+            echo "Publishing $tarball as $name@$RELEASE_VERSION."
+            npm publish "$tarball" --access public --provenance
+          done
+
+      # The registry acknowledges a write before every replica serves it, and its CDN caches a version
+      # document for minutes, so each version is polled, bounded, until it is readable; then the integrity
+      # npm serves is compared with the tarball this run verified.
+      - name: 'Wait for npm availability'
+        if: steps.npm_publish.outcome == 'success'
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -eu
+          for entry in $NPM_PACKAGES; do
+            module="${entry%%:*}"
+            name="${entry#*:}"
+            document="$RUNNER_TEMP/npm-version.json"
+            attempt=1
+            until curl --silent --fail --output "$document" "https://registry.npmjs.org/$name/$RELEASE_VERSION"; do
+              if [ "$attempt" -ge 90 ]; then
+                echo "$name@$RELEASE_VERSION is still not readable from npm after 15 minutes." >&2
+                exit 1
+              fi
+              echo "Waiting for $name@$RELEASE_VERSION (attempt $attempt/90)."
+              attempt=$((attempt + 1))
+              sleep 10
+            done
+            served="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["dist"]["integrity"])' "$document")"
+            base="${name#@}"
+            tarball="./$module/target/${base/\//-}-$RELEASE_VERSION.tgz"
+            built="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 --wrap=0)"
+            if [ "$served" != "$built" ]; then
+              echo "npm serves $name@$RELEASE_VERSION as $served, but this run verified $built." >&2
+              exit 1
+            fi
+            echo "$name@$RELEASE_VERSION is readable with the verified integrity."
+          done
+
       - name: 'Publish signed artifacts'
         id: publish
         if: steps.release_state.outputs.central_published != 'true'
@@ -187,8 +326,8 @@ jobs:
       - name: 'Create and push release tag'
         id: release_tag
         if: >-
-          steps.release_state.outputs.central_published == 'true' ||
-          steps.publish.outcome == 'success'
+          (steps.release_state.outputs.central_published == 'true' || steps.publish.outcome == 'success') &&
+          (steps.npm_state.outputs.npm_published == 'true' || steps.npm_publish.outcome == 'success')
         env:
           RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
@@ -237,7 +376,8 @@ jobs:
         if: >-
           always() &&
           steps.release_tag.outcome == 'success' &&
-          (steps.release_state.outputs.central_published == 'true' || steps.publish.outcome == 'success')
+          (steps.release_state.outputs.central_published == 'true' || steps.publish.outcome == 'success') &&
+          (steps.npm_state.outputs.npm_published == 'true' || steps.npm_publish.outcome == 'success')
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.release_version }}
