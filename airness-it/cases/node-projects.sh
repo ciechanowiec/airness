@@ -41,7 +41,7 @@ run_node_project_cases() {
     run_maven node_shop node "${node_shop}" airness:assets-sync clean verify
     expect_exit node_shop 'node: a Java module with an in-module frontend passes' 0
     expect_match node_shop 'node: the pinned Node and pnpm are installed and verified' \
-        'Node 26[.]11[.]1 and pnpm 12[.]14[.]0, verified by SHA-256'
+        'Node 26[.]13[.]0 and pnpm 12[.]16[.]1, verified by SHA-256'
     expect_match node_shop 'node: the frontend dependencies are installed from its lockfile, running no script' \
         'Running pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile in .*/src/main/frontend'
     expect_match node_shop 'node: only the build scripts allowBuilds approves run, after the install' \
@@ -59,14 +59,14 @@ run_node_project_cases() {
     expect_match node_shop 'node: the gates run in the declared project on the harness Node' \
         'Node gate tests in src/main/frontend passed'
     expect_file_match "${node_shop}/target/classes/static/index.html" \
-        'node: node-run builds the frontend into the artifact on the harness Node' 'built on Node v26[.]11[.]1'
+        'node: node-run builds the frontend into the artifact on the harness Node' 'built on Node v26[.]13[.]0'
 
     run_maven node_shop_skip node "${node_shop}" clean package -DskipTests
     expect_exit node_shop_skip 'node: Skip mode still builds the frontend of a module that runs node-run' 0
     unzip -p "${node_shop}/target/consumer-9.4.2.jar" static/index.html > "${scratch}/node-shop-index.html" \
         2>/dev/null || true
     expect_file_match "${scratch}/node-shop-index.html" \
-        'node: Skip mode packs the frontend node-run built into the jar' 'built on Node v26[.]11[.]1'
+        'node: Skip mode packs the frontend node-run built into the jar' 'built on Node v26[.]13[.]0'
     expect_no_match node_shop_skip 'node: Skip mode runs no node gate' 'Node gate '
 
     new_consumer node-portal

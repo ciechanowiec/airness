@@ -103,7 +103,7 @@ run_payload_browser() (
 
     docker run --detach --name "${browser_container}" --publish 127.0.0.1::5432 \
         --env POSTGRES_USER=fixture --env POSTGRES_PASSWORD=fixture --env POSTGRES_DB=fixture \
-        postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2 > /dev/null
+        postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5 > /dev/null
     database_waited=0
     until docker exec "${browser_container}" pg_isready --host=127.0.0.1 --username=fixture --dbname=fixture \
         > /dev/null 2>&1; do

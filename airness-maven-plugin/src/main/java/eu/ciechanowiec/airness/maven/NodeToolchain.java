@@ -114,7 +114,7 @@ record NodeToolchain(PinnedArchive node, PinnedArchive pnpm, Map<String, String>
     /**
      * Names the pinned versions for the build log.
      *
-     * @return the description, such as {@code Node 26.11.1 and pnpm 12.14.0}
+     * @return the description, such as {@code Node 26.13.0 and pnpm 12.16.1}
      */
     String description() {
         return "Node " + this.pin(NODE, "version") + " and pnpm " + this.pin(PNPM, "version");
