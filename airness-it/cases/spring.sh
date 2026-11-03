@@ -21,28 +21,7 @@ cat > "${spring_fixture}/pom.xml" <<'POM'
     <properties>
         <airness.coverage.excluded.classes>com.example.Application</airness.coverage.excluded.classes>
         <airness.package.root>com.example</airness.package.root>
-        <tomcat.version>11.0.25</tomcat.version>
     </properties>
-    <!-- The Extended lifecycle must use a Tomcat release beyond the advisories on Boot's 11.0.24 pin. -->
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-core</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-el</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-websocket</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <dependencies>
         <!--
             Declared because the module is repackaged, which is what the model goal asks of a deployed
