@@ -538,7 +538,7 @@ POM
     expect_file_match "${node_next}/target/airness/node/module/npm-sbom.json" \
         'node next: npm-sbom lists its evidence in the result' '"bom[.]cdx[.]json"'
     expect_file_match "${node_next}/target/airness/node/module/bom.cdx.json" \
-        'node next: the SBOM is CycloneDX and names the resolved next by its package URL' '"pkg:npm/next@16[.]4[.]2"'
+        'node next: the SBOM is CycloneDX and names the resolved next by its package URL' '"pkg:npm/next@16[.]4[.]3"'
     expect_match node_next_extended 'node next: the bundle gate measures the build' 'client JavaScript .* gzipped'
 
     sed "s|<h1>|<p style={{ color: '#c8c8c8' }}>Faint</p>\\n      <h1>|" "${node_next}/src/app/page.tsx" \
