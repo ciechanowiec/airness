@@ -1,4 +1,4 @@
-# Qodana image: jetbrains/qodana-jvm-community:2026.2@sha256:3db2bdb1d846ddeca9f600a6737bc82b3993067e07e572ba7bf791d9fe41a9bf
+# Qodana image: jetbrains/qodana-jvm-community:2026.2@sha256:464cb2f73a7f4e4b06cb805ff90695cd98c710a765686a689761fab983f554b8
 # PMD: 7.29.0; SpotBugs: 4.10.5; Checkstyle: 14.3.0
 # existing means overlapping prevention, not an assertion that the two complete predicates are equivalent.
 # retained means no validated new counterpart; it does not claim a theoretical source implementation is impossible.
