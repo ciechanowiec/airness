@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The files each declared node project, and each member of a pnpm workspace one roots, lists under
@@ -146,7 +147,7 @@ final class NodeGeneratedArtefacts {
         }
 
         @Override
-        public FileVisitResult postVisitDirectory(Path directory, IOException exception) throws IOException {
+        public FileVisitResult postVisitDirectory(Path directory, @Nullable IOException exception) throws IOException {
             Optional<IOException> failure = Optional.ofNullable(exception);
             if (failure.isPresent()) {
                 throw failure.get();
