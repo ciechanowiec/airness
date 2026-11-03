@@ -24,7 +24,6 @@ const DESTRUCTURING: string = unsupported(
   'read each property or index by name, for example parts[0] and parts.slice(1)',
 )
 
-type AwaitExpression = Parameters<NonNullable<Rule.RuleListener['AwaitExpression']>>[0]
 const AWAIT_EXPRESSION: string = 'AwaitExpression'
 
 // Direct awaited arguments fail in CloudFront. Nested argument expressions are rejected as a precaution.
@@ -38,6 +37,7 @@ const NO_AWAIT_IN_ARGUMENTS: Rule.RuleModule = {
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
+    type AwaitExpression = Parameters<NonNullable<Rule.RuleListener['AwaitExpression']>>[0]
     return {
       [AWAIT_EXPRESSION](node: AwaitExpression): void {
         if (isWithinCallArguments(node, context.sourceCode.getAncestors(node))) {

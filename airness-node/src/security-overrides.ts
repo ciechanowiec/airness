@@ -27,15 +27,15 @@ export const SECURITY_OVERRIDES: readonly SecurityOverride[] = [
   },
   ...[
     '@eslint/config-array@0.23.5',
-    '@typescript-eslint/typescript-estree@8.72.0',
+    '@typescript-eslint/typescript-estree@8.72.1',
     'eslint-plugin-sonarjs@4.2.2',
-    'eslint@10.13.0',
-    'type-coverage-core@2.30.4',
+    'eslint@10.14.0',
+    'type-coverage-core@2.31.1',
   ].map(
     (parent: string): SecurityOverride => ({
       parent,
       dependency: 'minimatch',
-      version: '11.0.3',
+      version: '11.0.4',
       advisories: ['GHSA-g3hv-75wg-m249'],
       reason:
         'The lint and type-coverage analyzers still request version 10; version 11 bounds the globstar ' +
@@ -43,17 +43,6 @@ export const SECURITY_OVERRIDES: readonly SecurityOverride[] = [
       addedOn: '2026-10-31',
     }),
   ),
-  {
-    parent: '@typescript-eslint/typescript-estree@8.72.1',
-    dependency: 'minimatch',
-    version: '11.0.3',
-    advisories: ['GHSA-g3hv-75wg-m249'],
-    reason:
-      'The patch release a consumer resolves for the ranged typescript-eslint dependencies of the lint plugins ' +
-      'still requests version 10, beside the 8.72.0 the harness pins; version 11 bounds the globstar expansion ' +
-      'and retains the Minimatch class, match and minimatch calls it uses.',
-    addedOn: '2026-11-01',
-  },
 ]
 
 /** The exact pnpm selector for the edge this approval covers. */

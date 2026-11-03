@@ -30,10 +30,7 @@ describe('the installed security-override catalogue', () => {
       (approval: SecurityOverride): boolean =>
         approval.dependency === 'minimatch' && approval.parent.startsWith('@typescript-eslint/typescript-estree@'),
     ).map((approval: SecurityOverride): string => approval.parent)
-    expect(parents).toEqual([
-      '@typescript-eslint/typescript-estree@8.72.0',
-      '@typescript-eslint/typescript-estree@8.72.1',
-    ])
+    expect(parents).toEqual(['@typescript-eslint/typescript-estree@8.72.1'])
   })
 
   it('refuses malformed layer policy rather than silently granting an exception', () => {
