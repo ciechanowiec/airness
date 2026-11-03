@@ -255,6 +255,19 @@ describe('biome', PROCESS_TIME, () => {
     })
   })
 
+  it("holds an end-to-end spec's unawaited Playwright matcher and leaves a Vitest DOM matcher alone", () => {
+    const assertion: string = "  expect(frame).toHaveAttribute('alt', '')\n"
+    const planted: Readonly<Record<string, string>> = {
+      'tests/unit/frame.spec.ts': `export const check = (frame: unknown): void => {\n${assertion}}\n`,
+      'tests/e2e/frame.spec.ts': `export const check = async (frame: unknown): Promise<void> => {\n${assertion}}\n`,
+    }
+    withPlanted(planted, (root: string) => {
+      const findings: string = findingsOf(biome(memberAt(root)))
+      expect(findings).toContain('tests/e2e/frame.spec.ts:2:3 lint/correctness/noPlaywrightMissingAwait')
+      expect(findings).not.toContain('tests/unit/frame.spec.ts')
+    })
+  })
+
   it('refuses a nested configuration, which would replace the harness one for its directory', () => {
     withPlanted({ 'src/biome.json': '{ "root": false }\n' }, (root: string) => {
       expect(findingsOf(biome(memberAt(root)))).toContain('src/biome.json: Biome configuration is owned by Airness')
