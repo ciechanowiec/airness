@@ -16,7 +16,7 @@ def verify(path):
     assert "download-maven-plugin-2.1.0.jar" in dependencies
     assert "maven-assembly-plugin-3.8.0.jar" in dependencies
     assert "build-helper-maven-plugin-3.6.2.jar" in dependencies
-    assert "maven-failsafe-plugin-3.6.0.jar" in dependencies
+    assert "maven-failsafe-plugin-3.6.1.jar" in dependencies
     assert "aircompressor-2.0.3.jar" in dependencies
     assert "aircompressor-0.27.jar" not in dependencies
     assert "commons-lang3-3.21.0.jar" in dependencies

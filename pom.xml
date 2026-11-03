@@ -100,7 +100,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <qodana.image>jetbrains/qodana-jvm-community:2026.2@sha256:3db2bdb1d846ddeca9f600a6737bc82b3993067e07e572ba7bf791d9fe41a9bf</qodana.image>
         <shellcheck.image>koalaman/shellcheck-alpine:v0.11.0@sha256:9955be09ea7f0dbf7ae942ac1f2094355bb30d96fffba0ec09f5432207544002</shellcheck.image>
-        <spring-boot.version>4.1.1</spring-boot.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
 
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <airness.plugin.plexus.version>4.1.0</airness.plugin.plexus.version>
@@ -130,16 +130,16 @@
         <skipTests>false</skipTests>
         <airness.enforce>true</airness.enforce>
         <airness.plugin.beanutils.version>1.11.0</airness.plugin.beanutils.version>
-        <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.6.1</maven-surefire-plugin.version>
         <!--
             Mirrors airness-parent. Declared here too, because this pom does not inherit that one, and
             the harness's own tests answer to the same ceiling every consumer's tests do.
         -->
         <airness.test.timeout>30 s</airness.test.timeout>
-        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <maven-enforcer-plugin.version>3.7.0</maven-enforcer-plugin.version>
         <extra-enforcer-rules.version>1.12.1</extra-enforcer-rules.version>
-        <versions-maven-plugin.version>2.22.0</versions-maven-plugin.version>
-        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+        <versions-maven-plugin.version>2.23.0</versions-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
         <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
         <prettier-maven-plugin.version>0.22</prettier-maven-plugin.version>
         <airness.plugin.compress.version>1.28.0</airness.plugin.compress.version>
@@ -152,11 +152,12 @@
         <airness.plugin.log4j.version>2.26.1</airness.plugin.log4j.version>
         <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
         <airness.dependency-check.fail-build-on-cvss>0</airness.dependency-check.fail-build-on-cvss>
-        <airness.plugin.httpclient.version>5.6.4</airness.plugin.httpclient.version>
+        <airness.plugin.httpclient.version>5.6.5</airness.plugin.httpclient.version>
         <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
-        <airness.plugin.cyclonedx-core.version>13.2.0</airness.plugin.cyclonedx-core.version>
+        <airness.plugin.cyclonedx-core.version>13.4.0</airness.plugin.cyclonedx-core.version>
         <airness.plugin.commons-io.version>2.22.0</airness.plugin.commons-io.version>
-        <airness.plugin.jackson.version>2.22.3</airness.plugin.jackson.version>
+        <airness.plugin.packageurl.version>1.5.0</airness.plugin.packageurl.version>
+        <airness.plugin.jackson.version>2.22.4</airness.plugin.jackson.version>
         <airness.plugin.jackson-annotations.version>2.22</airness.plugin.jackson-annotations.version>
         <!-- Literal by design: ${project.version} would resolve to a consuming project's version. -->
         <airness.version>1.0.9-SNAPSHOT</airness.version>
@@ -164,7 +165,7 @@
         <airness.plugin.snappy.version>0.5</airness.plugin.snappy.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <pmd.version>7.28.0</pmd.version>
-        <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
+        <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
         <!--
             The field annotations NullAway treats as initializing a field it would otherwise call
             uninitialized: a value Maven, JUnit, picocli, or an injector writes rather than a
@@ -181,9 +182,9 @@
         <maven-artifact.version>3.10.0</maven-artifact.version>
         <attoparser.version>2.0.9.RELEASE</attoparser.version>
         <jspecify.version>1.0.1</jspecify.version>
-        <spotbugs-annotations.version>4.10.4</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.10.5</spotbugs-annotations.version>
         <checkstyle.version>14.3.0</checkstyle.version>
-        <qulice-maven-plugin.version>0.36.0</qulice-maven-plugin.version>
+        <qulice-maven-plugin.version>0.36.1</qulice-maven-plugin.version>
     </properties>
 
     <build>
@@ -938,6 +939,16 @@
                             <groupId>commons-io</groupId>
                             <artifactId>commons-io</artifactId>
                             <version>${airness.plugin.commons-io.version}</version>
+                        </dependency>
+                        <!--
+                            Core 13.4 no longer supplies the package URL library either, which the plugin's
+                            model converter builds every component's purl with. Without it Sisu drops the
+                            converter and the goal fails to wire rather than to run.
+                        -->
+                        <dependency>
+                            <groupId>com.github.package-url</groupId>
+                            <artifactId>packageurl-java</artifactId>
+                            <version>${airness.plugin.packageurl.version}</version>
                         </dependency>
                         <dependency>
                             <groupId>com.fasterxml.jackson.core</groupId>

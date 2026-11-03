@@ -92,6 +92,16 @@
                     <groupId>com.jcabi</groupId>
                     <artifactId>jcabi-maven-slf4j</artifactId>
                 </exclusion>
+                <!--
+                    The tests load only the Checkstyle modules, which never call Plexus. The plugin's report
+                    and container trees ask for plexus-utils 4.0.3 and 3.0.18 against the 3.6.2 that
+                    maven-artifact brings, a split that enforcer 3.7.0 reports now that it mediates the test
+                    scope, so the copy the Checkstyle modules never use is left out.
+                -->
+                <exclusion>
+                    <groupId>org.codehaus.plexus</groupId>
+                    <artifactId>plexus-utils</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
