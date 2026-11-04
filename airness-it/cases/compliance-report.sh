@@ -68,7 +68,7 @@ prepare_compliance_frontend() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
-        <version>1.0.9</version>
+        <version>1.0.10-SNAPSHOT</version>
         <relativePath/>
     </parent>
     <groupId>com.example</groupId>
