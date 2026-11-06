@@ -134,7 +134,7 @@ This section describes the layout of a xref:#governed-repository[governed reposi
 [[generated-files]]
 === Generated Files
 
-. No generated file carries a direct hand edit: a generated file changes only as the output of its declared generator. The xref:#governed-repository[governed repository] denies AI agents write access to generated files where the runtime used by AI agents supports the denial.
+. No generated file carries a direct hand edit: a generated file changes only as the output of its declared generator. The xref:#governed-repository[governed repository] denies AI agents write access to generated files where the application that runs the AI agent supports the denial.
 . A xref:#check[check] reruns the declared generator and fails when the generated file differs from the output.
 . The xref:#governed-repository[governed repository] excludes generated files, identified by xref:#file-role[file role], from the xref:#check[checks] of the section xref:#code-rules[].
 
@@ -283,7 +283,7 @@ These rules govern access, authentication, audit events, and data handling where
 [[dependency-vulnerabilities]]
 === Known Vulnerabilities
 
-. A xref:#check[check] reads every package in the xref:#resolved-set[resolved set] against a public vulnerability database. It fails on any known vulnerability that isn't repaired or mitigated, whatever its severity.
+. A xref:#check[check] reads every package in the xref:#resolved-set[resolved set] against a public vulnerability database. It fails when a package has a published vulnerability with no installed fix and no applied workaround, even a low-rated one.
 . The xref:#check[check] covers packages used by the product, tests, and build. Build tools run with build privileges, so their vulnerabilities are reachable by anyone who can change the xref:#governed-repository[governed repository].
 . A finding is repaired by upgrading the package. If no upgrade exists, an entry in a declared vulnerability allowlist mitigates it. Each entry explains why the vulnerability can't be exploited, states a mitigation plan, and records its addition date.
 . Every entry in the vulnerability allowlist matches a finding. An entry that matches none fails the xref:#check[check].
@@ -383,6 +383,9 @@ Masking them in the header parser closes the leak for every consumer.
 . The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
 . The source text of this document must follow the link:README-guideline-writing.adoc[Writing Guideline for Utilitarian Non-Fiction^]. The guideline is stored beside the source text in the same Git repository.
 . The https://github.com/ciechanowiec/adocent[`adocent`^] application lints, converts, and watches the source text of this document.
+. *Usage of https://github.com/ciechanowiec/adocent[`adocent`^]*
++
+`adocent usage` prints the complete https://github.com/ciechanowiec/adocent[`adocent`^] manual and JSON reference catalogs, producing a large output. Don't run it during routine writing. Use it only when command help and lint diagnostics don't resolve a specific usage problem. Save the output to a temporary file and read only the relevant sections. AI agents must not load the full output into their context.
 . *Linting*
 +
 To lint the source text of this document, run this command from the directory containing the source text:
