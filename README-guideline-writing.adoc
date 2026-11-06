@@ -151,6 +151,7 @@ The excerpt states the rent and payment dates. The terms for ending the lease ar
 [.bad-example]
 .{bad-icon} Bad example
 ====
+// adocent-disable-next-line Prose.WeakeningWords
 The seedlings grew fairly well and were generally quite healthy.
 
 (The supplied trial record shows that 27 of 30 seedlings survived for six weeks and that their average height increased from 4 cm to 11 cm.)
@@ -241,7 +242,7 @@ At month-end, 18 of the 120 invoices remain unpaid. Their total value is EUR 8,4
 .{bad-icon} Bad example
 ====
 // The numeric date and inconsistent time form are deliberate faults.
-// adocent-disable-next-line Convention.DateFormat, Convention.Clock, Convention.DateCase, Convention.DateSpacing
+// adocent-disable-next-line Convention.DateFormat, Convention.Clock
 The public hearing begins on 2026-05-19 at 5pm.
 
 (The supplied notice identifies the timezone as Europe/Warsaw.)
@@ -413,23 +414,28 @@ The entry's fields read: `Title` - 2026 Pricing Sheet. `Type` - `Workbook`. `Own
 ===== Access and Archive Details for Each Source
 
 . A [[source-class-definition]]_class_ states how the reader can reach a source. Each of the four classes requires different access or archive details.
-.. An [[archived-file]]_archived file_ is any source that exists as a file or was captured as one. The class includes documents, workbooks, presentations, email files, images, and code, among others, wherever they came from. It also spans content with no file form of its own, saved to a file when it was consulted. Examples include a database extract, a retrieval from an external tool, and a page behind a login. The file is kept under `.adocent/resources/sources/` in the document repository and distributed with the document source. Its recorded path is relative to the document repository root, for example `.adocent/resources/sources/lease.pdf`. Its fields name the archive path (`Archived as`) and the digest of the archived bytes (`SHA-256`).
+.. An [[archived-file]]_archived file_ is any source that exists as a file or was captured as one. The class includes documents, workbooks, presentations, email files, images, and code, among others, wherever they came from. It also spans content with no file form of its own, saved to a file when it was consulted. Examples include a database extract, a retrieval from an external tool, and a page behind a login. The file is kept under `.adocent/resources/sources/` in the document repository and distributed with the document source. Its recorded path is relative to the document repository root, for example `.adocent/resources/sources/lease.pdf`. Its fields name the archive path (`Archived as`) and the digest of the archived bytes ([[sha256-field]]`SHA-256`).
 .. A [[web-source]]_web source_ is content that stays reachable at a URL. Its fields give [[source-url]]the address (`URL`) and the access date (`Accessed`). A page that needs credentials or a subscription is still a web source, and the `Access` field then names the requirement.
 .. A xref:#request-source[writing request] carries the fields `Request of` (its date) and `By` (the channel it arrived through). It stays outside the archive, carries no digest, and takes no type. Material pasted into or attached to the writing request - for example, a screenshot of a conversation, an interface, code, or an error, a photograph of an object, or a file - is saved as an xref:#archived-file[archived file]. It's listed in the source list only when the document cites it.
 .. A source that can't or must not be copied is declared with the field `Not archived`. Its value states the form of the canonical copy. Examples include a paper book, a licensed standard, a confidential case file, and a live production system.
-. When the document is kept in a version-control system, such as Git, its xref:#archived-file[archived files] are kept there with it. Anyone who opens the document later finds the same files the author read and quoted. The `SHA-256` digest in each source's entry works like a fingerprint of the file: any change to the file changes the digest. A changed file no longer matches its entry until the digest is recalculated.
+. When the document is kept in a version-control system, such as Git, its xref:#archived-file[archived files] are kept there with it. Anyone who opens the document later finds the same files the author read and quoted. The xref:#sha256-field[`SHA-256`] digest in each source's entry works like a fingerprint of the file: any change to the file changes the digest. A changed file no longer matches its entry until the digest is recalculated.
 
 [[source-types]]
 ===== Required and Optional Details for Each Source Type
 
-. A [[source-type]]_type_ names what kind of artifact a source is and fixes the fields that describe it. The catalog below is closed, and a source that fits no listed type takes `Other`.
+. A [[source-type]]_type_ names what kind of artifact a source is and fixes the fields that describe it. The catalog of types is closed. It consists of the xref:#general-source-types[general types] and the xref:#legal-source-types[types of Polish and European Union legal sources]. A source that fits no listed type takes xref:#other-source-type[`Other`].
 . A required field records a property that every source of that type has. For example, every email has a sender and every image depicts something. Other fields are optional and appear when their values are known.
-+
+
+[[general-source-types]]
+====== General Source Types
+
+A source takes one of these types unless it's a Polish act, ruling, position, or legislative material, or a European Union act or court ruling:
+
 [cols="1,2,2",options="header"]
 |===
 |Type |Required fields |Optional fields
 |[[contract-source-type]]`Contract` |`Parties` |`Concluded on`, `Governing law`
-|`Legal source` |`Issuing body`, `Identifier` |`Date`
+|[[general-legal-source-type]]`Legal source` |`Issuing body`, `Identifier` |`Date`
 |`Official record` |`Register` |`Entry number`
 |`Financial record` |`Issuer` |`Kind`, `Number`, `Date`, `Amount`
 |`Correspondence` |`Participants` |`Platform`, `Sender`, `Addressee`, `Sent on`, `Time range`, `Subject`
@@ -438,7 +444,7 @@ The entry's fields read: `Title` - 2026 Pricing Sheet. `Type` - `Workbook`. `Own
 |`Report` | |`Author`, `Date`, `Period covered`
 |`Specification` |`System` |`Author`, `Date`, `Version`
 |`Standard` |`Identifier` |`Issuing body`, `Year`, `Version`
-|`Publication` |`Authors` |`Year`, `Publisher`, `Edition`, `ISBN`, `DOI`
+|`Publication` |`Authors` |`Year`, `Publisher`, `Edition`, `Editor`, `Volume`, `ISBN`, `DOI`
 |`Web page` | |`Site`, `Published on`
 |`Presentation` | |`Author`, `Date`, `Slides`
 |`Workbook` | |`Owner`, `Date`, `Sheets`
@@ -447,10 +453,25 @@ The entry's fields read: `Title` - 2026 Pricing Sheet. `Type` - `Workbook`. `Own
 |`System output` |`System` |`Query`, `Captured on`
 |`Image` |`Depicts` |`Captured as`, `Captured on`, `Place`
 |`Recording` |`Medium` |`Date`, `Participants`, `Duration`
-|`Other` |`Description` |`Date`, `Version`
+|[[other-source-type]]`Other` |`Description` |`Date`, `Version`
 |===
-. An `Email` entry names its `Sender` by address, and prefixes a display name when the source carries one. Its `Sent on` field records the date and the exact time the message was sent, so two messages of the same day stay distinguishable.
-. An `Other` entry describes the source in `Description` and gives the best available date or version, so the fallback can't produce an identity-free entry.
+
+[[legal-source-types]]
+====== Polish and European Union Legal Source Types
+
+. The type of a source of Polish or European Union law follows the legal order the source belongs to and the source's category. The categories are acts, rulings or determinations of a court or authority, nonbinding positions of an authority, and material from the legislative process. A source of Polish or European Union law takes one of these types:
++
+[cols="1,2,2",options="header"]
+|===
+|Type |Required fields |Optional fields
+|`Polish legal act` |`Kind`, `Issuing body`, `Status` |`Character`, `Promulgated in`, `ELI`, `Law as of`, `Later amendments`
+|`Polish ruling or determination` |`Kind`, `Issuing body`, `Date`, `Case number` |`Finality`, `Bench`, `Promulgated in`, `ECLI`
+|`Polish authority position` |`Kind`, `Issuing body`, `Date` |`Case number`, `Addressee`, `Promulgated in`
+|`Polish legislative material` |`Kind`, `Issuing body`, `Date` |`Term`, `Print number`
+|`European Union legal act` |`Kind`, `Issuing body`, `Number`, `Promulgated in`, `Status` |`CELEX`, `ELI`, `Law as of`
+|`European Union court ruling` |`Kind`, `Issuing body`, `Date`, `Case number` |`Case name`, `ECLI`
+|===
+. A source from any other legal order takes the general xref:#general-legal-source-type[`Legal source`] type.
 
 [[source-status]]
 ===== Draft and Final Sources Distinguished
@@ -973,7 +994,7 @@ The appeal follows the procedure discussed earlier.
 [.good-example]
 .{good-icon} Good example: xref:#cross-reference[cross-reference] to another section
 ====
-The appeal follows the submission procedure in §5.3.
+The appeal follows the submission procedure in section 5.3.
 ====
 
 . In AsciiDoc, a xref:#cross-reference[cross-reference] follows the xref:#general-cross-reference-requirements[general requirements]. For targets within the document, the sections xref:#explicit-anchors[] and xref:#internal-references-with-xref[] add requirements for the target's anchor and the cross-reference markup.
@@ -1065,7 +1086,7 @@ A project's _Approved Budget_ is the spending limit authorized by its board. The
 [[acronyms-and-abbreviations]]
 ==== Unfamiliar Acronyms Expanded at First Use
 
-An acronym is expanded at its first occurrence in the document and at its first occurrence in each top-level section, in the form _Expanded Form (ACRONYM)_. After each expansion, the acronym is used until another required expansion. Acronyms more recognizable than their expansions, such as DNA, UTC, and PDF, need not be expanded, except where the expansion adds information the reader needs.
+An unfamiliar acronym is expanded at its first occurrence in the document in the form _Expanded Form (ACRONYM)_, and again at its first occurrence in each top-level section. A document may instead expand each acronym only once. After each expansion, the acronym is used until another expansion is required. Acronyms more recognizable than their expansions, such as DNA, UTC, and PDF, need not be expanded, except where the expansion adds information the reader needs.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1109,7 +1130,7 @@ Author-written English uses American spelling. Verbatim quotations, technical id
 .{bad-icon} Bad example
 ====
 // British spellings are the fault demonstrated by this bad example.
-// adocent-disable-next-line English.AmericanSpelling, LanguageTool.MORFOLOGIK_RULE_EN_US, English.ConsistentSpelling
+// adocent-disable-next-line English.AmericanSpelling, English.ConsistentSpelling
 The colour of the label was recognised by the team travelling to the theatre.
 ====
 
@@ -1356,13 +1377,13 @@ Current conditions and recurring processes are described in the present tense, f
 [.bad-example]
 .{bad-icon} Bad example
 ====
-The team collected the samples yesterday and measures them this morning. (Both activities were completed before the report was written.)
+The team collected the samples on 3 March 2028 and measures them on 4 March 2028. (Both activities were completed before the report was written.)
 ====
 
 [.good-example]
 .{good-icon} Good example
 ====
-The team collected the samples yesterday and measured them this morning.
+The team collected the samples on 3 March 2028 and measured them on 4 March 2028.
 ====
 
 [[person]]
@@ -1493,11 +1514,15 @@ The bottle holds 750 ml, weighs 280 g, and has a replaceable screw cap. The prod
 [[no-filler-phrases]]
 ==== No Filler Phrases
 
+// The filler phrases are mentioned as examples of wording to remove.
+// adocent-disable-next-line Prose.EmptyLeadIn
 The prose excludes phrases that announce structure without providing content: _It's important to note that_, _It should be mentioned that_, _As we will see_, _In other words_, _Basically_, _Essentially_, _At the end of the day_, etc. The sentence following the filler is usually fine on its own.
 
 [.bad-example]
 .{bad-icon} Bad example
 ====
+// The filler phrases are the deliberate fault in this example.
+// adocent-disable-next-line Prose.EmptyLeadIn
 It's important to note that, basically, the museum is, at the end of the day, closed on Mondays.
 ====
 
@@ -1571,14 +1596,14 @@ The proposed route connects the railway station, hospital, and town center. Buse
 ==== No Redundant Qualifiers
 
 // The qualifiers and pleonasms are mentioned as examples of wording to remove.
-// adocent-disable-next-line Readability.ConcreteVocabulary, Prose.TooWordy
+// adocent-disable-next-line Readability.ConcreteVocabulary, Prose.TooWordy, Prose.WeakeningWords
 Qualifiers that don't narrow the claim are omitted: _very_, _really_, _actually_, _literally_, _quite_, _truly_, etc. Pleonasms are omitted: _end result_, _final outcome_, _advance planning_, _future plans_, _added bonus_, _past history_, etc. The shorter form has the same meaning.
 
 [.bad-example]
 .{bad-icon} Bad example
 ====
 // The redundant phrases and qualifiers are deliberate here.
-// adocent-disable-next-line Prose.TooWordy
+// adocent-disable-next-line Prose.TooWordy, Prose.WeakeningWords
 The actual end result is that the future plans for the exhibition will literally have to be revised.
 ====
 
@@ -1610,7 +1635,7 @@ Place the return form inside the parcel. Attach the prepaid label and take the p
 [[dont-annotate-rule-application]]
 ==== No Commentary on Applying This Guideline
 
-The document contains no commentary about applying this guideline. A statement such as "Per §3.2, I'll use direct verbs here" describes the editing process and adds nothing to the subject.
+The document contains no commentary about applying this guideline. A statement such as "Under section 3.2, I'll use direct verbs here" describes the editing process and adds nothing to the subject.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1941,7 +1966,7 @@ assert response.status_code == 202
 [[code-markup]]
 ==== Code and Identifiers in Monospaced Type
 
-. [[technical-literal-formatting]]Technical literals, such as code, identifiers, file paths, configuration keys, and protocol headers, are set in a monospaced font. Identifiers are written exactly as they appear in code, including case.
+. [[technical-literal-formatting]]Technical literals, such as code, identifiers, version numbers, file paths, configuration keys, and protocol headers, are set in a monospaced font. Identifiers are written exactly as they appear in code, including case.
 +
 [.bad-example]
 .{bad-icon} Bad example
@@ -1971,10 +1996,10 @@ Call `commit` to persist the changes.
 
 This section defines how the document represents its prose, xref:#cross-reference[cross-references], and citations in AsciiDoc. The requirements for the wording remain those of the preceding sections.
 
-[[one-sentence-per-line]]
-=== Paragraphs Without a Line Break per Sentence
+[[paragraph-on-one-line]]
+=== Paragraphs on One Source Line
 
-A paragraph is written as continuous prose, without starting a new source line for every sentence. AsciiDoc joins consecutive non-blank lines into one paragraph, so a per-sentence line break produces no change in the rendered output. The source reads as a list of fragments instead of a paragraph. A sentence edit no longer aligns with the unit a reader thinks in.
+Each paragraph, including the text of a list item, is written on one source line. AsciiDoc joins consecutive lines into one paragraph, so a line break inside a paragraph changes nothing in the output and makes the source harder to read and edit. Lines that must stand apart, such as an address, are written as a list, a table, or a https://docs.asciidoctor.org/asciidoc/latest/blocks/verses/[`[verse\]` block^] instead of with hard line breaks.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1984,6 +2009,9 @@ A paragraph is written as continuous prose, without starting a new source line f
 The clinic records each appointment.
 A reminder is sent the day before the appointment.
 Cancellations are recorded separately.
+
+. Cancellations +
+A cancelled appointment is released to the waiting list.
 ----
 ====
 
@@ -1993,6 +2021,8 @@ Cancellations are recorded separately.
 [source,asciidoc]
 ----
 The clinic records each appointment. A reminder is sent the day before the appointment. Cancellations are recorded separately.
+
+. A cancelled appointment is released to the waiting list.
 ----
 ====
 
@@ -2027,7 +2057,7 @@ total = sum(amounts)
 [[numbered-paragraphs]]
 === Paragraph Numbering and List Nesting
 
-A [[numbered-paragraph]]_numbered paragraph_ is a paragraph written as an item of an AsciiDoc ordered list, so that the renderer prefixes it with a number or letter. Numbering makes each paragraph an addressable unit: for example, a review comment or a xref:#cross-reference[cross-reference] names item 2.3 instead of "the second sentence of the fourth paragraph." A numbered paragraph is ordinary prose, with full sentences developing one topic under the xref:#single-topic-rule[single-topic rule]. Its sentences use normal capitalization and punctuation. A numbered paragraph may end with a colon when it directly introduces an attached table, block image, listing, or literal block. Numbering a paragraph doesn't make it an item in a xref:#genuine-list[genuine list].
+A [[numbered-paragraph]]_numbered paragraph_ is a paragraph written as an item of an AsciiDoc ordered list, so that the renderer prefixes it with a number or letter. Numbering makes each paragraph an addressable unit: for example, a review comment or a xref:#cross-reference[cross-reference] names item 2.3 instead of "the second sentence of the fourth paragraph." A numbered paragraph is ordinary prose, with full sentences developing one topic under the xref:#single-topic-rule[single-topic rule]. Its sentences use normal capitalization and punctuation. A numbered paragraph may end with a colon when it directly introduces an attached table, block image, listing, literal block, or quote block. Numbering a paragraph doesn't make it an item in a xref:#genuine-list[genuine list].
 
 [[number-every-paragraph]]
 ==== Numbered Paragraphs in Sections with Multiple Paragraphs
@@ -2169,7 +2199,7 @@ At every nesting level, a xref:#numbered-paragraph[numbered paragraph] has at le
 [[paragraph-headers]]
 ==== Optional Paragraph Headers in Bold Sentence Case
 
-A xref:#numbered-paragraph[numbered paragraph] may open with a [[paragraph-header]]_paragraph header_ - a bold phrase that names the paragraph's topic. The header stands alone on the item's line. The paragraph's text follows as a continuation under the xref:#continuation-attachment[continuation rule] or as nested numbered paragraphs. A paragraph header uses sentence case: the first word and any proper nouns, acronyms, or identifiers are capitalized, while ordinary words that follow remain lowercase. It never uses title case and never ends with a period. A header is due when it helps the reader scan, for example when the paragraph is long and holds several sentences or the item heads a group of nested items whose shared topic needs a name. A header is omitted when it adds nothing: for example, a paragraph of one or two sentences doesn't restate its topic in bold if the section heading already states that topic. A paragraph header is the one place where bold appears in body text - see the xref:#inline-markup-roles[inline-formatting rules].
+A xref:#numbered-paragraph[numbered paragraph] may open with a [[paragraph-header]]_paragraph header_ - a bold phrase that names the paragraph's topic. The header stands alone on the item's line. The paragraph's text follows as a continuation under the xref:#continuation-attachment[continuation rule] or as nested numbered paragraphs. A paragraph header uses sentence case: the first word and any proper nouns, acronyms, or identifiers are capitalized, while ordinary words that follow remain lowercase. It never uses title case and never ends with a punctuation mark. A header is due when it helps the reader scan, for example when the paragraph is long and holds several sentences or the item heads a group of nested items whose shared topic needs a name. A header is omitted when it adds nothing: for example, a paragraph of one or two sentences doesn't restate its topic in bold if the section heading already states that topic. A paragraph header is the one place where bold appears in body text - see the xref:#inline-markup-roles[inline-formatting rules].
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -2604,7 +2634,7 @@ The museum opens at 10:00.footnote:opening-hours[<<visitor-information>>, Openin
 [[footnote-punctuation]]
 === Periods for Citation Footnotes, Sentence Punctuation Otherwise
 
-A xref:#citation-footnote[citation footnote] ends with a period after its last source item. An ordinary footnote ends with the punctuation its final sentence requires: a period, question mark, or exclamation mark. Reusing a footnote with `+footnote:id[]+` adds no new text, so no punctuation is added inside the brackets.
+A xref:#citation-footnote[citation footnote] ends with a period after its last source item. An ordinary footnote ends with the punctuation its final sentence requires: a period or a question mark. It ends with an exclamation mark only when that mark closes quoted text. Reusing a footnote with `+footnote:id[]+` adds no new text, so no punctuation is added inside the brackets.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -2664,7 +2694,7 @@ The council https://council.example.com/waste/schedule[collects household waste 
 [[inline-formatting-semantics]]
 === Distinct Uses for Italics, Bold, and Monospaced Text
 
-[[inline-markup-roles]]Each inline mark has one role. A monospaced span marks technical literals, such as paths, domains, IP addresses, file extensions, configuration keys, HTTP headers, or identifiers, as the xref:#technical-literal-formatting[code-formatting rule] prescribes. Italics mark a term of art, a foreign-language term, the proper name of a product or interface element, a word mentioned as a word, and a word that carries emphasis. Bold is used only for xref:#paragraph-header[paragraph headers].
+[[inline-markup-roles]]Each inline mark has one role. A monospaced span marks technical literals, such as paths, domains, IP addresses, file extensions, version numbers, configuration keys, HTTP headers, or identifiers, as the xref:#technical-literal-formatting[code-formatting rule] prescribes. Italics mark a term of art, a foreign-language term, the proper name of a product or interface element, a word mentioned as a word, and a word that carries emphasis. Bold is used only for xref:#paragraph-header[paragraph headers].
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -2765,6 +2795,9 @@ The library is open six days a week. It lends books, provides study desks, and h
 . The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
 . The source text of this document must follow the link:README-guideline-writing.adoc[Writing Guideline for Utilitarian Non-Fiction^]. The guideline is stored beside the source text in the same Git repository.
 . The https://github.com/ciechanowiec/adocent[`adocent`^] application lints, converts, and watches the source text of this document.
+. *Usage of https://github.com/ciechanowiec/adocent[`adocent`^]*
++
+`adocent usage` prints the complete https://github.com/ciechanowiec/adocent[`adocent`^] manual and JSON reference catalogs, producing a large output. Don't run it during routine writing. Use it only when command help and lint diagnostics don't resolve a specific usage problem. Save the output to a temporary file and read only the relevant sections. AI agents must not load the full output into their context.
 . *Linting*
 +
 To lint the source text of this document, run this command from the directory containing the source text:
