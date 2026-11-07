@@ -142,6 +142,7 @@ A xref:#governed-repository[governed repository] grows through many separate cha
 . Each xref:#part[part] covers one distinct area of the domain, and no two parts cover the same area. Each fact, rule, and piece of logic therefore has one authoritative location, and other parts refer to that location instead of copying it. For example, the xref:#root-instruction-file[root instruction file] describes all build commands in one section, not partly in a second section that a later change appended. Similarly, the maximum upload size is one named constant that the upload check and its error message both read, not two constants with the same value.
 . A xref:#part[part] holds the parts that cover the more specific areas within its own area: a directory holds directories and files, and a file holds named divisions. A specific area doesn't sit beside the general area it belongs to.
 . Each xref:#part[part] is as large as its role in the xref:#project-goal[project goal] requires and no larger. A minor case takes less code, documentation, and instruction text than a major one, and no part holds an abstraction, a configuration option, or an extension point that no current use needs.
+. xref:#part[Parts] that solve the same kind of problem solve it the same way. Two approaches coexist only where the problems differ. For example, either every xref:#callable[callable] reports an expected failure through a result type, or every callable raises an error for it, never a mix of both.
 
 [[production-imports]]
 === Production Boundaries
