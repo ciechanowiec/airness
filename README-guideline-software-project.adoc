@@ -60,10 +60,12 @@ This guideline is written primarily for AI agents that work in software project 
 
 . Every rule of this guideline describes the state of a compliant xref:#governed-repository[governed repository] - its layout, its xref:#harness[harness of automated checks], its code, its tests, its dependencies, and its commit history.
 . A rule is satisfied when an inspection confirms that the xref:#governed-repository[governed repository] has the state that the rule describes.
+. The section xref:#scouts[] describes procedures, not rules.
 . An AI agent applies the guideline by taking it together with an assignment. Example assignments include:
 .. creating a new software project repository on a chosen technology stack whose state follows these rules,
 .. remaking an existing software project repository until its state follows these rules,
-.. changing a xref:#governed-repository[governed repository] while preserving its compliance.
+.. changing a xref:#governed-repository[governed repository] while preserving its compliance,
+.. running a xref:#scout[scout] of the section xref:#scouts[] on a governed repository.
 
 [[governing-principles]]
 == Governing Principles
@@ -71,7 +73,7 @@ This guideline is written primarily for AI agents that work in software project 
 . The rules apply to every programming language and platform, so they name no concrete tools and no concrete programming languages.
 . A rule is absolute: it binds in every case unless the rule itself states its exception.
 . A rule that automation can verify reliably is wired into an automated xref:#check[check], and the xref:#governed-repository[governed repository] binds that check to a concrete tool of its technology stack.
-. A rule that no xref:#check[automated check] can verify reliably binds with the same force: an xref:#instruction-file[instruction file for AI agents] states it, and an inspection of the xref:#governed-repository[governed repository] against the rule's wording decides compliance.
+. A rule that no xref:#check[automated check] can verify reliably binds with the same force: an xref:#instruction-file[instruction file for AI agents] states it or refers to it, and an inspection of the xref:#governed-repository[governed repository] against the rule's wording decides compliance.
 
 [[foundations]]
 == Foundations
@@ -115,7 +117,7 @@ The xref:#harness[harness] stays beyond the xref:#governed-repository[governed r
 [[governed-repository-organization]]
 == Governed Repository Organization
 
-This section describes the layout of a xref:#governed-repository[governed repository], from the xref:#instruction-file[instruction files] to the configuration that fixes formatting.
+This section describes the organization of a xref:#governed-repository[governed repository]: its xref:#instruction-file[instruction files], its project goal, the coherence of its parts, its production boundaries, its generated files, and the configuration that fixes formatting.
 
 [[instruction-files]]
 === Instruction Files
@@ -123,6 +125,23 @@ This section describes the layout of a xref:#governed-repository[governed reposi
 . [[instruction-file]]An _instruction file_ is a committed file that holds rules of the xref:#governed-repository[governed repository] for AI agents. [[root-instruction-file]]The root instruction file is `AGENTS.md` at the top of the governed repository and is neutral to the tools used by AI agents.
 . If this guideline and an xref:#instruction-file[instruction file] conflict, this guideline applies. An instruction file adds only details specific to the xref:#governed-repository[governed repository] or one of its directories and doesn't restate this guideline.
 . A tool-specific xref:#instruction-file[instruction file] contains only a reference to `AGENTS.md`. A xref:#check[check] rejects any other content and any instruction reference, command, or path that doesn't resolve.
+
+[[project-goal-rules]]
+=== Project Goal
+
+. [[project-goal]]The _project goal_ is the statement in the xref:#root-instruction-file[root instruction file] of what the software of the xref:#governed-repository[governed repository] achieves and for whom.
+. Every feature of the xref:#governed-repository[governed repository] serves the xref:#project-goal[project goal].
+. Only a human changes the xref:#project-goal[project goal].
+
+[[coherence]]
+=== Coherence
+
+A xref:#governed-repository[governed repository] grows through many separate changes. Its parts still fit together as if the whole repository had been designed at once.
+
+. [[part]]A _part_ is a directory, a file, or a named division of a file in the xref:#governed-repository[governed repository], such as a section of a document or a type in code.
+. Each xref:#part[part] covers one distinct area of the domain, and no two parts cover the same area. Each fact, rule, and piece of logic therefore has one authoritative location, and other parts refer to that location instead of copying it. For example, the xref:#root-instruction-file[root instruction file] describes all build commands in one section, not partly in a second section that a later change appended. Similarly, the maximum upload size is one named constant that the upload check and its error message both read, not two constants with the same value.
+. A xref:#part[part] holds the parts that cover the more specific areas within its own area: a directory holds directories and files, and a file holds named divisions. A specific area doesn't sit beside the general area it belongs to.
+. Each xref:#part[part] is as large as its role in the xref:#project-goal[project goal] requires and no larger. A minor case takes less code, documentation, and instruction text than a major one, and no part holds an abstraction, a configuration option, or an extension point that no current use needs.
 
 [[production-imports]]
 === Production Boundaries
@@ -242,7 +261,7 @@ These rules govern access, authentication, audit events, and data handling where
 [[authorization]]
 === Authorization
 
-. Each protected operation verifies the caller's permission for the target resource at a boundary the caller can't bypass.
+. [[permission-verification]]Each protected operation verifies the caller's permission for the target resource at a boundary the caller can't bypass.
 . A protected operation runs only when access is explicitly permitted. If permission can't be established, the operation is denied. Operations available without authentication are declared explicitly.
 
 [[authentication]]
@@ -348,6 +367,7 @@ This section describes the state of the test suite and what it proves.
 . An assertion whose verdict doesn't depend on the code under test is banned, because no change to that code can make the assertion fail. A xref:#check[check] fails on an assertion whose operands are literals alone, such as an assertion that a constant is true.
 . Coverage counts the lines a test ran, not the behaviors a test judged. The floors of the section xref:#coverage[] and the rules above therefore bind together, and neither one stands in for the other.
 . A test fails when the behavior its name states is removed from the code under test. No xref:#check[automated check] verifies this rule reliably, so an xref:#instruction-file[instruction file] states it, and an inspection against the wording of that rule decides compliance.
+. Every commit that repairs an incorrect result or a security weakness carries a test that fails without the repair.
 
 [[version-control]]
 == Version Control
@@ -376,6 +396,45 @@ Masking them in the header parser closes the leak for every consumer.
 
 . The history is linear: no commit has more than one parent. A branch takes the work of another by a rebase or a cherry-pick.
 . A xref:#check[check] walks the commit history, back to and including the first commit. A commit with more than one parent fails the check.
+
+[[scouts]]
+== Scouts
+
+. [[scout]]A _scout_ is a procedure in which an AI agent searches a xref:#governed-repository[governed repository] for problems that no xref:#check[check] rejects and implements the repairs that a human approves. A human requests a scout by its name, for example after a series of large changes.
+. [[realistic-situation]]A _realistic situation_ is a situation that the users, the operators, or later changes of a xref:#governed-repository[governed repository] can be expected to produce.
+
+[[scout-procedure]]
+=== Scout Procedure
+
+Run these steps in order for every xref:#scout[scout]. The sections xref:#roadmap-scout[], xref:#sprawl-scout[], and xref:#bug-scout[] state what each scout searches for.
+
+. Give the section of this guideline that describes the xref:#scout[scout] to an AI subagent, the [[search-subagent]]_search subagent_. The search subagent reports each finding with its location, the problem, the consequence of the problem in a xref:#realistic-situation[realistic situation], and a proposed repair. It reports no finding whose consequence needs an unlikely combination of conditions.
+. Give the findings to a second AI subagent, the [[review-subagent]]_review subagent_, which starts without the context of the xref:#search-subagent[search subagent]. The review subagent checks each finding against the xref:#governed-repository[governed repository] itself and confirms, corrects, or rejects the finding. It rejects a finding without a xref:#realistic-situation[realistic situation] and a finding whose repair costs more than the consequence the repair prevents.
+. Present the findings that the xref:#review-subagent[review subagent] confirmed or corrected to the human who requested the xref:#scout[scout], each with a recommendation to implement or skip its repair. Where a xref:#check[check] or a rule of this guideline would prevent a whole kind of finding, not only the finding at hand, propose that check or rule. When no finding remains, report that the scout found nothing.
+. Implement the repairs that the human approves.
+
+[[roadmap-scout]]
+=== Roadmap Scout
+
+The roadmap xref:#scout[scout] compares the features of the xref:#governed-repository[governed repository] with the xref:#project-goal[project goal]. Its xref:#search-subagent[search subagent] reports findings of three kinds:
+
+. a feature that the xref:#project-goal[project goal] needs and the xref:#governed-repository[governed repository] lacks,
+. a feature that serves the project goal poorly in its current form,
+. a feature that doesn't serve the project goal.
+
+[[sprawl-scout]]
+=== Sprawl Scout
+
+. The sprawl xref:#scout[scout] inspects the code, the documentation, and the xref:#instruction-file[instruction files] of the xref:#governed-repository[governed repository] against the rules of the sections xref:#coherence[] and xref:#naming[].
+. The xref:#search-subagent[search subagent] surveys the directories, the files, and the headings of the documents and instruction files of the whole xref:#governed-repository[governed repository] before it judges any xref:#part[part], because a violation of the rules of the section xref:#coherence[] shows in the relation between parts. The search subagent compares the governed repository with the organization that a single design of the same features would give it.
+. The xref:#search-subagent[search subagent] reads every xref:#instruction-file[instruction file] in full, because separate changes often add remarks to instruction files without reshaping them.
+. A repair of the sprawl xref:#scout[scout] moves, merges, or shortens content and keeps the behavior of the software. A finding that would change the behavior belongs to the xref:#roadmap-scout[roadmap scout] or the xref:#bug-scout[bug scout].
+
+[[bug-scout]]
+=== Bug Scout
+
+. [[bug]]A _bug_ is a defect in the behavior of the software that a xref:#realistic-situation[realistic situation] exposes: an incorrect result, a security weakness, or use of time or memory beyond what the input requires. For example, a page that lists 1,000 orders with one database query per order sends 1,000 queries where one query is enough. The bug xref:#scout[scout] searches the code and the tests for bugs.
+. The bug xref:#scout[scout] also inspects the xref:#governed-repository[governed repository] against the rules of this guideline that the xref:#roadmap-scout[roadmap scout] and the xref:#sprawl-scout[sprawl scout] don't cover, such as the rules of the sections xref:#error-handling[], xref:#production-imports[], xref:#security[], and xref:#testing[]. For example, it checks that a signed-in customer can't change another customer's order, as the xref:#permission-verification[authorization rule] requires.
 
 [[about-the-document]]
 == About the Document
