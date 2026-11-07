@@ -25,6 +25,10 @@ Each directory a module lists in `airness.node.projects` is a node project and c
 
 # Repository Guidelines
 
+## Project Goal
+
+Airness gives the owners of Maven-built software projects whose code AI agents write a harness they inherit from one parent: it enforces `README-guideline-software-project.adoc` for the project's technology stack, so changes can merge without human code review.
+
 ## Project Structure & Module Organization
 
 Airness is a Maven 3.10.0+ multi-module build harness that requires exactly Java 25. The root `pom.xml` aggregates `airness-annotations` (shared annotations), `airness-config` (Checkstyle, PMD, SpotBugs, and formatter rules), `airness-error-prone` (compiler-side rules that need resolved types), `airness-governance` (repository checks), `airness-maven-plugin` (Maven goals), `airness-spring-evidence` (test-scope Spring Boot runtime evidence), `airness-web-evidence` (test-scope accessibility auditing of a rendered page), `airness-parent` (the generic parent with the repository rules), `airness-parent-java` (the parent a Java project inherits, adding the Java rules), `airness-parent-spring-boot` (the parent a Spring Boot project inherits instead), `airness-parent-node` (the parent a JS/TS module inherits), `airness-node` (the npm package `@airness/node`: the JS/TS gates, their analyzer configurations and the pinned analyzers, written in TypeScript under `airness-node/src`), and `airness-assets` (managed files). Production and unit-test code follow Maven conventions under `src/main/java` and `src/test/java`. `airness-it` is deliberately outside the reactor and tests the installed harness as a consumer. Documentation lives in root-level AsciiDoc files; CI definitions are under `.github/workflows`.
