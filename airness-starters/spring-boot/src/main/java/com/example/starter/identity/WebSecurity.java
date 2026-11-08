@@ -102,7 +102,7 @@ public final class WebSecurity {
      * @return the sessions of the application, by the account each is signed in under
      */
     @Bean
-    SessionRegistry signedInSessions() {
+    SessionRegistry sessionRegistry() {
         return new SessionRegistryImpl();
     }
 
