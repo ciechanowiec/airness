@@ -42,6 +42,9 @@ The root `pom.xml` also aggregates the Payload stack: `airness-payload-assets` (
 - `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, and
   installs all reactor modules for consumer tests into this clone's own local Maven repository, which the README
   section Local Harness Builds names. The integration suite installs its node fixtures from `registry.npmjs.org`.
+- Create each parallel worktree beside the clone, for example `git worktree add ../airness-<name>`, never inside
+  it: the harness reads every project file beneath the repository root, so a worktree under `.claude/worktrees`
+  fails the main clone's build.
 - `sh airness-it/promote.sh` copies this clone's installed harness into `~/.m2/repository`, which governed
   projects build against. Run it only while no governed project builds.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
