@@ -5,10 +5,13 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -33,6 +36,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
     private static final String OUTPUT = "target/qodana";
     private static final String REPORT = "qodana.sarif.json";
     private static final int FINDINGS = 255;
+    private static final String REPOSITORY = "/opt/maven-repository";
 
     @Parameter(property = "qodana.image", required = true)
     private @Nullable String image;
@@ -61,20 +65,37 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
             "-v", paths.root() + ":/opt/project:ro",
             "-v", paths.output() + ":/data/results",
             "-v", paths.profile() + ":/opt/inspection-profile.xml:ro",
-            "-v", paths.roots() + ":/opt/hostca.pem:ro",
-            "-v", paths.localRepository() + ":/opt/maven-repository:ro"
+            "-v", paths.roots() + ":/opt/hostca.pem:ro"
         );
+        List<Path> layers = paths.localRepository().layers();
         return Stream.of(
-            Stream.of("docker", "run", "--rm"), mounts.stream(), paths.metadata().stream(),
-            Stream.of("--entrypoint", "/bin/sh", image, "-c", script(linked))
+            Stream.of("docker", "run", "--rm"), mounts.stream(), repositoryMounts(layers), paths.metadata().stream(),
+            Stream.of("--entrypoint", "/bin/sh", image, "-c", script(linked, layers.size()))
         ).flatMap(Function.identity()).toList();
     }
 
-    private static String script(String linked) {
+    private static Stream<String> repositoryMounts(List<Path> layers) {
+        return IntStream.range(0, layers.size())
+            .boxed()
+            .flatMap(layer -> Stream.of("-v", layers.get(layer) + ":" + mountPoint(layer) + ":ro"));
+    }
+
+    // The head keeps the mount point it always had, and each tail is mounted beside it under its position.
+    private static String mountPoint(int layer) {
+        return layer == 0 ? REPOSITORY : REPOSITORY + "-tail-" + layer;
+    }
+
+    // The scan reads one repository, so the chain is merged into it. The last tail is linked first and every
+    // repository before it replaces what it also holds, which leaves each file from the first repository of
+    // the chain that holds it, the one Maven itself resolves.
+    private static String script(String linked, int layers) {
+        String merged = IntStream.iterate(layers - 1, layer -> layer >= 0, layer -> layer - 1)
+            .mapToObj(layer -> "cp -as --remove-destination " + mountPoint(layer) + "/. /data/cache/.m2/; ")
+            .collect(Collectors.joining());
         return "set -- /opt/project /data/project /data/results/source-files" + linked + "; "
             + QodanaSnapshot.SCRIPT
             + "mkdir -p /data/cache/.m2; "
-            + "cp -as /opt/maven-repository/. /data/cache/.m2/; "
+            + merged
             + "find /data/cache/.m2 -type l \\( "
             + "-name _remote.repositories -o -name resolver-status.properties "
             + "-o -name '*.lastUpdated' -o -name 'maven-metadata*.xml' "
@@ -86,7 +107,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
     }
 
     /**
-     * The scan resolves every library from this mount alone. Arriving empty, it leaves the IDE without the
+     * The scan resolves every library from these mounts alone. Arriving empty, it leaves the IDE without the
      * project's dependencies and on a fallback JDK and language level, so valid code is reported by the
      * thousand instead of the scan failing.
      */
@@ -94,7 +115,7 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
     List<MountProbe> probes() throws MojoExecutionException {
         try {
             return Stream.concat(
-                Stream.of(this.localRepository()), QodanaSnapshot.linked(this.repositoryRoot()).stream()
+                this.localRepository().layers().stream(), QodanaSnapshot.linked(this.repositoryRoot()).stream()
             ).map(input -> MountProbe.input(input, this.image())).toList();
         } catch (IOException exception) {
             throw new MojoExecutionException(
@@ -103,8 +124,13 @@ public final class QodanaMojo extends AbstractDockerCheckMojo {
         }
     }
 
-    private Path localRepository() throws IOException {
-        return this.session().getRequest().getLocalRepositoryPath().toPath().toRealPath();
+    private LocalRepository localRepository() throws IOException {
+        LocalRepository declared = LocalRepository.of(this.session());
+        List<Path> tails = new ArrayList<>();
+        for (Path tail : declared.tails()) {
+            tails.add(tail.toRealPath());
+        }
+        return new LocalRepository(declared.head().toRealPath(), tails);
     }
 
     private void trustedRoots(Path destination) throws IOException {

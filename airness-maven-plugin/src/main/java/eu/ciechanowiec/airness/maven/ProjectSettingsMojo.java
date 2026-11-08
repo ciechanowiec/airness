@@ -72,8 +72,7 @@ public final class ProjectSettingsMojo extends AbstractPreflightMojo {
     @Override
     List<String> requiredProblems() {
         List<String> models = ConsumerModels.problems(
-            this.project(), this.session().getRepositorySession().getData(),
-            this.session().getRepositorySession().getLocalRepositoryManager().getRepository().getBasePath()
+            this.project(), this.session().getRepositorySession().getData(), LocalRepository.of(this.session())
         );
         return Stream.concat(models.stream(), JavaParents.problem(this.project()).stream()).toList();
     }

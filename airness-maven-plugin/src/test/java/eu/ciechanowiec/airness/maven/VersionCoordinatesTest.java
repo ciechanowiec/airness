@@ -32,7 +32,7 @@ class VersionCoordinatesTest {
         MavenProject child = this.project("child", this.pom("child-library", ""), Optional.of(parent));
 
         List<OwnedCoordinate> coordinates = VersionCoordinates.from(
-            List.of(child), this.directory.resolve("empty-repository")
+            List.of(child), this.empty()
         );
         List<OwnedCoordinate> dependencies = coordinates.stream()
             .filter(coordinate -> "sample.dependencies".equals(coordinate.coordinate().groupId()))
@@ -57,7 +57,7 @@ class VersionCoordinatesTest {
         child.getProperties().setProperty("library.version", "3.4.5");
 
         List<OwnedCoordinate> coordinates = VersionCoordinates.from(
-            List.of(child), this.directory.resolve("empty-repository")
+            List.of(child), this.empty()
         );
 
         assertTrue(
@@ -76,7 +76,7 @@ class VersionCoordinatesTest {
         );
 
         List<OwnedCoordinate> coordinates = VersionCoordinates.from(
-            List.of(library, application), this.directory.resolve("empty-repository")
+            List.of(library, application), this.empty()
         );
 
         assertTrue(
@@ -110,7 +110,7 @@ class VersionCoordinatesTest {
         child.getProperties().setProperty("library.version", "2.0.0");
 
         List<OwnedCoordinate> coordinates = VersionCoordinates.from(
-            List.of(child), this.directory.resolve("empty-repository")
+            List.of(child), this.empty()
         );
 
         assertTrue(
@@ -134,7 +134,7 @@ class VersionCoordinatesTest {
         project.getProperties().setProperty("minor", "3");
 
         List<OwnedCoordinate> coordinates = VersionCoordinates.from(
-            List.of(project), this.directory.resolve("empty-repository")
+            List.of(project), this.empty()
         );
 
         assertTrue(
@@ -150,7 +150,7 @@ class VersionCoordinatesTest {
 
         assertThrows(
             IllegalStateException.class,
-            () -> VersionCoordinates.from(List.of(project), this.directory.resolve("empty-repository"))
+            () -> VersionCoordinates.from(List.of(project), this.empty())
         );
     }
 
@@ -167,13 +167,40 @@ class VersionCoordinatesTest {
         parent.setVersion("1.0.0");
         MavenProject child = this.project("local-child", "<project/>", Optional.of(parent));
 
-        List<OwnedCoordinate> coordinates = VersionCoordinates.from(List.of(child), repository);
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(List.of(child), LocalRepository.at(repository));
 
         assertTrue(
             coordinates.stream().anyMatch(
                 coordinate -> "remote-library".equals(coordinate.coordinate().artifactId())
             )
         );
+    }
+
+    @Test
+    @SneakyThrows
+    void readsAResolvedParentFromATailWhenTheHeadDoesNotHoldIt() {
+        Path tail = this.directory.resolve("tail");
+        Path parentPom = tail.resolve("sample/remote-parent/1.0.0/remote-parent-1.0.0.pom");
+        Files.createDirectories(parentPom.getParent());
+        Files.writeString(parentPom, this.pom("tail-library", "1.2.3"));
+        MavenProject parent = new MavenProject();
+        parent.setGroupId("sample");
+        parent.setArtifactId("remote-parent");
+        parent.setVersion("1.0.0");
+        MavenProject child = this.project("tail-child", "<project/>", Optional.of(parent));
+        LocalRepository repository = new LocalRepository(this.directory.resolve("head"), List.of(tail));
+
+        List<OwnedCoordinate> coordinates = VersionCoordinates.from(List.of(child), repository);
+
+        assertTrue(
+            coordinates.stream().anyMatch(
+                coordinate -> "tail-library".equals(coordinate.coordinate().artifactId())
+            )
+        );
+    }
+
+    private LocalRepository empty() {
+        return LocalRepository.at(this.directory.resolve("empty-repository"));
     }
 
     @SneakyThrows
