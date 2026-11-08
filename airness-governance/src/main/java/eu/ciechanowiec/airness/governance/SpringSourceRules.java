@@ -40,6 +40,11 @@ final class SpringSourceRules {
         "@(?:org\\.springframework\\.stereotype\\.)?Controller\\s*\\(\\s*"
             + "(?:value\\s*=\\s*)?(\"[^\"]*\"|[A-Z][A-Z0-9_]*)\\s*\\)"
     );
+    // A call reaches a bean method of this class only unqualified or through this, which an outer class
+    // can name as Wiring.this. A call on any other receiver, such as a configurer the method was handed,
+    // names a method of that receiver's type, whatever it is called.
+    private static final Pattern QUALIFIED = Pattern.compile("\\.\\s*$");
+    private static final Pattern OWN = Pattern.compile("(?<![\\w.])(?:\\w+\\s*\\.\\s*)*this\\s*\\.\\s*$");
     private static final Pattern STRING_CONSTANT = Pattern.compile(
         "\\bstatic\\s+final\\s+String\\s+(\\w+)\\s*=\\s*\"([^\"]*)\""
     );
@@ -143,7 +148,13 @@ final class SpringSourceRules {
         CharSequence source, String code, SpringMembers.Member bean, List<String> names
     ) {
         return SpringMembers.callsWithin(code, bean.start(), bean.end(), names).stream()
+            .filter(call -> ownCall(code, call.start(1)))
             .map(call -> offence(source, bean, call));
+    }
+
+    private static boolean ownCall(String code, int name) {
+        String before = code.substring(0, name);
+        return !QUALIFIED.matcher(before).find() || OWN.matcher(before).find();
     }
 
     private static String declaredPackage(CharSequence code) {
