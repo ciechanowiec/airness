@@ -484,7 +484,7 @@
                         <goals>
                             <goal>comment-prose</goal>
                             <goal>javadoc-links</goal>
-                            <goal>test-assertions</goal>
+                            <goal>assertions</goal>
                             <goal>web-accessibility</goal>
                             <goal>package-cycles</goal>
                             <goal>template-parse</goal>

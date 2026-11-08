@@ -17,8 +17,8 @@ import org.apache.maven.plugins.annotations.Mojo;
  * carry no tests at all is a question the coverage floor answers, and answering it twice in two voices
  * is how the two come to disagree.
  */
-@Mojo(name = "test-assertions", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public final class TestAssertionsMojo extends AbstractGovernanceMojo {
+@Mojo(name = "assertions", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
+public final class AssertionsMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {
