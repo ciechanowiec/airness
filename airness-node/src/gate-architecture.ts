@@ -1,4 +1,4 @@
-// Module architecture: no cycle, no unresolvable import, no production import of a spec or of a
+// Module architecture: no cycle, no unresolvable import, no production import of a spec, of test code or of a
 // development-only dependency, under the shipped dependency-cruiser contract; and, where the member has them,
 // the Next.js application layer and the declared pure-logic floor, rendered on top of it outside the tree.
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -38,22 +38,19 @@ const cruise = (member: Member, options: readonly string[]): RunResult => {
       member.siblingPaths,
     ),
   )
-  const directory: string | undefined =
-    rules.length === 0 ? undefined : mkdtempSync(path.join(tmpdir(), 'airness-arch-'))
+  // Every production root carries the test-code rule, so the contract is always rendered, even when it adds
+  // nothing to the shipped configuration it extends.
+  const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-arch-'))
   try {
-    const config: string = directory === undefined ? shipped : path.join(directory, 'dependency-cruiser.json')
-    if (directory !== undefined) {
-      writeFileSync(config, `${JSON.stringify({ extends: shipped, forbidden: rules }, null, JSON_INDENT)}\n`)
-    }
+    const config: string = path.join(directory, 'dependency-cruiser.json')
+    writeFileSync(config, `${JSON.stringify({ extends: shipped, forbidden: rules }, null, JSON_INDENT)}\n`)
     return runNode(
       resolveTool('dependency-cruiser', 'depcruise'),
       [...roots, '--no-progress', '--config', config, ...options],
       { cwd: member.root },
     )
   } finally {
-    if (directory !== undefined) {
-      rmSync(directory, { recursive: true, force: true })
-    }
+    rmSync(directory, { recursive: true, force: true })
   }
 }
 

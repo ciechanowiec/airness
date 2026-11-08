@@ -32,9 +32,10 @@ public final class ComplianceReportMojo extends AbstractGovernanceMojo {
         ReportInputs inputs = new ReportInputs(this.session().getRequest().getStartTime().toInstant());
         List<ReportModule> modules = ReportProjects.required(this.session().getProjects()).stream()
             .map(ReportProjects::executed).map(inputs::read).toList();
-        ComplianceReport report = ReportGeneration.from(this.session(), this.project()).reportOnly().write(
-            modules, Optional.ofNullable(this.output)
-        );
+        ComplianceReport report = ReportGeneration.from(this.session(), this.project(), this.enforced()).reportOnly()
+            .write(
+                modules, Optional.ofNullable(this.output)
+            );
         this.getLog().info("Compliance report written: " + report.fileStem() + ".html and .pdf");
         return List.of(new Findings("Dependency compliance report", report.inventory().failures()));
     }

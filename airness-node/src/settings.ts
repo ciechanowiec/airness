@@ -7,7 +7,14 @@ import { type AuxiliaryServer, browserSettings } from './browser-settings.js'
 // files are framework glue, and which hand-written JavaScript a tool forces on the project. There is no
 // field that turns a gate off. An exclusion is an exclusion by file role, so an entry that names no role
 // is not honoured, which leaves the gate stricter rather than looser.
-import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesGlob, matchesRole, type RolePattern } from './file-roles.js'
+import {
+  hasExtension,
+  JAVASCRIPT_EXTENSIONS,
+  matchesGlob,
+  matchesRole,
+  normalisedSourceRoot,
+  type RolePattern,
+} from './file-roles.js'
 import { type InvocationSettings, invocationSettings } from './invocation-settings.js'
 import { isJavascriptRuntime, JAVASCRIPT_RUNTIMES, type RuntimeRole } from './javascript-runtimes.js'
 import { asRecord, asText, isArray, isRecord } from './json-shapes.js'
@@ -298,6 +305,25 @@ export const settingsBlock = (packageJson: unknown): Record<string, unknown> => 
   return asRecord(declared)
 }
 
+// A declared root in the one spelling every gate matches against: `lib/` and `./lib` are `lib`, and `.` is the
+// whole member. A root that escapes the member stays as declared, so each gate that selects files by root
+// refuses it with the reason, rather than the settings quietly dropping a directory the project means to govern.
+const declaredRoot = (root: string): string => {
+  try {
+    return normalisedSourceRoot(root)
+  } catch {
+    return root
+  }
+}
+
+// The defaults and the declared roots, each once, in the spelling the gates match.
+const sourceRootsOf = (declared: unknown): readonly string[] => [
+  ...new Set<string>([
+    ...DEFAULT_SOURCE_ROOTS,
+    ...(isTextArray(declared) ? declared.map((root: string): string => declaredRoot(root)) : []),
+  ]),
+]
+
 /**
  * Read the `airness` key of a parsed package.json into fully defaulted settings. A malformed value falls
  * back to the strict policy default. Malformed process declarations are refused, because ignoring one
@@ -333,9 +359,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     ...invocationSettings(raw),
     // Additive: replacing the default would let a project declare `["src"]` and silently drop `tests`
     // and `scripts` from every gate that reads source roots.
-    sourceRoots: [
-      ...new Set<string>([...DEFAULT_SOURCE_ROOTS, ...(isTextArray(raw['sourceRoots']) ? raw['sourceRoots'] : [])]),
-    ],
+    sourceRoots: sourceRootsOf(raw['sourceRoots']),
     frameworkGlue: [
       ...layers.flatMap((layer: LayerDefaults): readonly string[] => layer.frameworkGlue),
       ...honoured(glue),

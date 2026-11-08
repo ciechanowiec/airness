@@ -31,6 +31,12 @@ describe('reading the airness block of package.json', () => {
     ])
   })
 
+  it('reads each declared root in the one spelling the gates match, and keeps a root that escapes for refusal', () => {
+    expect(
+      readSettings({ airness: { sourceRoots: ['lib/', './tools', 'src/', '.', '../shared'] } }).sourceRoots,
+    ).toEqual([...DEFAULT_SOURCE_ROOTS, 'lib', 'tools', '.', '../shared'])
+  })
+
   it('falls back to the defaults on a malformed value rather than widening a rule', () => {
     const settings: Settings = readSettings({ airness: { sourceRoots: 'lib', generatedArtefacts: [1] } })
     expect(settings.sourceRoots).toEqual(DEFAULT_SOURCE_ROOTS)

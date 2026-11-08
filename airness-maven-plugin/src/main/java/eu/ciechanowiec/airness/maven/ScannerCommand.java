@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -64,6 +65,40 @@ final class ScannerCommand {
             .redirectError(output.resolveSibling(output.getFileName() + ".log").toFile())
             .start();
         return await(process, output, TIMEOUT);
+    }
+
+    /**
+     * Runs a host command whose output nobody reads, and gives up on it after the given limit.
+     *
+     * <p>A Docker daemon can accept the client's connection and never answer, as a Docker Desktop or Colima
+     * virtual machine does while it is stuck starting. Without a limit such a command would hold the build
+     * until the CI job's own limit ended it with no cause named.
+     *
+     * @param command the command, whose standard output and error are discarded
+     * @param limit   how long the command may run
+     * @return the exit code
+     * @throws IOException      when the command cannot start or is interrupted
+     * @throws TimeoutException when the command did not finish within the limit, after it was stopped
+     */
+    static int quiet(List<String> command, Duration limit) throws IOException, TimeoutException {
+        Process process = new ProcessBuilder(command)
+            .redirectInput(ProcessBuilder.Redirect.INHERIT)
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start();
+        try {
+            if (!process.waitFor(limit)) {
+                process.destroyForcibly();
+                throw new TimeoutException(
+                    String.join(" ", command) + " did not finish within " + limit.toSeconds() + " seconds"
+                );
+            }
+            return process.exitValue();
+        } catch (InterruptedException exception) {
+            process.destroyForcibly();
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for " + command.getFirst(), exception);
+        }
     }
 
     static int await(Process process, Path output, Duration timeout) throws IOException {

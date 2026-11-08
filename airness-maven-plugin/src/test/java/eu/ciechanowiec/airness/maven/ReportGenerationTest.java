@@ -168,9 +168,9 @@ class ReportGenerationTest {
         Path root = this.repository();
         MavenProject model = InputProjects.project(root);
         model.setInjectedProfileIds("parent", List.of("extended"));
-        assertTrue(ReportProjects.qualifications(List.of(model), false, "true").isEmpty());
+        assertTrue(ReportProjects.qualifications(List.of(model), false, true).isEmpty());
         model.setInjectedProfileIds("parent", List.of("extended", "delta"));
-        List<String> reasons = ReportProjects.qualifications(List.of(model), false, "true");
+        List<String> reasons = ReportProjects.qualifications(List.of(model), false, true);
         assertEquals(1, reasons.size());
         SessionData data = new DefaultSessionData();
         ReportSession.begin(data, root);

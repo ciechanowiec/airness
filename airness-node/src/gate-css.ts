@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { failed, fromRun, type GateResult, notApplicable, passed, type RunResult, runNode } from './exec.js'
-import { hasExtension, STYLESHEET_EXTENSIONS } from './file-roles.js'
+import { hasExtension, isWithinSourceRoots, STYLESHEET_EXTENSIONS } from './file-roles.js'
 import { harnessDirectory, type Member, resolveTool } from './project.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
@@ -17,7 +17,7 @@ const PROJECT_CONFIGURATION: RegExp =
 const STYLELINT_CONFIG = (): string => path.join(harnessDirectory(), 'configs', 'stylelint.json')
 
 const isUnderSourceRoot = (member: Member, file: string): boolean =>
-  member.settings.sourceRoots.some((root: string): boolean => root === '.' || file.startsWith(`${root}/`))
+  isWithinSourceRoots(file, member.settings.sourceRoots)
 
 // The authored stylesheets of a member: under a source root, outside every nested member, not generated.
 const stylesheetFiles = (member: Member, files: readonly string[]): readonly string[] =>

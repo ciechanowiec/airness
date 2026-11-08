@@ -38,6 +38,9 @@
     <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { int m(Object o) { if (o instanceof String) { return ((Integer) o).intValue(); } return 0; } }]]></edge>
     <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { boolean m(Object o) { boolean b = o instanceof String; return b; } }]]></edge>
     <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { void m(Object o) { while (o instanceof String) { o = ((String) o).trim(); } } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { String m(Object o) { if (o == null || o instanceof String) { return (String) o; } return ""; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="0"><![CDATA[class C { String m(Object o) { if (o instanceof String == true) { return (String) o; } return ""; } }]]></edge>
+    <edge check="AirnessInstanceofBindsAPattern" findings="1"><![CDATA[class C { int m(Object o) { if (o != null && o instanceof String) { return ((String) o).length(); } return 0; } }]]></edge>
     <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.Function; class C { Function<String, StringBuilder> m() { return s -> { return new StringBuilder(s); }; } }]]></edge>
     <edge check="AirnessLambdaIsAMethodReference" findings="0"><![CDATA[import java.util.function.BiFunction; class C { record P(String a, String b) { } BiFunction<String, String, P> m() { return (a, b) -> new P(b, a); } }]]></edge>
     <edge check="AirnessLambdaIsAMethodReference" findings="1"><![CDATA[import java.util.function.BiFunction; class C { record P(String a, String b) { } BiFunction<String, String, P> m() { return (a, b) -> new P(a, b); } }]]></edge>
@@ -102,6 +105,8 @@
     <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.jboss.logging.Logger; class C { void m(Logger l) { l.info("x"); } }]]></edge>
     <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m() { if (LOG.isWarnEnabled()) { LOG.warn("x"); } } }]]></edge>
     <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[class C { static void info(String m) { } void m(String a) { info("a" + a); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="1"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { LOG.warn("count %d".formatted(a)); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { LOG.warn("count {}", "%d".formatted(a)); } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.List; class C { static final List<String> EMPTY_LIST = List.of(); List<String> m() { return EMPTY_LIST; } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.*; class C { Comparator<String> m() { return Collections.reverseOrder(); } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="1"><![CDATA[class C { java.util.Map<String, String> m() { return java.util.Collections.EMPTY_MAP; } }]]></edge>

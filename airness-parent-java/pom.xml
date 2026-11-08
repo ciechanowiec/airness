@@ -250,13 +250,31 @@
                     ceiling rather than interrupting one mid-flight. Interrupting would also unstick a
                     true hang, at the cost of moving every test off the thread its fixtures were built
                     on, which is a large change to impose on a consumer to catch a case CI already bounds.
+
+                    The timeout mode and every narrower default are pinned beside the default, because a
+                    launcher parameter outranks a system property and the properties file, and either of
+                    those could otherwise switch the timeout off or loosen it for one kind of method. A
+                    failing test fails the build: the value is written out rather than left to the
+                    maven.test.failure.ignore property a project file could set. The report-only profile
+                    below is the one place that turns it over.
                 -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <testFailureIgnore>false</testFailureIgnore>
                     <properties>
                         <configurationParameters>
                             junit.jupiter.execution.timeout.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.mode = enabled
+                            junit.jupiter.execution.timeout.testable.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.test.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.testtemplate.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.testfactory.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.lifecycle.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.beforeall.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.beforeeach.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.aftereach.method.default = ${airness.test.timeout}
+                            junit.jupiter.execution.timeout.afterall.method.default = ${airness.test.timeout}
                             junit.jupiter.testclass.order.default = org.junit.jupiter.api.ClassOrderer$Random
                             junit.jupiter.testmethod.order.default = org.junit.jupiter.api.MethodOrderer$Random
                             junit.jupiter.execution.order.random.seed = 42

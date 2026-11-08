@@ -212,8 +212,11 @@ jobs:
           sh ../airness-it/node.sh scripts/browser/compare-geometry.ts \
             target/amd64/geometry-ubuntu-24.04.json target/arm64/geometry-ubuntu-24.04-arm.json
 
+  # A pull request from a fork gets a read-only token whatever the job asks for, so its measurements stay until
+  # the artifact retention of the repository removes them.
   geometry-cleanup:
     needs: geometry-agreement
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

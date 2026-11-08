@@ -34,4 +34,11 @@ describe('the install configuration', () => {
   it('names no rewrite in a project that configures none', () => {
     expect(rewriteFindings({ ...NONE, files: ['package.json', 'pnpm-lock.yaml'] })).toEqual([])
   })
+
+  it('refuses config dependencies, which pnpm installs outside the resolved set', () => {
+    expect(rewriteFindings({ ...NONE, workspace: { configDependencies: { 'is-number': '7.0.0' } } })).toEqual([
+      'pnpm-workspace.yaml configDependencies: pnpm installs these packages outside the resolved set every ' +
+        'supply-chain gate judges, and may load pnpmfile hooks from them; remove it',
+    ])
+  })
 })

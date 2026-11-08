@@ -5,6 +5,7 @@ import eu.ciechanowiec.airness.governance.AssetCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.RootLicenseCheck;
 import eu.ciechanowiec.airness.governance.SecretScanConfiguration;
+import eu.ciechanowiec.airness.governance.ToolConfigurationFiles;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -23,6 +24,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Which files apply follows the capabilities of the whole repository, read from the model of every
  * project file in it, so a build started inside one member checks what a build started at the root checks.
+ *
+ * <p>The tool configuration a pinned tool would read from the tree on its own is refused here too, for the
+ * reason the secret scan configuration is read here: the scanners run under Extended verification, and a
+ * file that switches one off should fail the build a change is checked with.
  *
  * <p>The parent binds this read-only goal to {@code validate}. A disagreement therefore fails an
  * ordinary build without repairing the file, while {@code airness:assets-sync} remains the explicit
@@ -64,7 +69,8 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
             RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root)
         ).findings();
         List<Findings> licenses = new RootLicenseCheck(root).findings();
-        return Stream.of(assets, licenses, secretScan(root)).flatMap(List::stream).toList();
+        List<Findings> tools = new ToolConfigurationFiles(root).findings();
+        return Stream.of(assets, licenses, secretScan(root), tools).flatMap(List::stream).toList();
     }
 
     /**

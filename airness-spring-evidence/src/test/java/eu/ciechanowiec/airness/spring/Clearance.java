@@ -3,9 +3,10 @@ package eu.ciechanowiec.airness.spring;
 /**
  * The bean the guards of these fixtures delegate their decision to. It decides nothing, because no
  * expression here is ever evaluated. What is read of it is which methods it answers to, which is what a
- * guard naming one of them has to be checked against.
+ * guard naming one of them has to be checked against. The type is public with its deciding methods, as the
+ * expression engine calls only what is public.
  */
-final class Clearance {
+public final class Clearance {
 
     private final String library;
 
@@ -20,7 +21,7 @@ final class Clearance {
      * @param reference what the caller asked for
      * @return whether they may
      */
-    boolean granted(String reference) {
+    public boolean granted(String reference) {
         return this.library.equals(reference);
     }
 
@@ -30,7 +31,7 @@ final class Clearance {
      *
      * @return whether it is
      */
-    boolean isOpen() {
+    public boolean isOpen() {
         return this.library.isEmpty();
     }
 }

@@ -1,5 +1,7 @@
 package eu.ciechanowiec.airness.web;
 
+import java.util.regex.Pattern;
+
 /**
  * One undecidable a project has looked at, measured by hand, and accepted.
  *
@@ -14,10 +16,14 @@ package eu.ciechanowiec.airness.web;
  * is an exception that has quietly become permanent.
  *
  * @param rule   the identifier of the rule being accepted, as the rules themselves publish it
- * @param target the element it is accepted for, matched where the reported selector contains it
+ * @param target the element it is accepted for, matched where the reported selector contains it as a
+ *               whole name
  * @param reason why the rule cannot decide here and what was measured instead
  */
 public record AxeExemption(String rule, String target, String reason) {
+
+    // A character a CSS name continues with, the same ones the check below accepts.
+    private static final String NAME_CHARACTER = "[\\p{L}\\p{Nd}_-]";
 
     /**
      * Holds a reason, because an exemption without one is a rule turned off.
@@ -40,13 +46,28 @@ public record AxeExemption(String rule, String target, String reason) {
      *
      * <p>The rule matches exactly and the element by containment, because a selector the rules report
      * carries the path it found the element by and a project names the part of it that identifies
-     * what was measured.
+     * what was measured. The contained part is a whole name: where the element begins or ends with a
+     * character of a name, the reported selector does not continue that name there, so {@code .hero}
+     * excuses {@code #top .hero} and {@code .hero:hover} but not {@code .hero-cta} or
+     * {@code .hero__title}, which are other elements nobody measured.
      *
      * @param finding a finding the rules could not decide
      * @return whether this exemption covers it
      */
     public boolean covers(AxeFinding finding) {
-        return this.rule.equals(finding.rule()) && finding.target().contains(this.target);
+        return this.rule.equals(finding.rule()) && wholeName().matcher(finding.target()).find();
+    }
+
+    private Pattern wholeName() {
+        String leading = continuesAName(this.target.charAt(0)) ? "(?<!" + NAME_CHARACTER + ')' : "";
+        String trailing = continuesAName(this.target.charAt(this.target.length() - 1))
+            ? "(?!" + NAME_CHARACTER + ')'
+            : "";
+        return Pattern.compile(leading + Pattern.quote(this.target) + trailing);
+    }
+
+    private static boolean continuesAName(char character) {
+        return Character.isLetterOrDigit(character) || character == '_' || character == '-';
     }
 
     /**

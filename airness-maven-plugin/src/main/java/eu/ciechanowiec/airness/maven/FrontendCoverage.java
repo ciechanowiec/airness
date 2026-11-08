@@ -38,8 +38,9 @@ import java.util.stream.StreamSupport;
  * property and the node projects' {@code generatedArtefacts} declare, or when the harness places it. A
  * directory named {@code vendor} or a minified file name is no evidence that somebody else wrote a file, so
  * neither is passed over: a distribution is taken from a dependency instead. The files read are the ones a
- * commit would carry. An ignored file that the Maven build consumes is refused by {@code build-inputs}, and a
- * file only a custom tool reads from outside both is beyond what this walk can see.
+ * commit would carry. An ignored file that the Maven build consumes, or a script or stylesheet ignored under a
+ * checked source root of a declared node project, is refused by {@code build-inputs}, and a file only a custom
+ * tool reads from outside both is beyond what this walk can see.
  */
 final class FrontendCoverage {
 

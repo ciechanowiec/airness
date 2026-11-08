@@ -4,7 +4,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { failed, type GateResult, passed } from './exec.js'
-import { hasExtension, TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
+import { hasExtension, isWithinSourceRoots, TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
 import type { Member } from './project.js'
 import { findSourceViolations } from './source-rules.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'
@@ -15,7 +15,7 @@ const candidatesOf = (member: Member): readonly string[] =>
   memberFiles(workingTreeFiles(member.root), member.siblingPaths).filter(
     (file: string): boolean =>
       hasExtension(file, TYPESCRIPT_SOURCE_EXTENSIONS) &&
-      member.settings.sourceRoots.some((root: string): boolean => file.startsWith(`${root}/`)) &&
+      isWithinSourceRoots(file, member.settings.sourceRoots) &&
       !matchesAnyGlob(file, member.settings.generatedArtefacts) &&
       existsSync(path.join(member.root, file)),
   )

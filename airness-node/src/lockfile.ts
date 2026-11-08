@@ -1,7 +1,7 @@
 // What a node project's pnpm-lock.yaml resolves: each importer's direct dependencies, and every package
 // of the resolved set. The gates that compare versions read the lockfile rather than package.json,
 // because a specifier is a request and the lockfile is what pnpm installs.
-import { parse } from 'yaml'
+import { parse, parseAllDocuments } from 'yaml'
 import { asRecord, asText, isRecord } from './json-shapes.js'
 
 /** The lockfile's name, at the root of the node project. */
@@ -180,4 +180,21 @@ export const readLockfile = (text: string): Lockfile | undefined => {
     rewrites: rewritesIn(document),
     overrides: document['overrides'],
   }
+}
+
+/**
+ * Why a lockfile's text yields no lockfile, for the finding of a gate that needs one.
+ * @param text the contents of pnpm-lock.yaml, or undefined when the project has none.
+ * @returns the cause, naming the lockfile.
+ */
+export const lockfileDefect = (text: string | undefined): string => {
+  if (text === undefined) {
+    return `${LOCKFILE} is missing; run pnpm install to write it`
+  }
+  // Unlike parse, parseAllDocuments records a syntax error in the document it occurs in rather than throwing.
+  const documents: number = parseAllDocuments(text).length
+  return documents > 1
+    ? `${LOCKFILE} holds ${String(documents)} YAML documents: pnpm writes a document before the lockfile for ` +
+        'configDependencies or a package manager it installs, which the harness refuses; remove them and run pnpm install'
+    : `${LOCKFILE} is unreadable: it is no lockfile pnpm wrote; run pnpm install to write it again`
 }

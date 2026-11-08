@@ -4,8 +4,10 @@ import eu.ciechanowiec.airness.governance.Repository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -24,6 +26,10 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private static final int SUCCESS = 0;
     private static final List<String> DOCKER_INFO = List.of("docker", "info");
+    // A reachable daemon answers docker info in seconds, so one silent for a minute is wedged.
+    private static final Duration DAEMON_ANSWER = Duration.ofMinutes(1);
+    // A probe starts the check's own image, which the first run on a machine pulls before the probe reads.
+    private static final Duration PROBE_RUN = Duration.ofMinutes(20);
     /**
      * A repository, an optional tag, and a digest. The digest is what makes this a pin: a tag can be
      * republished against different bytes, so an image named by tag alone lets an upstream release change
@@ -99,13 +105,13 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private void check() throws MojoExecutionException, MojoFailureException {
         this.requirePinnedImage();
-        this.requireDocker();
+        requireDocker();
         Path root = this.repositoryRoot();
-        this.requireReadable(
+        requireReadable(
             MountProbe.repositoryCommand(root, this.image()), root, MountProbe.unreadableRepository(root)
         );
         for (MountProbe probe : this.probes()) {
-            this.requireReadable(probe.command(), probe.mount(), probe.unreadable());
+            requireReadable(probe.command(), probe.mount(), probe.unreadable());
         }
         int exit = this.runCheck();
         if (exit != 0) {
@@ -180,11 +186,16 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
         }
     }
 
-    private void requireDocker() throws MojoExecutionException {
+    private static void requireDocker() throws MojoExecutionException {
         try {
-            if (this.run(DOCKER_INFO, ProcessBuilder.Redirect.DISCARD) != SUCCESS) {
+            if (ScannerCommand.quiet(DOCKER_INFO, DAEMON_ANSWER) != SUCCESS) {
                 throw new MojoExecutionException("Docker is installed but its daemon is not reachable");
             }
+        } catch (TimeoutException exception) {
+            throw new MojoExecutionException(
+                "The Docker daemon accepted the connection but did not answer docker info within "
+                    + DAEMON_ANSWER.toSeconds() + " seconds; restart Docker and run the build again", exception
+            );
         } catch (IOException exception) {
             throw new MojoExecutionException("Docker is required for this Airness profile", exception);
         }
@@ -194,16 +205,25 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
      * One shell in the same image reads the same mount before the check is trusted with it. See
      * {@link MountProbe} for what each probe proves.
      */
-    private void requireReadable(List<String> probe, Path mount, String unreadable) throws MojoExecutionException {
+    private static void requireReadable(
+        List<String> probe, Path mount, String unreadable
+    ) throws MojoExecutionException {
         try {
-            if (this.run(probe, ProcessBuilder.Redirect.DISCARD) != SUCCESS) {
+            if (ScannerCommand.quiet(probe, PROBE_RUN) != SUCCESS) {
                 throw new MojoExecutionException(unreadable);
             }
+        } catch (TimeoutException exception) {
+            throw new MojoExecutionException(
+                "The container that reads " + mount + " did not finish within " + PROBE_RUN.toMinutes()
+                    + " minutes; check that the Docker daemon is answering", exception
+            );
         } catch (IOException exception) {
             throw new MojoExecutionException("Could not start the container that reads " + mount, exception);
         }
     }
 
+    // The check itself is not bounded: on a large repository it legitimately runs long, and any limit
+    // would be a tuning knob that fails correct builds. The daemon answered docker info before it starts.
     private int run(List<String> command, ProcessBuilder.Redirect streams) throws IOException {
         try {
             return new ProcessBuilder(command)

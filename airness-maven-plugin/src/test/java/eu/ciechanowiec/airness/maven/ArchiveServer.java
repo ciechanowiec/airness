@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 import lombok.SneakyThrows;
@@ -38,6 +39,7 @@ final class ArchiveServer implements AutoCloseable {
     private final Map<String, byte[]> archives;
     private final AtomicInteger requests;
     private final Map<String, Integer> statuses;
+    private final List<Runnable> beforeAnswer;
 
     @SneakyThrows
     ArchiveServer() {
@@ -45,6 +47,7 @@ final class ArchiveServer implements AutoCloseable {
         this.archives = new ConcurrentHashMap<>();
         this.requests = new AtomicInteger();
         this.statuses = new ConcurrentHashMap<>();
+        this.beforeAnswer = new CopyOnWriteArrayList<>();
         this.server.createContext("/", this::answer);
         this.server.start();
     }
@@ -56,6 +59,11 @@ final class ArchiveServer implements AutoCloseable {
 
     void refuse(String path, int status) {
         this.statuses.put(path, status);
+    }
+
+    // Runs before every answer, which is where a test lets another build finish installing first.
+    void beforeAnswer(Runnable action) {
+        this.beforeAnswer.add(action);
     }
 
     URI uri(String path) {
@@ -94,6 +102,7 @@ final class ArchiveServer implements AutoCloseable {
 
     private void answer(HttpExchange exchange) throws IOException {
         this.requests.incrementAndGet();
+        this.beforeAnswer.forEach(Runnable::run);
         Optional<byte[]> body = Optional.ofNullable(this.archives.get(exchange.getRequestURI().getPath()));
         if (body.isEmpty()) {
             exchange.sendResponseHeaders(

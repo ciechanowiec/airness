@@ -9,11 +9,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ScannerCommandTest {
+
+    private static final Duration AMPLE = Duration.ofSeconds(30);
+    private static final Duration BRIEF = Duration.ofMillis(100);
 
     @Test
     @SneakyThrows
@@ -42,6 +47,34 @@ class ScannerCommandTest {
         Process process = new ProcessBuilder("sleep", "10").start();
         assertThrows(IOException.class, () -> ScannerCommand.await(process, directory, Duration.ofMillis(1)));
         assertTrue(process.waitFor(Duration.ofSeconds(1)));
+    }
+
+    @Test
+    @SneakyThrows
+    void runsAQuietCommandToItsExitCode() {
+        assertEquals(0, ScannerCommand.quiet(List.of("git", "--version"), AMPLE));
+        assertTrue(ScannerCommand.quiet(List.of("git", "--airness-invalid-option"), AMPLE) > 0);
+    }
+
+    @Test
+    void stopsAQuietCommandThatDoesNotAnswerWithinItsLimit() {
+        TimeoutException timeout = assertThrows(
+            TimeoutException.class, () -> ScannerCommand.quiet(List.of("sleep", "10"), BRIEF)
+        );
+        assertTrue(
+            Objects.requireNonNull(timeout.getMessage()).startsWith("sleep 10 did not finish"), timeout.getMessage()
+        );
+    }
+
+    @Test
+    void preservesInterruptionWhileStoppingAQuietCommand() {
+        Thread.currentThread().interrupt();
+        try {
+            assertThrows(IOException.class, () -> ScannerCommand.quiet(List.of("sleep", "10"), Duration.ofSeconds(5)));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            assertTrue(Thread.interrupted());
+        }
     }
 
     @Test

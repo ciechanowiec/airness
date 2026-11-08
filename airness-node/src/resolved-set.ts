@@ -22,23 +22,30 @@ const coordinate = (name: string, version: string): string => `${name}@${version
 
 // Every package this host should hold: what the importers reach through the snapshot edges, stopping at a
 // package limited to other systems that the install left out, since what only it needs is left out with it.
+// The walk advances one dependency level per step, so its depth is the depth of the graph, not the number of
+// edges: the lockfile of a large monorepo holds thousands of edges and only tens of levels.
 const expectedHere = (lockfile: Lockfile, isInstalled: (key: string) => boolean): ReadonlySet<string> => {
   const limited: ReadonlySet<string> = new Set(
     lockfile.packages
       .filter((resolved: ResolvedPackage): boolean => resolved.isPlatformLimited)
       .map((resolved: ResolvedPackage): string => coordinate(resolved.name, resolved.version)),
   )
-  const visit = (pending: readonly string[], seen: ReadonlySet<string>): ReadonlySet<string> => {
-    const [key, ...rest] = pending
-    if (key === undefined) {
-      return seen
-    }
+  const isReachable = (key: string): boolean => {
     const { name, version } = splitPackageKey(key)
     const reached: string = coordinate(name, version)
-    if (seen.has(key) || (limited.has(reached) && !isInstalled(reached))) {
-      return visit(rest, seen)
+    return !limited.has(reached) || isInstalled(reached)
+  }
+  const visit = (level: readonly string[], seen: ReadonlySet<string>): ReadonlySet<string> => {
+    const fresh: readonly string[] = [...new Set(level)].filter(
+      (key: string): boolean => !seen.has(key) && isReachable(key),
+    )
+    if (fresh.length === 0) {
+      return seen
     }
-    return visit([...rest, ...(lockfile.edges.get(key) ?? [])], new Set([...seen, key]))
+    return visit(
+      fresh.flatMap((key: string): readonly string[] => lockfile.edges.get(key) ?? []),
+      new Set([...seen, ...fresh]),
+    )
   }
   return new Set(
     [...visit(lockfile.roots, new Set())].map((key: string): string => {

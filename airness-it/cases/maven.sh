@@ -74,6 +74,7 @@ run_maven_cases() {
     fi
 
     run_completion_order_case
+    run_unowned_aggregator_case
     run_blocklist_boundaries
     run_license_alias_case
     run_license_metadata_cases
@@ -118,6 +119,29 @@ XML
         'build-helper-maven-plugin:maven-version [(]late-step[)] is a verify execution the project declares'
     expect_no_match completion_late 'closing: the refusal comes at validate, before any test runs' \
         'surefire:[^ ]+:test '
+}
+
+# Repository-wide checks run only in the top-level project, so a plain aggregator above a governed module would
+# let the secret scan, the history checks and the managed-file check pass over the build in silence.
+run_unowned_aggregator_case() {
+    new_consumer unowned-aggregator
+    unowned_consumer="${consumer_directory}"
+    mkdir "${unowned_consumer}/service"
+    mv "${unowned_consumer}/pom.xml" "${unowned_consumer}/src" "${unowned_consumer}/service/"
+    cat > "${unowned_consumer}/pom.xml" <<'XML'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>plain-aggregator</artifactId>
+    <version>1</version>
+    <packaging>pom</packaging>
+    <modules><module>service</module></modules>
+</project>
+XML
+    run_maven unowned_root maven "${unowned_consumer}" validate
+    expect_exit unowned_root 'repository: a plain aggregator above a governed module is refused' 1
+    expect_match unowned_root 'repository: the refusal names the parent the root must inherit' \
+        'top-level project com[.]example:plain-aggregator inherits no Airness parent.*airness-parent'
 }
 
 # The licence check reads what a pom says about itself, and none of these five says anything: the
@@ -186,6 +210,8 @@ JAVA
 
     run_maven blocklist_enforcement maven "${blocklist_consumer}" airness:blocklist
     expect_exit blocklist_enforcement 'blocklist: refused software fails enforcement' 1
+    expect_match blocklist_enforcement 'blocklist: enforcement fails on the refused driver' \
+        'mongodb-driver-sync:5[.]3[.]0 - the MongoDB server is SSPL'
 
     new_consumer blocklist-unpinned
     unpinned_consumer="${consumer_directory}"

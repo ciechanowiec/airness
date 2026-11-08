@@ -13,7 +13,7 @@ import { type InstallConfigInputs, rewriteFindings } from './install-config.js'
 import { installConfigOf } from './install-config-files.js'
 import { asRecord, asStringRecord, readKey } from './json-shapes.js'
 import { layerPackagesFor } from './layer.js'
-import { LOCKFILE, type Lockfile, type ResolvedPackage, readLockfile } from './lockfile.js'
+import { LOCKFILE, type Lockfile, lockfileDefect, type ResolvedPackage, readLockfile } from './lockfile.js'
 import { isFromItsRegistry, type NpmConfig, npmConfigOf } from './npmrc.js'
 import { harnessDirectory, type Member, readJson, readText } from './project.js'
 import { securityOverrideCatalog } from './security-override-catalog.js'
@@ -43,6 +43,7 @@ export const wiring = (member: Member): GateResult => {
     memberPath: member.path,
     manifest: member.packageJson,
     lockfile,
+    lockfileDefect: lockfile === undefined ? lockfileDefect(text) : undefined,
     rewrites: [
       ...rewriteFindings(installation, approved),
       ...(member.path === '.' || readKey(readKey(member.packageJson, 'airness'), 'vulnerabilityAllowlist') === undefined

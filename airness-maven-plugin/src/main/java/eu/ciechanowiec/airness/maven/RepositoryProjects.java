@@ -1,7 +1,10 @@
 package eu.ciechanowiec.airness.maven;
 
+import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.maven.project.MavenProject;
 
@@ -44,6 +47,57 @@ final class RepositoryProjects {
      */
     static boolean selfRepository(MavenProject topLevel) {
         return coordinates(topLevel, AGGREGATOR);
+    }
+
+    /**
+     * Whether the working tree being built is Airness's own, whichever of its modules runs the goal and
+     * wherever the build started.
+     *
+     * <p>The session cannot answer this: a build resumed with {@code -rf} or narrowed with {@code -pl} makes
+     * the first module it kept the top-level project, so neither the aggregator nor the generic parent need
+     * take part. The parent chain answers it in every build, since every Airness module descends from the
+     * aggregator. A consumer descends from it too, through the parent it inherits, so the aggregator counts
+     * only when its own pom lies at the root of the working tree rather than in the local repository.
+     *
+     * @param current the module being built
+     * @param root    the working tree root
+     * @return whether the aggregator above that module is the working tree's own root project
+     */
+    static boolean selfTree(MavenProject current, Path root) {
+        Path tree = root.toAbsolutePath().normalize();
+        return Stream.iterate(current, Objects::nonNull, MavenProject::getParent)
+            .filter(project -> coordinates(project, AGGREGATOR))
+            .map(MavenProject::getBasedir)
+            .filter(Objects::nonNull)
+            .anyMatch(basedir -> tree.equals(basedir.toPath().toAbsolutePath().normalize()));
+    }
+
+    /**
+     * Why the repository-wide checks would run in no module of this build, when they would.
+     *
+     * <p>They run only in the session's top-level project. A plain aggregator above governed modules inherits
+     * no Airness parent and binds none of them, so the secret scan, the history and managed-file checks and
+     * the licence report would each pass over the build with nothing but a debug line. A build of one module
+     * on its own is its own top-level project, and so is a repository without an aggregator.
+     *
+     * <p>Only a top-level project that is the execution root is judged. A build that leaves the root out, as
+     * {@code -rf} and {@code -pl} do, makes the first module it kept the top-level project, which says nothing
+     * about the root. Such a build is partial, and the complete build judges the root.
+     *
+     * @param topLevel the session's top-level project
+     * @param current  the governed module being built
+     * @return the refusal, naming the repair, or empty when some module owns the repository-wide checks
+     */
+    static Optional<String> unowned(MavenProject topLevel, MavenProject current) {
+        boolean owned = !topLevel.isExecutionRoot() || topLevel.equals(current) || selfRepository(topLevel)
+            || Stream.iterate(topLevel, Objects::nonNull, MavenProject::getParent).anyMatch(
+                RepositoryProjects::harnessParent
+            );
+        return owned ? Optional.empty() : Optional.of(
+            "The top-level project " + topLevel.getGroupId() + ':' + topLevel.getArtifactId() + " inherits no "
+                + "Airness parent, so the repository-wide checks would run in no module of this build; make its "
+                + "pom inherit " + GROUP + ':' + CONSUMER_PARENT + ", as the agent guide requires of a monorepo root"
+        );
     }
 
     static boolean harnessParent(MavenProject project) {

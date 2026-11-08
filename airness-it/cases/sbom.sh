@@ -101,6 +101,8 @@ run_sbom_publication() {
     rm "${sbom_pom}/target/bom.json"
     run_maven sbom_pom_missing maven "${sbom_pom}" airness:publication-content -DskipTests
     expect_exit sbom_pom_missing 'sbom: POM publication rejects a missing inventory' 1
+    expect_match sbom_pom_missing 'sbom: the missing inventory is named' 'Missing Maven publication files'
+    expect_match sbom_pom_missing 'sbom: the missing file is the inventory' 'target/bom[.]json'
 }
 
 run_sbom_reactor() {

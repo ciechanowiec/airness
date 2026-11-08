@@ -17,13 +17,16 @@ class AxeExemptionTest {
 
     private static final String ELEMENT = ".select";
 
+    // The reason axe gives for a result it leaves undecided, which is all an exemption may accept.
+    private static final String UNDECIDED = "could not tell";
+
     private static final String WHY = "the arrow is two gradients; measured 17.53 to 1 by hand";
 
     @Test
     void coversTheFindingItWasWrittenFor() {
         AxeExemption exemption = new AxeExemption(RULE, ELEMENT, WHY);
         assertTrue(
-            exemption.covers(new AxeFinding(RULE, "#standing .select", "could not tell")),
+            exemption.covers(new AxeFinding(RULE, "#standing .select", UNDECIDED)),
             "a reported selector carries the path it was found by, and the exemption names part of it"
         );
     }
@@ -32,7 +35,7 @@ class AxeExemptionTest {
     void coversNothingUnderAnotherRule() {
         AxeExemption exemption = new AxeExemption(RULE, ELEMENT, WHY);
         assertFalse(
-            exemption.covers(new AxeFinding("aria-valid-attr", "#standing .select", "could not tell")),
+            exemption.covers(new AxeFinding("aria-valid-attr", "#standing .select", UNDECIDED)),
             "accepting one rule on an element accepts nothing else about it"
         );
     }
@@ -41,8 +44,37 @@ class AxeExemptionTest {
     void coversNothingOnAnotherElement() {
         AxeExemption exemption = new AxeExemption(RULE, ELEMENT, WHY);
         assertFalse(
-            exemption.covers(new AxeFinding(RULE, ".badge", "could not tell")),
+            exemption.covers(new AxeFinding(RULE, ".badge", UNDECIDED)),
             "accepting a rule on one element accepts it nowhere else"
+        );
+    }
+
+    @Test
+    void coversNothingOnAnElementWhoseNameMerelyBeginsTheSame() {
+        AxeExemption exemption = new AxeExemption(RULE, ".hero", WHY);
+        assertFalse(
+            exemption.covers(new AxeFinding(RULE, "#top .hero-cta", UNDECIDED))
+                || exemption.covers(new AxeFinding(RULE, ".hero__title", UNDECIDED)),
+            "an element whose name only starts with the measured one is another element nobody measured"
+        );
+    }
+
+    @Test
+    void coversNothingOnAnElementWhoseNameMerelyEndsTheSame() {
+        AxeExemption exemption = new AxeExemption(RULE, ".hero", WHY);
+        assertFalse(
+            exemption.covers(new AxeFinding(RULE, ".superhero", UNDECIDED)),
+            "an element whose name only ends with the measured one is another element nobody measured"
+        );
+    }
+
+    @Test
+    void coversTheMeasuredElementWhereverItsNameEnds() {
+        AxeExemption exemption = new AxeExemption(RULE, ".hero", WHY);
+        assertTrue(
+            exemption.covers(new AxeFinding(RULE, "main > .hero:nth-child(2)", UNDECIDED))
+                && exemption.covers(new AxeFinding(RULE, "button.hero", UNDECIDED)),
+            "a pseudo-class, a combinator or a compound tag around the whole name is still that element"
         );
     }
 

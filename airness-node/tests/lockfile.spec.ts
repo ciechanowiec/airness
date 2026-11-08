@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Lockfile, type ResolvedPackage, readLockfile, splitPackageKey } from '@/lockfile.js'
+import { type Lockfile, lockfileDefect, type ResolvedPackage, readLockfile, splitPackageKey } from '@/lockfile.js'
 
 const LOCKFILE: string = [
   "lockfileVersion: '9.0'",
@@ -102,5 +102,28 @@ describe('the lockfile', () => {
   it('reads nothing from text that is no lockfile', () => {
     expect(readLockfile('importers: [\n')).toBeUndefined()
     expect(readLockfile('lockfileVersion: 9\n')).toBeUndefined()
+  })
+
+  it('names why no lockfile was read: a missing file, the documents pnpm writes for config dependencies, or other text', () => {
+    const environment: string = [
+      '---',
+      "lockfileVersion: '9.0'",
+      'importers:',
+      '  .:',
+      '    configDependencies:',
+      '      is-number:',
+      '        specifier: 7.0.0',
+      '        version: 7.0.0',
+      '',
+    ].join('\n')
+    const twoDocuments: string = `${environment}---\n${LOCKFILE}`
+    expect(readLockfile(twoDocuments)).toBeUndefined()
+    expect(lockfileDefect(twoDocuments)).toBe(
+      'pnpm-lock.yaml holds 2 YAML documents: pnpm writes a document before the lockfile for configDependencies ' +
+        'or a package manager it installs, which the harness refuses; remove them and run pnpm install',
+    )
+    expect(lockfileDefect(undefined)).toBe('pnpm-lock.yaml is missing; run pnpm install to write it')
+    expect(lockfileDefect('lockfileVersion: 9\n')).toContain('pnpm-lock.yaml is unreadable')
+    expect(lockfileDefect('importers: [\n')).toContain('pnpm-lock.yaml is unreadable')
   })
 })

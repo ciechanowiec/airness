@@ -2,8 +2,6 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.Repository;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -65,6 +63,17 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      */
     boolean applies() {
         return true;
+    }
+
+    /**
+     * Whether a finding fails the build, as Maven resolved {@code airness.enforce} for this goal. A report
+     * reads this value rather than the raw property, because the property also arrives as a system property
+     * and in any letter case, and only Maven's own resolution agrees with the goals that withhold failures.
+     *
+     * @return whether findings fail the build
+     */
+    final boolean enforced() {
+        return this.enforce;
     }
 
     /**
@@ -161,7 +170,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return whether at least one test compile source root contains a Java source file
      */
     protected final boolean hasTestJava() {
-        return this.moduleTestSourceRoots().stream().anyMatch(AbstractGovernanceMojo::containsJava);
+        return this.moduleTestSourceRoots().stream().anyMatch(JavaParents::containsJava);
     }
 
     /**
@@ -170,7 +179,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return whether at least one compile source root contains a Java source file
      */
     protected final boolean hasProductionJava() {
-        return this.moduleProductionSourceRoots().stream().anyMatch(AbstractGovernanceMojo::containsJava);
+        return this.moduleProductionSourceRoots().stream().anyMatch(JavaParents::containsJava);
     }
 
     /**
@@ -189,7 +198,7 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
      * @return whether at least one compile or test compile source root contains a Java source file
      */
     protected final boolean hasModuleJava() {
-        return this.moduleSourceRoots().stream().anyMatch(AbstractGovernanceMojo::containsJava);
+        return this.moduleSourceRoots().stream().anyMatch(JavaParents::containsJava);
     }
 
     /**
@@ -230,14 +239,6 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
             .filter(Files::isDirectory)
             .distinct()
             .toList();
-    }
-
-    private static boolean containsJava(Path root) {
-        try (Stream<Path> paths = Files.walk(root)) {
-            return paths.anyMatch(path -> Files.isRegularFile(path) && path.toString().endsWith(".java"));
-        } catch (IOException exception) {
-            throw new UncheckedIOException("Could not inspect sources under " + root, exception);
-        }
     }
 
     private void refuse(Collection<String> refusals) throws MojoFailureException {

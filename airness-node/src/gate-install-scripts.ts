@@ -6,7 +6,7 @@ import { type InstallConfigInputs, layoutFindings } from './install-config.js'
 import { installConfigOf } from './install-config-files.js'
 import { installScriptFindings } from './install-policy.js'
 import { hasInstallScript, type InstalledPackage, installedPackages } from './installed-packages.js'
-import { LOCKFILE, type Lockfile, readLockfile } from './lockfile.js'
+import { LOCKFILE, type Lockfile, lockfileDefect, readLockfile } from './lockfile.js'
 import { type Member, readText } from './project.js'
 import { missingFindings, type ResolvedSet, resolvedSetOf } from './resolved-set.js'
 import { ROOT_MEMBER_PATH } from './workspace.js'
@@ -25,8 +25,11 @@ export const readResolvedSet = (projectRoot: string, config: InstallConfigInputs
   }
   const text: string | undefined = readText(path.join(projectRoot, LOCKFILE))
   const lockfile: Lockfile | undefined = text === undefined ? undefined : readLockfile(text)
+  if (lockfile === undefined) {
+    return [`${lockfileDefect(text)}; the gate reads the resolved set from ${LOCKFILE}`]
+  }
   const installed: readonly InstalledPackage[] | undefined = installedPackages(projectRoot)
-  if (lockfile === undefined || installed === undefined) {
+  if (installed === undefined) {
     return [
       `the gate reads ${LOCKFILE} and node_modules/.pnpm; airness:node-dependencies installs the locked ` +
         'dependencies before the gates',

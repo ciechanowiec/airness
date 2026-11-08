@@ -5,7 +5,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Ajv, type ValidateFunction } from 'ajv'
 import { describe, expect, it } from 'vitest'
-import { APPLICATION_LAYER_RULE, cloudFrontRules, layerRules, pureLogicRule } from '@/architecture-layers.js'
+import {
+  APPLICATION_LAYER_RULE,
+  cloudFrontRules,
+  layerRules,
+  productionImportsNoTestCodeRule,
+  pureLogicRule,
+} from '@/architecture-layers.js'
 import { BUILD_DIRECTORY_MARKER, evaluateBundle, parseBuildDirectory } from '@/bundle-budget.js'
 import { notApplicable, passed } from '@/exec.js'
 import { scriptSourcesOf } from '@/facets.js'
@@ -52,14 +58,14 @@ describe('parseBuildDirectory', PROCESS_TIME, () => {
 
 describe('architecture layers', PROCESS_TIME, () => {
   it('adds the application layer only to a Next.js application', () => {
-    expect(layerRules(true, [], ['src'])).toEqual([APPLICATION_LAYER_RULE])
-    expect(layerRules(false, [], ['src'])).toEqual([])
+    expect(layerRules(true, [], ['src'])).toEqual([APPLICATION_LAYER_RULE, productionImportsNoTestCodeRule(['src'])])
+    expect(layerRules(false, [], ['tests', 'scripts'])).toEqual([])
     expect(cloudFrontRules([])).toEqual([])
     expect(cloudFrontRules(['edge/function.cjs'])).toMatchObject([
       { name: 'not-to-unresolvable', from: { pathNot: String.raw`^(edge/function\.cjs)$` } },
       { from: { path: String.raw`^(edge/function\.cjs)$` }, to: { couldNotResolve: true, pathNot: '^cloudfront$' } },
     ])
-    expect(layerRules(false, [], ['src'], ['edge/function.cjs'])).toHaveLength(2)
+    expect(layerRules(false, [], ['src'], ['edge/function.cjs'])).toHaveLength(3)
   })
 
   it('escapes a declared floor into the pure-logic rule', () => {
@@ -69,6 +75,16 @@ describe('architecture layers', PROCESS_TIME, () => {
       to: { path: '^(src/|tests/)', pathNot: String.raw`^(src/\(core\)/|src/lib/)` },
     })
     expect(pureLogicRule([])).toBeUndefined()
+  })
+
+  it('keeps every production root, the whole member included, from importing test code', () => {
+    expect(productionImportsNoTestCodeRule(['src', 'tests', 'scripts', 'lib'])).toMatchObject({
+      name: 'production-imports-no-test-code',
+      from: { path: '^(src/|lib/)' },
+      to: { path: '^tests/' },
+    })
+    expect(productionImportsNoTestCodeRule(['src', '.'])).toMatchObject({ from: { path: '^(src/|)' } })
+    expect(productionImportsNoTestCodeRule(['tests'])).toBeUndefined()
   })
 })
 

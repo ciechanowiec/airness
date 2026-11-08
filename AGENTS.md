@@ -59,7 +59,10 @@ Keep packages under `eu.ciechanowiec.airness`. Prefer focused classes and explan
 ## Testing Guidelines
 
 Airness tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example
-`rejectsATrailingPeriod`. `airness-node` tests use Vitest under `airness-node/tests`, importing sources through the `@/` alias. Add regression coverage beside the changed module. Self-coverage includes every governance
+`rejectsATrailingPeriod`. `airness-node` tests use Vitest under `airness-node/tests`, importing sources through the `@/` alias. Add regression coverage beside the changed module.
+The tests of a rule, gate or check that recognizes a construct cover each equivalent spelling the language or
+library allows for it, for example JUnit and AssertJ assertions, `req.payload` and a destructured `{ payload }`,
+`String.format` and `formatted`, `&&` and `||` around an `instanceof`. Self-coverage includes every governance
 class and every non-Mojo Maven-plugin support class. Do not treat `mvn clean package` inside
 `airness-it` as a normal test: its fixtures intentionally violate rules.
 

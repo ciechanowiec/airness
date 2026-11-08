@@ -68,8 +68,10 @@ public final class AirnessInstanceofBindsAPattern extends BugChecker implements 
         };
     }
 
+    // Only a conjunction carries a binding to what it guards: past a disjunction, a negation or a
+    // comparison the pattern variable is out of scope, so a cast there is not one a pattern could replace.
     private static boolean transparent(Tree enclosing) {
-        return enclosing instanceof ParenthesizedTree || enclosing instanceof BinaryTree;
+        return enclosing instanceof ParenthesizedTree || enclosing.getKind() == Tree.Kind.CONDITIONAL_AND;
     }
 
     private static boolean leftOfConjunction(Tree parent, Tree child) {

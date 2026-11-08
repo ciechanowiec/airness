@@ -1,11 +1,13 @@
 package eu.ciechanowiec.airness.spring;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.BeanExpressionException;
 import org.springframework.beans.factory.config.BeanExpressionContext;
 import org.springframework.context.expression.StandardBeanExpressionResolver;
 import org.springframework.context.support.GenericApplicationContext;
@@ -26,6 +28,7 @@ class SpringGuardBeansTest {
         context.registerBean(CLEARANCE, Clearance.class);
         context.registerBean("permission.bean", Clearance.class);
         context.registerBean("permission''bean", Clearance.class);
+        context.registerBean("withheld", Withheld.class);
         context.registerBean(guarded);
         context.refresh();
         return context;
@@ -124,6 +127,29 @@ class SpringGuardBeansTest {
             assertTrue(
                 reported.contains("grantd") && reported.contains("#reached"),
                 "the method that was called and the method that guards are both named"
+            );
+        }
+    }
+
+    @Test
+    void reportsAGuardCallingAMethodTheBeanDeclaresButDoesNotMakePublic() {
+        try (GenericApplicationContext context = delegating(Withholding.class)) {
+            assertEquals(
+                List.of("guard-call withheld.granted " + Withholding.class.getName() + "#reached"),
+                unresolved(context)
+            );
+        }
+    }
+
+    @Test
+    void readsANarrowerThanPublicMethodAsOneTheEngineCannotCall() {
+        try (GenericApplicationContext context = delegating(Withholding.class)) {
+            BeanExpressionContext evaluated = new BeanExpressionContext(context.getBeanFactory(), null);
+            StandardBeanExpressionResolver resolver = new StandardBeanExpressionResolver();
+            assertThrows(
+                BeanExpressionException.class,
+                () -> resolver.evaluate("#{ @withheld.granted('x') }", evaluated),
+                "the engine resolves a call against public methods alone"
             );
         }
     }

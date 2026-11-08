@@ -202,11 +202,10 @@ final class SpringGuardBeans {
         return typed(beans, bean).map(type -> answers(type, call)).orElse(true);
     }
 
-    // What the bean inherits publicly and what its own type declares, together, because the engine
-    // resolves a call against both and a rule reading only the first would accuse a guard that works.
+    // The public methods of the bean, declared or inherited, because the engine resolves a call against
+    // those alone: a guard calling a method of narrower visibility fails on its first evaluation.
     private static boolean answers(Class<?> type, String call) {
-        return Stream.concat(Stream.of(type.getMethods()), Stream.of(type.getDeclaredMethods()))
-            .anyMatch(method -> method.getName().equals(call));
+        return Stream.of(type.getMethods()).anyMatch(method -> method.getName().equals(call));
     }
 
     /**

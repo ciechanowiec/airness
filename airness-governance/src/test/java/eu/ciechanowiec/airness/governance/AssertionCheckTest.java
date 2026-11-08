@@ -102,6 +102,69 @@ class AssertionCheckTest {
         }
         """;
 
+    private static final String FLUENT_CONSTANTS = """
+        package sample;
+
+        import static org.assertj.core.api.Assertions.assertThat;
+
+        import org.junit.jupiter.api.Test;
+
+        class SubjectTest {
+
+            @Test
+            void holdsTheFlagItWasGiven() {
+                assertThat(true).isTrue();
+                assertThat(false).as("the flag").isFalse();
+                assertThat(null).isNull();
+                assertThat("a").isNotNull();
+                assertThat("a").isEqualTo("a");
+                assertThat(4).isNotEqualTo(5);
+            }
+        }
+        """;
+
+    private static final String FLUENT_PRODUCED = """
+        package sample;
+
+        import static org.assertj.core.api.Assertions.assertThat;
+
+        import org.junit.jupiter.api.Test;
+
+        class SubjectTest {
+
+            @Test
+            void addsTheTwoNumbersGiven() {
+                assertThat(new Subject().sum(2, 2)).isEqualTo(4);
+                assertThat(new Subject().isEmpty()).as("a fresh subject").isTrue();
+            }
+        }
+        """;
+
+    private static final String TWO_TRY_BLOCKS = """
+        package sample;
+
+        import static org.junit.jupiter.api.Assertions.assertEquals;
+
+        import org.junit.jupiter.api.Test;
+
+        class SubjectTest {
+
+            @Test
+            void readsTheFile() throws Exception {
+                try (var in = new Subject().open()) {
+                    assertEquals(4, in.read());
+                }
+            }
+
+            @Test
+            void writesTheFile() throws Exception {
+                try (var out = new Subject().open()) {
+                    out.write(4);
+                }
+            }
+        }
+        """;
+
     private static final String MESSAGE_FIRST = """
         package sample;
 
@@ -153,6 +216,36 @@ class AssertionCheckTest {
         List<Findings> findings = new AssertionCheck(root, TESTS).findings();
         assertEquals(0, Verdicts.offences(findings, UNPROVEN).size(), "an assertion was reached");
         assertEquals(1, Verdicts.offences(findings, SETTLED).size(), "but no change to the code can move it");
+    }
+
+    @Test
+    void reportsEachFluentAssertionWhoseSubjectAndExpectationAreWrittenOut() {
+        Path root = new GitFixture("assertion-fluent-settled").write(SOURCE, FLUENT_CONSTANTS).root();
+        assertEquals(
+            6,
+            Verdicts.offences(new AssertionCheck(root, TESTS).findings(), SETTLED).size(),
+            "a literal subject with a fixed expectation is settled in the fluent form as in the JUnit one"
+        );
+    }
+
+    @Test
+    void leavesAFluentAssertionOverAProducedSubjectAlone() {
+        Path root = new GitFixture("assertion-fluent-produced").write(SOURCE, FLUENT_PRODUCED).root();
+        assertTrue(
+            Verdicts.clean(new AssertionCheck(root, TESTS).findings()),
+            "a subject the code under test produced can move the verdict, whatever the expectation is"
+        );
+    }
+
+    @Test
+    void reportsATestWhoseTryBlockAssertsNothingBesideOneWhoseTryBlockDoes() {
+        Path root = new GitFixture("assertion-try-blocks").write(SOURCE, TWO_TRY_BLOCKS).root();
+        List<String> offences = Verdicts.offences(new AssertionCheck(root, TESTS).findings(), UNPROVEN);
+        assertEquals(1, offences.size(), "only one of the two tests asserts nothing");
+        assertTrue(
+            offences.getFirst().contains("writesTheFile"),
+            "and the assertion inside the other test's try block is not lent to it"
+        );
     }
 
     @Test

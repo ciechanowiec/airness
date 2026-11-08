@@ -148,7 +148,9 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
         }
         ReportInputs inputs = new ReportInputs(this.session().getRequest().getStartTime().toInstant());
         List<ReportModule> modules = covered.stream().map(inputs::read).toList();
-        ComplianceReport report = ReportGeneration.from(this.session(), this.project()).qualified(uncovered).write(
+        ComplianceReport report = ReportGeneration.from(this.session(), this.project(), this.enforced()).qualified(
+            uncovered
+        ).write(
             modules, Optional.ofNullable(this.output)
         );
         this.getLog().info("Compliance report and SBOM written: " + report.fileStem() + ".html and .pdf");
