@@ -79,5 +79,8 @@ claude/settings.local.json
 claude/scheduled_tasks.lock
 .claude/scheduled_tasks.lock
 
+# Agent worktrees, each a full checkout of the repository
+.claude/worktrees/
+
 # Playwright MCP browser-session artifacts
 .playwright-mcp/
