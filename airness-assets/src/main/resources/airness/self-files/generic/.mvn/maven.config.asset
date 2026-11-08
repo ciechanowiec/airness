@@ -1,0 +1,2 @@
+-Dmaven.repo.local=${user.home}/.m2/clones${session.rootDirectory}
+-Dmaven.repo.local.tail=${user.home}/.m2/repository

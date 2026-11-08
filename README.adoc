@@ -223,7 +223,7 @@ The repository root carries the files of every layer present in any module. The 
 
 | [[pinned-file]]Pinned
 | `.airness/agent-guide.md`, `.airness/license-inventory.ftl`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/jvm.config`, `.mvn/settings.xml`, `README-guideline-software-project.adoc`, with `java` also `.airness/agent-guide-java.md`, `lombok.config`, `qodana.yaml`, and with `node` also `eslint.config.mjs`, `vitest.config.mts` and `.airness/npm-registry.py` in each node project directory
-| The file must match the active _airness_ version. The agent runtime is denied `Edit(...)` of every pinned file in `.claude/settings.json`, which the xref:#asset-sync-goal[`assets-sync` goal] writes beside the project's own rules. `.mvn/jvm.config` is pinned with the startup files, because a `-D` option there would set a property such as `skipTests` for every build.
+| The file must match the active _airness_ version. In the _airness_ repository itself, `.mvn/maven.config` also ends with the two lines that the section xref:#local-harness-builds[] names. The agent runtime is denied `Edit(...)` of every pinned file in `.claude/settings.json`, which the xref:#asset-sync-goal[`assets-sync` goal] writes beside the project's own rules. `.mvn/jvm.config` is pinned with the startup files, because a `-D` option there would set a property such as `skipTests` for every build.
 
 | [[seed-file]]Seed
 | `.gitleaks.toml`, and with `node` also `src/proxy.ts` in a Next.js node project, as xref:#node-projects[] describes
@@ -412,26 +412,18 @@ A pnpm workspace root and each of its members are judged as their own packages, 
 [[local-harness-builds]]
 == Local Harness Builds
 
-. A governed project that names a snapshot version of an _airness_ parent resolves it from the local Maven repository, so `mvn clean install` in a clone of the _airness_ repository installs the harness that every governed project on the machine builds against. Clones that install into the same local Maven repository replace each other's harness under one version, and a build that starts while another clone installs reads a harness mixed from both.
-. A clone keeps its harness to itself when it installs into a local Maven repository of its own and chains the shared one behind it as a read-only tail. Maven resolves each artifact from the first of the two that holds it, so the clone's builds and its integration suite read the clone's own harness and download nothing the shared repository already holds. Two variables set this for a clone, for example in an `.envrc` that https://direnv.net[direnv^] loads on entering the clone:
+. A governed project that names a snapshot version of an _airness_ parent resolves it from the shared local Maven repository, `~/.m2/repository`. Clones of the _airness_ repository that installed into that one repository would replace each other's harness under one version, and a build that starts while another clone installs would read a harness mixed from both.
+. Each clone of the _airness_ repository therefore installs into a local Maven repository of its own, with no setup. In the _airness_ repository alone, the xref:#pinned-file[pinned] `.mvn/maven.config` ends with two lines that no governed project receives:
 +
-[source,sh]
+[source,text]
 ----
-export MAVEN_REPO_LOCAL="${HOME}/.m2/clones/$(basename "${PWD}")"
-export MAVEN_ARGS="-Dmaven.repo.local=${MAVEN_REPO_LOCAL} -Dmaven.repo.local.tail=${HOME}/.m2/repository"
-----
-+
-Maven reads `MAVEN_ARGS`, and `airness-it/verify.sh` reads `MAVEN_REPO_LOCAL` to find what the clone installed. `echo .envrc >> .git/info/exclude` keeps the file out of Git. An agent inherits the variables when it is started from a shell inside the clone, because direnv sets them in that shell rather than in the commands the agent runs. The pinned Node toolchain is cached in the clone's own repository and is downloaded once for it. Under xref:#extended-verification[extended verification], Qodana mounts the tail beside the clone's repository.
-. A governed project builds against the shared repository, so it builds against the harness last promoted there. Running the governed project's build with a clone's `MAVEN_ARGS` checks it against that clone's harness first. The following loop promotes the harness of a clone after a passing build:
-+
-[source,sh]
-----
-for artifact in "${MAVEN_REPO_LOCAL}"/eu/ciechanowiec/airness*/; do
-    rsync -a "${artifact}" "${HOME}/.m2/repository/eu/ciechanowiec/$(basename "${artifact}")/"
-done
+-Dmaven.repo.local=${user.home}/.m2/clones${session.rootDirectory}
+-Dmaven.repo.local.tail=${user.home}/.m2/repository
 ----
 +
-A promotion runs while no governed project builds, because a build that starts during the copy can read a harness that is partly from each clone.
+A clone at `/work/airness` therefore installs into `~/.m2/clones/work/airness`, outside its own tree, and reads the shared repository behind it as a read-only tail. Maven resolves each artifact from the first of the two that holds it, so the clone's builds and its integration suite read the clone's own harness and download nothing the shared repository already holds. The pinned Node toolchain is cached in the clone's own repository and is downloaded once for it. Under xref:#extended-verification[extended verification], Qodana mounts the tail beside the clone's repository. The xref:#asset-sync-goal[`assets-sync` goal] writes the two lines in the _airness_ repository and nowhere else, and the asset check requires them there and refuses them in a governed project.
+. `airness-it/verify.sh`, `airness-it/node.sh`, `airness-it/report-browser.sh` and `airness-it/promote.sh` ask Maven for the clone's repository. `verify.sh` hands that repository, with the shared one as its tail, to every consumer fixture it builds, because a fixture builds outside the clone and doesn't read its `.mvn/maven.config`. Two variables remain as optional overrides: `-Dmaven.repo.local` in `MAVEN_ARGS` moves the repository for Maven and the scripts alike, and `MAVEN_REPO_LOCAL` names a repository to the scripts without asking Maven.
+. `mvn clean install` in a clone doesn't change the harness that governed projects build against. To build a governed project against a clone's harness, promote it with `sh airness-it/promote.sh` after a passing build. The script copies every artifact of the group `eu.ciechanowiec` whose name starts with `airness` from the clone's repository into the shared one, and it refuses when the clone has installed nothing. Run it while no governed project builds, because a build that starts during the copy can read a harness that is partly from each clone.
 
 [[configuration]]
 == Configuration

@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetCheck;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.RootLicenseCheck;
@@ -64,7 +63,7 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
         Path root = this.repositoryRoot();
         List<Findings> assets = new AssetCheck(
             root,
-            new AssetCatalogue(AssetsCheckMojo.class.getClassLoader()),
+            TreeCatalogue.of(this.project(), root),
             exempt,
             RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root)
         ).findings();

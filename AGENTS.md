@@ -40,8 +40,10 @@ The root `pom.xml` also aggregates the Payload stack: `airness-payload-assets` (
 - `sh airness-it/report-browser.sh` installs the pinned Chromium used by report tests. Add `--with-deps` on Linux
   to install its system libraries. Run this as toolchain setup before the first build.
 - `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, and
-  installs all reactor modules for consumer tests. The integration suite installs its node fixtures from
-  `registry.npmjs.org`.
+  installs all reactor modules for consumer tests into this clone's own local Maven repository, which the README
+  section Local Harness Builds names. The integration suite installs its node fixtures from `registry.npmjs.org`.
+- `sh airness-it/promote.sh` copies this clone's installed harness into `~/.m2/repository`, which governed
+  projects build against. Run it only while no governed project builds.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
 - `sh airness-it/verify.sh <domain>...` diagnoses only the named domains against installed artifacts. It is a
   partial run; the complete integration verdict still requires the command without a domain. The domains are

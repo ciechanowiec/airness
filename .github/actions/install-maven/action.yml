@@ -1,5 +1,5 @@
 name: 'Install Maven 3.10.0'
-description: 'Downloads the Maven 3.10.0 distribution, checks its SHA-512 and puts it on the path.'
+description: 'Downloads the Maven 3.10.0 distribution, checks its SHA-512, puts it on the path and points it at the cached local repository.'
 runs:
   using: 'composite'
   steps:
@@ -16,3 +16,11 @@ runs:
           "$archive" | sha512sum --check
         tar -xzf "$archive" -C "$RUNNER_TEMP"
         echo "$RUNNER_TEMP/apache-maven-3.10.0/bin" >> "$GITHUB_PATH"
+    - name: 'Use the cached local repository'
+      shell: bash
+      run: |
+        set -eu
+        # A runner holds a single clone, so it needs none of the isolation that .mvn/maven.config gives each
+        # clone on a developer's machine, and setup-java caches only ~/.m2/repository. The build therefore
+        # downloads into that repository and chains no tail behind it.
+        echo "MAVEN_ARGS=-Dmaven.repo.local=$HOME/.m2/repository -Dmaven.repo.local.tail=" >> "$GITHUB_ENV"
