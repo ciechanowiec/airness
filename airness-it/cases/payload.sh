@@ -328,7 +328,7 @@ ${harness_version}"
         'payload: eslint applies the Payload layer rules to an inline function in a collection' \
         'error  No inline functions in collection, global, field or block configs'
     expect_match payload_report 'payload: eslint refuses payload destructured out of req in a hook' \
-        'error  Do not destructure payload out of req'
+        'error  Do not destructure payload out of the request'
 
     # One enforcing build of the defective tree proves the findings fail it; it stops at the first, preflight.
     # That a post-integration-test gate's finding fails an enforcing build is node-gate's generic proof.
