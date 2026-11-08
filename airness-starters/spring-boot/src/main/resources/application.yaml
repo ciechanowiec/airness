@@ -1,0 +1,71 @@
+# Runtime settings of the application. Credentials and the first administrator are read from the
+# environment, and a deployment that does not supply them fails at startup rather than falling back.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+server:
+  shutdown: graceful
+  servlet:
+    session:
+      # A session lapses after half an hour without a request, and signing out ends it at once.
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: lax
+spring:
+  application:
+    name: starter
+  datasource:
+    hikari:
+      # Every value here is milliseconds. A caller that cannot have a connection is told so rather than
+      # left to wait out the default thirty seconds.
+      connection-timeout: 3000
+      # Reports a connection held past the longest transaction the application declares, which is the
+      # only way a leak becomes visible at all.
+      leak-detection-threshold: 30000
+      # Shorter than the idle timeout of a database or a proxy in front of one, so a connection the far
+      # side already closed is retired here rather than found by the request holding it.
+      max-lifetime: 600000
+      maximum-pool-size: 10
+    password: ${APP_DATABASE_PASSWORD}
+    url: ${APP_DATABASE_URL}
+    username: ${APP_DATABASE_USERNAME}
+  jpa:
+    hibernate:
+      # Flyway owns every table. Hibernate reads the schema and refuses to start when the mapping and the
+      # migrations disagree, which is the whole of what it is allowed to do to the database.
+      ddl-auto: validate
+    open-in-view: false
+  # The encoding is stated because the Polish bundle needs more than ASCII. Falling back to the locale
+  # of the machine is turned off, so a server running under another language never decides the answer.
+  messages:
+    encoding: UTF-8
+    fallback-to-system-locale: false
+  web:
+    error:
+      include-message: never
+      include-stacktrace: never
+    # The stylesheet and the script are served under names that carry a hash of their content, which
+    # the template links are rewritten to, so a browser may keep them for a year and still never runs a
+    # stale one after a release.
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 365d
+      chain:
+        strategy:
+          content:
+            enabled: true
+            paths: /**
+# The application's own settings, which no dependency declares and nothing else reads.
+app:
+  # The first administrator, written once on a start that finds no account at all. Both values come
+  # from the environment: an address is the deployment's decision, and a password written here would
+  # ship inside the artifact.
+  administrator:
+    email: ${APP_ADMINISTRATOR_EMAIL}
+    password: ${APP_ADMINISTRATOR_PASSWORD}
+  # The zone the application keeps, in which a task's due day is a day. Instants are stored in UTC.
+  zone: UTC

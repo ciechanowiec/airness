@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The starter projects airness:new writes a new application from, read off the plugin classpath:
+        airness-maven-plugin depends on this jar, and each directory beside this file is packed under
+        airness/starters/<name>. A starter is the project-owned part of an Airness project only. The managed
+        files are written by airness:assets-init when the application is made, so a starter never carries a
+        copy that could drift from the harness that writes it. It holds resources only and is built like
+        airness-assets, under the aggregator's own checks. The starters domain of airness-it makes an
+        application from each starter and verifies it.
+    -->
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness</artifactId>
+        <version>1.0.10-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>airness-starters</artifactId>
+    <packaging>jar</packaging>
+
+    <name>airness-starters</name>
+    <description>
+        The starter projects an application built on Airness begins from. A file that would take effect over
+        the directory it is stored in, such as pom.xml, package.json, .gitignore or AGENTS.md, is stored
+        under an added .fixture suffix, which airness:new removes.
+    </description>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>spring-boot</directory>
+                <targetPath>airness/starters/spring-boot</targetPath>
+            </resource>
+        </resources>
+        <plugins>
+            <!--
+                Airness answers to the dependency rules it ships. The rules themselves live in the root
+                pluginManagement, so this execution names only the goal and the phase.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-enforce-dependencies</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The unused and undeclared dependency report, and the licence allowlist, both read the
+                module's own resolved graph, so each module runs them for itself. The configuration is in
+                the root pluginManagement, mirroring what airness-parent binds for a consumer.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-analyze-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-check-dependency-licenses</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>add-third-party</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Extended verification for Airness, exactly as it is for a consumer: the phase property is
+                'none' by default and 'package' under the extended profile.
+            -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <executions>
+                    <execution>
+                        <id>airness-self-known-vulnerabilities</id>
+                        <phase>${airness.self.vulnerabilities.phase}</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <!-- The module has resources but no Java API, so its Central Javadoc artifact is explanatory. -->
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-placeholder-javadocs</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>javadoc</classifier>
+                                    <classesDirectory>${project.basedir}/src/main/javadoc</classesDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

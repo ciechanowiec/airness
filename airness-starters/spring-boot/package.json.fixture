@@ -1,0 +1,45 @@
+{
+  "name": "starter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx scripts/build.ts && tailwindcss --input src/main/frontend/styles/app.css --output target/frontend/css/app.css --minify",
+    "serve": "\"$JAVA_HOME/bin/java\" -jar \"$AIRNESS_APPLICATION_ARTIFACT\" --server.port=$PORT",
+    "with:services": "tsx scripts/with-services.ts",
+    "format": "airness-node format"
+  },
+  "dependencies": {
+    "htmx.org": "2.0.11"
+  },
+  "devDependencies": {
+    "@airness/node": "@AIRNESS_VERSION@",
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/cli": "4.3.5",
+    "@types/node": "26.6.6",
+    "@vitest/coverage-v8": "5.0.5",
+    "daisyui": "5.7.50",
+    "esbuild": "0.28.2",
+    "happy-dom": "21.0.4",
+    "tailwindcss": "4.3.5",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  },
+  "airness": {
+    "serve": "serve",
+    "serverUrl": "http://127.0.0.1:18080",
+    "testWrapper": [
+      "pnpm",
+      "run",
+      "with:services",
+      "--"
+    ],
+    "coverageExclude": [
+      {
+        "pattern": "scripts/with-services.ts",
+        "reason": "the wrapper every test, build and browser gate runs inside: it starts and removes a disposable PostgreSQL, so each gate run exercises it and a unit run would need a Docker round trip of its own"
+      }
+    ]
+  }
+}

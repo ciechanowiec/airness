@@ -1,0 +1,46 @@
+<!--/*
+    One task as a row of the list. The list draws every row through this fragment, and a change of status
+    made from the row is answered with this template alone, which htmx swaps in for the row it replaces.
+
+    The status is changed by a form of its own, so it works without script: the button posts it, and the
+    page answers with the list again. With htmx, choosing a status posts it at once.
+*/-->
+<tr th:fragment="row(task)" th:id="|task-${task.reference()}|" xmlns:th="http://www.thymeleaf.org">
+    <td>
+        <a
+            class="link link-primary font-medium"
+            th:href="@{/tasks/{reference}/edit(reference=${task.reference()})}"
+            th:text="${task.content().title()}"
+            >Title</a
+        >
+    </td>
+    <td>
+        <span th:text="${#temporals.format(task.content().dueOn(), 'd MMM yyyy')}">8 Nov 2026</span>
+        <span th:if="${task.overdue()}" class="badge badge-error badge-sm" th:text="#{task.overdue}">Overdue</span>
+    </td>
+    <td>
+        <form
+            class="flex items-center gap-2"
+            method="post"
+            th:action="@{/tasks/{reference}/status(reference=${task.reference()})}"
+            th:hx-post="@{/tasks/{reference}/status(reference=${task.reference()})}"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            hx-trigger="change"
+        >
+            <label class="sr-only" th:for="|status-${task.reference()}|" th:text="#{tasks.column.status}">Status</label>
+            <select class="select select-sm" name="status" th:id="|status-${task.reference()}|">
+                <option
+                    th:each="status : ${statuses}"
+                    th:value="${status.name()}"
+                    th:text="${words.of(status)}"
+                    th:selected="${status == task.content().status()}"
+                >
+                    Open
+                </option>
+            </select>
+            <button class="btn btn-ghost btn-sm" type="submit" th:text="#{tasks.status.submit}">Change</button>
+        </form>
+    </td>
+    <td th:if="${administrator}" th:text="${task.owner()}">Owner</td>
+</tr>

@@ -1,0 +1,9 @@
+/*
+ * The stylesheet every page loads. Tailwind writes only the utilities the templates name, so it reads
+ * the templates and nothing else, and daisyUI adds the components those utilities compose into: buttons,
+ * fields, cards, tables and the rest. The pages pin the light theme on their root element, so a reader
+ * whose system prefers a dark one is still shown the light one the application is designed in.
+ */
+@import "tailwindcss" source(none);
+@source "../../resources/templates";
+@plugin "daisyui";

@@ -50,6 +50,7 @@
         <module>airness-error-prone</module>
         <module>airness-assets</module>
         <module>airness-payload-assets</module>
+        <module>airness-starters</module>
         <module>airness-annotations</module>
         <module>airness-governance</module>
         <module>airness-spring-evidence</module>

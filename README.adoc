@@ -55,6 +55,21 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 [[quick-start]]
 == Quick Start
 
+[[starter-projects]]
+=== Starter Projects
+
+. A new application can begin from a starter, a working application that already passes verification, instead of from an empty project. The `spring-boot` starter is a multi-user task tracker: sign-in with `USER` and `ADMIN` roles, account administration, an audit trail, English and Polish pages, and the tasks of each user. It is built with Spring Boot, server-rendered Thymeleaf pages with htmx, Tailwind CSS with daisyUI, Flyway and PostgreSQL, and it ships a `Dockerfile` and a `compose.yaml`. Node builds and checks its frontend; the application runs on Java alone.
+. The `new` goal makes the application in a new directory, outside any project:
++
+[source,bash,subs="attributes+"]
+----
+mvn eu.ciechanowiec:airness-maven-plugin:{airness-version}:new \
+    -Dairness.groupId=com.example -Dairness.artifactId=task-tracker
+----
++
+It moves the code to the package `com.example.tasktracker`, names the application _Task Tracker_ and writes it into `task-tracker`. `-Dairness.package`, `-Dairness.name` and `-Dairness.directory` choose otherwise, and `-Dairness.starter` names another starter. The goal then runs `assets-init` in the new directory, writes the first `pnpm-lock.yaml` and commits the result as the first commit of a new Git repository. Until the harness npm packages are published, the goal and the application's builds serve `@airness/node` from the local Maven repository, so the harness must be installed there, and `python3` must be on the path. A harness built in a clone of the _airness_ repository reaches the shared repository through `sh airness-it/promote.sh`, as xref:#local-harness-builds[] describes.
+. `mvn clean verify` in the new directory gives the application's first xref:#default-verification[Default verification] verdict. Its tests and the browser checks start their own PostgreSQL, so verification needs a running Docker daemon.
+
 [[parent-configuration]]
 === Parent Configuration
 

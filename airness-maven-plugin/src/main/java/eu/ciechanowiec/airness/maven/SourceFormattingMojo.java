@@ -76,6 +76,19 @@ public final class SourceFormattingMojo extends AbstractGovernanceMojo {
         );
     }
 
+    /**
+     * Rewrites every Java source under the given roots to the formatting and import order this goal judges.
+     *
+     * @param roots  the source roots to rewrite
+     * @param log    the log the formatter engine reports to
+     * @param target the build directory the formatter engine may keep its state in
+     */
+    static void normalize(Iterable<Path> roots, Log log, String target) {
+        JavaFormatter formatter = formatter(log, target);
+        ImpSort sorter = sorter();
+        javaSources(roots).forEach(source -> apply(formatter, sorter, source));
+    }
+
     static List<Path> javaSources(Iterable<Path> roots) {
         return StreamSupport.stream(roots.spliterator(), false)
             .flatMap(root -> javaSources(root).stream())

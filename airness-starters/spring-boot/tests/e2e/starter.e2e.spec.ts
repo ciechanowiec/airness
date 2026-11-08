@@ -1,0 +1,105 @@
+import { randomUUID } from 'node:crypto'
+import { expectSweptPage } from '@airness/node/a11y'
+import { type APIResponse, expect, type Locator, type Page, test } from '@playwright/test'
+
+// Every page but the introduction and the sign-in page sits behind the sign-in form, so the anonymous
+// sweep reaches those two and nothing else. Each other page is scanned here, with the same accessibility
+// and layout checks the sweep applies, as the reader it is drawn for: the administrator the wrapper
+// writes, and a user and a task this run admits through the pages themselves, on a database of its own.
+
+const ADMINISTRATOR: string = process.env['APP_ADMINISTRATOR_EMAIL'] ?? ''
+const CREDENTIAL: string = process.env['APP_ADMINISTRATOR_PASSWORD'] ?? ''
+
+const signIn = async (page: Page, email: string, secret: string): Promise<void> => {
+  await page.goto('/login')
+  await page.locator('input[name="username"]').fill(email)
+  await page.locator('input[name="password"]').fill(secret)
+  await page.locator('#sign-in').click()
+  await expect(page.locator('form[action="/logout"]')).toBeVisible()
+}
+
+const open = async (page: Page, address: string): Promise<Locator> => {
+  await page.goto(address)
+  return page.locator('main')
+}
+
+// A user of this run's own, admitted by the administrator and signed in with the password chosen here.
+const admitUser = async (page: Page): Promise<{ readonly email: string; readonly secret: string }> => {
+  const email: string = `reader-${randomUUID()}@starter.test`
+  const secret: string = `Reader-${randomUUID()}`
+  await signIn(page, ADMINISTRATOR, CREDENTIAL)
+  await page.goto('/users/new')
+  await page.locator('input[name="profile.fullName"]').fill('Sweep reader')
+  await page.locator('input[name="profile.email"]').fill(email)
+  await page.locator('select[name="role"]').selectOption('USER')
+  await page.locator('input[name="password"]').fill(secret)
+  await page.locator('main form button[type="submit"]').click()
+  await expect(page).toHaveURL(/\/users\?notice=CREATED$/u)
+  await page.context().clearCookies()
+  return { email, secret }
+}
+
+const writeTask = async (page: Page, title: string): Promise<void> => {
+  await page.goto('/tasks/new')
+  await page.locator('input[name="title"]').fill(title)
+  await page.locator('main form button[type="submit"]').click()
+  await expect(page).toHaveURL(/\/tasks\?notice=CREATED$/u)
+}
+
+test.describe('the pages the administrator reaches', () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page, ADMINISTRATOR, CREDENTIAL)
+  })
+
+  for (const address of ['/', '/tasks', '/tasks/new', '/users', '/users/new', '/account']) {
+    test(`${address} passes the accessibility and layout scans`, async ({ page }) => {
+      await expect(await open(page, address)).toBeVisible()
+      await expectSweptPage(page)
+    })
+  }
+
+  test('an account, being edited, passes the scans', async ({ page }) => {
+    await page.goto('/users')
+    const edit: string | null = await page.locator('a[href^="/users/"][href$="/edit"]').first().getAttribute('href')
+    await expect(await open(page, edit ?? '')).toBeVisible()
+    await expectSweptPage(page)
+  })
+})
+
+test('the pages a user works in pass the scans', async ({ page }) => {
+  const { email, secret } = await admitUser(page)
+  await signIn(page, email, secret)
+  await writeTask(page, `Sweep task ${randomUUID()}`)
+  for (const address of ['/', '/tasks', '/account']) {
+    await expect(await open(page, address)).toBeVisible()
+    await expectSweptPage(page)
+  }
+  await page.goto('/tasks')
+  const edit: string | null = await page.locator('a[href^="/tasks/"][href$="/edit"]').first().getAttribute('href')
+  await expect(await open(page, edit ?? '')).toBeVisible()
+  await expectSweptPage(page)
+  await page.locator('button[data-opens="delete-task"]').click()
+  await expect(page.locator('#delete-task')).toBeVisible()
+  await expectSweptPage(page)
+})
+
+test.describe('a browser asking for Polish', () => {
+  test.use({ locale: 'pl-PL' })
+
+  test('the sign-in page in Polish passes the scans', async ({ page }) => {
+    await expect(await open(page, '/login')).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('lang', 'pl')
+    await expectSweptPage(page)
+  })
+})
+
+// The build writes the stylesheet with the Tailwind command line its script runs, and the page links it under
+// the versioned address Spring hands out, so this reads the stylesheet the reader's browser receives.
+test('a page links the stylesheet Tailwind and daisyUI built', async ({ page }) => {
+  await page.goto('/login')
+  const address: string | null = await page.locator('link[rel="stylesheet"]').getAttribute('href')
+  const response: APIResponse = await page.request.get(address ?? '')
+  const stylesheet: string = await response.text()
+  expect(stylesheet).toMatch(/tailwindcss v4/u)
+  expect(stylesheet).toMatch(/\.btn\b/u)
+})

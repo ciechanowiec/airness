@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--/*
+    Every account of the application. An account is stopped from signing in, or let back in, from its row:
+    the control posts the opposite of how the account stands today, so its words say which of the two it
+    is about to do. The last administrator who may sign in is offered no control that would stop them, and
+    the cell says why rather than sitting empty.
+*/-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(#{users.title}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body" class="space-y-6">
+            <div th:replace="~{components/header :: header(#{users.title}, #{users.lead}, ~{:: actions})}"></div>
+            <div class="overflow-x-auto rounded-box bg-base-100 shadow">
+                <table class="table">
+                    <caption class="sr-only" th:text="#{users.title}">
+                        Users
+                    </caption>
+                    <thead>
+                        <tr>
+                            <th scope="col" th:text="#{users.column.name}">Name</th>
+                            <th scope="col" th:text="#{users.column.email}">Signs in as</th>
+                            <th scope="col" th:text="#{users.column.role}">Role</th>
+                            <th scope="col" th:text="#{users.column.standing}">Standing</th>
+                            <th scope="col" th:text="#{users.column.access}">Access</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="person : ${people.people()}" th:with="access=${person.access()}">
+                            <td>
+                                <a
+                                    class="link link-primary font-medium"
+                                    th:href="@{/users/{reference}/edit(reference=${person.reference()})}"
+                                    th:text="${person.profile().fullName()}"
+                                    >Administrator</a
+                                >
+                            </td>
+                            <td th:text="${person.profile().email()}">administrator@starter.test</td>
+                            <td th:text="${words.of(access.role())}">Administrator</td>
+                            <td>
+                                <span
+                                    class="badge"
+                                    th:classappend="${access.enabled()} ? 'badge-success' : 'badge-neutral'"
+                                    th:text="${access.enabled()} ? #{users.maySignIn} : #{users.stopped}"
+                                    >May sign in</span
+                                >
+                            </td>
+                            <td>
+                                <form
+                                    th:unless="${person.sole()}"
+                                    method="post"
+                                    th:action="@{/users/{reference}/access(reference=${person.reference()})}"
+                                >
+                                    <input type="hidden" name="allowed" th:value="${not access.enabled()}" />
+                                    <button class="btn btn-outline btn-sm" type="submit">
+                                        <span th:text="${access.enabled()} ? #{users.stop} : #{users.letIn}">Stop</span>
+                                        <span class="sr-only" th:text="| ${person.profile().fullName()}|"></span>
+                                    </button>
+                                </form>
+                                <span th:if="${person.sole()}" th:text="#{users.last}">The last administrator</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div
+                th:replace="~{components/pagination :: pagination(${people.page()}, ${people.pages()}, '/users', '')}"
+            ></div>
+        </div>
+
+        <div th:fragment="actions">
+            <a class="btn btn-primary" th:href="@{/users/new}" th:text="#{users.admit}">Add an account</a>
+        </div>
+    </body>
+</html>

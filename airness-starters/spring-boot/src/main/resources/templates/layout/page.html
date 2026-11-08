@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--/*
+    The shell every page is drawn in. A page hands over two things: the title its tab carries and a
+    fragment expression naming its own body. Nothing else about the shell is a page's business.
+
+    The theme is pinned to light on the root element, so a reader whose system prefers a dark one is
+    still shown the theme the application is designed in. The script is one module the frontend build
+    bundles from npm, served by this application as a file, because the content security policy refuses
+    inline code.
+
+    The language switch is a form per language, because a choice of language changes what the browser
+    keeps. Each language is named in its own words, so a reader who landed in a language they cannot read
+    still finds their own.
+*/-->
+<html
+    th:lang="${#locale.language}"
+    data-theme="light"
+    xmlns:th="http://www.thymeleaf.org"
+    th:fragment="page(title, content)"
+>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title th:text="|${title} - #{app.name}|">Starter</title>
+        <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}" />
+        <link rel="stylesheet" th:href="@{/css/app.css}" />
+        <script type="module" th:src="@{/js/app.js}"></script>
+    </head>
+    <body class="min-h-screen bg-base-200 text-base-content">
+        <a
+            class="btn btn-sm sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+            href="#content"
+            th:text="#{shell.skip}"
+            >Skip to the content</a
+        >
+        <header class="bg-base-100 shadow-sm">
+            <nav class="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-2">
+                <a class="btn btn-ghost text-lg font-semibold" th:href="@{/}" th:text="#{app.name}">Starter</a>
+                <ul class="menu menu-horizontal flex-1 gap-1 px-0">
+                    <th:block th:if="${signedIn}">
+                        <li><a th:href="@{/tasks}" th:text="#{nav.tasks}">Tasks</a></li>
+                        <li th:if="${administrator}"><a th:href="@{/users}" th:text="#{nav.users}">Users</a></li>
+                        <li><a th:href="@{/account}" th:text="#{nav.account}">Account</a></li>
+                    </th:block>
+                </ul>
+                <div class="flex flex-wrap items-center gap-2">
+                    <form th:each="language : ${languages}" th:action="@{/language}" method="post">
+                        <input type="hidden" name="language" th:value="${language.name()}" />
+                        <input type="hidden" name="back" th:value="${here}" />
+                        <button
+                            type="submit"
+                            class="btn btn-ghost btn-sm"
+                            th:lang="${language.locale().language}"
+                            th:attr="aria-pressed=${#locale.language == language.locale().language} ? 'true' : 'false'"
+                            th:text="${language.endonym()}"
+                        >
+                            English
+                        </button>
+                    </form>
+                    <form th:if="${signedIn}" th:action="@{/logout}" method="post">
+                        <button type="submit" class="btn btn-outline btn-sm" th:text="#{nav.signOut}">Sign out</button>
+                    </form>
+                    <a
+                        th:unless="${signedIn}"
+                        class="btn btn-primary btn-sm"
+                        th:href="@{/login}"
+                        th:text="#{nav.signIn}"
+                        >Sign in</a
+                    >
+                </div>
+            </nav>
+        </header>
+        <main id="content" class="mx-auto max-w-5xl space-y-6 p-4">
+            <p
+                th:if="${notice.isPresent()}"
+                role="status"
+                class="alert alert-success"
+                th:text="${words.of(notice.get())}"
+            >
+                Saved
+            </p>
+            <div th:replace="${content}"></div>
+        </main>
+    </body>
+</html>
