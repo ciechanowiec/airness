@@ -2,7 +2,6 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.Repository;
-import eu.ciechanowiec.airness.governance.SuppressionCeilingCheck;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -29,16 +28,6 @@ import org.apache.maven.project.MavenProject;
  */
 @UtilityClass
 final class Closing {
-
-    /*
-     * Three suppressions per thousand lines of Java source, with the smallest ceiling of five
-     * holding underneath the rate. The rate leaves room for justified analyzer boundaries that code cannot
-     * remove while keeping suppressions sparse as a project grows.
-     *
-     * Deliberately not a parameter. A ceiling a project can raise is a ceiling that gets raised on the change
-     * that would otherwise have failed, which is the one moment the ceiling exists to catch.
-     */
-    static final double RATE = 3;
 
     private static final String HEADLINE = "Committable files changed during the build";
     private static final String MOVED
@@ -101,17 +90,6 @@ final class Closing {
      */
     static Findings tree(boolean unchanged) {
         return new Findings(HEADLINE, unchanged ? List.of() : List.of(MOVED));
-    }
-
-    /**
-     * The repository-wide suppression ceiling over the Java sources of every module.
-     *
-     * @param root      the repository root
-     * @param javaRoots the Java source roots of every module
-     * @return the check
-     */
-    static SuppressionCeilingCheck javaSuppressions(Path root, List<Path> javaRoots) {
-        return new SuppressionCeilingCheck(root, javaRoots, RATE);
     }
 
     /**

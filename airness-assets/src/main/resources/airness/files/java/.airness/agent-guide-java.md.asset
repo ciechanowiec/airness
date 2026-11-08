@@ -279,6 +279,7 @@ Airness governs all of the following domains in a Java module:
 
 ## Java Exceptions and Repairs
 
+- The format command of a Java module is `mvn process-resources -Pformat`. It applies formatting and import order.
 - Connect a Java web interface to the browser sweep without rewriting it, keeping its Java runtime: list a frontend
   tooling directory in `airness.node.projects` (the module itself works, with `sourceRoots` naming
   `src/main/resources/static`), then meet the Web interface domain above and the generic guide's Frontend

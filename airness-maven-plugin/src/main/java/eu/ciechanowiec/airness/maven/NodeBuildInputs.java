@@ -33,9 +33,6 @@ import org.jspecify.annotations.Nullable;
 @UtilityClass
 final class NodeBuildInputs {
 
-    private static final List<String> READ = List.of(
-        ".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx", ".css", ".scss"
-    );
     private static final Set<String> UNSEARCHED = Set.of("node_modules", ".git");
     private static final Set<String> OUTPUTS = Set.of(
         ".next", ".turbo", ".type-coverage", ".vercel", "blob-report", "build", "coverage", "dist", "out",
@@ -124,7 +121,7 @@ final class NodeBuildInputs {
             String name = String.valueOf(file.getFileName());
             Path relative = this.project.relativize(file);
             boolean typesOfNext = NEXT_TYPES.equals(name) && this.project.equals(file.getParent());
-            return READ.stream().anyMatch(name::endsWith) && !typesOfNext
+            return FrontendCoverage.CHECKED.stream().anyMatch(name::endsWith) && !typesOfNext
                 && this.member.generated().stream().noneMatch(glob -> glob.matches(relative));
         }
     }

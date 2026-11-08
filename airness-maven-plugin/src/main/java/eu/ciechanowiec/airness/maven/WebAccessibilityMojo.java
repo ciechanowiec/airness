@@ -11,7 +11,7 @@ import org.apache.maven.plugins.annotations.Mojo;
  * harness ships.
  */
 @Mojo(name = "web-accessibility", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public final class AxeAuditMojo extends AbstractGovernanceMojo {
+public final class WebAccessibilityMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {

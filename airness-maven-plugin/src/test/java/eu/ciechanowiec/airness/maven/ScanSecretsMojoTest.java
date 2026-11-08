@@ -15,7 +15,7 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class SecretScanMojoTest {
+class ScanSecretsMojoTest {
 
     private static final String IMAGE = "scanner:test";
 
@@ -24,7 +24,7 @@ class SecretScanMojoTest {
     void disablesInlineSecretExemptions(
         @TempDir Path directory
     ) {
-        List<String> command = SecretScanMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
+        List<String> command = ScanSecretsMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
 
         assertEquals(
             1, Collections.frequency(command, "--ignore-gitleaks-allow"),
@@ -37,7 +37,7 @@ class SecretScanMojoTest {
     void selectsTheGovernedExceptionConfiguration(
         @TempDir Path directory
     ) {
-        List<String> command = SecretScanMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
+        List<String> command = ScanSecretsMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
 
         assertEquals(
             "/repo/.gitleaks.toml", command.get(command.indexOf("--config") + 1),
@@ -50,7 +50,7 @@ class SecretScanMojoTest {
     void keepsCredentialsOutOfScannerOutput(
         @TempDir Path directory
     ) {
-        List<String> command = SecretScanMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
+        List<String> command = ScanSecretsMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
 
         assertTrue(command.contains("--redact"), "reported findings must not expose the credential");
     }
@@ -60,7 +60,7 @@ class SecretScanMojoTest {
     void mountsTheRepositoryReadOnly(
         @TempDir Path directory
     ) {
-        List<String> command = SecretScanMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
+        List<String> command = ScanSecretsMojo.dockerCommand(HistoryMount.of(directory), IMAGE);
 
         assertEquals(
             directory + ":/repo:ro", command.get(command.indexOf("-v") + 1),
@@ -82,7 +82,7 @@ class SecretScanMojoTest {
         Path worktree = clone.resolveSibling("second");
         git(clone, "worktree", "add", "--quiet", "--detach", worktree.toString());
 
-        List<String> command = SecretScanMojo.dockerCommand(HistoryMount.of(worktree), IMAGE);
+        List<String> command = ScanSecretsMojo.dockerCommand(HistoryMount.of(worktree), IMAGE);
 
         assertTrue(command.contains(worktree + ":" + worktree + ":ro"), "the worktree at the path it is known by");
         assertTrue(
@@ -101,9 +101,9 @@ class SecretScanMojoTest {
     @Test
     @SneakyThrows
     void refusesTheIgnoreFileGitleaksWouldReadFromTheTree(@TempDir Path directory) {
-        SecretScanMojo.refuseIgnoreFile(directory);
+        ScanSecretsMojo.refuseIgnoreFile(directory);
         Files.writeString(directory.resolve(".gitleaksignore"), "0123abcd:config.properties:generic-api-key:3\n");
-        IOException refusal = assertThrows(IOException.class, () -> SecretScanMojo.refuseIgnoreFile(directory));
+        IOException refusal = assertThrows(IOException.class, () -> ScanSecretsMojo.refuseIgnoreFile(directory));
         assertEquals(
             "Remove " + directory.resolve(".gitleaksignore") + "; gitleaks drops every finding it lists, so an "
                 + "exception belongs in .gitleaks.toml instead",

@@ -24,7 +24,6 @@ export const TYPESCRIPT_SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '
 /** Extensions the Code Rules apply to, used where a rule is about code rather than about any text. */
 export const JAVASCRIPT_EXTENSIONS: readonly string[] = ['.js', '.jsx', '.mjs', '.cjs']
 
-/** Every stylesheet format supported by the stylesheet gate. */
 /** The stylesheet dialects the css gate judges. */
 export const STYLESHEET_EXTENSIONS: readonly string[] = ['.css', '.scss']
 

@@ -27,17 +27,17 @@ final class AssetFixture {
      */
     AssetFixture(Path directory, CharSequence manifest) {
         this.directory = directory;
-        this.manifest(Capability.GENERIC, manifest);
+        this.manifest(Layer.GENERIC, manifest);
     }
 
     /**
-     * Adds the manifest of one capability.
+     * Adds the manifest of one layer.
      *
      * @return this fixture, so calls chain
      */
     @SneakyThrows
-    AssetFixture manifest(Capability capability, CharSequence manifest) {
-        Path file = this.directory.resolve("airness/manifest/" + capability.id() + ".tsv");
+    AssetFixture manifest(Layer layer, CharSequence manifest) {
+        Path file = this.directory.resolve("airness/manifest/" + layer.id() + ".tsv");
         Files.createDirectories(file.getParent());
         Files.writeString(file, manifest);
         return this;
@@ -49,16 +49,16 @@ final class AssetFixture {
      * @return this fixture, so calls chain
      */
     AssetFixture ship(String path, CharSequence content) {
-        return this.ship(Capability.GENERIC, path, content);
+        return this.ship(Layer.GENERIC, path, content);
     }
 
     /**
-     * Ships canonical bytes, or a block body, for a path one capability owns.
+     * Ships canonical bytes, or a block body, for a path one layer owns.
      *
      * @return this fixture, so calls chain
      */
     @SneakyThrows
-    AssetFixture ship(Capability owner, String path, CharSequence content) {
+    AssetFixture ship(Layer owner, String path, CharSequence content) {
         Path file = this.directory.resolve("airness/files/" + owner.id()).resolve(path + SUFFIX);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);
@@ -66,12 +66,12 @@ final class AssetFixture {
     }
 
     /**
-     * Ships the body a capability places in each node project.
+     * Ships the body a layer places in each node project.
      *
      * @return this fixture, so calls chain
      */
     @SneakyThrows
-    AssetFixture shipProject(Capability owner, String path, CharSequence content) {
+    AssetFixture shipProject(Layer owner, String path, CharSequence content) {
         Path file = this.directory.resolve("airness/project-files/" + owner.id()).resolve(path + SUFFIX);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);

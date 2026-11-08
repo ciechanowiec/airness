@@ -200,25 +200,9 @@ jobs:
         run: |
           set -eu
           mvn --batch-mode --no-transfer-progress package -Prelease -DskipTests
-          for project in \
-            pom.xml \
-            airness-annotations/pom.xml \
-            airness-assets/pom.xml \
-            airness-payload-assets/pom.xml \
-            airness-config/pom.xml \
-            airness-governance/pom.xml \
-            airness-spring-evidence/pom.xml \
-            airness-web-evidence/pom.xml \
-            airness-maven-plugin/pom.xml \
-            airness-parent/pom.xml \
-            airness-parent-java/pom.xml \
-            airness-parent-spring-boot/pom.xml \
-            airness-parent-payload/pom.xml \
-            airness-parent-node/pom.xml; do
-              mvn --batch-mode --no-transfer-progress --file "$project" \
-                "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-metadata" \
-                "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-content"
-          done
+          mvn --batch-mode --no-transfer-progress \
+            "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-metadata" \
+            "eu.ciechanowiec:airness-maven-plugin:$RELEASE_VERSION:publication-content"
 
       # The npm job publishes exactly these files, never a repack: the node-repack execution proves the pack
       # reproducible, and a consumer lockfile records the integrity of these bytes. They are uploaded once the

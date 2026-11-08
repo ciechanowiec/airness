@@ -2,7 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetSite;
-import eu.ciechanowiec.airness.governance.Capability;
+import eu.ciechanowiec.airness.governance.Layer;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -29,7 +29,7 @@ import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.project.ProjectBuildingResult;
 
 /**
- * The directories of a repository that receive managed files, with the capabilities present in each.
+ * The directories of a repository that receive managed files, with the layers present in each.
  *
  * <p>Read from the model of every {@code pom.xml} in the working tree, built without building the modules
  * themselves. Reading every project file rather than the reactor, or the modules one aggregator lists, is
@@ -57,10 +57,10 @@ final class RepositorySites {
     private static final Set<String> PRUNED = Set.of("target", "node_modules", ".git");
 
     /**
-     * The parent of each stack, by artifactId, with the capability a module inheriting it carries. A stack's
+     * The parent of each stack, by artifactId, with the layer a module inheriting it carries. A stack's
      * entry is the whole of its registration here.
      */
-    private static final Map<String, Capability> STACK_PARENTS = Map.of("airness-parent-payload", Capability.PAYLOAD);
+    private static final Map<String, Layer> STACK_PARENTS = Map.of("airness-parent-payload", Layer.PAYLOAD);
 
     /**
      * Reads the sites of the repository from every project file in it.
@@ -92,16 +92,16 @@ final class RepositorySites {
      *
      * <p>A module inheriting {@code airness-parent-java} is Java, and so is a module of the Airness build
      * itself, whose modules inherit its aggregator rather than the parent they publish. A module inheriting
-     * the parent of a stack carries that stack's capability. Every directory holding a {@code package.json}
+     * the parent of a stack carries that stack's layer. Every directory holding a {@code package.json}
      * that a module lists in {@code airness.node.projects} is a node project, and carries as well each
-     * capability of the module that refines the node capability. A listed directory without a
+     * layer of the module that refines the node layer. A listed directory without a
      * {@code package.json} receives nothing, so a typo never has files written into it. The parents Airness
      * publishes are not consumers, so a default one of them declares for its children says nothing about the
      * parent's own directory.
      *
      * @param root    the repository root
      * @param modules the models of every module in the repository
-     * @return the root site, carrying every capability present anywhere, then one site per node project
+     * @return the root site, carrying every layer present anywhere, then one site per node project
      *         directory, carrying the union of what every module listing it says it is
      */
     static List<AssetSite> of(Path root, Collection<MavenProject> modules) {
@@ -109,14 +109,14 @@ final class RepositorySites {
         List<MavenProject> consumers = modules.stream()
             .filter(module -> !RepositoryProjects.harnessParent(module))
             .toList();
-        Map<String, Set<Capability>> projects = new LinkedHashMap<>();
+        Map<String, Set<Layer>> projects = new LinkedHashMap<>();
         consumers.forEach(module -> declare(projects, repository, module));
         List<AssetSite> nodes = projects.entrySet().stream()
             .flatMap(project -> sites(repository, project.getKey(), project.getValue()))
             .toList();
-        Set<Capability> present = Stream.concat(
-            consumers.stream().flatMap(RepositorySites::capabilities),
-            nodes.stream().flatMap(site -> site.capabilities().stream())
+        Set<Layer> present = Stream.concat(
+            consumers.stream().flatMap(RepositorySites::layers),
+            nodes.stream().flatMap(site -> site.layers().stream())
         ).collect(Collectors.toSet());
         return Stream.concat(Stream.of(AssetSite.root(present)), nodes.stream()).toList();
     }
@@ -125,14 +125,14 @@ final class RepositorySites {
     // src and which has no request hook of its own is a second site at the same directory, for the Next.js
     // facet's files: the proxy seed is written into src, where such an application loads it, and an application
     // that already runs a middleware or a proxy would get a second hook, which Next.js refuses or ignores.
-    private static Stream<AssetSite> sites(Path repository, String directory, Set<Capability> capabilities) {
-        AssetSite node = new AssetSite(directory, AssetLocation.NODE_PROJECT, capabilities);
+    private static Stream<AssetSite> sites(Path repository, String directory, Set<Layer> layers) {
+        AssetSite node = new AssetSite(directory, AssetLocation.NODE_PROJECT, layers);
         Path project = repository.resolve(directory);
         boolean next = PackageManifests.in(project)
             .filter(manifest -> manifest.installs(NEXT))
             .isPresent();
         return next && routesUnderSource(project) && !ownsRequestHook(project)
-            ? Stream.of(node, new AssetSite(directory, AssetLocation.NEXT_PROJECT, capabilities))
+            ? Stream.of(node, new AssetSite(directory, AssetLocation.NEXT_PROJECT, layers))
             : Stream.of(node);
     }
 
@@ -152,25 +152,25 @@ final class RepositorySites {
             .flatMap(name -> HOOK_EXTENSIONS.stream().map(extension -> directory + name + extension));
     }
 
-    private static void declare(Map<String, Set<Capability>> projects, Path repository, MavenProject module) {
-        Set<Capability> present = nodeCapabilities(module);
+    private static void declare(Map<String, Set<Layer>> projects, Path repository, MavenProject module) {
+        Set<Layer> present = nodeLayers(module);
         nodeDirectories(repository, module).forEach(
-            directory -> projects.computeIfAbsent(directory, _ -> EnumSet.noneOf(Capability.class)).addAll(present)
+            directory -> projects.computeIfAbsent(directory, _ -> EnumSet.noneOf(Layer.class)).addAll(present)
         );
     }
 
-    private static Stream<Capability> capabilities(MavenProject module) {
-        Stream<Capability> java = Stream.of(Capability.JAVA)
+    private static Stream<Layer> layers(MavenProject module) {
+        Stream<Layer> java = Stream.of(Layer.JAVA)
             .filter(_ -> inherits(module, JAVA_PARENT) || selfBuild(module));
-        Stream<Capability> stacks = STACK_PARENTS.entrySet().stream()
+        Stream<Layer> stacks = STACK_PARENTS.entrySet().stream()
             .filter(stack -> inherits(module, stack.getKey()))
             .map(Map.Entry::getValue);
         return Stream.concat(java, stacks);
     }
 
-    private static Set<Capability> nodeCapabilities(MavenProject module) {
-        Stream<Capability> refining = capabilities(module).filter(capability -> capability.refines(Capability.NODE));
-        return Stream.concat(Stream.of(Capability.NODE), refining).collect(Collectors.toSet());
+    private static Set<Layer> nodeLayers(MavenProject module) {
+        Stream<Layer> refining = layers(module).filter(layer -> layer.refines(Layer.NODE));
+        return Stream.concat(Stream.of(Layer.NODE), refining).collect(Collectors.toSet());
     }
 
     private static Stream<String> nodeDirectories(Path repository, MavenProject module) {

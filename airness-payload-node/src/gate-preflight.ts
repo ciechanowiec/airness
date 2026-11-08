@@ -5,13 +5,13 @@
 import path from 'node:path'
 import { failed, type GateResult, passed } from '@airness/node/gate-result'
 import { declaredDependencies, readKey } from '@airness/node/json-shapes'
-import { readJsonFile } from './json-file.js'
+import { readJson } from '@airness/node/project'
 import type { PayloadMember } from './payload-member.js'
 import { findPinViolations, type InstalledPackage, pinnedVersionOf, REQUIRED_PINS } from './payload-pins.js'
 
 // What the member installed, read from its own node_modules, where pnpm links every direct dependency.
 const installedVersion = (root: string, name: string): string | undefined => {
-  const version: unknown = readKey(readJsonFile(path.join(root, 'node_modules', name, 'package.json')), 'version')
+  const version: unknown = readKey(readJson(path.join(root, 'node_modules', name, 'package.json')), 'version')
   return typeof version === 'string' ? version : undefined
 }
 

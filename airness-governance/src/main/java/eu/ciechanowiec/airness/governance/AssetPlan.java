@@ -29,7 +29,7 @@ final class AssetPlan {
      * Places every file the catalogue selects for each site.
      *
      * @param catalogue the files the harness owns
-     * @param sites     the directories that receive files, with the capabilities present in each
+     * @param sites     the directories that receive files, with the layers present in each
      */
     AssetPlan(AssetCatalogue catalogue, Collection<AssetSite> sites) {
         this.catalogue = catalogue;
@@ -87,7 +87,7 @@ final class AssetPlan {
     }
 
     private Stream<Placement> placed(AssetSite site) {
-        return this.catalogue.select(site.location(), site.capabilities()).stream()
+        return this.catalogue.select(site.location(), site.layers()).stream()
             .map(asset -> new Placement(site.file(asset), asset));
     }
 

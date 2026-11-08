@@ -5,40 +5,40 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * One directory that receives managed files, with the capabilities present there.
+ * One directory that receives managed files, with the layers present there.
  *
- * <p>The repository root is one site, carrying every capability present anywhere in the repository, so
+ * <p>The repository root is one site, carrying every layer present anywhere in the repository, so
  * its shared files hold a block for each. Each declared node project is another, carrying only what that
  * project is.
  *
  * @param directory    the directory, relative to the repository root, and empty for the root itself
  * @param location     which manifest rows apply here
- * @param capabilities the capabilities present here
+ * @param layers the layers present here
  */
-public record AssetSite(String directory, AssetLocation location, Set<Capability> capabilities) {
+public record AssetSite(String directory, AssetLocation location, Set<Layer> layers) {
 
     /**
-     * Copies the capabilities, so the site cannot change after it was described.
+     * Copies the layers, so the site cannot change after it was described.
      *
      * @param directory    the directory, relative to the repository root, and empty for the root itself
      * @param location     which manifest rows apply here
-     * @param capabilities the capabilities present here
+     * @param layers the layers present here
      */
     public AssetSite {
-        capabilities = Set.copyOf(capabilities);
+        layers = Set.copyOf(layers);
     }
 
     /**
-     * The repository root of a repository holding the given capabilities.
+     * The repository root of a repository holding the given layers.
      *
-     * @param capabilities every capability present anywhere in the repository
-     * @return the root site, which always carries the generic capability
+     * @param layers every layer present anywhere in the repository
+     * @return the root site, which always carries the generic layer
      */
-    public static AssetSite root(Set<Capability> capabilities) {
+    public static AssetSite root(Set<Layer> layers) {
         return new AssetSite(
             "",
             AssetLocation.ROOT,
-            Stream.concat(capabilities.stream(), Stream.of(Capability.GENERIC)).collect(Collectors.toSet())
+            Stream.concat(layers.stream(), Stream.of(Layer.GENERIC)).collect(Collectors.toSet())
         );
     }
 

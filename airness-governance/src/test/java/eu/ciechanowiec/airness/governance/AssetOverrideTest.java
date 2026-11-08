@@ -11,13 +11,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Every path has one owner per location, a capability replaces a file only by naming the one it replaces,
+ * Every path has one owner per location, a layer replaces a file only by naming the one it replaces,
  * and any other disagreement between manifests is refused when they are read.
  *
  * <p>A refusal here is a harness bug caught by the harness's own tests. Were two claims resolved by
  * order instead, which body a consumer received would depend on which jar the classpath listed first.
- * Every refusal below is decided before whether one capability refines another, so a second manifest of
- * any capability exercises it.
+ * Every refusal below is decided before whether one layer refines another, so a second manifest of
+ * any layer exercises it.
  */
 class AssetOverrideTest {
 
@@ -29,8 +29,8 @@ class AssetOverrideTest {
 
     private AssetFixture fixture(String node, String java) {
         return new AssetFixture(this.directory, ".editorconfig\tPINNED\n")
-            .manifest(Capability.NODE, node)
-            .manifest(Capability.JAVA, java);
+            .manifest(Layer.NODE, node)
+            .manifest(Layer.JAVA, java);
     }
 
     private static String message(AssetFixture fixture) {
@@ -43,29 +43,29 @@ class AssetOverrideTest {
         assertEquals(
             List.of(
                 new ManagedAsset(".editorconfig", AssetPolicy.PINNED),
-                new ManagedAsset(ESLINT, AssetPolicy.PINNED, Capability.NODE, AssetLocation.NODE_PROJECT)
+                new ManagedAsset(ESLINT, AssetPolicy.PINNED, Layer.NODE, AssetLocation.NODE_PROJECT)
             ),
             catalogue.assets(),
-            "a row without a location is a repository-root file of the capability whose manifest holds it"
+            "a row without a location is a repository-root file of the layer whose manifest holds it"
         );
     }
 
     @Test
-    void rejectsTwoCapabilitiesClaimingOneFileWithoutAnOverride() {
+    void rejectsTwoLayersClaimingOneFileWithoutAnOverride() {
         String refusal = message(this.fixture(NODE_ROW, NODE_ROW));
         assertTrue(refusal.contains("[java, node]"), refusal);
     }
 
     @Test
-    void rejectsAnOverrideOfAPathTheNamedCapabilityDoesNotOwn() {
+    void rejectsAnOverrideOfAPathTheNamedLayerDoesNotOwn() {
         String refusal = message(this.fixture("", "eslint.config.mjs\tPINNED\tNODE_PROJECT\tOVERRIDES node\n"));
         assertTrue(refusal.contains("which does not own it"), refusal);
     }
 
     @Test
-    void rejectsAnOverrideByACapabilityThatIsNotMoreSpecific() {
+    void rejectsAnOverrideByALayerThatIsNotMoreSpecific() {
         AssetFixture fixture = new AssetFixture(this.directory, ".editorconfig\tPINNED\n")
-            .manifest(Capability.NODE, ".editorconfig\tPINNED\tROOT\tOVERRIDES generic\n");
+            .manifest(Layer.NODE, ".editorconfig\tPINNED\tROOT\tOVERRIDES generic\n");
         String refusal = message(fixture);
         assertTrue(refusal.contains("node is not a more specific form of generic"), refusal);
     }
@@ -84,22 +84,22 @@ class AssetOverrideTest {
     }
 
     @Test
-    void rejectsOneCapabilityClaimingAPathTwice() {
+    void rejectsOneLayerClaimingAPathTwice() {
         String refusal = message(this.fixture(NODE_ROW + NODE_ROW, ""));
-        assertTrue(refusal.contains("claimed twice by one capability"), refusal);
+        assertTrue(refusal.contains("claimed twice by one layer"), refusal);
     }
 
     @Test
-    void sharesARootFileBetweenCapabilitiesThroughBlocks() {
+    void sharesARootFileBetweenLayersThroughBlocks() {
         AssetCatalogue catalogue = new AssetFixture(this.directory, ".gitignore\tSECTION\n")
-            .manifest(Capability.NODE, ".gitignore\tSECTION\n")
+            .manifest(Layer.NODE, ".gitignore\tSECTION\n")
             .catalogue();
         assertEquals(
-            List.of(Capability.GENERIC, Capability.NODE),
-            catalogue.select(AssetLocation.ROOT, Set.of(Capability.GENERIC, Capability.NODE)).stream()
+            List.of(Layer.GENERIC, Layer.NODE),
+            catalogue.select(AssetLocation.ROOT, Set.of(Layer.GENERIC, Layer.NODE)).stream()
                 .map(ManagedAsset::owner)
                 .toList(),
-            "two capabilities each own a block of one file, which is not a conflict"
+            "two layers each own a block of one file, which is not a conflict"
         );
     }
 }

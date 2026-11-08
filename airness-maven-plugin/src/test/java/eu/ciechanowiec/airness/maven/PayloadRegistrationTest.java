@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetSite;
-import eu.ciechanowiec.airness.governance.Capability;
+import eu.ciechanowiec.airness.governance.Layer;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -37,8 +37,8 @@ class PayloadRegistrationTest {
         MavenProject payload = this.payloadModule(root);
         assertEquals(
             List.of(
-                AssetSite.root(Set.of(Capability.JAVA, Capability.NODE, Capability.PAYLOAD)),
-                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE, Capability.PAYLOAD))
+                AssetSite.root(Set.of(Layer.JAVA, Layer.NODE, Layer.PAYLOAD)),
+                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE, Layer.PAYLOAD))
             ),
             RepositorySites.of(root, List.of(self, payload))
         );
@@ -52,8 +52,8 @@ class PayloadRegistrationTest {
         plain.getProperties().setProperty(NODE_PROJECTS, "../cms");
         assertEquals(
             List.of(
-                AssetSite.root(Set.of(Capability.NODE, Capability.PAYLOAD)),
-                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE, Capability.PAYLOAD))
+                AssetSite.root(Set.of(Layer.NODE, Layer.PAYLOAD)),
+                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE, Layer.PAYLOAD))
             ),
             RepositorySites.of(root, List.of(plain, payload)),
             "one directory is one site, carrying the union of what every module listing it says it is"

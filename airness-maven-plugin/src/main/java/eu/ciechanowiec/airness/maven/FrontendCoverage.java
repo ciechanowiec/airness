@@ -51,6 +51,11 @@ final class FrontendCoverage {
         ".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx"
     );
     private static final List<String> STYLESHEETS = List.of(".css", ".scss");
+
+    /**
+     * The script and stylesheet extensions the node gates read, which {@code build-inputs} holds to as well.
+     */
+    static final List<String> CHECKED = Stream.concat(SCRIPTS.stream(), STYLESHEETS.stream()).toList();
     private static final List<String> UNREAD = List.of(".sass", ".less");
     private static final String MANIFEST = "package.json";
     private static final String INSTALLED = "node_modules";

@@ -49,7 +49,7 @@ class StackConfinementTest {
     private static final String PARENT = "airness-parent-payload";
     private static final String NODE_MODULE = "airness-payload-node";
     private static final String ASSETS_MODULE = "airness-payload-assets";
-    private static final String CAPABILITY = "PAYLOAD";
+    private static final String LAYER = "PAYLOAD";
     private static final String PRODUCT = "Payload";
     private static final String PLUGIN = "airness-maven-plugin/src/main/java/eu/ciechanowiec/airness/maven/";
     private static final String PLUGIN_TESTS = "airness-maven-plugin/src/test/java/eu/ciechanowiec/airness/maven/";
@@ -93,9 +93,8 @@ class StackConfinementTest {
         ),
         new Entry(".adocent/vocabulary.txt", Set.of(PRODUCT), "the product name the stack's documentation spells"),
         new Entry(
-            ".github/workflows/release.yml", Set.of(PARENT, ASSETS_MODULE, NODE_MODULE, NPM_PACKAGE),
-            "the stack's Central artifacts in the publication inspection, and its npm package in the npm"
-                + " publication order"
+            ".github/workflows/release.yml", Set.of(NODE_MODULE, NPM_PACKAGE),
+            "the stack's npm package in the npm publication order"
         ),
         new Entry(
             "airness-it/verify.sh",
@@ -111,11 +110,11 @@ class StackConfinementTest {
                 + " deletes them by hand, because assets-sync never removes a rule"
         ),
         new Entry(
-            GOVERNANCE + "Capability.java", Set.of(CAPABILITY, PARENT),
-            "the capability that selects the stack's files, with the node capability it refines"
+            GOVERNANCE + "Layer.java", Set.of(LAYER, PARENT),
+            "the layer that selects the stack's files, with the node layer it refines"
         ),
         new Entry(
-            PLUGIN + "RepositorySites.java", Set.of(CAPABILITY, PARENT), "the parent whose modules carry the capability"
+            PLUGIN + "RepositorySites.java", Set.of(LAYER, PARENT), "the parent whose modules carry the layer"
         ),
         new Entry(PLUGIN + "RepositoryProjects.java", Set.of(PARENT), "a parent Airness publishes"),
         new Entry(

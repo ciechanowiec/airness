@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
  * The agent runtime is denied write access to every generated file the stack layers present declare, and to
  * every pinned file the harness places.
  *
- * <p>Which files are generated follows the capabilities of the whole repository, read the way the managed
+ * <p>Which files are generated follows the layers of the whole repository, read the way the managed
  * files read them, so a build started inside one member denies what a build started at the root denies.
  * The generic layer declares no generated file of its own, and a stack layer adds its files to the plugin
  * classpath.
@@ -80,7 +80,7 @@ public final class GeneratedDenialMojo extends AbstractRepositoryMojo {
      * output.
      *
      * @param root      the repository root
-     * @param sites     the directories of the repository, with the capabilities present in each
+     * @param sites     the directories of the repository, with the layers present in each
      * @param declared  the generated files the project declares
      * @param unmanaged the managed files the project has taken over
      * @return the repository-relative paths, generated files first
@@ -100,7 +100,7 @@ public final class GeneratedDenialMojo extends AbstractRepositoryMojo {
      * property names and those each node project lists under {@code airness.generatedArtefacts}.
      *
      * @param root     the repository root
-     * @param sites    the directories of the repository, with the capabilities present in each
+     * @param sites    the directories of the repository, with the layers present in each
      * @param declared the generated files the project declares in the property
      * @return repository-relative paths and globs, layer declarations first
      */

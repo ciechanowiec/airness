@@ -9,7 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type RunResult, runNode } from '@airness/node/exec'
 import { failed, type GateResult, notApplicable, passed, withOutput } from '@airness/node/gate-result'
-import { readJsonFile } from './json-file.js'
+import { readJson } from '@airness/node/project'
 import {
   findInheritedAccess,
   findUnconstrainedDraftReads,
@@ -74,7 +74,7 @@ export const judgeProbe = (result: RunResult): GateResult => {
 
 const configFileOf = (root: string): string | undefined => {
   const tsconfig: string = path.join(root, 'tsconfig.json')
-  return existsSync(tsconfig) ? path.join(root, payloadConfigPathOf(readJsonFile(tsconfig))) : undefined
+  return existsSync(tsconfig) ? path.join(root, payloadConfigPathOf(readJson(tsconfig))) : undefined
 }
 
 /**

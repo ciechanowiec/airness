@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The Payload stack's registration in this module: {@link Capability#PAYLOAD}, the one capability that refines
+ * The Payload stack's registration in this module: {@link Layer#PAYLOAD}, the one layer that refines
  * another, so a Payload project receives the Payload body of a file the node layer also ships.
  *
  * <p>Kept apart from the generic tests, which hold no stack name, so that removing the stack removes this file
@@ -25,18 +25,18 @@ class PayloadRegistrationTest {
     @Test
     void replacesTheNodeBodyOnlyWherePayloadIsPresent() {
         AssetCatalogue catalogue = new AssetFixture(this.directory, ".editorconfig\tPINNED\n")
-            .manifest(Capability.NODE, "eslint.config.mjs\tPINNED\tNODE_PROJECT\n")
-            .manifest(Capability.PAYLOAD, "eslint.config.mjs\tPINNED\tNODE_PROJECT\tOVERRIDES node\n")
+            .manifest(Layer.NODE, "eslint.config.mjs\tPINNED\tNODE_PROJECT\n")
+            .manifest(Layer.PAYLOAD, "eslint.config.mjs\tPINNED\tNODE_PROJECT\tOVERRIDES node\n")
             .catalogue();
         assertEquals(
-            List.of(Capability.NODE),
-            catalogue.select(AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)).stream().map(ManagedAsset::owner)
+            List.of(Layer.NODE),
+            catalogue.select(AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)).stream().map(ManagedAsset::owner)
                 .toList(),
             "a plain node project keeps the node body"
         );
         assertEquals(
-            List.of(Capability.PAYLOAD),
-            catalogue.select(AssetLocation.NODE_PROJECT, Set.of(Capability.NODE, Capability.PAYLOAD)).stream()
+            List.of(Layer.PAYLOAD),
+            catalogue.select(AssetLocation.NODE_PROJECT, Set.of(Layer.NODE, Layer.PAYLOAD)).stream()
                 .map(ManagedAsset::owner)
                 .toList(),
             "a Payload project gets exactly one body, the Payload one"
@@ -45,18 +45,18 @@ class PayloadRegistrationTest {
 
     @Test
     void letsPayloadRefineNodeAlone() {
-        assertTrue(Capability.PAYLOAD.refines(Capability.NODE), "a Payload project is a node project");
+        assertTrue(Layer.PAYLOAD.refines(Layer.NODE), "a Payload project is a node project");
         assertEquals(
             List.of(),
-            Stream.of(Capability.values())
-                .filter(capability -> capability != Capability.NODE)
-                .filter(Capability.PAYLOAD::refines)
+            Stream.of(Layer.values())
+                .filter(layer -> layer != Layer.NODE)
+                .filter(Layer.PAYLOAD::refines)
                 .toList(),
             "Payload replaces node files only, never generic or Java ones"
         );
         assertEquals(
             List.of(),
-            Stream.of(Capability.values()).filter(capability -> capability.refines(Capability.GENERIC)).toList(),
+            Stream.of(Layer.values()).filter(layer -> layer.refines(Layer.GENERIC)).toList(),
             "nothing replaces a generic file, which root blocks share instead"
         );
     }

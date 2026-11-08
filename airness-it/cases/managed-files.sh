@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-# Managed files follow capabilities rather than the parent chain. One monorepo proves both wiring facts:
+# Managed files follow layers rather than the parent chain. One monorepo proves both wiring facts:
 # its root inherits only the generic parent yet carries the Java and node blocks, and the Java module's
 # embedded frontend receives the node block although that module never names a node parent. The selection
 # rules themselves are unit-tested in airness-governance; these runs prove the installed goals read the
@@ -82,17 +82,17 @@ POM
     git -C "${platform}" config user.email fixture@example.invalid
     git -C "${platform}" add --all
     git -C "${platform}" commit --quiet --message 'test(it): create a monorepo fixture' \
-        --message 'The fixture proves that managed files follow the capabilities of every module.'
+        --message 'The fixture proves that managed files follow the layers of every module.'
 
     run_maven managed_root repository "${platform}" airness:assets-sync validate
     expect_exit managed_root 'managed files: a synced monorepo root passes its asset check' 0
-    for managed_capability in generic java node; do
+    for managed_layer in generic java node; do
         expect_file_match "${platform}/.gitignore" \
-            "managed files: the generic root carries the ${managed_capability} .gitignore block" \
-            "^# BEGIN AIRNESS MANAGED: ${managed_capability}$"
+            "managed files: the generic root carries the ${managed_layer} .gitignore block" \
+            "^# BEGIN AIRNESS MANAGED: ${managed_layer}$"
         expect_file_match "${platform}/AGENTS.md" \
-            "managed files: the root AGENTS.md carries the ${managed_capability} block" \
-            "^<!-- BEGIN AIRNESS MANAGED: ${managed_capability} -->$"
+            "managed files: the root AGENTS.md carries the ${managed_layer} block" \
+            "^<!-- BEGIN AIRNESS MANAGED: ${managed_layer} -->$"
     done
     expect_file_match "${platform}/shop/src/main/frontend/AGENTS.md" \
         'managed files: the frontend embedded in a Java module receives the node block' \

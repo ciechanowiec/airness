@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetPolicy;
-import eu.ciechanowiec.airness.governance.Capability;
+import eu.ciechanowiec.airness.governance.Layer;
 import eu.ciechanowiec.airness.governance.ManagedAsset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,12 +29,12 @@ class HarnessSupportTest {
     @Test
     void readsTheShippedManifestsWithoutAContradictionBetweenLayers() {
         List<ManagedAsset> agents = new AssetCatalogue(HarnessSupportTest.class.getClassLoader())
-            .select(AssetLocation.ROOT, EnumSet.allOf(Capability.class))
+            .select(AssetLocation.ROOT, EnumSet.allOf(Layer.class))
             .stream()
             .filter(asset -> "AGENTS.md".equals(asset.path()))
             .toList();
         assertEquals(
-            List.of(Capability.GENERIC, Capability.JAVA, Capability.NODE),
+            List.of(Layer.GENERIC, Layer.JAVA, Layer.NODE),
             agents.stream().map(ManagedAsset::owner).toList(),
             "every layer the repository ships contributes its own block to the root instructions"
         );

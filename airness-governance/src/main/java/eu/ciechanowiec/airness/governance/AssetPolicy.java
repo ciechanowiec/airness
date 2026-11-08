@@ -38,8 +38,8 @@ public enum AssetPolicy {
     FORBIDDEN,
 
     /**
-     * The file carries one marked block for each capability that claims it, and the blocks lead the file
-     * in capability order. Every line below them belongs to the project. The capabilities that claim it
+     * The file carries one marked block for each layer that claims it, and the blocks lead the file
+     * in layer order. Every line below them belongs to the project. The layers that claim it
      * share it rather than override each other, which is how a root file serves a whole repository.
      */
     SECTION,

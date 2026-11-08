@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Shared files lead with one block per capability present where they live, the root carries the blocks
- * of every capability in the repository, a node project carries its own, and every project line survives
+ * Shared files lead with one block per layer present where they live, the root carries the blocks
+ * of every layer in the repository, a node project carries its own, and every project line survives
  * a sync.
  */
 class AssetSectionTest {
@@ -51,21 +51,21 @@ class AssetSectionTest {
 
     private AssetCatalogue catalogue() {
         return new AssetFixture(this.shipped, "AGENTS.md\tSECTION\n.gitignore\tSECTION\nGEMINI.md\tREFERENCE\n")
-            .manifest(Capability.JAVA, ".gitignore\tSECTION\n")
-            .manifest(Capability.NODE, ".gitignore\tSECTION\nAGENTS.md\tSECTION\nAGENTS.md\tSECTION\tNODE_PROJECT\n")
+            .manifest(Layer.JAVA, ".gitignore\tSECTION\n")
+            .manifest(Layer.NODE, ".gitignore\tSECTION\nAGENTS.md\tSECTION\nAGENTS.md\tSECTION\tNODE_PROJECT\n")
             .ship(AGENTS, "Generic rules.\n")
             .ship(GITIGNORE, ".idea/\n")
-            .ship(Capability.JAVA, GITIGNORE, "*.class\n")
-            .ship(Capability.NODE, GITIGNORE, "node_modules/\n")
-            .ship(Capability.NODE, AGENTS, "Root node rules.\n")
-            .shipProject(Capability.NODE, AGENTS, "Node rules.\n")
+            .ship(Layer.JAVA, GITIGNORE, "*.class\n")
+            .ship(Layer.NODE, GITIGNORE, "node_modules/\n")
+            .ship(Layer.NODE, AGENTS, "Root node rules.\n")
+            .shipProject(Layer.NODE, AGENTS, "Node rules.\n")
             .catalogue();
     }
 
     private static List<AssetSite> embeddedFrontend() {
         return List.of(
-            AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
-            new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
+            AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
+            new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
         );
     }
 
@@ -83,13 +83,13 @@ class AssetSectionTest {
     }
 
     @Test
-    void writesTheRootBlocksOfEveryCapabilityAndTheNodeBlockIntoTheFrontend() {
+    void writesTheRootBlocksOfEveryLayerAndTheNodeBlockIntoTheFrontend() {
         Path root = new GitFixture("section-embedded").write(GITIGNORE, "coverage-local/\n").root();
         assertEquals(List.of(AGENTS, GITIGNORE, FRONTEND + "/AGENTS.md"), this.sync(root, embeddedFrontend()));
         assertEquals(
             GENERIC_BLOCK + "\n" + JAVA_BLOCK + "\n" + NODE_BLOCK + "\ncoverage-local/\n",
             read(root, GITIGNORE),
-            "the blocks lead in capability order and the project's line stays below them"
+            "the blocks lead in layer order and the project's line stays below them"
         );
         assertEquals(NODE_AGENTS, read(root, FRONTEND + "/AGENTS.md"), "the frontend gets the node block alone");
         assertTrue(
@@ -114,23 +114,23 @@ class AssetSectionTest {
     }
 
     @Test
-    void reportsABlockForACapabilityTheRepositoryDoesNotHave() {
+    void reportsABlockForALayerTheRepositoryDoesNotHave() {
         Path root = new GitFixture("section-unexpected").root();
         this.sync(root, embeddedFrontend());
-        List<AssetSite> javaOnly = List.of(AssetSite.root(Set.of(Capability.JAVA)));
+        List<AssetSite> javaOnly = List.of(AssetSite.root(Set.of(Layer.JAVA)));
         assertEquals(
             List.of(
                 AGENTS + " (run mvn airness:assets-sync to restore its managed blocks)",
                 GITIGNORE + " (run mvn airness:assets-sync to restore its managed blocks)"
             ),
             Verdicts.offences(this.check(root, javaOnly), DRIFTED),
-            "a block appears exactly when its capability is present somewhere in the repository"
+            "a block appears exactly when its layer is present somewhere in the repository"
         );
     }
 
     @Test
-    void reportsARootWithoutTheBlockOfACapabilityTheRepositoryHas() {
-        List<AssetSite> javaAndNode = List.of(AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)));
+    void reportsARootWithoutTheBlockOfALayerTheRepositoryHas() {
+        List<AssetSite> javaAndNode = List.of(AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)));
         Path withoutJava = new GitFixture("section-no-java").write(GITIGNORE, GENERIC_BLOCK + "\n" + NODE_BLOCK).root();
         Path withoutNode = new GitFixture("section-no-node").write(GITIGNORE, GENERIC_BLOCK + "\n" + JAVA_BLOCK).root();
         String stale = GITIGNORE + " (run mvn airness:assets-sync to restore its managed blocks)";
@@ -192,8 +192,8 @@ class AssetSectionTest {
     void writesTheNodeBlockOnceWhereTheRootIsTheNodeProject() {
         Path root = new GitFixture("section-root-node").root();
         List<AssetSite> sites = List.of(
-            AssetSite.root(Set.of(Capability.NODE)),
-            new AssetSite("", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
+            AssetSite.root(Set.of(Layer.NODE)),
+            new AssetSite("", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
         );
         this.sync(root, sites);
         assertEquals(

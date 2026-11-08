@@ -6,13 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-class ParameterMetadataMojoTest {
+class CompilerParametersMojoTest {
 
     @Test
     void appliesOnlyWhereMavenBindsJavaCompilation() {
         assertAll(
-            () -> assertTrue(ParameterMetadataMojo.compilationBound("jar")),
-            () -> assertFalse(ParameterMetadataMojo.compilationBound("pom"))
+            () -> assertTrue(CompilerParametersMojo.compilationBound("jar")),
+            () -> assertFalse(CompilerParametersMojo.compilationBound("pom"))
         );
     }
 }

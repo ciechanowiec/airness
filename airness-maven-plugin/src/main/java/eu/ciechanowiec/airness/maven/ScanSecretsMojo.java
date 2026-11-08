@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  * Scans the full Git history with gitleaks in a read-only repository mount.
  */
 @Mojo(name = "scan-secrets", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public final class SecretScanMojo extends AbstractDockerCheckMojo {
+public final class ScanSecretsMojo extends AbstractDockerCheckMojo {
 
     private static final String CONFIGURATION = ".gitleaks.toml";
     private static final String IGNORE = ".gitleaksignore";

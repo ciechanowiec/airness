@@ -13,7 +13,7 @@ import java.util.List;
  * or the files the harness pins, so a ceiling is never earned by code the project did not write. It is a
  * verdict of its own beside the Java ceiling, because the two rates differ and neither may loosen the other.
  */
-public final class NodeSuppressionCeiling {
+public final class NodeSuppressionCeilingCheck {
 
     private static final int BASE_ALLOWANCE = 2;
     private static final int LINES_PER_SUPPRESSION = 500;
@@ -28,11 +28,11 @@ public final class NodeSuppressionCeiling {
      * @param root    the working tree root
      * @param sources the first-party JavaScript, TypeScript and stylesheet sources of the node projects
      */
-    public NodeSuppressionCeiling(Path root, Collection<Path> sources) {
+    public NodeSuppressionCeilingCheck(Path root, Collection<Path> sources) {
         List<Path> read = sources.stream().filter(path -> NodeSuppressions.readable(path.toString())).distinct()
             .toList();
         this.sources = read.size();
-        this.lines = read.stream().mapToInt(NodeSuppressionCeiling::nonBlankLines).sum();
+        this.lines = read.stream().mapToInt(NodeSuppressionCeilingCheck::nonBlankLines).sum();
         this.suppressions = read.stream().flatMap(
             source -> Repository.readText(source).stream().flatMap(text -> NodeSuppressions.in(text).stream())
                 .map(entry -> "%s: %s".formatted(root.relativize(source), entry))

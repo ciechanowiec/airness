@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * The repository holds no more suppressions than the ceiling it declares.
+ * The repository holds no more suppressions than the ceiling its Java source earns.
  *
  * <p>Every other rule about a suppression asks whether this one is well formed: that it names a rule,
  * that it sits at the narrowest scope, that it still suppresses something, and that it carries a
@@ -18,37 +18,43 @@ import java.util.stream.Stream;
  * <p>The ceiling scales with the code rather than being a flat number. A flat number strangles a small
  * repository and dissolves in a large one, and the same figure would mean two different things in the
  * two. A smallest ceiling holds underneath the rate so that an early project is not left with a ceiling
- * of one, and a declared rate of zero switches that floor off, which is how a repository states that it
- * carries no suppressions at all.
+ * of one.
  *
  * <p>The offences are listed only once the ceiling is passed. Below it the count is a number the build
  * reports rather than a finding, and printing every suppression on every clean build would bury the run
  * that matters under the ones that do not.
  */
-public final class SuppressionCeilingCheck {
+public final class JavaSuppressionCeilingCheck {
 
     private static final int PER = 1000;
     private static final int SMALLEST_CEILING = 5;
+
+    /*
+     * Three suppressions per thousand lines of Java source, with the smallest ceiling of five
+     * holding underneath the rate. The rate leaves room for justified analyzer boundaries that code cannot
+     * remove while keeping suppressions sparse as a project grows.
+     *
+     * Deliberately not a parameter. A ceiling a project can raise is a ceiling that gets raised on the change
+     * that would otherwise have failed, which is the one moment the ceiling exists to catch.
+     */
+    private static final double RATE = 3;
 
     private final Path root;
     private final List<String> suppressions;
     private final int sources;
     private final int lines;
-    private final double rate;
 
     /**
      * Reads the sources, locating every suppression and measuring the code it is weighed against.
      *
      * @param root        the working tree root
      * @param sourceRoots the directories whose Java sources are read
-     * @param rate        how many suppressions are allowed per thousand lines, or zero to allow none
      */
-    public SuppressionCeilingCheck(Path root, Collection<Path> sourceRoots, double rate) {
+    public JavaSuppressionCeilingCheck(Path root, Collection<Path> sourceRoots) {
         List<Path> found = JavaSources.under(root, sourceRoots);
         this.root = root;
-        this.rate = rate;
         this.sources = found.size();
-        this.lines = found.stream().mapToInt(SuppressionCeilingCheck::lineCount).sum();
+        this.lines = found.stream().mapToInt(JavaSuppressionCeilingCheck::lineCount).sum();
         this.suppressions = found.stream().flatMap(this::located).toList();
     }
 
@@ -71,12 +77,12 @@ public final class SuppressionCeilingCheck {
     }
 
     /**
-     * The highest count the declared rate allows over the code that was read.
+     * The highest count the rate allows over the code that was read.
      *
      * @return the ceiling
      */
     public int ceiling() {
-        return this.rate <= 0 ? 0 : Math.max(SMALLEST_CEILING, Math.toIntExact(Math.round(this.scaled())));
+        return Math.max(SMALLEST_CEILING, Math.toIntExact(Math.round(this.scaled())));
     }
 
     /**
@@ -90,12 +96,12 @@ public final class SuppressionCeilingCheck {
     }
 
     private double scaled() {
-        return this.rate * this.lines / PER;
+        return RATE * this.lines / PER;
     }
 
     private String headline() {
         return "Suppressions passed the declared ceiling of %d for %d line(s) of source at %s per %d lines"
-            .formatted(this.ceiling(), this.lines, this.rate, PER);
+            .formatted(this.ceiling(), this.lines, RATE, PER);
     }
 
     private Stream<String> located(Path source) {

@@ -12,12 +12,12 @@ import java.util.stream.Stream;
 /**
  * The files a generator owns, as the stack layers present in a repository declare them.
  *
- * <p>A layer declares its generated files in {@code airness/generated/<capability>.txt} on the plugin
+ * <p>A layer declares its generated files in {@code airness/generated/<layer>.txt} on the plugin
  * classpath, one path per line, optionally followed by a tab and the location it applies to ({@code ROOT}
  * unless stated), exactly as a managed-file manifest places a file. A layer with no such file declares
  * none, which is how a layer published from another repository adds its own. Each declaration is placed
- * at every site carrying its capability at its location, so a generated file of a node project is denied
- * in each node project rather than once at the root. One file per capability is read, so a capability has
+ * at every site carrying its layer at its location, so a generated file of a node project is denied
+ * in each node project rather than once at the root. One file per layer is read, so a layer has
  * one owner: a second jar shipping the same declaration would be shadowed by the first.
  *
  * @param classes the classloader carrying the layer declarations
@@ -36,7 +36,7 @@ public record GeneratedFiles(ClassLoader classes) {
      *
      * <p>A project can only add to the set, so its declaration makes the denial stricter and never looser.
      *
-     * @param sites    the directories of the repository, with the capabilities present in each
+     * @param sites    the directories of the repository, with the layers present in each
      * @param declared repository-relative paths the project declares as generated
      * @return the paths, layer declarations first, each once
      */
@@ -50,13 +50,13 @@ public record GeneratedFiles(ClassLoader classes) {
     /**
      * Every repository-relative path a generator owns across the given sites.
      *
-     * @param sites the directories of the repository, with the capabilities present in each
+     * @param sites the directories of the repository, with the layers present in each
      * @return the paths, in site order and then in declaration order
      */
     public List<String> paths(Collection<AssetSite> sites) {
         return sites.stream()
             .flatMap(
-                site -> site.capabilities().stream()
+                site -> site.layers().stream()
                     .sorted()
                     .flatMap(this::declared)
                     .filter(declaration -> declaration.location() == site.location())
@@ -65,8 +65,8 @@ public record GeneratedFiles(ClassLoader classes) {
             .toList();
     }
 
-    private Stream<Declaration> declared(Capability capability) {
-        String resource = DECLARATIONS + capability.id() + TEXT;
+    private Stream<Declaration> declared(Layer layer) {
+        String resource = DECLARATIONS + layer.id() + TEXT;
         return this.read(resource).stream()
             .flatMap(String::lines)
             .map(String::strip)

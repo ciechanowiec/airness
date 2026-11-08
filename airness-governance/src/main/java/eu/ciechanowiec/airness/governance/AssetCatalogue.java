@@ -19,12 +19,12 @@ import java.util.stream.Stream;
 /**
  * The files the harness owns and the bytes it ships for each, read off a classloader.
  *
- * <p>Each capability has a manifest of its own, {@code airness/manifest/<capability>.tsv}, and ships its
- * bodies under {@code airness/files/<capability>/}. A row names a path, a policy, optionally a location
- * ({@code ROOT} unless stated), and optionally {@code OVERRIDES <capability>}. The generic manifest is
+ * <p>Each layer has a manifest of its own, {@code airness/manifest/<layer>.tsv}, and ships its
+ * bodies under {@code airness/files/<layer>/}. A row names a path, a policy, optionally a location
+ * ({@code ROOT} unless stated), and optionally {@code OVERRIDES <layer>}. The generic manifest is
  * required. The others are read when the classpath carries them, which is how a layer published from
  * another repository adds its files. A body placed in each node project is shipped under
- * {@code airness/project-files/<capability>/} instead, so one path can read differently at the root and
+ * {@code airness/project-files/<layer>/} instead, so one path can read differently at the root and
  * inside a node project.
  *
  * <p>A manifest deliberately carries no checksum: a checksum in the manifest would be a second spelling
@@ -32,7 +32,7 @@ import java.util.stream.Stream;
  * manifest is believed and the bytes are not. Hashing the shipped entry at the moment of comparison
  * leaves one source of truth and nothing to regenerate.
  *
- * <p>Two capabilities claiming one whole file is refused when the catalogue is read, unless the more
+ * <p>Two layers claiming one whole file is refused when the catalogue is read, unless the more
  * specific one names the other with {@code OVERRIDES}. Who owns a file is therefore decided by the harness
  * that ships the files, and a disagreement is a harness bug its own tests catch rather than a finding a
  * consumer meets.
@@ -62,44 +62,44 @@ public final class AssetCatalogue {
     private final List<Row> rows;
 
     /**
-     * Reads every capability manifest off the given classloader and refuses one that contradicts another.
+     * Reads every layer manifest off the given classloader and refuses one that contradicts another.
      *
      * @param classes the classloader carrying the assets artifact
      * @throws IllegalStateException when the generic manifest is missing, a row is malformed, or two
-     *                               capabilities claim one file without an override that resolves it
+     *                               layers claim one file without an override that resolves it
      */
     public AssetCatalogue(ClassLoader classes) {
         this.classes = classes;
-        if (this.manifest(Capability.GENERIC).isEmpty()) {
+        if (this.manifest(Layer.GENERIC).isEmpty()) {
             throw new IllegalStateException(
-                "No " + MANIFESTS + Capability.GENERIC.id() + TSV
+                "No " + MANIFESTS + Layer.GENERIC.id() + TSV
                     + " on the classpath, so nothing states which files the harness owns"
             );
         }
-        this.rows = Arrays.stream(Capability.values())
-            .flatMap(capability -> this.manifest(capability).stream().flatMap(text -> parse(capability, text)))
+        this.rows = Arrays.stream(Layer.values())
+            .flatMap(layer -> this.manifest(layer).stream().flatMap(text -> parse(layer, text)))
             .toList();
         validate(this.rows);
     }
 
     /**
-     * Every file every capability owns.
+     * Every file every layer owns.
      *
-     * @return the managed assets, in capability order and then manifest order
+     * @return the managed assets, in layer order and then manifest order
      */
     public List<ManagedAsset> assets() {
         return this.rows.stream().map(Row::asset).toList();
     }
 
     /**
-     * The files placed at one kind of location where the given capabilities are present, after every
-     * override a present capability declares has replaced the file it names.
+     * The files placed at one kind of location where the given layers are present, after every
+     * override a present layer declares has replaced the file it names.
      *
      * @param location the kind of location
-     * @param present  the capabilities present there
-     * @return the managed assets that apply, in capability order and then manifest order
+     * @param present  the layers present there
+     * @return the managed assets that apply, in layer order and then manifest order
      */
-    public List<ManagedAsset> select(AssetLocation location, Collection<Capability> present) {
+    public List<ManagedAsset> select(AssetLocation location, Collection<Layer> present) {
         List<Row> applicable = this.rows.stream()
             .filter(row -> row.asset().location() == location && present.contains(row.asset().owner()))
             .toList();
@@ -128,8 +128,8 @@ public final class AssetCatalogue {
         return base + asset.owner().id() + '/' + path + SUFFIX;
     }
 
-    private Optional<String> manifest(Capability capability) {
-        return this.read(MANIFESTS + capability.id() + TSV).map(bytes -> new String(bytes, StandardCharsets.UTF_8));
+    private Optional<String> manifest(Layer layer) {
+        return this.read(MANIFESTS + layer.id() + TSV).map(bytes -> new String(bytes, StandardCharsets.UTF_8));
     }
 
     private Optional<byte[]> read(String resource) {
@@ -148,14 +148,14 @@ public final class AssetCatalogue {
         }
     }
 
-    private static Stream<Row> parse(Capability owner, String manifest) {
+    private static Stream<Row> parse(Layer owner, String manifest) {
         return manifest.lines()
             .map(String::strip)
             .filter(line -> !line.isEmpty() && !line.startsWith(COMMENT))
             .map(line -> entry(owner, line));
     }
 
-    private static Row entry(Capability owner, String line) {
+    private static Row entry(Layer owner, String line) {
         String[] fields = line.split(SEPARATOR, -1);
         if (fields.length < REQUIRED_FIELDS || fields.length > MOST_FIELDS) {
             throw new IllegalStateException(
@@ -165,7 +165,7 @@ public final class AssetCatalogue {
         AssetLocation location = fields.length > LOCATION_FIELD
             ? AssetLocation.valueOf(fields[LOCATION_FIELD].strip())
             : AssetLocation.ROOT;
-        Set<Capability> overrides = fields.length > OVERRIDES_FIELD
+        Set<Layer> overrides = fields.length > OVERRIDES_FIELD
             ? Set.of(overridden(fields[OVERRIDES_FIELD].strip(), line))
             : Set.of();
         ManagedAsset asset = new ManagedAsset(
@@ -174,11 +174,11 @@ public final class AssetCatalogue {
         return new Row(asset, overrides);
     }
 
-    private static Capability overridden(String field, String line) {
+    private static Layer overridden(String field, String line) {
         if (!field.startsWith(OVERRIDES)) {
-            throw new IllegalStateException("A manifest line's fourth field is OVERRIDES <capability>: " + line);
+            throw new IllegalStateException("A manifest line's fourth field is OVERRIDES <layer>: " + line);
         }
-        return Capability.of(field.substring(OVERRIDES.length()).strip());
+        return Layer.of(field.substring(OVERRIDES.length()).strip());
     }
 
     private static void validate(Collection<Row> rows) {
@@ -197,10 +197,10 @@ public final class AssetCatalogue {
     }
 
     private static void validateOwners(String key, Collection<Row> claims) {
-        Map<Capability, Long> owners = claims.stream()
+        Map<Layer, Long> owners = claims.stream()
             .collect(Collectors.groupingBy(row -> row.asset().owner(), Collectors.counting()));
         if (owners.values().stream().anyMatch(count -> count > 1)) {
-            refuse(key + " is claimed twice by one capability");
+            refuse(key + " is claimed twice by one layer");
         }
         if (claims.stream().anyMatch(Row::section) && !claims.stream().allMatch(Row::section)) {
             refuse(key + " is claimed both as a shared block and as a whole file");
@@ -214,20 +214,20 @@ public final class AssetCatalogue {
     }
 
     private static void validateWholeFile(String key, List<Row> claims) {
-        Map<Capability, Row> byOwner = claims.stream()
+        Map<Layer, Row> byOwner = claims.stream()
             .collect(Collectors.toMap(row -> row.asset().owner(), Function.identity()));
         claims.forEach(row -> row.overrides().forEach(named -> validateOverride(key, row, named, byOwner)));
         long bases = claims.stream().filter(row -> row.overrides().isEmpty()).count();
         if (bases != 1) {
             refuse(
-                key + " is claimed by " + byOwner.keySet().stream().map(Capability::id).sorted().toList()
+                key + " is claimed by " + byOwner.keySet().stream().map(Layer::id).sorted().toList()
                     + " without exactly one owner and an OVERRIDES on every other claim"
             );
         }
     }
 
-    private static void validateOverride(String key, Row row, Capability named, Map<Capability, Row> byOwner) {
-        Capability owner = row.asset().owner();
+    private static void validateOverride(String key, Row row, Layer named, Map<Layer, Row> byOwner) {
+        Layer owner = row.asset().owner();
         if (!byOwner.containsKey(named)) {
             refuse(key + ": " + owner.id() + " overrides " + named.id() + ", which does not own it");
         }
@@ -243,12 +243,12 @@ public final class AssetCatalogue {
     }
 
     /**
-     * One manifest row: the file it claims and the capability it replaces, when it replaces one.
+     * One manifest row: the file it claims and the layer it replaces, when it replaces one.
      *
      * @param asset     the claimed file
-     * @param overrides the capability whose claim this row replaces, or nothing
+     * @param overrides the layer whose claim this row replaces, or nothing
      */
-    private record Row(ManagedAsset asset, Set<Capability> overrides) {
+    private record Row(ManagedAsset asset, Set<Layer> overrides) {
 
         private String key() {
             return this.asset.path() + " at " + this.asset.location();

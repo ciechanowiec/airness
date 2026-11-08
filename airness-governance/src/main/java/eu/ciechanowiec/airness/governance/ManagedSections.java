@@ -7,9 +7,9 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 
 /**
- * The marked blocks a {@link AssetPolicy#SECTION} file carries, one per capability that claims it.
+ * The marked blocks a {@link AssetPolicy#SECTION} file carries, one per layer that claims it.
  *
- * <p>The blocks lead the file, in capability order and separated by one blank line, and everything after
+ * <p>The blocks lead the file, in layer order and separated by one blank line, and everything after
  * them belongs to the project. Requiring the exact leading text rather than each block wherever it sits
  * keeps one answer to two questions at once: whether every block is current, and whether a block nobody
  * claims, or a marker left from an earlier layout, survives further down.
@@ -34,11 +34,11 @@ final class ManagedSections {
      * One block as it appears in the file, markers included.
      *
      * @param path  the managed path, whose kind decides the comment syntax of the markers
-     * @param owner the capability that owns the block
+     * @param owner the layer that owns the block
      * @param body  the block's body as shipped
      * @return the block, ending with a newline
      */
-    static String block(String path, Capability owner, String body) {
+    static String block(String path, Layer owner, String body) {
         String terminated = body.endsWith(LF) ? body : body + LF;
         return marker(path, BEGIN + owner.id()) + LF + terminated + marker(path, END + owner.id()) + LF;
     }
@@ -46,7 +46,7 @@ final class ManagedSections {
     /**
      * The leading text a file with these blocks must start with.
      *
-     * @param blocks the blocks, in capability order
+     * @param blocks the blocks, in layer order
      * @return the blocks separated by one blank line
      */
     static String compose(Collection<String> blocks) {

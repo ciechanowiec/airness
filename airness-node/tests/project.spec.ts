@@ -84,4 +84,14 @@ describe('the harness tools', PROCESS_TIME, () => {
     expect(readText('/nonexistent/file.txt')).toBeUndefined()
     expect(readJson('/nonexistent/file.json')).toBeUndefined()
   })
+
+  it('reads a file with comments and trailing commas, and an unparseable one as undefined', () => {
+    const root: string = temporaryProject({ 'a.json': '{ "a": 1, // note\n "b": [2,], }', 'broken.json': '{ not json' })
+    try {
+      expect(readJson(path.join(root, 'a.json'))).toStrictEqual({ a: 1, b: [2] })
+      expect(readJson(path.join(root, 'broken.json'))).toBeUndefined()
+    } finally {
+      removeProject(root)
+    }
+  })
 })

@@ -39,7 +39,7 @@ public final class AssetSync {
      * @param root      the working tree root
      * @param catalogue the files the harness owns
      * @param unmanaged repository-relative paths this project has taken over
-     * @param sites     the directories that receive files, with the capabilities present in each
+     * @param sites     the directories that receive files, with the layers present in each
      */
     public AssetSync(
         Path root, AssetCatalogue catalogue, Collection<String> unmanaged, Collection<AssetSite> sites
