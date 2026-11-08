@@ -48,7 +48,7 @@ public final class EnvironmentCheck {
     private static final String MANIFEST = "package.json";
     private static final String NEXT = "next";
     // The words of a Dockerfile, in shell form and in the exec form's JSON array alike.
-    private static final Pattern WORD = Pattern.compile("[\\s,\\[\\]\\(\\);&|]+");
+    private static final Pattern WORD = Pattern.compile("[\\s,\\[\\]();&|]+");
     private static final Pattern OPTION_NAME = Pattern.compile("^--?[\\w-]+=");
     private static final Pattern CURRENT = Pattern.compile("^(?:\\./)+");
     private static final String SEPARATOR = "/";

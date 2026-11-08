@@ -28,10 +28,10 @@ final class PluginProperties {
     private static final String COMMENT = "#";
     private static final String RESOURCE = "plugin-properties.tsv";
     private static final int COLUMNS = 3;
-    private static final List<Row> ROWS = read();
+    private static final List<PluginProperty> ROWS = read();
     private static final Set<String> RESERVED = ROWS.stream()
         .filter(row -> row.use() == Use.RESERVED)
-        .map(Row::property)
+        .map(PluginProperty::property)
         .collect(Collectors.toUnmodifiableSet());
 
     /**
@@ -39,7 +39,7 @@ final class PluginProperties {
      *
      * @return the rows in the order the table lists them
      */
-    static List<Row> rows() {
+    static List<PluginProperty> rows() {
         return ROWS;
     }
 
@@ -53,7 +53,7 @@ final class PluginProperties {
         return RESERVED.contains(property);
     }
 
-    private static List<Row> read() {
+    private static List<PluginProperty> read() {
         URL resource = Optional.ofNullable(PluginProperties.class.getResource(RESOURCE))
             .orElseThrow(() -> new IllegalStateException("Missing resource " + RESOURCE));
         try (InputStream stream = resource.openStream()) {
@@ -71,7 +71,7 @@ final class PluginProperties {
      * @param content the table text
      * @return its rows
      */
-    static List<Row> parse(String content) {
+    static List<PluginProperty> parse(String content) {
         List<String> lines = content.lines().toList();
         return IntStream.range(0, lines.size())
             .mapToObj(index -> row(index + 1, lines.get(index)))
@@ -79,7 +79,7 @@ final class PluginProperties {
             .toList();
     }
 
-    private static Optional<Row> row(int number, String line) {
+    private static Optional<PluginProperty> row(int number, String line) {
         if (line.isBlank() || line.startsWith(COMMENT)) {
             return Optional.empty();
         }
@@ -87,7 +87,7 @@ final class PluginProperties {
         if (columns.length != COLUMNS) {
             throw new IllegalStateException(RESOURCE + " line " + number + " does not hold three columns");
         }
-        return Optional.of(new Row(columns[0], columns[1], use(number, columns[2])));
+        return Optional.of(new PluginProperty(columns[0], columns[1], use(number, columns[2])));
     }
 
     private static Use use(int number, String written) {
@@ -111,15 +111,5 @@ final class PluginProperties {
          * The project: the property tunes how a goal runs and decides no verdict.
          */
         PROJECT
-    }
-
-    /**
-     * One classified property of one plugin.
-     *
-     * @param plugin   the plugin's artifact identifier
-     * @param property the user property its descriptor names
-     * @param use      who owns the property
-     */
-    record Row(String plugin, String property, Use use) {
     }
 }

@@ -49,11 +49,13 @@ class LinterExemptionsTest {
 
     @Test
     void exemptsNothingWhenTheLinterDeclaresNoExcludes() {
-        LinterExemptions exemptions = LinterExemptions.from(project(new Xpp3Dom("configuration")));
-        assertAll(
-            () -> assertEquals(List.of(), exemptions.patterns()),
-            () -> assertFalse(exemptions.exempts("table.tsv"))
-        );
+        for (Xpp3Dom declared : List.of(new Xpp3Dom("configuration"), configuration())) {
+            LinterExemptions exemptions = LinterExemptions.from(project(declared));
+            assertAll(
+                () -> assertEquals(List.of(), exemptions.patterns()),
+                () -> assertFalse(exemptions.exempts("table.tsv"))
+            );
+        }
     }
 
     @Test

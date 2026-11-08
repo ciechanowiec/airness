@@ -15,8 +15,8 @@ class PluginPropertiesTest {
     void readsRowsAndPassesOverCommentsAndBlankLines() {
         assertEquals(
             List.of(
-                new PluginProperties.Row("maven-surefire-plugin", "argLine", PluginProperties.Use.PROJECT),
-                new PluginProperties.Row("jacoco-maven-plugin", "jacoco.skip", PluginProperties.Use.RESERVED)
+                new PluginProperty("maven-surefire-plugin", "argLine", PluginProperties.Use.PROJECT),
+                new PluginProperty("jacoco-maven-plugin", "jacoco.skip", PluginProperties.Use.RESERVED)
             ),
             PluginProperties.parse(
                 """

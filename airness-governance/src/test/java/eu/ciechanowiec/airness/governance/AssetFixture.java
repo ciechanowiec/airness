@@ -66,13 +66,13 @@ final class AssetFixture {
     }
 
     /**
-     * Ships the body a layer places in each node project.
+     * Ships the body the node layer places in each node project.
      *
      * @return this fixture, so calls chain
      */
     @SneakyThrows
-    AssetFixture shipProject(Layer owner, String path, CharSequence content) {
-        Path file = this.directory.resolve("airness/project-files/" + owner.id()).resolve(path + SUFFIX);
+    AssetFixture shipProject(String path, CharSequence content) {
+        Path file = this.directory.resolve("airness/project-files/" + Layer.NODE.id()).resolve(path + SUFFIX);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);
         return this;

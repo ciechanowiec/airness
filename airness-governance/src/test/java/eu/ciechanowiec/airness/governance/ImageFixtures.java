@@ -65,7 +65,7 @@ final class ImageFixtures {
     }
 
     static byte[] jpeg() {
-        return joined(jpegStart(), jpegSegment(JPEG_COMMENT, "Airness"), jpegScan(), jpegEnd());
+        return joined(jpegStart(), jpegComment(), jpegScan(), jpegEnd());
     }
 
     static byte[] jpegStart() {
@@ -76,8 +76,8 @@ final class ImageFixtures {
         return new byte[] {(byte) MARKER, (byte) JPEG_END};
     }
 
-    static byte[] jpegSegment(int marker, String body) {
-        return jpegSegment(marker, body.getBytes(StandardCharsets.ISO_8859_1));
+    static byte[] jpegComment() {
+        return jpegSegment(JPEG_COMMENT, "Airness".getBytes(StandardCharsets.ISO_8859_1));
     }
 
     // A segment's length counts its own two bytes and the body, never the marker.

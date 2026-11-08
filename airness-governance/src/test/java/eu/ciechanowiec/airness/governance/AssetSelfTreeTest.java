@@ -43,7 +43,7 @@ class AssetSelfTreeTest {
             .ship(CONFIGURATION, SHIPPED)
             .ship(EDITORCONFIG, EDITOR)
             .ship(GITIGNORE, SEEDED)
-            .shipProject(Layer.NODE, ESLINT, LINT)
+            .shipProject(ESLINT, LINT)
             .shipSelf(Layer.GENERIC, CONFIGURATION, ADDITION)
             .shipSelf(Layer.GENERIC, GITIGNORE, "never added\n")
             .shipSelf(Layer.NODE, ESLINT, "never added\n")
