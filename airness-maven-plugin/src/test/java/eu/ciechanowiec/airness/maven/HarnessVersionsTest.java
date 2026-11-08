@@ -1,6 +1,8 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
@@ -52,6 +54,13 @@ class HarnessVersionsTest {
                 )
             ).value()
         );
+    }
+
+    @Test
+    void readsOnlyAPackageAnAirnessParentVersionsAsAHarnessPackage() {
+        assertTrue(HarnessVersions.harnessPackage("@airness/node"));
+        assertFalse(HarnessVersions.harnessPackage("@airness/nodes"));
+        assertFalse(HarnessVersions.harnessPackage("react"));
     }
 
     @Test

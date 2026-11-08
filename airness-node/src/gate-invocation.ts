@@ -2,8 +2,8 @@
 // [--verbose]`, the result file it writes in the contract `airness:node-gate` reads, and the console lines
 // that report it. A stack layer's command runs its own gates through the same shape, so a fix to parsing or
 // reporting reaches every gate at once.
-import { writeFileSync } from 'node:fs'
 import type { GateStatus, MemberOutcome, ResultFile } from './gate-result.js'
+import { writeJson } from './project.js'
 
 /** One parsed `gate` invocation. */
 export interface GateInvocation {
@@ -26,7 +26,6 @@ const STATUS_LABELS: Readonly<Record<GateStatus, string>> = {
 }
 const RESULT_OPTION: string = '--result'
 const VERBOSE_OPTION: string = '--verbose'
-const JSON_INDENT: number = 2
 // Wide enough for the longest gate identifier, so the listing stays aligned.
 const GATE_ID_COLUMN: number = 22
 
@@ -81,7 +80,7 @@ export const printOutputs = (gateId: string, outcomes: readonly MemberOutcome[])
  */
 export const reportGate = (invocation: GateInvocation, result: ResultFile): number => {
   if (invocation.result !== undefined) {
-    writeFileSync(invocation.result, `${JSON.stringify(result, null, JSON_INDENT)}\n`)
+    writeJson(invocation.result, result)
   }
   console.info(`${STATUS_LABELS[result.status]} ${invocation.id}  ${result.summary}`)
   for (const finding of result.findings) {

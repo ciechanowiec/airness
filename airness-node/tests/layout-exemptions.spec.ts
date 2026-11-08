@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { EXEMPTIBLE_RULES } from '@/browser-exemptions.js'
-import { findLayoutDefects, LAYOUT_MINIMUM_GAP } from '@/layout-defects.js'
+import { findLayoutDefects } from '@/layout-defects.js'
 import type { LayoutNode, LayoutSnapshot } from '@/layout-snapshot.js'
+import { LAYOUT_MINIMUM_GAP } from '@/settings.js'
 import { BODY, defectsOf, nodeOf, RED, rect, snapshotOf, TINT } from './helpers/layout-fixture.js'
 
 const attachedTab = (exemption: Partial<LayoutNode>, panelTop: number = 40): readonly LayoutNode[] => [

@@ -60,7 +60,7 @@ public final class GeneratedDenialMojo extends AbstractRepositoryMojo {
         Path root = this.repositoryRoot();
         List<String> generated = denied(
             root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
-            Sentinel.optional(this.declared), Sentinel.optional(this.unmanaged)
+            CommaList.entries(this.declared), CommaList.entries(this.unmanaged)
         );
         this.getLog().info(
             "Generated-file denial read " + generated.size() + " generated and pinned file(s) the stack layers and"

@@ -1,7 +1,6 @@
 // The gates this package ships. Each one judges one member at a time; `node-gate` runs each in every
 // declared node project through `airness-node gate <id> --result <file>`.
 
-import { type GateContext, type GateResult, notApplicable } from './exec.js'
 import { hasScriptSources } from './facets.js'
 import { architecture } from './gate-architecture.js'
 import { biome } from './gate-biome.js'
@@ -18,6 +17,7 @@ import { npmInventory } from './gate-npm-inventory.js'
 import { npmSbom } from './gate-npm-sbom.js'
 import { oxlint } from './gate-oxlint.js'
 import { releaseAge } from './gate-release-age.js'
+import { type GateContext, type GateResult, notApplicable } from './gate-result.js'
 import { sourceRules } from './gate-source-rules.js'
 import { tailwindTokens } from './gate-tailwind-tokens.js'
 import { tests } from './gate-tests.js'

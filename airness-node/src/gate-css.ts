@@ -4,8 +4,9 @@
 // would decide which rules or files the verdict reads.
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { failed, fromRun, type GateResult, notApplicable, passed, type RunResult, runNode } from './exec.js'
+import { fromRun, type RunResult, runNode } from './exec.js'
 import { hasExtension, isWithinSourceRoots, STYLESHEET_EXTENSIONS } from './file-roles.js'
+import { failed, type GateResult, notApplicable, passed } from './gate-result.js'
 import { harnessDirectory, type Member, resolveTool } from './project.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'
 import { presentWorkingTreeFiles } from './working-tree.js'

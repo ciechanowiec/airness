@@ -3,6 +3,7 @@
 // and exact. Which packages a project trusts is the project's decision, so the rule asks only that every
 // dependency with an install script is decided, and that every decision is about one.
 import { isRecord } from './json-shapes.js'
+import { WORKSPACE_FILE } from './yaml-blocks.js'
 
 /** The key of pnpm-workspace.yaml that records each install-script decision. */
 const ALLOW_BUILDS: string = 'allowBuilds'
@@ -36,8 +37,6 @@ export interface InstallScriptInputs {
    */
   readonly elsewhere: readonly ScriptedPackage[]
 }
-
-const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
 
 const isDecidedBy = (key: string, scripted: ScriptedPackage): boolean =>
   key === scripted.name || key === `${scripted.name}@${scripted.version}`

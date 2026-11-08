@@ -15,7 +15,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
-import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
 
 /**
@@ -29,7 +28,7 @@ import org.apache.maven.project.MavenProject;
 @UtilityClass
 final class Closing {
 
-    private static final String HEADLINE = "Committable files changed during the build";
+    static final String HEADLINE = "Committable files changed during the build";
     private static final String MOVED
         = "The working tree content differs from the snapshot the first module took at validate, so a build step"
             + " wrote to a tracked file or the tree was edited while the build ran";
@@ -37,7 +36,6 @@ final class Closing {
     private static final List<String> OUTPUT = List.of("node_modules", "dist", ".next", "target");
     private static final String TESTS = "tests";
     private static final Pattern SPEC = Pattern.compile(".*\\.(?:spec|test)\\.[cm]?[jt]sx?");
-    private static final String AIRNESS_PLUGIN = "eu.ciechanowiec:airness-maven-plugin";
 
     /**
      * The modules whose completion closing waits for: every participating module that binds module-complete.
@@ -143,10 +141,6 @@ final class Closing {
     }
 
     private static boolean completes(MavenProject project) {
-        return project.getBuildPlugins().stream()
-            .filter(plugin -> AIRNESS_PLUGIN.equals(plugin.getGroupId() + ':' + plugin.getArtifactId()))
-            .flatMap(plugin -> plugin.getExecutions().stream())
-            .map(PluginExecution::getGoals)
-            .anyMatch(goals -> goals.contains(CompletionOrder.GOAL));
+        return AirnessCoordinates.bindsGoal(project.getBuildPlugins(), CompletionOrder.GOAL);
     }
 }

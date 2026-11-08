@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.apache.maven.model.Plugin;
-import org.apache.maven.model.PluginExecution;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -25,10 +24,11 @@ import org.jspecify.annotations.Nullable;
  */
 record NodeProjects(List<NodeProject> projects) {
 
-    private static final String PLUGIN_GROUP = "eu.ciechanowiec";
-    private static final String PLUGIN = "airness-maven-plugin";
+    /**
+     * The Maven property a module declares its node projects in.
+     */
+    static final String PROPERTY = "airness.node.projects";
     private static final String NODE_RUN = "node-run";
-    private static final String PROPERTY = "airness.node.projects";
 
     /**
      * Copies the list, so it cannot change after the declaration was read.
@@ -49,7 +49,7 @@ record NodeProjects(List<NodeProject> projects) {
     static NodeProjects of(Path basedir, @Nullable String declared) {
         Path module = basedir.toAbsolutePath().normalize();
         return new NodeProjects(
-            Sentinel.optional(declared).stream()
+            CommaList.entries(declared).stream()
                 .map(entry -> NodeProject.of(module, entry))
                 .distinct()
                 .toList()
@@ -116,11 +116,7 @@ record NodeProjects(List<NodeProject> projects) {
      * @return whether any execution of the Airness plugin runs node-run
      */
     static boolean buildsWithNodeRun(Collection<Plugin> plugins) {
-        return plugins.stream()
-            .filter(plugin -> PLUGIN_GROUP.equals(plugin.getGroupId()) && PLUGIN.equals(plugin.getArtifactId()))
-            .flatMap(plugin -> plugin.getExecutions().stream())
-            .map(PluginExecution::getGoals)
-            .anyMatch(goals -> goals.contains(NODE_RUN));
+        return AirnessCoordinates.bindsGoal(plugins, NODE_RUN);
     }
 
     /**
@@ -133,7 +129,6 @@ record NodeProjects(List<NodeProject> projects) {
 
         private static final String MODULE = ".";
         private static final String PARENT = "..";
-        private static final String MANIFEST = "package.json";
 
         static NodeProject of(Path module, String entry) {
             Path directory = module.resolve(entry).normalize();
@@ -156,7 +151,7 @@ record NodeProjects(List<NodeProject> projects) {
          * @return whether it is a node project at all
          */
         boolean hasManifest() {
-            return Files.isRegularFile(this.directory.resolve(MANIFEST));
+            return Files.isRegularFile(this.directory.resolve(NodeManifests.MANIFEST));
         }
 
         /**
@@ -176,7 +171,7 @@ record NodeProjects(List<NodeProject> projects) {
          */
         boolean declaresScript(String script) {
             try {
-                return new ObjectMapper().readTree(this.directory.resolve(MANIFEST).toFile())
+                return new ObjectMapper().readTree(this.directory.resolve(NodeManifests.MANIFEST).toFile())
                     .path("scripts")
                     .path(script)
                     .isTextual();

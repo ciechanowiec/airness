@@ -91,11 +91,9 @@ public final class TemplateReachCheck {
 
         private static final String NAMES = "#";
 
-        private static final Set<String> FRAGMENTS = Set.of("th:fragment", "data-th-fragment");
+        private static final Set<String> FRAGMENTS = ThymeleafAttribute.spellings("fragment");
 
-        private static final Set<String> REPLACEMENTS = Set.of(
-            "th:replace", "th:insert", "data-th-replace", "data-th-insert"
-        );
+        private static final Set<String> REPLACEMENTS = ThymeleafAttribute.spellings("replace", "insert");
 
         private final Path named;
 

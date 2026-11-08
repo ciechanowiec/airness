@@ -1,9 +1,9 @@
 // Full type coverage on hand-written logic: no implicit or explicit `any`, and no type assertion, survives.
-import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { failed, fromRun, type GateResult, runNode } from './exec.js'
+import { fromRun, runNode } from './exec.js'
+import { failed, type GateResult } from './gate-result.js'
 import { asRecord, asStringRecord, isArray } from './json-shapes.js'
-import { harnessDirectory, type Member, readJson, resolveTool } from './project.js'
+import { harnessDirectory, type Member, readJson, resolveTool, writeJson } from './project.js'
 
 // Roles with no hand-written type surface to measure. The list must never be empty: type-coverage also
 // reads a `typeCoverage` key from the project's package.json, and a command-line `--ignore-files` replaces
@@ -20,8 +20,6 @@ const TYPE_COVERAGE_IGNORE: readonly string[] = [
   '.next/**',
   'next-env.d.ts',
 ]
-
-const JSON_INDENT: number = 2
 
 // The compiler options that name a path, which the rendered configuration must spell absolutely because it
 // lives in another directory than the configuration that declared them.
@@ -67,8 +65,7 @@ const renderedTsconfig = (member: Member): string => {
     include: texts(own['include']).map((pattern: string): string => absolute(pattern)),
     exclude: texts(own['exclude']).map((pattern: string): string => absolute(pattern)),
   }
-  mkdirSync(directory, { recursive: true })
-  writeFileSync(rendered, `${JSON.stringify(config, null, JSON_INDENT)}\n`)
+  writeJson(rendered, config)
   return rendered
 }
 

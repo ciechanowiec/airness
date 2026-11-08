@@ -39,11 +39,6 @@ public final class TemplateExpressionCheck {
         = "is written where nothing evaluates it, so the engine refuses the value on the first request "
             + "that draws it. Put the call inside the expression that needs it";
 
-    private static final String THYMELEAF = "th:";
-
-    // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
-    private static final String THYMELEAF_DATA = "data-th-";
-
     private final MarkupScan scan;
 
     /**
@@ -114,8 +109,7 @@ public final class TemplateExpressionCheck {
         // over.
         private static boolean carries(String attribute) {
             String spelled = attribute.toLowerCase(Locale.ROOT);
-            boolean dialect = spelled.startsWith(THYMELEAF) || spelled.startsWith(THYMELEAF_DATA);
-            return dialect && !TemplateFragmentCheck.declares(spelled);
+            return ThymeleafAttribute.isDialect(spelled) && !TemplateFragmentCheck.declares(spelled);
         }
     }
 }

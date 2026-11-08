@@ -57,7 +57,6 @@ final class FrontendCoverage {
      */
     static final List<String> CHECKED = Stream.concat(SCRIPTS.stream(), STYLESHEETS.stream()).toList();
     private static final List<String> UNREAD = List.of(".sass", ".less");
-    private static final String MANIFEST = "package.json";
     private static final String INSTALLED = "node_modules";
     private static final String DEPENDENCY = "; if it is a third-party distribution, take it from a dependency "
         + "(a WebJar, or an npm package the build copies) instead of keeping a copy";
@@ -208,7 +207,7 @@ final class FrontendCoverage {
         }
 
         private boolean owns(Path directory) {
-            boolean member = Files.isRegularFile(directory.resolve(MANIFEST))
+            boolean member = Files.isRegularFile(directory.resolve(NodeManifests.MANIFEST))
                 && this.workspaces.stream().anyMatch(workspace -> workspace.covers(directory));
             return member || this.projects.contains(directory);
         }

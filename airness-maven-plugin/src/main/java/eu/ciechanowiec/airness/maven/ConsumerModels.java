@@ -22,9 +22,6 @@ import org.eclipse.aether.SessionData;
 @UtilityClass
 final class ConsumerModels {
 
-    private static final String AIRNESS_GROUP = "eu.ciechanowiec";
-    private static final String AIRNESS_PLUGIN = "airness-maven-plugin";
-
     static List<String> problems(MavenProject project, SessionData data, LocalRepository repository) {
         return Stream.iterate(project, Objects::nonNull, MavenProject::getParent)
             .takeWhile(parent -> !RepositoryProjects.harnessParent(parent))
@@ -44,7 +41,7 @@ final class ConsumerModels {
     static Set<String> inherited(MavenProject project) {
         return Optional.ofNullable(project.getParent()).stream()
             .flatMap(ConsumerModels::plugins)
-            .filter(ConsumerModels::airness)
+            .filter(AirnessCoordinates::isPlugin)
             .flatMap(plugin -> plugin.getExecutions().stream())
             .map(PluginExecution::getId)
             .collect(Collectors.toUnmodifiableSet());
@@ -58,10 +55,6 @@ final class ConsumerModels {
         Stream<Plugin> managed = Optional.ofNullable(project.getPluginManagement()).stream()
             .flatMap(management -> management.getPlugins().stream());
         return Stream.concat(project.getBuildPlugins().stream(), managed);
-    }
-
-    private static boolean airness(Plugin plugin) {
-        return AIRNESS_GROUP.equals(plugin.getGroupId()) && AIRNESS_PLUGIN.equals(plugin.getArtifactId());
     }
 
     private static Stream<String> pomProblems(Path pom, Set<String> inherited) {

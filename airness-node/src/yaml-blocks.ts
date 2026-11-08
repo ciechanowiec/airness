@@ -2,7 +2,8 @@
 import { parseDocument } from 'yaml'
 import { isArray, isRecord } from './json-shapes.js'
 
-const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
+/** The pnpm workspace file of a node project, at its root. */
+export const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
 const MAX_ALIAS_COUNT: number = 100
 const PLAIN_MAPPING_PROTOTYPE: unknown = Object.getPrototypeOf({})
 

@@ -1,5 +1,5 @@
 // Text that overlaps other text, text cut off by its own box, and a page wider than its viewport.
-import { intersectionOf, outerBoxOf, textClippingAncestor, visibleRectsOf } from './layout-clip.js'
+import { intersectionOf, outerBoxOf, STATIC_POSITION, textClippingAncestor, visibleRectsOf } from './layout-clip.js'
 import {
   hasArea,
   isAncestorOf,
@@ -65,8 +65,6 @@ const isIntersecting = (first: LayoutRect, second: LayoutRect): boolean => {
   return shared.right - shared.left > TEXT_OVERLAP_TOLERANCE && shared.bottom - shared.top > TEXT_OVERLAP_TOLERANCE
 }
 
-const STATIC: string = 'static'
-
 // What of an element's text a reader can see: each line box, cut by every ancestor that clips it.
 const visibleLineBoxesOf = (snapshot: LayoutSnapshot, node: LayoutNode): readonly LayoutRect[] =>
   visibleRectsOf(snapshot, node, lineBoxesOf(node))
@@ -84,7 +82,7 @@ const stackLevelOf = (node: LayoutNode): number => (node.zIndex === 'auto' ? 0 :
 const nearestPositioned = (snapshot: LayoutSnapshot, node: LayoutNode, other: LayoutNode): LayoutNode | undefined =>
   [node, ...ancestorsOf(snapshot, node)].find(
     (candidate: LayoutNode): boolean =>
-      candidate.position !== STATIC && !isSelfOrAncestorOf(snapshot, candidate, other),
+      candidate.position !== STATIC_POSITION && !isSelfOrAncestorOf(snapshot, candidate, other),
   )
 
 const coversRegion = (outer: LayoutRect, inner: LayoutRect): boolean =>

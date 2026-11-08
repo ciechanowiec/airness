@@ -4,21 +4,20 @@
 // name of the shipped Vitest configuration, which knip cannot see from a member that keeps no copy of it, and a
 // declared stack layer package as used, because the harness reads it by name: node-gate runs its gates and the
 // layer seams read its defaults, ESLint blocks and end-to-end specifications, none of which an import shows.
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { localEnvironment } from './environment-files.js'
-import { fromRun, type GateResult, runNode } from './exec.js'
+import { fromRun, runNode } from './exec.js'
+import type { GateResult } from './gate-result.js'
 import { HARNESS_PACKAGE } from './harness-packages.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
 import { LAYER_NAMES } from './layer.js'
-import { harnessDirectory, type Member, readJson, resolveTool } from './project.js'
+import { harnessDirectory, type Member, readJson, resolveTool, writeJson } from './project.js'
 import { allowedJavaScriptFiles } from './source-selection.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
-
-const JSON_INDENT: number = 2
 
 // The harness itself reaches these by name, through the manifest resolution the gates share, which knip
 // cannot follow; and it runs its own gates through its link to itself. It also pins `type-coverage-core`, which
@@ -108,7 +107,7 @@ const knipConfig = (member: Member, layers: readonly string[]): string => {
     // member's tool configurations without that member's environment. Each member is judged by its own run.
     ignoreWorkspaces: [...texts(shipped['ignoreWorkspaces']), ...member.siblingPaths],
   }
-  writeFileSync(rendered, `${JSON.stringify(config, null, JSON_INDENT)}\n`)
+  writeJson(rendered, config)
   return rendered
 }
 

@@ -37,7 +37,7 @@ import org.w3c.dom.Node;
 @UtilityClass
 public final class ManagedVersions {
 
-    private static final String MAVEN_PLUGIN_GROUP = "org.apache.maven.plugins";
+    private static final String MAVEN_PLUGIN_GROUP = DeclaredCoordinates.MAVEN_PLUGIN_GROUP;
 
     private static final String AIRNESS_GROUP = "eu.ciechanowiec";
 

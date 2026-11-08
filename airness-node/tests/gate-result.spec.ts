@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { failed, passed } from '@/exec.js'
-import { crashedResult, RESULT_CONTRACT, type ResultFile, resultOf } from '@/gate-result.js'
+import { crashedResult, failed, passed, RESULT_CONTRACT, type ResultFile, resultOf } from '@/gate-result.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 describe('the result file', PROCESS_TIME, () => {

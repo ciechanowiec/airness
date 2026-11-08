@@ -1,8 +1,9 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  jsonText,
   type Member,
   membersOf,
   packageDirectory,
@@ -10,6 +11,7 @@ import {
   readText,
   resolvedVersion,
   resolveTool,
+  writeJson,
 } from '@/project.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { removeProject, temporaryProject } from './helpers/temporary-project.js'
@@ -90,6 +92,25 @@ describe('the harness tools', PROCESS_TIME, () => {
     try {
       expect(readJson(path.join(root, 'a.json'))).toStrictEqual({ a: 1, b: [2] })
       expect(readJson(path.join(root, 'broken.json'))).toBeUndefined()
+    } finally {
+      removeProject(root)
+    }
+  })
+})
+
+describe('the JSON the harness writes', PROCESS_TIME, () => {
+  it('reads as text indented by two spaces, without a final newline', () => {
+    expect(jsonText({ gate: 'knip', findings: ['one'] })).toBe(
+      '{\n  "gate": "knip",\n  "findings": [\n    "one"\n  ]\n}',
+    )
+  })
+
+  it('is written with a final newline into the directory it names, creating it', () => {
+    const root: string = temporaryProject({})
+    try {
+      const file: string = path.join(root, 'evidence', 'nested', 'result.json')
+      writeJson(file, { status: 'passed' })
+      expect(readFileSync(file, 'utf8')).toBe('{\n  "status": "passed"\n}\n')
     } finally {
       removeProject(root)
     }

@@ -1,8 +1,9 @@
 // Formatting is an explicit write operation. Its tools share the gates' selection and configuration.
-import type { GateResult } from './exec.js'
+
 import { biomeWrite } from './gate-biome.js'
 import { cssWrite } from './gate-css.js'
 import { eslintWrite } from './gate-eslint.js'
+import type { GateResult } from './gate-result.js'
 import { type Member, membersOf } from './project.js'
 
 const formatMember = (member: Member): number => {

@@ -1,0 +1,16 @@
+name: 'Pull the pinned check images'
+description: 'Starts pulling every check image the root pom.xml pins, detached, so the pull overlaps the build.'
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Pull the pinned check images while the build runs'
+      shell: bash
+      run: |
+        set -eu
+        sed -n 's|^ *<[a-z]*\.image>\(.*\)</[a-z]*\.image> *$|\1|p' pom.xml > "$RUNNER_TEMP/images.txt"
+        test -s "$RUNNER_TEMP/images.txt"
+        cat "$RUNNER_TEMP/images.txt"
+        # Detached on purpose: these have to outlive the step so that a multi-gigabyte pull happens
+        # while Maven compiles rather than when the first check asks for the image.
+        nohup xargs -n 1 docker pull --quiet < "$RUNNER_TEMP/images.txt" \
+          > "$RUNNER_TEMP/image-pull.log" 2>&1 &

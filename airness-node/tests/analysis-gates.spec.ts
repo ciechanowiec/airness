@@ -1,9 +1,9 @@
 // The architecture, type-coverage, dead-code and suite gates against real projects in temporary working
 // trees: one conforming project, and one planted defect per gate.
 import { describe, expect, it } from 'vitest'
-import type { GateResult } from '@/exec.js'
 import { architecture } from '@/gate-architecture.js'
 import { knip } from '@/gate-knip.js'
+import type { GateResult } from '@/gate-result.js'
 import { tests } from '@/gate-tests.js'
 import { typeCoverage } from '@/gate-type-coverage.js'
 import { type Gate, gateById } from '@/gates.js'

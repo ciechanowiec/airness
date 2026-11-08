@@ -8,7 +8,7 @@ import {
   findMissingConfigReferences,
 } from './config-references.js'
 import { blanketExclusionFindings, measurableFiles } from './coverage-policy.js'
-import { failed, type GateResult, passed } from './exec.js'
+import { failed, type GateResult, passed } from './gate-result.js'
 import { harnessDirectory, type Member } from './project.js'
 import { skipRouteFindings } from './route-exclusions.js'
 import { appRootOf, type DeclaredRoute, declaredRoutesOf } from './route-map.js'

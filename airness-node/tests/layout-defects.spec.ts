@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import {
-  findLayoutDefects,
-  LAYOUT_MINIMUM_GAP,
-  LAYOUT_VIEWPORTS,
-  type LayoutViewport,
-  layoutViewportsWith,
-} from '@/layout-defects'
+import type { Viewport } from '@/browser-findings'
+import { BASELINE_VIEWPORTS } from '@/browser-viewports'
+import { findLayoutDefects, layoutViewportsWith } from '@/layout-defects'
 import { isVisibleColor, keyOf, type LayoutNode, type LayoutSnapshot } from '@/layout-snapshot'
+import { LAYOUT_MINIMUM_GAP } from '@/settings'
 import {
   BODY,
   defectsOf,
@@ -477,16 +474,19 @@ describe('what is not compared', () => {
   })
 })
 
-const widthsOf = (viewports: readonly LayoutViewport[]): readonly number[] =>
-  viewports.map((viewport: LayoutViewport): number => viewport.width)
+const widthsOf = (viewports: readonly Viewport[]): readonly number[] =>
+  viewports.map((viewport: Viewport): number => viewport.width)
 
 describe('the viewports a scan runs at', () => {
   it('keeps every baseline width when a project adds its own', () => {
-    expect(widthsOf(layoutViewportsWith([{ width: 1366, height: 768 }]))).toEqual([...widthsOf(LAYOUT_VIEWPORTS), 1366])
+    expect(widthsOf(layoutViewportsWith([{ width: 1366, height: 768 }]))).toEqual([
+      ...widthsOf(BASELINE_VIEWPORTS),
+      1366,
+    ])
   })
 
   it('measures a viewport a project repeats only once', () => {
-    expect(widthsOf(layoutViewportsWith([{ width: 390, height: 844 }]))).toEqual(widthsOf(LAYOUT_VIEWPORTS))
+    expect(widthsOf(layoutViewportsWith([{ width: 390, height: 844 }]))).toEqual(widthsOf(BASELINE_VIEWPORTS))
   })
 
   it('reports a defect at each viewport it appears at', () => {

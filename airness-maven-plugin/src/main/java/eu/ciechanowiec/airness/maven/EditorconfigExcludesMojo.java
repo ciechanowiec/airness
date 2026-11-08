@@ -106,7 +106,7 @@ public final class EditorconfigExcludesMojo extends AbstractPreflightMojo {
             }
             List<String> generated = GeneratedDenialMojo.generated(
                 root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
-                Sentinel.optional(declared)
+                CommaList.entries(declared)
             );
             Map<String, List<String>> update = new HashMap<>(known);
             update.put(key, generated);

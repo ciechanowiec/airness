@@ -21,6 +21,7 @@ import {
   type OwnershipFailure,
   ownerLabelArguments,
 } from './owned-containers.js'
+import { pause, subscribeToStops } from './process-tree.js'
 import { guardArguments, removeByPrefix } from './services-guard.js'
 
 /** One container a run needs. */
@@ -106,7 +107,6 @@ export interface ServicesRuntime {
   readonly report: (line: string) => void
 }
 
-const STOP_SIGNALS: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
 const SIGNAL_NUMBERS: Readonly<Record<string, number>> = {
   SIGHUP: 1,
   SIGINT: 2,
@@ -198,21 +198,8 @@ export const SYSTEM_RUNTIME: ServicesRuntime = {
   docker: (commandArguments: readonly string[]): RunResult => run('docker', commandArguments, { cwd: process.cwd() }),
   start: startCommand,
   claim: (): ContainerOwner | OwnershipFailure => claimOwnership(process.cwd()),
-  pause: async (milliseconds: number): Promise<void> => {
-    await new Promise<void>((resolve): void => {
-      setTimeout(resolve, milliseconds)
-    })
-  },
-  onSignal: (handler: (signal: NodeJS.Signals) => void): (() => void) => {
-    for (const signal of STOP_SIGNALS) {
-      process.on(signal, handler)
-    }
-    return (): void => {
-      for (const signal of STOP_SIGNALS) {
-        process.off(signal, handler)
-      }
-    }
-  },
+  pause,
+  onSignal: subscribeToStops,
   guard: (prefix: string): void => {
     startGuard(prefix)
   },

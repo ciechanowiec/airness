@@ -44,9 +44,9 @@ final class TemplateScopeRules {
     // with this after it.
     private static final String STATUS = "Stat";
 
-    private static final Set<String> WITH = Set.of("th:with", "data-th-with");
+    private static final Set<String> WITH = ThymeleafAttribute.spellings("with");
 
-    private static final Set<String> EACH = Set.of("th:each", "data-th-each");
+    private static final Set<String> EACH = ThymeleafAttribute.spellings("each");
 
     // A name given a value, at the start of a list of assignments or after the comma that ends the one
     // before it. An equals sign inside an expression is a comparison rather than an assignment, and is

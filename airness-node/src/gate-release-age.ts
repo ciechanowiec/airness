@@ -2,7 +2,7 @@
 // publication time of every release the lockfile resolves, read on every run from the registry pnpm
 // fetched it from. A release no registry dates is reported, never passed over.
 import path from 'node:path'
-import { failed, type GateContext, type GateResult, passed } from './exec.js'
+import { failed, type GateContext, type GateResult, passed } from './gate-result.js'
 import { isHarnessPackage } from './harness-packages.js'
 import { LOCKFILE, type Lockfile, lockfileDefect, type ResolvedPackage, readLockfile } from './lockfile.js'
 import { isFromItsRegistry, type NpmConfig, npmConfigOf, registryFor, tokenFor } from './npmrc.js'

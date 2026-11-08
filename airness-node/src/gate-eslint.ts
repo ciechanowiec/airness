@@ -1,7 +1,8 @@
 // The type-aware lint layer, under the shipped ESLint configuration rather than any file the project keeps:
 // the node layer's, with the blocks a declared stack layer adds composed after it by the harness.
 import path from 'node:path'
-import { fromRun, type GateResult, runNode } from './exec.js'
+import { fromRun, runNode } from './exec.js'
+import type { GateResult } from './gate-result.js'
 import { harnessDirectory, type Member, resolveTool } from './project.js'
 import { ignoredWorkingTreePaths } from './working-tree.js'
 import { eslintArguments } from './workspace.js'

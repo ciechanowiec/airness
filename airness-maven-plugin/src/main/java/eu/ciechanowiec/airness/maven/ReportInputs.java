@@ -22,9 +22,6 @@ import org.apache.maven.project.MavenProject;
  */
 final class ReportInputs {
 
-    private static final String FORMAT_FIELD = "bomFormat";
-    private static final String FORMAT = "CycloneDX";
-
     private final Instant started;
     private final OsvScan osv;
 
@@ -51,7 +48,7 @@ final class ReportInputs {
             Files.getLastModifiedTime(bom, LinkOption.NOFOLLOW_LINKS).toInstant().toString(), this.started
         );
         String sbom = Files.readString(bom);
-        if (!FORMAT.equals(parsed.path(FORMAT_FIELD).asText())) {
+        if (!NpmEvidence.CYCLONEDX.equals(parsed.path(NpmEvidence.FORMAT).asText())) {
             throw new IllegalStateException("Invalid CycloneDX evidence for " + project.getId());
         }
         ReportSbom.validate(parsed, dependencies);

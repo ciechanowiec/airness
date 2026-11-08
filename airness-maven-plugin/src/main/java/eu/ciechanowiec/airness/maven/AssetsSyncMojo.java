@@ -96,11 +96,11 @@ public final class AssetsSyncMojo extends AbstractMojo {
         List<String> files = new AssetSync(
             root,
             TreeCatalogue.of(this.project(), root),
-            Sentinel.optional(this.unmanaged),
+            CommaList.entries(this.unmanaged),
             sites
         ).write();
         List<String> denied = GeneratedDenialMojo.denied(
-            root, sites, Sentinel.optional(this.generated), Sentinel.optional(this.unmanaged)
+            root, sites, CommaList.entries(this.generated), CommaList.entries(this.unmanaged)
         ).stream().map(path -> "Edit(" + path + ')').toList();
         boolean settings = ClaudeSettings.add(root.resolve(ClaudeSettings.SHARED), "deny", denied);
         List<String> written = Stream.concat(

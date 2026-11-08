@@ -24,7 +24,6 @@ import java.util.stream.Stream;
  */
 public final class InstructionReferenceCheck {
 
-    private static final String INSTRUCTIONS = "AGENTS.md";
     private static final String STALE
         = "Agent instruction files that name a file which does not exist (fix or remove each reference)";
     private static final String UNDECLARED = "Agent instruction files that name an npm script no package.json "
@@ -49,7 +48,7 @@ public final class InstructionReferenceCheck {
         this.root = root;
         this.manifests = manifests;
         this.documents = Repository.trackedFiles(root).stream()
-            .filter(file -> INSTRUCTIONS.equals(String.valueOf(file.getFileName())))
+            .filter(file -> EntryFileRules.INSTRUCTIONS.equals(String.valueOf(file.getFileName())))
             .sorted()
             .toList();
     }

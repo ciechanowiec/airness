@@ -40,6 +40,7 @@ import java.util.stream.Stream;
  */
 public final class AssetCheck {
 
+    private static final String REDUCTION = " (reduce it to a line that points at " + EntryFileRules.INSTRUCTIONS + ")";
     private static final String DRIFTED = "Files the harness owns that this project changed or is missing";
     private static final String MISSING = "Seeded files that must exist but are missing";
     private static final String PRESENT = "Files that must not be in the tree, since the harness supplies them";
@@ -48,8 +49,6 @@ public final class AssetCheck {
     private static final String UNKNOWN = "Opt-outs naming a path the harness does not own, which is a typo";
     private static final String SECTIONED
         = "Opt-outs naming a file now managed in sections, which can no longer be opted out, so delete these";
-    private static final String INSTRUCTIONS = "AGENTS.md";
-
     private final Path root;
     private final AssetCatalogue catalogue;
     private final Set<String> unmanaged;
@@ -145,7 +144,7 @@ public final class AssetCheck {
     private List<String> stated() {
         return this.managed(AssetPolicy.REFERENCE)
             .filter(placement -> this.text(placement.file()).filter(AssetCheck::statesRules).isPresent())
-            .map(placement -> placement.file() + " (reduce it to a line that points at " + INSTRUCTIONS + ")")
+            .map(placement -> placement.file() + REDUCTION)
             .toList();
     }
 
@@ -198,7 +197,7 @@ public final class AssetCheck {
     // is this file stating a rule of its own, and an empty file points nowhere.
     private static boolean statesRules(String content) {
         List<String> stated = content.lines().map(String::strip).filter(line -> !line.isEmpty()).toList();
-        return stated.isEmpty() || !stated.stream().allMatch(line -> line.contains(INSTRUCTIONS));
+        return stated.isEmpty() || !stated.stream().allMatch(line -> line.contains(EntryFileRules.INSTRUCTIONS));
     }
 
     private Path path(String file) {

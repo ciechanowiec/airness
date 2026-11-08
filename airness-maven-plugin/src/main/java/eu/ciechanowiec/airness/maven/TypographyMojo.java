@@ -61,7 +61,7 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
         Path root = this.repositoryRoot();
         List<String> owned = GeneratedDenialMojo.generated(
             root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
-            Sentinel.optional(this.generated)
+            CommaList.entries(this.generated)
         );
         TypographyScanCheck check = new TypographyScanCheck(root, this.exclusions(), owned);
         this.getLog().info("Typography left " + check.generated() + " generated file(s) unread");
@@ -76,7 +76,7 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
     }
 
     private List<String> exclusions() {
-        Stream<String> configured = Sentinel.optional(this.excludes).stream();
+        Stream<String> configured = CommaList.entries(this.excludes).stream();
         Stream<String> fixtures = RepositoryProjects.selfTree(this.project(), this.repositoryRoot())
             ? SELF_FIXTURES.stream() : Stream.empty();
         return Stream.concat(configured, fixtures).distinct().toList();

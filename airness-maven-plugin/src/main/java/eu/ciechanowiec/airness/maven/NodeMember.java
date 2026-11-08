@@ -22,7 +22,6 @@ import java.util.stream.Stream;
  */
 record NodeMember(Path root, List<String> roots, List<PathMatcher> generated) {
 
-    private static final String MANIFEST = "package.json";
     private static final List<String> DEFAULT_ROOTS = List.of("src", "scripts");
     private static final String TESTS = "tests";
     private static final String WHOLE = ".";
@@ -51,7 +50,7 @@ record NodeMember(Path root, List<String> roots, List<PathMatcher> generated) {
     static NodeMember of(Path project, Path source) {
         Path member = Stream.iterate(source.getParent(), Objects::nonNull, Path::getParent)
             .takeWhile(directory -> directory.startsWith(project))
-            .filter(directory -> Files.isRegularFile(directory.resolve(MANIFEST)))
+            .filter(directory -> Files.isRegularFile(directory.resolve(NodeManifests.MANIFEST)))
             .findFirst().orElse(project);
         return at(member);
     }
@@ -63,7 +62,7 @@ record NodeMember(Path root, List<String> roots, List<PathMatcher> generated) {
      * @return the member, with no added roots or generated files when it holds no readable manifest
      */
     static NodeMember at(Path member) {
-        JsonNode settings = settings(member.resolve(MANIFEST));
+        JsonNode settings = settings(member.resolve(NodeManifests.MANIFEST));
         return new NodeMember(
             member,
             Stream.concat(DEFAULT_ROOTS.stream(), settings.path("sourceRoots").valueStream().map(JsonNode::asText))

@@ -4,8 +4,9 @@ import { clockedEnvironment } from './clock-environment.js'
 // the member's own `next`, so the build is of the framework version the member locked, and records the build
 // it produced, so the later gates judge this build of this tree and no other. Next writes its output to the
 // member's ignored build directory, so the working tree stays as it was.
-import { failed, fromRun, type GateResult, notApplicable } from './exec.js'
+import { fromRun } from './exec.js'
 import { isNextApp } from './facets.js'
+import { failed, type GateResult, notApplicable } from './gate-result.js'
 import { memberBin } from './member-tools.js'
 import { buildDirectoryOf, forgetBuild, NEXT_ENVIRONMENT, stampBuild } from './next-build.js'
 import type { Member } from './project.js'

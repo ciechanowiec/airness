@@ -2,7 +2,6 @@ package eu.ciechanowiec.airness.maven;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
@@ -21,21 +20,18 @@ import org.apache.maven.project.MavenProject;
 @UtilityClass
 final class JavaParents {
 
-    private static final String GROUP = "eu.ciechanowiec";
-    private static final String JAVA_PARENT = "airness-parent-java";
     private static final String JAVA_SUFFIX = ".java";
 
     static Optional<String> problem(MavenProject project) {
         return Optional.of(
-            "This module has Java sources but does not inherit " + GROUP + ':' + JAVA_PARENT
-                + ", so no Java rule applies to it. Name " + JAVA_PARENT
+            "This module has Java sources but does not inherit " + AirnessCoordinates.GROUP + ':'
+                + AirnessCoordinates.JAVA_PARENT + ", so no Java rule applies to it. Name "
+                + AirnessCoordinates.JAVA_PARENT
                 + " (or airness-parent-spring-boot for a Spring Boot project) as its parent instead of airness-parent"
-        ).filter(_ -> holdsJava(project.getBasedir().toPath()) && !inheritsJavaParent(project));
-    }
-
-    private static boolean inheritsJavaParent(MavenProject project) {
-        return Stream.iterate(project.getParent(), Objects::nonNull, MavenProject::getParent)
-            .anyMatch(parent -> GROUP.equals(parent.getGroupId()) && JAVA_PARENT.equals(parent.getArtifactId()));
+        ).filter(
+            _ -> holdsJava(project.getBasedir().toPath())
+                && !AirnessCoordinates.inherits(project, AirnessCoordinates.JAVA_PARENT)
+        );
     }
 
     private static boolean holdsJava(Path basedir) {

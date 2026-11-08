@@ -1,6 +1,6 @@
 // What every pass of the managed browser sweep shares: the browser surface its page functions touch,
 // the files the passes hand each other, loading a location, and the budget each pass runs under.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, type Page, type TestInfo, test } from '@playwright/test'
 import {
@@ -15,10 +15,10 @@ import {
   type BrowserFinding,
   distinctFindings,
   type FindingPlace,
-  type FindingViewport,
   failingPlaces,
   findingAt,
   findingLine,
+  type Viewport,
 } from './browser-findings.js'
 import { allowedOrigins, isAllowedRequest, PAGE_ERROR_RULE } from './browser-health.js'
 import { FONT_LOAD_RULE, RESTING_ELEMENT_RULES } from './browser-rules.js'
@@ -37,6 +37,7 @@ import { isArray, isRecord } from './json-shapes.js'
 import { outlineElements } from './layout.js'
 import { type JudgedPage, LAYOUT_RULES } from './layout-defects.js'
 import { adoptStyle } from './page-style.js'
+import { writeJson } from './project.js'
 import { projectSettings } from './project-settings.js'
 import { engineOf, type HealthReading, healthFindings, type PlaceScan } from './scanner.js'
 import { passStartLine } from './sweep-progress.js'
@@ -184,7 +185,7 @@ const TIMEOUT_GRACE_MS: number = 120_000
 
 const STORY_RENDER_MS: number = 30_000
 
-export const DESKTOP: FindingViewport = { width: 1280, height: 800 }
+export const DESKTOP: Viewport = { width: 1280, height: 800 }
 
 // ---------------------------------------------------------------------------------------------------
 // Files
@@ -204,18 +205,6 @@ export const sweepRoot = (info: TestInfo): string => path.join(info.project.outp
  * @returns the directory.
  */
 const engineDirectory = (info: TestInfo, engine: string): string => path.join(sweepRoot(info), engine)
-
-const JSON_INDENT: number = 2
-
-/**
- * Write a value as indented JSON, creating its directory.
- * @param file the file to write.
- * @param value the value.
- */
-export const writeJson = (file: string, value: unknown): void => {
-  mkdirSync(path.dirname(file), { recursive: true })
-  writeFileSync(file, `${JSON.stringify(value, null, JSON_INDENT)}\n`)
-}
 
 const parsedJson = (file: string): unknown => {
   try {
@@ -387,7 +376,7 @@ const hasStoryFailedInPage = (): boolean => document.querySelector('body.sb-show
 export const loadLocation = async (
   page: Page,
   location: SweepLocation,
-  viewport: FindingViewport,
+  viewport: Viewport,
   place: FindingPlace & { readonly motion?: 'reduce' | 'no-preference' },
 ): Promise<readonly BrowserFinding[]> => {
   await page.emulateMedia({ reducedMotion: place.motion ?? 'reduce' })
@@ -422,7 +411,7 @@ export const loadLocation = async (
 export const placeAt = (
   page: Page,
   location: SweepLocation,
-  viewport: FindingViewport | undefined,
+  viewport: Viewport | undefined,
   state: string,
 ): FindingPlace => ({
   location: location.location,
@@ -693,7 +682,7 @@ export const isChromium = (page: Page): boolean => engineOf(page) === 'chromium'
 /** A location at one viewport, the item most passes visit. */
 export interface PlaceItem {
   readonly location: SweepLocation
-  readonly viewport: FindingViewport
+  readonly viewport: Viewport
 }
 
 /**

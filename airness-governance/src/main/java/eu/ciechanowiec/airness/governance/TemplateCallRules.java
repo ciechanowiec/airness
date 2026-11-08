@@ -46,10 +46,7 @@ final class TemplateCallRules {
 
     // The three attributes that take a fragment expression, under the prefix and under the spelling a
     // document uses when it has to stay valid HTML5.
-    private static final Set<String> CALLERS = Set.of(
-        "th:replace", "th:insert", "th:include",
-        "data-th-replace", "data-th-insert", "data-th-include"
-    );
+    private static final Set<String> CALLERS = ThymeleafAttribute.spellings("replace", "insert", "include");
 
     /**
      * Every fragment expression written at the top of one attribute value.

@@ -21,6 +21,12 @@ export interface PayloadViolation {
   readonly reason: string
 }
 
+/** The call that opens a project's root configuration: `buildConfig({ ... })`. */
+export const BUILD_CONFIG_CALL: string = 'buildConfig('
+
+/** Whether a config's `versions` value enables drafts: `drafts: true`, or a drafts object. */
+export const DRAFTS_ENABLED: RegExp = /drafts\s*:\s*(?:true|\{)/
+
 // Where a key sits directly inside the outermost object literal, rather than inside something nested in
 // it. Searching the text instead would find a field-level `access` block and read it as the collection's
 // own, which is exactly the omission the access rules exist to catch.

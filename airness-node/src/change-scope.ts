@@ -13,9 +13,10 @@ import {
   sweepScopeOf,
   trackingBranch,
 } from './change-scope-policy.js'
-import { failed, type GateResult, type RunResult, run } from './exec.js'
+import { type RunResult, run } from './exec.js'
 import { isNextApp } from './facets.js'
 import { importGraph } from './gate-architecture.js'
+import { failed, type GateResult } from './gate-result.js'
 import { asRecord, declaredDependencies } from './json-shapes.js'
 import { type Member, membersOf } from './project.js'
 import { appRootOf } from './route-map.js'

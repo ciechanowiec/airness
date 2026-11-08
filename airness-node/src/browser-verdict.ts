@@ -1,5 +1,6 @@
 import { playwrightImageOf } from './browser-run.js'
-import { fromRun, type GateResult, type RunResult } from './exec.js'
+import { fromRun, type RunResult } from './exec.js'
+import type { GateResult } from './gate-result.js'
 import { resolvedVersion } from './project.js'
 
 /** The repair for a run that found no browser to drive. */

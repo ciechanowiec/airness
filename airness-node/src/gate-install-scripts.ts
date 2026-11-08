@@ -1,7 +1,7 @@
 // The install-script record of the node project, against the resolved set its lockfile names. It is judged
 // once, at the project root, where pnpm reads it for every member.
 import path from 'node:path'
-import { failed, type GateResult, passed } from './exec.js'
+import { failed, type GateResult, passed } from './gate-result.js'
 import { type InstallConfigInputs, layoutFindings } from './install-config.js'
 import { installConfigOf } from './install-config-files.js'
 import { installScriptFindings } from './install-policy.js'

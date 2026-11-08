@@ -133,7 +133,7 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
         Path root = this.repositoryRoot();
         List<AssetSite> sites = RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root);
         List<String> excluded = GeneratedDenialMojo.denied(
-            root, sites, Sentinel.optional(this.generated), Sentinel.optional(this.unmanaged)
+            root, sites, CommaList.entries(this.generated), CommaList.entries(this.unmanaged)
         );
         NodeSuppressionCeilingCheck check = new NodeSuppressionCeilingCheck(
             root, Closing.nodeSources(root, directories, excluded)

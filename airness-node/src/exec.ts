@@ -1,78 +1,20 @@
-// Process execution for the gates, and the single result shape every gate returns. A uniform shape lets
-// the runner present one verdict whether a gate shelled out to a tool or evaluated a rule in process.
+// Process execution for the gates, and the translation of a finished process into the result shape of
+// `gate-result.ts`, so a gate that shelled out to a tool reads like one that evaluated a rule in process.
 import { type ChildProcessByStdio, type SpawnSyncReturns, spawn, spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { createInterface } from 'node:readline'
 import { PassThrough, type Readable } from 'node:stream'
 import { text } from 'node:stream/consumers'
+import { failed, type GateResult, passed, withOutput } from './gate-result.js'
 import {
   type ForwardedStops,
   forwardStops,
   type ProcessRow,
+  pause,
   readProcessTable,
   type StopWiring,
+  subscribeToStops,
 } from './process-tree.js'
-
-/** The outcome of one gate. */
-export interface GateResult {
-  readonly ok: boolean
-  /** Lines the user must act on when the gate fails, or an informational report when it passes. */
-  readonly findings: readonly string[]
-  /** One line summarising what the gate observed. */
-  readonly summary: string
-  /**
-   * What the underlying tool actually printed, kept whole and printed only on request.
-   *
-   * Deliberately apart from `findings`, whose contract is the lines a user must ACT on: a passing
-   * gate's output is not that, and merging the two would make a gate that found nothing read as
-   * though it had. Held so a reader can audit a verdict rather than take it on faith - "no
-   * vulnerability at or above moderate" is a claim, and this is the evidence for it.
-   */
-  readonly output?: string
-  /** Files the gate wrote beside its result for the repository's rules to read, by plain file name. */
-  readonly evidence?: readonly string[]
-  /**
-   * False when the member lacks what the gate judges, such as a facet's framework; the result then reads as
-   * not applicable rather than as a pass. Absent means the gate applied.
-   */
-  readonly isApplicable?: false
-}
-
-/** What a gate run knows beyond the member it judges. */
-export interface GateContext {
-  /** The directory of the result file, where a gate writes its evidence; undefined without `--result`. */
-  readonly evidenceDirectory: string | undefined
-}
-
-/** A passing result, optionally carrying a non-failing report. */
-export const passed = (summary: string, findings: readonly string[] = []): GateResult => ({
-  ok: true,
-  findings,
-  summary,
-})
-
-/**
- * A result for a member that lacks what the gate judges, which reads as not applicable rather than as a pass.
- * @param summary why the gate does not apply here.
- * @returns a passing result marked not applicable.
- */
-export const notApplicable = (summary: string): GateResult => ({
-  ok: true,
-  findings: [],
-  summary,
-  isApplicable: false,
-})
-
-/** A failing result carrying the findings the user must act on. */
-export const failed = (summary: string, findings: readonly string[]): GateResult => ({
-  ok: false,
-  findings,
-  summary,
-})
-
-/** The same result, carrying the tool output that produced it. */
-export const withOutput = (result: GateResult, output: string): GateResult =>
-  output.length > 0 ? { ...result, output } : result
 
 /** Where and how to run a child process. */
 export interface RunOptions {
@@ -197,8 +139,6 @@ export const run = (command: string, commandArguments: readonly string[], option
   }
 }
 
-const STOP_SIGNALS: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
-
 /** The machine itself, as a streamed command's tree is stopped on it. */
 export const SYSTEM_STOPS: StopWiring = {
   machine: {
@@ -214,23 +154,10 @@ export const SYSTEM_STOPS: StopWiring = {
         // A process of the tree that ended before the signal reached it needs no signal.
       }
     },
-    pause: async (milliseconds: number): Promise<void> => {
-      await new Promise<void>((resolve): void => {
-        setTimeout(resolve, milliseconds)
-      })
-    },
+    pause,
     now: (): number => performance.now(),
   },
-  subscribe: (handler: (signal: NodeJS.Signals) => void): (() => void) => {
-    for (const signal of STOP_SIGNALS) {
-      process.on(signal, handler)
-    }
-    return (): void => {
-      for (const signal of STOP_SIGNALS) {
-        process.off(signal, handler)
-      }
-    }
-  },
+  subscribe: subscribeToStops,
   raise: (signal: NodeJS.Signals): void => {
     process.kill(process.pid, signal)
   },

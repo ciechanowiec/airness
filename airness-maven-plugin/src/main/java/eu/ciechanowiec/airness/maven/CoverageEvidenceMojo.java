@@ -68,7 +68,7 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
      * A floor with no class under it is not a floor a green build can be read against.
      */
     private void requireAFloorToStandOn() {
-        List<String> declared = Sentinel.optional(this.excluded);
+        List<String> declared = CommaList.entries(this.excluded);
         Path report = Path.of(this.reportFile());
         if (declared.isEmpty() || !Files.isRegularFile(report)) {
             return;
@@ -89,7 +89,7 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
      * @return one entry per declared pattern that names no class the report measured
      */
     private List<String> unreached() {
-        List<String> declared = Sentinel.optional(this.excluded);
+        List<String> declared = CommaList.entries(this.excluded);
         Path report = Path.of(this.reportFile());
         return declared.isEmpty() || !Files.isRegularFile(report)
             ? List.of()

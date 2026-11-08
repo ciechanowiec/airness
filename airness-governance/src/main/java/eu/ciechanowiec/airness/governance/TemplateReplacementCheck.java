@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Reads every markup resource a module ships and reports the elements that are replaced by a fragment
@@ -68,14 +69,7 @@ public final class TemplateReplacementCheck {
      */
     private static final class Replacements implements MarkupElement {
 
-        private static final String THYMELEAF = "th:";
-
-        // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
-        private static final String THYMELEAF_DATA = "data-th-";
-
-        private static final String REPLACE = "th:replace";
-
-        private static final String REPLACE_DATA = "data-th-replace";
+        private static final Set<String> REPLACE = ThymeleafAttribute.spellings("replace");
 
         private final Path named;
 
@@ -114,11 +108,11 @@ public final class TemplateReplacementCheck {
         }
 
         private static boolean dialect(String attribute) {
-            return attribute.startsWith(THYMELEAF) || attribute.startsWith(THYMELEAF_DATA);
+            return ThymeleafAttribute.isDialect(attribute);
         }
 
         private static boolean replaces(String attribute) {
-            return REPLACE.equals(attribute) || REPLACE_DATA.equals(attribute);
+            return REPLACE.contains(attribute);
         }
     }
 }

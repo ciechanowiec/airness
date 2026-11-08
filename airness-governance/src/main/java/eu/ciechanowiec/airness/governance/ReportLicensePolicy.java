@@ -13,10 +13,6 @@ import java.util.stream.Stream;
  */
 public record ReportLicensePolicy(Set<String> allowed, Map<String, String> aliases) {
 
-    private static final String REFUSED = "Outside policy";
-    private static final String WEAK = "Weak copyleft";
-    private static final String PERMISSIVE = "Permissive";
-
     public ReportLicensePolicy {
         allowed = Set.copyOf(allowed);
         aliases = Map.copyOf(aliases);
@@ -42,16 +38,16 @@ public record ReportLicensePolicy(Set<String> allowed, Map<String, String> alias
      * when every one of them is.
      *
      * @param licenses supplier declarations
-     * @return readable license class
+     * @return license class
      */
-    public String classification(List<String> licenses) {
+    public LicenseClass classification(List<String> licenses) {
         List<List<String>> admitted = licenses.stream().map(this::conjuncts)
             .filter(this.allowed::containsAll).toList();
         if (admitted.isEmpty()) {
-            return REFUSED;
+            return LicenseClass.OUTSIDE_POLICY;
         }
         return admitted.stream().allMatch(conjuncts -> conjuncts.stream().anyMatch(ReportLicensePolicy::copyleft))
-            ? WEAK : PERMISSIVE;
+            ? LicenseClass.WEAK_COPYLEFT : LicenseClass.PERMISSIVE;
     }
 
     // One alternative is a license, or licenses joined as an npm expression joins them, every one of which the
@@ -71,7 +67,7 @@ public record ReportLicensePolicy(Set<String> allowed, Map<String, String> alias
      * @return whether no declared alternative is admitted
      */
     public boolean refuses(ReportPackage entry) {
-        return REFUSED.equals(this.classification(entry.licenses()));
+        return this.classification(entry.licenses()) == LicenseClass.OUTSIDE_POLICY;
     }
 
     /**

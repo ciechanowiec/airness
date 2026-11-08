@@ -3,10 +3,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { failed, type GateResult, passed } from '@airness/node/gate-result'
+import { LOCKFILE } from '@airness/node/lockfile'
 import { findBlockedPackages, resolvedPackagesIn } from './payload-blocklist.js'
 import type { PayloadMember } from './payload-member.js'
-
-const LOCKFILE: string = 'pnpm-lock.yaml'
 
 /**
  * Fail on every package the Payload layer refuses that the node project's lockfile resolves.

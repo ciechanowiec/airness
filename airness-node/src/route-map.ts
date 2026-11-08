@@ -18,9 +18,12 @@ const PAGE_FILES: ReadonlySet<string> = new Set<string>(['page.tsx', 'page.ts', 
 // directory apart from a directory that happens to be called `app`.
 const ROOT_LAYOUTS: ReadonlySet<string> = new Set<string>(['layout.tsx', 'layout.ts', 'layout.jsx', 'layout.js'])
 
-// The only app directory: the architecture gate refuses a Next.js routes directory at the member root and
-// says to move it under `src`, so a top-level `app/` is never the application's.
-const APP_ROOT: string = 'src/app'
+/**
+ * The Next.js App Router directory, the top layer of a Next.js application and its only app directory: the
+ * architecture gate refuses a Next.js routes directory at the member root and says to move it under `src`, so a
+ * top-level `app/` is never the application's.
+ */
+export const APP_ROOT: string = 'src/app'
 
 const ROOT_ROUTE: string = '/'
 

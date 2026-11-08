@@ -32,7 +32,7 @@ export const outerBoxOf = (node: LayoutNode): LayoutRect | undefined => {
       }
 }
 
-const STATIC: string = 'static'
+export const STATIC_POSITION: string = 'static'
 
 // An ancestor whose overflow is not visible clips along that axis, inside its borders. Unbounded sides
 // stay unbounded, so a clip on one axis leaves the other alone.
@@ -63,7 +63,7 @@ const reachPast = (ancestor: LayoutNode, reach: ClipReach): ClipReach => {
     return 'positioned'
   }
   if (reach === 'positioned') {
-    return ancestor.position === STATIC ? 'positioned' : 'all'
+    return ancestor.position === STATIC_POSITION ? 'positioned' : 'all'
   }
   return reach
 }
@@ -73,7 +73,8 @@ const clipsAbove = (snapshot: LayoutSnapshot, node: LayoutNode, reach: ClipReach
   if (parent === undefined || reach === 'none') {
     return []
   }
-  const clip: LayoutRect | undefined = reach === 'all' || parent.position !== STATIC ? clipOf(parent) : undefined
+  const clip: LayoutRect | undefined =
+    reach === 'all' || parent.position !== STATIC_POSITION ? clipOf(parent) : undefined
   return [...(clip === undefined ? [] : [clip]), ...clipsAbove(snapshot, parent, reachPast(parent, reach))]
 }
 
@@ -127,7 +128,7 @@ const clippingAncestor = (snapshot: LayoutSnapshot, current: TextClip): LayoutNo
     return undefined
   }
   const clip: LayoutRect | undefined =
-    current.reach === 'all' || parent.position !== STATIC ? clipOf(parent) : undefined
+    current.reach === 'all' || parent.position !== STATIC_POSITION ? clipOf(parent) : undefined
   if (clip !== undefined && current.rects.some((rect: LayoutRect): boolean => isCuttingText(parent, clip, rect))) {
     return parent
   }

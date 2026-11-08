@@ -40,7 +40,7 @@ final class ReportProjects {
     }
 
     static List<MavenProject> required(List<MavenProject> projects) {
-        return projects.stream().filter(project -> !selfRoot(project)).toList();
+        return projects.stream().filter(project -> !AirnessCoordinates.isAggregator(project)).toList();
     }
 
     static List<String> qualifications(Collection<MavenProject> selected, boolean partial, boolean enforced) {
@@ -63,9 +63,5 @@ final class ReportProjects {
 
     static MavenProject executed(MavenProject project) {
         return Optional.ofNullable(project.getExecutionProject()).orElse(project);
-    }
-
-    private static boolean selfRoot(MavenProject project) {
-        return "eu.ciechanowiec".equals(project.getGroupId()) && "airness".equals(project.getArtifactId());
     }
 }

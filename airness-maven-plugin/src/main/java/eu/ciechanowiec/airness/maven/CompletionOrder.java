@@ -32,7 +32,6 @@ record CompletionOrder(List<Step> plan) {
 
     static final String GOAL = "module-complete";
     private static final String VERIFY = "verify";
-    private static final String AIRNESS_PLUGIN = "eu.ciechanowiec:airness-maven-plugin";
     private static final String MAVEN_PLUGINS = "org.apache.maven.plugins";
     private static final String SIGNER = "org.apache.maven.plugins:maven-gpg-plugin";
     private static final String REPAIR = "; bind it to a phase before verify, such as post-integration-test";
@@ -167,7 +166,7 @@ record CompletionOrder(List<Step> plan) {
         }
 
         boolean completes() {
-            return AIRNESS_PLUGIN.equals(this.plugin) && GOAL.equals(this.goal);
+            return AirnessCoordinates.PLUGIN_KEY.equals(this.plugin) && GOAL.equals(this.goal);
         }
 
         // Signing reads the archives the verdict covers and writes only their signatures, so it follows the verdict.

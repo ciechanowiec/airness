@@ -47,9 +47,8 @@ import org.springframework.web.servlet.view.RedirectView;
 @UtilityClass
 final class SpringHtmlRoutes {
 
+    static final String ERROR_ADDRESS = "/error";
     private static final String PREFIX = "html-route\t";
-
-    private static final String ERROR_ADDRESS = "/error";
 
     private static final String VIEW_CONTROLLER = "view-controller";
 

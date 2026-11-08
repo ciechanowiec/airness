@@ -74,6 +74,18 @@
       "types": "./dist/exec.d.ts",
       "default": "./dist/exec.js"
     },
+    "./environment-files": {
+      "types": "./dist/environment-files.d.ts",
+      "default": "./dist/environment-files.js"
+    },
+    "./file-roles": {
+      "types": "./dist/file-roles.d.ts",
+      "default": "./dist/file-roles.js"
+    },
+    "./lockfile": {
+      "types": "./dist/lockfile.d.ts",
+      "default": "./dist/lockfile.js"
+    },
     "./vitest": {
       "types": "./dist/vitest.d.ts",
       "default": "./dist/vitest.js"

@@ -29,8 +29,13 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class BlocklistEntries {
 
-    private static final String MONGODB
+    static final String MONGODB
         = "the MongoDB server is SSPL, which is not an open-source licence, and this exists only to reach it";
+    static final String ELASTIC
+        = "Elastic binaries are Elastic License 2.0 or SSPL from 7.11, and this exists only to reach them";
+    static final String ELASTIC_APM
+        = "the Elastic APM server is Elastic License 2.0 from 7.11, and this agent reports only to it";
+    static final String GHOSTSCRIPT = "Ghostscript is AGPL, and this is a thin wrapper around it";
     private static final String EMBEDDED_MONGODB = "this downloads the SSPL MongoDB server binary at test time";
     private static final String POSTGRES_STARTER
         = "PostgreSQL through spring-boot-starter-data-jpa and the postgres image";
@@ -42,10 +47,6 @@ final class BlocklistEntries {
     private static final String REDIS
         = "Redis 7.4 onward is RSALv2, SSPLv1 or AGPLv3, none of which is a permissive open-source licence";
     private static final String VALKEY = "valkey/valkey, which the Jedis and Lettuce clients speak to unchanged";
-    private static final String ELASTIC
-        = "Elastic binaries are Elastic License 2.0 or SSPL from 7.11, and this exists only to reach them";
-    private static final String ELASTIC_APM
-        = "the Elastic APM server is Elastic License 2.0 from 7.11, and this agent reports only to it";
     private static final String ELASTIC_FLOOR = "7.11.0";
     private static final String OPENSEARCH_IMAGE
         = "opensearchproject/opensearch and opensearchproject/opensearch-dashboards";
@@ -111,7 +112,6 @@ final class BlocklistEntries {
         = "GenericContainers over prom/prometheus, jaegertracing/jaeger and victoriametrics/victoria-logs";
     private static final String ITEXT
         = "iText 5 onward is AGPL with a paid exemption, and a permissively licensed PDF library exists";
-    private static final String GHOSTSCRIPT = "Ghostscript is AGPL, and this is a thin wrapper around it";
     private static final String GHOSTSCRIPT_PACKAGE = "Ghostscript is AGPL";
     private static final String MUPDF = "MuPDF is AGPL";
     private static final String PDF = "org.apache.pdfbox:pdfbox or com.github.librepdf:openpdf";

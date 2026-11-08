@@ -244,11 +244,6 @@ public final class TemplateLinkCheck {
      */
     private static final class Reaches implements MarkupElement {
 
-        private static final String THYMELEAF = "th:";
-
-        // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
-        private static final String THYMELEAF_DATA = "data-th-";
-
         private final Path named;
 
         private final Collection<String> offences;
@@ -295,7 +290,7 @@ public final class TemplateLinkCheck {
         }
 
         private static boolean dialect(String attribute) {
-            return attribute.startsWith(THYMELEAF) || attribute.startsWith(THYMELEAF_DATA);
+            return ThymeleafAttribute.isDialect(attribute);
         }
     }
 }

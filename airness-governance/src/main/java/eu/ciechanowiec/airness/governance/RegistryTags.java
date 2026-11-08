@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
  */
 record RegistryTags(String registry, String authorization) {
 
-    private static final String HUB = "https://hub.docker.com";
+    static final String HUB = "https://hub.docker.com";
     private static final Pattern AUTHORIZATION_VALUE = Pattern.compile("\"token\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern TAGS = Pattern.compile("\"tags\"\\s*:\\s*\\[([^]]*)]", Pattern.DOTALL);
     private static final Pattern TAG = Pattern.compile("\"([A-Za-z0-9_][A-Za-z0-9_.-]{0,127})\"");

@@ -82,11 +82,6 @@ public final class TemplateScopeCheck {
      */
     private static final class Unbound implements MarkupElement {
 
-        private static final String THYMELEAF = "th:";
-
-        // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
-        private static final String THYMELEAF_DATA = "data-th-";
-
         // An expression written in the text between two elements rather than on an element, under both
         // the escaping mark and the one that writes markup out as it stands.
         private static final Pattern INLINED = Pattern.compile("\\[\\[(.*?)]]|\\[\\((.*?)\\)]", Pattern.DOTALL);
@@ -202,8 +197,7 @@ public final class TemplateScopeCheck {
         // Whether the engine evaluates what this attribute carries. A fragment declaration is the one
         // dialect attribute that carries names rather than an expression.
         private static boolean evaluated(String attribute) {
-            boolean dialect = attribute.startsWith(THYMELEAF) || attribute.startsWith(THYMELEAF_DATA);
-            return dialect && !TemplateFragmentCheck.declares(attribute);
+            return ThymeleafAttribute.isDialect(attribute) && !TemplateFragmentCheck.declares(attribute);
         }
 
         private static Map<String, String> lowered(Map<String, String> attributes) {

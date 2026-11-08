@@ -4,6 +4,7 @@
 import { asRecord, isRecord } from './json-shapes.js'
 import type { NpmConfig } from './npmrc.js'
 import { type SecurityOverride, securityOverrideFindings } from './security-overrides.js'
+import { WORKSPACE_FILE } from './yaml-blocks.js'
 
 /** What the install-config rules read at the project root. */
 export interface InstallConfigInputs {
@@ -16,8 +17,6 @@ export interface InstallConfigInputs {
   /** The names of the files at the project root. */
   readonly files: readonly string[]
 }
-
-const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
 
 const WORKSPACE_REWRITES: readonly string[] = ['patchedDependencies', 'packageExtensions', 'pnpmfile', 'globalPnpmfile']
 const MANIFEST_REWRITES: readonly string[] = ['overrides', 'resolutions']

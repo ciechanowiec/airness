@@ -28,7 +28,7 @@ import org.jspecify.annotations.Nullable;
 @UtilityClass
 final class NodeManifests {
 
-    private static final String MANIFEST = "package.json";
+    static final String MANIFEST = "package.json";
     private static final Set<String> PRUNED = Set.of("node_modules", "target", ".git", "dist", ".next", "build");
 
     /**

@@ -4,8 +4,8 @@
 // failure has to know which of them produced it before it can reproduce it. Every rule therefore
 // reports the same fields, and the line printed for it names each of them in the same order.
 
-/** A viewport a finding was measured at. */
-export interface FindingViewport {
+/** A viewport, in CSS pixels: one a page is loaded or a finding was measured at. */
+export interface Viewport {
   readonly width: number
   readonly height: number
 }
@@ -21,7 +21,7 @@ export interface BrowserFinding {
   /** The browser engine: `chromium`, `firefox` or `webkit`. */
   readonly engine: string
   /** The viewport, or undefined for a finding that holds at every viewport. */
-  readonly viewport: FindingViewport | undefined
+  readonly viewport: Viewport | undefined
   /** What is wrong, with the element it is wrong on and the values measured. */
   readonly message: string
   /** The elements to outline in the failure screenshot, as measured-node indices. */
@@ -31,7 +31,7 @@ export interface BrowserFinding {
 /** Where a finding was measured, without its rule and message. */
 export type FindingPlace = Pick<BrowserFinding, 'location' | 'state' | 'engine' | 'viewport'>
 
-const viewportText = (viewport: FindingViewport | undefined): string =>
+const viewportText = (viewport: Viewport | undefined): string =>
   viewport === undefined ? '' : ` @${String(viewport.width)}x${String(viewport.height)}`
 
 /**

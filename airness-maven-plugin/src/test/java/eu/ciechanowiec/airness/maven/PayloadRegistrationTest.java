@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetSite;
@@ -70,6 +71,11 @@ class PayloadRegistrationTest {
         MavenProject module = HarnessVersionsTest.project(CMS, "9.0.0");
         module.setParent(payload);
         assertEquals("@airness/payload=1.4.0,@airness/node=2.0.0", HarnessVersions.of(module).value());
+    }
+
+    @Test
+    void holdsThePayloadPackageToItsParentRatherThanToItsLatestRelease() {
+        assertTrue(HarnessVersions.harnessPackage("@airness/payload"));
     }
 
     private MavenProject payloadModule(Path root) {

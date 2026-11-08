@@ -1,0 +1,11 @@
+name: 'Pull the pinned sweep browsers'
+description: 'Pulls the Playwright browser image that airness-node pins for the browser sweep.'
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Pull the pinned sweep browsers'
+      shell: bash
+      run: |
+        set -eu
+        image="$(jq --exit-status --raw-output '.airness.browserImage' airness-node/package.json)"
+        docker pull "${image}"

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.governance.LicenseClass;
 import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
 import eu.ciechanowiec.airness.governance.ReportPackage;
 import java.nio.file.Files;
@@ -175,7 +176,7 @@ class ReportMavenInputsTest {
         MavenProject project = this.project();
         ReportLicensePolicy policy = MavenReportPolicy.from(project);
         assertEquals("MIT", policy.normalized("MIT License"));
-        assertEquals("Outside policy", policy.classification(List.of("GPL-3.0")));
+        assertEquals(LicenseClass.OUTSIDE_POLICY, policy.classification(List.of("GPL-3.0")));
         assertThrows(IllegalStateException.class, () -> MavenReportPolicy.from(InputProjects.project(this.directory)));
     }
 

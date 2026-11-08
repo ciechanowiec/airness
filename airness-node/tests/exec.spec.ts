@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { fromRun, type GateResult, type RunResult, runNode } from '@/exec.js'
+import { fromRun, type RunResult, runNode } from '@/exec.js'
+import type { GateResult } from '@/gate-result.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 const CWD: string = process.cwd()

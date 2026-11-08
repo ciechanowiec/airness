@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Reads every markup resource a module ships and reports the code written into it rather than into a
@@ -42,9 +43,11 @@ public final class TemplateInlineCheck {
 
     private static final String STYLE = "style";
 
-    private static final Set<String> SOURCES = Set.of("src", "th:src", "data-th-src");
+    private static final Set<String> SOURCES = Stream.concat(
+        Stream.of("src"), ThymeleafAttribute.spellings("src").stream()
+    ).collect(Collectors.toUnmodifiableSet());
 
-    private static final Set<String> INLINING = Set.of("th:inline", "data-th-inline");
+    private static final Set<String> INLINING = ThymeleafAttribute.spellings("inline");
 
     private static final Set<String> INLINED_CODE = Set.of("javascript", "css");
 

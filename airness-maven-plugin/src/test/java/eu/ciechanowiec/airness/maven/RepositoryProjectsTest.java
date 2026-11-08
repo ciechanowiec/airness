@@ -46,6 +46,19 @@ class RepositoryProjectsTest {
     }
 
     @Test
+    void readsOnlyAModuleWhoseParentIsTheAggregatorAsAModuleOfTheAirnessBuild() {
+        MavenProject root = project(GROUP, AGGREGATOR);
+        MavenProject library = project(GROUP, "airness-governance");
+        library.setParent(root);
+        MavenProject consumer = project(SAMPLE, APPLICATION);
+        consumer.setParent(project(GROUP, CONSUMER_PARENT));
+
+        assertTrue(RepositoryProjects.selfModule(library));
+        assertFalse(RepositoryProjects.selfModule(consumer));
+        assertFalse(RepositoryProjects.selfModule(root));
+    }
+
+    @Test
     void rejectsAnOrdinaryChildModule() {
         MavenProject root = project(SAMPLE, APPLICATION);
         MavenProject child = project(SAMPLE, "module");

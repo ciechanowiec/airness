@@ -3,7 +3,7 @@
 import type { SpecSource } from '@airness/node/axe-coverage'
 import { enclosingLiteral, occurrences, stripComments } from '@airness/node/source-text'
 import { type FoundPayloadConfig, payloadConfigsIn } from './payload-configs.js'
-import { depthOneBlockKeys, depthOneValue, type PayloadViolation } from './payload-source.js'
+import { DRAFTS_ENABLED, depthOneBlockKeys, depthOneValue, type PayloadViolation } from './payload-source.js'
 
 /** A violation together with the file it was found in, because this rule reads more than one. */
 export interface LocatedViolation {
@@ -20,7 +20,6 @@ const QUOTE_STYLES: readonly string[] = ["'", '"']
 
 const TRUE_VALUE: RegExp = /^\s*true\b/
 const QUOTED_VALUE: RegExp = /^\s*['"`]([^'"`]+)['"`]/
-const DRAFTS_ENABLED: RegExp = /drafts\s*:\s*(?:true|\{)/
 const CLEANUP_HOOK: string = 'beforeDelete'
 
 /**

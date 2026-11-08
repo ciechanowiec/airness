@@ -3,20 +3,18 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetSite;
 import eu.ciechanowiec.airness.governance.Layer;
+import eu.ciechanowiec.airness.maven.NodeProjects.NodeProject;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -40,19 +38,13 @@ import org.apache.maven.project.ProjectBuildingResult;
 @UtilityClass
 final class RepositorySites {
 
-    private static final String GROUP = "eu.ciechanowiec";
-    private static final String SELF = "airness";
-    private static final String JAVA_PARENT = "airness-parent-java";
-    private static final String NODE_PROJECTS = "airness.node.projects";
     private static final String POM = "pom.xml";
-    private static final String PACKAGE = "package.json";
     private static final String NEXT = "next";
     private static final List<String> ROUTE_DIRECTORIES = List.of("src/app", "src/pages");
     private static final List<String> HOOK_DIRECTORIES = List.of("", "src/");
     private static final List<String> HOOK_NAMES = List.of("middleware", "proxy");
     private static final List<String> HOOK_EXTENSIONS = List.of(".ts", ".js", ".mts", ".mjs", ".cts", ".cjs");
     private static final String SEEDED_PROXY = "src/proxy.ts";
-    private static final String SEPARATOR = ",";
     private static final String PARENT_DIRECTORY = "..";
     private static final Set<String> PRUNED = Set.of("target", "node_modules", ".git");
 
@@ -161,9 +153,12 @@ final class RepositorySites {
 
     private static Stream<Layer> layers(MavenProject module) {
         Stream<Layer> java = Stream.of(Layer.JAVA)
-            .filter(_ -> inherits(module, JAVA_PARENT) || selfBuild(module));
+            .filter(
+                _ -> AirnessCoordinates.inherits(module, AirnessCoordinates.JAVA_PARENT)
+                    || RepositoryProjects.selfModule(module)
+            );
         Stream<Layer> stacks = STACK_PARENTS.entrySet().stream()
-            .filter(stack -> inherits(module, stack.getKey()))
+            .filter(stack -> AirnessCoordinates.inherits(module, stack.getKey()))
             .map(Map.Entry::getValue);
         return Stream.concat(java, stacks);
     }
@@ -174,13 +169,10 @@ final class RepositorySites {
     }
 
     private static Stream<String> nodeDirectories(Path repository, MavenProject module) {
-        Path basedir = real(module.getBasedir().toPath());
-        return Arrays.stream(module.getProperties().getProperty(NODE_PROJECTS, "").split(SEPARATOR))
-            .map(String::strip)
-            .filter(entry -> !entry.isEmpty())
-            .map(entry -> basedir.resolve(entry).normalize())
-            .filter(directory -> Files.isRegularFile(directory.resolve(PACKAGE)))
-            .map(directory -> relative(repository, directory));
+        String declared = module.getProperties().getProperty(NodeProjects.PROPERTY);
+        return NodeProjects.of(real(module.getBasedir().toPath()), declared).projects().stream()
+            .filter(NodeProject::hasManifest)
+            .map(project -> relative(repository, project.directory()));
     }
 
     private static String relative(Path repository, Path directory) {
@@ -188,21 +180,10 @@ final class RepositorySites {
         if (relative.startsWith(PARENT_DIRECTORY)) {
             throw new IllegalStateException(
                 "The node project " + directory + " lies outside the repository " + repository
-                    + "; list only directories inside it in " + NODE_PROJECTS
+                    + "; list only directories inside it in " + NodeProjects.PROPERTY
             );
         }
         return relative.toString().replace(File.separatorChar, '/');
-    }
-
-    private static boolean inherits(MavenProject module, String parent) {
-        return Stream.iterate(module.getParent(), Objects::nonNull, MavenProject::getParent)
-            .anyMatch(ancestor -> GROUP.equals(ancestor.getGroupId()) && parent.equals(ancestor.getArtifactId()));
-    }
-
-    private static boolean selfBuild(MavenProject module) {
-        return Optional.ofNullable(module.getParent())
-            .filter(parent -> GROUP.equals(parent.getGroupId()) && SELF.equals(parent.getArtifactId()))
-            .isPresent();
     }
 
     private static List<File> projectFiles(Path root) {

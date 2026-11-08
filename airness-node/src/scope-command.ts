@@ -2,11 +2,10 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { isScopeFailure, sweepScopeFor } from './change-scope.js'
 import { type SweepScope, scopeHeadline, scopeLines } from './change-scope-policy.js'
-import type { GateResult } from './exec.js'
 import { isBrowserApp } from './facets.js'
-import { type Member, membersOf } from './project.js'
+import type { GateResult } from './gate-result.js'
+import { jsonText, type Member, membersOf } from './project.js'
 
-const JSON_INDENT: number = 2
 interface ScopedMember {
   readonly member: string
   readonly scope: SweepScope | GateResult
@@ -45,7 +44,7 @@ export const scopeCommand = (directory: string, isJson: boolean): number => {
 
 const printScopes = (scopes: readonly ScopedMember[], isJson: boolean): void => {
   if (isJson) {
-    console.info(JSON.stringify(scopes, null, JSON_INDENT))
+    console.info(jsonText(scopes))
     return
   }
   for (const scope of scopes) {

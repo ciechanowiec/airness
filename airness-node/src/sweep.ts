@@ -22,6 +22,7 @@ import { type DeclaredExemption, staleExemptions, type UsedExemption } from './b
 import { type BrowserFinding, distinctFindings, findingLine } from './browser-findings.js'
 import { BROWSER_ENGINES, enginePassParts, type Shard, type SweepPass } from './browser-run.js'
 import { coversEveryEngine } from './change-scope-policy.js'
+import { writeJson } from './project.js'
 import { projectSettings } from './project-settings.js'
 import { completedScanRoutes } from './scan-evidence.js'
 import {
@@ -37,7 +38,6 @@ import {
   reportFile,
   reportName,
   sweepRoot,
-  writeJson,
 } from './sweep-shared.js'
 import { SWEEP_WORKERS as SWEEP_SHARDS } from './sweep-workers.js'
 

@@ -14,7 +14,6 @@ import java.util.stream.Stream;
  */
 record ReportLicenseSections(ComplianceReport report) {
 
-    private static final List<String> CLASSES = List.of("Permissive", "Weak copyleft", "Outside policy");
     private static final int CHART_LICENSES = 10;
     private static final List<String> REVIEW_HEADINGS = List.of("Artifact", "License", "Module / scope / relation");
 
@@ -88,18 +87,18 @@ record ReportLicenseSections(ComplianceReport report) {
     private String classStack() {
         ReportInventory inventory = this.report.inventory();
         long total = inventory.packages().size();
-        Map<String, Long> counts = inventory.packages().stream().collect(
+        Map<LicenseClass, Long> counts = inventory.packages().stream().collect(
             Collectors.groupingBy(entry -> inventory.policy().classification(entry.licenses()), Collectors.counting())
         );
-        Function<String, String> share = name -> ReportCounts.percentOf(counts.getOrDefault(name, 0L), total);
-        String description = CLASSES.stream().map(name -> name + " " + share.apply(name) + " percent")
+        Function<LicenseClass, String> share = name -> ReportCounts.percentOf(counts.getOrDefault(name, 0L), total);
+        List<LicenseClass> classes = List.of(LicenseClass.values());
+        String description = classes.stream().map(name -> name.label() + " " + share.apply(name) + " percent")
             .collect(Collectors.joining(", "));
-        return "<div class=\"stack\" role=\"img\" aria-label=\"" + description + "\">" + CLASSES.stream().map(
-            name -> "<i class=\"seg-" + ReportChips.classKey(name) + "\" style=\"width:" + share.apply(name)
-                + "%\"></i>"
-        ).collect(Collectors.joining()) + "</div><ul class=\"legend\">" + CLASSES.stream().map(
-            name -> "<li class=\"key-" + ReportChips.classKey(name) + "\">" + name + ": "
-                + counts.getOrDefault(name, 0L) + " (" + share.apply(name) + "%)</li>"
+        return "<div class=\"stack\" role=\"img\" aria-label=\"" + description + "\">" + classes.stream().map(
+            name -> "<i class=\"seg-" + name.key() + "\" style=\"width:" + share.apply(name) + "%\"></i>"
+        ).collect(Collectors.joining()) + "</div><ul class=\"legend\">" + classes.stream().map(
+            name -> "<li class=\"key-" + name.key() + "\">" + name.label() + ": " + counts.getOrDefault(name, 0L)
+                + " (" + share.apply(name) + "%)</li>"
         ).collect(Collectors.joining()) + "</ul>";
     }
 
@@ -119,9 +118,8 @@ record ReportLicenseSections(ComplianceReport report) {
         return "<div class=\"bars\">" + Stream.concat(
             shown.stream().map(
                 entry -> bar(
-                    entry.getKey(), entry.getValue().size(), largest, ReportChips.classKey(
-                        inventory.policy().classification(entry.getValue().getFirst().licenses())
-                    )
+                    entry.getKey(), entry.getValue().size(), largest,
+                    inventory.policy().classification(entry.getValue().getFirst().licenses()).key()
                 )
             ),
             rest.isEmpty() ? Stream.empty() : Stream.of(

@@ -1,7 +1,7 @@
 // The sweep's resting passes: every resting rule on a fresh load at each viewport, in Chromium, in the
 // other engines, and in the dark scheme.
 import { type Page, test } from '@playwright/test'
-import type { BrowserFinding, FindingPlace, FindingViewport } from './browser-findings.js'
+import type { BrowserFinding, FindingPlace, Viewport } from './browser-findings.js'
 import { enginePassParts } from './browser-run.js'
 import { BASELINE_VIEWPORTS, pageViewports, STRESS_VIEWPORTS } from './browser-viewports.js'
 import { withinLimit } from './deadline.js'
@@ -56,16 +56,16 @@ const restingVisit = async (page: Page, item: PlaceItem, index: number): Promise
 
 const placeItems = (
   locations: readonly SweepLocation[],
-  viewportsOf: (location: SweepLocation) => readonly FindingViewport[],
+  viewportsOf: (location: SweepLocation) => readonly Viewport[],
 ): readonly PlaceItem[] =>
   locations.flatMap((location: SweepLocation): readonly PlaceItem[] =>
-    viewportsOf(location).map((viewport: FindingViewport): PlaceItem => ({ location, viewport })),
+    viewportsOf(location).map((viewport: Viewport): PlaceItem => ({ location, viewport })),
   )
 
 // A breakpoint edge is where a page's layout changes. A story renders one component alone in a frame,
 // so it is loaded at the baseline and declared viewports only: its own media queries are still met at
 // ten widths, and edges on every story would multiply a large Storybook's loads for layouts it lacks.
-const edgeViewports = (location: SweepLocation): readonly FindingViewport[] =>
+const edgeViewports = (location: SweepLocation): readonly Viewport[] =>
   pageViewports(location.isStory ? [] : location.edges, projectSettings.layoutViewports)
 
 /** How a resting-rule pass differs from the others: what it is, what it visits, and how. */
@@ -151,7 +151,7 @@ export const expectEngineRules = async (page: Page, shard: Shard): Promise<void>
     { index: shard.index, count: parts },
     {
       pass: 'engine',
-      items: placeItems(sampledLocations(discovery), (): readonly FindingViewport[] => BASELINE_VIEWPORTS),
+      items: placeItems(sampledLocations(discovery), (): readonly Viewport[] => BASELINE_VIEWPORTS),
       visit: freshPageVisit,
     },
   )
@@ -189,7 +189,7 @@ export const expectDarkScheme = async (page: Page, shard: Shard): Promise<void> 
   )
   await runRestingPass(page, shard, {
     pass: 'dark-scheme',
-    items: placeItems(locations, (): readonly FindingViewport[] => STRESS_VIEWPORTS),
+    items: placeItems(locations, (): readonly Viewport[] => STRESS_VIEWPORTS),
     visit: darkVisit,
   })
 }

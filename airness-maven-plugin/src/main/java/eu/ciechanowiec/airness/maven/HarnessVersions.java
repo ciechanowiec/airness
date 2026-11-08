@@ -22,9 +22,8 @@ import org.apache.maven.project.MavenProject;
  */
 record HarnessVersions(Map<String, String> versions) {
 
-    private static final String GROUP = "eu.ciechanowiec";
     private static final Map<String, String> PACKAGES = Map.of(
-        "airness-parent", "@airness/node",
+        AirnessCoordinates.GENERIC_PARENT, "@airness/node",
         "airness-parent-payload", "@airness/payload"
     );
 
@@ -60,9 +59,21 @@ record HarnessVersions(Map<String, String> versions) {
     static HarnessVersions of(List<List<String>> chain) {
         Map<String, String> versions = new LinkedHashMap<>();
         chain.stream()
-            .filter(ancestor -> GROUP.equals(ancestor.getFirst()) && PACKAGES.containsKey(ancestor.get(1)))
+            .filter(ancestor -> AirnessCoordinates.GROUP.equals(ancestor.getFirst()))
+            .filter(ancestor -> PACKAGES.containsKey(ancestor.get(1)))
             .forEach(ancestor -> versions.putIfAbsent(PACKAGES.get(ancestor.get(1)), ancestor.getLast()));
         return new HarnessVersions(versions);
+    }
+
+    /**
+     * Whether an npm package is a harness package, which follows the version of its Airness parent rather than
+     * its latest release.
+     *
+     * @param name the npm package name
+     * @return whether an Airness parent names the version of that package
+     */
+    static boolean harnessPackage(String name) {
+        return PACKAGES.containsValue(name);
     }
 
     /**

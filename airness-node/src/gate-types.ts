@@ -1,7 +1,8 @@
 // The strict type check, against the project's own tsconfig.json, which only points at the shipped one.
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { failed, fromRun, type GateResult, runNode } from './exec.js'
+import { fromRun, runNode } from './exec.js'
+import { failed, type GateResult } from './gate-result.js'
 import { type Member, readText, resolveTool } from './project.js'
 import { tsconfigProblems } from './tsconfig-policy.js'
 

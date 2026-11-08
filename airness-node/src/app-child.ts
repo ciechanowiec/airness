@@ -6,9 +6,9 @@
 // wrapper above it would remove the run's services while they still used them.
 import { type ChildProcess, spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
+import { subscribeToStops } from './process-tree.js'
 
 const ARGUMENT_OFFSET: number = 2
-const STOP_SIGNALS: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
 const [receipt, ...argumentsList]: readonly (string | undefined)[] = process.argv.slice(ARGUMENT_OFFSET)
 if (receipt === undefined || argumentsList.length === 0) {
   throw new Error('The application child requires a receipt and a Node invocation')
@@ -25,18 +25,13 @@ const tool: ChildProcess = spawn(
     env: process.env,
   },
 )
-const forward = (signal: NodeJS.Signals): void => {
+const unsubscribe: () => void = subscribeToStops((signal: NodeJS.Signals): void => {
   tool.kill(signal)
-}
-for (const signal of STOP_SIGNALS) {
-  process.on(signal, forward)
-}
+})
 tool.on('error', (): void => {
   record(1)
 })
 tool.on('close', (code: number | null): void => {
-  for (const signal of STOP_SIGNALS) {
-    process.off(signal, forward)
-  }
+  unsubscribe()
   record(code ?? 1)
 })

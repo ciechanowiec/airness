@@ -7,8 +7,10 @@ import {
   parseProcessTable,
   reachable,
   readProcessTable,
+  STOP_SIGNALS,
   type StopWiring,
   stopTree,
+  subscribeToStops,
   TREE_GRACE_MS,
   TREE_POLL_MS,
   TREE_WATCH_MS,
@@ -92,6 +94,27 @@ describe('the process table', () => {
     const now: readonly ProcessRow[] = [row(10, 1), row(12, 10), row(13, 1, false, 7), row(14, 13, false, 7)]
     expect(reachable(10, seen, now)).toEqual([10, 12, 13, 14])
     expect(reachable(10, [row(12, 10, false, 21)], now)).toEqual([10, 12])
+  })
+})
+
+const ignoreStop = (): void => undefined
+
+describe('the stop signals of this process', () => {
+  it('are Ctrl-C, a request to terminate and the end of the terminal', () => {
+    expect(STOP_SIGNALS).toEqual(['SIGINT', 'SIGTERM', 'SIGHUP'])
+  })
+
+  it('reach a subscribed handler on every one of them until it unsubscribes', () => {
+    const subscribed = (): readonly boolean[] =>
+      STOP_SIGNALS.map((signal: NodeJS.Signals): boolean => process.listeners(signal).includes(ignoreStop))
+    const unsubscribe: () => void = subscribeToStops(ignoreStop)
+    expect(subscribed()).toEqual([true, true, true])
+    unsubscribe()
+    expect(subscribed()).toEqual([false, false, false])
+  })
+
+  it('are what a streamed command forwards', () => {
+    expect(SYSTEM_STOPS.subscribe).toBe(subscribeToStops)
   })
 })
 

@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Reads every markup resource a module ships and reports the fragments that take more arguments than
@@ -33,10 +34,7 @@ public final class TemplateFragmentCheck {
     // never raised on its own: a fragment and a method are the same construct read by two tools.
     private static final int CAP = 4;
 
-    private static final String THYMELEAF = "th:fragment";
-
-    // The spelling a document uses when it has to stay valid HTML5, which no dialect prefix is.
-    private static final String THYMELEAF_DATA = "data-th-fragment";
+    private static final Set<String> DECLARATIONS = ThymeleafAttribute.spellings("fragment");
 
     private final MarkupScan scan;
 
@@ -75,8 +73,7 @@ public final class TemplateFragmentCheck {
      * @return whether it declares a fragment
      */
     static boolean declares(String attribute) {
-        String spelled = attribute.toLowerCase(Locale.ROOT);
-        return THYMELEAF.equals(spelled) || THYMELEAF_DATA.equals(spelled);
+        return DECLARATIONS.contains(attribute.toLowerCase(Locale.ROOT));
     }
 
     /**
