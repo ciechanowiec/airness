@@ -17,10 +17,7 @@ Airness governs all of the following domains in a Java module:
   the annotation for: a package that declares none leaves every type in it undecided, and a class implementing a
   marked framework interface then states a weaker contract than the one it overrides. Markup is formatted too, and
   stylesheets are formatted by the node project that checks them; the Templates domain below reads what markup says.
-  A constructor expression written inside a repository query is read against the record it constructs, because it is
-  a call nothing compiles, so a record given four components and constructed with three is correct everywhere a tool
-  looks and wrong the first time the query runs. The count is read against the records the module itself declares,
-  so a type declared beside it in another module is passed over rather than reported. A selector in a stylesheet the
+  A selector in a stylesheet the
   project wrote selects what it names, whatever line it was wrapped onto. The space between two parts of one is a
   combinator, so a chain of refusals broken across lines refuses one thing about an element and another about
   whatever that element holds, which is valid, formats, and paints something other than what was written. The
@@ -104,10 +101,7 @@ Airness governs all of the following domains in a Java module:
     fragment somebody happened to name for never accusing one a handler reaches by a name it builds.
   - **Static and runtime template assessment:** the template checks resolve fragments, scopes, literal view names
     and literal message keys from the markup and sources alone. A view name a handler chooses at run time is logged
-    as statically unassessed; its page is assessed by the browser sweep through the route its handler maps, which
-    the route inventory requires to be swept, scanned by a project specification or skipped with a reason. An
-    application that starts proves only that it starts: rendered states, roles and validation failures need project
-    specifications driving them to an `expectSweptPage` scan.
+    as statically unassessed; the browser sweep assesses its page through the route its handler maps.
   - **Thymeleaf message keys in Spring Boot applications:** literal `#{key}` references in production HTML `th:*`
     and `data-th-*` processing attributes must resolve through the message source used by the application's template
     engine during its existing startup tests. Bare or quoted keys may contain ASCII letters, digits, dots,
@@ -121,6 +115,18 @@ Airness governs all of the following domains in a Java module:
     inventory to the startup test run; missing or stale evidence and missing keys fail verification, and a passing
     context cannot erase another supported context's failure. Evidence records keys and source locations, never
     translated values.
+- **Web interface:** a Java module is a web interface when it resolves `spring-webmvc` or `spring-webflux` and
+  declares a `@Controller`, view controllers or a static HTML page under `static`, `public`, `resources` or
+  `META-INF/resources`; a library or a JSON-only service is not, and no setting relabels a detected interface. At
+  `validate`, a web interface must declare a node project whose `airness.serve` script launches
+  `$AIRNESS_APPLICATION_ARTIFACT`, for example
+  `"$JAVA_HOME/bin/java" -jar "$AIRNESS_APPLICATION_ARTIFACT" --server.port=$PORT`, and start what the application
+  needs through `airness.testWrapper`, never against a developer's data. In Extended, `e2e` exports the artifact
+  this invocation packaged, the Maven JVM's `JAVA_HOME` and a route inventory: the HTML handler routes the
+  application's startup tests recorded in this build, and its static pages. A missing artifact, missing or stale
+  evidence, an empty inventory, or a web interface whose every `e2e` result is not applicable is unassessed, and
+  unassessed fails. The generic guide's Browser Verification states how each inventory route is covered. A Java web
+  interface is always swept completely, because no Java change maps to its pages.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material, and its manifest declares the versioned classes the
   archive ships and the restricted native access the classes of the module reach for. Production and test output
@@ -135,14 +141,13 @@ Airness governs all of the following domains in a Java module:
   data and Spring context evidence afresh at `initialize`, once per Maven session. Surefire, Failsafe
   and lifecycle forks in that session then append to the same evidence. Old startup records, security
   findings and covered probes cannot carry over from a previous invocation. Include `initialize`
-  before standalone test goals when preparing their evidence; standalone goals are not a full
-  verification.
-  Failsafe, Build Helper and Assembly are optional managed plugins: declare a plugin without a version
-  in the module that uses it. Failsafe supplies `integration-test` and `verify` executions for the
+  before standalone test goals when preparing their evidence; standalone goals give no verification
+  verdict.
+  Failsafe is an optional managed plugin: declare it without a version in the module that uses it. It
+  supplies `integration-test` and `verify` executions for the
   standard `IT*`, `*IT` and `*ITCase` names, shares Surefire's timeout and ordering, and fails when the
   opted-in module has no integration tests. Run through `verify`: coverage combines both test phases,
   Spring runtime evidence reads both, and the final tree check includes integration-test writes.
-  Build Helper's source and resource roots and Assembly's distribution descriptors belong to the project.
 - **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container
   accepts and then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the
   web layer, security configuration, asynchrony and scheduling, and test context handling; the runtime settings an
@@ -229,55 +234,61 @@ Airness governs all of the following domains in a Java module:
   path of its own puts the value in a segment beneath this application and is left alone, a path variable is not
   read as a value the caller sent since the mapping declared the path it is a segment of, and a value handed to a
   call of the project's own is read as one the handler worked out, which is also the repair.
-- **Spring MVC streaming timeouts:** registered production handlers returning `StreamingResponseBody`
-  directly or inside `ResponseEntity` require a production timeout declaration and an effective MVC
-  timeout choice in the existing ready-context tests. Declare `spring.mvc.async.request-timeout` in
-  loaded production configuration, optionally through a deployment placeholder, or call
-  `setDefaultTimeout` on the supplied argument of a straight-line `configureAsyncSupport` callback
-  in an active named production `WebMvcConfigurer`. Ordinary fluent calls are supported. Airness
-  sets no duration: finite deadlines and explicit no-deadline values are application decisions.
-  Test-only settings, inactive beans and calls on a different object do not establish production
-  policy. Conditional, delegated, anonymous or otherwise unverifiable callbacks and custom MVC
-  dispatch that cannot be assessed fail the check. The supported runtime is standard Spring Boot
-  MVC or `@EnableWebMvc`, with the standard request adapter and streaming return-value handling.
-  The listener inspects this setup without invoking application handlers or replaying callbacks.
-  Input fingerprints and the Maven invocation bind the assessment to production sources and copied
-  configuration. Missing, stale, malformed and unsupported evidence fail, and a passing context
-  cannot erase another context's failure. Assessment covers tested ready contexts and registered
-  handlers, not inactive deployment profiles. Plain Java, non-MVC applications and contexts without
-  production streaming handlers require no timeout policy. The Spring parent prepares inputs at
-  `process-classes` and enforces `spring-streaming-timeouts` at `verify`; neither goal adds
-  a runtime dependency to the application archive.
-- **Spring Boot configuration keys:** every key a settings file declares is read against the
-  `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
-  those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
-  for are each refused, because none of them fails at startup and none appears in a log. Write the key the metadata
-  names: a replacement is reported with the offence. A key under a namespace no dependency declares is your own and is
-  left alone, so a project binds its own settings freely. Declaring one key twice in one document is refused as well,
-  since only the last of them is bound. A placeholder production code reads without a default is read against the base
-  configuration file, because the test profile satisfies it in every test while an environment starting
-  from the base file refuses to start. Published metadata recognizes names but supplies no environment
-  value; a required placeholder needs a base declaration or its own default. A module shipping no base
-  file is passed over. A lazy
-  repository bootstrap is refused, because every repository query is parsed against the entity model when the
-  repository is built, and a lazy one is built on its first call. Three settings are refused for what they
-  hand out: an actuator publishing an endpoint that carries a credential or stops the application, which the
-  wildcard rule beside it does not reach when the endpoint is named outright; an environment endpoint
-  returning its values in full, including whatever a placeholder resolved a credential to; and a session
-  cookie the page can read, which turns anything injected into one page from something acting inside the
-  session into something holding it.
+  - **Repository queries:** a constructor expression written inside a repository query is read against the record
+    it constructs, because it is a call nothing compiles, so a record given four components and constructed with
+    three is correct everywhere a tool looks and wrong the first time the query runs. The count is read against the
+    records the module itself declares, so a type declared beside it in another module is passed over rather than
+    reported.
+  - **Streaming timeouts:** registered production handlers returning `StreamingResponseBody`
+    directly or inside `ResponseEntity` require a production timeout declaration and an effective MVC
+    timeout choice in the existing ready-context tests. Declare `spring.mvc.async.request-timeout` in
+    loaded production configuration, optionally through a deployment placeholder, or call
+    `setDefaultTimeout` on the supplied argument of a straight-line `configureAsyncSupport` callback
+    in an active named production `WebMvcConfigurer`. Ordinary fluent calls are supported. Airness
+    sets no duration: finite deadlines and explicit no-deadline values are application decisions.
+    Test-only settings, inactive beans and calls on a different object do not establish production
+    policy. Conditional, delegated, anonymous or otherwise unverifiable callbacks and custom MVC
+    dispatch that cannot be assessed fail the check. The supported runtime is standard Spring Boot
+    MVC or `@EnableWebMvc`, with the standard request adapter and streaming return-value handling.
+    The listener inspects this setup without invoking application handlers or replaying callbacks.
+    Input fingerprints and the Maven invocation bind the assessment to production sources and copied
+    configuration. Missing, stale, malformed and unsupported evidence fail, and a passing context
+    cannot erase another context's failure. Assessment covers tested ready contexts and registered
+    handlers, not inactive deployment profiles. Plain Java, non-MVC applications and contexts without
+    production streaming handlers require no timeout policy. The Spring parent prepares inputs at
+    `process-classes` and enforces `spring-streaming-timeouts` at `verify`; neither goal adds
+    a runtime dependency to the application archive.
+  - **Configuration keys:** every key a settings file declares is read against the
+    `spring-configuration-metadata.json` that the dependencies on the compile classpath publish about themselves. A key
+    those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
+    for are each refused, because none of them fails at startup and none appears in a log. Write the key the metadata
+    names: a replacement is reported with the offence. A key under a namespace no dependency declares is your own and is
+    left alone, so a project binds its own settings freely. Declaring one key twice in one document is refused as well,
+    since only the last of them is bound. A placeholder production code reads without a default is read against the base
+    configuration file, because the test profile satisfies it in every test while an environment starting
+    from the base file refuses to start. Published metadata recognizes names but supplies no environment
+    value; a required placeholder needs a base declaration or its own default. A module shipping no base
+    file is passed over. A lazy
+    repository bootstrap is refused, because every repository query is parsed against the entity model when the
+    repository is built, and a lazy one is built on its first call. Three settings are refused for what they
+    hand out: an actuator publishing an endpoint that carries a credential or stops the application, which the
+    wildcard rule beside it does not reach when the endpoint is named outright; an environment endpoint
+    returning its values in full, including whatever a placeholder resolved a credential to; and a session
+    cookie the page can read, which turns anything injected into one page from something acting inside the
+    session into something holding it.
 
 ## Java Exceptions and Repairs
 
-- Connect a Java web interface to the browser sweep without rewriting it: list a frontend tooling directory in
-  `airness.node.projects` (the module itself works, with `sourceRoots` naming `src/main/resources/static`), move
-  each authored script and stylesheet under its checked roots, replace copied distributions with a WebJar or a
-  `node-run` copy from npm, name a `serve` script launching `$AIRNESS_APPLICATION_ARTIFACT` on `$PORT`, start
-  the database and other services through an `airness.testWrapper` written with `withServices` from
-  `@airness/node/services`, with fixture data of its own, and add
-  `tests/e2e/**/*.e2e.spec.ts` specifications that sign in as each representative role and call
-  `expectSweptPage(page)` on the pages the anonymous crawl cannot reach. Keep the existing Selenium tests; they
-  remain project tests beside the automatic sweep.
+- Connect a Java web interface to the browser sweep without rewriting it, keeping its Java runtime: list a frontend
+  tooling directory in `airness.node.projects` (the module itself works, with `sourceRoots` naming
+  `src/main/resources/static`), then meet the Web interface domain above and the generic guide's Frontend
+  resources, Node Application Preparation and Security Corrections, and Browser Verification. Keep the existing
+  Selenium tests; they remain project tests beside the automatic sweep.
+- A test helper that asserts carries a name starting with `assert` or `verify`, such as `check.assertSingleAt(...)`.
+  An assertion is recognized by that prefix wherever the helper is declared. A helper named otherwise is followed at
+  most within its own file, so a test that reaches its assertion only through such a helper in another type reports
+  as unproven. Rename the helper or move the assertion into the test's own source rather than suppressing the
+  finding.
 - Read a resource the JAR carries by resolving `Class.getResource` through `Optional.ofNullable(...)` and
   `orElseThrow(...)` to a `URL`, and only then opening the stream in a plain try-with-resources. A stream opened
   before the missing-resource check, or checked inside the resource specifier, is unclosed on the throwing edge,

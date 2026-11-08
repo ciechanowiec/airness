@@ -432,7 +432,7 @@
             so the entities it returns are outside whatever the surrounding transaction is tracking. It is
             sometimes the right answer and never an accidental one, which is the shape the suppression policy
             already has a mechanism for. The pair that answers it is @SuppressWarnings with @Justification
-            beside it, which keeps the reason next to the query and prices it against the same budget every
+            beside it, which keeps the reason next to the query and prices it against the same suppression ceiling every
             other deliberate exception is priced against.
 
             The rule therefore reports a justified query as well as an unjustified one, and that is what makes

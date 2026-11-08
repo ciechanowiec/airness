@@ -20,7 +20,7 @@ In every module that inherits `airness-parent-java`, also follow `.airness/agent
 <!-- BEGIN AIRNESS MANAGED: node -->
 ## Airness node layer
 
-Each directory a module lists in `airness.node.projects` is a node project and carries the node layer in its own `AGENTS.md`.
+Each directory a module lists in `airness.node.projects` is a node project. In it, also follow the Node projects domain of `.airness/agent-guide.md` and the sections that domain names.
 <!-- END AIRNESS MANAGED: node -->
 
 # Repository Guidelines
@@ -39,27 +39,25 @@ The root `pom.xml` also aggregates the Payload stack: `airness-payload-assets` (
 
 - `sh airness-it/report-browser.sh` installs the pinned Chromium used by report tests. Add `--with-deps` on Linux
   to install its system libraries. Run this as toolchain setup before the first build.
-- `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, enforces
-  the two-major freshness bound, and installs all reactor modules for consumer tests. Version checking
-  requires Maven Central and Docker Hub; container-image updates have no failure threshold. The node gates
-  of `airness-node` also read `registry.npmjs.org` on every run, and the integration suite installs its node
-  fixtures from it.
+- `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, and
+  installs all reactor modules for consumer tests. The integration suite installs its node fixtures from
+  `registry.npmjs.org`.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
-- `sh airness-it/verify.sh browser` diagnoses the browser contracts alone against installed artifacts. It is a
-  partial run; the complete integration verdict still requires the command without a domain.
-- `sh airness-it/verify.sh payload` diagnoses the Payload stack alone against a real Payload application and an
-  isolated PostgreSQL; it needs Docker. The complete integration verdict still requires the command without a domain.
-- `sh airness-it/verify.sh browser-evidence` diagnoses motion, ancestor clipping, missing-page layouts and
-  completed project scans. These cases also run in the browser domain and the complete integration suite.
+- `sh airness-it/verify.sh <domain>...` diagnoses only the named domains against installed artifacts. It is a
+  partial run; the complete integration verdict still requires the command without a domain. The domains are
+  `maven`, `analysis`, `templates`, `stylesheets`, `repository`, `spring`, `containers`, `scanners`, `node`,
+  `browser`, `payload` (the Payload stack against a real Payload application and an isolated PostgreSQL; it needs
+  Docker) and `browser-evidence` (motion, ancestor clipping, missing-page layouts and completed project scans,
+  which also run in the browser domain).
 
 ## Coding Style & Naming Conventions
 
-Keep packages under `eu.ciechanowiec.airness`. Prefer focused classes and explanatory Javadoc for public APIs.
+Prefer focused classes and explanatory Javadoc for public APIs.
 
 ## Testing Guidelines
 
 Airness tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example
-`rejectsATrailingPeriod`. `airness-node` tests use Vitest under `airness-node/tests`, importing sources through the `@/` alias. Add regression coverage beside the changed module.
+`rejectsATrailingPeriod`. Each npm package module, `airness-node` and `airness-payload-node`, tests with Vitest under its own tests directory, importing sources through the `@/` alias. Add regression coverage beside the changed module.
 The tests of a rule, gate or check that recognizes a construct cover each equivalent spelling the language or
 library allows for it, for example JUnit and AssertJ assertions, `req.payload` and a destructured `{ payload }`,
 `String.format` and `formatted`, `&&` and `||` around an `instanceof`. Self-coverage includes every governance

@@ -130,7 +130,7 @@ mvn airness:assets-sync
 [[build-commands]]
 == Build Commands
 
-. _airness_ provides [[verification-commands]]verification commands and xref:#source-formatting[source formatting].
+. xref:#extended-verification[Extended verification] is the verification command. xref:#default-verification[Default verification] and xref:#delta-verification[delta verification] run subsets of its checks.
 +
 [cols="2,3,5"]
 |===
@@ -158,7 +158,7 @@ mvn airness:assets-sync
 
 |===
 
-. System properties change the behavior of a xref:#verification-commands[verification command]. They don't enable more checks.
+. System properties change the behavior of a verification. They don't enable more checks.
 +
 [cols="2,3,5"]
 |===
@@ -245,7 +245,7 @@ The repository root carries the files of every capability present in any module.
 . `AGENTS.md` is the only agent instruction file. Claude Code reads it directly, so the xref:#default-verification[default verification] fails when the working tree contains a `CLAUDE.md` or `CLAUDE.local.md` file in any directory. No setting exempts one.
 . Each block of a xref:#managed-section[managed section] is enclosed by `BEGIN AIRNESS MANAGED: <capability>` and `END AIRNESS MANAGED: <capability>`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or replaces the blocks while preserving the project text below them. A block appears exactly when its capability is present, so a stale or unclaimed block fails verification.
 . The xref:#default-verification[default verification] fails when a xref:#pinned-file[pinned file] is missing or outdated, when a xref:#managed-section[managed section] is missing or outdated, or when a xref:#seed-file[seed file] is missing. It also fails if a build plugin modifies a project file during the build.
-. Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a xref:#verification-commands[verification command]:
+. Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a verification:
 +
 [source,bash]
 ----

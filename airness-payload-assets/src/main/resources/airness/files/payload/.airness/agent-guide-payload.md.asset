@@ -64,6 +64,4 @@ and the generic Airness approvals.
   `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` destructured out of `req`
   (call `req.payload` and pass `req`). A hook writes request state only on `req.context`. A migration keeps the
   snake-case name `payload migrate:create` gives it.
-- Keep Payload's scaffold under `src/app/(payload)` exactly as Payload writes it: it is one of the generated
-  files above.
 
