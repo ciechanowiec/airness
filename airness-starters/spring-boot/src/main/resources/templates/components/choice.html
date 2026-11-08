@@ -1,0 +1,34 @@
+<!--/*
+    One labelled control a reader chooses from, with the message that says what is wrong with it. It is
+    wired the way the field fragment is. The first choice is empty and says so, so a control never opens
+    on a value nobody chose. What is chosen is compared as text, because a form submits text.
+*/-->
+<div
+    th:fragment="choice(control, options, chosen, error)"
+    th:with="invalid=${not #strings.isEmpty(error)}"
+    class="fieldset"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <label class="fieldset-legend" th:for="${control.name()}" th:text="${words.of(control.key())}">Label</label>
+    <select
+        class="select w-full"
+        th:classappend="${invalid} ? 'select-error' : ''"
+        th:id="${control.name()}"
+        th:name="${control.name()}"
+        th:attr="aria-invalid=${invalid} ? 'true' : null,
+                    aria-describedby=${invalid} ? |${control.name()}-error| : null"
+    >
+        <option value="" th:text="#{choice.unchosen}">Not chosen yet</option>
+        <option
+            th:each="option : ${options}"
+            th:value="${option.value()}"
+            th:text="${option.label()}"
+            th:selected="${#strings.equals(option.value(), chosen)}"
+        >
+            Something
+        </option>
+    </select>
+    <p class="text-sm text-red-800" th:if="${invalid}" th:id="|${control.name()}-error|" th:text="${error}">
+        What is wrong
+    </p>
+</div>

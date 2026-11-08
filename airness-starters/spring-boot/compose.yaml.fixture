@@ -1,0 +1,36 @@
+# Starts the database and the application together on one machine. Build the archive first with
+# `mvn clean verify`, because the image unpacks what that produced rather than compiling the project.
+# Copy .env.example to .env and choose the values before the first `docker compose up`.
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${APP_DATABASE_NAME}
+      POSTGRES_USER: ${APP_DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${APP_DATABASE_PASSWORD}
+    # The application waits for this to answer rather than for the container to exist, because
+    # PostgreSQL accepts connections only once its first start has initialised the volume.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - database:/var/lib/postgresql
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Whom the application writes as its first administrator when it starts against a database that
+      # holds no account. On every later start neither value is used.
+      APP_ADMINISTRATOR_EMAIL: ${APP_ADMINISTRATOR_EMAIL}
+      APP_ADMINISTRATOR_PASSWORD: ${APP_ADMINISTRATOR_PASSWORD}
+      APP_DATABASE_URL: jdbc:postgresql://db:5432/${APP_DATABASE_NAME}
+      APP_DATABASE_USERNAME: ${APP_DATABASE_USERNAME}
+      APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD}
+    ports:
+      - "8080:8080"
+volumes:
+  database:

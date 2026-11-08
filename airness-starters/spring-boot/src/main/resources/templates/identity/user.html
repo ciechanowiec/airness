@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--/*
+    Everything an administrator states about one account. One template admits an account and restates one,
+    because the two state almost the same things. What differs is where the form posts, what the page is
+    called, and whether a password is asked for, all three handed over by the controller. The password
+    control is drawn empty even after a refusal, because a password written back into a page is a password
+    in a response.
+*/-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(${words.of(heading)}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body" class="space-y-6">
+            <div th:replace="~{components/header :: header(${words.of(heading)}, #{user.lead}, ~{})}"></div>
+            <form class="card bg-base-100 shadow" th:action="@{${target}}" method="post">
+                <div class="card-body space-y-2">
+                    <div
+                        th:replace="~{components/field :: field(${controls.fullName},
+                 ${userForm.profile().fullName()}, ${refusals['profile.fullName']})}"
+                    ></div>
+                    <div
+                        th:replace="~{components/field :: field(${controls.email},
+                 ${userForm.profile().email()}, ${refusals['profile.email']})}"
+                    ></div>
+                    <div
+                        th:replace="~{components/choice :: choice(${controls.role}, ${words.options(roles)},
+                 ${userForm.role()}, ${refusals['role']})}"
+                    ></div>
+                    <th:block th:if="${admitting}">
+                        <div
+                            th:replace="~{components/field :: field(${controls.password}, '', ${refusals['password']})}"
+                        ></div>
+                        <p th:text="#{user.hint.password}">
+                            The password is typed once here and handed to the account's owner.
+                        </p>
+                    </th:block>
+                    <p th:if="${sole}" th:text="#{user.hint.sole}">
+                        This is the last administrator who may sign in, so the only role offered is the one they hold.
+                    </p>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" type="submit" th:text="${words.of(submit)}">Save</button>
+                        <a class="btn btn-ghost" th:href="@{/users}" th:text="#{user.cancel}">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </body>
+</html>

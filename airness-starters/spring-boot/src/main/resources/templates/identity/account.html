@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!--/*
+    The page a reader changes their own password on. It carries no reference and offers no way to name
+    anybody else. Neither password is ever drawn back into the page.
+*/-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(#{account.title}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body" class="space-y-6">
+            <div th:replace="~{components/header :: header(#{account.title}, #{account.lead}, ~{})}"></div>
+            <form class="card bg-base-100 shadow" th:action="@{/account/password}" method="post">
+                <div class="card-body space-y-2">
+                    <div
+                        th:replace="~{components/field :: field(${controls.current}, '', ${refusals['current']})}"
+                    ></div>
+                    <div th:replace="~{components/field :: field(${controls.chosen}, '', ${refusals['chosen']})}"></div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" type="submit" th:text="#{account.submit}">
+                            Change the password
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </body>
+</html>

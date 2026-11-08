@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!--/* The page somebody who has not signed in opens the application on: what it is and where to sign in. */-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(#{home.title}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body">
+            <section class="hero rounded-box bg-base-100 py-12 shadow">
+                <div class="hero-content text-center">
+                    <div class="max-w-md space-y-4">
+                        <h1 class="text-3xl font-bold" th:text="#{home.introduction.title}">
+                            Keep your tasks in one place
+                        </h1>
+                        <p th:text="#{home.introduction.lead}">Write down what is to be done, and see how it stands.</p>
+                        <a class="btn btn-primary" th:href="@{/login}" th:text="#{nav.signIn}">Sign in</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!--/*
+    How the reader's tasks stand. Each count is a number on its own rather than inside a sentence, so no
+    language has to agree a noun with it, and each leads to the list of the tasks it counts.
+*/-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(#{home.dashboard.title}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body" class="space-y-6">
+            <div
+                th:replace="~{components/header :: header(#{home.dashboard.title}, #{home.dashboard.lead},
+         ~{:: actions})}"
+            ></div>
+            <div class="stats stats-vertical w-full bg-base-100 shadow sm:stats-horizontal">
+                <a class="stat" th:href="@{/tasks(status='OPEN')}">
+                    <span class="stat-title" th:text="#{task.status.open}">Open</span>
+                    <span class="stat-value" th:text="${overview.open()}">0</span>
+                </a>
+                <a class="stat" th:href="@{/tasks(status='IN_PROGRESS')}">
+                    <span class="stat-title" th:text="#{task.status.inProgress}">In progress</span>
+                    <span class="stat-value" th:text="${overview.inProgress()}">0</span>
+                </a>
+                <a class="stat" th:href="@{/tasks(status='DONE')}">
+                    <span class="stat-title" th:text="#{task.status.done}">Done</span>
+                    <span class="stat-value" th:text="${overview.done()}">0</span>
+                </a>
+                <div class="stat">
+                    <span class="stat-title" th:text="#{home.dashboard.overdue}">Overdue</span>
+                    <span class="stat-value text-red-800" th:text="${overview.overdue()}">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div th:fragment="actions">
+            <a class="btn btn-primary" th:href="@{/tasks/new}" th:text="#{tasks.write}">Write a task</a>
+        </div>
+    </body>
+</html>

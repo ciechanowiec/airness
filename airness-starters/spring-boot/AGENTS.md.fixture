@@ -1,0 +1,14 @@
+## Starter
+
+Starter is a multi-user task tracker: people sign in, keep tasks with a status and a due day, and
+administrators manage the accounts. It began from the Airness Spring Boot starter, a generic beginning for
+an application built on Airness with Spring Boot, Thymeleaf, htmx, Tailwind CSS with daisyUI, and
+PostgreSQL. Replace this paragraph with the goal of the application it becomes.
+
+- `README.md` describes how to build, run and extend the application.
+- The `identity`, `audit`, `language`, `web` and `failure` packages are the platform every application
+  keeps: sign-in, roles, account management, the audit trail, English and Polish, and the failure page.
+- The `task` and `home` packages are the example domain, which an application renames or replaces.
+- A component is a Thymeleaf fragment under `src/main/resources/templates/components`. Pages call the
+  fragments rather than repeating daisyUI class lists, and a fragment switches between whole literal class
+  names, because Tailwind writes only the classes it finds written out in a template.

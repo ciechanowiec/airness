@@ -221,6 +221,15 @@
             <artifactId>airness-config</artifactId>
             <scope>compile</scope>
         </dependency>
+        <!--
+            The starter projects airness:new writes an application from, read off this classpath.
+        -->
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-starters</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>eu.ciechanowiec</groupId>
             <artifactId>airness-governance</artifactId>
@@ -634,6 +643,9 @@
                         </ignoredUnusedDeclaredDependency>
                         <ignoredUnusedDeclaredDependency>
                             eu.ciechanowiec:airness-config
+                        </ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>
+                            eu.ciechanowiec:airness-starters
                         </ignoredUnusedDeclaredDependency>
                     </ignoredUnusedDeclaredDependencies>
                 </configuration>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!--/*
+    Where somebody says who they are. The form is posted to the same address and answered by the filter
+    chain, so nothing here decides whether a password is right. Every refusal says the same thing, so none
+    tells whoever is guessing whether an address exists, whether its account is stopped, or which of the
+    two values was wrong.
+*/-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(#{login.title}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body" class="mx-auto max-w-md">
+            <div class="card bg-base-100 shadow">
+                <div class="card-body space-y-4">
+                    <h1 class="card-title text-2xl" th:text="#{login.title}">Sign in</h1>
+                    <p class="alert alert-error" role="alert" th:if="${failed}" th:text="#{login.refused}">
+                        That address and password do not let you in.
+                    </p>
+                    <p class="alert alert-info" role="status" th:if="${ended}" th:text="#{login.ended}">
+                        Your account changed, so you were signed out.
+                    </p>
+                    <form th:action="@{/login}" method="post" class="space-y-2">
+                        <div th:replace="~{components/field :: field(${address}, '', '')}"></div>
+                        <div th:replace="~{components/field :: field(${secret}, '', '')}"></div>
+                        <button class="btn btn-primary w-full" type="submit" id="sign-in" th:text="#{login.submit}">
+                            Sign in
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

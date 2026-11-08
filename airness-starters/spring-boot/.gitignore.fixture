@@ -1,0 +1,2 @@
+# The loopback registry a verification starts writes its address here; it is never a project setting.
+.npmrc

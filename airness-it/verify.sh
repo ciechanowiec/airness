@@ -24,7 +24,7 @@ case "$*" in
         set -- browser
         ;;
     group-4)
-        set -- node payload
+        set -- node payload starters
         ;;
     group-5)
         set -- repository scanners analysis templates stylesheets
@@ -37,7 +37,7 @@ esac
 selected_domains="$*"
 for selected_domain in "$@"; do
     case "${selected_domain}" in
-        maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser|payload)
+        maven|analysis|templates|stylesheets|repository|spring|containers|scanners|node|browser|payload|starters)
             ;;
         browser-evidence)
             ;;
@@ -136,6 +136,7 @@ fi
 . "${repository}/airness-it/cases/browser-evidence.sh"
 . "${repository}/airness-it/cases/java-web.sh"
 . "${repository}/airness-it/cases/payload.sh"
+. "${repository}/airness-it/cases/starters.sh"
 
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -148,8 +149,8 @@ if [ -n "${selected_domains}" ]; then
     printf '  %spartial domains: %s; this run cannot claim the full integration verdict%s\n' \
         "${style_dim}" "${selected_domains}" "${style_off}"
 else
-    printf '  %stwo lanes: spring, containers, maven, payload | repository, the short domains, node, browser%s\n' \
-        "${style_dim}" "${style_off}"
+    printf '  %stwo lanes: spring, containers, maven, payload, starters | %s%s\n' \
+        "${style_dim}" 'repository, the short domains, node, browser' "${style_off}"
     printf '  %seach lane is replayed whole when it is joined; follow one live under %s%s\n' \
         "${style_dim}" "${lane_results}" "${style_off}"
 fi
@@ -201,6 +202,9 @@ run_domain() {
         payload)
             run_payload_cases
             ;;
+        starters)
+            run_starter_cases
+            ;;
         *)
             exit 2
             ;;
@@ -225,7 +229,7 @@ if [ -z "${selected_domains}" ]; then
     # lane returned. Two leave the runner subscribed rather than oversubscribed, and leave a
     # workstation running this a processor to answer its owner with.
     ensure_consumer_template
-    start_lane spring spring containers maven payload
+    start_lane spring spring containers maven payload starters
     start_lane repository repository scanners analysis templates stylesheets node browser
     # Joined in the order whose headings do not repeat across the seam.
     await_lanes spring repository

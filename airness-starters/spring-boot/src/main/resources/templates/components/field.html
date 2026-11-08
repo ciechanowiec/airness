@@ -1,0 +1,46 @@
+<!--/*
+    One labelled control a reader types into, with the message that says what is wrong with it. The
+    message is tied to the control by aria-describedby, so it is read out to somebody who reaches the
+    control by keyboard and never sees the layout.
+
+    What the control is takes one argument rather than four, because a fragment is capped where a callable
+    is. Whether the control is invalid is read as "there is a message", because Thymeleaf reads any string
+    but false, off and no as true.
+
+    A control holding prose is drawn as the box a paragraph is typed into rather than as a line.
+*/-->
+<div
+    th:fragment="field(control, value, error)"
+    th:with="invalid=${not #strings.isEmpty(error)}, prose=${control.type() == 'prose'}"
+    class="fieldset"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <label class="fieldset-legend" th:for="${control.name()}" th:text="${words.of(control.key())}">Label</label>
+    <input
+        th:unless="${prose}"
+        class="input w-full"
+        th:classappend="${invalid} ? 'input-error' : ''"
+        th:type="${control.type()}"
+        th:id="${control.name()}"
+        th:name="${control.name()}"
+        th:value="${value}"
+        th:autocomplete="${control.purpose()}"
+        th:attr="aria-invalid=${invalid} ? 'true' : null,
+                    aria-describedby=${invalid} ? |${control.name()}-error| : null"
+    />
+    <textarea
+        th:if="${prose}"
+        class="textarea w-full"
+        th:classappend="${invalid} ? 'textarea-error' : ''"
+        rows="4"
+        th:id="${control.name()}"
+        th:name="${control.name()}"
+        th:text="${value}"
+        th:autocomplete="${control.purpose()}"
+        th:attr="aria-invalid=${invalid} ? 'true' : null,
+                    aria-describedby=${invalid} ? |${control.name()}-error| : null"
+    ></textarea>
+    <p class="text-sm text-red-800" th:if="${invalid}" th:id="|${control.name()}-error|" th:text="${error}">
+        What is wrong
+    </p>
+</div>

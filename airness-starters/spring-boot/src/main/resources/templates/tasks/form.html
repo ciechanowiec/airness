@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!--/*
+    Everything a reader states about one task. One template writes a task and changes one; what differs is
+    where the form posts, what the page is called and whether the task can be deleted, all handed over by
+    the controller. The form carries the version of the task it was opened on, so a change made after
+    somebody else's is refused and the reader is told.
+
+    Deleting asks first, in a native dialog the delete button opens. The dialog holds the form that
+    deletes, so the deletion is an ordinary post.
+*/-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(${words.of(heading)}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body" class="space-y-6">
+            <div th:replace="~{components/header :: header(${words.of(heading)}, #{task.lead}, ~{})}"></div>
+            <p class="alert alert-warning" role="alert" th:if="${refusals['version']}" th:text="${refusals['version']}">
+                Somebody changed this task after you opened it.
+            </p>
+            <form class="card bg-base-100 shadow" th:action="@{${target}}" method="post">
+                <div class="card-body space-y-2">
+                    <input type="hidden" name="version" th:value="${taskForm.version()}" />
+                    <div
+                        th:replace="~{components/field :: field(${controls.title}, ${taskForm.title()},
+                 ${refusals['title']})}"
+                    ></div>
+                    <div
+                        th:replace="~{components/field :: field(${controls.description}, ${taskForm.description()},
+                 ${refusals['description']})}"
+                    ></div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div
+                            th:replace="~{components/choice :: choice(${controls.status}, ${words.options(statuses)},
+                     ${taskForm.status()}, ${refusals['status']})}"
+                        ></div>
+                        <div
+                            th:replace="~{components/field :: field(${controls.dueOn}, ${taskForm.dueOn()},
+                     ${refusals['dueOn']})}"
+                        ></div>
+                    </div>
+                    <div class="card-actions justify-between">
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary" type="submit" th:text="${words.of(submit)}">Save</button>
+                            <a class="btn btn-ghost" th:href="@{/tasks}" th:text="#{task.cancel}">Cancel</a>
+                        </div>
+                        <button
+                            th:if="${existing}"
+                            class="btn btn-outline btn-error"
+                            type="button"
+                            data-opens="delete-task"
+                            th:text="#{task.delete}"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <dialog th:if="${existing}" id="delete-task" class="modal" aria-labelledby="delete-task-title">
+                <div class="modal-box space-y-4">
+                    <h2 id="delete-task-title" class="text-lg font-bold" th:text="#{task.delete.title}">
+                        Delete this task?
+                    </h2>
+                    <p th:text="#{task.delete.lead}">A deleted task cannot be brought back.</p>
+                    <div class="modal-action">
+                        <form method="dialog">
+                            <button class="btn" type="submit" th:text="#{task.delete.keep}">Keep it</button>
+                        </form>
+                        <form method="post" th:action="@{/tasks/{reference}/delete(reference=${task.reference()})}">
+                            <button class="btn btn-error" type="submit" th:text="#{task.delete.confirm}">
+                                Delete the task
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </dialog>
+        </div>
+    </body>
+</html>
