@@ -52,9 +52,11 @@
                 The local registry that serves @airness/node until it is published, on a port of its own: it binds a free
                 port, writes the scope line into the ignored .npmrc, then the port file, and stops when Maven exits.
                 The stale port file goes first and the build waits for the new one, so node-dependencies, at
-                initialize, installs only once the registry answers, and two concurrent builds never share one. Given
-                the lockfile, the registry refuses to start when the tarball's integrity differs from the one the
-                lockfile records, and prints the command that refreshes the lock.
+                initialize, installs only once the registry answers, and two concurrent builds never share one. Every
+                change to airness-node changes the tarball's integrity, which the lockfile records, so
+                harness-lock-refresh below refreshes a stale lock, or one left with merge conflict markers, and then
+                stops the build, which has rewritten a tracked file; the next build runs on the refreshed lock. In CI
+                it refreshes nothing and fails, so a branch whose committed lock is stale cannot pass.
             -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -93,8 +95,6 @@
                                 <argument>${project.basedir}/.npmrc</argument>
                                 <argument>--scope</argument>
                                 <argument>@airness</argument>
-                                <argument>--lockfile</argument>
-                                <argument>${project.basedir}/pnpm-lock.yaml</argument>
                                 <argument>--fresh</argument>
                                 <argument>${project.basedir}/../airness-node/target/airness-node-${project.version}.tgz</argument>
                             </arguments>
@@ -112,6 +112,30 @@
                                 <argument>-c</argument>
                                 <argument>waited=0; until [ -s "$0" ]; do [ "$waited" -ge 300 ] &amp;&amp; { echo "the local registry did not start" &gt;&amp;2; exit 1; }; sleep 0.1; waited=$((waited + 1)); done</argument>
                                 <argument>${project.build.directory}/registry.port</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <!--
+                        Bound at initialize, where this plugin runs before node-dependencies, with the pnpm the
+                        reactor's airness-maven-plugin pins, which airness-node has installed into the toolchain
+                        cache of the local repository before this module builds.
+                    -->
+                    <execution>
+                        <id>harness-lock-refresh</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>version="$(sed -n 's/^pnpm[.]version=//p' "$0")"; case "$(uname -s)" in Darwin) system=darwin ;; *) system=linux ;; esac; case "$(uname -m)" in arm64 | aarch64) architecture=arm64 ;; *) architecture=x64 ;; esac; exec python3 "$1" --refresh-with "$2/pnpm-$version-$system-$architecture/pnpm" --lockfile "$3" --fresh "$4"</argument>
+                                <argument>${project.basedir}/../airness-maven-plugin/src/main/resources/eu/ciechanowiec/airness/node/toolchain.properties</argument>
+                                <argument>${project.basedir}/.airness/npm-registry.py</argument>
+                                <argument>${settings.localRepository}/.airness/toolchain</argument>
+                                <argument>${project.basedir}/pnpm-lock.yaml</argument>
+                                <argument>${project.basedir}/../airness-node/target/airness-node-${project.version}.tgz</argument>
                             </arguments>
                         </configuration>
                     </execution>

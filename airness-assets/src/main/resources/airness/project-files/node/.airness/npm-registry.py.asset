@@ -12,6 +12,7 @@ package keeps the registry it is installed from and every other request is answe
 
     npm-registry.py (--port <port> | --port-file <file>) --fresh <tarball> ... [--old <tarball> ...]
                     [--npmrc <file> --scope <scope>] [--lockfile <pnpm-lock.yaml>]
+    npm-registry.py --refresh-with <pnpm> --lockfile <pnpm-lock.yaml> --fresh <tarball> ...
 
 With --npmrc it writes the scope line naming the bound port into that file before the port file, so a build that
 waits for the port file finds the configuration already in place. --npmrc needs --scope.
@@ -29,6 +30,14 @@ A lockfile-only install keeps an integrity the lockfile already records unless -
 again, and pnpm would resolve it from the package document it cached for a registry address, which names the
 old integrity, hence the fresh cache. A workspace keeps one lockfile, at its root, so the command runs there.
 
+With --refresh-with it serves nothing: it runs that refresh itself, with the given pnpm, found on the search path
+when it is a bare name, once a registry this helper started serves the tarballs and the .npmrc routes their scope
+to it. It refreshes a lock that is stale, or that a merge left with conflict markers, which pnpm resolves, and
+leaves any other lock as it is. Having refreshed one, it exits with an error, so a build that binds it before its
+frozen install stops rather than going on with a tracked file it rewrote; the next build runs on the refreshed
+lock. Under a CI variable that is set and is not false or 0, it refreshes nothing and fails as the check above
+does, so a branch whose committed lock is stale fails there.
+
 With --port it binds that port and fails when the port is taken. With --port-file it binds a free port and
 writes it into the file once it serves. It stops when the process that started it is gone, so an interrupted
 build leaves no server behind.
@@ -42,8 +51,11 @@ import json
 import os
 import re
 import shlex
+import shutil
+import subprocess
 import sys
 import tarfile
+import tempfile
 import threading
 import time
 from datetime import datetime, timezone
@@ -86,7 +98,7 @@ def locked_integrities(lockfile):
     return {entry.group(1): entry.group(2) for entry in entries}
 
 
-def refuse_stale_lock(arguments):
+def stale_entries(arguments):
     locked = locked_integrities(arguments.lockfile)
     stale = []
     for path in arguments.fresh:
@@ -98,6 +110,18 @@ def refuse_stale_lock(arguments):
         served = integrity_of(content)
         if key in locked and locked[key] != served:
             stale.append((key, locked[key], served, path))
+    return stale
+
+
+def stale_lines(arguments, stale):
+    lines = [f'the lockfile {arguments.lockfile} is stale, so a frozen install would refuse what this registry serves:']
+    for key, recorded, served, path in stale:
+        lines.append(f'  {key}: the lockfile records {recorded}, but {path} has {served}')
+    return lines
+
+
+def refuse_stale_lock(arguments):
+    stale = stale_entries(arguments)
     if not stale:
         return
     # The same invocation without the lockfile check, so the registry it starts serves what this one would.
@@ -108,9 +132,7 @@ def refuse_stale_lock(arguments):
             next(given, None)
         elif not argument.startswith('--lockfile='):
             restart.append(argument)
-    lines = [f'the lockfile {arguments.lockfile} is stale, so a frozen install would refuse what this registry serves:']
-    for key, recorded, served, path in stale:
-        lines.append(f'  {key}: the lockfile records {recorded}, but {path} has {served}')
+    lines = stale_lines(arguments, stale)
     directory = shlex.quote(os.path.dirname(os.path.abspath(arguments.lockfile)))
     lines += [
         'Refresh the lock against this registry. Start it without --lockfile:',
@@ -125,11 +147,85 @@ def refuse_stale_lock(arguments):
     sys.exit('\n'.join(lines))
 
 
+# Whether a CI variable says the build runs in CI, as GitHub Actions and most CI services set it.
+def in_ci():
+    return os.environ.get('CI', '').strip().lower() not in ('', 'false', '0')
+
+
+# The environment the build runs pnpm with: the pnpm's own directory first on the search path, and no inherited
+# setting with which pnpm would pick a pnpm or a Node of its own.
+def pnpm_environment(pnpm):
+    selecting = {
+        prefix + setting
+        for prefix in ('npm_config_', 'pnpm_config_')
+        for setting in (
+            'manage_package_manager_versions', 'use_node_version', 'node_version', 'execution_env', 'pm_on_fail'
+        )
+    }
+    environment = {name: value for name, value in os.environ.items() if name.lower() not in selecting}
+    environment['npm_config_manage_package_manager_versions'] = 'false'
+    environment['pnpm_config_manage_package_manager_versions'] = 'false'
+    environment['PATH'] = os.path.dirname(os.path.abspath(pnpm)) + os.pathsep + environment.get('PATH', '')
+    return environment
+
+
+def conflicted(lockfile):
+    if not os.path.isfile(lockfile):
+        return False
+    with open(lockfile, encoding='utf-8') as stream:
+        return any(line.startswith(('<<<<<<< ', '>>>>>>> ')) for line in stream)
+
+
+def lock_problems(arguments):
+    if conflicted(arguments.lockfile):
+        return [f'the lockfile {arguments.lockfile} holds merge conflict markers']
+    stale = stale_entries(arguments)
+    return stale_lines(arguments, stale) if stale else []
+
+
+def refresh_stale_lock(arguments):
+    problems = lock_problems(arguments)
+    if not problems:
+        print(f'The lockfile {arguments.lockfile} records the integrity of each served tarball')
+        return
+    if in_ci():
+        sys.exit('\n'.join(problems + [
+            'CI refreshes no lock. Build on your own machine, where the build refreshes it, and commit the lockfile.',
+        ]))
+    pnpm = shutil.which(arguments.refresh_with)
+    if pnpm is None:
+        sys.exit(
+            f'no pnpm {arguments.refresh_with} to refresh the stale lock with; install the pinned pnpm, as the build of'
+            ' any node module does, and build again'
+        )
+    directory = os.path.dirname(os.path.abspath(arguments.lockfile))
+    print('\n'.join(problems + [f'Refreshing it with {pnpm}']), flush=True)
+    with tempfile.TemporaryDirectory() as cache:
+        environment = pnpm_environment(pnpm)
+        environment['pnpm_config_cache_dir'] = cache
+        refreshed = subprocess.run(
+            [pnpm, 'install', '--lockfile-only', '--fix-lockfile', '--ignore-scripts'],
+            cwd=directory,
+            env=environment,
+            check=False,
+        )
+    if refreshed.returncode != 0:
+        sys.exit(f'the refresh of {arguments.lockfile} exited {refreshed.returncode}; its output is above')
+    left = lock_problems(arguments)
+    if left:
+        sys.exit('\n'.join(['the refresh did not repair the lock:'] + left))
+    sys.exit(
+        f'Refreshed {arguments.lockfile}, a tracked file, so this build stops here. Build again, and commit the\n'
+        'lockfile with the change that altered the served tarballs.'
+    )
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Serve npm tarballs as a local registry.')
     where = parser.add_mutually_exclusive_group(required=True)
     where.add_argument('--port', type=int)
     where.add_argument('--port-file')
+    where.add_argument('--refresh-with', help='the pnpm with which to refresh a stale --lockfile, serving nothing')
     parser.add_argument('--fresh', nargs='+', default=[], help='tarballs dated now')
     parser.add_argument('--old', nargs='*', default=[], help='tarballs dated years back')
     parser.add_argument('--npmrc', help='the .npmrc to write the scope line into once the port is bound')
@@ -138,11 +234,16 @@ def parse_arguments():
     arguments = parser.parse_args()
     if arguments.npmrc and not arguments.scope:
         parser.error('--npmrc needs --scope, the scope the .npmrc routes here')
+    if arguments.refresh_with and not arguments.lockfile:
+        parser.error('--refresh-with needs --lockfile, the lockfile to refresh')
     return arguments
 
 
 def main():
     arguments = parse_arguments()
+    if arguments.refresh_with:
+        refresh_stale_lock(arguments)
+        return
     now = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
     tarballs = [(path, now) for path in arguments.fresh] + [(path, OLD_RELEASE) for path in arguments.old]
     if arguments.lockfile:

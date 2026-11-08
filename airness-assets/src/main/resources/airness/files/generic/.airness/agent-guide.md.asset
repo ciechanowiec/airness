@@ -312,9 +312,12 @@ Until the harness npm packages are published, the managed `.airness/npm-registry
 installed Maven tarballs from a temporary loopback registry. Bind its startup and readiness checks at validate,
 write its endpoint only to an ignored `.npmrc`, and keep its lifetime inside the Maven process. Given the
 project's lockfile with `--lockfile`, it refuses to start when a served tarball's integrity differs from the
-one the lockfile records, and names the lockfile-only `pnpm install` that refreshes the lock against it. Other
-packages retain their public registry metadata and release-age checks. Only the unpublished harness packages may
-be excluded from the age floor.
+one the lockfile records, and names the lockfile-only `pnpm install` that refreshes the lock against it. With
+`--refresh-with <pnpm>` and the lockfile, bound with the pinned pnpm at initialize before the frozen install, it
+serves nothing and runs that refresh itself on a stale lock or one with merge conflict markers, then fails the
+build, which has rewritten a tracked file, so the next build runs on the refreshed lock. With the `CI` variable
+set it refreshes nothing and fails. Other packages retain their public registry metadata and release-age
+checks. Only the unpublished harness packages may be excluded from the age floor.
 
 ## Command Workflow
 

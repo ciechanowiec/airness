@@ -254,6 +254,7 @@ if count != 1:
 with open(path, 'w', encoding='utf-8') as stream:
     stream.write(altered)
 PY
+    cp "${lock_case}/pnpm-lock.yaml" "${lock_case}/stale-lock.yaml"
     mkdir -p "${lock_case}/other-version"
     python3 - "${lock_case}/pnpm-lock.yaml" "${lock_case}/other-version/pnpm-lock.yaml" "${harness_version}" <<'PY'
 import sys
@@ -320,6 +321,82 @@ PY
         fail 'node gates: the registry starts against a lockfile not written yet' \
             "npm-registry.py ${lock_registry_outcome}; see ${lock_case}/missing.log"
     fi
+    run_lock_refresh_cases
+}
+
+# The refresh a build binds before its frozen install, against the registry the fixtures install from. With the
+# CI variable set it refuses the stale lock and leaves it as it is. Without it, it refreshes a stale lock, and one
+# a merge left with conflict markers, with the pinned pnpm, then exits with an error, so the build stops on the
+# tracked file it rewrote. Against the lock it wrote, it exits 0.
+run_lock_refresh_cases() {
+    auto_case="${lock_case}/auto"
+    mkdir -p "${auto_case}"
+    for lock_file in package.json pnpm-workspace.yaml .npmrc; do
+        cp "${lock_case}/${lock_file}" "${auto_case}/${lock_file}"
+    done
+    cp "${lock_case}/stale-lock.yaml" "${auto_case}/pnpm-lock.yaml"
+    if run_lock_refresh ci true; then
+        fail 'node gates: the lock refresh refuses a stale lock in CI' 'npm-registry.py --refresh-with exited 0'
+    elif cmp -s "${lock_case}/stale-lock.yaml" "${auto_case}/pnpm-lock.yaml"; then
+        pass 'node gates: the lock refresh refuses a stale lock in CI'
+    else
+        fail 'node gates: the lock refresh refuses a stale lock in CI' 'it rewrote the lock under CI=true'
+    fi
+    expect_file_match "${auto_case}/ci.log" 'node gates: the CI refusal says CI refreshes no lock' \
+        'CI refreshes no lock'
+
+    if run_lock_refresh stale ''; then
+        fail 'node gates: the lock refresh refreshes a stale lock and stops the build' \
+            'npm-registry.py --refresh-with exited 0 after refreshing'
+    elif python3 -c "${locks_packed_integrity}" "${packed_tarball}" "${auto_case}/pnpm-lock.yaml"; then
+        pass 'node gates: the lock refresh refreshes a stale lock and stops the build'
+    else
+        fail 'node gates: the lock refresh refreshes a stale lock and stops the build' "see ${auto_case}/stale.log"
+    fi
+    expect_file_match "${auto_case}/stale.log" 'node gates: the lock refresh says to build again' \
+        'so this build stops here[.] Build again'
+
+    if run_lock_refresh current ''; then
+        pass 'node gates: the lock refresh leaves a current lock and lets the build go on'
+    else
+        fail 'node gates: the lock refresh leaves a current lock and lets the build go on' \
+            "see ${auto_case}/current.log"
+    fi
+
+    # Both sides of a merge, each with its own @airness/node integrity, as two branches that changed
+    # airness-node leave them.
+    python3 - "${auto_case}/pnpm-lock.yaml" "${lock_case}/stale-lock.yaml" <<'PY'
+import re
+import sys
+
+current, stale = sys.argv[1:]
+pattern = r"('@airness/node@[^']+':\n)(    resolution: \{integrity: [^}]+\}\n)"
+with open(current, encoding='utf-8') as stream:
+    lockfile = stream.read()
+with open(stale, encoding='utf-8') as stream:
+    theirs = re.search(pattern, stream.read()).group(2)
+ours = re.search(pattern, lockfile)
+merged = f'<<<<<<< ours\n{ours.group(2)}=======\n{theirs}>>>>>>> theirs\n'
+with open(current, 'w', encoding='utf-8') as stream:
+    stream.write(lockfile[:ours.start(2)] + merged + lockfile[ours.end(2):])
+PY
+    if run_lock_refresh conflict ''; then
+        fail 'node gates: the lock refresh resolves a merge conflict in the lock' \
+            'npm-registry.py --refresh-with exited 0 after refreshing'
+    elif ! grep -q '^<<<<<<<' "${auto_case}/pnpm-lock.yaml" \
+        && python3 -c "${locks_packed_integrity}" "${packed_tarball}" "${auto_case}/pnpm-lock.yaml"; then
+        pass 'node gates: the lock refresh resolves a merge conflict in the lock'
+    else
+        fail 'node gates: the lock refresh resolves a merge conflict in the lock' "see ${auto_case}/conflict.log"
+    fi
+}
+
+# Runs the lock refresh in the auto case with the pinned pnpm, under the CI value given second, logging to the
+# file named after the first. Its exit status is the refresh's.
+run_lock_refresh() {
+    (cd "${auto_case}" && CI="$2" pnpm_config_store_dir="${scratch}/.pnpm-store" \
+        python3 "${repository}/airness-node/.airness/npm-registry.py" --refresh-with "${pnpm_home}/pnpm" \
+        --lockfile "${auto_case}/pnpm-lock.yaml" --fresh "${packed_tarball}") > "${auto_case}/$1.log" 2>&1
 }
 
 # Every pack the reactor makes starts from an emptied dist, so it cannot show that the files allowlist keeps a
