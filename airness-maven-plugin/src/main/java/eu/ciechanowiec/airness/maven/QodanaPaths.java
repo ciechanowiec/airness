@@ -9,7 +9,7 @@ import java.util.List;
  * @param root        repository root
  * @param output      Qodana output directory
  * @param profile     extracted inspection profile
- * @param environment host trust roots and resolved Maven repository
+ * @param environment host trust roots and the resolved local Maven repository
  * @param metadata    the mounts of a linked worktree's Git directories, none for a clone
  */
 record QodanaPaths(
@@ -24,7 +24,7 @@ record QodanaPaths(
         return this.environment.roots();
     }
 
-    Path localRepository() {
+    LocalRepository localRepository() {
         return this.environment.localRepository();
     }
 
@@ -32,8 +32,8 @@ record QodanaPaths(
      * Host paths Qodana reads as its Maven and certificate environment.
      *
      * @param roots           exported host trust roots
-     * @param localRepository resolved Maven repository
+     * @param localRepository the resolved local Maven repository, with every tail chained behind its head
      */
-    public record Environment(Path roots, Path localRepository) {
+    public record Environment(Path roots, LocalRepository localRepository) {
     }
 }

@@ -35,12 +35,10 @@ final class VersionCoordinates {
     private static final Pattern EXPRESSION = Pattern.compile("\\$\\{([^}]+)}");
 
     static List<OwnedCoordinate> from(MavenSession session) {
-        Path repository = session.getRepositorySession().getLocalRepositoryManager()
-            .getRepository().getBasePath();
-        return from(session.getAllProjects(), repository);
+        return from(session.getAllProjects(), LocalRepository.of(session));
     }
 
-    static List<OwnedCoordinate> from(Collection<MavenProject> projects, Path repository) {
+    static List<OwnedCoordinate> from(Collection<MavenProject> projects, LocalRepository repository) {
         Map<String, VersionPom> reactor = projects.stream()
             .map(project -> versionPom(project, repository))
             .collect(Collectors.toUnmodifiableMap(VersionPom::key, Function.identity()));
@@ -52,7 +50,7 @@ final class VersionCoordinates {
             .toList();
     }
 
-    private static Stream<OwnedCoordinate> declaredFor(MavenProject project, Path repository) {
+    private static Stream<OwnedCoordinate> declaredFor(MavenProject project, LocalRepository repository) {
         Map<String, String> effective = properties(project);
         return lineage(project)
             .map(owner -> versionPom(owner, repository))
@@ -70,24 +68,23 @@ final class VersionCoordinates {
             .map(coordinate -> new OwnedCoordinate(pom.owner(), coordinate));
     }
 
-    private static VersionPom versionPom(MavenProject project, Path repository) {
+    private static VersionPom versionPom(MavenProject project, LocalRepository repository) {
         String owner = project.getGroupId() + SEPARATOR + project.getArtifactId();
         return new VersionPom(owner, versionedKey(project), rawPom(project, repository));
     }
 
-    static Path rawPom(MavenProject project, Path repository) {
+    static Path rawPom(MavenProject project, LocalRepository repository) {
         return Optional.ofNullable(project.getFile())
             .map(File::toPath)
             .orElseGet(() -> localPom(project, repository));
     }
 
-    private static Path localPom(MavenProject project, Path repository) {
+    private static Path localPom(MavenProject project, LocalRepository repository) {
         String group = project.getGroupId().replace('.', File.separatorChar);
         String filename = project.getArtifactId() + '-' + project.getVersion() + POM_SUFFIX;
-        return repository.resolve(group)
-            .resolve(project.getArtifactId())
-            .resolve(project.getVersion())
-            .resolve(filename);
+        return repository.file(
+            Path.of(group, project.getArtifactId(), project.getVersion(), filename)
+        );
     }
 
     private static DeclaredCoordinate resolved(

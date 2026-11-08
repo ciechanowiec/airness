@@ -409,6 +409,30 @@ A pnpm workspace root and each of its members are judged as their own packages, 
 .. At every other registration point that test lists, delete what names the stack: its lines, its sentences and its list elements, each element with the separator that sets it apart. The three deny rules of `airness-payload-node` in `.claude/settings.json` are deleted by hand too, because `mvn airness:assets-sync` adds missing rules and never removes one.
 .. Delete every entry of the stack-path and registration lists of `StackConfinementTest`, with the line breaks around them, and the names only those entries read, which leaves both lists as `List.of()`. The generic uses it lists, where the word means a request body or the data of a PNG chunk, stay.
 
+[[local-harness-builds]]
+== Local Harness Builds
+
+. A governed project that names a snapshot version of an _airness_ parent resolves it from the local Maven repository, so `mvn clean install` in a clone of the _airness_ repository installs the harness that every governed project on the machine builds against. Clones that install into the same local Maven repository replace each other's harness under one version, and a build that starts while another clone installs reads a harness mixed from both.
+. A clone keeps its harness to itself when it installs into a local Maven repository of its own and chains the shared one behind it as a read-only tail. Maven resolves each artifact from the first of the two that holds it, so the clone's builds and its integration suite read the clone's own harness and download nothing the shared repository already holds. Two variables set this for a clone, for example in an `.envrc` that https://direnv.net[direnv^] loads on entering the clone:
++
+[source,sh]
+----
+export MAVEN_REPO_LOCAL="${HOME}/.m2/clones/$(basename "${PWD}")"
+export MAVEN_ARGS="-Dmaven.repo.local=${MAVEN_REPO_LOCAL} -Dmaven.repo.local.tail=${HOME}/.m2/repository"
+----
++
+Maven reads `MAVEN_ARGS`, and `airness-it/verify.sh` reads `MAVEN_REPO_LOCAL` to find what the clone installed. `echo .envrc >> .git/info/exclude` keeps the file out of Git. An agent inherits the variables when it is started from a shell inside the clone, because direnv sets them in that shell rather than in the commands the agent runs. The pinned Node toolchain is cached in the clone's own repository and is downloaded once for it. Under xref:#extended-verification[extended verification], Qodana mounts the tail beside the clone's repository.
+. A governed project builds against the shared repository, so it builds against the harness last promoted there. Running the governed project's build with a clone's `MAVEN_ARGS` checks it against that clone's harness first. The following loop promotes the harness of a clone after a passing build:
++
+[source,sh]
+----
+for artifact in "${MAVEN_REPO_LOCAL}"/eu/ciechanowiec/airness*/; do
+    rsync -a "${artifact}" "${HOME}/.m2/repository/eu/ciechanowiec/$(basename "${artifact}")/"
+done
+----
++
+A promotion runs while no governed project builds, because a build that starts during the copy can read a harness that is partly from each clone.
+
 [[configuration]]
 == Configuration
 

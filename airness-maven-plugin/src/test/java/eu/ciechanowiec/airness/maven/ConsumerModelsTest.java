@@ -32,10 +32,10 @@ class ConsumerModelsTest {
         SessionData data = new DefaultSessionData();
         assertEquals(
             List.of(parent.getFile().toPath() + ": Remove child property skipTests; it can bypass the Airness verdict"),
-            ConsumerModels.problems(child, data, this.directory)
+            ConsumerModels.problems(child, data, this.repository())
         );
-        assertTrue(ConsumerModels.problems(parent, data, this.directory).isEmpty());
-        assertEquals(1, ConsumerModels.problems(child, new DefaultSessionData(), this.directory).size());
+        assertTrue(ConsumerModels.problems(parent, data, this.repository()).isEmpty());
+        assertEquals(1, ConsumerModels.problems(child, new DefaultSessionData(), this.repository()).size());
     }
 
     @Test
@@ -44,7 +44,7 @@ class ConsumerModelsTest {
         airness.setGroupId("eu.ciechanowiec");
         MavenProject child = this.project("child", "");
         child.setParent(airness);
-        assertTrue(ConsumerModels.problems(child, new DefaultSessionData(), this.directory).isEmpty());
+        assertTrue(ConsumerModels.problems(child, new DefaultSessionData(), this.repository()).isEmpty());
     }
 
     @Test
@@ -55,7 +55,7 @@ class ConsumerModelsTest {
         java.setGroupId("eu.ciechanowiec");
         MavenProject child = this.project("child", "");
         child.setParent(java);
-        assertTrue(ConsumerModels.problems(child, new DefaultSessionData(), this.directory).isEmpty());
+        assertTrue(ConsumerModels.problems(child, new DefaultSessionData(), this.repository()).isEmpty());
     }
 
     @Test
@@ -64,7 +64,7 @@ class ConsumerModelsTest {
         MavenProject child = this.project("child", "");
         child.setParent(parent);
         assertTrue(
-            ConsumerModels.problems(child, new DefaultSessionData(), this.directory).stream()
+            ConsumerModels.problems(child, new DefaultSessionData(), this.repository()).stream()
                 .anyMatch(problem -> problem.contains("company.xml") && problem.contains("airness.version"))
         );
     }
@@ -83,7 +83,7 @@ class ConsumerModelsTest {
         child.setParent(parent);
         assertEquals(
             List.of(pom + ": Remove child property skipTests; it can bypass the Airness verdict"),
-            ConsumerModels.problems(child, new DefaultSessionData(), this.directory)
+            ConsumerModels.problems(child, new DefaultSessionData(), this.repository())
         );
     }
 
@@ -101,15 +101,19 @@ class ConsumerModelsTest {
         assertEquals(Set.of("node-gate-eslint", "node-gate-knip"), ConsumerModels.inherited(this.child(parent, "x")));
         SessionData data = new DefaultSessionData();
         List<String> problems = Stream.of("node-gate-eslint", "node-gate-knip")
-            .flatMap(id -> ConsumerModels.problems(this.child(parent, id), data, this.directory).stream())
+            .flatMap(id -> ConsumerModels.problems(this.child(parent, id), data, this.repository()).stream())
             .filter(problem -> problem.contains("airness-maven-plugin"))
             .toList();
         assertEquals(2, problems.size(), "both reused ids are refused: " + problems);
         assertEquals(
             List.of(), ConsumerModels.problems(
-                this.child(parent, "frontend-build"), new DefaultSessionData(), this.directory
+                this.child(parent, "frontend-build"), new DefaultSessionData(), this.repository()
             )
         );
+    }
+
+    private LocalRepository repository() {
+        return LocalRepository.at(this.directory);
     }
 
     private MavenProject child(MavenProject parent, String id) {

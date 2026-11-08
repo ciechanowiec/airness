@@ -19,15 +19,44 @@ class QodanaMojoTest {
             new QodanaPaths(
                 directory.resolve("project"), directory.resolve("output"),
                 directory.resolve("profile.xml"),
-                new QodanaPaths.Environment(directory.resolve("roots.pem"), localRepository), List.of()
+                new QodanaPaths.Environment(directory.resolve("roots.pem"), LocalRepository.at(localRepository)),
+                List.of()
             ),
             "qodana:test"
         );
         assertTrue(command.contains(localRepository + ":/opt/maven-repository:ro"));
         assertTrue(command.getLast().contains(QodanaSnapshot.SCRIPT));
-        assertTrue(command.getLast().contains("cp -as"));
+        assertTrue(
+            command.getLast().contains("cp -as --remove-destination /opt/maven-repository/. /data/cache/.m2/; ")
+        );
         assertTrue(command.getLast().contains("_remote.repositories"));
         assertTrue(command.getLast().startsWith("set -- /opt/project /data/project /data/results/source-files; "));
+    }
+
+    @Test
+    void mountsEveryTailReadOnlyAndLetsTheHeadWinOverIt(@TempDir Path directory) {
+        Path head = directory.resolve("head");
+        LocalRepository repository = new LocalRepository(
+            head, List.of(directory.resolve("first"), directory.resolve("second"))
+        );
+        List<String> command = QodanaMojo.dockerCommand(
+            new QodanaPaths(
+                directory.resolve("project"), directory.resolve("output"), directory.resolve("profile.xml"),
+                new QodanaPaths.Environment(directory.resolve("roots.pem"), repository), List.of()
+            ),
+            "qodana:test"
+        );
+        assertTrue(command.contains(head + ":/opt/maven-repository:ro"));
+        assertTrue(command.contains(directory.resolve("first") + ":/opt/maven-repository-tail-1:ro"));
+        assertTrue(command.contains(directory.resolve("second") + ":/opt/maven-repository-tail-2:ro"));
+        assertTrue(
+            command.getLast().contains(
+                "cp -as --remove-destination /opt/maven-repository-tail-2/. /data/cache/.m2/; "
+                    + "cp -as --remove-destination /opt/maven-repository-tail-1/. /data/cache/.m2/; "
+                    + "cp -as --remove-destination /opt/maven-repository/. /data/cache/.m2/; "
+            ),
+            "the last tail is linked first, so the repositories before it replace what they also hold"
+        );
     }
 
     @Test
@@ -36,7 +65,10 @@ class QodanaMojoTest {
         List<String> command = QodanaMojo.dockerCommand(
             new QodanaPaths(
                 directory.resolve("project"), directory.resolve("output"), directory.resolve("profile.xml"),
-                new QodanaPaths.Environment(directory.resolve("roots.pem"), directory.resolve("repository")), metadata
+                new QodanaPaths.Environment(
+                    directory.resolve("roots.pem"), LocalRepository.at(directory.resolve("repository"))
+                ),
+                metadata
             ),
             "qodana:test"
         );

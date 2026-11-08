@@ -25,7 +25,7 @@ final class ConsumerModels {
     private static final String AIRNESS_GROUP = "eu.ciechanowiec";
     private static final String AIRNESS_PLUGIN = "airness-maven-plugin";
 
-    static List<String> problems(MavenProject project, SessionData data, Path repository) {
+    static List<String> problems(MavenProject project, SessionData data, LocalRepository repository) {
         return Stream.iterate(project, Objects::nonNull, MavenProject::getParent)
             .takeWhile(parent -> !RepositoryProjects.harnessParent(parent))
             .map(parent -> Map.entry(pom(parent, repository), parent))
@@ -50,7 +50,7 @@ final class ConsumerModels {
             .collect(Collectors.toUnmodifiableSet());
     }
 
-    private static Path pom(MavenProject project, Path repository) {
+    private static Path pom(MavenProject project, LocalRepository repository) {
         return VersionCoordinates.rawPom(project, repository).toAbsolutePath().normalize();
     }
 
