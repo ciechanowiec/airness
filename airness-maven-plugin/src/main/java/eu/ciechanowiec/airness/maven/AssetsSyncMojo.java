@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.AssetSite;
 import eu.ciechanowiec.airness.governance.AssetSync;
 import eu.ciechanowiec.airness.governance.Repository;
@@ -96,7 +95,7 @@ public final class AssetsSyncMojo extends AbstractMojo {
         List<AssetSite> sites = RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root);
         List<String> files = new AssetSync(
             root,
-            new AssetCatalogue(AssetsSyncMojo.class.getClassLoader()),
+            TreeCatalogue.of(this.project(), root),
             Sentinel.optional(this.unmanaged),
             sites
         ).write();

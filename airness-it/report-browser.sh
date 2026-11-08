@@ -3,10 +3,10 @@
 set -eu
 
 repository="$(cd "$(dirname "$0")/.." && pwd)"
+. "${repository}/airness-it/local-repository.sh"
 version="$(sed -n 's|^ *<playwright.version>\(.*\)</playwright.version> *$|\1|p' \
     "${repository}/airness-maven-plugin/pom.xml")"
 test -n "${version}"
-local_repository="${MAVEN_REPO_LOCAL:-${HOME}/.m2/repository}"
 # Maven copies each jar out of whichever repository holds it, because a build that chains the shared
 # repository behind its own through maven.repo.local.tail resolves it there and never into its own.
 jars="$(mktemp -d)"

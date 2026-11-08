@@ -3,6 +3,7 @@
 # PINNED: the file holds exactly the shipped bytes. SEED: written when absent, then owned by the project.
 # SECTION: the file leads with one marked block per layer that claims it; the rest is the project's.
 # REFERENCE: optional, and when present it only points at AGENTS.md. FORBIDDEN: the file must not exist.
+# In the harness's own tree alone, a pinned root file is followed by its body under airness/self-files, if any.
 # Project documentation belongs to the consuming project. The software project guideline is the one
 # exception because it defines the agent contract. The Maven startup files and the Java version are
 # generic because every repository builds with Maven on exactly Java 25. The JVM options file is pinned with

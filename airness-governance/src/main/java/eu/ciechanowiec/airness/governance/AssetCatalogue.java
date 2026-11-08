@@ -1,9 +1,5 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,12 +16,10 @@ import java.util.stream.Stream;
  * The files the harness owns and the bytes it ships for each, read off a classloader.
  *
  * <p>Each layer has a manifest of its own, {@code airness/manifest/<layer>.tsv}, and ships its
- * bodies under {@code airness/files/<layer>/}. A row names a path, a policy, optionally a location
+ * bodies where {@link AssetBodies} reads them. A row names a path, a policy, optionally a location
  * ({@code ROOT} unless stated), and optionally {@code OVERRIDES <layer>}. The generic manifest is
  * required. The others are read when the classpath carries them, which is how a layer published from
- * another repository adds its files. A body placed in each node project is shipped under
- * {@code airness/project-files/<layer>/} instead, so one path can read differently at the root and
- * inside a node project.
+ * another repository adds its files.
  *
  * <p>A manifest deliberately carries no checksum: a checksum in the manifest would be a second spelling
  * of what the shipped bytes already say, and the two would eventually disagree, at which point the
@@ -37,19 +31,13 @@ import java.util.stream.Stream;
  * that ships the files, and a disagreement is a harness bug its own tests catch rather than a finding a
  * consumer meets.
  *
- * <p>A canonical file is stored under an added {@code .asset} suffix. Without it, the copy of
- * {@code .gitignore} this jar ships would be a working {@code .gitignore} over its own source directory
- * and could stop the other canonical files from being tracked, and the copy of {@code .gitattributes}
- * would take effect over them. A file that changes the meaning of the directory it is stored in cannot
- * be stored under its own name.
+ * <p>The harness's own working tree reads the same files with the self additions {@link AssetBodies}
+ * describes, which {@link #selfTree()} gives.
  */
 public final class AssetCatalogue {
 
     private static final String MANIFESTS = "airness/manifest/";
     private static final String TSV = ".tsv";
-    private static final String FILES = "airness/files/";
-    private static final String PROJECT_FILES = "airness/project-files/";
-    private static final String SUFFIX = ".asset";
     private static final String COMMENT = "#";
     private static final String SEPARATOR = "\t";
     private static final String OVERRIDES = "OVERRIDES ";
@@ -58,7 +46,7 @@ public final class AssetCatalogue {
     private static final int OVERRIDES_FIELD = 3;
     private static final int MOST_FIELDS = 4;
 
-    private final ClassLoader classes;
+    private final AssetBodies bodies;
     private final List<Row> rows;
 
     /**
@@ -69,7 +57,7 @@ public final class AssetCatalogue {
      *                               layers claim one file without an override that resolves it
      */
     public AssetCatalogue(ClassLoader classes) {
-        this.classes = classes;
+        this.bodies = new AssetBodies(classes);
         if (this.manifest(Layer.GENERIC).isEmpty()) {
             throw new IllegalStateException(
                 "No " + MANIFESTS + Layer.GENERIC.id() + TSV
@@ -80,6 +68,21 @@ public final class AssetCatalogue {
             .flatMap(layer -> this.manifest(layer).stream().flatMap(text -> parse(layer, text)))
             .toList();
         validate(this.rows);
+    }
+
+    private AssetCatalogue(AssetBodies bodies, List<Row> rows) {
+        this.bodies = bodies;
+        this.rows = rows;
+    }
+
+    /**
+     * The same files as the harness's own working tree is held to them, where each pinned root file
+     * that has a self addition is followed by it.
+     *
+     * @return the catalogue of the harness's own tree
+     */
+    public AssetCatalogue selfTree() {
+        return new AssetCatalogue(this.bodies.selfTree(), this.rows);
     }
 
     /**
@@ -110,42 +113,18 @@ public final class AssetCatalogue {
     }
 
     /**
-     * The bytes the harness ships for a managed file: a whole file, or the body of one block.
+     * The bytes the harness ships for a managed file: a whole file, or the body of one block, followed in
+     * the harness's own tree by the self addition of a pinned root file.
      *
      * @param asset the managed file
      * @return the canonical bytes, or nothing when the harness ships none for it
      */
     Optional<byte[]> canonical(ManagedAsset asset) {
-        return this.read(resource(asset));
-    }
-
-    static String resource(ManagedAsset asset) {
-        String base = asset.location() == AssetLocation.ROOT ? FILES : PROJECT_FILES;
-        // Scaffolds can target development-control directories. Their flat, encoded resource names keep
-        // those directories out of the production archive while preserving the target path in the manifest.
-        String path = asset.policy() == AssetPolicy.SCAFFOLD
-            ? URLEncoder.encode(asset.path(), StandardCharsets.UTF_8) : asset.path();
-        return base + asset.owner().id() + '/' + path + SUFFIX;
+        return this.bodies.canonical(asset);
     }
 
     private Optional<String> manifest(Layer layer) {
-        return this.read(MANIFESTS + layer.id() + TSV).map(bytes -> new String(bytes, StandardCharsets.UTF_8));
-    }
-
-    private Optional<byte[]> read(String resource) {
-        try (InputStream stream = this.classes.getResourceAsStream(resource)) {
-            return Optional.ofNullable(stream).map(AssetCatalogue::drain);
-        } catch (IOException exception) {
-            throw new UncheckedIOException("Could not read " + resource, exception);
-        }
-    }
-
-    private static byte[] drain(InputStream stream) {
-        try {
-            return stream.readAllBytes();
-        } catch (IOException exception) {
-            throw new UncheckedIOException("Could not read a shipped asset", exception);
-        }
+        return this.bodies.read(MANIFESTS + layer.id() + TSV).map(bytes -> new String(bytes, StandardCharsets.UTF_8));
     }
 
     private static Stream<Row> parse(Layer owner, String manifest) {

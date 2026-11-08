@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.AssetCatalogue;
 import eu.ciechanowiec.airness.governance.Repository;
 import java.nio.file.Path;
 import java.util.List;
@@ -38,7 +37,7 @@ public final class RepositoryPolicyMojo extends AbstractMojo {
         Path root = Repository.rootFrom(current.getTopLevelProject().getBasedir().toPath());
         List<String> problems = new MavenRepositoryPolicy(
             root, current.getRequest(), current.getRepositorySession().getMirrorSelector(),
-            new AssetCatalogue(RepositoryPolicyMojo.class.getClassLoader())
+            TreeCatalogue.of(current.getCurrentProject(), root)
         ).problems();
         problems.forEach(problem -> this.getLog().error(problem));
         if (!problems.isEmpty()) {

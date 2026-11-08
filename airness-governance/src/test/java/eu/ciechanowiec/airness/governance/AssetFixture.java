@@ -79,6 +79,19 @@ final class AssetFixture {
     }
 
     /**
+     * Ships the addition that follows a file one layer owns in the harness's own tree.
+     *
+     * @return this fixture, so calls chain
+     */
+    @SneakyThrows
+    AssetFixture shipSelf(Layer owner, String path, CharSequence content) {
+        Path file = this.directory.resolve("airness/self-files/" + owner.id()).resolve(path + SUFFIX);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, content);
+        return this;
+    }
+
+    /**
      * Builds a catalogue from the fixture.
      *
      * @return a catalogue reading this fixture and nothing else

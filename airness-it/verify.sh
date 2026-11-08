@@ -55,6 +55,17 @@ done
 # scheduled by the Docker daemon rather than by a child of this shell.
 renice 19 -p "$$" > /dev/null 2>&1 || true
 
+. "${repository}/airness-it/local-repository.sh"
+shared_repository="${HOME}/.m2/repository"
+# The consumer fixtures build outside this clone, so its .mvn/maven.config never reaches them. Each is handed the
+# clone's repository instead, with the shared one behind it, so it reads the harness this clone installed.
+fixture_repository="-Dmaven.repo.local=${local_repository}"
+if [ "${local_repository}" != "${shared_repository}" ]; then
+    fixture_repository="${fixture_repository} -Dmaven.repo.local.tail=${shared_repository}"
+fi
+MAVEN_ARGS="${MAVEN_ARGS:+${MAVEN_ARGS} }${fixture_repository}"
+export MAVEN_ARGS
+
 scratch="$(mktemp -d "${HOME}/.airness-it-XXXXXX")"
 started="$(date +%s)"
 failures=0
@@ -64,7 +75,6 @@ maven_processes=0
 physical_executions=0
 result_domain=''
 consumer_template="${scratch}/.consumer-template"
-local_repository="${MAVEN_REPO_LOCAL:-${HOME}/.m2/repository}"
 lane_results="${scratch}/.lanes"
 exclusive_lock="${scratch}/.extended.lock"
 mkdir -p "${lane_results}"
