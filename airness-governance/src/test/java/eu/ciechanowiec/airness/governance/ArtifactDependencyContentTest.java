@@ -5,8 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -75,6 +82,63 @@ class ArtifactDependencyContentTest {
                 this.findings(shipped, main, vendor, SECRETS)
             );
         }
+    }
+
+    @Test
+    void acceptsTheDirectoriesAPackagingPluginWroteAboveADependencysFile() {
+        Path unlisted = this.archives().jar(Map.of(".idea/workspace.xml", VALUE));
+        Path nested = this.archives().jar(Map.of(".idea/shelf/change.xml", VALUE));
+        Path listed = this.archives().jar(Map.of(".idea/", "", ".idea/workspace.xml", VALUE));
+        for (Path vendor : List.of(unlisted, nested, listed)) {
+            Path shipped = this.archives().jar(vendored(vendor));
+            assertEquals(List.of(), this.findings(shipped, this.directory.resolve(MAIN), vendor, DEVELOPMENT));
+        }
+    }
+
+    @Test
+    void readsADevelopmentDirectoryNoDependencyFileLiesBeneath() {
+        Path vendor = this.archives().jar(Map.of(".idea-tools/settings.xml", VALUE, "lib/.idea", VALUE));
+        Path shipped = this.archives().jar(Map.of(".idea/", ""));
+        assertEquals(
+            List.of(".idea/"),
+            this.findings(shipped, this.directory.resolve(MAIN), vendor, DEVELOPMENT)
+        );
+    }
+
+    @Test
+    void readsAModuleFileInADirectoryADependencySupplies() {
+        Path vendor = this.archives().jar(Map.of(".idea/workspace.xml", VALUE));
+        Path shipped = this.archives().jar(Map.of(".idea/", "", ".idea/workspace.xml", VALUE, ".idea/own.xml", VALUE));
+        assertEquals(
+            List.of(".idea/own.xml"),
+            this.findings(shipped, this.directory.resolve(MAIN), vendor, DEVELOPMENT)
+        );
+    }
+
+    // What a packaging plugin builds from a dependency: its file entries, with a directory entry above each.
+    private static Map<String, String> vendored(Path vendor) {
+        return files(vendor).stream()
+            .flatMap(name -> Stream.concat(parents(name), Stream.of(name)))
+            .distinct()
+            .collect(
+                Collectors.toMap(
+                    entry -> entry, entry -> entry.endsWith("/") ? "" : VALUE, (first, _) -> first,
+                    LinkedHashMap::new
+                )
+            );
+    }
+
+    @SneakyThrows
+    private static List<String> files(Path archive) {
+        try (JarFile jar = new JarFile(archive.toFile())) {
+            return jar.stream().filter(entry -> !entry.isDirectory()).map(JarEntry::getName).toList();
+        }
+    }
+
+    private static Stream<String> parents(String name) {
+        return IntStream.range(0, name.length())
+            .filter(index -> name.charAt(index) == '/')
+            .mapToObj(index -> name.substring(0, index + 1));
     }
 
     private ArchiveFixture archives() {
