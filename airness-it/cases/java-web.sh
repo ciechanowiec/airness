@@ -449,14 +449,19 @@ PY
 # scratch directory, outside any governed tree.
 # The containers the services cases left behind: nothing once each run removed its own. A Docker that cannot be
 # asked answers with its error instead, which fails the check rather than passing it as nothing left.
+# The containers this suite's runs left, by the project name only this suite uses, so that another suite on
+# the machine, such as one of another worktree, neither shows here nor is taken for a leftover of this one.
 service_leftovers() {
-    docker ps --all --filter name=airness-it-services- --format '{{.Names}} {{.Status}}' 2>&1 || true
+    docker ps --all --filter "name=${AIRNESS_IT_SERVICES_PROJECT}-" --format '{{.Names}} {{.Status}}' 2>&1 || true
 }
 
 run_service_wrapper_cases() {
     service_wrapper="${scratch}/service-wrapper.mjs"
     service_probe="${scratch}/service-probe.mjs"
     service_holding="${scratch}/service-holding"
+    AIRNESS_IT_SERVICES_PROJECT="airness-it-services-$(basename "${scratch}" | sed 's/^[.]airness-it-//' \
+        | tr '[:upper:]' '[:lower:]')"
+    export AIRNESS_IT_SERVICES_PROJECT
     cat > "${service_wrapper}" <<'JS'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
@@ -465,7 +470,7 @@ const located = createRequire(`${process.env.AIRNESS_IT_FIXTURE}/package.json`).
 const services = await import(pathToFileURL(located).href)
 const secret = services.randomSecret()
 process.exitCode = await services.withServices({
-  project: 'airness-it-services',
+  project: process.env.AIRNESS_IT_SERVICES_PROJECT,
   containers: [
     {
       key: 'db',
