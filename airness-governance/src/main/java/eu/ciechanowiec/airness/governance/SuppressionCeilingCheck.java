@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  *
  * <p>The ceiling scales with the code rather than being a flat number. A flat number strangles a small
  * repository and dissolves in a large one, and the same figure would mean two different things in the
- * two. A smallest ceiling holds underneath the rate so that an early project is not left with a budget
+ * two. A smallest ceiling holds underneath the rate so that an early project is not left with a ceiling
  * of one, and a declared rate of zero switches that floor off, which is how a repository states that it
  * carries no suppressions at all.
  *
@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  * reports rather than a finding, and printing every suppression on every clean build would bury the run
  * that matters under the ones that do not.
  */
-public final class SuppressionBudgetCheck {
+public final class SuppressionCeilingCheck {
 
     private static final int PER = 1000;
     private static final int SMALLEST_CEILING = 5;
@@ -43,12 +43,12 @@ public final class SuppressionBudgetCheck {
      * @param sourceRoots the directories whose Java sources are read
      * @param rate        how many suppressions are allowed per thousand lines, or zero to allow none
      */
-    public SuppressionBudgetCheck(Path root, Collection<Path> sourceRoots, double rate) {
+    public SuppressionCeilingCheck(Path root, Collection<Path> sourceRoots, double rate) {
         List<Path> found = JavaSources.under(root, sourceRoots);
         this.root = root;
         this.rate = rate;
         this.sources = found.size();
-        this.lines = found.stream().mapToInt(SuppressionBudgetCheck::lineCount).sum();
+        this.lines = found.stream().mapToInt(SuppressionCeilingCheck::lineCount).sum();
         this.suppressions = found.stream().flatMap(this::located).toList();
     }
 

@@ -2,29 +2,28 @@
 
 This guide maps the governing standard to the Airness harness for every repository, whatever stacks it holds.
 The guide of each stack layer present adds to it, and the managed blocks of `AGENTS.md` name them. After them,
-continue through the lower `AGENTS.md` layers in the order the standard declares. Exact analyzer rules remain in
-the executable harness.
+follow the remaining steps of `AGENTS.md` in the order it declares. Exact analyzer rules remain in the executable
+harness.
 
-## Layer 1: Governing Standard
+## Governing Standard
 
 - Read `README-guideline-software-project.adoc` before using this Airness-specific mapping.
 
-## Layer 2: Harness Invariants
+## Harness Invariants
 
 - Each module inherits the Airness parent for what it contains: `airness-parent` for a monorepo root or a module
   with no code, `airness-parent-java` for Java, `airness-parent-spring-boot` for a Spring Boot project, or
   `airness-parent-node` for a module whose main content is JavaScript or TypeScript. That
-  choice is the only place a module states which kind it is, and it is what decides which rules apply. A module
-  that inherits `airness-parent-java` also follows `.airness/agent-guide-java.md`. Do not weaken, replace,
-  duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or managed files that the parent
-  owns.
+  choice is the only place a module states which kind it is, and it is what decides which rules apply. Do not
+  weaken, replace, duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or managed files
+  that the parent owns.
 - Use exactly Java 25, Maven 3.10.0 or later, and a Git working tree. Default verification reads Maven Central and
   Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon
   that can read the repository through a bind mount. Extended verification refuses to start under `-o` or offline
   mode, because Maven skips a goal whose descriptor requires online mode, the vulnerability scan is one of those,
-  and an offline run would otherwise report clean without having read a single advisory. Packaging also requires
-  online Maven mode because Maven otherwise skips SBOM generation, including with `-DskipTests`.
-  On macOS with Colima, a
+  and an offline run would otherwise report clean without having read a single advisory. Default verification
+  also needs online Maven mode from `prepare-package` onward, because Maven otherwise skips SBOM generation,
+  including with `-DskipTests`; earlier phases keep their offline behavior. On macOS with Colima, a
   repository under Downloads, Desktop or Documents is unreadable inside a container until the terminal that starts
   Colima is granted access to that folder under System Settings, Privacy and Security, Files and Folders, so keep
   the repository elsewhere or grant it.
@@ -32,7 +31,7 @@ the executable harness.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.
 
-## Layer 3: Governed Domains
+## Governed Domains
 
 Airness governs all of the following domains:
 
@@ -137,12 +136,9 @@ Airness governs all of the following domains:
   browser application that is not a Next.js application declares the script that serves it as `serve`. A
   Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top, the
   pages the crawl renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets
-  goal seeds `src/proxy.ts`. A node project declares only what
-  the harness cannot know, under the `airness` key of its `package.json`: further `sourceRoots`, `serve`,
-  `serverUrl`, `serverUrlVariables`, `clock`, `auxiliaryServers`, lower `bundleBudgetBytes` and `accessibilityRouteBudget`, and `generatedArtefacts`, `frameworkGlue`,
-  `coverageExclude`, `pureLogicRoots`, `accessibilitySkipRoutes` and `javascriptAllowlist` entries that each name a `pattern` and a
-  `reason`, an allowlist entry also the `runtime` of `node` or `cloudfront-js-2.0` that runs it. Diagnose one
-  finding with `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
+  goal seeds `src/proxy.ts`. A node project declares only what the harness cannot know, under the `airness` key
+  of its `package.json`, through the keys the table Node Project Settings lists. Diagnose one finding with
+  `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
 - **Maven repository routing:** Airness owns `.mvn/maven.config`, `.mvn/jvm.config` and `.mvn/settings.xml`,
   since a `-D` option in the JVM options would set a property such as `skipTests` for every build. The startup
   configuration loads the latter as Maven's global settings and mirrors every remote repository to
@@ -213,29 +209,25 @@ Airness goals together define the executable contract.
 
 ### Commit Messages
 
-Exact analyzer rules stay in the executable harness. This domain is the one exception. No format command repairs a
-commit message, no source file holds it, and a published one cannot be rewritten. An agent satisfies the policy only
-while writing the message, so the policy is declared here in full.
+The section Commit Messages of the governing standard states the policy. A published commit message cannot be
+rewritten, so an agent satisfies the policy only while writing the message. Airness adds these details:
 
 | Rule | Value |
 | --- | --- |
-| Header | `type: subject` or `type(scope): subject`, and nothing after the type but the scope |
-| Type | one of `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `test` |
+| Header | nothing after the type but the scope |
 | Scope | optional, and when present drawn from `a-z`, `0-9`, `.`, and `-` |
-| Subject | 15 to 72 characters, counted after the `: ` that closes the header prefix |
-| Subject ending | no trailing period |
-| Junk words | `wip`, `tmp`, `temp`, `misc`, `stuff`, `asdf`, `fixup`, as whole words anywhere in the header |
-| Body | required when the commit changes more than 2 files or more than 50 added plus deleted lines |
-| Body separator | everything after the first line, stripped, and a blank line after it is the Git convention |
+| Subject | its length is counted after the `: ` that closes the header prefix |
+| Junk words | matched as whole words anywhere in the header, the scope included |
+| Body | everything after the first line, stripped, and a blank line after it is the Git convention |
 | Typography | plain ASCII only: no em dash, en dash, one-character ellipsis, or curly quotation mark |
-| Attribution | no marker naming an AI agent or an agent session, in any commit |
 
-No commit shape is exempt from the table above, including the headers Git writes by default for a merge
+No commit shape is exempt from the policy, including the headers Git writes by default for a merge
 and for a revert. Every tool that makes one of those offers to edit the message, so a conforming message
 is always reachable: a revert says what it undid and why, like any other change. A breaking change is
 described in the body rather than marked in the header, because a marker a reader has to notice says less
-than a sentence saying what breaks. The attribution ban binds in prose as well as by pattern: a marker
-that no pattern yet knows is still a violation.
+than a sentence saying what breaks. No commit message attributes the change to an AI agent or to an AI agent
+session, and that ban binds in prose as well as by pattern: a marker that no pattern yet knows is still a
+violation.
 
 Four traps account for most failures:
 
@@ -264,18 +256,18 @@ finding.
 
 ### History Shape
 
-The history is linear, so a merge commit is prohibited wherever it sits, including between two side branches. A
-branch takes the work of another by `git rebase` or `git cherry-pick`. The check counts the parents Git recorded
-rather than reading the header, so a subject that mentions merging is an ordinary commit, and rewording a merge does
-not hide it.
+The linear-history check counts the parents Git recorded rather than reading the header, so a subject that
+mentions merging is an ordinary commit, and rewording a merge does not hide it. Avoid a merge rather than plan to
+repair one: once it is published, only a fresh history satisfies the rule.
 
-The rule reaches back to the first commit and has no exception. Avoid a merge rather than plan to repair one: once
-it is published, only a fresh history satisfies the rule.
-
-## Layer 4: Command Workflow
+## Command Workflow
 
 1. Read `airness.package.root` from the root `pom.xml` before adding or moving Java packages.
 2. Run `mvn airness:assets-sync` only to create or restore managed repository files, then review and commit its edits.
+   `mvn airness:assets-init` also synchronizes managed files and creates absent optional scaffolds, including a
+   nightly and release full-verification workflow in a repository with node projects. Scaffolds belong to the
+   project: ordinary `assets-sync` and verification neither require nor recreate them. Customize the workflow's
+   services and environment, or delete it when verification runs elsewhere.
 3. Run `mvn process-resources -Pformat` to apply formatting and import order, then review the resulting source.
 4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
    its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
@@ -285,9 +277,7 @@ it is published, only a fresh history satisfies the rule.
    requested goals, and project build extensions, including plugin dependency overrides. Unused lifecycle defaults
    enter the scan when requested. A full Airness reactor build collects its own plugin inputs in the parent module.
    Confirmed incorrect product or version matches have narrowly scoped, dated harness exceptions; project exceptions append
-   to them, and unused exceptions fail verification. Never pass `-o` to this command, which refuses an offline build outright. Default verification
-   also needs online Maven mode from `prepare-package` onward to generate its SBOM; earlier phases retain their
-   existing offline behavior.
+   to them, and unused exceptions fail verification.
 
 ### Browser Verification
 
@@ -359,11 +349,6 @@ diagnostic, which establishes no complete sweep verdict.
 `expectPerceivable(control)` from `@airness/node/a11y` checks painted visibility within 1.5 seconds, without
 moving focus or scrolling on the test's behalf. Use it for time-sensitive keyboard regressions.
 
-`mvn airness:assets-init` synchronizes managed files and creates absent optional scaffolds, including a nightly
-and release full-verification workflow in a repository with node projects. Scaffolds belong to the project:
-ordinary `assets-sync` and verification neither require nor recreate them. Customize the workflow's services
-and environment, or delete it when verification runs elsewhere.
-
 ### Node Application Preparation and Security Corrections
 
 A node project may declare `airness.pretest` and `airness.testWrapper` as arrays of literal command
@@ -428,14 +413,6 @@ one the lockfile records, and names the lockfile-only `pnpm install` that refres
 packages retain their public registry metadata and release-age checks. Only the unpublished harness packages may
 be excluded from the age floor.
 
-A root node project may record `airness.vulnerabilityAllowlist` entries with `package`, `advisory`, `reason`,
-`mitigation` and `addedOn`. Name one exact npm package and one literal advisory identifier or an alias OSV
-supplies, explain why it cannot be exploited here, state the removal plan, and use a YYYY-MM-DD calendar date.
-Prefer an available, compatible upgrade or an approved security replacement. An exception belongs only to that
-node project's inventory: it cannot excuse another module or frontend. Missing fields, malformed declarations,
-unused entries and overlapping entries fail verification. The report keeps each mitigated advisory and its
-explanation, while any remaining open finding still fails. A scanner that cannot run cannot be waived.
-
 ### Compliance Reports
 
 Extended verification writes one HTML and PDF compliance report for the participating reactor under the
@@ -473,7 +450,7 @@ and a tree that changes during generation. A dirty tree, selected reactor subset
 report-only invocation produces an explicit draft. `-DskipTests` produces no new report or verdict.
 Earlier report pairs are removed only after a complete replacement has been rendered.
 
-## Layer 5: Exceptions and Repairs
+## Exceptions and Repairs
 
 - Fix a managed-file finding with `mvn airness:assets-sync`. A seed's contents belong to the project after creation,
   but its path remains mandatory. A project may take over an eligible path through `airness.assets.unmanaged` only
@@ -570,3 +547,33 @@ named advisory. Dependency selectors (`packageUrl`, `gav`, `filePath` and `sha1`
 including their supported regex forms, and a dependency selector is not mandatory. Entries in groups
 and entries using namespace prefixes are checked too. Each entry carries its own explanation, mitigation plan and
 date.
+
+### Node Project Settings
+
+A node project declares what the harness cannot know through these keys under `airness` in its `package.json`:
+
+| Setting | Use |
+| --- | --- |
+| `sourceRoots` | first-party source directories beyond `src`, `tests` and `scripts` |
+| `generatedArtefacts` | files a generator writes, which no gate judges |
+| `frameworkGlue` | files a framework writes to a fixed shape, which the lint relaxes |
+| `javascriptAllowlist` | JavaScript files a tool forces on the project, each with the `runtime` of `node` or `cloudfront-js-2.0` that runs it |
+| `coverageExclude` | source files the coverage floor doesn't measure |
+| `pureLogicRoots` | directories of pure logic, which `arch` forbids to import anything else under a source root |
+| `accessibilitySkipRoutes` | route prefixes the sweep doesn't follow |
+| `serve`, `serverUrl`, `serverUrlVariables`, `auxiliaryServers`, `clock` | how a browser application is served and the clock it starts at, as Browser Verification describes |
+| `bundleBudgetBytes`, `accessibilityRouteBudget` | lower ceilings for the client bundle and for the routes the sweep discovers |
+| `layoutMinimumGap`, `layoutViewports` | a larger gap between boxes, and further viewports the layout scan measures |
+| `pretest`, `testWrapper` | the preparation and the wrapper that Node Application Preparation and Security Corrections describes |
+| `vulnerabilityAllowlist` | npm advisories that can't be exploited here, in the root node project only |
+
+Each `generatedArtefacts`, `frameworkGlue`, `javascriptAllowlist`, `coverageExclude`, `pureLogicRoots` and
+`accessibilitySkipRoutes` entry names a `pattern` and a `reason`.
+
+Each `airness.vulnerabilityAllowlist` entry carries `package`, `advisory`, `reason`, `mitigation` and `addedOn`.
+Name one exact npm package and one literal advisory identifier or an alias OSV supplies, explain why it cannot be
+exploited here, state the removal plan, and use a YYYY-MM-DD calendar date. Prefer an available, compatible
+upgrade or an approved security replacement. An exception belongs only to that node project's inventory: it
+cannot excuse another module or frontend. Missing fields, malformed declarations, unused entries and overlapping
+entries fail verification. The report keeps each mitigated advisory and its explanation, while any remaining open
+finding still fails. A scanner that cannot run cannot be waived.

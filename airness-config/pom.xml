@@ -23,13 +23,6 @@
     <build>
         <resources>
             <resource>
-                <directory>${project.basedir}/../scripts</directory>
-                <targetPath>eu/ciechanowiec/airness/scanners</targetPath>
-                <includes>
-                    <include>checkov-policy.py</include>
-                </includes>
-            </resource>
-            <resource>
                 <directory>src/main/resources</directory>
                 <excludes>
                     <exclude>eu/ciechanowiec/airness/scanners/tools.properties</exclude>

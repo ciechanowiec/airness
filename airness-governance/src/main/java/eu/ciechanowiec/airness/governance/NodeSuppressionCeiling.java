@@ -3,7 +3,6 @@ package eu.ciechanowiec.airness.governance;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * The node projects hold no more suppressions than the ceiling their own code earns.
@@ -14,7 +13,7 @@ import java.util.regex.Pattern;
  * or the files the harness pins, so a ceiling is never earned by code the project did not write. It is a
  * verdict of its own beside the Java ceiling, because the two rates differ and neither may loosen the other.
  */
-public final class NodeSuppressionBudget {
+public final class NodeSuppressionCeiling {
 
     private static final int BASE_ALLOWANCE = 2;
     private static final int LINES_PER_SUPPRESSION = 500;
@@ -28,15 +27,14 @@ public final class NodeSuppressionBudget {
      *
      * @param root    the working tree root
      * @param sources the first-party JavaScript, TypeScript and stylesheet sources of the node projects
-     * @param forms   further suppression forms the stack layers present declare, each a regular expression
      */
-    public NodeSuppressionBudget(Path root, Collection<Path> sources, Collection<Pattern> forms) {
+    public NodeSuppressionCeiling(Path root, Collection<Path> sources) {
         List<Path> read = sources.stream().filter(path -> NodeSuppressions.readable(path.toString())).distinct()
             .toList();
         this.sources = read.size();
-        this.lines = read.stream().mapToInt(NodeSuppressionBudget::nonBlankLines).sum();
+        this.lines = read.stream().mapToInt(NodeSuppressionCeiling::nonBlankLines).sum();
         this.suppressions = read.stream().flatMap(
-            source -> Repository.readText(source).stream().flatMap(text -> NodeSuppressions.in(text, forms).stream())
+            source -> Repository.readText(source).stream().flatMap(text -> NodeSuppressions.in(text).stream())
                 .map(entry -> "%s: %s".formatted(root.relativize(source), entry))
         ).toList();
     }

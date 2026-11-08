@@ -29,7 +29,7 @@
         <!--
             The package NullAway treats as annotated. Everything outside it is assumed unannotated and
             goes unchecked, so a value naming a package this project does not use turns the whole
-            null-checker into a no-op that still appears in the build log. check-parameters refuses to
+            null-checker into a no-op that still appears in the build log. project-settings refuses to
             let it stay unset, and that preflight is bound here, so the default is declared here too.
         -->
         <airness.package.root>UNSET</airness.package.root>
@@ -122,7 +122,7 @@
                             <goal>repository-policy</goal>
                             <goal>required-profiles</goal>
                             <goal>tree-snapshot</goal>
-                            <goal>check-parameters</goal>
+                            <goal>project-settings</goal>
                             <goal>assets-check</goal>
                             <goal>editorconfig-excludes</goal>
                             <goal>build-inputs</goal>
@@ -275,7 +275,7 @@
                             <goal>entry-files</goal>
                             <goal>image-assets</goal>
                             <goal>environment</goal>
-                            <goal>docs</goal>
+                            <goal>instruction-references</goal>
                             <goal>skills</goal>
                             <goal>generated-denial</goal>
                         </goals>

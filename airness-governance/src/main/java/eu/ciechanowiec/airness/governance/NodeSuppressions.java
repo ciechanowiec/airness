@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -66,26 +65,12 @@ public final class NodeSuppressions {
      * @return one entry per suppressed rule, naming its line and the rule
      */
     public static List<String> in(String source) {
-        return in(source, List.of());
-    }
-
-    /**
-     * Every rule the source suppresses, with the further forms a stack layer declares, each counting once.
-     *
-     * @param source the decoded text of a source
-     * @param forms  the further suppression forms, each a regular expression
-     * @return one entry per suppressed rule, naming its line and the rule
-     */
-    public static List<String> in(String source, Collection<Pattern> forms) {
         return Stream.of(
             DISABLE.matcher(source).results().flatMap(match -> disabled(source, match)),
             BIOME.matcher(source).results().map(match -> entry(source, match, match.group(1) + ' ' + match.group(2))),
             TYPESCRIPT.matcher(source).results().map(match -> entry(source, match, match.group(1))),
             COVERAGE.matcher(source).results().map(match -> entry(source, match, match.group(1))),
-            BARE.matcher(source).results().map(match -> entry(source, match, match.group())),
-            forms.stream().flatMap(
-                form -> form.matcher(source).results().map(match -> entry(source, match, match.group()))
-            )
+            BARE.matcher(source).results().map(match -> entry(source, match, match.group()))
         ).flatMap(stream -> stream).toList();
     }
 

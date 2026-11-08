@@ -105,17 +105,7 @@ jobs:
           gpg-passphrase-env-var: MAVEN_GPG_PASSPHRASE
 
       - name: 'Install Maven 3.10.0'
-        run: |
-          set -eu
-          archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
-          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 \
-            'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
-            --output "$archive"
-          printf '%s  %s\n' \
-            '908b1501bfb420bf7c8affb855534a9c407fd6099367bfb9f2f2dcb8e9799102bffb84518cde74c679bd76870247c6528683abdd620581bffa90f95d92d175aa' \
-            "$archive" | sha512sum --check
-          tar -xzf "$archive" -C "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/apache-maven-3.10.0/bin" >> "$GITHUB_PATH"
+        uses: ./.github/actions/install-maven
 
       - name: 'Validate release version and availability'
         id: release_state
@@ -192,8 +182,8 @@ jobs:
 
       - name: 'Pull the pinned sweep browsers'
         run: |
-          image='mcr.microsoft.com/playwright:v1.64.1-noble@sha256:'
-          image="${image}47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea"
+          set -eu
+          image="$(jq --exit-status --raw-output '.airness.browserImage' airness-node/package.json)"
           docker pull "${image}"
 
       - name: 'Install the pinned report browser and its system libraries'

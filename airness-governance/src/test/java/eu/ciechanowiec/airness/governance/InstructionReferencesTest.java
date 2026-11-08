@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Verifies which backticked tokens of an instruction file are read as repository paths.
  */
-class DocumentReferencesTest {
+class InstructionReferencesTest {
 
     @Test
     void readsOnlyFullPathsToConcreteFiles() {
@@ -20,7 +20,7 @@ class DocumentReferencesTest {
             """;
         assertEquals(
             List.of("docs/guide.md", "scripts/build.sh", "target/site/index.adoc"),
-            DocumentReferences.paths(markdown),
+            InstructionReferences.paths(markdown),
             "a bare name, a directory, a glob, a command line and a URL are not paths this reads"
         );
     }
@@ -28,7 +28,7 @@ class DocumentReferencesTest {
     @Test
     void readsAPathGivenWithATrailingGlobAsTheFileItNames() {
         assertEquals(
-            List.of("schema/order.json"), DocumentReferences.paths("See `schema/order.json/**`."),
+            List.of("schema/order.json"), InstructionReferences.paths("See `schema/order.json/**`."),
             "a trailing glob is stripped before the name is judged"
         );
     }
@@ -37,7 +37,7 @@ class DocumentReferencesTest {
     void readsScriptFamiliesAndPnpmRunInvocationsAsNpmScripts() {
         assertEquals(
             List.of("lint:arch", "verify:full", "knip", "build"),
-            DocumentReferences.scripts("Run `lint:arch`, `verify:full`, `knip`, `build`, `pnpm run build`.\n"),
+            InstructionReferences.scripts("Run `lint:arch`, `verify:full`, `knip`, `build`, `pnpm run build`.\n"),
             "a backticked token of a script family and a pnpm run name are scripts, a bare word is not"
         );
     }
@@ -47,8 +47,8 @@ class DocumentReferencesTest {
         assertEquals(
             List.of("@airness/node", "library"),
             List.of(
-                DocumentReferences.specifierPackage("@airness/node/tsconfig.json"),
-                DocumentReferences.specifierPackage("library/tsconfig.json")
+                InstructionReferences.specifierPackage("@airness/node/tsconfig.json"),
+                InstructionReferences.specifierPackage("library/tsconfig.json")
             ),
             "a scoped specifier names its scope and package, an unscoped one its first segment"
         );

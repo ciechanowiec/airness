@@ -6,8 +6,7 @@ the node rules; it never relaxes them. A Payload module is a node project whose 
 
 ## Verification
 
-`mvn clean verify` gives the Default verdict and `mvn clean verify -Pextended` the Extended one. The Payload
-gates run through `airness:node-gate` like every node gate, bound by `airness-parent-payload`:
+The Payload gates run through `airness:node-gate` like every node gate, bound by `airness-parent-payload`:
 
 | Gate | Phase | What it checks |
 | --- | --- | --- |
@@ -41,7 +40,9 @@ The layer contributes defaults to the node settings of every member that declare
 files (`src/payload-types.ts`, `src/payload-generated-schema.ts`, and everything under `src/app/(payload)`, the
 admin and API glue Payload scaffolds as generated), the framework glue (`src/payload.config.ts`), the pure-logic floor (`src/access`, `src/lib`)
 and the routes the accessibility sweep leaves to Payload (`/admin`, `/api`). Agents may not edit the generated
-files; regenerate them with the Payload CLI.
+files; regenerate them with the Payload CLI. The installed layer contributes exact security replacements for
+affected Payload dependency edges through `airness.layer.securityOverrides`; a project may use only those approvals
+and the generic Airness approvals.
 
 ## Application Code
 
@@ -57,13 +58,6 @@ files; regenerate them with the Payload CLI.
 - ESLint refuses an inline function in a collection, global, field or block configuration, and a read of
   `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`. A hook writes request state only on
   `req.context`. A migration keeps the snake-case name `payload migrate:create` gives it.
-- Keep Payload's scaffold under `src/app/(payload)` exactly as Payload writes it. It is a generated artefact:
-  the gates leave it to Payload, and agents may not edit it.
+- Keep Payload's scaffold under `src/app/(payload)` exactly as Payload writes it: it is one of the generated
+  files above.
 
-## Application verification setup
-
-Declare service preparation and the disposable-data wrapper under `airness.pretest` and `airness.testWrapper`.
-These run for tests, production builds and the browser suite. Keep Payload-specific access declarations under
-`airnessPayload.publicAccess`; the generic settings and npm vulnerability mitigations belong under `airness`.
-The installed layer contributes exact security replacements for affected Payload dependency edges through
-`airness.layer.securityOverrides`. Projects may use only those approvals and the generic Airness approvals.

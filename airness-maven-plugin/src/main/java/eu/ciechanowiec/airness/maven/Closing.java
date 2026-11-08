@@ -2,7 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.Repository;
-import eu.ciechanowiec.airness.governance.SuppressionBudgetCheck;
+import eu.ciechanowiec.airness.governance.SuppressionCeilingCheck;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -110,8 +110,8 @@ final class Closing {
      * @param javaRoots the Java source roots of every module
      * @return the check
      */
-    static SuppressionBudgetCheck javaSuppressions(Path root, List<Path> javaRoots) {
-        return new SuppressionBudgetCheck(root, javaRoots, RATE);
+    static SuppressionCeilingCheck javaSuppressions(Path root, List<Path> javaRoots) {
+        return new SuppressionCeilingCheck(root, javaRoots, RATE);
     }
 
     /**

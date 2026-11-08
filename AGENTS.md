@@ -8,7 +8,7 @@ Follow the repository contract from general to specific:
 3. Follow each Airness stack layer below, where it applies.
 4. Follow the project-owned instructions below the managed blocks.
 
-Every layer is binding, and a later layer may strengthen but never weaken an earlier one. The inherited harness is the executable enforcement of this contract. Do not weaken, replace, duplicate, or version what Airness owns.
+Each step is binding, and a later step may strengthen but never weaken an earlier one. The inherited harness is the executable enforcement of this contract. Do not weaken, replace, duplicate, or version what Airness owns.
 <!-- END AIRNESS MANAGED: generic -->
 
 <!-- BEGIN AIRNESS MANAGED: java -->

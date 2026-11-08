@@ -3,9 +3,8 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.AssetSite;
 import eu.ciechanowiec.airness.governance.ComplianceReport;
 import eu.ciechanowiec.airness.governance.Findings;
-import eu.ciechanowiec.airness.governance.NodeSuppressionBudget;
-import eu.ciechanowiec.airness.governance.SuppressionBudgetCheck;
-import eu.ciechanowiec.airness.governance.SuppressionForms;
+import eu.ciechanowiec.airness.governance.NodeSuppressionCeiling;
+import eu.ciechanowiec.airness.governance.SuppressionCeilingCheck;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -122,25 +121,22 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
     }
 
     private List<Findings> javaSuppressions(List<Path> javaRoots) {
-        SuppressionBudgetCheck check = Closing.javaSuppressions(this.repositoryRoot(), javaRoots);
+        SuppressionCeilingCheck check = Closing.javaSuppressions(this.repositoryRoot(), javaRoots);
         this.getLog().info("Suppressions in force: " + check.count() + " of " + check.ceiling() + " allowed");
         Scope.requireJavaSources(check.scanned(), javaRoots);
         return check.findings();
     }
 
     // The node ceiling reads only code the project wrote: the files the harness pins and the files a layer or the
-    // project declares generated are left out, and a layer adds the suppression forms its stack knows.
+    // project declares generated are left out.
     private List<Findings> nodeSuppressions(List<Path> directories) {
         Path root = this.repositoryRoot();
         List<AssetSite> sites = RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root);
         List<String> excluded = GeneratedDenialMojo.denied(
             root, sites, Sentinel.optional(this.generated), Sentinel.optional(this.unmanaged)
         );
-        NodeSuppressionBudget check = new NodeSuppressionBudget(
-            root, Closing.nodeSources(root, directories, excluded),
-            new SuppressionForms(ModuleCompleteMojo.class.getClassLoader()).forms(
-                sites.stream().flatMap(site -> site.capabilities().stream()).toList()
-            )
+        NodeSuppressionCeiling check = new NodeSuppressionCeiling(
+            root, Closing.nodeSources(root, directories, excluded)
         );
         this.getLog().info("Node suppressions in force: " + check.count() + " of " + check.ceiling() + " allowed");
         return check.findings();
