@@ -10,6 +10,7 @@ import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @DatabaseTest
@@ -67,6 +68,18 @@ class AccountPagesTest {
             () -> assertTrue(landing(answer).endsWith("/account?notice=PASSWORD_CHANGED")),
             () -> assertTrue(landing(new Caller(port).signIn(email, CHOSEN)).endsWith("/")),
             () -> assertTrue(landing(new Caller(port).signIn(email, Accounts.SECRET)).endsWith("/login?failed=true"))
+        );
+    }
+
+    @Test
+    void endsTheOtherSessionsOfTheAccountAndKeepsTheOneThatChangedIt(@LocalServerPort int port) {
+        String email = Accounts.admitted(this.users, "rotated", Role.USER);
+        Caller elsewhere = Caller.signedIn(port, email, Accounts.SECRET);
+        Caller here = Caller.signedIn(port, email, Accounts.SECRET);
+        here.post("/account/password", form(Accounts.SECRET, CHOSEN));
+        assertAll(
+            () -> assertTrue(landing(elsewhere.get("/tasks")).endsWith("/login?ended=true")),
+            () -> assertEquals(HttpStatus.OK.value(), here.get("/tasks").statusCode())
         );
     }
 

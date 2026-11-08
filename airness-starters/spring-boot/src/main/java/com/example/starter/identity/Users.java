@@ -8,6 +8,8 @@ import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 
 /**
  * The accounts of the application, and what may be done to one. The transaction boundary, the rule that
@@ -137,7 +139,7 @@ public class Users {
     }
 
     /**
-     * Changes the password the signed-in reader signs in with.
+     * Changes the password the signed-in reader signs in with, and ends every other session of the account.
      *
      * @param current the password the reader signs in with today
      * @param chosen  the password the reader signs in with from now on
@@ -152,6 +154,13 @@ public class Users {
             throw new IllegalStateException("The current password is not the reader's");
         }
         this.repository.save(user.withPassword(this.admission.hashed(chosen)));
+        // A session opened by whoever knew the old password must not outlive it. The one making the
+        // change stays, because its reader has just proved the password.
+        this.sessions.endOthers(
+            user.getProfile().email(),
+            Optional.ofNullable(RequestContextHolder.getRequestAttributes()).map(RequestAttributes::getSessionId)
+                .orElse("")
+        );
         this.trail.write(actor(), AuditAction.PASSWORD_CHANGED, user.getProfile().email(), AuditOutcome.SUCCEEDED);
     }
 
