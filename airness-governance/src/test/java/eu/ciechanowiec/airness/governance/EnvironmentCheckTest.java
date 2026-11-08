@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -176,13 +177,12 @@ class EnvironmentCheckTest {
             .write("docker/f-quoted-option.Dockerfile", "FROM node:26\nRUN npm run build --workspace=\"web\"\n")
             .write("docker/g-separate.Dockerfile", "FROM node:26\nRUN cd web&&npm run build -w web\n")
             .root();
-        List<String> expected = List.of(
+        List<String> expected = Stream.of(
             "a-plain", "b-current", "c-exec", "d-quoted", "e-workspace", "f-quoted-option", "g-separate"
-        ).stream()
-            .flatMap(
-                name -> List.of("NEXT_PUBLIC_KEY", "NEXT_PUBLIC_SITE").stream()
-                    .map(variable -> variable + " in " + Path.of("docker", name + ".Dockerfile"))
-            ).toList();
+        ).flatMap(
+            name -> Stream.of("NEXT_PUBLIC_KEY", "NEXT_PUBLIC_SITE")
+                .map(variable -> variable + " in " + Path.of("docker", name + ".Dockerfile"))
+        ).toList();
         assertEquals(
             expected, undeclared(root),
             "each spelling of the application directory names it"
@@ -198,10 +198,11 @@ class EnvironmentCheckTest {
             .write("web/Dockerfile.e2e", "FROM node:26\nRUN build\n")
             .write("web/preview.Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_KEY\n")
             .root();
+        Path endToEnd = Path.of("web", "Dockerfile.e2e");
         assertEquals(
             List.of(
-                "NEXT_PUBLIC_KEY in " + Path.of("web", "Dockerfile.e2e"),
-                "NEXT_PUBLIC_SITE in " + Path.of("web", "Dockerfile.e2e"),
+                "NEXT_PUBLIC_KEY in " + endToEnd,
+                "NEXT_PUBLIC_SITE in " + endToEnd,
                 "NEXT_PUBLIC_SITE in " + Path.of("web", "preview.Dockerfile")
             ),
             undeclared(root),

@@ -58,7 +58,7 @@ class AssetSectionTest {
             .ship(Layer.JAVA, GITIGNORE, "*.class\n")
             .ship(Layer.NODE, GITIGNORE, "node_modules/\n")
             .ship(Layer.NODE, AGENTS, "Root node rules.\n")
-            .shipProject(Layer.NODE, AGENTS, "Node rules.\n")
+            .shipProject(AGENTS, "Node rules.\n")
             .catalogue();
     }
 

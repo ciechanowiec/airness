@@ -47,6 +47,6 @@ final class IndentationSettings {
     private <T> Optional<T> declared(PropertyType<T> type) {
         return Optional.ofNullable(this.properties.getProperties().get(type.getName()))
             .filter(Property::isValid)
-            .flatMap(property -> Optional.ofNullable(property.<T>getValueAs()));
+            .flatMap(property -> Optional.ofNullable(property.getValueAs()));
     }
 }

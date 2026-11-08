@@ -166,7 +166,7 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     private int runCheck() throws MojoExecutionException {
         try {
-            return this.run(this.command(), ProcessBuilder.Redirect.INHERIT);
+            return this.run(this.command());
         } catch (IOException exception) {
             throw new MojoExecutionException("Could not start the Docker check", exception);
         }
@@ -224,12 +224,10 @@ abstract class AbstractDockerCheckMojo extends AbstractMojo {
 
     // The check itself is not bounded: on a large repository it legitimately runs long, and any limit
     // would be a tuning knob that fails correct builds. The daemon answered docker info before it starts.
-    private int run(List<String> command, ProcessBuilder.Redirect streams) throws IOException {
+    private int run(List<String> command) throws IOException {
         try {
             return new ProcessBuilder(command)
-                .redirectInput(ProcessBuilder.Redirect.INHERIT)
-                .redirectOutput(streams)
-                .redirectError(streams)
+                .inheritIO()
                 .start()
                 .waitFor();
         } catch (InterruptedException exception) {

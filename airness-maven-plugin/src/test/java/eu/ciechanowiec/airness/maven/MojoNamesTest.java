@@ -3,17 +3,12 @@ package eu.ciechanowiec.airness.maven;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import java.io.Reader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import lombok.SneakyThrows;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
-import org.apache.maven.plugin.descriptor.PluginDescriptorBuilder;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -26,11 +21,9 @@ import org.junit.jupiter.api.Test;
  */
 class MojoNamesTest {
 
-    private static final Path DESCRIPTOR = Path.of("target", "classes", "META-INF", "maven", "plugin.xml");
-
     @Test
     void namesEveryGoalClassAfterItsGoal() {
-        List<MojoDescriptor> mojos = mojos();
+        List<MojoDescriptor> mojos = PluginGoals.all();
         assertFalse(mojos.isEmpty(), "the descriptor declares the goals of this plugin");
         assertEquals(
             Map.of(),
@@ -49,13 +42,6 @@ class MojoNamesTest {
     @Test
     void spellsAGoalInPascalCaseFollowedByMojo() {
         assertEquals("WebAccessibilityMojo", className("web-accessibility"));
-    }
-
-    @SneakyThrows
-    private static List<MojoDescriptor> mojos() {
-        try (Reader descriptor = Files.newBufferedReader(DESCRIPTOR)) {
-            return new PluginDescriptorBuilder().build(descriptor).getMojos();
-        }
     }
 
     private static String className(String goal) {

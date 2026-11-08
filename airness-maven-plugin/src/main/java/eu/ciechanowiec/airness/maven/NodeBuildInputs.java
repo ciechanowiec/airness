@@ -71,7 +71,7 @@ final class NodeBuildInputs {
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not list the node sources under " + root, exception);
         }
-        return Set.copyOf(selection.names);
+        return selection.names();
     }
 
     private static final class Selection implements FileVisitor<Path> {
@@ -86,6 +86,10 @@ final class NodeBuildInputs {
             this.member = member;
             this.root = root;
             this.names = new ArrayList<>();
+        }
+
+        Set<String> names() {
+            return Set.copyOf(this.names);
         }
 
         @Override

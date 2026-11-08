@@ -82,6 +82,15 @@ final class RepositoryProjects {
             .anyMatch(basedir -> tree.equals(basedir.toPath().toAbsolutePath().normalize()));
     }
 
+    // The top-level project owns the repository-wide checks when it is this repository's own aggregator or
+    // inherits an Airness parent somewhere up its chain.
+    private static boolean ownsRepositoryChecks(MavenProject topLevel) {
+        return selfRepository(topLevel)
+            || Stream.iterate(topLevel, Objects::nonNull, MavenProject::getParent).anyMatch(
+                RepositoryProjects::harnessParent
+            );
+    }
+
     /**
      * Why the repository-wide checks would run in no module of this build, when they would.
      *
@@ -99,10 +108,7 @@ final class RepositoryProjects {
      * @return the refusal, naming the repair, or empty when some module owns the repository-wide checks
      */
     static Optional<String> unowned(MavenProject topLevel, MavenProject current) {
-        boolean owned = !topLevel.isExecutionRoot() || topLevel.equals(current) || selfRepository(topLevel)
-            || Stream.iterate(topLevel, Objects::nonNull, MavenProject::getParent).anyMatch(
-                RepositoryProjects::harnessParent
-            );
+        boolean owned = !topLevel.isExecutionRoot() || topLevel.equals(current) || ownsRepositoryChecks(topLevel);
         return owned ? Optional.empty() : Optional.of(
             "The top-level project " + topLevel.getGroupId() + ':' + topLevel.getArtifactId() + " inherits no "
                 + "Airness parent, so the repository-wide checks would run in no module of this build; make its "
