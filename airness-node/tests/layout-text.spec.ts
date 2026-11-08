@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { findLayoutDefects, LAYOUT_MINIMUM_GAP } from '@/layout-defects.js'
+import { findLayoutDefects } from '@/layout-defects.js'
 import type { LayoutNode, LayoutSnapshot } from '@/layout-snapshot.js'
+import { LAYOUT_MINIMUM_GAP } from '@/settings.js'
 
 import { nodeOf as layoutNode, rect } from './helpers/layout-fixture.js'
 

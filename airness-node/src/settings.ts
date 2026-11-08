@@ -1,3 +1,4 @@
+import type { Viewport } from './browser-findings.js'
 import { type AuxiliaryServer, browserSettings } from './browser-settings.js'
 // The facts a node project may declare under the `airness` key of its package.json. Every field is
 // optional and every default is strict, so a project that declares nothing still receives the full
@@ -85,13 +86,7 @@ export interface Settings extends InvocationSettings {
   /** The smallest gap, in CSS pixels, between a boxed element and its sibling; a project may only raise it. */
   readonly layoutMinimumGap: number
   /** Viewports the layout scan measures beside the ones the harness requires. */
-  readonly layoutViewports: readonly LayoutViewport[]
-}
-
-/** A viewport the layout scan measures, in CSS pixels. */
-export interface LayoutViewport {
-  readonly width: number
-  readonly height: number
+  readonly layoutViewports: readonly Viewport[]
 }
 
 /** The origin the end-to-end suite drives when the project declares none. */
@@ -249,9 +244,9 @@ const asPositiveInteger = (raw: unknown, fallback: number): number =>
 // A ceiling a project may only lower: a larger or malformed value leaves the harness's own.
 const clampedCeiling = (raw: unknown, shipped: number): number => Math.min(shipped, asPositiveInteger(raw, shipped))
 
-const asLayoutViewports = (raw: unknown): readonly LayoutViewport[] =>
+const asLayoutViewports = (raw: unknown): readonly Viewport[] =>
   isArray(raw)
-    ? raw.flatMap((entry: unknown): readonly LayoutViewport[] => {
+    ? raw.flatMap((entry: unknown): readonly Viewport[] => {
         const record: Record<string, unknown> = asRecord(entry)
         const width: number = asPositiveInteger(record['width'], 0)
         const height: number = asPositiveInteger(record['height'], 0)

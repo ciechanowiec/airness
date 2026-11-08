@@ -78,7 +78,6 @@ final class SpringOpenEndpoints {
 
     private static final String ANONYMOUS = "anonymous";
     private static final String SEGMENT = "1";
-    private static final String ERROR_ADDRESS = "/error";
     private static final String DISPATCHER_TYPES = "spring.security.filter.dispatcher-types";
     private static final String ERROR_DISPATCH = "ERROR";
 
@@ -146,7 +145,7 @@ final class SpringOpenEndpoints {
     }
 
     private static String drawn(FilterChainProxy proxy) {
-        return open(proxy, new Probe("GET", ERROR_ADDRESS, DispatcherType.ERROR)) ? "open" : "closed";
+        return open(proxy, new Probe("GET", SpringHtmlRoutes.ERROR_ADDRESS, DispatcherType.ERROR)) ? "open" : "closed";
     }
 
     /**

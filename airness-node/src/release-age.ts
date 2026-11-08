@@ -4,13 +4,13 @@
 import { isHarnessPackage } from './harness-packages.js'
 import { isArray, isRecord } from './json-shapes.js'
 import { splitPackageKey } from './lockfile.js'
+import { WORKSPACE_FILE } from './yaml-blocks.js'
 
 /** The floor, in the minutes pnpm's `minimumReleaseAge` is written in: one day. */
 const RELEASE_AGE_FLOOR_MINUTES: number = 1440
 
 const MILLISECONDS_PER_MINUTE: number = 60_000
 const MINUTES_PER_HOUR: number = 60
-const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
 
 const floorFinding = (workspace: Record<string, unknown>): readonly string[] => {
   const floor: unknown = workspace['minimumReleaseAge']

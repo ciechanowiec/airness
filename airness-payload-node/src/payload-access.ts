@@ -17,7 +17,14 @@ import {
 } from '@airness/node/source-text'
 import { escapeForRegex } from '@airness/node/text-escapes'
 import { type FoundPayloadConfig, type PayloadConfigKind, payloadConfigsIn } from './payload-configs.js'
-import { configBody, depthOneBlockKeys, depthOneValue, type PayloadViolation } from './payload-source.js'
+import { READ_VERSIONS_OPERATION, UNLOCK_OPERATION } from './payload-defaults.js'
+import {
+  configBody,
+  DRAFTS_ENABLED,
+  depthOneBlockKeys,
+  depthOneValue,
+  type PayloadViolation,
+} from './payload-source.js'
 
 const eachConfig = (
   source: string,
@@ -130,8 +137,6 @@ export const findUnhardenedAuth = (source: string): readonly PayloadViolation[] 
 // ordinary account can therefore lift the lockout on another as fast as the attempts accrue, which
 // leaves the attempt cap and lock time enforced by the rule above protecting nothing. Advisory
 // GHSA-jg8r-5jh2-v2xj is this default, reported against Payload itself.
-const UNLOCK_OPERATION: string = 'unlock'
-
 const unlockableAuthIn = (found: FoundPayloadConfig): readonly PayloadViolation[] => {
   if (depthOneValue(found.body, 'auth') === undefined) {
     return []
@@ -159,8 +164,7 @@ export const findUnlockableAuth = (source: string): readonly PayloadViolation[] 
 
 // A draft is unpublished content. With versions.drafts enabled, `?draft=true` serves it to whoever the
 // read rule admits - so a read that is unconditionally true publishes every draft to anyone.
-const DRAFTS_ENABLED: RegExp = /drafts\s*:\s*(?:true|\{)/
-
+//
 // The inline always-true read.
 //
 // The return type is optional in the pattern and effectively mandatory in a governed project, which is
@@ -226,8 +230,6 @@ export const findAnonymousDraftReads = (source: string): readonly PayloadViolati
 // stored version of every document to anyone signed in. This is asked wherever versions are kept rather
 // than only where drafts are, because the versions route exists either way.
 const VERSIONS_DISABLED: RegExp = /^\s*false\s*(?=[,}])/
-
-const READ_VERSIONS_OPERATION: string = 'readVersions'
 
 const carriesVersions = (body: string): boolean => {
   const versions: string | undefined = depthOneValue(body, 'versions')

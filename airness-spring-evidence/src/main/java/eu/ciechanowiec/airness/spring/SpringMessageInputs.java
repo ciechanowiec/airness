@@ -18,7 +18,7 @@ record SpringMessageInputs(
     long started, String digest, List<String> applications, List<SpringMessageInput> references
 ) {
 
-    private static final String DIGEST_PATTERN = "[0-9a-f]{64}";
+    static final String DIGEST_PATTERN = "[0-9a-f]{64}";
 
     SpringMessageInputs {
         applications = List.copyOf(applications);

@@ -1,7 +1,7 @@
 // An approved override changes one dependency edge to an exact, reviewed registry release. The
 // catalogue belongs to the installed harness; the project's declarations and lockfile must agree.
 import { asRecord, isArray, isRecord } from './json-shapes.js'
-import { type Lockfile, splitPackageKey } from './lockfile.js'
+import { LOCKFILE, type Lockfile, splitPackageKey } from './lockfile.js'
 
 /** One published security repair the harness permits in an installation. */
 export interface SecurityOverride {
@@ -109,7 +109,7 @@ export const securityOverrideLockFindings = (
     return []
   }
   return [
-    ...securityOverrideFindings(lockfile.overrides, approved, 'pnpm-lock.yaml'),
+    ...securityOverrideFindings(lockfile.overrides, approved, LOCKFILE),
     ...(hasSameDeclarations(declared, lockfile.overrides)
       ? []
       : ['pnpm-lock.yaml security overrides differ from pnpm-workspace.yaml; regenerate the lockfile']),

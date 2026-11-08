@@ -70,9 +70,8 @@ public final class TemplateMessageIndex {
 
         private static boolean processing(String name) {
             String attribute = name.toLowerCase(Locale.ROOT);
-            boolean dialect = attribute.startsWith("th:") || attribute.startsWith("data-th-");
-            return dialect && !TemplateFragmentCheck.declares(attribute)
-                && !List.of("th:ref", "data-th-ref", "th:inline", "data-th-inline").contains(attribute);
+            return ThymeleafAttribute.isDialect(attribute) && !TemplateFragmentCheck.declares(attribute)
+                && !ThymeleafAttribute.spellings("ref", "inline").contains(attribute);
         }
     }
 }

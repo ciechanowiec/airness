@@ -3,8 +3,8 @@
 // format and coverage gates already treat it.
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { failed, type GateResult, passed } from './exec.js'
 import { hasExtension, isWithinSourceRoots, TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
+import { failed, type GateResult, passed } from './gate-result.js'
 import type { Member } from './project.js'
 import { findSourceViolations } from './source-rules.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'

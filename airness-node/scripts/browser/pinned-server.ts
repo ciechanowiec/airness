@@ -1,6 +1,6 @@
 // The contracts use the exact container launcher and browser protocol the Maven e2e gate uses.
 import { type Browser, type BrowserType, chromium, firefox, webkit } from '@playwright/test'
-import type { GateResult } from '#harness/exec'
+import type { GateResult } from '#harness/gate-result'
 import { isStartFailure, type PinnedBrowsers, startPinnedBrowsers } from '#harness/pinned-browsers'
 import { type Member, membersOf } from '#harness/project'
 

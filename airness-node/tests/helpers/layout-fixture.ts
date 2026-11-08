@@ -1,7 +1,9 @@
 // The page a layout spec judges, built from the numbers a real page produces: whole CSS pixels and
 // computed style strings. Shared by the specs of the layout rules, so each states only its own cases.
-import { findLayoutDefects, LAYOUT_MINIMUM_GAP, type LayoutViewport } from '@/layout-defects'
+import type { Viewport } from '@/browser-findings'
+import { findLayoutDefects } from '@/layout-defects'
 import type { LayoutBorder, LayoutNode, LayoutRect, LayoutSnapshot } from '@/layout-snapshot'
+import { LAYOUT_MINIMUM_GAP } from '@/settings'
 
 export const TRANSPARENT: string = 'rgba(0, 0, 0, 0)'
 export const WHITE: string = 'rgb(255, 255, 255)'
@@ -69,9 +71,9 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   ...fields,
 })
 
-const PHONE: LayoutViewport = { width: 390, height: 844 }
+const PHONE: Viewport = { width: 390, height: 844 }
 
-export const snapshotOf = (nodes: readonly LayoutNode[], viewport: LayoutViewport = PHONE): LayoutSnapshot => ({
+export const snapshotOf = (nodes: readonly LayoutNode[], viewport: Viewport = PHONE): LayoutSnapshot => ({
   route: '/en/account/verify',
   viewportWidth: viewport.width,
   viewportHeight: viewport.height,

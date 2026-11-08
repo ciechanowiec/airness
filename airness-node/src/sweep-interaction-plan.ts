@@ -2,7 +2,7 @@
 // desktop viewport and a story at the desktop one; the page chrome, shared by every place, is driven once
 // per viewport, at the first place the whole pass has at that viewport, by whichever part takes it.
 
-import type { FindingViewport } from './browser-findings.js'
+import type { Viewport } from './browser-findings.js'
 import { drivenViewports, STRESS_VIEWPORTS } from './browser-viewports.js'
 import type { PlaceItem, SweepLocation } from './sweep-shared.js'
 
@@ -28,12 +28,12 @@ export interface InteractionPlan {
 export const interactionPlan = (locations: readonly SweepLocation[]): InteractionPlan => {
   const places: readonly InteractionPlace[] = locations.flatMap(
     (location: SweepLocation): readonly InteractionPlace[] =>
-      drivenViewports(location.isStory).flatMap((viewport: FindingViewport): readonly InteractionPlace[] =>
+      drivenViewports(location.isStory).flatMap((viewport: Viewport): readonly InteractionPlace[] =>
         MOTIONS.map((motion: InteractionPlace['motion']): InteractionPlace => ({ location, viewport, motion })),
       ),
   )
   const chromePlaces: ReadonlySet<number> = new Set<number>(
-    STRESS_VIEWPORTS.flatMap((viewport: FindingViewport): readonly number[] =>
+    STRESS_VIEWPORTS.flatMap((viewport: Viewport): readonly number[] =>
       MOTIONS.map((motion: InteractionPlace['motion']): number =>
         places.findIndex(
           (place: InteractionPlace): boolean => place.viewport.width === viewport.width && place.motion === motion,

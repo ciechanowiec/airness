@@ -1,19 +1,18 @@
 // Native JavaScript and TypeScript rules, run by Oxlint under a closed rule set the harness generates.
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { failed, type GateResult, passed, type RunResult, runNode, withOutput } from './exec.js'
+import { type RunResult, runNode } from './exec.js'
+import { failed, type GateResult, passed, withOutput } from './gate-result.js'
 import { asRecord, asText } from './json-shapes.js'
 import { isOxlintConfig } from './jsx-accessibility-scope.js'
 import { oxlintConfig, oxlintRuleNames } from './oxlint-policy.js'
 import { type OxlintLegacySite, oxlintArguments, oxlintReportProblems } from './oxlint-report.js'
 import { type OxlintGroup, oxlintGroups, oxlintSourceFiles } from './oxlint-scope.js'
 import { isEslintOwnedSuppression, oxlintSuppressionProblems, type SourceComment } from './oxlint-suppressions.js'
-import { harnessDirectory, type Member, readJson, resolvedVersion, resolveTool } from './project.js'
+import { harnessDirectory, type Member, readJson, resolvedVersion, resolveTool, writeJson } from './project.js'
 import { sourceComments } from './source-comments.js'
 import { workingTreeFiles } from './working-tree.js'
-
-const JSON_INDENT: number = 2
 
 const versionProblems = (): readonly string[] => {
   const manifestPath: string = path.join(harnessDirectory(), 'package.json')
@@ -66,7 +65,7 @@ const analyze = (member: Member, group: OxlintGroup): GateResult => {
   const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-oxlint-'))
   try {
     const config: string = path.join(directory, 'oxlint.json')
-    writeFileSync(config, `${JSON.stringify(oxlintConfig(group.rules), null, JSON_INDENT)}\n`)
+    writeJson(config, oxlintConfig(group.rules))
     return nativeVerdict(
       runNode(resolveTool('oxlint'), [...oxlintArguments(config, group.files)], { cwd: member.root }),
       group,

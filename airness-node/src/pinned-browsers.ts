@@ -20,9 +20,11 @@ import {
   pinnedBrowserServerArguments,
   sweepWorkersAcross,
 } from './browser-run.js'
-import { failed, type GateResult, type RunResult, run } from './exec.js'
+import { type RunResult, run } from './exec.js'
+import { failed, type GateResult } from './gate-result.js'
 import { asText, readKey } from './json-shapes.js'
 import { type ContainerOwner, claimOwnership, isOwnershipFailure, type OwnershipFailure } from './owned-containers.js'
+import { STOP_SIGNALS } from './process-tree.js'
 import { type Member as Context, harnessDirectory, readJson } from './project.js'
 
 const START_TIMEOUT_MS: number = 60_000
@@ -216,7 +218,7 @@ const startServer = async (
   const hooks: readonly {
     readonly signal: NodeJS.Signals
     readonly handle: () => void
-  }[] = (['SIGINT', 'SIGTERM', 'SIGHUP'] as const).map((signal) => ({
+  }[] = STOP_SIGNALS.map((signal: NodeJS.Signals) => ({
     signal,
     handle: (): void => {
       stop()

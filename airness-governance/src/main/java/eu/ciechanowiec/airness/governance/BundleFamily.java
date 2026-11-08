@@ -29,7 +29,6 @@ import java.util.Set;
 record BundleFamily(String named, List<Path> files) {
 
     private static final Set<String> LANGUAGES = Set.of(Locale.getISOLanguages());
-    private static final String SUFFIX = ".properties";
     private static final char LANGUAGE = '_';
 
     /**
@@ -68,7 +67,7 @@ record BundleFamily(String named, List<Path> files) {
     // The name a bundle carries before its language. The first segment that the runtime would read as
     // a language ends the name, so a bundle of one language and its base file answer the same thing.
     private static String base(String written) {
-        String bare = written.substring(0, written.length() - SUFFIX.length());
+        String bare = written.substring(0, written.length() - MessageResources.SUFFIX.length());
         int at = bare.indexOf(LANGUAGE);
         while (at >= 0) {
             if (LANGUAGES.contains(segment(bare, at))) {

@@ -18,7 +18,6 @@ public record ReportInventory(
 ) {
 
     private static final Pattern PACKAGE_URL = Pattern.compile("^pkg:maven/([^/]+)/([^@]+)@([^?]+)");
-    private static final String WEAK = "Weak copyleft";
 
     public ReportInventory {
         packages = List.copyOf(packages);
@@ -72,7 +71,8 @@ public record ReportInventory(
      * @return weak copyleft packages
      */
     public List<ReportPackage> weakCopyleft() {
-        return this.packages.stream().filter(entry -> WEAK.equals(this.policy.classification(entry.licenses())))
+        return this.packages.stream()
+            .filter(entry -> this.policy.classification(entry.licenses()) == LicenseClass.WEAK_COPYLEFT)
             .toList();
     }
 

@@ -19,7 +19,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class MessageResources {
 
-    private static final String SUFFIX = ".properties";
+    static final String SUFFIX = ".properties";
 
     /**
      * Every message bundle a commit from this tree would carry, under the given module.

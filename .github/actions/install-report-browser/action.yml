@@ -1,0 +1,14 @@
+name: 'Install the pinned report browser'
+description: 'Restores the cached report browser that the Maven plugin pins, then installs it with its system libraries.'
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Restore the pinned report browser cache'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/airness/report-browser
+        key: report-browser-${{ runner.os }}-${{ hashFiles('airness-maven-plugin/pom.xml') }}
+
+    - name: 'Install the pinned report browser and its system libraries'
+      shell: bash
+      run: sh airness-it/report-browser.sh --with-deps

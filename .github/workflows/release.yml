@@ -164,30 +164,13 @@ jobs:
 
       - name: 'Pull the pinned check images while the build runs'
         if: steps.release_state.outputs.central_published != 'true' || steps.npm_state.outputs.npm_published != 'true'
-        run: |
-          set -eu
-          sed -n 's|^ *<[a-z]*\.image>\(.*\)</[a-z]*\.image> *$|\1|p' pom.xml > "$RUNNER_TEMP/images.txt"
-          test -s "$RUNNER_TEMP/images.txt"
-          cat "$RUNNER_TEMP/images.txt"
-          # Detached on purpose: these have to outlive the step so that a multi-gigabyte pull happens
-          # while Maven compiles rather than when the first check asks for the image.
-          nohup xargs -n 1 docker pull --quiet < "$RUNNER_TEMP/images.txt" \
-            > "$RUNNER_TEMP/image-pull.log" 2>&1 &
-
-      - name: 'Restore the pinned report browser cache'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/airness/report-browser
-          key: report-browser-${{ runner.os }}-${{ hashFiles('airness-maven-plugin/pom.xml') }}
-
-      - name: 'Pull the pinned sweep browsers'
-        run: |
-          set -eu
-          image="$(jq --exit-status --raw-output '.airness.browserImage' airness-node/package.json)"
-          docker pull "${image}"
+        uses: ./.github/actions/pull-check-images
 
       - name: 'Install the pinned report browser and its system libraries'
-        run: sh airness-it/report-browser.sh --with-deps
+        uses: ./.github/actions/install-report-browser
+
+      - name: 'Pull the pinned sweep browsers'
+        uses: ./.github/actions/pull-sweep-browsers
 
       - name: 'Run Extended verification and install release artifacts'
         if: steps.release_state.outputs.central_published != 'true' || steps.npm_state.outputs.npm_published != 'true'

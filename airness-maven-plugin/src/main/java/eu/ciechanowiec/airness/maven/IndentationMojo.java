@@ -44,7 +44,7 @@ public final class IndentationMojo extends AbstractRepositoryMojo {
         Path root = this.repositoryRoot();
         List<String> owned = GeneratedDenialMojo.generated(
             root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
-            Sentinel.optional(this.generated)
+            CommaList.entries(this.generated)
         );
         LinterExemptions exemptions = LinterExemptions.from(this.project());
         IndentationCheck check = new IndentationCheck(root, owned, exemptions::exempts);

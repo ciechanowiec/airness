@@ -34,7 +34,6 @@ final class NodeGeneratedArtefacts {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String PATTERN = "pattern";
-    private static final String MANIFEST = "package.json";
     // Directories no workspace member lies in: installed packages and build output carry manifests of their own.
     private static final Set<String> UNSEARCHED = Set.of("node_modules", "target");
 
@@ -80,7 +79,7 @@ final class NodeGeneratedArtefacts {
     }
 
     private static Stream<String> declared(Path project) {
-        Path manifest = project.resolve(MANIFEST);
+        Path manifest = project.resolve(NodeManifests.MANIFEST);
         return Files.isRegularFile(manifest) ? read(manifest).flatMap(NodeGeneratedArtefacts::honoured) : Stream
             .empty();
     }
@@ -165,7 +164,7 @@ final class NodeGeneratedArtefacts {
         }
 
         private boolean member(Path directory) {
-            return Files.isRegularFile(directory.resolve(MANIFEST)) && this.workspace.covers(directory);
+            return Files.isRegularFile(directory.resolve(NodeManifests.MANIFEST)) && this.workspace.covers(directory);
         }
     }
 }

@@ -1,7 +1,8 @@
-// The npm packages the Payload layer refuses by name, the Payload input to the generic blocklist. The
-// framework-neutral entries (MongoDB drivers, Elastic, Ghostscript wrappers and the rest) are the generic
-// layer's; these exist because of Payload: its MongoDB adapter, and the drivers of database servers Payload has
-// no adapter for, which a project could reach only to run a second, proprietary database beside its own.
+// The npm packages the Payload layer refuses by name, which its own gate finds in the lockfile beside the generic
+// blocklist. The framework-neutral entries (MongoDB drivers, Elastic, Ghostscript wrappers and the rest) are the
+// generic layer's; these exist because of Payload: its MongoDB adapter, and the drivers of database servers
+// Payload has no adapter for, which a project could reach only to run a second, proprietary database beside its
+// own.
 
 import { asRecord, readKey } from '@airness/node/json-shapes'
 import { parse } from 'yaml'

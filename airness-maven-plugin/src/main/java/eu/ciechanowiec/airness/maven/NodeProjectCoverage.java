@@ -25,7 +25,6 @@ import java.util.stream.Stream;
 final class NodeProjectCoverage {
 
     private static final String HEADLINE = "Node projects the module declares, and package.json files no gate checks";
-    private static final String PROPERTY = "airness.node.projects";
 
     private final int found;
     private final List<String> offences;
@@ -52,7 +51,10 @@ final class NodeProjectCoverage {
             manifests.stream()
                 .filter(manifest -> !covered(manifest.resolveSibling(""), declared, workspaces))
                 .map(manifest -> module.relativize(manifest).toString().replace('\\', '/'))
-                .map(manifest -> manifest + " is a node project that no gate checks; add it to " + PROPERTY),
+                .map(
+                    manifest -> manifest + " is a node project that no gate checks; add it to "
+                        + NodeProjects.PROPERTY
+                ),
             NodeSelections.problems(module, manifests, declared)
         ).flatMap(problems -> problems).toList();
     }
@@ -79,10 +81,12 @@ final class NodeProjectCoverage {
     private static Optional<String> declarationProblem(NodeProject project) {
         if (project.outside()) {
             return Optional.of(
-                project.key() + " lies outside the module; list only directories inside it in " + PROPERTY
+                project.key() + " lies outside the module; list only directories inside it in "
+                    + NodeProjects.PROPERTY
             );
         }
-        return Optional.of(project.key() + " has no package.json; fix " + PROPERTY).filter(_ -> !project.hasManifest());
+        return Optional.of(project.key() + " has no package.json; fix " + NodeProjects.PROPERTY)
+            .filter(_ -> !project.hasManifest());
     }
 
     private static boolean covered(Path directory, NodeProjects declared, Collection<PnpmWorkspace> workspaces) {

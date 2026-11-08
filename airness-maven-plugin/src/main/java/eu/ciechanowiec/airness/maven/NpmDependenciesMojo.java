@@ -6,7 +6,6 @@ import eu.ciechanowiec.airness.maven.NpmEvidence.NpmPackage;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -24,8 +23,6 @@ import org.apache.maven.plugins.annotations.Mojo;
  */
 @Mojo(name = "npm-dependencies", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class NpmDependenciesMojo extends AbstractGovernanceMojo {
-
-    private static final Set<String> HARNESS_PACKAGES = Set.of("@airness/node", "@airness/payload");
 
     @Override
     boolean applies() {
@@ -57,7 +54,7 @@ public final class NpmDependenciesMojo extends AbstractGovernanceMojo {
         );
         List<OwnedCoordinate> declared = evidence.stream().flatMap(
             entry -> readable(entry).stream().filter(NpmPackage::direct)
-                .filter(found -> !HARNESS_PACKAGES.contains(found.name()))
+                .filter(found -> !HarnessVersions.harnessPackage(found.name()))
                 .map(found -> NpmFreshness.npm(entry.subject(), found.name(), found.version()))
         ).toList();
         return NpmFreshness.of(

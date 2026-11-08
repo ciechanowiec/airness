@@ -12,8 +12,6 @@ import java.util.Optional;
  */
 public final class ContainerFreshnessCheck {
 
-    private static final String DOCKER_HUB = "https://hub.docker.com";
-
     private final int scanned;
     private final List<String> updates;
     private final List<String> drifts;
@@ -24,7 +22,7 @@ public final class ContainerFreshnessCheck {
      * @param declarations digest-pinned image declarations
      */
     public ContainerFreshnessCheck(Collection<DeclaredContainerImage> declarations) {
-        this(declarations, DOCKER_HUB);
+        this(declarations, RegistryTags.HUB);
     }
 
     ContainerFreshnessCheck(Collection<DeclaredContainerImage> declarations, String registry) {

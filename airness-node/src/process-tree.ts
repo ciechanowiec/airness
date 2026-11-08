@@ -163,6 +163,35 @@ export const stopTree = async (
   return survivors
 }
 
+/** The signals that ask a run to stop: Ctrl-C, a request to terminate, and the end of its terminal. */
+export const STOP_SIGNALS: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
+
+/**
+ * Hand every stop signal this process is sent to one handler.
+ * @param handler what each stop signal runs.
+ * @returns the function that unsubscribes the handler again.
+ */
+export const subscribeToStops = (handler: (signal: NodeJS.Signals) => void): (() => void) => {
+  for (const signal of STOP_SIGNALS) {
+    process.on(signal, handler)
+  }
+  return (): void => {
+    for (const signal of STOP_SIGNALS) {
+      process.off(signal, handler)
+    }
+  }
+}
+
+/**
+ * Wait without blocking the process.
+ * @param milliseconds how long.
+ */
+export const pause = async (milliseconds: number): Promise<void> => {
+  await new Promise<void>((resolve): void => {
+    setTimeout(resolve, milliseconds)
+  })
+}
+
 /** How a process hears its stop signals and ends with one, replaceable so the forwarding can be measured. */
 export interface StopWiring {
   readonly machine: TreeMachine

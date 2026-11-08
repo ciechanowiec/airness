@@ -11,7 +11,8 @@
 // `tools`. A step names another only through that parameter, never directly, because in the page no
 // other binding exists.
 import type { Page } from '@playwright/test'
-import { type LayoutViewport, layoutViewportsWith } from './layout-defects.js'
+import type { Viewport } from './browser-findings.js'
+import { layoutViewportsWith } from './layout-defects.js'
 import { type PageInlineStyle, reservedBoxOf } from './layout-reserved.js'
 import type {
   FontFaceFacts,
@@ -26,7 +27,7 @@ import { adoptStyle } from './page-style.js'
 import { projectSettings } from './project-settings.js'
 
 /** The viewports every layout scan runs at, the harness's own first. */
-export const LAYOUT_SCAN_VIEWPORTS: readonly LayoutViewport[] = layoutViewportsWith(projectSettings.layoutViewports)
+export const LAYOUT_SCAN_VIEWPORTS: readonly Viewport[] = layoutViewportsWith(projectSettings.layoutViewports)
 
 // The browser surface the page code touches, declared rather than taken from lib.dom for the reason
 // `settle.ts` records. These names resolve in the page at run time.

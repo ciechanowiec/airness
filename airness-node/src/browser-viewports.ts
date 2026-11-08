@@ -4,21 +4,21 @@
 // A breakpoint is where a layout changes, so it is where a layout most often breaks: one pixel below a
 // `min-width` the old layout still has to fit, and at it the new one has to. The baseline cannot know
 // where a project put its breakpoints, so the page is asked.
-import type { FindingViewport } from './browser-findings.js'
+import type { Viewport } from './browser-findings.js'
 
 /**
  * The viewports every page is loaded at, each a fresh load: a phone, a tablet and a desktop. The width
  * sweep measures overflow at every width between them, and each page adds its own breakpoint edges. A
  * project may add more, never remove any.
  */
-export const BASELINE_VIEWPORTS: readonly FindingViewport[] = [
+export const BASELINE_VIEWPORTS: readonly Viewport[] = [
   { width: 390, height: 844 },
   { width: 768, height: 1024 },
   { width: 1280, height: 800 },
 ]
 
 /** The phone and desktop viewports the text-stress passes and the axe scans run at. */
-export const STRESS_VIEWPORTS: readonly FindingViewport[] = [
+export const STRESS_VIEWPORTS: readonly Viewport[] = [
   { width: 390, height: 844 },
   { width: 1280, height: 800 },
 ]
@@ -30,7 +30,7 @@ export const STRESS_VIEWPORTS: readonly FindingViewport[] = [
  * @param isStory whether the location is a story.
  * @returns the viewports to drive it at.
  */
-export const drivenViewports = (isStory: boolean): readonly FindingViewport[] =>
+export const drivenViewports = (isStory: boolean): readonly Viewport[] =>
   isStory ? STRESS_VIEWPORTS.slice(-1) : STRESS_VIEWPORTS
 
 /** The narrowest width the sweep measures: the WCAG 1.4.10 reflow bound. */
@@ -142,13 +142,12 @@ export const breakpointEdges = (mediaTexts: readonly string[]): readonly number[
 
 const heightFor = (width: number): number =>
   BASELINE_VIEWPORTS.reduce(
-    (nearest: FindingViewport, viewport: FindingViewport): FindingViewport =>
+    (nearest: Viewport, viewport: Viewport): Viewport =>
       Math.abs(viewport.width - width) < Math.abs(nearest.width - width) ? viewport : nearest,
     { width: Number.POSITIVE_INFINITY, height: SWEEP_HEIGHT },
   ).height
 
-const isSame = (left: FindingViewport, right: FindingViewport): boolean =>
-  left.width === right.width && left.height === right.height
+const isSame = (left: Viewport, right: Viewport): boolean => left.width === right.width && left.height === right.height
 
 /**
  * The viewports a page is loaded at: the baseline, its breakpoint edges, and the project's additions.
@@ -156,21 +155,18 @@ const isSame = (left: FindingViewport, right: FindingViewport): boolean =>
  * @param declared the viewports the project added.
  * @returns each viewport once, ascending by width.
  */
-export const pageViewports = (
-  edges: readonly number[],
-  declared: readonly FindingViewport[],
-): readonly FindingViewport[] => {
-  const all: readonly FindingViewport[] = [
+export const pageViewports = (edges: readonly number[], declared: readonly Viewport[]): readonly Viewport[] => {
+  const all: readonly Viewport[] = [
     ...BASELINE_VIEWPORTS,
-    ...edges.map((width: number): FindingViewport => ({ width, height: heightFor(width) })),
+    ...edges.map((width: number): Viewport => ({ width, height: heightFor(width) })),
     ...declared,
   ]
   return all
     .filter(
-      (viewport: FindingViewport, index: number): boolean =>
-        all.findIndex((other: FindingViewport): boolean => isSame(other, viewport)) === index,
+      (viewport: Viewport, index: number): boolean =>
+        all.findIndex((other: Viewport): boolean => isSame(other, viewport)) === index,
     )
-    .toSorted((left: FindingViewport, right: FindingViewport): number => left.width - right.width)
+    .toSorted((left: Viewport, right: Viewport): number => left.width - right.width)
 }
 
 /**

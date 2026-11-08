@@ -27,13 +27,12 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
 
     static final String INVENTORY = "dependencies.json";
     static final String SBOM = "bom.cdx.json";
+    static final String CYCLONEDX = "CycloneDX";
+    static final String FORMAT = "bomFormat";
     private static final String WIRING = "wiring.json";
-    private static final String CYCLONEDX = "CycloneDX";
-    private static final String FORMAT = "bomFormat";
     private static final String PACKAGES = "packages";
     private static final int CONTRACT = 1;
     private static final String CONTRACT_FIELD = "contract";
-    private static final String PROPERTY = "airness.node.projects";
     private static final ObjectMapper JSON = new ObjectMapper();
 
     /**
@@ -48,7 +47,8 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
             return List.of();
         }
         Path build = Path.of(project.getBuild().getDirectory());
-        return NodeProjects.of(project.getBasedir().toPath(), project.getProperties().getProperty(PROPERTY))
+        String declared = project.getProperties().getProperty(NodeProjects.PROPERTY);
+        return NodeProjects.of(project.getBasedir().toPath(), declared)
             .projects().stream()
             .filter(node -> !node.outside() && node.hasManifest())
             .map(node -> new NpmEvidence(project.getId(), node.key(), node.directory(), node.results(build)))

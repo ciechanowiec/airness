@@ -16,15 +16,13 @@
 // and would pass every defect.
 
 import { balancedArguments, lineOf, occurrences, topLevelSlice } from '@airness/node/source-text'
-import { depthOneValue, type PayloadViolation } from './payload-source.js'
+import { BUILD_CONFIG_CALL, depthOneValue, type PayloadViolation } from './payload-source.js'
 
 /** One `buildConfig({ ... })` literal: its brace-wrapped body, and the line the call begins on. */
 export interface FoundRootConfig {
   readonly body: string
   readonly line: number
 }
-
-const BUILD_CONFIG_CALL: string = 'buildConfig('
 
 /**
  * Every root configuration literal the source declares.

@@ -3,12 +3,12 @@
 // fingerprint after the build in a stamp under the member's node_modules; a later gate refuses a build with no
 // stamp, a tree that changed since, or a build directory holding another build. Without it, a failed build in
 // a report-only run, or a gate run by its execution id, would measure and serve whatever build was on disk.
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { BUILD_DIRECTORY_MARKER, parseBuildDirectory } from './bundle-budget.js'
 import { type RunResult, runNode } from './exec.js'
 import { asRecord, asText } from './json-shapes.js'
-import type { Member } from './project.js'
+import { type Member, writeJson } from './project.js'
 import { workingTreeFingerprint } from './working-tree.js'
 
 /** The variables every Next.js command the facet runs is started with. */
@@ -19,7 +19,6 @@ export const NEXT_ENVIRONMENT: Readonly<Record<string, string>> = {
 }
 
 const PROBE_TIMEOUT_MS: number = 120_000
-const JSON_INDENT: number = 2
 const BUILD_ID_FILE: string = 'BUILD_ID'
 
 // Loads the configuration the production server would, through the member's installed Next.
@@ -82,8 +81,7 @@ export const stampBuild = (member: Member, directory: string): string | undefine
     return `${path.join(directory, BUILD_ID_FILE)} is missing after the build, so the build cannot be vouched for`
   }
   const stamp: StampedBuild = { buildId, directory, fingerprint: workingTreeFingerprint(member.root) }
-  mkdirSync(path.dirname(stampFile(member)), { recursive: true })
-  writeFileSync(stampFile(member), `${JSON.stringify(stamp, null, JSON_INDENT)}\n`)
+  writeJson(stampFile(member), stamp)
   return undefined
 }
 

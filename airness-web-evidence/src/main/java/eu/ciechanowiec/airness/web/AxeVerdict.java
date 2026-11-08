@@ -24,9 +24,8 @@ public record AxeVerdict(
     List<AxeFinding> failed, List<AxeFinding> undecided, List<AxeExemption> accepted
 ) {
 
+    static final String UNDECIDED = "undecided";
     private static final String FAILED = "failed";
-
-    private static final String UNDECIDED = "undecided";
 
     /**
      * Holds each list as one of its own, so the caller cannot change what this verdict says after it

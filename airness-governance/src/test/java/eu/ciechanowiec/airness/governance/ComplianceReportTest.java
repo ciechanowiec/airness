@@ -54,11 +54,11 @@ class ComplianceReportTest {
 
     @Test
     void classifiesOnlyAliasesTheBuildActuallyDeclares() {
-        assertEquals("Permissive", POLICY.classification(List.of("MIT License")));
-        assertEquals("Weak copyleft", POLICY.classification(List.of("MPL-2.0")));
-        assertEquals("Outside policy", POLICY.classification(List.of("Proprietary")));
-        assertEquals("Outside policy", POLICY.classification(List.of()));
-        assertEquals("Permissive", POLICY.classification(List.of("Proprietary", MIT)));
+        assertEquals(LicenseClass.PERMISSIVE, POLICY.classification(List.of("MIT License")));
+        assertEquals(LicenseClass.WEAK_COPYLEFT, POLICY.classification(List.of("MPL-2.0")));
+        assertEquals(LicenseClass.OUTSIDE_POLICY, POLICY.classification(List.of("Proprietary")));
+        assertEquals(LicenseClass.OUTSIDE_POLICY, POLICY.classification(List.of()));
+        assertEquals(LicenseClass.PERMISSIVE, POLICY.classification(List.of("Proprietary", MIT)));
         assertThrows(IllegalArgumentException.class, () -> new ReportLicensePolicy(Set.of(), Map.of()));
     }
 

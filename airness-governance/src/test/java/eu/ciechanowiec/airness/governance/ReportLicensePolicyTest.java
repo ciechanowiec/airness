@@ -23,11 +23,11 @@ class ReportLicensePolicyTest {
 
     @Test
     void admitsAConjunctionOnlyWhenItAdmitsEveryLicenseInIt() {
-        assertEquals("Permissive", POLICY.classification(List.of("MIT AND Apache-2.0")));
-        assertEquals("Outside policy", POLICY.classification(List.of("MIT AND GPL-3.0-only")));
-        assertEquals("Permissive", POLICY.classification(List.of("MIT AND GPL-3.0-only", "Apache-2.0")));
+        assertEquals(LicenseClass.PERMISSIVE, POLICY.classification(List.of("MIT AND Apache-2.0")));
+        assertEquals(LicenseClass.OUTSIDE_POLICY, POLICY.classification(List.of("MIT AND GPL-3.0-only")));
+        assertEquals(LicenseClass.PERMISSIVE, POLICY.classification(List.of("MIT AND GPL-3.0-only", "Apache-2.0")));
         assertEquals(
-            "Weak copyleft", POLICY.classification(List.of("MIT AND LGPL-2.1")),
+            LicenseClass.WEAK_COPYLEFT, POLICY.classification(List.of("MIT AND LGPL-2.1")),
             "an alternative carrying a weak copyleft license carries its condition"
         );
     }
@@ -35,7 +35,7 @@ class ReportLicensePolicyTest {
     @Test
     void keepsALicenseNameContainingAndWhole() {
         assertEquals(
-            "Weak copyleft", POLICY.classification(List.of("COMMON DEVELOPMENT AND DISTRIBUTION LICENSE")),
+            LicenseClass.WEAK_COPYLEFT, POLICY.classification(List.of("COMMON DEVELOPMENT AND DISTRIBUTION LICENSE")),
             "a spelling the merges carry is one license, not a conjunction of two names"
         );
     }

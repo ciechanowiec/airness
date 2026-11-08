@@ -19,12 +19,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 @UtilityClass
 public final class NpmBlocklist {
 
-    private static final String MONGODB = "the MongoDB server is SSPL, which is not an open-source licence, and this"
-        + " exists only to reach it";
     private static final String POSTGRES = "PostgreSQL, through pg";
-    private static final String ELASTIC = "Elastic binaries are Elastic License 2.0 from 7.11, and this exists only"
-        + " to reach them";
-    private static final String GHOSTSCRIPT = "Ghostscript is AGPL, and this is a thin wrapper around it";
     private static final String PDF = "pdfjs-dist with @napi-rs/canvas";
     private static final String EDITOR = "an MIT-licensed editor such as lexical";
     private static final String N8N = "n8n is under the Sustainable Use License, which is not open source";
@@ -33,24 +28,24 @@ public final class NpmBlocklist {
             "eslint-plugin-jsx-a11y", "the retired JSX accessibility analyzer duplicates the checks the oxlint gate"
                 + " owns", "the harness's oxlint gate; remove the plugin"
         ),
-        Entry.of("mongodb", MONGODB, POSTGRES),
-        Entry.of("mongoose", MONGODB, POSTGRES),
+        Entry.of("mongodb", BlocklistEntries.MONGODB, POSTGRES),
+        Entry.of("mongoose", BlocklistEntries.MONGODB, POSTGRES),
         Entry.of("mongodb-memory-server*", "downloads the SSPL MongoDB server binary at install time", POSTGRES),
-        Entry.of("@mongodb-js/*", MONGODB, POSTGRES),
-        Entry.of("mongodb-client-encryption", MONGODB, POSTGRES),
-        Entry.of("@elastic/elasticsearch", ELASTIC, "@opensearch-project/opensearch"),
+        Entry.of("@mongodb-js/*", BlocklistEntries.MONGODB, POSTGRES),
+        Entry.of("mongodb-client-encryption", BlocklistEntries.MONGODB, POSTGRES),
+        Entry.of("@elastic/elasticsearch", BlocklistEntries.ELASTIC, "@opensearch-project/opensearch"),
         Entry.of(
             "@elastic/eui", "Elastic UI is dual-licensed SSPL and Elastic License 2.0, neither of which is"
                 + " permissive", "@opensearch-project/oui"
         ),
-        Entry.of("elastic-apm-node", ELASTIC, "@opentelemetry/sdk-node"),
+        Entry.of("elastic-apm-node", BlocklistEntries.ELASTIC_APM, "@opentelemetry/sdk-node"),
         Entry.of(
             "puppeteer", "downloads Chrome for Testing under Google terms, which are not open source",
             "playwright, or puppeteer-core pointed at the Chromium Playwright installs"
         ),
-        Entry.of("pdf2pic", GHOSTSCRIPT, PDF),
-        Entry.of("node-gs", GHOSTSCRIPT, PDF),
-        Entry.of("ghostscript4js", GHOSTSCRIPT, PDF),
+        Entry.of("pdf2pic", BlocklistEntries.GHOSTSCRIPT, PDF),
+        Entry.of("node-gs", BlocklistEntries.GHOSTSCRIPT, PDF),
+        Entry.of("ghostscript4js", BlocklistEntries.GHOSTSCRIPT, PDF),
         Entry.of("mupdf", "MuPDF is AGPL", PDF),
         Entry.of("n8n", N8N, "an open-source workflow engine"),
         Entry.of("n8n-*", "an n8n extension serves only the Sustainable Use License host", "nothing"),

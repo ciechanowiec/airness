@@ -2,13 +2,11 @@
 // the Next.js application layer, which nothing imports back, the pure-logic floor a project or a layer
 // package declares, and the production roots that import no test code and no development-only dependency. The
 // framework-neutral rules stay in the shipped configuration.
+import { APP_ROOT } from './route-map.js'
 import { DEFAULT_SOURCE_ROOTS } from './settings.js'
 
 /** One forbidden rule, in dependency-cruiser's shape. */
 export type ArchitectureRule = Readonly<Record<string, unknown>>
-
-/** The Next.js App Router directory, the top layer of a Next.js application. */
-const APPLICATION_LAYER: string = 'src/app'
 
 /**
  * The rule that keeps the Next.js App Router layer on top: it composes everything else, and nothing outside it
@@ -19,10 +17,10 @@ export const APPLICATION_LAYER_RULE: ArchitectureRule = {
   name: 'nothing-imports-app',
   severity: 'error',
   comment:
-    `The Next.js App Router layer (${APPLICATION_LAYER}) composes everything else and nothing imports it back. ` +
+    `The Next.js App Router layer (${APP_ROOT}) composes everything else and nothing imports it back. ` +
     'Move what another module needs out of it, into a lower layer.',
-  from: { path: '^src/', pathNot: `^${APPLICATION_LAYER}/` },
-  to: { path: `^${APPLICATION_LAYER}/` },
+  from: { path: '^src/', pathNot: `^${APP_ROOT}/` },
+  to: { path: `^${APP_ROOT}/` },
 }
 
 // The routes directories Next.js also reads from the member root. The harness places a Next.js application under

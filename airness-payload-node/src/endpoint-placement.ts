@@ -18,7 +18,7 @@ import {
   topLevelSlice,
 } from '@airness/node/source-text'
 import { type FoundPayloadConfig, payloadConfigsIn } from './payload-configs.js'
-import { depthOneValue, type PayloadViolation } from './payload-source.js'
+import { BUILD_CONFIG_CALL, depthOneValue, type PayloadViolation } from './payload-source.js'
 
 /** The directory every served handler lives under. */
 const ENDPOINT_DIRECTORY: string = 'src/endpoints/'
@@ -29,8 +29,6 @@ const RULE: string = 'require-endpoint-module'
 // file alone, so it is not taken on trust: a handler imported through it is reported, and the relative or `@/`
 // spelling repairs it.
 const SOURCE_ALIAS: string = '@/'
-
-const BUILD_CONFIG_CALL: string = 'buildConfig('
 
 // An entry the rule can follow: an identifier, optionally spread or read through a member chain. The root name is
 // what an import binds.

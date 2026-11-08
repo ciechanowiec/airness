@@ -16,8 +16,6 @@ import org.apache.maven.plugins.annotations.Mojo;
 @Mojo(name = "tree-verify", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class TreeVerifyMojo extends AbstractGovernanceMojo {
 
-    private static final String HEADLINE = "Committable files changed during the build";
-
     private static final String MOVED
         = "The working tree content differs from the validate-phase snapshot, so either a build plugin "
             + "wrote to a tracked file or the tree was edited while the build ran";
@@ -33,13 +31,13 @@ public final class TreeVerifyMojo extends AbstractGovernanceMojo {
     List<Findings> findings() {
         if (this.formatProfile()) {
             this.getLog().info("The format profile intentionally edits sources; tree comparison is disabled");
-            return List.of(new Findings(HEADLINE, List.of()));
+            return List.of(new Findings(Closing.HEADLINE, List.of()));
         }
         List<String> changed = TreeState.unchanged(
             this.session().getRepositorySession().getData(), this.repositoryRoot(), this.scope()
         )
             ? List.of() : List.of(MOVED);
-        return List.of(new Findings(HEADLINE, changed));
+        return List.of(new Findings(Closing.HEADLINE, changed));
     }
 
     private boolean formatProfile() {

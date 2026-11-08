@@ -41,7 +41,7 @@ public final class TemplateOutputCheck {
 
     private static final String PREPROCESSED = "Template expressions read a second time as expressions";
 
-    private static final Set<String> UTEXT = Set.of("th:utext", "data-th-utext");
+    private static final Set<String> UTEXT = ThymeleafAttribute.spellings("utext");
 
     // The inlined form of the same thing an unescaped attribute asks for, written in the text of a
     // document rather than on an element.

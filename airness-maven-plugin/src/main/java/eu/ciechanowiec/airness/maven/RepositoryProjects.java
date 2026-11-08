@@ -14,18 +14,15 @@ import org.apache.maven.project.MavenProject;
 @UtilityClass
 final class RepositoryProjects {
 
-    private static final String GROUP = "eu.ciechanowiec";
-    private static final String AGGREGATOR = "airness";
-    private static final String CONSUMER_PARENT = "airness-parent";
     /*
      * Every parent Airness publishes for a consumer to inherit. Each one declares what a consumer may not,
-     * so the child policy that reads a consumer pom passes over all of them. Kept apart from
-     * CONSUMER_PARENT above, which selects the one module that owns repository-wide work and stays one:
-     * a second owner would report every repository finding twice.
+     * so the child policy that reads a consumer pom passes over all of them. Kept apart from the generic
+     * parent alone, which selects the one module that owns repository-wide work and stays one: a second
+     * owner would report every repository finding twice.
      */
     private static final Set<String> HARNESS_PARENTS = Set.of(
-        CONSUMER_PARENT, "airness-parent-java", "airness-parent-spring-boot", "airness-parent-node",
-        "airness-parent-payload"
+        AirnessCoordinates.GENERIC_PARENT, AirnessCoordinates.JAVA_PARENT, "airness-parent-spring-boot",
+        "airness-parent-node", "airness-parent-payload"
     );
 
     static boolean owns(MavenProject topLevel, MavenProject current) {
@@ -33,8 +30,8 @@ final class RepositoryProjects {
     }
 
     static boolean selfBuild(MavenProject topLevel, MavenProject current) {
-        return coordinates(current, CONSUMER_PARENT)
-            && hasAirnessParent(current)
+        return AirnessCoordinates.named(current, AirnessCoordinates.GENERIC_PARENT)
+            && selfModule(current)
             && isAirnessEntry(topLevel, current);
     }
 
@@ -46,7 +43,20 @@ final class RepositoryProjects {
      * @return whether that project is the Airness aggregator
      */
     static boolean selfRepository(MavenProject topLevel) {
-        return coordinates(topLevel, AGGREGATOR);
+        return AirnessCoordinates.isAggregator(topLevel);
+    }
+
+    /**
+     * Whether a module belongs to the Airness build itself, whose modules inherit its aggregator directly
+     * rather than the parent they publish.
+     *
+     * @param module the module
+     * @return whether its parent is the Airness aggregator
+     */
+    static boolean selfModule(MavenProject module) {
+        return Optional.ofNullable(module.getParent())
+            .filter(AirnessCoordinates::isAggregator)
+            .isPresent();
     }
 
     /**
@@ -66,7 +76,7 @@ final class RepositoryProjects {
     static boolean selfTree(MavenProject current, Path root) {
         Path tree = root.toAbsolutePath().normalize();
         return Stream.iterate(current, Objects::nonNull, MavenProject::getParent)
-            .filter(project -> coordinates(project, AGGREGATOR))
+            .filter(AirnessCoordinates::isAggregator)
             .map(MavenProject::getBasedir)
             .filter(Objects::nonNull)
             .anyMatch(basedir -> tree.equals(basedir.toPath().toAbsolutePath().normalize()));
@@ -96,25 +106,17 @@ final class RepositoryProjects {
         return owned ? Optional.empty() : Optional.of(
             "The top-level project " + topLevel.getGroupId() + ':' + topLevel.getArtifactId() + " inherits no "
                 + "Airness parent, so the repository-wide checks would run in no module of this build; make its "
-                + "pom inherit " + GROUP + ':' + CONSUMER_PARENT + ", as the agent guide requires of a monorepo root"
+                + "pom inherit " + AirnessCoordinates.GROUP + ':' + AirnessCoordinates.GENERIC_PARENT
+                + ", as the agent guide requires of a monorepo root"
         );
     }
 
     static boolean harnessParent(MavenProject project) {
-        return GROUP.equals(project.getGroupId()) && HARNESS_PARENTS.contains(project.getArtifactId());
-    }
-
-    private static boolean coordinates(MavenProject project, String artifact) {
-        return GROUP.equals(project.getGroupId()) && artifact.equals(project.getArtifactId());
-    }
-
-    private static boolean hasAirnessParent(MavenProject project) {
-        return Optional.ofNullable(project.getParent())
-            .filter(parent -> coordinates(parent, AGGREGATOR))
-            .isPresent();
+        return AirnessCoordinates.GROUP.equals(project.getGroupId())
+            && HARNESS_PARENTS.contains(project.getArtifactId());
     }
 
     private static boolean isAirnessEntry(MavenProject topLevel, MavenProject current) {
-        return topLevel.equals(current) || coordinates(topLevel, AGGREGATOR);
+        return topLevel.equals(current) || AirnessCoordinates.isAggregator(topLevel);
     }
 }

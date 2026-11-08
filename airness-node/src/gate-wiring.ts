@@ -2,7 +2,7 @@
 // own manifest, and the versions airness:node-gate supplies from the module's parent chain.
 import path from 'node:path'
 import { coverageCandidates } from './coverage-policy.js'
-import { failed, type GateResult, passed } from './exec.js'
+import { failed, type GateResult, passed } from './gate-result.js'
 import {
   HARNESS_VERSIONS_VARIABLE,
   MODULE_VARIABLE,

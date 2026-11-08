@@ -7,7 +7,7 @@ import {
   staleExemptions,
   type UsedExemption,
 } from './browser-exemptions.js'
-import { type BrowserFinding, type FindingPlace, findingAt, findingLine } from './browser-findings.js'
+import { type BrowserFinding, type FindingPlace, findingAt, findingLine, type Viewport } from './browser-findings.js'
 import { BASELINE_VIEWPORTS } from './browser-viewports.js'
 import { type BoxFinding, findTouchingBoxes } from './layout-boxes.js'
 import { ATTACHED_EXEMPTION, keyOf, type LayoutNode, type LayoutSnapshot } from './layout-snapshot.js'
@@ -18,18 +18,6 @@ import {
   findOverlappingText,
   type TextFinding,
 } from './layout-text.js'
-
-/** A viewport every scan runs at. */
-export interface LayoutViewport {
-  readonly width: number
-  readonly height: number
-}
-
-/** The viewports the harness requires. A project may add more, never remove any. */
-export const LAYOUT_VIEWPORTS: readonly LayoutViewport[] = BASELINE_VIEWPORTS
-
-/** The smallest gap, in CSS pixels, between a boxed element and its sibling. A project may raise it. */
-export const LAYOUT_MINIMUM_GAP: number = 4
 
 /** The geometry rules the width sweep and the text-stress passes apply: L1 to L3. */
 export const REFLOW_RULES: readonly string[] = ['overflow', 'text-overlap', 'clipped-text']
@@ -218,10 +206,10 @@ export const findLayoutDefects = (
  * @param declared the viewports a project declared.
  * @returns the required viewports first, each width once.
  */
-export const layoutViewportsWith = (declared: readonly LayoutViewport[]): readonly LayoutViewport[] =>
-  [...LAYOUT_VIEWPORTS, ...declared].filter(
-    (viewport: LayoutViewport, index: number, all: readonly LayoutViewport[]): boolean =>
+export const layoutViewportsWith = (declared: readonly Viewport[]): readonly Viewport[] =>
+  [...BASELINE_VIEWPORTS, ...declared].filter(
+    (viewport: Viewport, index: number, all: readonly Viewport[]): boolean =>
       all.findIndex(
-        (other: LayoutViewport): boolean => other.width === viewport.width && other.height === viewport.height,
+        (other: Viewport): boolean => other.width === viewport.width && other.height === viewport.height,
       ) === index,
   )

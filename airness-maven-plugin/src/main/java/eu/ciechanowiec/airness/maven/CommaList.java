@@ -7,29 +7,29 @@ import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Reads an optional comma-separated parameter.
+ * A comma-separated parameter, read into its entries.
  */
 @UtilityClass
-final class Sentinel {
+final class CommaList {
 
     private static final String SEPARATOR = ",";
 
     /**
-     * The entries of an optional list, which is empty when nothing is set.
+     * The entries of an optional comma-separated parameter, which are none when nothing is set.
      *
-     * <p>No sentinel is needed here, because an empty list of exemptions exempts nothing and is
-     * therefore the safe reading rather than the silent one.
+     * <p>An unset parameter reads as no entries rather than as a refusal, because an empty list of exemptions
+     * exempts nothing and is therefore the safe reading rather than the silent one.
      *
      * @param value the raw parameter value
-     * @return the entries, empty when nothing was set
+     * @return the entries, stripped and without empty segments, empty when nothing was set
      */
-    static List<String> optional(@Nullable String value) {
+    static List<String> entries(@Nullable String value) {
         return Optional.ofNullable(value).map(String::strip).filter(text -> !text.isEmpty())
-            .map(Sentinel::entries)
+            .map(CommaList::split)
             .orElseGet(List::of);
     }
 
-    private static List<String> entries(String value) {
+    private static List<String> split(String value) {
         return Arrays.stream(value.split(SEPARATOR, -1))
             .map(String::strip)
             .filter(entry -> !entry.isEmpty())

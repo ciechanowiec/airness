@@ -11,7 +11,9 @@ import path from 'node:path'
 import { BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE } from './browser-run.js'
 import { isWithinSourceRoots, STYLESHEET_EXTENSIONS } from './file-roles.js'
 import { isArray, isRecord } from './json-shapes.js'
+import { LOCKFILE } from './lockfile.js'
 import { appRootOf, type DeclaredRoute, declaredRoutesOf, isRootLayout, resolvedRouteOf } from './route-map.js'
+import { WORKSPACE_FILE } from './yaml-blocks.js'
 
 /** Names the file that holds the change scope a `delta` run hands its browser sweep. */
 export const SWEEP_SCOPE_ENVIRONMENT_VARIABLE: string = 'AIRNESS_SWEEP_SCOPE'
@@ -151,8 +153,8 @@ export interface ScopeInputs {
 const REPOSITORY_INPUTS: ReadonlySet<string> = new Set<string>([
   'pom.xml',
   'package.json',
-  'pnpm-lock.yaml',
-  'pnpm-workspace.yaml',
+  LOCKFILE,
+  WORKSPACE_FILE,
   '.npmrc',
   '.nvmrc',
 ])

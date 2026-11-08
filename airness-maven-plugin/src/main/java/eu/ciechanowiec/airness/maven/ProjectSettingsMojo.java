@@ -32,8 +32,6 @@ import org.jspecify.annotations.Nullable;
 @Mojo(name = "project-settings", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
 public final class ProjectSettingsMojo extends AbstractPreflightMojo {
 
-    private static final String AIRNESS_GROUP = "eu.ciechanowiec";
-    private static final String AIRNESS_PARENT = "airness-parent";
     private static final String UNSET = "UNSET";
 
     /**
@@ -95,7 +93,7 @@ public final class ProjectSettingsMojo extends AbstractPreflightMojo {
     }
 
     private Stream<String> suppressions() {
-        return Sentinel.optional(this.suppressionFile).stream()
+        return CommaList.entries(this.suppressionFile).stream()
             .map(Path::of)
             .filter(Files::isRegularFile)
             .flatMap(document -> new SuppressionDocument(document).problems().stream());
@@ -128,12 +126,7 @@ public final class ProjectSettingsMojo extends AbstractPreflightMojo {
     }
 
     static Optional<String> airnessParentVersion(MavenProject project) {
-        return Stream.iterate(project, Objects::nonNull, MavenProject::getParent)
-            .skip(1)
-            .filter(parent -> AIRNESS_GROUP.equals(parent.getGroupId()))
-            .filter(parent -> AIRNESS_PARENT.equals(parent.getArtifactId()))
-            .map(MavenProject::getVersion)
-            .findFirst();
+        return AirnessCoordinates.ancestor(project, AirnessCoordinates.GENERIC_PARENT).map(MavenProject::getVersion);
     }
 
     private Optional<String> packageRootProblem() {

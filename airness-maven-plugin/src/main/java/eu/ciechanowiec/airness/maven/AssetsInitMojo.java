@@ -61,7 +61,7 @@ public final class AssetsInitMojo extends AbstractMojo {
         }
         Path root = Repository.rootFrom(current.getTopLevelProject().getBasedir().toPath());
         new AssetSync(
-            root, new AssetCatalogue(AssetsInitMojo.class.getClassLoader()), Sentinel.optional(this.unmanaged),
+            root, new AssetCatalogue(AssetsInitMojo.class.getClassLoader()), CommaList.entries(this.unmanaged),
             RepositorySites.read(this.builder, current.getProjectBuildingRequest(), root)
         ).scaffold().forEach(file -> this.getLog().info("Created project scaffold " + file));
     }

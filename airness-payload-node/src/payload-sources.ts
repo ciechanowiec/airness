@@ -3,12 +3,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { SpecSource } from '@airness/node/axe-coverage'
+import { TYPESCRIPT_SOURCE_EXTENSIONS } from '@airness/node/file-roles'
 import { matchesAnyGlob, memberFiles } from '@airness/node/source-selection'
 import { workingTreeFiles } from '@airness/node/working-tree'
 import type { PayloadMember } from './payload-member.js'
-
-/** The extensions of TypeScript source. */
-const TYPESCRIPT_SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.mts', '.cts']
 
 const isTypeScript = (file: string): boolean =>
   TYPESCRIPT_SOURCE_EXTENSIONS.some((extension: string): boolean => file.endsWith(extension))

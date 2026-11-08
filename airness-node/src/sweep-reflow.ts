@@ -7,7 +7,7 @@ import {
   type ExemptedFindings,
   type UsedExemption,
 } from './browser-exemptions.js'
-import { type BrowserFinding, type FindingPlace, type FindingViewport, findingAt } from './browser-findings.js'
+import { type BrowserFinding, type FindingPlace, findingAt, type Viewport } from './browser-findings.js'
 import { bisectionWidth, failingRanges, STRESS_VIEWPORTS, SWEEP_HEIGHT, sweepWidths } from './browser-viewports.js'
 import { measurePage } from './layout.js'
 import { REFLOW_RULES, reflowCandidates } from './layout-defects.js'
@@ -168,7 +168,7 @@ export const expectTextStress = async (page: Page, shard: Shard): Promise<void> 
   const discovery: Discovery = readDiscovery(test.info())
   const items: readonly PlaceItem[] = sampledLocations(discovery).flatMap(
     (location: SweepLocation): readonly PlaceItem[] =>
-      STRESS_VIEWPORTS.map((viewport: FindingViewport): PlaceItem => ({ location, viewport })),
+      STRESS_VIEWPORTS.map((viewport: Viewport): PlaceItem => ({ location, viewport })),
   )
   const budget: Budget = armBudget(page, 'text-stress', shard, items.length)
   await preparePage(page)

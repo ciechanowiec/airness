@@ -1,6 +1,7 @@
 // The project obtains its services and disposable data; the harness still chooses the tools and arguments.
 import { clockedEnvironment } from './clock-environment.js'
-import { fromRun, type GateResult, type RunResult, run } from './exec.js'
+import { fromRun, type RunResult, run } from './exec.js'
+import type { GateResult } from './gate-result.js'
 import type { Member } from './project.js'
 
 /** The executable and arguments after applying the project's declared environment wrapper. */

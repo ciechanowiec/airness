@@ -31,7 +31,7 @@ import org.w3c.dom.NodeList;
 @UtilityClass
 public final class DeclaredCoordinates {
 
-    private static final String MAVEN_PLUGIN_GROUP = "org.apache.maven.plugins";
+    static final String MAVEN_PLUGIN_GROUP = "org.apache.maven.plugins";
     private static final String DEPENDENCIES = "dependencies";
     private static final String PROPERTY_PREFIX = "${";
     private static final String PROPERTY_SUFFIX = "}";

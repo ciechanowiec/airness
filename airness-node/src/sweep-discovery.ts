@@ -26,6 +26,7 @@ import {
   storyFileOf,
   storyReason,
 } from './change-scope-policy.js'
+import { writeJson } from './project.js'
 import { projectSettings } from './project-settings.js'
 import type { DeclaredRoute } from './route-map.js'
 import { clearCompletedScans } from './scan-evidence.js'
@@ -54,7 +55,6 @@ import {
   type ScopeRecord,
   type SweepLocation,
   WHOLE_PASS,
-  writeJson,
 } from './sweep-shared.js'
 
 // The browser surface the page functions below touch, declared for the reason `settle.ts` records.

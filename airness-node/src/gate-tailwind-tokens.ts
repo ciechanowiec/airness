@@ -2,9 +2,9 @@
 // tailwind-tokens.ts; this file supplies which files carry Tailwind classes and what a finding reads like.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { failed, type GateResult, notApplicable, passed } from './exec.js'
 import { isTailwindProject } from './facets.js'
 import { hasExtension, isWithinSourceRoots } from './file-roles.js'
+import { failed, type GateResult, notApplicable, passed } from './gate-result.js'
 import type { Member } from './project.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'
 import { type ArbitraryValueViolation, findArbitraryValues } from './tailwind-tokens.js'

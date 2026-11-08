@@ -27,7 +27,7 @@ public final class NodeProjectsMojo extends AbstractGovernanceMojo {
     /**
      * The module's node project directories, comma-separated and relative to the module.
      */
-    @Parameter(property = "airness.node.projects")
+    @Parameter(property = NodeProjects.PROPERTY)
     private @Nullable String declared;
 
     /**
@@ -73,7 +73,7 @@ public final class NodeProjectsMojo extends AbstractGovernanceMojo {
             new FrontendWalk(root, basedir, skipped), projects,
             () -> GeneratedDenialMojo.denied(
                 root, RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root),
-                Sentinel.optional(this.generated), Sentinel.optional(this.unmanaged)
+                CommaList.entries(this.generated), CommaList.entries(this.unmanaged)
             ),
             HarnessFrontend.excused(this.project().getGroupId(), this.project().getArtifactId())
         );

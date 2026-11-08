@@ -2,20 +2,19 @@
 // development-only dependency, under the shipped dependency-cruiser contract; and, where the member has them,
 // the Next.js application layer and the declared pure-logic floor, rendered on top of it outside the tree, with the
 // application's routes directory under `src` where that layer is drawn.
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ArchitectureRule, layerRules, misplacedRouteDirectoryFindings } from './architecture-layers.js'
 import { importGraphOf } from './change-scope-policy.js'
-import { failed, fromRun, type GateResult, passed, type RunResult, runNode, withOutput } from './exec.js'
+import { fromRun, type RunResult, runNode } from './exec.js'
 import { isNextApp } from './facets.js'
+import { failed, type GateResult, passed, withOutput } from './gate-result.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { parseJsonc } from './json-shapes.js'
-import { harnessDirectory, type Member, resolveTool } from './project.js'
+import { harnessDirectory, type Member, resolveTool, writeJson } from './project.js'
 import { allowedJavaScriptFiles, memberFiles } from './source-selection.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
-
-const JSON_INDENT: number = 2
 
 // Every source root that exists: a cycle through `tests` or `scripts` is still a cycle, and the analyzer
 // refuses a directory it cannot open.
@@ -44,7 +43,7 @@ const cruise = (member: Member, options: readonly string[]): RunResult => {
   const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-arch-'))
   try {
     const config: string = path.join(directory, 'dependency-cruiser.json')
-    writeFileSync(config, `${JSON.stringify({ extends: shipped, forbidden: rules }, null, JSON_INDENT)}\n`)
+    writeJson(config, { extends: shipped, forbidden: rules })
     return runNode(
       resolveTool('dependency-cruiser', 'depcruise'),
       [...roots, '--no-progress', '--config', config, ...options],

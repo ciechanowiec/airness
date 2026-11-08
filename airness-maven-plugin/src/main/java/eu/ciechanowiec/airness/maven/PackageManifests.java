@@ -21,7 +21,6 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class PackageManifests {
 
-    private static final String MANIFEST = "package.json";
     private static final List<String> INSTALLED = List.of("dependencies", "devDependencies", "optionalDependencies");
     private static final String PEERS = "peerDependencies";
 
@@ -32,7 +31,7 @@ final class PackageManifests {
      * @return its scripts and dependencies, or empty where it holds no {@code package.json}
      */
     static Optional<PackageManifest> in(Path directory) {
-        Path file = directory.resolve(MANIFEST);
+        Path file = directory.resolve(NodeManifests.MANIFEST);
         if (!Files.isRegularFile(file)) {
             return Optional.empty();
         }

@@ -14,9 +14,9 @@ import {
   type BrowserFinding,
   distinctFindings,
   type FindingPlace,
-  type FindingViewport,
   findingAt,
   findingLine,
+  type Viewport,
 } from './browser-findings.js'
 import {
   type ConsoleEntry,
@@ -361,12 +361,12 @@ interface PageScan {
  * @param viewport the viewport.
  * @returns true for the phone and desktop viewports.
  */
-export const isStressViewport = (viewport: FindingViewport): boolean =>
+export const isStressViewport = (viewport: Viewport): boolean =>
   STRESS_VIEWPORTS.some(
-    (stress: FindingViewport): boolean => stress.width === viewport.width && stress.height === viewport.height,
+    (stress: Viewport): boolean => stress.width === viewport.width && stress.height === viewport.height,
   )
 
-const placeOf = (page: Page, viewport: FindingViewport, state: string): FindingPlace => ({
+const placeOf = (page: Page, viewport: Viewport, state: string): FindingPlace => ({
   location: locationOf(page),
   state,
   engine: engineOf(page),
@@ -397,9 +397,9 @@ const scanMarkedPage = async (
   shouldRunAxe: boolean,
   isView: boolean,
 ): Promise<readonly BrowserFinding[]> => {
-  const original: FindingViewport | null = page.viewportSize()
+  const original: Viewport | null = page.viewportSize()
   const scans: readonly PageScan[] = await LAYOUT_SCAN_VIEWPORTS.reduce(
-    async (earlier: Promise<readonly PageScan[]>, viewport: FindingViewport): Promise<readonly PageScan[]> => {
+    async (earlier: Promise<readonly PageScan[]>, viewport: Viewport): Promise<readonly PageScan[]> => {
       const done: readonly PageScan[] = await earlier
       await page.setViewportSize(viewport)
       const place: FindingPlace = placeOf(page, viewport, 'resting')

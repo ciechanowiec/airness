@@ -47,7 +47,7 @@ final class JavaCode {
         "(?s)\"\"\"(?:\\\\.|[^\"\\\\]++|\"{1,2}+(?!\"))*+\"\"\"|\"(?:\\\\.|[^\"\\\\\\n]++)*+\"|'(?:\\\\.|[^'\\\\]++)*+'"
             + "|/\\*.*?\\*/|//[^\\n]*"
     );
-    private static final String TEXT_BLOCK = "\"\"\"";
+    static final String TEXT_BLOCK = "\"\"\"";
     private static final String BLOCK_COMMENT = "/*";
     private static final String LINE_COMMENT = "//";
     private static final char NEWLINE = '\n';

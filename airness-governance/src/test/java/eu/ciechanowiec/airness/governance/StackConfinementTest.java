@@ -123,10 +123,6 @@ class StackConfinementTest {
             "the parent that names the version of the stack's npm package"
         ),
         new Entry(
-            PLUGIN + "NpmDependenciesMojo.java", Set.of(NPM_PACKAGE),
-            "a harness package, held to its parent rather than to its latest release"
-        ),
-        new Entry(
             "airness-node/src/layer.ts", Set.of(NPM_PACKAGE, NODE_MODULE),
             "the trusted layer package and the one module that builds it"
         ),

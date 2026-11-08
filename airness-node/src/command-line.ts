@@ -2,10 +2,9 @@
 // verdict on the project as a whole: `mvn verify` is the only full run, and it runs every gate through
 // `airness:node-gate`, which reads the result file this writes.
 import path from 'node:path'
-import type { GateContext } from './exec.js'
 import { formatCommand } from './format-command.js'
 import { type GateInvocation, listGates, parseGateInvocation, printOutputs, reportGate } from './gate-invocation.js'
-import { crashedResult, type MemberOutcome, type ResultFile, resultOf } from './gate-result.js'
+import { crashedResult, type GateContext, type MemberOutcome, type ResultFile, resultOf } from './gate-result.js'
 import { GATES, type Gate, gateById } from './gates.js'
 import { type Member, membersOf } from './project.js'
 import { isScopeCommand, scopeCommand } from './scope-command.js'

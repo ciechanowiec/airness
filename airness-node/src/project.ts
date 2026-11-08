@@ -1,5 +1,5 @@
 // What a gate needs to know about the node project it judges, resolved once per run.
-import { type Dirent, existsSync, readdirSync, readFileSync } from 'node:fs'
+import { type Dirent, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +8,7 @@ import { layerDefaultsFor } from './layer.js'
 import { readSettings, type Settings } from './settings.js'
 import { workingTreeFiles } from './working-tree.js'
 import { hasOwnRuntime, nestedWithin, ROOT_MEMBER_PATH, readWorkspacePackages, selectProjects } from './workspace.js'
+import { WORKSPACE_FILE } from './yaml-blocks.js'
 
 const nodeRequire: NodeJS.Require = createRequire(import.meta.url)
 
@@ -41,6 +42,25 @@ export interface Member {
 export const readJson = (file: string): unknown =>
   existsSync(file) ? parseJsonc(readFileSync(file, 'utf8')).value : undefined
 
+const JSON_INDENT: number = 2
+
+/**
+ * A value as the indented JSON text the harness writes and prints.
+ * @param value the value.
+ * @returns its JSON text, without a final newline.
+ */
+export const jsonText = (value: unknown): string => JSON.stringify(value, null, JSON_INDENT)
+
+/**
+ * Write a value as indented JSON ending in a newline, creating its directory.
+ * @param file the file to write.
+ * @param value the value.
+ */
+export const writeJson = (file: string, value: unknown): void => {
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, `${jsonText(value)}\n`)
+}
+
 /**
  * Read a text file, returning undefined when it is absent.
  * @param file the absolute path.
@@ -50,7 +70,6 @@ export const readText = (file: string): string | undefined =>
   existsSync(file) ? readFileSync(file, 'utf8') : undefined
 
 const MANIFEST: string = 'package.json'
-const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
 
 // Bounded and exclusionary on purpose: nothing a node project governs is nested deeper than a couple of
 // directories, and neither an installed package nor a tool's cache is a member.

@@ -22,6 +22,8 @@ final class SelfModules {
 
     private static final String MAIN = "src/main/java";
     private static final String TEST = "src/test/java";
+    private static final String NPM_MANIFEST = "package.json";
+    private static final String NPM_SOURCES = "src";
 
     /**
      * The repository root, found by the project file only it carries.
@@ -46,6 +48,20 @@ final class SelfModules {
         return declared().stream()
             .map(root::resolve)
             .filter(module -> Files.isDirectory(module.resolve(MAIN)))
+            .toList();
+    }
+
+    /**
+     * Every declared module directory that is an npm package with production sources.
+     *
+     * @return the module directories, in the order the root project file declares them
+     */
+    static List<Path> withNpmSources() {
+        Path root = repository();
+        return declared().stream()
+            .map(root::resolve)
+            .filter(module -> Files.isRegularFile(module.resolve(NPM_MANIFEST)))
+            .filter(module -> Files.isDirectory(module.resolve(NPM_SOURCES)))
             .toList();
     }
 

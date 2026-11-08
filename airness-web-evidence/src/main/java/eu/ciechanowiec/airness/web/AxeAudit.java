@@ -52,8 +52,6 @@ public final class AxeAudit {
            ));
         """;
 
-    private static final String UNDECIDED = "undecided";
-
     private static final String SEPARATOR = "\t";
 
     private static final int FIELDS = 4;
@@ -109,7 +107,7 @@ public final class AxeAudit {
     }
 
     private static boolean undecided(String line) {
-        return line.startsWith(UNDECIDED + SEPARATOR);
+        return line.startsWith(AxeVerdict.UNDECIDED + SEPARATOR);
     }
 
     // A line the browser did not write in the shape this asked for is reported whole rather than

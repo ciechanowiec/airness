@@ -74,7 +74,6 @@ final class CommentProseRules {
     private static final Pattern LINE_OPEN = Pattern.compile("^//+");
     private static final String COMMENT_START = "/";
     private static final String QUOTE = "\"";
-    private static final String TEXT_BLOCK = "\"\"\"";
     private static final String SEMICOLON = ";";
     private static final String PERIOD = ".";
     private static final String SPACE = " ";
@@ -144,7 +143,7 @@ final class CommentProseRules {
     }
 
     private static int delimiterLength(String literal) {
-        return (literal.startsWith(TEXT_BLOCK) ? TEXT_BLOCK : QUOTE).length();
+        return (literal.startsWith(JavaCode.TEXT_BLOCK) ? JavaCode.TEXT_BLOCK : QUOTE).length();
     }
 
     private static List<Region> justificationArguments(

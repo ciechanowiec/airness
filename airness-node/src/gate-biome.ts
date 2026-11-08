@@ -1,11 +1,12 @@
 // Formatting and fast lint, under the shipped Biome configuration, over the files the member owns.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { biomeIncludes, biomeSelection, isNestedBiomeConfig, isServerTemplate } from './biome-selection.js'
-import { failed, fromRun, type GateResult, passed, runNode } from './exec.js'
+import { fromRun, runNode } from './exec.js'
 import { isNextApp } from './facets.js'
+import { failed, type GateResult, passed } from './gate-result.js'
 import { asRecord } from './json-shapes.js'
-import { harnessDirectory, type Member, resolvedVersion, resolveTool } from './project.js'
+import { harnessDirectory, type Member, resolvedVersion, resolveTool, writeJson } from './project.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
 const SCHEMA_PATTERN: RegExp = /biomejs\.dev\/schemas\/(\d+\.\d+\.\d+)\/schema\.json/u
@@ -30,8 +31,6 @@ export const biomeSchemaProblems = (installed: string, config: string): readonly
 
 const schemaProblems = (): readonly string[] =>
   biomeSchemaProblems(resolvedVersion('@biomejs/biome'), readFileSync(shippedConfig(), 'utf8'))
-
-const JSON_INDENT: number = 2
 
 // The Next.js facet adds Biome's React and Next.js rule domains to the shipped configuration, rendered under the
 // member's node_modules, which the tree ignores, so the project still holds no Biome configuration of its own.
@@ -67,7 +66,7 @@ const checkNext = (member: Member, files: readonly string[], mode: 'check' | 'wr
   try {
     const config: string = path.join(directory, 'biome.json')
     const shipped: string = readFileSync(shippedConfig(), 'utf8')
-    writeFileSync(config, `${JSON.stringify(nextBiomeConfig(shipped), null, JSON_INDENT)}\n`)
+    writeJson(config, nextBiomeConfig(shipped))
     return check(member, files, config, mode)
   } finally {
     rmSync(directory, { recursive: true, force: true })

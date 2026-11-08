@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -12,6 +13,10 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class ReportTables {
 
+    private static final String CLASS_OPTIONS = Stream.of(LicenseClass.values())
+        .map(licenseClass -> "<option value=\"" + licenseClass.key() + "\">" + licenseClass.label() + "</option>")
+        .collect(Collectors.joining());
+
     private static final String CONTROLS = """
         <div class="controls"><input id="filter-text" type="search" aria-label="Filter by artifact, license or module"
         placeholder="Filter by artifact, license or module">
@@ -19,8 +24,8 @@ final class ReportTables {
         <option value="production">Production</option><option value="provided">Provided</option>
         <option value="test">Test</option><option value="build">Build tools</option></select>
         <select id="filter-class" aria-label="License class"><option value="">All license classes</option>
-        <option value="permissive">Permissive</option><option value="weak-copyleft">Weak copyleft</option>
-        <option value="refused">Outside policy</option></select>
+        """ + CLASS_OPTIONS + """
+        </select>
         <output id="filter-count" aria-live="polite"></output></div>
         """;
     private static final List<String> HEADINGS = List.of("Artifact", "License", "Class", "Module / scope / relation");
@@ -79,13 +84,13 @@ final class ReportTables {
     }
 
     private static String row(ReportLicensePolicy policy, ReportPackage entry) {
-        String classification = policy.classification(entry.licenses());
+        LicenseClass classification = policy.classification(entry.licenses());
         String scope = entry.uses().stream().map(
             use -> List.of("compile", "runtime").contains(use.scope())
                 ? "production" : use.scope()
         ).distinct().sorted().collect(Collectors.joining(" "));
         return "<tr data-scope=\"" + ReportMarkup.escape(scope) + "\" data-class=\""
-            + ReportChips.classKey(classification) + "\">" + "<td>" + ReportMarkup.escape(entry.coordinate())
+            + classification.key() + "\">" + "<td>" + ReportMarkup.escape(entry.coordinate())
             + "</td><td>" + ReportMarkup.code(entry.licenseSummary()) + "</td><td>"
             + ReportChips.classChip(classification) + "</td><td>" + uses(entry) + "</td></tr>";
     }

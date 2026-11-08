@@ -2,9 +2,7 @@
 import path from 'node:path'
 import { parse } from 'yaml'
 import { readText } from './project.js'
-
-/** The file pnpm reads its project settings from, at the node project root. */
-const WORKSPACE_FILE: string = 'pnpm-workspace.yaml'
+import { WORKSPACE_FILE } from './yaml-blocks.js'
 
 /**
  * Read a node project's workspace file.

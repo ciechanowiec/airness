@@ -15,10 +15,9 @@ import {
   pureLogicRule,
 } from '@/architecture-layers.js'
 import { BUILD_DIRECTORY_MARKER, evaluateBundle, parseBuildDirectory } from '@/bundle-budget.js'
-import { notApplicable, passed } from '@/exec.js'
 import { scriptSourcesOf } from '@/facets.js'
 import { nextBiomeConfig } from '@/gate-biome.js'
-import { resultOf } from '@/gate-result.js'
+import { notApplicable, passed, resultOf } from '@/gate-result.js'
 import { asRecord } from '@/json-shapes.js'
 import type { Lockfile } from '@/lockfile.js'
 import type { ResolvedSet } from '@/resolved-set.js'

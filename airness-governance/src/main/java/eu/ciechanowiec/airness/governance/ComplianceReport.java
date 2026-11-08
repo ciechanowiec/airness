@@ -54,7 +54,7 @@ public record ComplianceReport(
     private String csv(ReportPackage entry, ReportUse use) {
         return Stream.of(
             entry.coordinate(), entry.licenseSummary(),
-            this.inventory.policy().classification(entry.licenses()), use.module(), use.scope(), use.relation()
+            this.inventory.policy().classification(entry.licenses()).label(), use.module(), use.scope(), use.relation()
         ).map(ComplianceReport::csvCell).collect(Collectors.joining(",")) + "\r\n";
     }
 

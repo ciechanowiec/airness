@@ -2,8 +2,8 @@
 // allowlist names the role, with the engine that runs it.
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { failed, type GateResult, passed } from './exec.js'
 import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesGlob, matchesRole } from './file-roles.js'
+import { failed, type GateResult, passed } from './gate-result.js'
 import type { Member } from './project.js'
 import { type DeclaredExclusion, findConvenienceExclusions, findUndeclaredRuntimes } from './settings.js'
 import { memberFiles } from './source-selection.js'

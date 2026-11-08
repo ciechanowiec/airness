@@ -36,7 +36,7 @@ abstract class AbstractNodeMojo extends AbstractMojo {
     /**
      * The module's node project directories, comma-separated and relative to the module.
      */
-    @Parameter(property = "airness.node.projects")
+    @Parameter(property = NodeProjects.PROPERTY)
     private @Nullable String declared;
 
     /**

@@ -21,4 +21,17 @@ class NpmBlocklistTest {
         assertTrue(NpmBlocklist.refusal("ua-parser-js", "1.0.40", WEB).isEmpty(), "the open release line stays");
         assertTrue(NpmBlocklist.refusal("left-pad", "1.3.0", WEB).isEmpty());
     }
+
+    @Test
+    void statesAVendorsLicenseAsTheMavenBlocklistStatesIt() {
+        assertTrue(NpmBlocklist.refusal("mongoose", "8.0.0", WEB).orElseThrow().contains(BlocklistEntries.MONGODB));
+        assertTrue(
+            NpmBlocklist.refusal("@elastic/elasticsearch", "8.0.0", WEB).orElseThrow()
+                .contains(BlocklistEntries.ELASTIC)
+        );
+        assertTrue(
+            NpmBlocklist.refusal("elastic-apm-node", "4.0.0", WEB).orElseThrow().contains(BlocklistEntries.ELASTIC_APM)
+        );
+        assertTrue(NpmBlocklist.refusal("pdf2pic", "3.0.0", WEB).orElseThrow().contains(BlocklistEntries.GHOSTSCRIPT));
+    }
 }

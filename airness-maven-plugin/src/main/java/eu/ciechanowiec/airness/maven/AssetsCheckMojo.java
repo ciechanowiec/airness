@@ -58,7 +58,7 @@ public final class AssetsCheckMojo extends AbstractRepositoryMojo {
 
     @Override
     List<Findings> findings() {
-        List<String> exempt = Sentinel.optional(this.unmanaged);
+        List<String> exempt = CommaList.entries(this.unmanaged);
         exempt.forEach(path -> this.getLog().info("This project owns " + path + " rather than the harness"));
         Path root = this.repositoryRoot();
         List<Findings> assets = new AssetCheck(

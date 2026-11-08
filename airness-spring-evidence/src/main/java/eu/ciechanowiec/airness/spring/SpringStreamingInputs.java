@@ -13,8 +13,6 @@ record SpringStreamingInputs(
     long started, String digest, List<String> applications, List<SpringStreamingInput> declarations
 ) {
 
-    private static final String FINGERPRINT = "[0-9a-f]{64}";
-
     SpringStreamingInputs {
         applications = List.copyOf(applications);
         declarations = List.copyOf(declarations);
@@ -24,7 +22,7 @@ record SpringStreamingInputs(
         try {
             List<String> lines = Files.readAllLines(file);
             String digest = single(lines, "digest ");
-            if (!digest.matches(FINGERPRINT)) {
+            if (!digest.matches(SpringMessageInputs.DIGEST_PATTERN)) {
                 throw new IllegalArgumentException("Malformed streaming input fingerprint");
             }
             return new SpringStreamingInputs(

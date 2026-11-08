@@ -30,7 +30,6 @@ import org.w3c.dom.Node;
 @UtilityClass
 public final class MavenModelPolicy {
 
-    private static final String MAVEN_PLUGINS = "org.apache.maven.plugins";
     private static final Set<String> TEST_CONFIGURATION = Set.of(
         "airness.spring.context.evidence.file", "configurationParameters", "excludeJUnit5Engines",
         "excludedGroups", "excludes", "excludesFile", "failIfNoSpecifiedTests", "failIfNoTests",
@@ -196,8 +195,8 @@ public final class MavenModelPolicy {
     }
 
     private static boolean mavenPlugin(Node plugin) {
-        String group = Xml.text(plugin, "groupId").orElse(MAVEN_PLUGINS);
-        return MAVEN_PLUGINS.equals(group)
+        String group = Xml.text(plugin, "groupId").orElse(DeclaredCoordinates.MAVEN_PLUGIN_GROUP);
+        return DeclaredCoordinates.MAVEN_PLUGIN_GROUP.equals(group)
             && PROTECTED_PLUGIN_CONFIGURATION.containsKey(Xml.text(plugin, "artifactId").orElse(""));
     }
 
