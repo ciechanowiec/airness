@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Airness holds its own tests to the assertion rules it ships.
  *
- * <p>The {@code test-assertions} goal reads one module at a time, and the goals of
+ * <p>The {@code assertions} goal reads one module at a time, and the goals of
  * {@code airness-maven-plugin} cannot run in the reactor that builds them, so no module of this
  * repository ever reaches that goal. {@link AssertionCheck} is an ordinary class over a root and a set
  * of paths, though, and a test is a caller like any other. {@link SelfProseTest} closes the same gap for
