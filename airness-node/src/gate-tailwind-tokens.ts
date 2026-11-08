@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { failed, type GateResult, notApplicable, passed } from './exec.js'
 import { isTailwindProject } from './facets.js'
-import { hasExtension } from './file-roles.js'
+import { hasExtension, isWithinSourceRoots } from './file-roles.js'
 import type { Member } from './project.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'
 import { type ArbitraryValueViolation, findArbitraryValues } from './tailwind-tokens.js'
@@ -17,7 +17,7 @@ const MARKUP_EXTENSIONS: readonly string[] = ['.tsx', '.jsx']
 
 const isScanned = (member: Member, file: string): boolean =>
   hasExtension(file, MARKUP_EXTENSIONS) &&
-  member.settings.sourceRoots.some((root: string): boolean => file.startsWith(`${root}/`)) &&
+  isWithinSourceRoots(file, member.settings.sourceRoots) &&
   !matchesAnyGlob(file, member.settings.generatedArtefacts)
 
 /** Every visual value in a Tailwind project's markup comes from the theme rather than an arbitrary literal. */

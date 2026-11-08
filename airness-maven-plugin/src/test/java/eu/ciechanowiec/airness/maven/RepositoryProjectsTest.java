@@ -1,14 +1,18 @@
 package eu.ciechanowiec.airness.maven;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Optional;
 import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.Test;
 
 class RepositoryProjectsTest {
 
     private static final String GROUP = "eu.ciechanowiec";
+    private static final String SAMPLE = "sample";
+    private static final String APPLICATION = "application";
     private static final String AGGREGATOR = "airness";
     private static final String CONSUMER_PARENT = "airness-parent";
     private static final String JAVA_PARENT = "airness-parent-java";
@@ -16,7 +20,7 @@ class RepositoryProjectsTest {
 
     @Test
     void selectsAnOrdinaryTopLevelProject() {
-        MavenProject project = project("sample", "application");
+        MavenProject project = project(SAMPLE, APPLICATION);
 
         assertTrue(RepositoryProjects.owns(project, project));
     }
@@ -43,8 +47,8 @@ class RepositoryProjectsTest {
 
     @Test
     void rejectsAnOrdinaryChildModule() {
-        MavenProject root = project("sample", "application");
-        MavenProject child = project("sample", "module");
+        MavenProject root = project(SAMPLE, APPLICATION);
+        MavenProject child = project(SAMPLE, "module");
 
         assertFalse(RepositoryProjects.owns(root, child));
     }
@@ -103,12 +107,52 @@ class RepositoryProjectsTest {
 
     @Test
     void readsAConsumingProjectAsNoParentTheHarnessPublishes() {
-        assertFalse(RepositoryProjects.harnessParent(project("sample", "application")));
+        assertFalse(RepositoryProjects.harnessParent(project(SAMPLE, APPLICATION)));
     }
 
     @Test
     void readsAnotherGroupsSameNamedProjectAsNoParentTheHarnessPublishes() {
         assertFalse(RepositoryProjects.harnessParent(project("com.example", CONSUMER_PARENT)));
+    }
+
+    @Test
+    void refusesAPlainAggregatorAboveAGovernedModule() {
+        MavenProject root = project(SAMPLE, APPLICATION);
+        root.setExecutionRoot(true);
+        MavenProject module = governed(project(SAMPLE, "service"), JAVA_PARENT);
+        String refusal = RepositoryProjects.unowned(root, module).orElseThrow();
+        assertTrue(refusal.startsWith("The top-level project sample:application inherits no Airness parent"), refusal);
+        assertTrue(refusal.contains("inherit eu.ciechanowiec:airness-parent"), refusal);
+    }
+
+    @Test
+    void acceptsEveryTopLevelProjectThatOwnsTheRepositoryWideChecks() {
+        MavenProject module = governed(project(SAMPLE, "service"), JAVA_PARENT);
+        MavenProject root = governed(project(SAMPLE, APPLICATION), CONSUMER_PARENT);
+        assertEquals(Optional.empty(), RepositoryProjects.unowned(root, module), "a root inheriting the parent");
+        assertEquals(Optional.empty(), RepositoryProjects.unowned(module, module), "a module built on its own");
+        assertEquals(
+            Optional.empty(), RepositoryProjects.unowned(project(GROUP, AGGREGATOR), module), "Airness itself"
+        );
+    }
+
+    @Test
+    void leavesAPartialBuildThatKeptNoRootUnjudged() {
+        MavenProject kept = project(SAMPLE, "library");
+        MavenProject module = governed(project(SAMPLE, "service"), JAVA_PARENT);
+        assertEquals(
+            Optional.empty(), RepositoryProjects.unowned(kept, module),
+            "under -rf or -pl the first kept module stands in for the root, which says nothing about the root"
+        );
+    }
+
+    private static MavenProject governed(MavenProject project, String parent) {
+        MavenProject harness = project(GROUP, parent);
+        if (!CONSUMER_PARENT.equals(parent)) {
+            harness.setParent(project(GROUP, CONSUMER_PARENT));
+        }
+        project.setParent(harness);
+        return project;
     }
 
     private static MavenProject project(String group, String artifact) {

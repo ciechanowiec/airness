@@ -25,6 +25,13 @@ const MANIFEST_PNPM_REWRITES: readonly string[] = ['overrides', 'patchedDependen
 const NPMRC_REWRITES: readonly string[] = ['pnpmfile', 'global-pnpmfile']
 const PNPMFILES: readonly string[] = ['.pnpmfile.cjs', '.pnpmfile.mjs']
 
+// pnpm installs a config dependency before the resolution and outside it, and loads pnpmfile hooks from it.
+const CONFIG_DEPENDENCIES: string = 'configDependencies'
+
+const CONFIG_DEPENDENCIES_REPAIR: string =
+  'pnpm installs these packages outside the resolved set every supply-chain gate judges, and may load pnpmfile ' +
+  'hooks from them; remove it'
+
 const REWRITE_REPAIR: string =
   'it changes what a resolved package contains, so the harness could keep its version and run other code; remove it'
 
@@ -32,7 +39,8 @@ const present = (record: unknown, keys: readonly string[]): readonly string[] =>
   keys.filter((key: string): boolean => isRecord(record) && Object.hasOwn(record, key))
 
 /**
- * Every install-time rewrite the project configures: overrides, patches, package extensions and pnpmfile hooks.
+ * Every install-time rewrite the project configures: overrides, patches, package extensions, pnpmfile hooks and
+ * config dependencies.
  * @param inputs the project's configuration.
  * @returns one finding per rewrite.
  */
@@ -43,6 +51,9 @@ export const rewriteFindings = (
   ...securityOverrideFindings(asRecord(inputs.workspace)['overrides'], approved, WORKSPACE_FILE),
   ...present(inputs.workspace, WORKSPACE_REWRITES).map(
     (key: string): string => `${WORKSPACE_FILE} ${key}: ${REWRITE_REPAIR}`,
+  ),
+  ...present(inputs.workspace, [CONFIG_DEPENDENCIES]).map(
+    (key: string): string => `${WORKSPACE_FILE} ${key}: ${CONFIG_DEPENDENCIES_REPAIR}`,
   ),
   ...present(inputs.manifest, MANIFEST_REWRITES).map((key: string): string => `package.json ${key}: ${REWRITE_REPAIR}`),
   ...present(asRecord(inputs.manifest)['pnpm'], MANIFEST_PNPM_REWRITES).map(

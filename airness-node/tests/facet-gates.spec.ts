@@ -116,6 +116,15 @@ describe('tailwind-tokens', PROCESS_TIME, () => {
     ])
   })
 
+  it('reads markup under a declared root spelled with a trailing slash', async () => {
+    const result: GateResult = await withMember(
+      { 'components/card.tsx': 'export const card = <div className="bg-[#0a7]" />\n' },
+      { devDependencies: { tailwindcss: '4.0.0' }, airness: { sourceRoots: ['components/'] } },
+      tailwindTokens,
+    )
+    expect(result.findings.join('\n')).toContain('components/card.tsx:1')
+  })
+
   it('passes markup that uses only theme utilities', async () => {
     const result: GateResult = await withMember(
       { 'src/page.tsx': 'export const page = <div className="p-4 bg-primary" />\n' },

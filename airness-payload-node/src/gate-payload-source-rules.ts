@@ -6,6 +6,7 @@ import path from 'node:path'
 import type { SpecSource } from '@airness/node/axe-coverage'
 import { failed, type GateResult, notApplicable, passed } from '@airness/node/gate-result'
 import { stripComments } from '@airness/node/source-text'
+import { findMisplacedEndpoints } from './endpoint-placement.js'
 import { findBootstrapWrites } from './payload-bootstrap.js'
 import {
   declaredMigrationDirectoryIn,
@@ -58,9 +59,11 @@ export const payloadSourceRules = (target: PayloadMember): GateResult => {
   const files: readonly SpecSource[] = payloadSourcesOf(target)
   const findings: readonly string[] = [
     ...files.flatMap((file: SpecSource): readonly string[] =>
-      [...findPayloadViolations(file.source), ...findEndpointViolations(file.path, file.source)].map(
-        (violation: PayloadViolation): string => reported(file.path, violation),
-      ),
+      [
+        ...findPayloadViolations(file.source),
+        ...findEndpointViolations(file.path, file.source),
+        ...findMisplacedEndpoints(file.path, file.source),
+      ].map((violation: PayloadViolation): string => reported(file.path, violation)),
     ),
     // A required relationship names its target by slug, declared in another file, so these read the whole set
     // and report the file that declares the relationship.

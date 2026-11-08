@@ -119,14 +119,23 @@ class ReportGraphTest {
     }
 
     @Test
+    void qualifiesAReportWhoseGoalsWithheldTheirFailures() {
+        assertEquals(
+            List.of("Report-only mode does not establish an Airness verification pass."),
+            ReportProjects.qualifications(List.of(), false, false),
+            "the resolved enforcement switch, not the raw property text, decides the qualification"
+        );
+    }
+
+    @Test
     void requiresEveryModuleButTheSelfBuildRoot() {
         MavenProject root = project("airness");
         MavenProject first = project("airness-governance");
         MavenProject owner = project("airness-parent");
         assertEquals(List.of(first, owner), ReportProjects.required(List.of(root, first, owner)));
         assertEquals(first, ReportProjects.executed(first));
-        assertTrue(ReportProjects.qualifications(List.of(), false, "true").isEmpty());
-        assertEquals(2, ReportProjects.qualifications(List.of(), true, "false").size());
+        assertTrue(ReportProjects.qualifications(List.of(), false, true).isEmpty());
+        assertEquals(2, ReportProjects.qualifications(List.of(), true, false).size());
         assertTrue(ReportProjects.partial(List.of(owner), List.of(root, owner)));
         assertFalse(ReportProjects.partial(List.of(owner), List.of(owner)));
     }

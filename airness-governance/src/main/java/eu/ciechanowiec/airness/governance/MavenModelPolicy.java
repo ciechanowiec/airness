@@ -32,23 +32,37 @@ public final class MavenModelPolicy {
 
     private static final String MAVEN_PLUGINS = "org.apache.maven.plugins";
     private static final Set<String> TEST_CONFIGURATION = Set.of(
-        "airness.spring.context.evidence.file", "configurationParameters", "excludedGroups", "excludes",
-        "excludesFile", "failIfNoSpecifiedTests", "failIfNoTests", "groups", "includes", "includesFile",
-        "skip", "skipAfterFailureCount", "skipExec", "skipITs", "skipTests", "suiteXmlFiles",
-        "summaryFile", "summaryFiles", "test", "testFailureIgnore"
+        "airness.spring.context.evidence.file", "configurationParameters", "excludeJUnit5Engines",
+        "excludedGroups", "excludes", "excludesFile", "failIfNoSpecifiedTests", "failIfNoTests",
+        "failOnFlakeCount", "groups", "includeJUnit5Engines", "includes", "includesFile",
+        "rerunFailingTestsCount", "skip", "skipAfterFailureCount", "skipExec", "skipITs", "skipTests",
+        "suiteXmlFiles", "summaryFile", "summaryFiles", "test", "testFailureIgnore"
     );
     private static final Map<String, Set<String>> PROTECTED_PLUGIN_CONFIGURATION = Map.of(
         "maven-compiler-plugin",
         Set.of(
-            "annotationProcessorPaths", "compilerArgs", "failOnWarning", "fork", "parameters", "proc",
-            "release", "source", "target"
+            "annotationProcessorPaths", "compilerArgs", "compilerId", "executable", "failOnError", "failOnWarning",
+            "fork", "outputDirectory", "parameters", "proc", "release", "showWarnings", "skipMain", "source",
+            "target", "testRelease", "testSource", "testTarget"
         ),
         "maven-surefire-plugin",
         TEST_CONFIGURATION,
         "maven-failsafe-plugin",
         TEST_CONFIGURATION,
         "maven-enforcer-plugin",
-        Set.of("fail", "failFast", "rules", "rulesToExecute", "rulesToSkip", "skip")
+        Set.of("fail", "failFast", "rules", "rulesToExecute", "rulesToSkip", "skip"),
+        /*
+         * The plugin is the project's to bind for copying or unpacking, but its plugin-level configuration and
+         * a default-* execution both reach the dependency analysis the parent binds, so each name that selects
+         * what that analysis reads or concludes is the harness's. A dependency the analysis must not report is
+         * one the harness's own lists name, never one a child adds beside them.
+         */
+        "maven-dependency-plugin",
+        Set.of(
+            "analyzer", "excludedClasses", "failOnWarning", "ignoreAllNonTestScoped", "ignoreNonCompile",
+            "ignoreUnusedRuntime", "ignoredDependencies", "ignoredNonTestScopedDependencies", "ignoredPackagings",
+            "ignoredUnusedDeclaredDependencies", "ignoredUsedUndeclaredDependencies", "skip", "usedDependencies"
+        )
     );
     private static final Set<String> BANNED_GROUPS = Set.of("org.pitest");
     // Maven names every execution it binds from a lifecycle mapping "default-" followed by the goal, so

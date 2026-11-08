@@ -44,6 +44,17 @@ describe('wiring', () => {
     expect(wiringFindings({ ...CONFORMING, lockfile: undefined })).toEqual([
       'pnpm-lock.yaml is missing or unreadable; the harness compares the versions a lockfile resolves',
     ])
+    expect(
+      wiringFindings({
+        ...CONFORMING,
+        lockfile: undefined,
+        lockfileDefect: 'pnpm-lock.yaml holds 2 YAML documents',
+        rewrites: ['pnpm-workspace.yaml configDependencies: remove it'],
+      }),
+    ).toEqual([
+      'pnpm-lock.yaml holds 2 YAML documents; the harness compares the versions a lockfile resolves',
+      'pnpm-workspace.yaml configDependencies: remove it',
+    ])
     expect(wiringFindings({ ...CONFORMING, memberPath: 'gate' })).toEqual([
       'pnpm-lock.yaml has no importer for gate; run pnpm install to bring the lockfile up to date',
     ])

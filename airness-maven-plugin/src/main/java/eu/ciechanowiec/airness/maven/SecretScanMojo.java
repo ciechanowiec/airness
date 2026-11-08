@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.Repository;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +22,7 @@ import org.jspecify.annotations.Nullable;
 public final class SecretScanMojo extends AbstractDockerCheckMojo {
 
     private static final String CONFIGURATION = ".gitleaks.toml";
+    private static final String IGNORE = ".gitleaksignore";
 
     @Parameter(property = "gitleaks.image", required = true)
     private @Nullable String image;
@@ -32,7 +34,25 @@ public final class SecretScanMojo extends AbstractDockerCheckMojo {
         if (!Files.isRegularFile(config)) {
             throw new IOException("Secret scan configuration is missing: " + config);
         }
+        refuseIgnoreFile(root);
         return dockerCommand(HistoryMount.of(root), this.image());
+    }
+
+    /**
+     * Refuses the file gitleaks reads from the scanned tree whatever its flags say, which drops every finding it
+     * lists. Assets-check refuses it on every build, and this repeats the refusal for a scan run on its own.
+     *
+     * @param root the working tree root
+     * @throws IOException when the file is present
+     */
+    static void refuseIgnoreFile(Path root) throws IOException {
+        Path ignore = root.resolve(IGNORE);
+        if (Files.exists(ignore, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException(
+                "Remove " + ignore + "; gitleaks drops every finding it lists, so an exception belongs in "
+                    + CONFIGURATION + " instead"
+            );
+        }
     }
 
     static List<String> dockerCommand(HistoryMount mount, String image) {

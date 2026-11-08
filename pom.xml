@@ -378,9 +378,20 @@
                         timeout it gives a consumer. Airness cannot inherit the parent it builds.
                     -->
                     <configuration>
+                        <testFailureIgnore>false</testFailureIgnore>
                         <properties>
                             <configurationParameters>
                                 junit.jupiter.execution.timeout.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.mode = enabled
+                                junit.jupiter.execution.timeout.testable.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.test.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.testtemplate.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.testfactory.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.lifecycle.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.beforeall.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.beforeeach.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.aftereach.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.afterall.method.default = ${airness.test.timeout}
                                 junit.jupiter.testclass.order.default = org.junit.jupiter.api.ClassOrderer$Random
                                 junit.jupiter.testmethod.order.default = org.junit.jupiter.api.MethodOrderer$Random
                                 junit.jupiter.execution.order.random.seed = 42
@@ -401,6 +412,16 @@
                         <properties>
                             <configurationParameters>
                                 junit.jupiter.execution.timeout.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.mode = enabled
+                                junit.jupiter.execution.timeout.testable.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.test.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.testtemplate.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.testfactory.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.lifecycle.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.beforeall.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.beforeeach.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.aftereach.method.default = ${airness.test.timeout}
+                                junit.jupiter.execution.timeout.afterall.method.default = ${airness.test.timeout}
                                 junit.jupiter.testclass.order.default = org.junit.jupiter.api.ClassOrderer$Random
                                 junit.jupiter.testmethod.order.default = org.junit.jupiter.api.MethodOrderer$Random
                                 junit.jupiter.execution.order.random.seed = 42

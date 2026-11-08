@@ -59,7 +59,8 @@ Airness governs all of the following domains:
   declares), which the editor configuration and the typography check leave unread.
   Ignored files selected as Java or resource inputs are different: Maven can consume them locally
   while a checkout omits them. The per-module `build-inputs` preflight rejects that mismatch at
-  `validate`, `process-resources` and `process-test-resources`, using Maven's roots and file filters.
+  `validate`, `process-resources` and `process-test-resources`, using Maven's roots and file filters,
+  and so it does for a script or stylesheet under a checked source root of a declared node project.
   Track an intended repository input, including a vendored distribution file hidden by an ignore
   pattern, or generate it beneath a reactor project's configured Maven build directory. Generated
   inputs there and ordinary non-ignored new files remain valid. No project allowlist is provided,
@@ -84,9 +85,10 @@ Airness governs all of the following domains:
   file a generator owns (a stack layer, `airness.generated.files` or `airness.generatedArtefacts`) or the harness
   places is passed over; a `vendor` directory or a minified name is not evidence of third-party ownership, so take
   a distribution from a dependency (a WebJar, or an npm package a `node-run` build copies under `target/`). An
-  ignored file the Maven build consumes is refused by `build-inputs`; a file only a custom tool reads from outside
-  both the Maven inputs and the commit is beyond the inventory. A Java application keeps its Java runtime: declare
-  a frontend tooling directory, which may be the module itself with `sourceRoots` naming its static resources.
+  ignored file the Maven build or a node project's toolchain consumes is refused by `build-inputs`; a file only a
+  custom tool reads from outside both the Maven inputs and the commit is beyond the inventory. A Java application
+  keeps its Java runtime: declare a frontend tooling directory, which may be the module itself with `sourceRoots`
+  naming its static resources.
   A tooling project with stylesheets and no script of its own needs no TypeScript, no tests and no server: the
   script gates report not applicable and the `css` gate judges the stylesheets.
 - **Node projects:** every `package.json` in a module belongs to a node project the module lists in
@@ -112,8 +114,8 @@ Airness governs all of the following domains:
   allowed and at least one file to lint), `source-rules` (no parent-relative import under a source root, no credential guard that opens when
   the credential is unset), `config-refs` (every carve-out and declared exclusion reaches a file) and
   `javascript-allowlist` (no hand-written JavaScript outside the allowlist), `arch` (no cycle, unresolvable
-  import, or production import of a spec or development-only dependency), `type-coverage` (no `any` and no type
-  assertion in hand-written logic, and no `typeCoverage` key), `knip` (no unused file, export or dependency),
+  import, or production import of a spec, test code or development-only dependency), `type-coverage` (no `any`
+  and no type assertion in hand-written logic, and no `typeCoverage` key), `knip` (no unused file, export or dependency),
   `tests` (the member's own Vitest under the shipped configuration, with 80% per-file coverage), `install-scripts`
   (`allowBuilds` in `pnpm-workspace.yaml` decides every dependency that runs an install script, and only those;
   `node-dependencies` installs with every script off and then runs only the approved ones) and `release-age`
@@ -468,6 +470,11 @@ Earlier report pairs are removed only after a complete replacement has been rend
   and policy are carried in the installed Airness artifacts, so even a command-line image override cannot replace
   them. A ShellCheck source hint must identify the actual repository import, never an empty substitute. Report a
   false finding to Airness.
+- A configuration file a pinned tool would read from the tree on its own is refused on every build, tracked or not:
+  the scanners' native files, `.gitleaksignore`, which gitleaks reads whatever its flags say, and the
+  `junit.jupiter.execution.timeout.*` keys of a `junit-platform.properties`, which the parents pin as launcher
+  parameters. A fixture exception belongs in `.gitleaks.toml`, and the rest of `junit-platform.properties` stays the
+  project's.
 
 ### Change Requests
 
@@ -501,8 +508,11 @@ spends a ceiling the next repair will need.
 | `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
 | `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path below unless set |
 
-Those eight are the whole of what a project file may declare. Every other name under `airness.`, and `skipTests`,
-`maven.test.skip`, `test`, `it.test`, and `jacoco.dataFile`, is refused there, because each of them can decide a verdict. The refusal
+Those eight are the whole of what a project file may declare. Every other name under `airness.` is refused there, and
+so is every property a goal the parents bind reads in place of a parameter that decides a verdict, such as `skipTests`,
+`maven.test.failure.ignore`, `checkstyle.maxAllowedViolations` or `license.excludedGroups`, because Maven fills an
+unset parameter from that property without the plugin being declared. A property that only tunes how a plugin the
+project may configure runs, such as `argLine`, stays the project's. The refusal
 reads the file as written, so a name inside a profile that is never activated is refused too. Both
 `-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
 Raw-model integrity checks read the current POM and every consumer parent up to the trusted Airness chain,
@@ -515,9 +525,11 @@ not there. Manage the artifact in a `dependencyManagement` block of the project'
 property, which is what makes the property the pin it reads as.
 
 Reach for the suppression file only when no upgrade answers an advisory. Keep it at
-`.airness/dependency-check-suppressions.xml`, which is the path the scan reads: the document's presence there is what
-puts it in front of the scan, so one kept elsewhere is never read and the setting itself needs no declaring. Every
-rule in it names the advisory it excuses and carries `notes` with three parts. The notes say why the vulnerability
+`.airness/dependency-check-suppressions.xml` in the directory of the module whose dependency it excuses, which is the
+path the scan of that module reads: the document's presence there is what puts it in front of the scan, so one kept
+elsewhere is never read and the setting itself needs no declaring. In a multi-module build a document at the
+repository root excuses nothing in a child module. Every rule in it names the advisory it excuses and carries `notes`
+with three parts. The notes say why the vulnerability
 can't be exploited in this project: name the path that reaches the artifact, whether it runs in production or only in
 tests and the build, and why its input can't trigger the defect. After a `Mitigation:` marker they state the
 mitigation plan: what limits the risk now and what will remove the artifact, such as the upstream release or the

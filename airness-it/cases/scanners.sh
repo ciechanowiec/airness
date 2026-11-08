@@ -105,6 +105,7 @@ YAML
     printf 'resource "aws_s3_bucket" "broken" {\n' > "${scanner_consumer}/infra/terraform/main.tf"
     run_maven checkov_parse scanners "${scanner_consumer}" airness:checkov -Dairness.enforce=false
     expect_exit checkov_parse 'scanners: an IaC parse failure is never report-only success' 1
+    expect_match checkov_parse 'scanners: the parse failure is what fails the scan' 'parsing[_ ]errors'
     discard_scanner_evidence checkov_parse
     rm -rf "${scanner_consumer}/infra"
 }

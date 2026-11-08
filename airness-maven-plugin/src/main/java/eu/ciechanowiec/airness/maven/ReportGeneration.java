@@ -31,7 +31,7 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
         qualifications = List.copyOf(qualifications);
     }
 
-    static ReportGeneration from(MavenSession session, MavenProject owner) {
+    static ReportGeneration from(MavenSession session, MavenProject owner, boolean enforced) {
         return new ReportGeneration(
             ReportSession.source(session.getRepositorySession().getData()),
             ReportProject.from(ReportProjects.root(session.getAllProjects()), owner),
@@ -39,7 +39,7 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
                 ReportProjects.qualifications(
                     session.getProjects(),
                     ReportProjects.partial(session.getProjects(), session.getAllProjects()),
-                    session.getUserProperties().getProperty("airness.enforce", "true")
+                    enforced
                 ).stream(),
                 NpmReportInputs.qualifications(session.getProjects()).stream()
             ).toList()

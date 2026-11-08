@@ -1,8 +1,10 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -93,6 +95,19 @@ class SecretScanMojoTest {
             IntStream.range(0, command.size()).filter(index -> "-v".equals(command.get(index)))
                 .allMatch(index -> command.get(index + 1).endsWith(":ro")),
             "the scanner must not change the clone it reads through the worktree"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void refusesTheIgnoreFileGitleaksWouldReadFromTheTree(@TempDir Path directory) {
+        SecretScanMojo.refuseIgnoreFile(directory);
+        Files.writeString(directory.resolve(".gitleaksignore"), "0123abcd:config.properties:generic-api-key:3\n");
+        IOException refusal = assertThrows(IOException.class, () -> SecretScanMojo.refuseIgnoreFile(directory));
+        assertEquals(
+            "Remove " + directory.resolve(".gitleaksignore") + "; gitleaks drops every finding it lists, so an "
+                + "exception belongs in .gitleaks.toml instead",
+            refusal.getMessage()
         );
     }
 

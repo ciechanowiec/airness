@@ -4,7 +4,7 @@
 import path from 'node:path'
 import { failed, type GateContext, type GateResult, passed } from './exec.js'
 import { isHarnessPackage } from './harness-packages.js'
-import { LOCKFILE, type Lockfile, type ResolvedPackage, readLockfile } from './lockfile.js'
+import { LOCKFILE, type Lockfile, lockfileDefect, type ResolvedPackage, readLockfile } from './lockfile.js'
 import { isFromItsRegistry, type NpmConfig, npmConfigOf, registryFor, tokenFor } from './npmrc.js'
 import type { Member } from './project.js'
 import { readText } from './project.js'
@@ -70,7 +70,9 @@ export const releaseAge = async (
   const text: string | undefined = readText(path.join(member.projectRoot, LOCKFILE))
   const lockfile: Lockfile | undefined = text === undefined ? undefined : readLockfile(text)
   if (lockfile === undefined) {
-    return failed('the lockfile is missing or unreadable', [`${LOCKFILE} names the releases this gate measures`])
+    return failed('the lockfile cannot be read', [
+      `${lockfileDefect(text)}; ${LOCKFILE} names the releases this gate measures`,
+    ])
   }
   const config: NpmConfig = npmConfigOf(member.projectRoot, environment)
   // Every release, harness packages included, must come from a registry. Only the age floor leaves the harness

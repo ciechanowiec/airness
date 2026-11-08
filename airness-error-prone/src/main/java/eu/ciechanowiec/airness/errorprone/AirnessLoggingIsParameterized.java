@@ -66,7 +66,8 @@ public final class AirnessLoggingIsParameterized extends BugChecker
 
     private static final Matcher<ExpressionTree> ASSEMBLED = Matchers.anyOf(
         MethodMatchers.staticMethod().onClass("java.lang.String").named("format"),
-        MethodMatchers.staticMethod().onClass("java.text.MessageFormat").named("format")
+        MethodMatchers.staticMethod().onClass("java.text.MessageFormat").named("format"),
+        MethodMatchers.instanceMethod().onExactClass("java.lang.String").named("formatted")
     );
 
     private static final Matcher<ExpressionTree> GET_LOGGER = MethodMatchers.staticMethod()

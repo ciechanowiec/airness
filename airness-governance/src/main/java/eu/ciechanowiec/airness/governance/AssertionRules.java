@@ -39,7 +39,9 @@ final class AssertionRules {
     /*
      * A name, a parameter list that may nest one level of parentheses, an optional throws clause, then
      * the brace that opens a body. The keywords are excluded because a control structure has the same
-     * shape as a call and would otherwise be collected as a method named "if" or "for".
+     * shape as a call and would otherwise be collected as a method named "if" or "for". A
+     * try-with-resources has that shape too, and collecting it would merge the try blocks of every test
+     * in the file into one helper named "try", which lends one test the assertion of another.
      *
      * The parameter list consumes runs rather than single characters, which is what keeps the scan off
      * the stack. A matcher spends a frame on every turn of a group it repeats, so an alternation over one
@@ -49,7 +51,7 @@ final class AssertionRules {
      * written the same way, for the same reason.
      */
     private static final Pattern SIGNATURE = Pattern.compile(
-        "\\b(?!if\\b|for\\b|while\\b|switch\\b|catch\\b|synchronized\\b|do\\b|else\\b|return\\b|new\\b)"
+        "\\b(?!if\\b|for\\b|while\\b|switch\\b|catch\\b|synchronized\\b|do\\b|else\\b|return\\b|new\\b|try\\b)"
             + "(\\w+)\\s*\\((?:[^()]++|\\([^()]*+\\))*+\\)\\s*(?:throws[^{;]*)?\\{"
     );
     private static final Pattern ASSERTION = Pattern.compile("\\b(?:assert\\w*|fail|expect\\w*|verify\\w*)\\s*\\(");
@@ -70,6 +72,15 @@ final class AssertionRules {
      * operands and report every assertion written that way.
      */
     private static final String MESSAGE = "(?:\\s*,\\s*\"(?:[^\"\\\\]++|\\\\.)*+\")?\\s*\\)";
+    /*
+     * The fluent form states the same settled verdict in two calls: the subject is a literal, and the
+     * expectation is a fixed state or another literal. A description may sit between them, and only as
+     * a literal, so a subject that the chain computes is never read as written out.
+     */
+    private static final String FLUENT_SUBJECT = "\\bassertThat\\s*\\(\\s*";
+    private static final String DESCRIPTION
+        = "(?:\\s*\\.\\s*(?:as|describedAs)\\s*\\(\\s*\"(?:[^\"\\\\]++|\\\\.)*+\"\\s*\\))?\\s*\\.\\s*";
+    private static final String NO_ARGUMENT = "\\s*\\(\\s*\\)";
     private static final Pattern SETTLED = Pattern.compile(
         "\\bassertTrue\\s*\\(\\s*true" + MESSAGE
             + "|\\bassertFalse\\s*\\(\\s*false" + MESSAGE
@@ -77,6 +88,12 @@ final class AssertionRules {
             + "|\\bassertNotNull\\s*\\(\\s*(?:" + LITERAL + ")\\s*\\)"
             + "|\\bassert(?:Equals|NotEquals|Same|NotSame)\\s*\\(\\s*(?:"
             + LITERAL + ")\\s*,\\s*(?:" + LITERAL + ")" + MESSAGE
+            + "|" + FLUENT_SUBJECT + "true\\s*\\)" + DESCRIPTION + "isTrue" + NO_ARGUMENT
+            + "|" + FLUENT_SUBJECT + "false\\s*\\)" + DESCRIPTION + "isFalse" + NO_ARGUMENT
+            + "|" + FLUENT_SUBJECT + "null\\s*\\)" + DESCRIPTION + "isNull" + NO_ARGUMENT
+            + "|" + FLUENT_SUBJECT + "(?:" + LITERAL + ")\\s*\\)" + DESCRIPTION + "isNotNull" + NO_ARGUMENT
+            + "|" + FLUENT_SUBJECT + "(?:" + LITERAL + ")\\s*\\)" + DESCRIPTION
+            + "is(?:Not)?(?:EqualTo|SameAs)\\s*\\(\\s*(?:" + LITERAL + ")\\s*\\)"
     );
     private static final char OPENING = '{';
     private static final char CLOSING = '}';

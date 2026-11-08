@@ -4,12 +4,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
  * The committable inputs of the external scanners, independent of their native ignore conventions.
+ *
+ * <p>Which files a scanner would read as its own configuration is decided by {@link ToolConfigurationFiles},
+ * the one inventory of such files, which also refuses them on every build rather than only before a scan.
  *
  * @param root repository root
  */
@@ -22,14 +24,6 @@ public record ScannerInventory(Path root) {
     private static final Pattern DISABLE = Pattern.compile(
         "(?m)^\\s*#\\s*(?:shellcheck\\s+.*(?:disable|external-sources|extended-analysis|source-path)\\s*=|"
             + "(?:checkov|bridgecrew)\\s*:\\s*skip|hadolint\\s+(?:global\\s+)?ignore\\s*=)|checkov\\.io/skip"
-    );
-    private static final Set<String> CONFIGURATIONS = Set.of(
-        ".shellcheckrc", "shellcheckrc", ".checkov.yml", ".checkov.yaml", ".checkov.baseline", ".hadolint.yaml",
-        ".hadolint.yml"
-    );
-    // actionlint reads its configuration from this one place only, and a workflow may be named actionlint.yml.
-    private static final Set<Path> PLACED_CONFIGURATIONS = Set.of(
-        Path.of(".github", "actionlint.yaml"), Path.of(".github", "actionlint.yml")
     );
 
     /**
@@ -65,17 +59,12 @@ public record ScannerInventory(Path root) {
 
     private Optional<String> structureProblem(Path file) {
         String relative = this.root.relativize(file).toString();
-        if (this.configurationFile(file)) {
+        if (ToolConfigurationFiles.scannerConfiguration(this.root.relativize(file))) {
             return Optional.of(relative + ": scanner configuration belongs to Airness; remove the local copy");
         }
         return Files.isSymbolicLink(file)
             ? Optional.of(relative + ": scanner inputs must be regular repository files, not symbolic links") : Optional
                 .empty();
-    }
-
-    private boolean configurationFile(Path file) {
-        return CONFIGURATIONS.contains(file.getFileName().toString())
-            || PLACED_CONFIGURATIONS.contains(this.root.relativize(file));
     }
 
     private Stream<String> contentProblems(Path file) {

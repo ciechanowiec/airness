@@ -83,7 +83,7 @@ describe('wiring', PROCESS_TIME, () => {
 
   it('fails a project without a lockfile', async () => {
     await withProject({}, (root: string): void => {
-      expect(findingsOf(wiring(memberAt(root)))).toContain('pnpm-lock.yaml is missing or unreadable')
+      expect(findingsOf(wiring(memberAt(root)))).toContain('pnpm-lock.yaml is missing; run pnpm install to write it')
     })
   })
 
@@ -142,6 +142,16 @@ describe('install-scripts', PROCESS_TIME, () => {
       const findings: string = findingsOf(installScripts(memberAt(root)))
       expect(findings).toContain('esbuild@0.25.0 runs an install script')
       expect(findings).toContain('aged@1.0.0 is resolved for this system but not installed')
+    })
+  })
+
+  it('names the documents pnpm writes for config dependencies instead of reading the lockfile as missing', async () => {
+    const files: Readonly<Record<string, string>> = {
+      'pnpm-lock.yaml': `---\nimporters:\n  .: {}\n---\n${lockfileWith([AGED])}`,
+      'pnpm-workspace.yaml': WORKSPACE,
+    }
+    await withProject(files, (root: string): void => {
+      expect(findingsOf(installScripts(memberAt(root)))).toContain('pnpm-lock.yaml holds 2 YAML documents')
     })
   })
 
@@ -327,6 +337,7 @@ describe('release-age', PROCESS_TIME, () => {
     await withProject({}, async (root: string) => {
       const result: GateResult = await releaseAge(memberAt(root), undefined, environment(), NOW)
       expect(result.ok).toBe(false)
+      expect(findingsOf(result)).toContain('pnpm-lock.yaml is missing; run pnpm install to write it')
     })
   })
 })

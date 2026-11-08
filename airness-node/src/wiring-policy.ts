@@ -42,6 +42,8 @@ export interface WiringInputs {
   readonly manifest: unknown
   /** The project's lockfile, or undefined when it is missing or unreadable. */
   readonly lockfile: Lockfile | undefined
+  /** Why the lockfile could not be read, when it could not. */
+  readonly lockfileDefect?: string | undefined
   /** The versions the module's parents name, or undefined when they were not supplied. */
   readonly expected: ReadonlyMap<string, string> | undefined
   /** The module's own Maven version, which a harness package's own repository releases it at. */
@@ -216,7 +218,8 @@ const suiteFindings = (
  */
 export const wiringFindings = (inputs: WiringInputs): readonly string[] => {
   if (inputs.lockfile === undefined) {
-    return [`${LOCKFILE} is missing or unreadable; the harness compares the versions a lockfile resolves`]
+    const defect: string = inputs.lockfileDefect ?? `${LOCKFILE} is missing or unreadable`
+    return [`${defect}; the harness compares the versions a lockfile resolves`, ...inputs.rewrites]
   }
   const dependencies: readonly DirectDependency[] | undefined = inputs.lockfile.importers.get(inputs.memberPath)
   if (dependencies === undefined) {

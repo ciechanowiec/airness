@@ -79,6 +79,28 @@ class PinnedArchiveTest {
     }
 
     @Test
+    @SneakyThrows
+    void keepsTheCopyOfABuildThatInstalledTheArchiveFirst() {
+        Path target = this.cache.resolve(NAME);
+        Path other = target.resolve("bin/tool");
+        this.server.beforeAnswer(() -> installedByAnotherBuild(other));
+        Path unpacked = this.pinned(TOOL).unpackedIn(this.cache);
+        assertEquals(target, unpacked);
+        assertEquals(
+            "installed first\n", Files.readString(other), "the copy that reached the cache first is kept"
+        );
+        assertEquals(List.of(NAME), names(this.cache), "the losing copy's staging directory is removed");
+    }
+
+    @Test
+    void reportsARenameFailureWhenNoDirectoryStandsAtTheTarget() {
+        Path target = this.cache.resolve(NAME);
+        this.server.beforeAnswer(() -> installedByAnotherBuild(target));
+        assertThrows(IOException.class, () -> this.pinned(TOOL).unpackedIn(this.cache));
+        assertTrue(Files.isRegularFile(target), "a file at the target is neither replaced nor taken as installed");
+    }
+
+    @Test
     void refusesBytesThatDoNotMatchThePin() {
         byte[] archive = ArchiveServer.archive(TOOL);
         PinnedArchive tampered = new PinnedArchive(NAME, this.server.serve(PATH, archive), WRONG_HASH);
@@ -113,6 +135,15 @@ class PinnedArchiveTest {
         PinnedArchive hard = this.pinned(List.of(Entry.hardLink()));
         IOException refusal = assertThrows(IOException.class, () -> hard.unpackedIn(this.cache));
         assertTrue(Objects.requireNonNull(refusal.getMessage()).contains("tool-1.0.0/hard"), refusal.getMessage());
+    }
+
+    private static void installedByAnotherBuild(Path file) {
+        try {
+            Files.createDirectories(file.resolveSibling(""));
+            Files.writeString(file, "installed first\n");
+        } catch (IOException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private static List<String> names(Path directory) {

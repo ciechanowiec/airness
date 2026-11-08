@@ -161,3 +161,47 @@ export const Two: CollectionConfig = {
     expect(rulesOf(both, UNGUARDED_TARGET)).toHaveLength(2)
   })
 })
+
+describe('require-relationship-cleanup reads globals as holders', () => {
+  // The adapter builds a table for every global, and a required single-target upload on it gets the
+  // same NOT NULL column against the same ON DELETE SET NULL key as on a collection.
+  const mediaCollection: SpecSource = {
+    path: 'src/collections/Media.ts',
+    source: "export const Media: CollectionConfig = { slug: 'media', upload: { mimeTypes: ['image/*'] } }",
+  }
+
+  const header = (extra = ''): SpecSource => ({
+    path: 'src/globals/Header.ts',
+    source: `export const Header: GlobalConfig = {
+  slug: 'header',${extra}
+  fields: [{ name: 'logo', type: 'upload', relationTo: 'media', required: true }],
+}`,
+  })
+
+  it('reports a global holding a required upload whose target takes nothing down with it', () => {
+    const found: readonly LocatedViolation[] = findUnguardedRelationships([header(), mediaCollection])
+    expect(found.map((located: LocatedViolation): string => located.violation.rule)).toEqual([
+      'require-relationship-cleanup',
+    ])
+    expect(found[0]?.path).toBe('src/globals/Header.ts')
+  })
+
+  it('accepts a global with drafts enabled, which drops the null constraint', () => {
+    expect(rulesOf(header('\n  versions: { drafts: true },'), mediaCollection)).toEqual([])
+  })
+
+  // A `relationTo` names a collection, never a global, even when a global shares the collection's slug.
+  it('never takes a global for the target a relationship names', () => {
+    const guardedGlobal: SpecSource = {
+      path: 'src/globals/Users.ts',
+      source: `export const UsersSettings: GlobalConfig = {
+  slug: 'users',
+  hooks: { beforeDelete: [removeRanking] },
+  fields: [{ name: 'note', type: 'text' }],
+}`,
+    }
+    expect(rulesOf(holder(REQUIRED_RELATIONSHIP), UNGUARDED_TARGET, guardedGlobal)).toEqual([
+      'require-relationship-cleanup',
+    ])
+  })
+})

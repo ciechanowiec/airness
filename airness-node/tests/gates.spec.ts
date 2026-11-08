@@ -182,6 +182,20 @@ describe('source-rules', PROCESS_TIME, () => {
     })
   })
 
+  it('reads a declared root however it is spelled, the whole member included', () => {
+    withPlanted({ 'other/read.ts': "import { total } from '../src/total.js'\nexport { total }\n" }, (root: string) => {
+      expect(findingsOf(sourceRules(memberAt(root, { airness: { sourceRoots: ['other/'] } })))).toContain(
+        'other/read.ts:1 [no-deep-relative-imports]',
+      )
+      expect(findingsOf(sourceRules(memberAt(root, { airness: { sourceRoots: ['./other'] } })))).toContain(
+        'other/read.ts:1 [no-deep-relative-imports]',
+      )
+      expect(findingsOf(sourceRules(memberAt(root, { airness: { sourceRoots: ['.'] } })))).toContain(
+        'other/read.ts:1 [no-deep-relative-imports]',
+      )
+    })
+  })
+
   it("passes over a generated artefact, the project's or a layer's, as a generator wrote it", () => {
     const scaffold: Readonly<Record<string, string>> = {
       'src/app/(admin)/admin/page.tsx': "import { importMap } from '../importMap.js'\nexport { importMap }\n",

@@ -31,10 +31,52 @@ const INLINE_CONFIG_FUNCTION: Readonly<Record<string, string>> = {
     'in src/hooks; then import it by reference.',
 }
 
+const UNTHREADED_REQUEST_MESSAGE: string =
+  'Do not destructure payload out of req. Call req.payload.<operation>({ ..., req }) instead, so the ' +
+  'Payload source rules see the request-scoped instance and require req to be passed, which keeps the ' +
+  "call inside the hook's transaction."
+
+// `payload` taken out of `req` loses the receiver the `no-unthreaded-req` source rule recognises, so a write
+// through it ran outside the hook's transaction unjudged. Banning the destructuring keeps that rule's text
+// reading true without scope analysis: the parameter form Payload's own examples use, and the declaration form.
+const UNTHREADED_REQUEST_SYNTAX: readonly Readonly<Record<string, string>>[] = [
+  {
+    selector: "ObjectPattern > Property[key.name='req'] > ObjectPattern > Property[key.name='payload']",
+    message: UNTHREADED_REQUEST_MESSAGE,
+  },
+  {
+    selector: "VariableDeclarator[init.name='req'] > ObjectPattern > Property[key.name='payload']",
+    message: UNTHREADED_REQUEST_MESSAGE,
+  },
+  {
+    selector: "VariableDeclarator[init.property.name='req'] > ObjectPattern > Property[key.name='payload']",
+    message: UNTHREADED_REQUEST_MESSAGE,
+  },
+]
+
 // The node layer's restricted-syntax setting for every file, which a block naming the rule replaces, so the
 // Payload block extends it rather than dropping the selectors it carries.
 /** One block of the configuration, as ESLint reads it. */
 type ConfigBlock = (typeof nodeConfig)[number]
+
+// For every node block that sets the rule, a Payload block for the same files that extends its setting with the
+// Payload selectors. A block naming the rule replaces the setting of every block before it for the files it
+// matches, so one Payload block of its own would drop the node layer's file-specific selectors - the CloudFront
+// runtime's, say - wherever the two overlap. Following the node blocks in their own order, the extensions resolve
+// for each file to the same node setting as before, with the selectors added. The node blocks themselves stay
+// first and untouched, because the harness admits a layer only as an extension of the node layer's own blocks.
+const payloadSyntaxBlocks: readonly ConfigBlock[] = nodeConfig.flatMap((block: ConfigBlock): readonly ConfigBlock[] => {
+  const setting: unknown = block.rules?.[RESTRICTED_SYNTAX]
+  return isArray(setting)
+    ? [
+        {
+          ...(block.files !== undefined && { files: block.files }),
+          ...(block.ignores !== undefined && { ignores: block.ignores }),
+          rules: { [RESTRICTED_SYNTAX]: ['error', ...setting.slice(1), ...UNTHREADED_REQUEST_SYNTAX] },
+        },
+      ]
+    : []
+})
 
 const baseRestrictedSyntax = (): readonly unknown[] => {
   const setting: unknown = nodeConfig
@@ -93,7 +135,9 @@ const payloadBlocks: readonly ConfigBlock[] = [
   // A function inlined in declarative wiring has no unit-test seam, so it escapes the test gates.
   {
     files: [...PAYLOAD_CONFIG_FILES],
-    rules: { [RESTRICTED_SYNTAX]: ['error', ...baseRestrictedSyntax(), INLINE_CONFIG_FUNCTION] },
+    rules: {
+      [RESTRICTED_SYNTAX]: ['error', ...baseRestrictedSyntax(), ...UNTHREADED_REQUEST_SYNTAX, INLINE_CONFIG_FUNCTION],
+    },
   },
   // The environment surface stays auditable in one validated, unit-tested module.
   {
@@ -113,6 +157,6 @@ const payloadBlocks: readonly ConfigBlock[] = [
   },
 ]
 
-const config: readonly ConfigBlock[] = [...nodeConfig, ...payloadBlocks]
+const config: readonly ConfigBlock[] = [...nodeConfig, ...payloadSyntaxBlocks, ...payloadBlocks]
 
 export default config

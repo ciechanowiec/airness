@@ -12,7 +12,7 @@ The Payload gates run through `airness:node-gate` like every node gate, bound by
 | --- | --- | --- |
 | `preflight` | `process-sources` | The node project holds a Payload application, and every Payload application declares `payload`, `graphql`, `sharp`, `next`, `react` and `react-dom` at the versions the layer pins; every `@payloadcms/*` package is at the Payload version. |
 | `payload-blocklist` | `post-integration-test` | The lockfile resolves no package the Payload layer refuses: the MongoDB adapter, and the drivers of database servers Payload has no adapter for. |
-| `payload-source-rules` | `post-integration-test` | Local API calls state their bounds, thread `req`, and decide access; every collection and global decides its access; auth collections lock accounts; uploads are restricted; a configuration that pushes no schema records its migrations; nothing writes at boot. |
+| `payload-source-rules` | `post-integration-test` | Local API calls state their bounds, thread `req`, and decide access; every handler an `endpoints:` entry serves comes from `src/endpoints`; every collection and global decides its access; auth collections lock accounts; uploads are restricted; a configuration that pushes no schema records its migrations; nothing writes at boot. |
 | `admin-views` | `post-integration-test` | Every custom admin view has an accessibility specification of the project's own. |
 | `payload-environment` | `post-integration-test` | Every variable `src/lib/environment.ts` reads is documented in the repository's example file, and every `NEXT_PUBLIC_` variable it inlines is declared by an `ARG` in each Dockerfile that builds the member. |
 | `payload-generated` | `post-integration-test` | Regenerating the Payload types and the admin import map with the project's own Payload CLI leaves them unchanged. |
@@ -54,10 +54,16 @@ and the generic Airness approvals.
 - At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through
   `req.payload` passes `req`; a call carrying `user`, a call composed with a spread, and every call in an
   endpoint module or route handler states `overrideAccess: false` after any spread.
+- Write every handler a collection, global or root `endpoints:` entry serves in a module under `src/endpoints`,
+  and import it there by a relative or `@/` path, so the endpoint rule above judges its calls. A handler written
+  in place, or imported from `src/lib`, `src/hooks` or another alias, is refused.
+- A required relationship or upload, on a collection or a global, needs a `beforeDelete` hook on its target
+  collection that removes the dependants first, unless drafts are enabled on the holder.
 - A database adapter that does not push its schema needs a recorded migration for every schema change.
-- ESLint refuses an inline function in a collection, global, field or block configuration, and a read of
-  `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`. A hook writes request state only on
-  `req.context`. A migration keeps the snake-case name `payload migrate:create` gives it.
+- ESLint refuses an inline function in a collection, global, field or block configuration, a read of
+  `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` destructured out of `req`
+  (call `req.payload` and pass `req`). A hook writes request state only on `req.context`. A migration keeps the
+  snake-case name `payload migrate:create` gives it.
 - Keep Payload's scaffold under `src/app/(payload)` exactly as Payload writes it: it is one of the generated
   files above.
 

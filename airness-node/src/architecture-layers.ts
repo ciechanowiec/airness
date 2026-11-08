@@ -1,6 +1,7 @@
 // The project-shaped half of the architecture contract, rendered into the rules dependency-cruiser reads:
-// the Next.js application layer, which nothing imports back, and the pure-logic floor a project or a layer
-// package declares. The framework-neutral rules stay in the shipped configuration.
+// the Next.js application layer, which nothing imports back, the pure-logic floor a project or a layer
+// package declares, and the production roots that import no test code. The framework-neutral rules stay in the
+// shipped configuration.
 import { DEFAULT_SOURCE_ROOTS } from './settings.js'
 
 /** One forbidden rule, in dependency-cruiser's shape. */
@@ -62,6 +63,35 @@ export const pureLogicRule = (
   }
 }
 
+// The source roots that hold test code and tooling rather than production code.
+const NON_PRODUCTION_ROOTS: ReadonlySet<string> = new Set(['tests', 'scripts'])
+
+// What under a production root is test code or test configuration itself: a colocated spec, and the Vitest and
+// Playwright files at the member root, which a member that declares the whole member as a root still holds.
+const TEST_CODE: string = String.raw`\.(spec|test)\.(ts|tsx)$|^(tests|scripts)/|^vitest\.[^/]*$|^playwright\.config\.[^/]*$`
+
+/**
+ * The rule that keeps test code out of production: no module under a production source root imports a test
+ * helper, fixture or fake from `tests`, whether by a relative path or an alias.
+ * @param sourceRoots the member's source roots; `tests` and `scripts` are not production roots.
+ * @returns the rule, or undefined when the member has no production root.
+ */
+export const productionImportsNoTestCodeRule = (sourceRoots: readonly string[]): ArchitectureRule | undefined => {
+  const production: readonly string[] = sourceRoots.filter((root: string): boolean => !NON_PRODUCTION_ROOTS.has(root))
+  if (production.length === 0) {
+    return undefined
+  }
+  return {
+    name: 'production-imports-no-test-code',
+    severity: 'error',
+    comment:
+      `Production code under ${production.join(', ')} never imports test code: a helper, fixture or fake under ` +
+      'tests would ship with it. Move what production needs out of tests, into a production module.',
+    from: { path: `^(${alternation(production)})`, pathNot: TEST_CODE },
+    to: { path: '^tests/' },
+  }
+}
+
 // The module the CloudFront Functions runtime provides itself, which no package and no file supplies.
 const CLOUDFRONT_MODULE: string = 'cloudfront'
 
@@ -118,9 +148,11 @@ export const layerRules = (
   cloudFrontFiles: readonly string[] = [],
 ): readonly ArchitectureRule[] => {
   const floor: ArchitectureRule | undefined = pureLogicRule(pureLogicRoots, sourceRoots)
+  const production: ArchitectureRule | undefined = productionImportsNoTestCodeRule(sourceRoots)
   return [
     ...(isNextApp ? [APPLICATION_LAYER_RULE] : []),
     ...(floor === undefined ? [] : [floor]),
+    ...(production === undefined ? [] : [production]),
     ...cloudFrontRules(cloudFrontFiles),
   ]
 }

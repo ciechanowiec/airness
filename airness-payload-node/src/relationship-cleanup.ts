@@ -23,12 +23,16 @@ const QUOTED_VALUE: RegExp = /^\s*['"`]([^'"`]+)['"`]/
 const DRAFTS_ENABLED: RegExp = /drafts\s*:\s*(?:true|\{)/
 const CLEANUP_HOOK: string = 'beforeDelete'
 
-/** One collection as this rule needs it: what it is called, what it declares, and where it was found. */
+/**
+ * One collection or global as this rule needs it: what it is called, what it declares, where it was
+ * found, and whether it is a global, which can hold a relationship but is never its target.
+ */
 interface FoundCollection {
   readonly path: string
   readonly slug: string
   readonly body: string
   readonly line: number
+  readonly global: boolean
 }
 
 const declaresTrue = (field: string, key: string): boolean => TRUE_VALUE.test(depthOneValue(field, key) ?? '')
@@ -40,14 +44,15 @@ const singleTarget = (field: string): string | undefined =>
 
 const slugOf = (body: string): string | undefined => QUOTED_VALUE.exec(depthOneValue(body, 'slug') ?? '')?.[1]
 
-// A collection with drafts enabled gets no null constraint anywhere, so none of its required fields can
-// reach the contradiction.
+// A collection or global with drafts enabled gets no null constraint anywhere, so none of its required
+// fields can reach the contradiction.
 const declaresDrafts = (body: string): boolean => DRAFTS_ENABLED.test(depthOneValue(body, 'versions') ?? '')
 
-// Which literal in a file IS a collection is `payload-configs.ts`'s question, and this rule asks it
-// there rather than carrying a second copy of the answer. A global is dropped: it has no relationship
-// column of its own to constrain. A collection with no readable slug is dropped too, because the whole
-// rule is a lookup by slug.
+// Which literal in a file IS a collection or a global is `payload-configs.ts`'s question, and this rule
+// asks it there rather than carrying a second copy of the answer. Both kinds are read. A global is a
+// holder: the adapter builds a table for it like for a collection, and a required single-target
+// relationship or upload on it gets the same NOT NULL column against the same ON DELETE SET NULL key. A
+// literal with no readable slug is dropped, because the whole rule is a lookup by slug.
 //
 // Comments are blanked before anything is read, the way every other Payload rule reads a file. The keys
 // this rule looks for sit at depth one, and a depth-one key is recognised by the delimiter in front of
@@ -55,14 +60,14 @@ const declaresDrafts = (body: string): boolean => DRAFTS_ENABLED.test(depthOneVa
 // collection that was guarded. `stripComments` preserves offsets and newlines, so the reported line is
 // still the line of the source.
 const collectionsIn = (file: SpecSource): readonly FoundCollection[] =>
-  payloadConfigsIn(stripComments(file.source))
-    .filter((found: FoundPayloadConfig): boolean => found.kind.kind === 'collection')
-    .flatMap((found: FoundPayloadConfig): readonly FoundCollection[] => {
-      const slug: string | undefined = slugOf(found.body)
-      return slug === undefined ? [] : [{ path: file.path, slug, body: found.body, line: found.line }]
-    })
+  payloadConfigsIn(stripComments(file.source)).flatMap((found: FoundPayloadConfig): readonly FoundCollection[] => {
+    const slug: string | undefined = slugOf(found.body)
+    return slug === undefined
+      ? []
+      : [{ path: file.path, slug, body: found.body, line: found.line, global: found.kind.kind === 'global' }]
+  })
 
-// Every field of one collection that puts a NOT NULL column against another collection's primary key.
+// Every field of one collection or global that puts a NOT NULL column against a collection's primary key.
 // The field literal is recovered from the offset of its own `type` key, so a relationship nested inside
 // an array or a group is read exactly like one declared at the top: both get a column, on their own
 // table, with the same pair of settings.
@@ -101,7 +106,8 @@ const reason = (target: string): string =>
   `constraint; declare a ${CLEANUP_HOOK} hook on ${target} that removes its dependants first`
 
 /**
- * Every required single-value relationship whose target collection cannot be deleted because of it.
+ * Every required single-value relationship, on a collection or a global, whose target collection cannot
+ * be deleted because of it.
  *
  * Reads the whole candidate set at once, because the collection a `relationTo` names is declared in
  * another file. A target this set does not declare - a collection a plugin contributes, say - is left
@@ -113,8 +119,11 @@ export const findUnguardedRelationships = (files: readonly SpecSource[]): readon
   const collections: readonly FoundCollection[] = files.flatMap((file: SpecSource): readonly FoundCollection[] =>
     collectionsIn(file),
   )
+  // A `relationTo` names a collection only, and a global may share a collection's slug.
   const bySlug: ReadonlyMap<string, FoundCollection> = new Map(
-    collections.map((collection: FoundCollection): [string, FoundCollection] => [collection.slug, collection]),
+    collections
+      .filter((collection: FoundCollection): boolean => !collection.global)
+      .map((collection: FoundCollection): [string, FoundCollection] => [collection.slug, collection]),
   )
   return collections.flatMap((collection: FoundCollection): readonly LocatedViolation[] =>
     constrainedTargets(collection)

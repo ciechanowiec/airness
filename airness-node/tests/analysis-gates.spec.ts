@@ -167,6 +167,42 @@ describe('arch', PROCESS_TIME, () => {
     TOOL_TIMEOUT_MS,
   )
 
+  it(
+    'fails production code under any production root that imports test code, by a relative path or an alias',
+    () => {
+      const aliased: string = `${JSON.stringify(
+        {
+          extends: '@airness/node/tsconfig.json',
+          compilerOptions: { types: [], paths: { '@/*': ['./src/*'], '@tests/*': ['./tests/*'] }, outDir: 'dist' },
+          include: ['**/*.ts'],
+          exclude: ['node_modules', 'dist', 'target'],
+        },
+        null,
+        JSON_INDENT,
+      )}\n`
+      const rooted: Readonly<Record<string, unknown>> = { ...MANIFEST, airness: { sourceRoots: ['lib/'] } }
+      withProject(
+        {
+          'package.json': `${JSON.stringify(rooted, null, JSON_INDENT)}\n`,
+          'tsconfig.json': aliased,
+          'tests/helpers/fixtures.ts': 'export const ORDER: number = 1\n',
+          'tests/helpers/fixtures.spec.ts': "import { ORDER } from './fixtures.js'\n\nexport const used = ORDER\n",
+          'src/orders.ts': "import { ORDER } from '@tests/helpers/fixtures.js'\n\nexport const order = ORDER\n",
+          'lib/auth.ts': "import { ORDER } from '../tests/helpers/fixtures.js'\n\nexport const auth = ORDER\n",
+        },
+        (root: string): void => {
+          const findings: readonly string[] = architecture(memberAt(root, rooted)).findings.filter(
+            (finding: string): boolean => finding.includes('production-imports-no-test-code'),
+          )
+          expect(findings.join('\n')).toContain('src/orders.ts')
+          expect(findings.join('\n')).toContain('lib/auth.ts')
+          expect(findings.join('\n')).not.toContain('fixtures.spec.ts')
+        },
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
   it('passes a member with no source directory', () => {
     withProject({}, (root: string): void => {
       expect(

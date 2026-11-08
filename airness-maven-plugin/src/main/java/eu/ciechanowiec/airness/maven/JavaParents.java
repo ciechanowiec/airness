@@ -45,8 +45,14 @@ final class JavaParents {
             .anyMatch(JavaParents::containsJava);
     }
 
+    /**
+     * Whether a directory holds a Java source file anywhere below it.
+     *
+     * @param root the directory to search
+     * @return whether a regular file below it ends in {@code .java}
+     */
     @SneakyThrows
-    private static boolean containsJava(Path root) {
+    static boolean containsJava(Path root) {
         try (Stream<Path> files = Files.walk(root)) {
             return files.anyMatch(
                 file -> file.getFileName().toString().endsWith(JAVA_SUFFIX) && Files.isRegularFile(file)

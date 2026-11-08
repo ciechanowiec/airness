@@ -43,11 +43,11 @@ final class ReportProjects {
         return projects.stream().filter(project -> !selfRoot(project)).toList();
     }
 
-    static List<String> qualifications(Collection<MavenProject> selected, boolean partial, String enforcement) {
+    static List<String> qualifications(Collection<MavenProject> selected, boolean partial, boolean enforced) {
         return Stream.<Stream<String>>of(
             partial ? Stream.of("This invocation selected only part of the reactor.") : Stream.empty(),
-            "false".equals(enforcement) ? Stream.of("Report-only mode does not establish an Airness verification pass.")
-                : Stream.empty(),
+            enforced ? Stream.empty()
+                : Stream.of("Report-only mode does not establish an Airness verification pass."),
             selected.stream().anyMatch(project -> active(project, "delta"))
                 ? Stream.of(
                     "Delta verification scopes the browser sweep to the change. "

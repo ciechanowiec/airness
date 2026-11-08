@@ -9,8 +9,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.DirectoryNotEmptyException;
-import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -196,13 +195,15 @@ record PinnedArchive(String name, URI source, String sha256) {
     }
 
     // Another build may have installed the same archive while this one was staging it. Its copy passed the
-    // same verification, so this one is discarded rather than reported.
+    // same verification, so this one is discarded rather than reported. A rename onto a non-empty directory
+    // fails on macOS and Linux with a plain FileSystemException, not with one of its subtypes, so the
+    // directory now standing at the target, not the type of the failure, tells the race apart.
     private static void publish(Path unpacked, Path target) throws IOException {
         try {
             Files.move(unpacked, target, StandardCopyOption.ATOMIC_MOVE);
-        } catch (FileAlreadyExistsException | DirectoryNotEmptyException exception) {
+        } catch (FileSystemException exception) {
             if (!Files.isDirectory(target)) {
-                throw new IOException("The installed archive target is not a directory: " + target, exception);
+                throw exception;
             }
         }
     }

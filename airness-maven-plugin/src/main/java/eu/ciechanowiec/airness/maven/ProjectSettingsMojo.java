@@ -84,7 +84,8 @@ public final class ProjectSettingsMojo extends AbstractPreflightMojo {
         String root = this.packageRoot();
         Stream<String> parameters = Stream.of(
             this.packageRootProblem(),
-            this.versionAgreement()
+            this.versionAgreement(),
+            RepositoryProjects.unowned(this.session().getTopLevelProject(), this.project())
         ).flatMap(Optional::stream);
         Stream<String> packages = UNSET.equals(root)
             ? Stream.empty()

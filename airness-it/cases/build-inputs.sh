@@ -24,6 +24,8 @@ run_ignored_build_inputs() {
     expect_match inputs_ignored 'build inputs: runtime resource is named' 'ignored build input .*viewer[.]mjs'
     run_maven inputs_report_only repository "${input_consumer}" validate -Dairness.enforce=false
     expect_exit inputs_report_only 'build inputs: report-only cannot excuse missing checkout inputs' 1
+    expect_match inputs_report_only 'build inputs: report-only still names the ignored Java input' \
+        'ignored build input .*Local[.]java'
     git -C "${input_consumer}" add -f "${input_java}" "${input_resource}"
     printf 'New untracked resource\n' > "${input_consumer}/src/main/resources/new.txt"
     run_maven inputs_tracked repository "${input_consumer}" validate

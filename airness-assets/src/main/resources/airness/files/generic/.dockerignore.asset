@@ -19,7 +19,8 @@
 Thumbs.db
 
 # Logs
-*.log*
+*.log
+*.log.[0-9]*
 *.logs*
 logs/
 log/

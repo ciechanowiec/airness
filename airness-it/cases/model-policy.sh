@@ -6,7 +6,9 @@ run_model_policy_cases() {
     cp "${model_consumer}/pom.xml" "${scratch}/model-original.xml"
     run_maven model_cli_skip maven "${model_consumer}" airness:project-settings -DskipTests
     expect_exit model_cli_skip 'model: a command-line test skip remains available' 0
-    for model_property in skipTests test; do
+    # A property a bound goal reads in place of an unconfigured parameter is refused like the skip flags,
+    # since Maven fills the parameter from it without the plugin ever being declared.
+    for model_property in skipTests test maven.test.failure.ignore checkstyle.maxAllowedViolations; do
         cp "${scratch}/model-original.xml" "${model_consumer}/pom.xml"
         MODEL_PROPERTY="${model_property}" perl -0pi -e \
             's{<properties>}{"<properties><".$ENV{MODEL_PROPERTY}.">true</".$ENV{MODEL_PROPERTY}.">"}e' \

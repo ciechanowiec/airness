@@ -77,9 +77,8 @@ public final class TypographyMojo extends AbstractRepositoryMojo {
 
     private List<String> exclusions() {
         Stream<String> configured = Sentinel.optional(this.excludes).stream();
-        Stream<String> fixtures = RepositoryProjects.selfBuild(
-            this.session().getTopLevelProject(), this.project()
-        ) ? SELF_FIXTURES.stream() : Stream.empty();
+        Stream<String> fixtures = RepositoryProjects.selfTree(this.project(), this.repositoryRoot())
+            ? SELF_FIXTURES.stream() : Stream.empty();
         return Stream.concat(configured, fixtures).distinct().toList();
     }
 }

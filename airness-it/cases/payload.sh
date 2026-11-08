@@ -200,6 +200,14 @@ PY
     printf '%s\n' "import type { Payload } from 'payload'" '' \
         'export const everyPost = async (payload: Payload): Promise<unknown> =>' \
         "  await payload.find({ collection: 'posts' })" > "${payload_site}/src/lib/reads.ts"
+    printf '%s\n' "import type { PayloadHandler } from 'payload'" '' \
+        'export const recentPosts: PayloadHandler = async (req) =>' \
+        "  Response.json(await req.payload.find({ collection: 'posts', req, depth: 0, limit: 10 }))" \
+        > "${payload_site}/src/lib/recent-posts.ts"
+    mkdir -p "${payload_site}/src/hooks"
+    printf '%s\n' "import type { CollectionAfterChangeHook } from 'payload'" '' \
+        'export const countPosts: CollectionAfterChangeHook = async ({ doc, req: { payload } }) => {' \
+        "  await payload.count({ collection: 'posts' })" '  return doc' '}' > "${payload_site}/src/hooks/count-posts.ts"
     python3 - "${payload_site}/src/payload.config.ts" "${payload_site}/src/collections/Posts.ts" \
         "${payload_site}/src/lib/environment.ts" "${payload_site}/src/payload-types.ts" \
         "${payload_site}/src/app/(payload)/admin/importMap.js" <<'PY'
@@ -221,9 +229,15 @@ with open(posts, encoding='utf-8') as stream:
     text = stream.read()
 with open(posts, 'w', encoding='utf-8') as stream:
     stream.write(
-        text.replace('versions: true,', 'versions: true,\n  folders: true,').replace(
+        text.replace('versions: true,', 'versions: true,\n  folders: true,')
+        .replace(
+            "import { anyone, nobody } from '@/access'",
+            "import { anyone, nobody } from '@/access'\nimport { recentPosts } from '@/lib/recent-posts'",
+        )
+        .replace(
             "fields: [{ name: 'title', type: 'text', required: true }],",
             "hooks: { beforeChange: [({ data }) => data] },\n"
+            "  endpoints: [{ path: '/recent', method: 'get', handler: recentPosts }],\n"
             "  fields: [{ name: 'title', type: 'text', required: true }],",
         )
     )
@@ -289,6 +303,8 @@ run_payload_cases() {
         'tedious is refused by the Payload layer'
     expect_match payload_report 'payload: payload-source-rules reports an unbounded read' \
         'src/lib/reads[.]ts:4 \[no-unbounded-find\]'
+    expect_match payload_report 'payload: payload-source-rules reports a handler served from outside src/endpoints' \
+        'src/collections/Posts[.]ts:[0-9]+ \[require-endpoint-module\]'
     expect_match payload_report 'payload: admin-views reports a custom view no specification scans' \
         'src/payload[.]config[.]ts:[0-9]+ \[admin-view-un(driven|scanned)\]'
     expect_match payload_report 'payload: payload-environment reports an undocumented variable' \
@@ -309,6 +325,8 @@ ${harness_version}"
     expect_match payload_report \
         'payload: eslint applies the Payload layer rules to an inline function in a collection' \
         'error  No inline functions in collection, global, field or block configs'
+    expect_match payload_report 'payload: eslint refuses payload destructured out of req in a hook' \
+        'error  Do not destructure payload out of req'
 
     # One enforcing build of the defective tree proves the findings fail it; it stops at the first, preflight.
     # That a post-integration-test gate's finding fails an enforcing build is node-gate's generic proof.
