@@ -110,12 +110,13 @@ class JavadocLinkRulesTest {
 
     @Test
     void readsAJavaLangNameOpeningASentenceAsAnOrdinaryWord() {
-        for (String body : List.of(
+        List<String> bodies = List.of(
             "Long names are cut short. Error codes are kept.", "Number of entries read.",
             "Error Prone reads it.", "Reads it.\n * Thread count is fixed.", "Reads it.  Long ones wrap.",
             "Reads it.\n *\n * <p>Error codes are kept.", "<P>Number of retries.", "Reads it!\n * Long ones wrap.",
             "Reads it? Long ones wrap.", "Lists:\n * <ul>\n * <li>Long names\n * </ul>"
-        )) {
+        );
+        for (String body : bodies) {
             assertTrue(unlinkedWithJavaLang(document(body)).isEmpty(), "a capitalized opening is a word: " + body);
         }
     }

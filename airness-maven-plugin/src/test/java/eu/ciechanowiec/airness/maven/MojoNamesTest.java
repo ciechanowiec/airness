@@ -39,7 +39,7 @@ class MojoNamesTest {
                 .collect(
                     Collectors.toMap(
                         MojoDescriptor::getGoal, mojo -> simpleName(mojo.getImplementation()),
-                        (first, second) -> first, TreeMap::new
+                        (first, _) -> first, TreeMap::new
                     )
                 ),
             "rename each class to its goal in PascalCase followed by Mojo"

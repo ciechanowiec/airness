@@ -74,12 +74,13 @@ class NodeSuppressionsTest {
     }
 
     @Test
-    void readsNoInlineConfigurationWhereESLintReadsNone() {
+    void readsNoInlineConfigurationWhereEslintReadsNone() {
         String source = """
             /* eslint-disable */
             /* eslint-env node */
             // eslint max-lines: off
-            /** eslint max-lines: off */
+            /** eslint max-lines: off
+             */
             """;
         assertEquals(
             List.of("line 1: eslint-disable (every rule)"),
@@ -91,12 +92,14 @@ class NodeSuppressionsTest {
     @Test
     void readsATypeScriptDirectiveInEveryCommentTheCompilerHonours() {
         String source = """
-            /** @ts-expect-error the type is wrong upstream */
-            /*** @ts-ignore */
+            /** @ts-expect-error the type is wrong upstream
+             */
+            /*** @ts-ignore
+             */
             /// @ts-ignore
             """;
         assertEquals(
-            List.of("line 1: @ts-expect-error", "line 2: @ts-ignore", "line 3: @ts-ignore"),
+            List.of("line 1: @ts-expect-error", "line 3: @ts-ignore", "line 5: @ts-ignore"),
             NodeSuppressions.in(source),
             "the compiler reads a directive after any run of slashes or stars that opens the comment"
         );

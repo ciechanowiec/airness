@@ -18,12 +18,13 @@ import org.junit.jupiter.api.Test;
 class OsvScanTest {
 
     private static final String KIT = "pkg:npm/%40scope/kit@2.0.0";
+    private static final String MODULE = "web";
 
     @Test
     void reportsEveryAdvisoryButAWithdrawnOne() {
         try (ArchiveServer server = NpmFixture.osv()) {
             List<ReportAdvisory> advisories = OsvScan.of(server.uri("/").toString()).findings(
-                List.of("pkg:npm/left-pad@1.3.0", KIT, "pkg:npm/%40esbuild/linux-x64@0.25.0", KIT), "web"
+                List.of("pkg:npm/left-pad@1.3.0", KIT, "pkg:npm/%40esbuild/linux-x64@0.25.0", KIT), MODULE
             ).stream().map(OsvAdvisory::advisory).toList();
             assertEquals(1, advisories.size());
             ReportAdvisory advisory = advisories.getFirst();
@@ -39,7 +40,7 @@ class OsvScanTest {
         try (ArchiveServer server = new ArchiveServer()) {
             server.serve("/v1/querybatch", bytes("{\"results\": [{\"vulns\": [{\"id\": \"OSV-1\"}]}]}"));
             server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"details\": \"First line.\\nSecond.\"}"));
-            ReportAdvisory advisory = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), "web").getFirst()
+            ReportAdvisory advisory = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), MODULE).getFirst()
                 .advisory();
             assertEquals("First line.", advisory.description());
             assertEquals("Unknown", advisory.severity());
@@ -60,7 +61,7 @@ class OsvScanTest {
             );
             server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"summary\": \"First\"}"));
             server.serve("/v1/vulns/OSV-2", bytes("{\"id\": \"OSV-2\", \"summary\": \"Second\"}"));
-            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), "web").stream()
+            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), MODULE).stream()
                 .map(advisory -> advisory.advisory().description()).sorted().toList();
             assertEquals(
                 List.of("First", "Second"), found,
@@ -87,7 +88,7 @@ class OsvScanTest {
             );
             server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"summary\": \"First\"}"));
             server.serve("/v1/vulns/OSV-2", bytes("{\"id\": \"OSV-2\", \"summary\": \"Second\"}"));
-            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT, other), "web").stream()
+            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT, other), MODULE).stream()
                 .map(advisory -> advisory.advisory().artifact() + " " + advisory.advisory().description()).sorted()
                 .toList();
             assertEquals(List.of(KIT + " Second", other + " First"), found);
@@ -98,15 +99,15 @@ class OsvScanTest {
     @Test
     void failsWhenOsvCannotBeReadOrAnswersWrongly() {
         IllegalStateException unreachable = assertThrows(
-            IllegalStateException.class, () -> OsvScan.of("http://127.0.0.1:9/").findings(List.of(KIT), "web")
+            IllegalStateException.class, () -> OsvScan.of("http://127.0.0.1:9/").findings(List.of(KIT), MODULE)
         );
         assertTrue(Objects.requireNonNull(unreachable.getMessage()).contains("rather than passing without it"));
         try (ArchiveServer server = new ArchiveServer()) {
             String base = server.uri("/").toString();
-            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), "web"));
+            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), MODULE));
             server.serve("/v1/querybatch", bytes("{\"results\": []}"));
-            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), "web"));
-            assertEquals(List.of(), OsvScan.of(base).findings(List.of(), "web"), "nothing resolved, nothing asked");
+            assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), MODULE));
+            assertEquals(List.of(), OsvScan.of(base).findings(List.of(), MODULE), "nothing resolved, nothing asked");
         }
     }
 

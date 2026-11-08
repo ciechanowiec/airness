@@ -248,6 +248,19 @@ describe('arch', PROCESS_TIME, () => {
       withProject(
         {
           'package.json': `${JSON.stringify(next, null, JSON_INDENT)}\n`,
+          'app/layout.tsx': 'export const layout = 1\n',
+          'src/first.ts': "import { second } from './second.js'\n\nexport const first = (): number => second()\n",
+          'src/second.ts': "import { first } from './first.js'\n\nexport const second = (): number => first()\n",
+        },
+        (root: string): void => {
+          const findings: string = findingsOf(architecture(nextMemberAt(root)))
+          expect(findings).toContain('app/: move the Next.js routes directory under src/ (src/app/)')
+          expect(findings).toContain('no-circular')
+        },
+      )
+      withProject(
+        {
+          'package.json': `${JSON.stringify(next, null, JSON_INDENT)}\n`,
           'src/app/layout.tsx': 'export const a = 1\n',
         },
         (root: string): void => {

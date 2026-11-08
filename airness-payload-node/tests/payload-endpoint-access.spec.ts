@@ -25,7 +25,7 @@ describe('require-endpoint-access, in a server action', () => {
     'export const save = async () => {\n  "use server";\n  SERVER_CALL\n}',
     "<form action={async () => { 'use server'; SERVER_CALL }} />",
   ])('judges a function whose body opens with the directive: %s', (shape: string) => {
-    const source: string = shape.replace('SERVER_CALL', SERVER_ACTION_CALL)
+    const source: string = shape.replace('SERVER_CALL', (): string => SERVER_ACTION_CALL)
     expect(endpointRulesOf('src/app/(frontend)/page.tsx', source)).toEqual(['require-endpoint-access'])
   })
 
@@ -58,11 +58,9 @@ describe('require-endpoint-access, in a server action', () => {
   })
 
   it('judges a call through a name the action binds to getPayload', () => {
-    const source: string = [
-      "'use server'",
-      'const cms = await getPayload({ config })',
-      'await cms.count({})',
-    ].join('\n')
+    const source: string = ["'use server'", 'const cms = await getPayload({ config })', 'await cms.count({})'].join(
+      '\n',
+    )
     expect(endpointRulesOf('src/actions/media.ts', source)).toEqual(['require-endpoint-access'])
   })
 })

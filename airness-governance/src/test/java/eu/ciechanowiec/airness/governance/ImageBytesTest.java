@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 class ImageBytesTest {
 
     private static final String PNG = "a.png";
+    private static final String JPEG = "a.jpg";
     // The end chunk is twelve bytes: a length, a type and a checksum around an empty payload.
     private static final int END_CHUNK = 12;
     // Cutting the end chunk and eight more bytes leaves the image data chunk running past the file.
@@ -85,11 +86,11 @@ class ImageBytesTest {
     void namesTheDefectOfEachOtherDamagedFormat() {
         assertEquals(
             Optional.of("truncated JPEG (missing EOI marker)"),
-            problem("a.jpg", ImageFixtures.withoutLast(ImageFixtures.jpeg(), 1)), "a JPEG cut short has no end marker"
+            problem(JPEG, ImageFixtures.withoutLast(ImageFixtures.jpeg(), 1)), "a JPEG cut short has no end marker"
         );
         assertEquals(
             Optional.of("not a valid JPEG (bad SOI marker)"),
-            problem("a.jpg", ImageFixtures.withByte(ImageFixtures.jpeg(), 1, 0)), "a JPEG must open with its marker"
+            problem(JPEG, ImageFixtures.withByte(ImageFixtures.jpeg(), 1, 0)), "a JPEG must open with its marker"
         );
         assertEquals(
             Optional.of("truncated GIF (missing trailer byte)"),
@@ -112,11 +113,12 @@ class ImageBytesTest {
 
     @Test
     void acceptsAJpegFollowedByTheTrailerAPhoneAppends() {
-        byte[] samsung = "\0\0SEFHinfo\u00FF\u00D8\u00FF\u00E1SEFT".getBytes(StandardCharsets.ISO_8859_1);
-        byte[] motionPhoto = "\0\0\0\u0018ftypmp42\0\0\0\0isommp42\u00FF".getBytes(StandardCharsets.ISO_8859_1);
+        // The octal escapes spell single bytes: 377 330 377 341 is FF D8 FF E1, and 030 is a box length of 24.
+        byte[] samsung = "\0\0SEFHinfo\377\330\377\341SEFT".getBytes(StandardCharsets.ISO_8859_1);
+        byte[] motionPhoto = "\0\0\0\030ftypmp42\0\0\0\0isommp42\377".getBytes(StandardCharsets.ISO_8859_1);
         for (byte[] trailer : List.of(samsung, motionPhoto)) {
             assertEquals(
-                Optional.empty(), problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpeg(), trailer)),
+                Optional.empty(), problem(JPEG, ImageFixtures.joined(ImageFixtures.jpeg(), trailer)),
                 "what follows the end marker is not the image"
             );
         }
@@ -129,10 +131,10 @@ class ImageBytesTest {
             ImageFixtures.jpegStart(), table, ImageFixtures.jpegScan(), table, ImageFixtures.jpegScan(),
             ImageFixtures.jpegEnd()
         );
-        assertEquals(Optional.empty(), problem("a.jpg", progressive), "a later scan follows a table of its own");
+        assertEquals(Optional.empty(), problem(JPEG, progressive), "a later scan follows a table of its own");
         assertEquals(
             Optional.of(TRUNCATED_JPEG),
-            problem("a.jpg", ImageFixtures.withoutLast(progressive, ImageFixtures.jpegEnd().length)),
+            problem(JPEG, ImageFixtures.withoutLast(progressive, ImageFixtures.jpegEnd().length)),
             "and the image still has to end"
         );
     }
@@ -145,17 +147,17 @@ class ImageBytesTest {
         byte[] metadata = ImageFixtures.jpegSegment(EXIF, thumbnail);
         assertEquals(
             Optional.of(TRUNCATED_JPEG),
-            problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpegStart(), metadata, ImageFixtures.jpegScan())),
+            problem(JPEG, ImageFixtures.joined(ImageFixtures.jpegStart(), metadata, ImageFixtures.jpegScan())),
             "the main image never reached its end marker"
         );
         assertEquals(
-            Optional.of(TRUNCATED_JPEG), problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpegStart(), metadata)),
+            Optional.of(TRUNCATED_JPEG), problem(JPEG, ImageFixtures.joined(ImageFixtures.jpegStart(), metadata)),
             "a file cut just after the thumbnail ends with the thumbnail's end marker and not its own"
         );
         byte[] cut = ImageFixtures.withoutLast(metadata, 1);
         assertEquals(
             Optional.of(TRUNCATED_JPEG),
-            problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpegStart(), cut, ImageFixtures.jpegEnd())),
+            problem(JPEG, ImageFixtures.joined(ImageFixtures.jpegStart(), cut, ImageFixtures.jpegEnd())),
             "a segment declaring more than the file holds is cut short, whatever its last bytes are"
         );
     }

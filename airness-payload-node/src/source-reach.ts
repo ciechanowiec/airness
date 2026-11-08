@@ -111,13 +111,15 @@ export const candidatePathsFor = (specifier: string, fromPath: string): readonly
 }
 
 const ARROW: string = '=>'
+// The two brackets around a parameter list, which balancedArguments leaves out of the list it returns.
+const PARENTHESES: number = 2
 const FUNCTION_EXPRESSION: RegExp = /^(?:async\s+)?function\b/
 const ASYNC_PREFIX: RegExp = /^async\s*(?=[(a-z_$])/i
 const IDENTIFIER: RegExp = /^[a-z_$][\w$]*/i
 // A line that opens with a member access continues the expression above it rather than ending it.
 const CONTINUATION: RegExp = /^\s*\??\./
 
-const endsExpression = (text: string, step: ScanStep, stopsAtLineEnd: boolean): boolean => {
+const endsExpression = (text: string, step: ScanStep, endsAtLineBreak: boolean): boolean => {
   if (step.depth < 0) {
     return true
   }
@@ -127,7 +129,7 @@ const endsExpression = (text: string, step: ScanStep, stopsAtLineEnd: boolean): 
   return (
     step.character === ',' ||
     step.character === ';' ||
-    (stopsAtLineEnd && step.character === '\n' && !CONTINUATION.test(text.slice(step.index + 1)))
+    (endsAtLineBreak && step.character === '\n' && !CONTINUATION.test(text.slice(step.index + 1)))
   )
 }
 
@@ -135,15 +137,15 @@ const endsExpression = (text: string, step: ScanStep, stopsAtLineEnd: boolean): 
  * Where a value written at the start of a text ends: the first comma or semicolon outside every bracket,
  * or the bracket that closes the construct holding it.
  * @param text the text the value opens.
- * @param stopsAtLineEnd true when a statement may end at a line break, as a declaration's value does.
+ * @param endsAtLineBreak true when a statement may end at a line break, as a declaration's value does.
  * @returns the offset just past the value.
  */
-export const valueEnd = (text: string, stopsAtLineEnd: boolean = false): number =>
+export const valueEnd = (text: string, endsAtLineBreak: boolean = false): number =>
   scanDelimited<number>(
     text,
     0,
     (end: number, step: ScanStep): Folded<number> =>
-      endsExpression(text, step, stopsAtLineEnd) ? { state: step.index, stop: true } : { state: end, stop: false },
+      endsExpression(text, step, endsAtLineBreak) ? { state: step.index, stop: true } : { state: end, stop: false },
     text.length,
   )
 
@@ -166,7 +168,7 @@ export const bodyAfterParameters = (source: string, at: number): string | undefi
 const parametersEnd = (text: string): number | undefined => {
   if (text.startsWith('(')) {
     const parameters: string | undefined = balancedArguments(text, 0)
-    return parameters === undefined ? undefined : parameters.length + 2
+    return parameters === undefined ? undefined : parameters.length + PARENTHESES
   }
   return IDENTIFIER.exec(text)?.[0].length
 }

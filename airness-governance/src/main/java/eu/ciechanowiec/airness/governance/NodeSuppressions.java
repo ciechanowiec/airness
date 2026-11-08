@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -42,8 +41,6 @@ public final class NodeSuppressions {
     // rule it names to a severity and options, up to the reason after -- or the end of the comment.
     private static final Pattern INLINE_CONFIG = Pattern.compile("/\\*\\s*eslint\\s((?:(?!\\*/).)*)", Pattern.DOTALL);
     private static final String INLINE_CONFIG_NAME = "eslint";
-    private static final String OPENING = "[{(";
-    private static final String CLOSING = "]})";
     private static final Pattern TYPESCRIPT = Pattern.compile(
         "(?://|/\\*+)\\s*(@ts-(?:ignore|expect-error|nocheck))\\b"
     );
@@ -100,43 +97,10 @@ public final class NodeSuppressions {
     private static Stream<String> configured(String source, MatchResult match) {
         String body = match.group(1);
         int reason = body.indexOf(REASON);
-        return topLevel(reason >= 0 ? body.substring(0, reason) : body).stream()
+        return TopLevelParts.of(reason >= 0 ? body.substring(0, reason) : body).stream()
             .map(pair -> pair.split(":", 2)[0].strip().replace("\"", "").replace("'", ""))
             .filter(rule -> !rule.isEmpty())
             .map(rule -> entry(source, match, INLINE_CONFIG_NAME + ' ' + rule));
-    }
-
-    /*
-     * The comma-separated parts of a rule map that sit outside every bracket and string, so the options of one
-     * rule, which carry commas and colons of their own, stay with the rule they configure.
-     */
-    private static List<String> topLevel(String map) {
-        List<String> parts = new ArrayList<>();
-        StringBuilder part = new StringBuilder();
-        int depth = 0;
-        char quote = 0;
-        for (int index = 0; index < map.length(); index++) {
-            char character = map.charAt(index);
-            boolean quoted = quote != 0;
-            boolean separates = !quoted && depth == 0 && character == ',';
-            if (quoted) {
-                quote = character == quote ? 0 : quote;
-            } else if (character == '"' || character == '\'') {
-                quote = character;
-            } else if (OPENING.indexOf(character) >= 0) {
-                depth++;
-            } else if (CLOSING.indexOf(character) >= 0) {
-                depth--;
-            }
-            if (separates) {
-                parts.add(part.toString());
-                part.setLength(0);
-            } else {
-                part.append(character);
-            }
-        }
-        parts.add(part.toString());
-        return List.copyOf(parts);
     }
 
     private static String entry(String source, MatchResult match, String rule) {
