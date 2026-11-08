@@ -70,7 +70,6 @@ class ClosingTest {
             3, Closing.nodeSources(root, List.of(outside), List.of()).size(),
             "a node project git cannot list is walked instead, and its pinned file is no longer excluded"
         );
-        assertEquals(0, Closing.javaSuppressions(root, List.of()).scanned());
     }
 
     @SneakyThrows

@@ -3,15 +3,15 @@ package eu.ciechanowiec.airness.governance;
 import java.nio.file.Path;
 
 /**
- * One file the harness owns, the policy that says what a project may do with it, the capability that
+ * One file the harness owns, the policy that says what a project may do with it, the layer that
  * owns it, and where it is placed.
  *
  * @param path     the path the file takes, relative to its location
  * @param policy   what the project may do with it
- * @param owner    the capability whose manifest claims it
+ * @param owner    the layer whose manifest claims it
  * @param location where it is placed
  */
-public record ManagedAsset(String path, AssetPolicy policy, Capability owner, AssetLocation location) {
+public record ManagedAsset(String path, AssetPolicy policy, Layer owner, AssetLocation location) {
 
     // Reject paths that could escape or ambiguously address the repository root. The unsafe test runs
     // first and on its own, because a root path has no name at index zero and asking for one throws an
@@ -33,6 +33,6 @@ public record ManagedAsset(String path, AssetPolicy policy, Capability owner, As
      * @param policy what the project may do with it
      */
     public ManagedAsset(String path, AssetPolicy policy) {
-        this(path, policy, Capability.GENERIC, AssetLocation.ROOT);
+        this(path, policy, Layer.GENERIC, AssetLocation.ROOT);
     }
 }

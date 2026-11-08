@@ -191,11 +191,11 @@ The final comparison covers what runs through `verify`. A project step bound to 
 == Managed Files
 
 . Maven, Git, editors, and coding agents read some configuration from the working tree. _airness_ manages these files so that every project receives the same setup.
-. The files a repository receives follow what its modules contain, not which parent each one names. Each stack is a capability with its own files:
+. The files a repository receives follow what its modules contain, not which parent each one names. Each layer has its own files:
 +
 [cols="1,3,3"]
 |===
-| Capability | Present when | Receives files at
+| Layer | Present when | Receives files at
 
 | `generic`
 | always
@@ -210,7 +210,7 @@ The final comparison covers what runs through `verify`. A project step bound to 
 | the repository root and each listed directory
 |===
 +
-The repository root carries the files of every capability present in any module. The managed-file check reads the model of every `pom.xml` in the repository, so a build started inside one member checks what a build started at the root checks. A listed directory receives the `node` files only once it holds a `package.json`.
+The repository root carries the files of every layer present in any module. The managed-file check reads the model of every `pom.xml` in the repository, so a build started inside one member checks what a build started at the root checks. A listed directory receives the `node` files only once it holds a `package.json`.
 . Each managed path has one of the following policies:
 +
 [cols="1,2,3"]
@@ -219,7 +219,7 @@ The repository root carries the files of every capability present in any module.
 
 | [[managed-section]]Managed section
 | `AGENTS.md`, `.gitignore`, `.dockerignore` at the root, and `AGENTS.md` in each node project directory
-| The file starts with one marked block for each capability that claims it, in the order `generic`, `java`, `node`. The project owns the text below the blocks.
+| The file starts with one marked block for each layer that claims it, in the order `generic`, `java`, `node`. The project owns the text below the blocks.
 
 | [[pinned-file]]Pinned
 | `.airness/agent-guide.md`, `.airness/license-inventory.ftl`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/jvm.config`, `.mvn/settings.xml`, `README-guideline-software-project.adoc`, with `java` also `.airness/agent-guide-java.md`, `lombok.config`, `qodana.yaml`, and with `node` also `eslint.config.mjs`, `vitest.config.mts` and `.airness/npm-registry.py` in each node project directory
@@ -243,7 +243,7 @@ The repository root carries the files of every capability present in any module.
 |===
 
 . `AGENTS.md` is the only agent instruction file. Claude Code reads it directly, so the xref:#default-verification[default verification] fails when the working tree contains a `CLAUDE.md` or `CLAUDE.local.md` file in any directory. No setting exempts one.
-. Each block of a xref:#managed-section[managed section] is enclosed by `BEGIN AIRNESS MANAGED: <capability>` and `END AIRNESS MANAGED: <capability>`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or replaces the blocks while preserving the project text below them. A block appears exactly when its capability is present, so a stale or unclaimed block fails verification.
+. Each block of a xref:#managed-section[managed section] is enclosed by `BEGIN AIRNESS MANAGED: <layer>` and `END AIRNESS MANAGED: <layer>`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or replaces the blocks while preserving the project text below them. A block appears exactly when its layer is present, so a stale or unclaimed block fails verification.
 . The xref:#default-verification[default verification] fails when a xref:#pinned-file[pinned file] is missing or outdated, when a xref:#managed-section[managed section] is missing or outdated, or when a xref:#seed-file[seed file] is missing. It also fails if a build plugin modifies a project file during the build.
 . Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a verification:
 +

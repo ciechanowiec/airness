@@ -3,8 +3,8 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.AssetSite;
 import eu.ciechanowiec.airness.governance.ComplianceReport;
 import eu.ciechanowiec.airness.governance.Findings;
-import eu.ciechanowiec.airness.governance.NodeSuppressionCeiling;
-import eu.ciechanowiec.airness.governance.SuppressionCeilingCheck;
+import eu.ciechanowiec.airness.governance.NodeSuppressionCeilingCheck;
+import eu.ciechanowiec.airness.governance.JavaSuppressionCeilingCheck;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -121,7 +121,7 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
     }
 
     private List<Findings> javaSuppressions(List<Path> javaRoots) {
-        SuppressionCeilingCheck check = Closing.javaSuppressions(this.repositoryRoot(), javaRoots);
+        JavaSuppressionCeilingCheck check = new JavaSuppressionCeilingCheck(this.repositoryRoot(), javaRoots);
         this.getLog().info("Suppressions in force: " + check.count() + " of " + check.ceiling() + " allowed");
         Scope.requireJavaSources(check.scanned(), javaRoots);
         return check.findings();
@@ -135,7 +135,7 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
         List<String> excluded = GeneratedDenialMojo.denied(
             root, sites, Sentinel.optional(this.generated), Sentinel.optional(this.unmanaged)
         );
-        NodeSuppressionCeiling check = new NodeSuppressionCeiling(
+        NodeSuppressionCeilingCheck check = new NodeSuppressionCeilingCheck(
             root, Closing.nodeSources(root, directories, excluded)
         );
         this.getLog().info("Node suppressions in force: " + check.count() + " of " + check.ceiling() + " allowed");

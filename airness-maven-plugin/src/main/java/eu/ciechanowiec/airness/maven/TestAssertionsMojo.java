@@ -18,7 +18,7 @@ import org.apache.maven.plugins.annotations.Mojo;
  * is how the two come to disagree.
  */
 @Mojo(name = "test-assertions", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
-public final class AssertionsMojo extends AbstractGovernanceMojo {
+public final class TestAssertionsMojo extends AbstractGovernanceMojo {
 
     @Override
     boolean applies() {

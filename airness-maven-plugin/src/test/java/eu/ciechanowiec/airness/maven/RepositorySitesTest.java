@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetSite;
-import eu.ciechanowiec.airness.governance.Capability;
+import eu.ciechanowiec.airness.governance.Layer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The sites that receive managed files come from the capabilities of every module in the repository,
+ * The sites that receive managed files come from the layers of every module in the repository,
  * read from every project file in it, whichever module the build started in.
  */
 class RepositorySitesTest {
@@ -41,9 +41,9 @@ class RepositorySitesTest {
         try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
             assertEquals(
                 List.of(
-                    AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
-                    new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
-                    new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
+                    AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
+                    new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
+                    new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
                 ),
                 sorted(RepositorySites.read(maven.builder(), maven.request(), root)),
                 "the root carries Java and node although no root parent names them, and the frontend is a node project"
@@ -59,10 +59,10 @@ class RepositorySitesTest {
         try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
             assertEquals(
                 List.of(
-                    AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
-                    new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
-                    new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
-                    new AssetSite("web", AssetLocation.NEXT_PROJECT, Set.of(Capability.NODE))
+                    AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
+                    new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
+                    new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
+                    new AssetSite("web", AssetLocation.NEXT_PROJECT, Set.of(Layer.NODE))
                 ),
                 sorted(RepositorySites.read(maven.builder(), maven.request(), root)),
                 "a node project that installs next and routes under src is also a site for the Next.js facet's files"
@@ -111,7 +111,7 @@ class RepositorySitesTest {
         );
         try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
             assertEquals(
-                AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
+                AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
                 RepositorySites.read(maven.builder(), maven.request(), root).getFirst(),
                 "two builds sharing a root but no aggregator must demand the same root blocks"
             );
@@ -119,14 +119,14 @@ class RepositorySitesTest {
     }
 
     @Test
-    void failsOnAnUnreadableProjectFileRatherThanSeeingNoCapabilities() {
+    void failsOnAnUnreadableProjectFileRatherThanSeeingNoLayers() {
         Path root = this.monorepo();
         write(root.resolve("pom.xml"), "");
         try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
             assertThrows(
                 IllegalStateException.class,
                 () -> RepositorySites.read(maven.builder(), maven.request(), root),
-                "an unreadable project file is a failure that names it, never an empty set of capabilities"
+                "an unreadable project file is a failure that names it, never an empty set of layers"
             );
         }
     }
@@ -140,8 +140,8 @@ class RepositorySitesTest {
         write(root.resolve(CMS).resolve(PACKAGE), PACKAGE_BODY);
         assertEquals(
             List.of(
-                AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
-                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
+                AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
+                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
             ),
             RepositorySites.of(root, List.of(self, node))
         );
@@ -157,8 +157,8 @@ class RepositorySitesTest {
         write(root.resolve(CMS).resolve(PACKAGE), PACKAGE_BODY);
         assertEquals(
             List.of(
-                AssetSite.root(Set.of(Capability.NODE)),
-                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
+                AssetSite.root(Set.of(Layer.NODE)),
+                new AssetSite(CMS, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
             ),
             RepositorySites.of(root, List.of(plain, node)),
             "one directory is one site, so it never receives two competing bodies for one file"

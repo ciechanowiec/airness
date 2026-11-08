@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetSite;
-import eu.ciechanowiec.airness.governance.Capability;
+import eu.ciechanowiec.airness.governance.Layer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -42,10 +42,10 @@ class NodeGeneratedArtefactsTest {
         Files.createDirectories(this.root.resolve("broken"));
         Files.writeString(this.root.resolve("broken").resolve(MANIFEST), "{");
         List<AssetSite> sites = List.of(
-            AssetSite.root(Set.of(Capability.NODE)),
-            new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
-            new AssetSite("broken", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
-            new AssetSite("absent", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE))
+            AssetSite.root(Set.of(Layer.NODE)),
+            new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
+            new AssetSite("broken", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
+            new AssetSite("absent", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
         );
         assertEquals(List.of("web/src/generated/**"), NodeGeneratedArtefacts.paths(this.root, sites));
         List<String> denied = GeneratedDenialMojo.denied(this.root, sites, List.of("docs/api.md"), List.of());
@@ -70,7 +70,7 @@ class NodeGeneratedArtefactsTest {
         Files.writeString(project.resolve("members/skipped").resolve(MANIFEST), member);
         Files.createDirectories(project.resolve("node_modules/members/beta"));
         Files.writeString(project.resolve("node_modules/members/beta").resolve(MANIFEST), member);
-        List<AssetSite> sites = List.of(new AssetSite("app", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)));
+        List<AssetSite> sites = List.of(new AssetSite("app", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)));
         assertEquals(
             List.of("app/root.gen.ts", "app/members/alpha/src/types.ts"), NodeGeneratedArtefacts.paths(this.root, sites)
         );

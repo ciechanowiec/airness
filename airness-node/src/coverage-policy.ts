@@ -1,11 +1,8 @@
 // Which files the coverage floor measures: executable TypeScript under the member's source roots, except
 // the test tree, declarations, and the files a generator or a framework owns.
-import { hasExtension, matchesGlob, normalisedSourceRoot } from './file-roles.js'
+import { hasExtension, matchesGlob, normalisedSourceRoot, TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
 import type { DeclaredExclusion, Settings } from './settings.js'
 import { memberFiles } from './source-selection.js'
-
-// Every TypeScript format, components included: no facet measures a `.tsx` file in their place.
-const EXECUTABLE_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.mts', '.cts']
 
 const TEST_ROOT: string = 'tests'
 
@@ -34,7 +31,7 @@ const rootPrefix = (root: string): string => (root === '.' ? '' : `${root}/`)
  */
 export const coverageIncludes = (sourceRoots: readonly string[]): readonly string[] =>
   coverageRoots(sourceRoots).flatMap((root: string): readonly string[] =>
-    EXECUTABLE_EXTENSIONS.map((extension: string): string => `${rootPrefix(root)}**/*${extension}`),
+    TYPESCRIPT_SOURCE_EXTENSIONS.map((extension: string): string => `${rootPrefix(root)}**/*${extension}`),
   )
 
 // The App Router files the e2e crawl renders on every page it audits, and the proxy every response it reads
@@ -71,7 +68,7 @@ export const coverageExclusions = (settings: Settings, isNextApp: boolean = fals
 ]
 
 const isMeasurable = (file: string, settings: Settings, exclusions: readonly string[]): boolean =>
-  hasExtension(file, EXECUTABLE_EXTENSIONS) &&
+  hasExtension(file, TYPESCRIPT_SOURCE_EXTENSIONS) &&
   coverageRoots(settings.sourceRoots).some((root: string): boolean => file.startsWith(rootPrefix(root))) &&
   !exclusions.some((pattern: string): boolean => matchesGlob(pattern, file))
 

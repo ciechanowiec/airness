@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * The files the harness owns are where their policy says, with the bytes it ships.
  *
- * <p>Which files apply follows the capabilities of the whole repository, read from the model of every
+ * <p>Which files apply follows the layers of the whole repository, read from the model of every
  * project file in it, so a build started inside one member checks what a build started at the root checks.
  *
  * <p>The tool configuration a pinned tool would read from the tree on its own is refused here too, for the

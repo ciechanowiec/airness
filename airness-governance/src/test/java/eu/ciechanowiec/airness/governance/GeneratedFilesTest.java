@@ -14,13 +14,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Verifies that generated files are placed at every site carrying the capability that declares them.
+ * Verifies that generated files are placed at every site carrying the layer that declares them.
  */
 class GeneratedFilesTest {
 
     @SneakyThrows
-    private static GeneratedFiles declaring(Path classpath, Capability capability, String declarations) {
-        Path file = classpath.resolve("airness/generated/" + capability.id() + ".txt");
+    private static GeneratedFiles declaring(Path classpath, Layer layer, String declarations) {
+        Path file = classpath.resolve("airness/generated/" + layer.id() + ".txt");
         Files.createDirectories(file.getParent());
         Files.writeString(file, declarations);
         URL[] urls = {classpath.toUri().toURL()};
@@ -28,33 +28,33 @@ class GeneratedFilesTest {
     }
 
     @Test
-    void placesEachDeclarationAtTheSitesOfItsCapabilityAndLocation(@TempDir Path classpath) {
+    void placesEachDeclarationAtTheSitesOfItsLayerAndLocation(@TempDir Path classpath) {
         GeneratedFiles files = declaring(
-            classpath, Capability.NODE, "# generator output\nsrc/generated-types.ts\tNODE_PROJECT\nroot-schema.json\n"
+            classpath, Layer.NODE, "# generator output\nsrc/generated-types.ts\tNODE_PROJECT\nroot-schema.json\n"
         );
         List<AssetSite> sites = List.of(
-            AssetSite.root(Set.of(Capability.JAVA, Capability.NODE)),
-            new AssetSite("cms", AssetLocation.NODE_PROJECT, Set.of(Capability.NODE)),
-            new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Capability.JAVA))
+            AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
+            new AssetSite("cms", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
+            new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Layer.JAVA))
         );
         assertEquals(
             List.of("root-schema.json", "cms/src/generated-types.ts"), files.paths(sites),
-            "a node-project declaration lands in each project of the declaring capability and nowhere else"
+            "a node-project declaration lands in each project of the declaring layer and nowhere else"
         );
     }
 
     @Test
-    void declaresNothingForACapabilityWithoutADeclarationFile(@TempDir Path classpath) {
-        GeneratedFiles files = declaring(classpath, Capability.NODE, "src/generated-types.ts\tNODE_PROJECT\n");
+    void declaresNothingForALayerWithoutADeclarationFile(@TempDir Path classpath) {
+        GeneratedFiles files = declaring(classpath, Layer.NODE, "src/generated-types.ts\tNODE_PROJECT\n");
         assertEquals(
-            List.of(), files.paths(List.of(AssetSite.root(Set.of(Capability.JAVA)))),
-            "a repository without the declaring capability denies nothing"
+            List.of(), files.paths(List.of(AssetSite.root(Set.of(Layer.JAVA)))),
+            "a repository without the declaring layer denies nothing"
         );
     }
 
     @Test
     void addsTheFilesAProjectDeclaresAfterTheLayers(@TempDir Path classpath) {
-        GeneratedFiles files = declaring(classpath, Capability.GENERIC, "schema/api.json\n");
+        GeneratedFiles files = declaring(classpath, Layer.GENERIC, "schema/api.json\n");
         List<AssetSite> sites = List.of(AssetSite.root(Set.of()));
         assertEquals(
             List.of("schema/api.json", "src/generated/Client.java"),
@@ -65,7 +65,7 @@ class GeneratedFilesTest {
 
     @Test
     void refusesAMalformedDeclaration(@TempDir Path classpath) {
-        GeneratedFiles files = declaring(classpath, Capability.GENERIC, "a.ts\tROOT\textra\n");
+        GeneratedFiles files = declaring(classpath, Layer.GENERIC, "a.ts\tROOT\textra\n");
         List<AssetSite> sites = List.of(AssetSite.root(Set.of()));
         assertThrows(IllegalStateException.class, () -> files.paths(sites), "a harness bug is never a silent pass");
     }

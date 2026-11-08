@@ -5,8 +5,8 @@
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { readKey } from '@airness/node/json-shapes'
+import { readJson } from '@airness/node/project'
 import { type DatalessFields, datalessFieldsIn } from './access-boundary.js'
-import { readJsonFile } from './json-file.js'
 import { payloadConfigPathOf } from './payload-defaults.js'
 import { type PublicAccess, readPayloadSettings } from './payload-settings.js'
 
@@ -16,7 +16,7 @@ import { type PublicAccess, readPayloadSettings } from './payload-settings.js'
  */
 export const declaredPublicAccess = (): readonly PublicAccess[] => {
   const manifest: string = path.join(process.cwd(), 'package.json')
-  return readPayloadSettings(readJsonFile(manifest)).publicAccess
+  return readPayloadSettings(readJson(manifest)).publicAccess
 }
 
 /**
@@ -27,7 +27,7 @@ export const declaredPublicAccess = (): readonly PublicAccess[] => {
 export const datalessFields = async (): Promise<DatalessFields> => {
   try {
     const root: string = process.cwd()
-    const tsconfig: unknown = readJsonFile(path.join(root, 'tsconfig.json'))
+    const tsconfig: unknown = readJson(path.join(root, 'tsconfig.json'))
     const configModule: unknown = await import(pathToFileURL(path.join(root, payloadConfigPathOf(tsconfig))).href)
     // Awaited either way: `buildConfig` returns a promise, and a plain object is read the same.
     return datalessFieldsIn(await readKey(configModule, 'default'))

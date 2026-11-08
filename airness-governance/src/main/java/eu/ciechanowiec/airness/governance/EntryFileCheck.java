@@ -8,7 +8,7 @@ import java.util.Optional;
  * The repository carries its instructions in {@code AGENTS.md}, and in no other agent instruction file.
  *
  * <p>The managed blocks at the start of {@code AGENTS.md} are checked with the other managed files, by
- * {@link AssetCheck}, because which blocks a file needs depends on the capabilities of the repository.
+ * {@link AssetCheck}, because which blocks a file needs depends on the layers of the repository.
  *
  * <p>Claude Code reads {@code AGENTS.md} itself, so a {@code CLAUDE.md} could only add a second source of
  * instructions beside it. Such files are refused in every directory, since Claude Code also loads nested

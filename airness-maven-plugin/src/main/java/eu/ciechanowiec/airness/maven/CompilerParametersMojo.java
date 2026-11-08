@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
  * bytecode with a different reflection contract from an ordinary build.
  */
 @Mojo(name = "compiler-parameters", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true)
-public final class ParameterMetadataMojo extends AbstractMojo {
+public final class CompilerParametersMojo extends AbstractMojo {
 
     private static final String POM = "pom";
 

@@ -6,8 +6,8 @@ import path from 'node:path'
 import { type RunResult, runNode } from '@airness/node/exec'
 import { failed, type GateResult, notApplicable, passed, withOutput } from '@airness/node/gate-result'
 import { readKey } from '@airness/node/json-shapes'
+import { readJson } from '@airness/node/project'
 import { findGeneratedDrift, type RegeneratedArtefact } from './generated-drift.js'
-import { readJsonFile } from './json-file.js'
 import { analysisEnvironment, PAYLOAD_PACKAGE, type PayloadMember } from './payload-member.js'
 import { asFindings } from './tool-findings.js'
 
@@ -50,7 +50,7 @@ const isTracked = (root: string, target: string): boolean => {
 const payloadCliOf = (root: string): string | undefined => {
   const directory: string = path.join(root, 'node_modules', PAYLOAD_PACKAGE)
   try {
-    const bin: unknown = readKey(readJsonFile(path.join(directory, 'package.json')), 'bin')
+    const bin: unknown = readKey(readJson(path.join(directory, 'package.json')), 'bin')
     const entry: unknown = typeof bin === 'string' ? bin : readKey(bin, PAYLOAD_PACKAGE)
     return typeof entry === 'string' ? path.join(directory, entry) : undefined
   } catch {

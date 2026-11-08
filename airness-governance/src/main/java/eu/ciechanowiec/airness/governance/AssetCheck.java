@@ -19,8 +19,8 @@ import java.util.stream.Stream;
  * Every file the harness owns is where its policy says it should be, with the bytes it should have
  * where the policy owns those bytes.
  *
- * <p>Which files apply is decided per site from the capabilities present there: the repository root
- * carries every capability present anywhere in the repository, and each declared node project carries
+ * <p>Which files apply is decided per site from the layers present there: the repository root
+ * carries every layer present anywhere in the repository, and each declared node project carries
  * its own. A shared root file therefore holds one block for each stack in the repository, and a frontend
  * inside a Java module still receives the node files.
  *
@@ -56,7 +56,7 @@ public final class AssetCheck {
     private final AssetPlan plan;
 
     /**
-     * Checks the repository-root files of a repository holding only the generic capability.
+     * Checks the repository-root files of a repository holding only the generic layer.
      *
      * @param root      the working tree root
      * @param catalogue the files the harness owns
@@ -72,7 +72,7 @@ public final class AssetCheck {
      * @param root      the working tree root
      * @param catalogue the files the harness owns
      * @param unmanaged repository-relative paths this project has taken over
-     * @param sites     the directories that receive files, with the capabilities present in each
+     * @param sites     the directories that receive files, with the layers present in each
      */
     public AssetCheck(
         Path root, AssetCatalogue catalogue, Collection<String> unmanaged, Collection<AssetSite> sites
