@@ -4,6 +4,7 @@ run_repository_cases() {
     run_build_input_cases
     run_formatting_boundaries
     run_binary_formatting_boundary
+    run_indentation_boundary
     run_ignored_output_boundary
     run_tree_boundary
     run_report_only_boundaries
@@ -89,6 +90,33 @@ run_binary_formatting_boundary() {
     expect_no_match audio_text 'formatting: a generated file is left to its generator' 'generated[.]txt'
     expect_no_match audio_text 'formatting: binaries stay outside the text finding' \
         'silence[.]wav@|module[.]wasm@|font[.]pfb@|map[.]bcmap@|tone[.]mp3@|clip[.]mov@'
+}
+
+# Indentation is held to the managed .editorconfig in every tracked text file: the whitespace indent_style names,
+# and in YAML each nesting step at indent_size. A format whose syntax is a tab, such as a make recipe, indents with
+# one, and tab-separated data is exempt by role, as the file linter's configuration exempts it.
+run_indentation_boundary() {
+    new_consumer indentation
+    indentation_consumer="${consumer_directory}"
+    printf 'build:\n\tmvn verify\n' > "${indentation_consumer}/Makefile"
+    printf 'name\tvalue\n\tsecond column only\n' > "${indentation_consumer}/table.tsv"
+    run_maven indentation_conforming repository "${indentation_consumer}" airness:indentation
+    expect_exit indentation_conforming 'indentation: a tree indented as its .editorconfig declares passes' 0
+    expect_match indentation_conforming 'indentation: the check read the tracked tree' \
+        'Indentation read [1-9][0-9]* tracked file'
+
+    mkdir -p "${indentation_consumer}/src/main/resources"
+    printf '# Notes\n\n\tIndented with a tab.\n' > "${indentation_consumer}/notes.md"
+    printf 'spring:\n    datasource:\n        url: jdbc:postgresql://localhost/app\n' \
+        > "${indentation_consumer}/src/main/resources/application.yml"
+    run_maven indentation_departing repository "${indentation_consumer}" airness:indentation
+    expect_exit indentation_departing 'indentation: a departing tree fails the check' 1
+    expect_match indentation_departing 'indentation: a tab-indented file names indent_style and its line' \
+        'notes[.]md: indent_style = space, but line 3 indents with a tab'
+    expect_match indentation_departing 'indentation: a four-space YAML file names indent_size and its step' \
+        'src/main/resources/application[.]yml: indent_size = 2, but line 2 nests 4 columns deeper than line 1'
+    expect_no_match indentation_departing 'indentation: the make recipe and the tab-separated data stay clean' \
+        'Makefile: |table[.]tsv: '
 }
 
 # Output a build writes after validate to a path git ignores outside the build directory, as a compiled package

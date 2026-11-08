@@ -464,7 +464,7 @@ xref:#package-root[`airness.package.root`] is the only required project key.
 
 | `airness.generated.files`
 | empty
-| Repository paths of further files a generator owns, comma-separated. Each is denied to the agent runtime through an `Edit(...)` rule in `.claude/settings.json`, beside the generated files the stack layers and the `airness.generatedArtefacts` of each node project and each member of its workspace declare. The typography and `.editorconfig` checks skip each of them too. The setting can only add to that set.
+| Repository paths of further files a generator owns, comma-separated. Each is denied to the agent runtime through an `Edit(...)` rule in `.claude/settings.json`, beside the generated files the stack layers and the `airness.generatedArtefacts` of each node project and each member of its workspace declare. The typography, indentation and `.editorconfig` checks skip each of them too. The setting can only add to that set.
 
 | [[airness-assets-unmanaged]]`airness.assets.unmanaged`
 | empty

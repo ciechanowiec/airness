@@ -181,6 +181,7 @@
         <axe-core.version>4.13.0</axe-core.version>
         <maven-artifact.version>3.10.0</maven-artifact.version>
         <attoparser.version>2.0.9.RELEASE</attoparser.version>
+        <ec4j-core.version>0.2.1</ec4j-core.version>
         <jspecify.version>1.0.1</jspecify.version>
         <spotbugs-annotations.version>4.10.5</spotbugs-annotations.version>
         <!--
@@ -1471,6 +1472,11 @@
                 <groupId>org.attoparser</groupId>
                 <artifactId>attoparser</artifactId>
                 <version>${attoparser.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ec4j.core</groupId>
+                <artifactId>ec4j-core</artifactId>
+                <version>${ec4j-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jspecify</groupId>

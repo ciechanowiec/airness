@@ -54,6 +54,16 @@
             <artifactId>attoparser</artifactId>
             <scope>compile</scope>
         </dependency>
+        <!--
+            The EditorConfig parser the file linter of the same build reads .editorconfig files with, so the
+            indentation check resolves a file's properties exactly as the linter does. Like the parser above,
+            it carries no dependency of its own beyond its tests.
+        -->
+        <dependency>
+            <groupId>org.ec4j.core</groupId>
+            <artifactId>ec4j-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>

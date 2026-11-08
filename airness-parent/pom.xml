@@ -16,8 +16,8 @@
     <name>airness-parent</name>
     <description>
         The generic parent. It carries the rules that make sense in a repository with no code at all:
-        managed files, the committable tree, formatting of committed text, typography, agent entry
-        files, the suppression ceiling, software refused by name, licenses, freshness, known
+        managed files, the committable tree, formatting and indentation of committed text, typography,
+        agent entry files, the suppression ceiling, software refused by name, licenses, freshness, known
         vulnerabilities, the software bill of materials, the compliance report, history, commit
         messages, secrets, shell scripts and infrastructure.
 
@@ -272,6 +272,7 @@
                         <phase>process-test-classes</phase>
                         <goals>
                             <goal>typography</goal>
+                            <goal>indentation</goal>
                             <goal>entry-files</goal>
                             <goal>image-assets</goal>
                             <goal>environment</goal>

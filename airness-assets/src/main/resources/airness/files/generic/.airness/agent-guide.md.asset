@@ -51,7 +51,11 @@ Airness governs all of the following domains:
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
   rather than reported: build output and a tool's scratch are not content this style governs. Neither is a
   generated file, which is a file a stack layer, `airness.generated.files` or a node project's
-  `airness.generatedArtefacts` declares, and which the editor configuration and the typography check leave unread.
+  `airness.generatedArtefacts` declares, and which the editor configuration, the indentation check and the
+  typography check leave unread. The indentation check holds the rest to the editor configuration too: it reports
+  the first line of each file whose leading whitespace is not the kind `indent_style` names, and in a YAML file
+  the first nesting step that is not `indent_size` columns wide, and passes over the binaries and tab-separated
+  data the file linter exempts.
   Ignored files selected as Java or resource inputs are different: Maven can consume them locally
   while a checkout omits them. The per-module `build-inputs` preflight rejects that mismatch at
   `validate`, `process-resources` and `process-test-resources`, using Maven's roots and file filters,
