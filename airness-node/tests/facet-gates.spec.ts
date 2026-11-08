@@ -19,6 +19,10 @@ import { memberAt, removeProject, temporaryProject } from './helpers/temporary-p
 // Stylelint and Prettier each start a process that reads the stylesheets.
 const TOOL_TIMEOUT_MS: number = 60_000
 
+// A Thymeleaf expression opens with the characters a template literal reads as a placeholder.
+const DOLLAR: string = '$'
+const HOLE: string = `${DOLLAR}{`
+
 const withMember = async (
   files: Readonly<Record<string, string>>,
   packageJson: unknown,
@@ -123,6 +127,40 @@ describe('tailwind-tokens', PROCESS_TIME, () => {
       tailwindTokens,
     )
     expect(result.findings.join('\n')).toContain('components/card.tsx:1')
+  })
+
+  it('reports an arbitrary value in a server-rendered template, in a class and in an expression', async () => {
+    const result: GateResult = await withMember(
+      {
+        'src/main/resources/templates/tasks.html': `<ul class="p-[13px]">\n  <li th:classappend="${HOLE}task.overdue} ? 'text-[#c00]'">due</li>\n</ul>\n`,
+      },
+      { devDependencies: { tailwindcss: '4.0.0' } },
+      tailwindTokens,
+    )
+    expect(result.findings).toEqual([
+      'src/main/resources/templates/tasks.html:1:13 arbitrary Tailwind value `-[13px]`; ' +
+        'apply a theme token through a utility class',
+      'src/main/resources/templates/tasks.html:2:46 arbitrary Tailwind value `-[#c00]`; ' +
+        'apply a theme token through a utility class',
+    ])
+  })
+
+  it('reads a template spelled with the short HTML extension', async () => {
+    const result: GateResult = await withMember(
+      { 'src/page.htm': '<div class="bg-[#0a7]"></div>\n' },
+      { devDependencies: { tailwindcss: '4.0.0' } },
+      tailwindTokens,
+    )
+    expect(result.findings.join('\n')).toContain('src/page.htm:1')
+  })
+
+  it('passes a template whose expressions index a collection', async () => {
+    const result: GateResult = await withMember(
+      { 'src/main/resources/templates/list.html': `<p class="p-4" th:text="${HOLE}tasks[0].title}">title</p>\n` },
+      { devDependencies: { tailwindcss: '4.0.0' } },
+      tailwindTokens,
+    )
+    expect(result).toMatchObject({ ok: true, summary: '1 markup file(s) use only token-bound Tailwind utilities' })
   })
 
   it('passes markup that uses only theme utilities', async () => {

@@ -10,10 +10,11 @@ import { matchesAnyGlob, memberFiles } from './source-selection.js'
 import { type ArbitraryValueViolation, findArbitraryValues } from './tailwind-tokens.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
-// Scoped by role rather than by a list of folders. A Tailwind class is written in JSX, so `.tsx` and `.jsx` are
-// where the rule can find one, and it is also the scope that keeps the rule from misreading a regex character
-// class such as `[a-z]-[0-9]` in ordinary TypeScript.
-const MARKUP_EXTENSIONS: readonly string[] = ['.tsx', '.jsx']
+// Scoped by role rather than by a list of folders. A Tailwind class is written in markup: JSX in a client-rendered
+// project, and an HTML template, such as a Thymeleaf page, in a server-rendered one whose Tailwind build reads
+// its templates. Those are where the rule can find a class, and markup alone is also the scope that keeps the
+// rule from misreading a regex character class such as `[a-z]-[0-9]` in ordinary TypeScript.
+const MARKUP_EXTENSIONS: readonly string[] = ['.tsx', '.jsx', '.html', '.htm']
 
 const isScanned = (member: Member, file: string): boolean =>
   hasExtension(file, MARKUP_EXTENSIONS) &&
