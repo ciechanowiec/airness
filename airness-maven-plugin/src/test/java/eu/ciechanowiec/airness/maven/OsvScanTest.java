@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,6 +43,55 @@ class OsvScanTest {
                 .advisory();
             assertEquals("First line.", advisory.description());
             assertEquals("Unknown", advisory.severity());
+        }
+    }
+
+    @Test
+    void asksAgainWithThePageTokenUntilOsvHasAnsweredEveryPage() {
+        try (ArchiveServer server = new ArchiveServer()) {
+            String batch = "/v1/querybatch";
+            List<String> pages = List.of(
+                "{\"results\": [{\"next_page_token\": \"page-2\"}]}",
+                "{\"results\": [{\"vulns\": [{\"id\": \"OSV-1\"}], \"next_page_token\": \"page-3\"}]}",
+                "{\"results\": [{\"vulns\": [{\"id\": \"OSV-2\"}]}]}"
+            );
+            server.beforeAnswer(
+                () -> server.serve(batch, bytes(pages.get(Math.min(server.requests(), pages.size()) - 1)))
+            );
+            server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"summary\": \"First\"}"));
+            server.serve("/v1/vulns/OSV-2", bytes("{\"id\": \"OSV-2\", \"summary\": \"Second\"}"));
+            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), "web").stream()
+                .map(advisory -> advisory.advisory().description()).sorted().toList();
+            assertEquals(
+                List.of("First", "Second"), found,
+                "a query answered with only a page token still has vulnerabilities on the pages that follow"
+            );
+            List<String> bodies = server.bodies();
+            assertTrue(bodies.get(1).contains("\"page_token\":\"page-2\""), bodies.get(1));
+            assertTrue(bodies.get(2).contains("\"page_token\":\"page-3\""), bodies.get(2));
+            assertTrue(bodies.get(1).contains(KIT) && bodies.get(2).contains(KIT), "each page repeats the package");
+        }
+    }
+
+    @Test
+    void asksAgainOnlyForTheQueriesOsvAnsweredInPart() {
+        try (ArchiveServer server = new ArchiveServer()) {
+            String batch = "/v1/querybatch";
+            String other = "pkg:npm/left-pad@1.3.0";
+            List<String> pages = List.of(
+                "{\"results\": [{\"next_page_token\": \"page-2\"}, {\"vulns\": [{\"id\": \"OSV-1\"}]}]}",
+                "{\"results\": [{\"vulns\": [{\"id\": \"OSV-2\"}]}]}"
+            );
+            server.beforeAnswer(
+                () -> server.serve(batch, bytes(pages.get(Math.min(server.requests(), pages.size()) - 1)))
+            );
+            server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"summary\": \"First\"}"));
+            server.serve("/v1/vulns/OSV-2", bytes("{\"id\": \"OSV-2\", \"summary\": \"Second\"}"));
+            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT, other), "web").stream()
+                .map(advisory -> advisory.advisory().artifact() + " " + advisory.advisory().description()).sorted()
+                .toList();
+            assertEquals(List.of(KIT + " Second", other + " First"), found);
+            assertFalse(server.bodies().get(1).contains(other), "a query OSV answered in full is not asked again");
         }
     }
 

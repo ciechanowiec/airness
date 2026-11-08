@@ -25,9 +25,9 @@ class SecretScanConfigurationTest {
             [[allowlists]]
             description = "Known invalid AWS value used to verify artifact secret detection"
             targetRules = ["generic-api-key"]
-            regexTarget = "line"
+            regexTarget = "secret"
             regexes = [
-                '''AKIA1234567890123456''',
+                '''^AKIA1234567890123456$''',
             ]
             """;
         assertEquals(
@@ -102,7 +102,7 @@ class SecretScanConfigurationTest {
             [[allowlists]]
             description = "a fixture"
             targetRules = ["generic-api-key"]
-            regexes = ['''hunter2xyz''']
+            regexes = ['''^hunter2xyz$''']
             """;
         assertTrue(
             reported(content, "is too short to be an exact value"),
@@ -124,18 +124,108 @@ class SecretScanConfigurationTest {
     }
 
     @Test
-    void acceptsAnExactValueThatCarriesOrdinaryCharacters() {
+    void rejectsAnUnanchoredValueThatARealSecretCanContain() {
         String content = SHARED + """
 
             [[allowlists]]
             description = "a fixture"
             targetRules = ["private-key"]
-            regexes = ["-----BEGIN PRIVATE KEY-----MIIEvQIBADANBgkqh-----END PRIVATE KEY-----"]
+            regexes = ['''PRIVATE KEY-----''']
+            """;
+        assertTrue(
+            reported(content, "matches every finding that contains it"),
+            "gitleaks searches the value anywhere, so this literal would excuse every private key in the history"
+        );
+    }
+
+    @Test
+    void acceptsAnAnchoredValueThatSpellsOrdinaryCharactersEscapesAndLineBreaks() {
+        String content = SHARED + """
+
+            [[allowlists]]
+            description = "a fixture"
+            targetRules = ["generic-api-key"]
+            regexes = ['''^fixture value\\+one\\nsecond-line$''']
             """;
         assertEquals(
             List.of(), broken(content),
-            "a credential is entitled to a space and a dash, and this one matches only itself"
+            "a whole fixture is entitled to a space, an escaped plus and a line break, and matches only itself"
         );
+    }
+
+    @Test
+    void rejectsAnEscapedCharacterClassInsideTheAnchors() {
+        String content = SHARED + """
+
+            [[allowlists]]
+            description = "a fixture"
+            targetRules = ["generic-api-key"]
+            regexes = ['''^fixture-\\d\\d\\d-value$''']
+            """;
+        assertTrue(
+            reported(content, "is a pattern rather than an exact value"),
+            "an escaped letter is a class, which matches more than the value it is written as"
+        );
+    }
+
+    @Test
+    void rejectsAnExceptionWhoseRuleListIsEmpty() {
+        String content = SHARED + """
+
+            [[allowlists]]
+            description = "a fixture"
+            targetRules = []
+            regexes = ['''^fixture-value-one$''']
+            """;
+        assertTrue(
+            reported(content, "targetRules names no rule"),
+            "gitleaks applies an exception with an empty rule list to every rule"
+        );
+    }
+
+    @Test
+    void rejectsAnExceptionWhoseRuleListHoldsOnlyABlankName() {
+        String content = SHARED + """
+
+            [[allowlists]]
+            description = "a fixture"
+            targetRules = [""]
+            regexes = ['''^fixture-value-one$''']
+            """;
+        assertTrue(reported(content, "targetRules names no rule"), "a blank name scopes the exception to nothing");
+    }
+
+    @Test
+    void rejectsAnExceptionMatchedAgainstMoreThanTheSecret() {
+        for (String target : List.of("line", "match")) {
+            String content = SHARED + """
+
+                [[allowlists]]
+                description = "a fixture"
+                targetRules = ["generic-api-key"]
+                regexTarget = "%s"
+                regexes = ['''^fixture-value-one$''']
+                """.formatted(target);
+            assertTrue(
+                reported(content, "matches the value against more than the secret"),
+                "an anchored value matched against the " + target + " still excuses whatever shares it"
+            );
+        }
+    }
+
+    @Test
+    void acceptsAnExceptionThatDeclaresTheSecretAsItsTarget() {
+        for (String quote : List.of("\"", "'")) {
+            String content = SHARED + """
+
+                [[allowlists]]
+                description = "a fixture"
+                targetRules = ["generic-api-key"]
+                regexTarget = %ssecret%s
+                regexes = ['''^fixture-value-one$''']
+                """.formatted(quote, quote);
+            assertEquals(List.of(), broken(content), "the secret is the target gitleaks uses when none is declared");
+        }
     }
 
     @Test
@@ -188,8 +278,8 @@ class SecretScanConfigurationTest {
             description = "a fixture"
             targetRules = ["generic-api-key"]
             regexes = [
-                '''AKIA1234567890123456''',
-                '''ghp_000000000000000000000000000000000000''',
+                '''^AKIA1234567890123456$''',
+                '''^ghp_000000000000000000000000000000000000$''',
             ]
             """;
         assertEquals(

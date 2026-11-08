@@ -26,6 +26,12 @@ import java.util.stream.Stream;
  * a broad pattern never can. A path, a commit or a stopword excuses a whole file, a whole change or a
  * whole class of words, and none of those is one fixture.
  *
+ * <p>Exactness is judged by how gitleaks matches, not by how the value reads. It searches an exception's
+ * regex anywhere in its target, so a literal with no metacharacter still excuses every finding that
+ * contains it: {@code PRIVATE KEY-----} would excuse every private key in the history. An exact value is
+ * therefore anchored as {@code ^value$}, matched against the secret alone, and scoped to at least one
+ * named rule, because gitleaks applies an exception with an empty {@code targetRules} to every rule.
+ *
  * <p>A line this reader cannot account for is reported rather than skipped. The grammar is a handful of
  * keys wide, so reading it needs no library, but a reader that ignored what it did not recognise would
  * pass a key it had never heard of in silence, and that silence is the thing being removed.
@@ -46,17 +52,24 @@ public final class SecretScanConfiguration {
     private static final Pattern ENTRY = Pattern.compile("^([A-Za-z_][A-Za-z0-9_-]*)\\s*=\\s*(.+)$");
     private static final Pattern STRING = Pattern.compile("'''(.*?)'''|\"([^\"]*)\"|'([^']*)'", Pattern.DOTALL);
     /**
-     * What makes a value a pattern rather than one value: a metacharacter that lets it match more than
-     * the string it is written as. Tested by what widens a match rather than by an alphabet a value is
-     * allowed to draw from, because an exact credential is entitled to contain a space, a dash or any
-     * other ordinary character. A private key fixture opens with BEGIN PRIVATE KEY and is as exact as a
-     * value gets, and an alphabet would have refused it for the space in the middle.
+     * The body of one exact value between its anchors: ordinary characters, punctuation escaped with a
+     * backslash, and {@code \n} for the line break a multi-line fixture carries. Tested by what widens a
+     * match rather than by an alphabet a value is allowed to draw from, because an exact credential is
+     * entitled to a space, a dash or any other ordinary character, and a whole key carries a {@code +}
+     * that only an escape lets it spell. An escaped letter or digit other than {@code n} is a class such as
+     * {@code \d}, which widens the match.
      */
-    private static final Pattern WIDENING = Pattern.compile("[.*+?|()\\[\\]{}^$\\\\]");
+    private static final Pattern EXACT_BODY = Pattern.compile("(?:[^.*+?|()\\[\\]{}^$\\\\]|\\\\[^A-Za-z0-9]|\\\\n)*");
+    // One character of an exact body, an escape counting as the single character it spells.
+    private static final Pattern EXACT_CHARACTER = Pattern.compile("\\\\.|.", Pattern.DOTALL);
+    private static final String ANCHOR_START = "^";
+    private static final String ANCHOR_END = "$";
     private static final int SHORTEST_EXACT_VALUE = 12;
     private static final String EXTEND = "extend";
     private static final String ALLOWLISTS = "allowlists";
     private static final String TARGET_RULES = "targetRules";
+    private static final String REGEX_TARGET = "regexTarget";
+    private static final String SECRET_TARGET = "secret";
     private static final String DESCRIPTION = "description";
     private static final List<String> WHOLE_SWEEPS = List.of("paths", "commits", "stopwords");
 
@@ -118,6 +131,15 @@ public final class SecretScanConfiguration {
                 entry -> "line " + entry.number() + ": an exception needs both " + TARGET_RULES
                     + " and " + DESCRIPTION + ", so it says which rule it excuses and why"
             ).forEach(problems::add);
+        this.statements.stream()
+            .filter(statement -> statement.is(ALLOWLISTS, TARGET_RULES))
+            .filter(statement -> strings(statement.value()).stream().allMatch(String::isBlank))
+            .map(
+                statement -> statement.at(
+                    TARGET_RULES + " names no rule, and gitleaks applies such an exception to every rule"
+                )
+            )
+            .forEach(problems::add);
         return List.copyOf(problems);
     }
 
@@ -129,6 +151,15 @@ public final class SecretScanConfiguration {
                 statement -> statement.at(
                     statement.key()
                         + " excuses a whole file, change or class of words rather than one value"
+                )
+            ).forEach(problems::add);
+        this.statements.stream()
+            .filter(statement -> statement.is(ALLOWLISTS, REGEX_TARGET))
+            .filter(statement -> !List.of(SECRET_TARGET).equals(strings(statement.value())))
+            .map(
+                statement -> statement.at(
+                    REGEX_TARGET + " = " + statement.value()
+                        + " matches the value against more than the secret; omit it or declare \"secret\""
                 )
             ).forEach(problems::add);
         this.statements.stream()
@@ -196,18 +227,27 @@ public final class SecretScanConfiguration {
     /**
      * Why an allowlist value is not one exact value, or nothing when it is.
      *
-     * <p>A value fails this for either of two unrelated reasons, and each asks for a different repair.
-     * Reporting both as the same sentence sent the reader of a short literal looking for a
-     * metacharacter that was never there, so the two now say what they mean.
+     * <p>A value fails this for any of three unrelated reasons, and each asks for a different repair.
+     * Reporting them as the same sentence sent the reader of a short literal looking for a
+     * metacharacter that was never there, so each says what it means.
      *
      * @param value the allowlist value as written
      * @return the reason the value is not exact, or nothing when it is
      */
-    private static Optional<String> inexactness(CharSequence value) {
-        if (WIDENING.matcher(value).find()) {
+    private static Optional<String> inexactness(String value) {
+        boolean anchored = value.startsWith(ANCHOR_START) && value.endsWith(ANCHOR_END);
+        String body = anchored
+            ? value.substring(ANCHOR_START.length(), value.length() - ANCHOR_END.length())
+            : value;
+        if (!EXACT_BODY.matcher(body).matches()) {
             return Optional.of("is a pattern rather than an exact value");
         }
-        return value.length() < SHORTEST_EXACT_VALUE
+        if (!anchored) {
+            return Optional.of(
+                "matches every finding that contains it; write it as ^value$ so it matches one whole secret"
+            );
+        }
+        return EXACT_CHARACTER.matcher(body).results().count() < SHORTEST_EXACT_VALUE
             ? Optional.of(
                 "is too short to be an exact value, which needs at least "
                     + SHORTEST_EXACT_VALUE + " characters"
