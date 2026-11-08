@@ -11,3 +11,7 @@ max_line_length = 120
 
 [*.{yml,yaml,ts,tsx,mts,cts,js,jsx,mjs,cjs,json,jsonc}]
 indent_size = 2
+
+# Formats whose syntax requires a tab: a make recipe, the submodule list that git writes, and gofmt output.
+[{Makefile,makefile,GNUmakefile,*.mk,.gitmodules,*.go}]
+indent_style = tab

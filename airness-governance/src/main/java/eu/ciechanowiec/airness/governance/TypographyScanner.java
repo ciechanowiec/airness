@@ -1,8 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -33,21 +31,15 @@ final class TypographyScanner {
      * @return the violations found, how many files each prefix kept out, and how many were read
      */
     static TypographyScan scan(Path root, Collection<String> excludedPrefixes, Collection<String> generated) {
-        List<PathMatcher> owned = generated.stream()
-            .map(glob -> FileSystems.getDefault().getPathMatcher("glob:" + glob))
-            .toList();
-        List<Path> tracked = Repository.trackedFiles(root);
-        List<Path> ungenerated = tracked.stream()
-            .filter(file -> owned.stream().noneMatch(matcher -> matcher.matches(root.relativize(file))))
-            .toList();
-        List<Path> included = ungenerated.stream()
+        AuthoredFiles files = AuthoredFiles.of(root, generated);
+        List<Path> included = files.authored().stream()
             .filter(file -> isIncluded(root, file, excludedPrefixes))
             .toList();
         List<String> violations = included.stream()
             .flatMap(file -> violationsFor(root, file).stream())
             .toList();
         return new TypographyScan(
-            violations, skipped(root, tracked, excludedPrefixes), included.size(), tracked.size() - ungenerated.size()
+            violations, skipped(root, files.tracked(), excludedPrefixes), included.size(), files.generated()
         );
     }
 
