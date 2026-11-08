@@ -59,8 +59,8 @@ public final class JavadocLinkCheck {
     }
 
     private Stream<String> report(Path source, CharSequence text) {
-        Predicate<String> resolves = this.scope.of(source, text);
-        return JavadocLinkRules.unlinked(text, resolves).stream()
+        Predicate<String> named = this.scope.named(source, text);
+        return JavadocLinkRules.unlinked(text, named, JavadocScope::inJavaLang).stream()
             .map(name -> "%s: %s".formatted(this.root.relativize(source), name));
     }
 }

@@ -21,6 +21,50 @@ describe('no-fail-open-secret-guard', () => {
     },
   )
 
+  // strict-boolean-expressions refuses bare truthiness on a `string | undefined`, so these are the
+  // spellings a project actually writes; each skips the rejection exactly when the credential is unset.
+  it.each([
+    'secret !== undefined',
+    'secret != undefined',
+    'secret !== null',
+    'secret != null',
+    'undefined !== secret',
+    'null != secret',
+    "typeof secret === 'string'",
+    'typeof secret == "string"',
+    "typeof secret !== 'undefined'",
+    "'string' === typeof secret",
+    'Boolean(secret)',
+    '!!secret',
+    '! !secret',
+    'secret.length > 0',
+    'secret.length !== 0',
+    'secret.length >= 1',
+    'secret?.length > 0',
+    '0 < secret.length',
+    '(secret !== undefined)',
+    "( /* configured */ typeof secret === 'string')",
+    'environment.CRON_SECRET !== undefined',
+    'environment?.CRON_SECRET != null',
+  ])('reports a rejection guarded by the presence test %s', (presence: string) => {
+    expect(rulesOf(`if (${presence} && supplied !== secret) { return unauthorized() }`)).toEqual([
+      'no-fail-open-secret-guard',
+    ])
+  })
+
+  it('reports a presence test that is not the first conjunct', () => {
+    expect(rulesOf('if (enabled && secret !== undefined && supplied !== secret) { return unauthorized() }')).toEqual([
+      'no-fail-open-secret-guard',
+    ])
+  })
+
+  it('names the credential a presence comparison tests', () => {
+    const findings: readonly SourceViolation[] = findFailOpenSecretGuards(
+      'if (environment?.CRON_SECRET !== undefined && supplied !== environment.CRON_SECRET) { throw unauthorized() }',
+    )
+    expect(findings[0]?.reason).toContain('environment.CRON_SECRET')
+  })
+
   it('reports a single-statement rejection as well as a block', () => {
     expect(rulesOf('if (secret && supplied !== secret) return unauthorized()')).toEqual(['no-fail-open-secret-guard'])
   })
@@ -91,8 +135,27 @@ describe('fail-closed and unrelated conditions', () => {
     expect(rulesOf(source)).toEqual([])
   })
 
-  it('accepts an explicit absence comparison', () => {
-    expect(rulesOf('if (secret === undefined && enabled) { return configurationError() }')).toEqual([])
+  it.each([
+    'if (secret === undefined && enabled) { return configurationError() }',
+    'if (secret == null && enabled) { return configurationError() }',
+    "if (typeof secret === 'undefined' && enabled) { return configurationError() }",
+    "if (typeof secret !== 'string' && enabled) { return configurationError() }",
+    'if (secret.length === 0 && enabled) { return configurationError() }',
+    'if (!secret && enabled) { return configurationError() }',
+  ])('accepts an explicit absence comparison: %s', (source: string) => {
+    expect(rulesOf(source)).toEqual([])
+  })
+
+  it('accepts a presence comparison that stands alone, without a conjoined rejection', () => {
+    expect(rulesOf('if (secret !== undefined) { return unauthorized() }')).toEqual([])
+  })
+
+  it('accepts a presence-tested credential followed by a successful comparison', () => {
+    expect(rulesOf('if (secret !== undefined && supplied === secret) { return true } return false')).toEqual([])
+  })
+
+  it('does not mistake a compared length for a presence test of a credential', () => {
+    expect(rulesOf('if (tokens.length > 0 && invalid) { return failure() }')).toEqual([])
   })
 
   it('does not mistake a token count for a credential', () => {

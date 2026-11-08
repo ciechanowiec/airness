@@ -196,6 +196,10 @@ const MISSING_MIGRATIONS: string =
 
 /**
  * Report a member that records no migration for the schema it expects.
+ *
+ * Presence alone, read from source so it holds where the configuration cannot be built. Whether the migrations
+ * record EVERY schema change is the payload-migrations gate's question, which diffs the built schema against
+ * the newest committed snapshot.
  * @param evidence the adapter it declares, and the candidate directories as they were read.
  * @returns one finding when the member pushes and records nothing, or none.
  */

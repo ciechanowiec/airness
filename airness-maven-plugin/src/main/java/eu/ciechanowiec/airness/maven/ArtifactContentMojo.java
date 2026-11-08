@@ -13,6 +13,7 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -31,8 +32,17 @@ import org.jspecify.annotations.Nullable;
  * goes on to install and deploy, while the assembled path only happens to name the same file in a build
  * that does not repackage. The assembled path remains the fallback for the goal invoked on its own,
  * where no packaging plugin has run and the project artifact carries no file yet.
+ *
+ * <p>The goal requires the runtime dependencies resolved, because those are the archives a packaging plugin
+ * can copy into the one that ships, and the check exempts the bytes they supply. Maven hands a goal that
+ * requires no resolution an empty set of project artifacts, whether it runs in a lifecycle or on its own,
+ * so without the requirement the exemption would compare against nothing and a repackaged archive would
+ * answer for its dependencies' own bytes.
  */
-@Mojo(name = "artifact-content", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
+@Mojo(
+    name = "artifact-content", defaultPhase = LifecyclePhase.VERIFY,
+    requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true
+)
 public final class ArtifactContentMojo extends AbstractGovernanceMojo {
 
     private static final String ARCHIVE = ".jar";

@@ -1,12 +1,15 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.io.File;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -21,8 +24,9 @@ import java.util.stream.Stream;
  *
  * <p>The Next.js facet contributes a third: what a Next.js application's build configuration inlines through a
  * {@code NEXT_PUBLIC_} read must be declared by an {@code ARG} in every Dockerfile that builds the application,
- * because docker discards a {@code --build-arg} the Dockerfile never named and warns rather than failing. A
- * Dockerfile builds the node package whose directory most closely holds it. The variables application code
+ * because docker discards a {@code --build-arg} the Dockerfile never named and warns rather than failing, so each
+ * such Dockerfile is judged by its own declarations. A Dockerfile builds the node package whose directory most
+ * closely holds it, and the one whose directory it names as a relative path. The variables application code
  * reads through a validated environment module are a stack layer input, and the generic layer reads none.
  */
 public final class EnvironmentCheck {
@@ -43,6 +47,11 @@ public final class EnvironmentCheck {
     );
     private static final String MANIFEST = "package.json";
     private static final String NEXT = "next";
+    // The words of a Dockerfile, in shell form and in the exec form's JSON array alike.
+    private static final Pattern WORD = Pattern.compile("[\\s,\\[\\]\\(\\);&|]+");
+    private static final Pattern OPTION_NAME = Pattern.compile("^--?[\\w-]+=");
+    private static final Pattern CURRENT = Pattern.compile("^(?:\\./)+");
+    private static final String SEPARATOR = "/";
 
     private final Path root;
     private final ContainerDefinitions definitions;
@@ -116,34 +125,50 @@ public final class EnvironmentCheck {
     }
 
     private Stream<String> undeclaredIn(Path application, List<Path> dockerfiles) {
-        if (dockerfiles.isEmpty()) {
-            return Stream.empty();
-        }
-        Set<String> declared = dockerfiles.stream()
-            .flatMap(file -> EnvironmentRules.buildArguments(this.read(file)).stream())
-            .collect(Collectors.toSet());
-        String files = dockerfiles.stream().map(this::relative).collect(Collectors.joining(", "));
-        return BUILD_CONFIGURATIONS.stream()
+        List<String> inlined = BUILD_CONFIGURATIONS.stream()
             .map(application::resolve)
             .flatMap(file -> EnvironmentRules.inlined(this.read(file)).stream())
             .distinct()
             .sorted()
+            .toList();
+        return dockerfiles.stream().flatMap(dockerfile -> this.undeclaredBy(dockerfile, inlined));
+    }
+
+    // Each Dockerfile answers for itself: docker drops a build argument the file being built never declared,
+    // whatever another Dockerfile building the same application declares.
+    private Stream<String> undeclaredBy(Path dockerfile, Collection<String> inlined) {
+        Set<String> declared = EnvironmentRules.buildArguments(this.read(dockerfile));
+        return inlined.stream()
             .filter(name -> !declared.contains(name))
-            .map(name -> name + " in " + files);
+            .map(name -> name + " in " + this.relative(dockerfile));
     }
 
     // The Dockerfiles that build a package: those its directory holds more closely than any other package's
     // does, and, wherever they sit, those that name its directory, which is how a Dockerfile at the root of a
     // monorepo, or under docker/, copies one application out of it.
     private List<Path> building(Path application, List<Path> packages, List<Path> dockerfiles) {
-        String directory = this.relative(application);
+        String directory = this.relative(application).replace(File.separator, SEPARATOR);
         return dockerfiles.stream().filter(file -> this.builds(file, application, directory, packages)).toList();
     }
 
     private boolean builds(Path dockerfile, Path application, String directory, List<Path> packages) {
         boolean held = owner(dockerfile, packages).filter(application::equals).isPresent();
-        boolean named = !directory.isEmpty() && this.read(dockerfile).contains(directory);
-        return held || named;
+        return held || (!directory.isEmpty() && names(this.read(dockerfile), directory));
+    }
+
+    // A Dockerfile names a directory with a word that is a path relative to the build context at or under it,
+    // quoted or not, written plainly or as the value of an option such as --workspace=web. A word merely
+    // containing the name, as build contains ui, is another word, and an absolute path such as /app is a place
+    // inside the image rather than in the repository.
+    private static boolean names(CharSequence dockerfile, String directory) {
+        return WORD.splitAsStream(dockerfile)
+            .map(EnvironmentCheck::relativePath)
+            .anyMatch(path -> path.equals(directory) || path.startsWith(directory + SEPARATOR));
+    }
+
+    private static String relativePath(String word) {
+        String value = Quotes.stripped(OPTION_NAME.matcher(Quotes.stripped(word)).replaceFirst(""));
+        return CURRENT.matcher(value).replaceFirst("");
     }
 
     private static Optional<Path> owner(Path file, List<Path> packages) {

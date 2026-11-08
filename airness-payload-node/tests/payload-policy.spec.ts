@@ -440,3 +440,47 @@ describe('require-endpoint-access, where it stays silent', () => {
     expect(endpointRulesOf(ENDPOINT, source)).toEqual([])
   })
 })
+
+// A handler that spells its parameter out, and a module that opens its own instance, call the same Local API.
+describe('the receivers every Local API rule reads', () => {
+  it.each(['req', 'request', 'args.request'])('reads %s.payload as the request-scoped instance', (name: string) => {
+    expect(rulesOf(`await ${name}.payload.findGlobal({ slug: 'settings' })`)).toEqual([
+      'no-unbounded-findglobal',
+      'no-unthreaded-req',
+    ])
+  })
+
+  it('accepts a call through request.payload that threads the request', () => {
+    expect(rulesOf("await request.payload.findGlobal({ slug: 'settings', depth: 0, req: request })")).toEqual([])
+  })
+
+  it.each([
+    'const cms = await getPayload({ config })',
+    'let cms = await getPayload({ config })',
+    'const cms: Payload = await getPayload({ config })',
+    'const cms = await getPayload ({ config })',
+  ])('reads a name bound as %s as the Local API', (binding: string) => {
+    expect(rulesOf(`${binding}\nawait cms.find({ collection: 'posts' })`)).toEqual(['no-unbounded-find'])
+  })
+
+  it('reads opaque options and an ignored user through a bound name', () => {
+    const source: string = [
+      'const cms = await getPayload({ config })',
+      'cms.find(options)',
+      'cms.count({ user })',
+    ].join('\n')
+    expect(rulesOf(source)).toEqual(['require-explicit-payload-options', 'require-user-access-control'])
+  })
+
+  // Only the request carries a transaction to thread, so an instance the file opened is not asked for one.
+  it('does not ask a bound name to thread a request', () => {
+    const source: string = "const cms = await getPayload({ config })\nawait cms.find({ collection: 'p', limit: 1 })"
+    expect(rulesOf(source)).toEqual([])
+  })
+
+  // Named, never a wildcard: an object that merely holds a payload property is not the Local API.
+  it('ignores a payload property of any other object', () => {
+    expect(rulesOf("await job.payload.find({ collection: 'posts' })")).toEqual([])
+    expect(rulesOf("await cms.find({ collection: 'posts' })")).toEqual([])
+  })
+})

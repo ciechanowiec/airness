@@ -51,17 +51,22 @@ final class JavadocScope {
     }
 
     /**
-     * Whether a simple name resolves from {@code source}, whose content is {@code text}.
+     * Whether a simple name resolves from {@code source}, whose content is {@code text}, through what the
+     * file names itself: an import, a type its own package declares, or a type it declares. A type of
+     * {@code java.lang}, which no file names, is {@link #inJavaLang(String)} instead.
      */
-    Predicate<String> of(Path source, CharSequence text) {
+    Predicate<String> named(Path source, CharSequence text) {
         Set<String> named = Stream.concat(
             this.neighbours.getOrDefault(source.getParent(), Set.of()).stream(),
             Stream.concat(imported(text), declared(text))
         ).collect(Collectors.toUnmodifiableSet());
-        return name -> named.contains(name) || inJavaLang(name);
+        return named::contains;
     }
 
-    private static boolean inJavaLang(String name) {
+    /**
+     * Whether a simple name resolves in every file through the implicit import of {@code java.lang}.
+     */
+    static boolean inJavaLang(String name) {
         try {
             Class.forName(JAVA_LANG + name, false, ClassLoader.getSystemClassLoader());
             return true;

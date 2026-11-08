@@ -126,9 +126,10 @@ Airness governs all of the following domains:
   client JavaScript within 1100 KiB), and for a browser application `e2e`: the harness's accessibility, layout and
   security-header specs and the member's own end-to-end specs under the shipped Playwright configuration. A
   browser application that is not a Next.js application declares the script that serves it as `serve`. A
-  Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top, the
-  pages the crawl renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets
-  goal seeds `src/proxy.ts`. A node project declares only what the harness cannot know, under the `airness` key
+  Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top and
+  refuses a routes directory (`app` or `pages`) at the member root rather than under `src`, the pages the crawl
+  renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets goal seeds
+  `src/proxy.ts`. A node project declares only what the harness cannot know, under the `airness` key
   of its `package.json`, through the keys the table Node Project Settings lists. Diagnose one finding with
   `pnpm exec airness-node gate <id> --verbose`, which gives no verdict. The sections Node Application
   Preparation and Security Corrections, Browser Verification and Node Project Settings complete this domain.
@@ -447,8 +448,9 @@ Earlier report pairs are removed only after a complete replacement has been rend
   the scanners' native files, `.gitleaksignore`, which gitleaks reads whatever its flags say, and the
   `junit.jupiter.execution.timeout.*` keys of a `junit-platform.properties`, which the parents pin as launcher
   parameters. A fixture exception belongs in `.gitleaks.toml`, and the rest of `junit-platform.properties` stays the
-  project's. That exception names its `targetRules` and writes the whole fixture as `^value$`, matched against the
-  secret, because gitleaks excuses every finding that contains an unanchored value.
+  project's. That exception names its `targetRules` and writes the whole fixture as `'''^value$'''`, a literal
+  string matched against the secret, because gitleaks excuses every finding that contains an unanchored value and
+  decodes the escapes of a double-quoted one before compiling it.
 
 ### Vulnerability Exceptions
 

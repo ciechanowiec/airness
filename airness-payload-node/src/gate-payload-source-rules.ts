@@ -17,7 +17,7 @@ import {
   migrationDirectoriesFor,
 } from './payload-database.js'
 import type { PayloadMember } from './payload-member.js'
-import { findEndpointViolations, findPayloadViolations } from './payload-policy.js'
+import { findEndpointViolations, findPayloadViolations, findReachedEndpointViolations } from './payload-policy.js'
 import type { PayloadViolation } from './payload-source.js'
 import { payloadSourcesOf } from './payload-sources.js'
 import { findUnguardedRelationships, type LocatedViolation } from './relationship-cleanup.js'
@@ -65,11 +65,14 @@ export const payloadSourceRules = (target: PayloadMember): GateResult => {
         ...findMisplacedEndpoints(file.path, file.source),
       ].map((violation: PayloadViolation): string => reported(file.path, violation)),
     ),
-    // A required relationship names its target by slug, declared in another file, so these read the whole set
-    // and report the file that declares the relationship.
-    ...[...findUnguardedRelationships(files), ...findBootstrapWrites(files)].map((located: LocatedViolation): string =>
-      reported(located.path, located.violation),
-    ),
+    // A required relationship names its target by slug, declared in another file, and a boot hook or a route
+    // handler reaches a function in another file, so these read the whole set and report the file that holds
+    // the relationship, the hook or the handler.
+    ...[
+      ...findUnguardedRelationships(files),
+      ...findBootstrapWrites(files),
+      ...findReachedEndpointViolations(files),
+    ].map((located: LocatedViolation): string => reported(located.path, located.violation)),
     ...findMissingMigrations(migrationEvidenceOf(target.member.root, files)),
   ]
   return findings.length > 0

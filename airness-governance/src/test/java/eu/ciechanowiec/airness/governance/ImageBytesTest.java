@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +21,9 @@ class ImageBytesTest {
     // Cutting the end chunk and eight more bytes leaves the image data chunk running past the file.
     private static final int INTO_IMAGE_DATA = END_CHUNK + 8;
     private static final int RAW_IMAGE = 64;
+    private static final int HUFFMAN_TABLE = 0xC4;
+    private static final int EXIF = 0xE1;
+    private static final String TRUNCATED_JPEG = "truncated JPEG (missing EOI marker)";
 
     private static Optional<String> problem(String name, byte[] bytes) {
         return ImageBytes.problem(Path.of(name), bytes);
@@ -102,6 +107,56 @@ class ImageBytesTest {
         assertEquals(
             Optional.of("not a valid WebP (bad RIFF/WEBP header)"),
             problem("a.webp", ImageFixtures.withByte(ImageFixtures.webp(), 8, 'X')), "a WebP must name its form"
+        );
+    }
+
+    @Test
+    void acceptsAJpegFollowedByTheTrailerAPhoneAppends() {
+        byte[] samsung = "\0\0SEFHinfo\u00FF\u00D8\u00FF\u00E1SEFT".getBytes(StandardCharsets.ISO_8859_1);
+        byte[] motionPhoto = "\0\0\0\u0018ftypmp42\0\0\0\0isommp42\u00FF".getBytes(StandardCharsets.ISO_8859_1);
+        for (byte[] trailer : List.of(samsung, motionPhoto)) {
+            assertEquals(
+                Optional.empty(), problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpeg(), trailer)),
+                "what follows the end marker is not the image"
+            );
+        }
+    }
+
+    @Test
+    void acceptsAProgressiveJpegWhoseScansAreSeparatedBySegments() {
+        byte[] table = ImageFixtures.jpegSegment(HUFFMAN_TABLE, new byte[] {0x00, 0x01});
+        byte[] progressive = ImageFixtures.joined(
+            ImageFixtures.jpegStart(), table, ImageFixtures.jpegScan(), table, ImageFixtures.jpegScan(),
+            ImageFixtures.jpegEnd()
+        );
+        assertEquals(Optional.empty(), problem("a.jpg", progressive), "a later scan follows a table of its own");
+        assertEquals(
+            Optional.of(TRUNCATED_JPEG),
+            problem("a.jpg", ImageFixtures.withoutLast(progressive, ImageFixtures.jpegEnd().length)),
+            "and the image still has to end"
+        );
+    }
+
+    @Test
+    void readsNoEndMarkerFromAThumbnailEmbeddedInTheMetadata() {
+        byte[] thumbnail = ImageFixtures.joined(
+            "Exif\0\0".getBytes(StandardCharsets.ISO_8859_1), ImageFixtures.jpeg()
+        );
+        byte[] metadata = ImageFixtures.jpegSegment(EXIF, thumbnail);
+        assertEquals(
+            Optional.of(TRUNCATED_JPEG),
+            problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpegStart(), metadata, ImageFixtures.jpegScan())),
+            "the main image never reached its end marker"
+        );
+        assertEquals(
+            Optional.of(TRUNCATED_JPEG), problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpegStart(), metadata)),
+            "a file cut just after the thumbnail ends with the thumbnail's end marker and not its own"
+        );
+        byte[] cut = ImageFixtures.withoutLast(metadata, 1);
+        assertEquals(
+            Optional.of(TRUNCATED_JPEG),
+            problem("a.jpg", ImageFixtures.joined(ImageFixtures.jpegStart(), cut, ImageFixtures.jpegEnd())),
+            "a segment declaring more than the file holds is cut short, whatever its last bytes are"
         );
     }
 

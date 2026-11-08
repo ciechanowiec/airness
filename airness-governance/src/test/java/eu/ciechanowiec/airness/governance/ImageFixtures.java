@@ -27,6 +27,10 @@ final class ImageFixtures {
     private static final int MARKER = 0xFF;
     private static final int JPEG_START = 0xD8;
     private static final int JPEG_END = 0xD9;
+    private static final int JPEG_COMMENT = 0xFE;
+    private static final int JPEG_SCAN = 0xDA;
+    private static final int JPEG_RESTART = 0xD0;
+    private static final int BYTE = 8;
     private static final int GIF_TRAILER = 0x3B;
     // Room for a stream that does not compress at all, plus the zlib header and checksum.
     private static final int DEFLATE_SLACK = 64;
@@ -57,7 +61,37 @@ final class ImageFixtures {
     }
 
     static byte[] jpeg() {
-        return new byte[] {(byte) MARKER, (byte) JPEG_START, 0x01, 0x02, (byte) MARKER, (byte) JPEG_END};
+        return joined(jpegStart(), jpegSegment(JPEG_COMMENT, "Airness"), jpegScan(), jpegEnd());
+    }
+
+    static byte[] jpegStart() {
+        return new byte[] {(byte) MARKER, (byte) JPEG_START};
+    }
+
+    static byte[] jpegEnd() {
+        return new byte[] {(byte) MARKER, (byte) JPEG_END};
+    }
+
+    static byte[] jpegSegment(int marker, String body) {
+        return jpegSegment(marker, body.getBytes(StandardCharsets.ISO_8859_1));
+    }
+
+    // A segment's length counts its own two bytes and the body, never the marker.
+    static byte[] jpegSegment(int marker, byte[] body) {
+        int length = body.length + 2;
+        return joined(new byte[] {(byte) MARKER, (byte) marker, (byte) (length >> BYTE), (byte) length}, body);
+    }
+
+    // A scan header, then entropy-coded data holding an escaped 0xFF and a restart marker, then fill bytes.
+    static byte[] jpegScan() {
+        byte[] data = {0x12, (byte) MARKER, 0x00, 0x34, (byte) MARKER, (byte) JPEG_RESTART, 0x56, (byte) MARKER};
+        return joined(jpegSegment(JPEG_SCAN, new byte[] {0x01, 0x01, 0x00, 0x00, 0x3F, 0x00}), data);
+    }
+
+    static byte[] joined(byte[]... parts) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Arrays.stream(parts).forEach(out::writeBytes);
+        return out.toByteArray();
     }
 
     static byte[] gif() {

@@ -15,8 +15,9 @@ The Payload gates run through `airness:node-gate` like every node gate, bound by
 | `payload-source-rules` | `post-integration-test` | Local API calls state their bounds, thread `req`, and decide access; every handler an `endpoints:` entry serves comes from `src/endpoints`; every collection and global decides its access; auth collections lock accounts; uploads are restricted; a configuration that pushes no schema records its migrations; nothing writes at boot. |
 | `admin-views` | `post-integration-test` | Every custom admin view has an accessibility specification of the project's own. |
 | `payload-environment` | `post-integration-test` | Every variable `src/lib/environment.ts` reads is documented in the repository's example file, and every `NEXT_PUBLIC_` variable it inlines is declared by an `ARG` in each Dockerfile that builds the member. |
-| `payload-generated` | `post-integration-test` | Regenerating the Payload types and the admin import map with the project's own Payload CLI leaves them unchanged. |
+| `payload-generated` | `post-integration-test` | Regenerating the Payload types, the admin import map and, when the member keeps `src/payload-generated-schema.ts`, the database schema with the project's own Payload CLI leaves them unchanged. |
 | `payload-defaults` | `post-integration-test` | Every collection and global of the built configuration, framework-built ones included, decides its access; no drafts read serves an unapproved document to a stranger; production authentication limits are valid; `admin.autoLogin` is off. |
+| `payload-migrations` | `post-integration-test` | The schema the configuration builds matches the newest `.json` snapshot the committed migrations record, compared as `payload migrate:create` compares it, without a database and without writing a file. |
 
 Run one gate with `pnpm exec airness-payload gate <id> --verbose` to diagnose it. That is a diagnosis, never a verdict.
 
@@ -37,10 +38,11 @@ under `airness`.
 | `analysisEnv` | placeholders for `PAYLOAD_SECRET` and `DATABASE_URL` | Variables the gates that import the configuration use when neither the process nor `.env.local`/`.env` supplies them. They let the configuration evaluate; nothing connects to them. |
 
 The layer contributes defaults to the node settings of every member that declares `@airness/payload`: the generated
-files (`src/payload-types.ts`, `src/payload-generated-schema.ts`, and everything under `src/app/(payload)`, the
-admin and API glue Payload scaffolds as generated), the framework glue (`src/payload.config.ts`), the pure-logic floor (`src/access`, `src/lib`)
-and the routes the accessibility sweep leaves to Payload (`/admin`, `/api`). Agents may not edit the generated
-files; regenerate them with the Payload CLI. The installed layer contributes exact security replacements for
+files (`src/payload-types.ts`, `src/payload-generated-schema.ts`, everything under `src/app/(payload)`, the
+admin and API glue Payload scaffolds as generated, and the `src/migrations/*.json` schema snapshots), the framework
+glue (`src/payload.config.ts`), the pure-logic floor (`src/access`, `src/lib`) and the routes the accessibility
+sweep leaves to Payload (`/admin`, `/api`). Agents may not edit the generated files; regenerate them with the
+Payload CLI. The installed layer contributes exact security replacements for
 affected Payload dependency edges through `airness.layer.securityOverrides`; a project may use only those approvals
 and the generic Airness approvals.
 
@@ -52,16 +54,19 @@ and the generic Airness approvals.
   `src/access` or `src/lib`, hooks in `src/hooks`, and import them by reference.
 - A collection decides `create`, `read`, `update` and `delete`; a global decides `read` and `update`.
 - At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through
-  `req.payload` passes `req`; a call carrying `user`, a call composed with a spread, and every call in an
-  endpoint module or route handler states `overrideAccess: false` after any spread.
+  `req.payload` or `request.payload` passes `req`; a call carrying `user`, a call composed with a spread, and
+  every call in an endpoint module, a route handler or a server action (a `'use server'` module or function),
+  or in a function of the project one of them calls, states `overrideAccess: false` after any spread. A name
+  bound to `await getPayload(...)` is a Local API receiver like `payload`.
 - Write every handler a collection, global or root `endpoints:` entry serves in a module under `src/endpoints`,
   and import it there by a relative or `@/` path, so the endpoint rule above judges its calls. A handler written
   in place, or imported from `src/lib`, `src/hooks` or another alias, is refused.
 - A required relationship or upload, on a collection or a global, needs a `beforeDelete` hook on its target
   collection that removes the dependants first, unless drafts are enabled on the holder.
-- A database adapter that does not push its schema needs a recorded migration for every schema change.
+- A database adapter that does not push its schema needs a recorded migration for every schema change: after a
+  change, run `payload migrate:create <name>` and commit the migration with the `.json` snapshot it writes.
 - ESLint refuses an inline function in a collection, global, field or block configuration, a read of
   `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` destructured out of `req`
-  (call `req.payload` and pass `req`). A hook writes request state only on `req.context`. A migration keeps the
+  or `request` (call `req.payload` and pass `req`). A hook writes request state only on `req.context`. A migration keeps the
   snake-case name `payload migrate:create` gives it.
 

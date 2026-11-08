@@ -17,7 +17,8 @@ import lombok.experimental.UtilityClass;
  *
  * <p>Each format is read for the structure that a truncated or corrupted copy loses: the markers that
  * open and close it, and the sizes it declares for its own parts. A file with an extension this does not
- * know is not an image it judges.
+ * know is not an image it judges. What a format's end marker is followed by is not the image, so the
+ * trailer a phone camera appends to a JPEG, a motion photo's video among them, is left alone.
  */
 @UtilityClass
 final class ImageBytes {
@@ -26,6 +27,15 @@ final class ImageBytes {
     private static final int JPEG_START = 0xD8;
     private static final int JPEG_END = 0xD9;
     private static final int JPEG_MINIMUM = 4;
+    // A 0xFF the encoder escaped inside entropy-coded data, which is no marker.
+    private static final int JPEG_STUFFED = 0x00;
+    private static final int JPEG_RESTART_FIRST = 0xD0;
+    private static final int JPEG_RESTART_LAST = 0xD7;
+    private static final int JPEG_TEMPORARY = 0x01;
+    // The two bytes of the start marker, after which the first segment begins.
+    private static final int JPEG_FIRST_SEGMENT = 2;
+    private static final int BYTE = 8;
+    private static final int NO_MARKER = -1;
     private static final int GIF_HEADER = 6;
     private static final int GIF_TRAILER = 0x3B;
     private static final Set<String> GIF_VERSIONS = Set.of("GIF87a", "GIF89a");
@@ -77,10 +87,44 @@ final class ImageBytes {
         if (!jpegStart(bytes)) {
             return Optional.of("not a valid JPEG (bad SOI marker)");
         }
-        int last = bytes.length - 1;
-        return unsigned(bytes, last - 1) == JPEG_PREFIX && unsigned(bytes, last) == JPEG_END
-            ? Optional.empty()
-            : Optional.of("truncated JPEG (missing EOI marker)");
+        return jpegEnds(bytes) ? Optional.empty() : Optional.of("truncated JPEG (missing EOI marker)");
+    }
+
+    // Whether the image reaches its end marker. A segment is stepped over by the length it declares, so the
+    // end marker of a thumbnail embedded in its metadata ends nothing, and one running past the file is cut
+    // short. Entropy-coded data, and whatever stray bytes stand between two segments, are read up to the next
+    // byte pair that is a marker rather than an escaped 0xFF or fill, which covers the several scans a
+    // progressive image carries and the restart markers inside a scan.
+    private static boolean jpegEnds(byte[] bytes) {
+        int marker = nextMarker(bytes, JPEG_FIRST_SEGMENT);
+        while (marker != NO_MARKER && unsigned(bytes, marker) != JPEG_END) {
+            marker = nextMarker(bytes, standalone(unsigned(bytes, marker)) ? marker + 1 : segmentEnd(bytes, marker));
+        }
+        return marker != NO_MARKER;
+    }
+
+    // The index of the code byte of the first marker whose prefix is at or after the index given.
+    private static int nextMarker(byte[] bytes, int from) {
+        for (int index = from; index + 1 < bytes.length; index++) {
+            int code = unsigned(bytes, index + 1);
+            if (unsigned(bytes, index) == JPEG_PREFIX && code != JPEG_PREFIX && code != JPEG_STUFFED) {
+                return index + 1;
+            }
+        }
+        return NO_MARKER;
+    }
+
+    private static boolean standalone(int code) {
+        boolean restart = code >= JPEG_RESTART_FIRST && code <= JPEG_RESTART_LAST;
+        return restart || code == JPEG_START || code == JPEG_TEMPORARY;
+    }
+
+    // The index after a segment, whose two-byte length counts itself and not the marker before it.
+    private static int segmentEnd(byte[] bytes, int code) {
+        if (code + 2 >= bytes.length) {
+            return bytes.length;
+        }
+        return code + 1 + ((unsigned(bytes, code + 1) << BYTE) | unsigned(bytes, code + 2));
     }
 
     private static boolean jpegStart(byte[] bytes) {

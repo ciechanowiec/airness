@@ -11,7 +11,9 @@ import {
 import { crashedResult, type MemberOutcome, type ResultFile, resultOf } from '@airness/node/gate-result'
 import { type Member, membersOf } from '@airness/node/project'
 import { PROBE_COMMAND } from './gate-payload-defaults.js'
+import { MIGRATIONS_PROBE_COMMAND } from './gate-payload-migrations.js'
 import { GATES, type Gate, gateById } from './gates.js'
+import { migrationDriftProbe } from './migration-drift-probe.js'
 import { type PayloadMember, payloadMemberOf } from './payload-member.js'
 import { inheritedAccessProbe } from './payload-probe.js'
 
@@ -53,19 +55,32 @@ const gateCommand = (invocation: GateInvocation, directory: string): number => {
   return reportGate(invocation, result)
 }
 
-// The configuration probe the payload-defaults gate starts through tsx in the member's directory.
-const probeCommand = async (rest: readonly string[]): Promise<number> => {
-  const [configFile, defaultAccessFile, ...extra] = rest
-  if (configFile === undefined || defaultAccessFile === undefined || extra.length > 0) {
-    console.error(`usage: airness-payload ${PROBE_COMMAND.join(' ')} <payload.config.ts> <defaultAccess.js>`)
+/** One probe a gate starts through tsx in the member's directory: its words, its two paths, and what it prints. */
+interface Probe {
+  readonly command: readonly string[]
+  readonly paths: string
+  readonly run: (first: string, second: string) => Promise<string>
+}
+
+const PROBES: readonly Probe[] = [
+  { command: PROBE_COMMAND, paths: '<payload.config.ts> <defaultAccess.js>', run: inheritedAccessProbe },
+  { command: MIGRATIONS_PROBE_COMMAND, paths: '<payload.config.ts> <payload/dist/index.js>', run: migrationDriftProbe },
+]
+
+const probeCommand = async (probe: Probe, rest: readonly string[]): Promise<number> => {
+  const [first, second, ...extra] = rest
+  if (first === undefined || second === undefined || extra.length > 0) {
+    console.error(`usage: airness-payload ${probe.command.join(' ')} ${probe.paths}`)
     return 1
   }
-  console.info(await inheritedAccessProbe(configFile, defaultAccessFile))
+  console.info(await probe.run(first, second))
   return 0
 }
 
-const isProbe = (commandLine: readonly string[]): boolean =>
-  PROBE_COMMAND.every((word: string, index: number): boolean => commandLine[index] === word)
+const probeOf = (commandLine: readonly string[]): Probe | undefined =>
+  PROBES.find((probe: Probe): boolean =>
+    probe.command.every((word: string, index: number): boolean => commandLine[index] === word),
+  )
 
 /**
  * Run one command line.
@@ -74,8 +89,9 @@ const isProbe = (commandLine: readonly string[]): boolean =>
  * @returns the exit code: 0 for a pass or a listing, 1 for a failure or a malformed command line.
  */
 export const runCommandLine = async (commandLine: readonly string[], directory: string): Promise<number> => {
-  if (isProbe(commandLine)) {
-    return await probeCommand(commandLine.slice(PROBE_COMMAND.length))
+  const probe: Probe | undefined = probeOf(commandLine)
+  if (probe !== undefined) {
+    return await probeCommand(probe, commandLine.slice(probe.command.length))
   }
   const [command, ...rest] = commandLine
   if (command === 'gates' && rest.length === 0) {

@@ -39,6 +39,14 @@ class EnvironmentCheckTest {
               - run: mvn --batch-mode verify
         """;
 
+    // Every package of the fixture is a Next.js application.
+    private static List<String> undeclared(Path root) {
+        EnvironmentCheck check = new EnvironmentCheck(
+            root, _ -> Optional.of(new PackageManifest(Set.of(), Set.of(NEXT), Set.of(NEXT)))
+        );
+        return Verdicts.offences(check.findings(), "a Dockerfile building it");
+    }
+
     @Test
     void namesEveryVariableTheExampleFileDoesNotDocument() {
         Path root = new GitFixture("environment-undocumented")
@@ -132,6 +140,71 @@ class EnvironmentCheckTest {
             List.of("NEXT_PUBLIC_KEY in " + Path.of("docker", "web.Dockerfile")),
             Verdicts.offences(new EnvironmentCheck(root, manifests).findings(), "a Dockerfile building it"),
             "a Dockerfile no package holds builds the application whose directory it names, and only that one"
+        );
+    }
+
+    @Test
+    void readsNoDockerfileThatOnlyContainsTheDirectoryNameInsideAnotherWord() {
+        Path root = new GitFixture("environment-next-substring")
+            .write("ui/package.json", "{}\n")
+            .write("ui/next.config.ts", NEXT_CONFIG)
+            .write("app/package.json", "{}\n")
+            .write("app/next.config.ts", NEXT_CONFIG)
+            .write("web/package.json", "{}\n")
+            .write("web/next.config.ts", NEXT_CONFIG)
+            .write("services/api/Dockerfile", "FROM golang:1.25\nRUN make build\n")
+            .write("services/worker/Dockerfile", "FROM node:26\nWORKDIR /app\nCOPY . /app\n")
+            .write("services/site/Dockerfile", "FROM nginx:1.29\nCOPY website /usr/share/web\n")
+            .root();
+        assertTrue(
+            undeclared(root).isEmpty(),
+            "build is not ui, /app is a path inside the image, and website is not web"
+        );
+    }
+
+    @Test
+    void readsEverySpellingOfARelativePathNamingTheApplicationDirectory() {
+        Path root = new GitFixture("environment-next-spellings")
+            .write("web/package.json", "{}\n")
+            .write("web/next.config.ts", NEXT_CONFIG)
+            .write("docker/a-plain.Dockerfile", "FROM node:26\nCOPY web /app\n")
+            .write("docker/b-current.Dockerfile", "FROM node:26\nCOPY ./web/ ./\n")
+            .write("docker/c-exec.Dockerfile", "FROM node:26\nCOPY [\"web\", \"/app\"]\n")
+            .write("docker/d-quoted.Dockerfile", "FROM node:26\nCOPY 'web/package.json' /app/\n")
+            .write("docker/e-workspace.Dockerfile", "FROM node:26\nRUN npm run build --workspace=web\n")
+            .write("docker/f-quoted-option.Dockerfile", "FROM node:26\nRUN npm run build --workspace=\"web\"\n")
+            .write("docker/g-separate.Dockerfile", "FROM node:26\nRUN cd web&&npm run build -w web\n")
+            .root();
+        List<String> expected = List.of(
+            "a-plain", "b-current", "c-exec", "d-quoted", "e-workspace", "f-quoted-option", "g-separate"
+        ).stream()
+            .flatMap(
+                name -> List.of("NEXT_PUBLIC_KEY", "NEXT_PUBLIC_SITE").stream()
+                    .map(variable -> variable + " in " + Path.of("docker", name + ".Dockerfile"))
+            ).toList();
+        assertEquals(
+            expected, undeclared(root),
+            "each spelling of the application directory names it"
+        );
+    }
+
+    @Test
+    void judgesEachDockerfileBuildingTheApplicationByItsOwnDeclarations() {
+        Path root = new GitFixture("environment-next-each")
+            .write("web/package.json", "{}\n")
+            .write("web/next.config.ts", NEXT_CONFIG)
+            .write("web/Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_SITE\nARG NEXT_PUBLIC_KEY\n")
+            .write("web/Dockerfile.e2e", "FROM node:26\nRUN build\n")
+            .write("web/preview.Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_KEY\n")
+            .root();
+        assertEquals(
+            List.of(
+                "NEXT_PUBLIC_KEY in " + Path.of("web", "Dockerfile.e2e"),
+                "NEXT_PUBLIC_SITE in " + Path.of("web", "Dockerfile.e2e"),
+                "NEXT_PUBLIC_SITE in " + Path.of("web", "preview.Dockerfile")
+            ),
+            undeclared(root),
+            "docker drops a build argument the Dockerfile being built never declared, whatever its siblings declare"
         );
     }
 }

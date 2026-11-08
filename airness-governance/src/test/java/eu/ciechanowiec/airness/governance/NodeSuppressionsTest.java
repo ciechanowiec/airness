@@ -50,6 +50,59 @@ class NodeSuppressionsTest {
     }
 
     @Test
+    void countsEachRuleAnInlineConfigurationNames() {
+        String source = """
+            /* eslint max-lines: "off" -- the generated table is long */
+            /*eslint complexity:0*/
+            /* eslint no-console: ["error", { allow: ["warn", "log"] }], max-depth: [2, 10] */
+            /* eslint "@typescript-eslint/no-explicit-any": 'off', 'max-params': "off" */
+            /*
+              eslint
+                no-alert: off,
+                no-debugger: off
+            */
+            """;
+        assertEquals(
+            List.of(
+                "line 1: eslint max-lines", "line 2: eslint complexity", "line 3: eslint no-console",
+                "line 3: eslint max-depth", "line 4: eslint @typescript-eslint/no-explicit-any",
+                "line 4: eslint max-params", "line 5: eslint no-alert", "line 5: eslint no-debugger"
+            ),
+            NodeSuppressions.in(source),
+            "an inline configuration switches off or loosens each rule it names, whatever its options carry"
+        );
+    }
+
+    @Test
+    void readsNoInlineConfigurationWhereESLintReadsNone() {
+        String source = """
+            /* eslint-disable */
+            /* eslint-env node */
+            // eslint max-lines: off
+            /** eslint max-lines: off */
+            """;
+        assertEquals(
+            List.of("line 1: eslint-disable (every rule)"),
+            NodeSuppressions.in(source),
+            "a disable comment counts once, and ESLint reads an inline configuration only in a plain block comment"
+        );
+    }
+
+    @Test
+    void readsATypeScriptDirectiveInEveryCommentTheCompilerHonours() {
+        String source = """
+            /** @ts-expect-error the type is wrong upstream */
+            /*** @ts-ignore */
+            /// @ts-ignore
+            """;
+        assertEquals(
+            List.of("line 1: @ts-expect-error", "line 2: @ts-ignore", "line 3: @ts-ignore"),
+            NodeSuppressions.in(source),
+            "the compiler reads a directive after any run of slashes or stars that opens the comment"
+        );
+    }
+
+    @Test
     void readsADirectiveOnlyAtTheStartOfAComment() {
         assertEquals(
             List.of(),

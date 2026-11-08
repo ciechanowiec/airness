@@ -3862,11 +3862,14 @@
                 package root. An explicit base package either restates that or silently overrides it, and the
                 second case reintroduces exactly the defect the misplaced-entry-point rule exists to prevent.
                 The application annotation names the same scan through its own scanBasePackages and
-                scanBasePackageClasses attributes, so those are refused alike.
+                scanBasePackageClasses attributes, so those are refused alike. The scan annotations alias value
+                to basePackages, so a positional argument, an array of them and a named value are the same base
+                package. Only the annotation's own members are read: a nested @Filter(value = ...) under
+                excludeFilters names a filtered type rather than a package.
             -->
             <property name="id" value="AirnessSpringScanIsNotRedeclared"/>
             <property name="query"
-                      value="//ANNOTATION[(./IDENT[@text='ComponentScan' or @text='EntityScan' or @text='EnableJpaRepositories'] and .//IDENT[@text='basePackages' or @text='basePackageClasses']) or (./IDENT[@text='SpringBootApplication'] and .//IDENT[@text='scanBasePackages' or @text='scanBasePackageClasses'])]"/>
+                      value="//ANNOTATION[((./IDENT | ./DOT/IDENT[last()])[@text='ComponentScan' or @text='EntityScan' or @text='EnableJpaRepositories'] and (./EXPR or ./ANNOTATION_ARRAY_INIT or ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value' or @text='basePackages' or @text='basePackageClasses']])) or ((./IDENT | ./DOT/IDENT[last()])[@text='SpringBootApplication'] and ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='scanBasePackages' or @text='scanBasePackageClasses']])]"/>
             <message key="matchxpath.match"
                      value="The scan root is already fixed by airness.package.root, so naming a base package here either restates it or overrides it. Remove the attribute."/>
         </module>

@@ -6,16 +6,24 @@
 //
 // The rule follows one call out of the hook, because that is where the defect lives. A configuration
 // hands the work to an imported function which performs the writes in its own body, so a same-file rule
-// would read the hook, find no Local API call in it, and report nothing at all. Each further hop
-// multiplies both the resolution machinery and the false-positive surface with no evidence that it is
-// needed, so the depth stops at the one that reaches the defect.
+// would read the hook, find no Local API call in it, and report nothing at all. How the call is followed,
+// and why it stops at one, is `source-reach.ts`.
 
 import type { SpecSource } from '@airness/node/axe-coverage'
-import { balancedArguments, NOT_FOUND, occurrences, stripComments } from '@airness/node/source-text'
+import { NOT_FOUND, occurrences, stripComments } from '@airness/node/source-text'
 import { type FoundRootConfig, rootConfigsIn } from './payload-database.js'
-import { LOCAL_API_CALLS, PAYLOAD_RECEIVER } from './payload-policy.js'
-import { depthOneValue, type PayloadViolation } from './payload-source.js'
+import { LOCAL_API_CALLS, payloadReceiverIn } from './payload-policy.js'
+import { depthOneMemberIndex, depthOneValue, type PayloadViolation } from './payload-source.js'
 import type { LocatedViolation } from './relationship-cleanup.js'
+import {
+  bodyAfterParameters,
+  functionBodyIn,
+  functionValueBody,
+  type ReachedFunction,
+  reachedFunction,
+  reachedFunctions,
+  valueEnd,
+} from './source-reach.js'
 
 /** The operations that change stored state, named as the catalogue spells them. */
 const MUTATION_NAMES: ReadonlySet<string> = new Set([
@@ -38,33 +46,69 @@ export const LOCAL_API_MUTATIONS: readonly string[] = LOCAL_API_CALLS.filter((ca
   MUTATION_NAMES.has(call.slice(1, -1)),
 )
 
-/** The body of a configuration's boot hook, and the line its configuration begins on. */
+/**
+ * A configuration's boot hook: the body it writes in place, or the function it names instead.
+ *
+ * A hook may be written as an arrow or a function expression, as an arrow that returns one call, as a
+ * method, or by reference - `onInit: seed`, or the shorthand `onInit` - and each spelling runs the same
+ * code at boot. A reference to a function the configuration's own file declares is read as that body; one
+ * to an imported function is left for the caller to follow, since only the caller holds the other files.
+ */
 export interface BootstrapHook {
-  readonly body: string
+  /** The body the hook runs, or the expression an arrow returns; undefined when it names an import. */
+  readonly body: string | undefined
+  /** The name the hook is given by, when it names a function rather than writing one. */
+  readonly reference: string | undefined
   readonly line: number
 }
 
-const ARROW: string = '=>'
+const HOOK: string = 'onInit'
+const REFERENCE: RegExp = /^[a-z_$][\w$]*$/i
+// The method form, `async onInit(payload) { ... }`, and the shorthand `onInit`, at the configuration's depth.
+const METHOD_HOOK: RegExp = new RegExp(String.raw`^[{,]\s*(?:async\s+)?${HOOK}\s*\(`)
+const SHORTHAND_HOOK: RegExp = new RegExp(String.raw`^[{,]\s*${HOOK}\s*[,}]`)
 
-// The body a hook value opens, found after the arrow rather than at the first brace: a hook written
-// `async ({ payload }) => { ... }` destructures before it opens, and the first brace is that pattern.
-const hookBodyIn = (value: string): string | undefined => {
-  const arrow: number = value.indexOf(ARROW)
-  const from: number = arrow === NOT_FOUND ? 0 : arrow + ARROW.length
-  const open: number = value.indexOf('{', from)
-  return open === NOT_FOUND ? undefined : balancedArguments(value, open)
+const referenceHook = (code: string, reference: string, line: number): BootstrapHook => ({
+  body: functionBodyIn(code, reference),
+  reference,
+  line,
+})
+
+// The hook's value runs to the comma or brace that ends it, so neither a later key nor a later literal is
+// read as its body.
+const hookOfValue = (code: string, value: string, line: number): BootstrapHook | undefined => {
+  const text: string = value.slice(0, valueEnd(value)).trim()
+  if (REFERENCE.test(text)) {
+    return referenceHook(code, text, line)
+  }
+  const body: string | undefined = functionValueBody(text)
+  return body === undefined ? undefined : { body, reference: undefined, line }
+}
+
+const hookOf = (code: string, config: FoundRootConfig): BootstrapHook | undefined => {
+  const value: string | undefined = depthOneValue(config.body, HOOK)
+  if (value !== undefined) {
+    return hookOfValue(code, value, config.line)
+  }
+  const method: number = depthOneMemberIndex(config.body, METHOD_HOOK)
+  if (method !== NOT_FOUND) {
+    const body: string | undefined = bodyAfterParameters(config.body, method)
+    return body === undefined ? undefined : { body, reference: undefined, line: config.line }
+  }
+  return depthOneMemberIndex(config.body, SHORTHAND_HOOK) === NOT_FOUND
+    ? undefined
+    : referenceHook(code, HOOK, config.line)
 }
 
 /**
  * The boot hook every root configuration in a source declares.
  * @param code the file's text, with comments already stripped.
- * @returns one entry per configuration that declares `onInit` with a body.
+ * @returns one entry per configuration that declares `onInit` as a function or a reference to one.
  */
 export const bootstrapHooksIn = (code: string): readonly BootstrapHook[] =>
   rootConfigsIn(code).flatMap((config: FoundRootConfig): readonly BootstrapHook[] => {
-    const value: string | undefined = depthOneValue(config.body, 'onInit')
-    const body: string | undefined = value === undefined ? undefined : hookBodyIn(value)
-    return body === undefined ? [] : [{ body, line: config.line }]
+    const hook: BootstrapHook | undefined = hookOf(code, config)
+    return hook === undefined ? [] : [hook]
   })
 
 // A Local API mutation performed on a Payload receiver, anywhere in a body.
@@ -72,125 +116,17 @@ export const bootstrapHooksIn = (code: string): readonly BootstrapHook[] =>
 // Distinct operations, not occurrences: a seed that writes two globals performs `updateGlobal` twice,
 // and reporting it twice would print the same sentence twice for one repair. What the reader has to act
 // on is that the body writes at all.
-const mutationsIn = (body: string): readonly string[] => [
-  ...new Set(
-    LOCAL_API_MUTATIONS.flatMap((call: string): readonly string[] =>
-      occurrences(body, call)
-        .filter((found: number): boolean => PAYLOAD_RECEIVER.test(body.slice(0, found)))
-        .map((): string => call.slice(1, -1)),
+const mutationsIn = (body: string): readonly string[] => {
+  const receiver: RegExp = payloadReceiverIn(body)
+  return [
+    ...new Set(
+      LOCAL_API_MUTATIONS.flatMap((call: string): readonly string[] =>
+        occurrences(body, call)
+          .filter((found: number): boolean => receiver.test(body.slice(0, found)))
+          .map((): string => call.slice(1, -1)),
+      ),
     ),
-  ),
-]
-
-// The names a body calls. The keywords are removed because `if (` and `while (` are indistinguishable
-// from a call by this pattern, and a keyword can never name an import.
-const CALLED_IDENTIFIER: RegExp = /\b([a-z_$][\w$]*)\s*\(/gi
-const STATEMENT_KEYWORDS: ReadonlySet<string> = new Set([
-  'await',
-  'catch',
-  'for',
-  'function',
-  'if',
-  'return',
-  'switch',
-  'typeof',
-  'while',
-])
-
-const calledNamesIn = (body: string): readonly string[] => [
-  ...new Set(
-    [...body.matchAll(CALLED_IDENTIFIER)]
-      .map((match: RegExpExecArray): string => match[1] ?? '')
-      .filter((name: string): boolean => !STATEMENT_KEYWORDS.has(name)),
-  ),
-]
-
-// Every quantifier here is bounded by a literal that cannot itself match, so the scan is linear: a
-// binding clause runs to the one brace that closes it, and a specifier to the one quote that ends it.
-const IMPORT_BINDING: RegExp = /\bimport\s+\{([^}]+)\}\s+from\s*['"]([^'"]+)['"]/g
-
-const boundNames = (clause: string): readonly string[] =>
-  clause
-    .split(',')
-    .map((binding: string): string => binding.trim().split(/\s+/).at(-1) ?? '')
-    .filter((name: string): boolean => name.length > 0)
-
-/**
- * The module specifier a name is imported from.
- * @param code the importing file's text.
- * @param name the imported binding to find.
- * @returns the specifier, or undefined when the file imports no such name.
- */
-export const moduleOfImport = (code: string, name: string): string | undefined =>
-  [...code.matchAll(IMPORT_BINDING)]
-    .filter((match: RegExpExecArray): boolean => boundNames(match[1] ?? '').includes(name))
-    .map((match: RegExpExecArray): string | undefined => match[2])
-    .at(0)
-
-const SOURCE_EXTENSIONS: readonly string[] = ['.ts', '.tsx']
-const ALIAS: string = '@/'
-const ALIAS_ROOT: string = 'src/'
-
-const directoryOf = (filePath: string): string => {
-  const slash: number = filePath.lastIndexOf('/')
-  return slash === NOT_FOUND ? '' : filePath.slice(0, slash)
-}
-
-// `.` and `..` resolved without node:path, which keeps this layer free of every runtime module.
-const flattened = (segments: readonly string[]): readonly string[] =>
-  segments.reduce<readonly string[]>((kept: readonly string[], segment: string): readonly string[] => {
-    if (segment === '' || segment === '.') {
-      return kept
-    }
-    return segment === '..' ? kept.slice(0, -1) : [...kept, segment]
-  }, [])
-
-// The path a specifier names before an extension is tried. A package specifier resolves to nothing,
-// which is what keeps the rule inside the member's own source.
-const resolvedBase = (specifier: string, fromPath: string): string | undefined => {
-  if (specifier.startsWith(ALIAS)) {
-    return `${ALIAS_ROOT}${specifier.slice(ALIAS.length)}`
-  }
-  return specifier.startsWith('.')
-    ? flattened([...directoryOf(fromPath).split('/'), ...specifier.split('/')]).join('/')
-    : undefined
-}
-
-/**
- * The repository-relative paths a specifier could name, in the order a resolver would try them.
- * @param specifier the module specifier as written.
- * @param fromPath the member-relative path of the importing file.
- * @returns the candidate paths, empty when the specifier names a package rather than project source.
- */
-export const candidatePathsFor = (specifier: string, fromPath: string): readonly string[] => {
-  const base: string | undefined = resolvedBase(specifier, fromPath)
-  return base === undefined
-    ? []
-    : [...SOURCE_EXTENSIONS.map((extension: string): string => `${base}${extension}`), `${base}/index.ts`]
-}
-
-// The body of one named export, so a module holding an unrelated writer beside the function the hook
-// actually calls is not reported for the writer it never reached.
-const declarationOf = (name: string): RegExp =>
-  new RegExp(String.raw`export\s+(?:async\s+)?(?:function\s+|const\s+)${name}\b`)
-
-const bodyAfter = (source: string, at: number): string | undefined => {
-  const open: number = source.indexOf('(', at)
-  const parameters: string | undefined = open === NOT_FOUND ? undefined : balancedArguments(source, open)
-  const from: number = parameters === undefined ? at : open + parameters.length + 1
-  const brace: number = source.indexOf('{', from)
-  return brace === NOT_FOUND ? undefined : balancedArguments(source, brace)
-}
-
-/**
- * The body of a named export.
- * @param source the module's text, with comments already stripped.
- * @param name the exported binding to read.
- * @returns the body, or undefined when the module exports no such binding with one.
- */
-export const exportedBodyIn = (source: string, name: string): string | undefined => {
-  const found: RegExpExecArray | null = declarationOf(name).exec(source)
-  return found === null ? undefined : bodyAfter(source, found.index)
+  ]
 }
 
 const RULE: string = 'no-boot-time-writes'
@@ -208,37 +144,32 @@ const reachedReason = (name: string, specifier: string, call: string): string =>
   `${call}() in its own body, so every boot of every container overwrites whatever an editor last ` +
   `saved - ${REPAIR}`
 
-const sourceAt = (files: readonly SpecSource[], paths: readonly string[]): string | undefined =>
-  files
-    .filter((file: SpecSource): boolean => paths.includes(file.path))
-    .map((file: SpecSource): string => stripComments(file.source))
-    .at(0)
+const reachedViolations = (hook: BootstrapHook, reached: ReachedFunction): readonly PayloadViolation[] =>
+  mutationsIn(reached.body).map(
+    (call: string): PayloadViolation => ({
+      line: hook.line,
+      rule: RULE,
+      reason: reachedReason(reached.name, reached.specifier, call),
+    }),
+  )
 
 // One call out of the hook: the name has to be imported, the module has to be one of this member's own
-// files, and the export it names has to perform the write itself.
+// files, and the function it names has to perform the write itself. A hook that names an imported function
+// reaches it without a call of its own, so that function is the one hop.
 const reachedWrites = (
   code: string,
   hook: BootstrapHook,
   file: SpecSource,
   files: readonly SpecSource[],
-): readonly PayloadViolation[] =>
-  calledNamesIn(hook.body).flatMap((name: string): readonly PayloadViolation[] => {
-    const specifier: string | undefined = moduleOfImport(code, name)
-    if (specifier === undefined) {
-      return []
-    }
-    const target: string | undefined = sourceAt(files, candidatePathsFor(specifier, file.path))
-    const body: string | undefined = target === undefined ? undefined : exportedBodyIn(target, name)
-    return body === undefined
-      ? []
-      : mutationsIn(body).map(
-          (call: string): PayloadViolation => ({
-            line: hook.line,
-            rule: RULE,
-            reason: reachedReason(name, specifier, call),
-          }),
+): readonly PayloadViolation[] => {
+  const reached: readonly ReachedFunction[] =
+    hook.body === undefined
+      ? [reachedFunction(code, hook.reference ?? '', file.path, files)].filter(
+          (found: ReachedFunction | undefined): found is ReachedFunction => found !== undefined,
         )
-  })
+      : reachedFunctions(code, hook.body, file.path, files)
+  return reached.flatMap((found: ReachedFunction): readonly PayloadViolation[] => reachedViolations(hook, found))
+}
 
 /**
  * Report every Local API write a boot hook performs, or reaches in one call.
@@ -253,7 +184,7 @@ export const findBootstrapWrites = (files: readonly SpecSource[]): readonly Loca
     const code: string = stripComments(file.source)
     return bootstrapHooksIn(code).flatMap((hook: BootstrapHook): readonly LocatedViolation[] =>
       [
-        ...mutationsIn(hook.body).map(
+        ...mutationsIn(hook.body ?? '').map(
           (call: string): PayloadViolation => ({
             line: hook.line,
             rule: RULE,

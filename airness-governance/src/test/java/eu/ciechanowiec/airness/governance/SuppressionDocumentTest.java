@@ -53,6 +53,25 @@ class SuppressionDocumentTest {
     }
 
     @Test
+    void rejectsNotesThatCarryOnlyADateAndAPlan() {
+        List.of("Added 2026-09-01.", "2026-09-01", "Added on 2026-09-01 -", "").forEach(
+            lead -> assertTrue(
+                this.problems(
+                    """
+                        <suppressions>
+                            <suppress>
+                                <notes>%s Mitigation: upgrade to 3.x once released.</notes>
+                                <cve>CVE-2020-27225</cve>
+                            </suppress>
+                        </suppressions>
+                        """.formatted(lead)
+                ).stream().anyMatch(problem -> problem.contains("say why this project cannot reach")),
+                "notes reading \"" + lead + "\" before the plan say when and what next, but not why"
+            )
+        );
+    }
+
+    @Test
     void rejectsAnEntryThatRecordsNoDate() {
         String document
             = """

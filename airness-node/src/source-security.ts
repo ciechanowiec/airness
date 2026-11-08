@@ -2,9 +2,9 @@
 //
 // The rules here reject the shape of a fail-open credential guard rather than guessing whether a route
 // is called cron, webhook, or callback. The same defect has two spellings, and each is invisible to the
-// other's rule. A bare credential on the left of `&&` makes the rejection on the right disappear
-// precisely when configuration is absent. Its mirror tests for absence and then ADMITS the caller, so
-// the endpoint opens exactly when the credential is unset. Safe guards reject absence before comparing,
+// other's rule. A test of the credential's presence conjoined with a rejection makes the rejection
+// disappear precisely when configuration is absent. Its mirror tests for absence and then ADMITS the
+// caller, so the endpoint opens exactly when the credential is unset. Safe guards reject absence before comparing,
 // or return success for a configured, matching credential and deny every other case.
 
 import {
@@ -18,7 +18,7 @@ import {
 } from './source-text.js'
 import type { SourceViolation } from './source-violation.js'
 
-const GUARDED_IF: RegExp = /\bif\s*\(\s*([a-z_$][\w$]*(?:\s*\.\s*[a-z_$][\w$]*)*)\s*&&/gi
+const IF_STATEMENT: RegExp = /\bif\s*\(/g
 
 const PENULTIMATE: number = -2
 
@@ -36,11 +36,6 @@ const isCredential = (name: string): boolean => {
   const last: string | undefined = segments.at(-1)
   const previous: string | undefined = segments.at(PENULTIMATE)
   return last === 'secret' || last === 'token' || (previous === 'api' && last === 'key')
-}
-
-const conditionClose = (masked: string, open: number): number | undefined => {
-  const condition: string | undefined = balancedArguments(masked, open)
-  return condition === undefined ? undefined : open + condition.length + 1
 }
 
 const CONTINUATION_CHARACTERS: ReadonlySet<string> = new Set('!%&(*+,-./:<=>?[^|')
@@ -117,29 +112,6 @@ const hasRejectionAfter = (masked: string, close: number): boolean => {
   return containsRejection(statement)
 }
 
-/** Report credential guards whose rejection disappears when the credential is absent. */
-export const findFailOpenSecretGuards = (source: string): readonly SourceViolation[] => {
-  const masked: string = maskLiterals(source)
-  return [...masked.matchAll(GUARDED_IF)].flatMap((match: RegExpExecArray): readonly SourceViolation[] => {
-    const credential: string = (match[1] ?? '').replaceAll(/\s/g, '')
-    const open: number = masked.indexOf('(', match.index)
-    const close: number | undefined = conditionClose(masked, open)
-    return close !== undefined && isCredential(credential) && hasRejectionAfter(masked, close)
-      ? [
-          {
-            line: lineOf(source, match.index),
-            rule: 'no-fail-open-secret-guard',
-            reason:
-              `reject a missing ${credential} before comparing it; guarded by its own truthiness, ` +
-              'the rejection is skipped when the credential is absent',
-          },
-        ]
-      : []
-  })
-}
-
-const IF_STATEMENT: RegExp = /\bif\s*\(/g
-
 // An operator is top level when no bracket is open at it, which is what separates `a || (b && c)` -
 // two disjuncts - from `(a || b) && c`, a conjunction. Both characters of the operator are found at
 // the first, because the scan asks whether the operator STARTS here.
@@ -162,6 +134,162 @@ const splitTopLevel = (condition: string, operator: string): readonly string[] =
   return [0, ...cuts.map((cut: number): number => cut + OPERATOR_WIDTH)].map(
     (start: number, position: number): string => condition.slice(start, ends[position] ?? condition.length).trim(),
   )
+}
+
+// A credential named as a property chain, optional links included; `?.` is folded to `.` for the report.
+const NAME: string = String.raw`[a-z_$][\w$]*(?:\s*\??\.\s*[a-z_$][\w$]*)*`
+
+const BARE_PRESENCE_SHAPES: readonly RegExp[] = [
+  new RegExp(`^(${NAME})$`, 'i'),
+  new RegExp(String.raw`^!\s*!\s*(${NAME})$`, 'i'),
+  new RegExp(String.raw`^Boolean\s*\(\s*(${NAME})\s*\)$`, 'i'),
+]
+
+// The first comparison operator, its longer spellings tried before the shorter ones they begin with.
+const COMPARISON_OPERATOR: RegExp = /!==|===|!=|==|>=|<=|>|</
+
+const MIRRORED: Readonly<Record<string, string>> = { '>': '<', '<': '>', '>=': '<=', '<=': '>=' }
+
+interface Comparison {
+  readonly operand: string
+  readonly operator: string
+  readonly constant: string
+}
+
+// `maskLiterals` fills a string literal with filler of the same width, so the masked text locates the
+// operands and the source text at the same offsets says which type a `typeof` comparison names.
+const isConstant = (masked: string): boolean => /^(?:undefined|null|\d+|x+)$/.test(masked)
+
+const comparisonIn = (masked: string, source: string): Comparison | undefined => {
+  const found: RegExpExecArray | null = COMPARISON_OPERATOR.exec(masked)
+  if (found === null) {
+    return undefined
+  }
+  const operator: string = found[0]
+  const left: string = masked.slice(0, found.index).trimEnd()
+  const right: string = masked.slice(found.index + operator.length).trimStart()
+  if (isConstant(right)) {
+    return { operand: left, operator, constant: source.slice(source.length - right.length) }
+  }
+  return isConstant(left)
+    ? { operand: right, operator: MIRRORED[operator] ?? operator, constant: source.slice(0, left.length) }
+    : undefined
+}
+
+const STRING_LITERAL: RegExp = /^(['"`])(.*)\1$/s
+
+const isInequality = (operator: string): boolean => operator === '!==' || operator === '!='
+
+const isEquality = (operator: string): boolean => operator === '===' || operator === '=='
+
+const isNonEmpty = ({ operator, constant }: Comparison): boolean =>
+  (constant === '0' && (operator === '>' || isInequality(operator))) || (constant === '1' && operator === '>=')
+
+const isDefined = ({ operator, constant }: Comparison): boolean =>
+  isInequality(operator) && (constant === 'undefined' || constant === 'null')
+
+const isDefinedByType = ({ operator, constant }: Comparison): boolean => {
+  const type: string | undefined = STRING_LITERAL.exec(constant)?.[2]
+  return (
+    type !== undefined &&
+    ((isEquality(operator) && type !== 'undefined') || (isInequality(operator) && type === 'undefined'))
+  )
+}
+
+// The comparison forms of a presence test, each an operand shape and what it must be compared with: a length
+// above zero, a `typeof` that names a type other than `'undefined'` or denies that one, and a value compared
+// unequal to `undefined` or `null`. The length shape comes first, as a chain ending in `.length` is a value too.
+const PRESENCE_COMPARISONS: readonly (readonly [RegExp, (comparison: Comparison) => boolean])[] = [
+  [new RegExp(String.raw`^(${NAME})\s*\??\.\s*length$`, 'i'), isNonEmpty],
+  [new RegExp(String.raw`^typeof\s+(${NAME})$`, 'i'), isDefinedByType],
+  [new RegExp(`^(${NAME})$`, 'i'), isDefined],
+]
+
+const comparedPresence = (comparison: Comparison): string | undefined => {
+  const shape: readonly [RegExp, (comparison: Comparison) => boolean] | undefined = PRESENCE_COMPARISONS.find(
+    ([operand]: readonly [RegExp, (comparison: Comparison) => boolean]): boolean => operand.test(comparison.operand),
+  )
+  return shape?.[1](comparison) === true ? shape[0].exec(comparison.operand)?.[1] : undefined
+}
+
+// The two characters a parenthesised conjunct adds around what it holds.
+const PARENTHESES_WIDTH: number = 2
+
+const unwrapped = (masked: string, source: string): readonly [string, string] => {
+  const inner: string | undefined = masked.startsWith('(') ? balancedArguments(masked, 0) : undefined
+  if (inner === undefined || inner.length + PARENTHESES_WIDTH !== masked.length) {
+    return [masked, source]
+  }
+  // Trimmed by the mask's offsets, so a comment the mask blanked trims from the source text too.
+  const start: number = inner.search(/\S|$/)
+  const end: number = inner.trimEnd().length
+  return unwrapped(inner.slice(start, end), source.slice(1, -1).slice(start, end))
+}
+
+// The credential a conjunct tests the presence of, in every spelling strict boolean expressions still
+// allow: bare truthiness, `!!`, `Boolean()`, and the comparison forms above with either operand first.
+const presentNameIn = (maskedConjunct: string, sourceConjunct: string): string | undefined => {
+  const [masked, source] = unwrapped(maskedConjunct, sourceConjunct)
+  const bare: string | undefined = BARE_PRESENCE_SHAPES.map(
+    (shape: RegExp): string | undefined => shape.exec(masked)?.[1],
+  ).find((name: string | undefined): name is string => name !== undefined)
+  const comparison: Comparison | undefined = bare === undefined ? comparisonIn(masked, source) : undefined
+  const name: string | undefined = bare ?? (comparison === undefined ? undefined : comparedPresence(comparison))
+  return name?.replaceAll(/\s/g, '').replaceAll('?.', '.')
+}
+
+// The conjuncts of a condition, each read from the mask for structure and from the source at the same
+// offsets for the literals the mask hides.
+const conjunctsOf = (masked: string, source: string): readonly (readonly [string, string])[] => {
+  const cuts: readonly number[] = topLevelOperators(masked, '&&')
+  const ends: readonly number[] = [...cuts, masked.length]
+  return [0, ...cuts.map((cut: number): number => cut + OPERATOR_WIDTH)].map(
+    (start: number, position: number): readonly [string, string] => {
+      const end: number = ends[position] ?? masked.length
+      const leading: number = masked.slice(start, end).search(/\S|$/)
+      const trailing: number = masked.slice(start, end).trimEnd().length
+      return [masked.slice(start + leading, start + trailing), source.slice(start + leading, start + trailing)]
+    },
+  )
+}
+
+// A presence test guards something only beside the rejection it is conjoined with.
+const MINIMUM_CONJUNCTS: number = 2
+
+const guardedCredential = (masked: string, source: string): string | undefined => {
+  const conjuncts: readonly (readonly [string, string])[] = conjunctsOf(masked, source)
+  return conjuncts.length < MINIMUM_CONJUNCTS
+    ? undefined
+    : conjuncts
+        .map(([maskedConjunct, sourceConjunct]: readonly [string, string]): string | undefined =>
+          presentNameIn(maskedConjunct, sourceConjunct),
+        )
+        .find((name: string | undefined): name is string => name !== undefined && isCredential(name))
+}
+
+/** Report credential guards whose rejection disappears when the credential is absent. */
+export const findFailOpenSecretGuards = (source: string): readonly SourceViolation[] => {
+  const masked: string = maskLiterals(source)
+  return [...masked.matchAll(IF_STATEMENT)].flatMap((match: RegExpExecArray): readonly SourceViolation[] => {
+    const open: number = masked.indexOf('(', match.index)
+    const condition: string | undefined = balancedArguments(masked, open)
+    if (condition === undefined) {
+      return []
+    }
+    const close: number = open + condition.length + 1
+    const credential: string | undefined = guardedCredential(condition, source.slice(open + 1, close))
+    return credential !== undefined && hasRejectionAfter(masked, close)
+      ? [
+          {
+            line: lineOf(source, match.index),
+            rule: 'no-fail-open-secret-guard',
+            reason:
+              `reject a missing ${credential} before comparing it; guarded by a test of its presence, ` +
+              'the rejection is skipped when the credential is absent',
+          },
+        ]
+      : []
+  })
 }
 
 // The ways a value is tested for absence. `=== ''` is deliberately absent: `maskLiterals` fills a

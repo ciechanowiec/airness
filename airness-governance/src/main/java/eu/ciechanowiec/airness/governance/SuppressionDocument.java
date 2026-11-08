@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.w3c.dom.Document;
@@ -46,6 +47,10 @@ public final class SuppressionDocument {
         "cpe", "cwe", "cvssBelow", "cvssV2Below", "cvssV3Below", "cvssV4Below"
     );
     private static final Set<String> LITERAL = Set.of("false", "0");
+    // A reason says something in words, so punctuation left around a removed date is not one.
+    private static final Pattern REASONED = Pattern.compile("\\p{L}");
+    // The words that introduce the date, which say when rather than why.
+    private static final Pattern DATED = Pattern.compile("(?i)\\badded(?:\\s+on)?\\b");
 
     private final List<Element> entries;
 
@@ -71,11 +76,21 @@ public final class SuppressionDocument {
             .toList();
     }
 
+    /*
+     * The reason is what the notes say before the mitigation marker, less the date and the words that
+     * introduce it. Notes holding only a date and a plan are not empty, and they still leave unsaid why the
+     * advisory can't be reached.
+     */
     private List<String> unexplained() {
         return this.entries.stream()
-            .filter(entry -> noteText(entry).isEmpty())
+            .filter(entry -> !REASONED.matcher(reasonOf(noteText(entry))).find())
             .map(entry -> problem(entry, "say why this project cannot reach the advisory"))
             .toList();
+    }
+
+    private static String reasonOf(String notes) {
+        String undated = SuppressionNotes.DATE.matcher(SuppressionNotes.parse(notes).reason()).replaceAll("");
+        return DATED.matcher(undated).replaceAll("");
     }
 
     /**

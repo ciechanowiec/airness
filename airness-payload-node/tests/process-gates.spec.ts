@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { GateResult } from '@airness/node/gate-result'
 import { describe, expect, it } from 'vitest'
@@ -65,12 +65,15 @@ describe('preflight', () => {
 
 const IMPORT_MAP: string = 'export const importMap = {}\n'
 
+const SCHEMA_FILE: string = 'src/payload-generated-schema.ts'
+
 // A stand-in for the Payload CLI: it writes the generated files the way `payload generate:*` does.
-const fakeCli = (types: string): Record<string, string> => ({
+const fakeCli = (types: string, schema: string = 'export const posts = {}\n'): Record<string, string> => ({
   ...installed('payload', String(REQUIRED_PINS['payload']), { bin: { payload: 'bin.js' } }),
   'node_modules/payload/bin.js': [
     "import { mkdirSync, writeFileSync } from 'node:fs'",
     `if (process.argv[2] === 'generate:types') writeFileSync('src/payload-types.ts', ${JSON.stringify(types)})`,
+    `if (process.argv[2] === 'generate:db-schema') writeFileSync('${SCHEMA_FILE}', ${JSON.stringify(schema)})`,
     "if (process.argv[2] === 'generate:importmap') { mkdirSync('src/app/(payload)/admin', { recursive: true }); " +
       "writeFileSync('src/app/(payload)/admin/importMap.js', " +
       JSON.stringify(IMPORT_MAP) +
@@ -101,6 +104,39 @@ describe('payload-generated', PROCESS_TIME, () => {
     expect(result.ok).toBe(false)
     expect(result.findings.join('\n')).toContain('src/payload-types.ts')
     expect(readFileSync(path.join(root, 'src/payload-types.ts'), 'utf8')).toContain('title')
+  })
+
+  // The Drizzle schema is generated too, so a schema the configuration no longer produces is drift.
+  it('names a kept database schema that drifted from the configuration', () => {
+    const root: string = detachedProjectForTest({
+      ...fakeCli('export type Post = {}\n', 'export const posts = { title: text() }\n'),
+      'src/payload-types.ts': 'export type Post = {}\n',
+      'src/app/(payload)/admin/importMap.js': IMPORT_MAP,
+      [SCHEMA_FILE]: 'export const posts = {}\n',
+    })
+    const result: GateResult = payloadGenerated(payloadMemberAt(root, PAYLOAD_MANIFEST))
+    expect(result.findings).toContain(`${SCHEMA_FILE} changed when regenerated`)
+  })
+
+  it('passes a kept database schema that regenerates unchanged', () => {
+    const root: string = detachedProjectForTest({
+      ...fakeCli('export type Post = {}\n'),
+      'src/payload-types.ts': 'export type Post = {}\n',
+      'src/app/(payload)/admin/importMap.js': IMPORT_MAP,
+      [SCHEMA_FILE]: 'export const posts = {}\n',
+    })
+    expect(payloadGenerated(payloadMemberAt(root, PAYLOAD_MANIFEST)).ok).toBe(true)
+  })
+
+  // A project that never generated the schema is not handed one: it is an artefact a SQL project opts into.
+  it('leaves a member that keeps no database schema without one', () => {
+    const root: string = detachedProjectForTest({
+      ...fakeCli('export type Post = {}\n'),
+      'src/payload-types.ts': 'export type Post = {}\n',
+      'src/app/(payload)/admin/importMap.js': IMPORT_MAP,
+    })
+    expect(payloadGenerated(payloadMemberAt(root, PAYLOAD_MANIFEST)).ok).toBe(true)
+    expect(existsSync(path.join(root, SCHEMA_FILE))).toBe(false)
   })
 
   it('fails when the Payload CLI is not installed', () => {

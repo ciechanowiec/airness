@@ -15,6 +15,10 @@
 //     selector prefix rather than a value, and is always followed by `:`. The negative lookahead below
 //     is what keeps it out - and is the reason this is a rule in TypeScript rather than a GritQL
 //     plugin, whose Rust regex engine has no lookahead to express it with.
+//   - An arbitrary PROPERTY is `[padding:13px]` or `hover:[color:#0a7]`: a whole class in brackets, so
+//     it opens where a class does. It is a finding only when it states a number or a colour, the values
+//     a theme holds; `[mask-type:luminance]` names a keyword no token could. A TypeScript index
+//     signature, `[key: string]`, carries whitespace after its colon, which a class cannot.
 
 /** One arbitrary-Tailwind-value occurrence: where it is, and the token that caused it. */
 export interface ArbitraryValueViolation {
@@ -28,6 +32,23 @@ export interface ArbitraryValueViolation {
 
 // A utility with a bracketed value, not immediately followed by `:` (which would make it a variant).
 const ARBITRARY_VALUE: RegExp = /-\[[^\]]+\](?!:)/g
+
+// A bracketed `property:value` class: opening the text, or after whitespace, a quote, a variant's `:` or the
+// important `!`; a CSS property or custom property name; a value without whitespace; and not itself a variant.
+const ARBITRARY_PROPERTY: RegExp = /(?<=^|[\s"'`:!])\[-{0,2}[a-z][a-z-]*:[^\s\]]+\](?!:)/g
+
+// The values a theme holds, which an arbitrary property states rather than reads: a number - a length, a
+// duration, a weight - not part of a name, and a colour, as a hex literal or a colour function.
+const THEMEABLE_LITERALS: readonly RegExp[] = [
+  /(?:^|[^\w#-])-?\.?\d/,
+  /#[\da-f]{3,8}\b/i,
+  /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/i,
+]
+
+const carriesThemeableValue = (property: string): boolean => {
+  const value: string = property.slice(property.indexOf(':') + 1, -1)
+  return THEMEABLE_LITERALS.some((literal: RegExp): boolean => literal.test(value))
+}
 
 // Utilities whose bracket takes something OTHER than a themeable value.
 //
@@ -72,23 +93,33 @@ const CONTEXT_RELATIVE: RegExp = /\d(?:%|v(?:w|h|min|max)\b)/
 const carriesComputedValue = (value: string): boolean =>
   CUSTOM_PROPERTY.test(value) || (value.includes('calc(') && CONTEXT_RELATIVE.test(value))
 
+const isArbitraryValueFinding = (lineText: string, match: RegExpExecArray): boolean =>
+  !(
+    carriesProperty(lineText, match.index) ||
+    carriesComputedValue(match[0]) ||
+    carriesFlexShorthand(lineText, match.index, match[0])
+  )
+
+const isArbitraryPropertyFinding = (match: RegExpExecArray): boolean =>
+  carriesThemeableValue(match[0]) && !carriesComputedValue(match[0])
+
 /**
- * Find every arbitrary Tailwind value in one file's text.
+ * Find every arbitrary Tailwind value, and every arbitrary property stating one, in one file's text.
  * @param content the file's text.
  * @returns the violations, each with a 1-based line and column and the offending token.
  */
 export const findArbitraryValues = (content: string): readonly ArbitraryValueViolation[] => {
   const lines: readonly string[] = content.split('\n')
   return lines.flatMap((lineText: string, index: number): readonly ArbitraryValueViolation[] =>
-    [...lineText.matchAll(ARBITRARY_VALUE)]
-      .filter(
-        (match: RegExpExecArray): boolean =>
-          !(
-            carriesProperty(lineText, match.index) ||
-            carriesComputedValue(match[0]) ||
-            carriesFlexShorthand(lineText, match.index, match[0])
-          ),
-      )
+    [
+      ...[...lineText.matchAll(ARBITRARY_VALUE)].filter((match: RegExpExecArray): boolean =>
+        isArbitraryValueFinding(lineText, match),
+      ),
+      ...[...lineText.matchAll(ARBITRARY_PROPERTY)].filter((match: RegExpExecArray): boolean =>
+        isArbitraryPropertyFinding(match),
+      ),
+    ]
+      .toSorted((first: RegExpExecArray, second: RegExpExecArray): number => first.index - second.index)
       .map(
         (match: RegExpExecArray): ArbitraryValueViolation => ({
           line: index + 1,

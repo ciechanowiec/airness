@@ -14,7 +14,7 @@ class JavadocScopeTest {
 
     @Test
     void ignoresAnImportWrittenInsideATextBlock() {
-        Predicate<String> resolves = JavadocScope.over(List.of(SOURCE)).of(
+        Predicate<String> resolves = JavadocScope.over(List.of(SOURCE)).named(
             SOURCE,
             """
                 package example;
@@ -31,18 +31,21 @@ class JavadocScopeTest {
 
     @Test
     void keepsARealImportInScope() {
-        Predicate<String> resolves = JavadocScope.over(List.of(SOURCE)).of(
+        Predicate<String> resolves = JavadocScope.over(List.of(SOURCE)).named(
             SOURCE, "package example;\nimport sample.Vault;\nfinal class Example {}"
         );
         assertTrue(resolves.test("Vault"));
     }
 
     @Test
-    void recognizesJavaLangAndRejectsAnUnknownSimpleName() {
-        Predicate<String> resolves = JavadocScope.over(List.of(SOURCE)).of(
+    void recognizesJavaLangApartFromWhatTheFileNamesAndRejectsAnUnknownSimpleName() {
+        Predicate<String> named = JavadocScope.over(List.of(SOURCE)).named(
             SOURCE, "package example; final class Example {}"
         );
-        assertTrue(resolves.test("String"));
-        assertFalse(resolves.test("Vault"));
+        assertTrue(named.test("Example"), "a type the file declares is named by it");
+        assertFalse(named.test("String"), "java.lang is resolved without the file naming it");
+        assertTrue(JavadocScope.inJavaLang("String"), "but resolved all the same");
+        assertFalse(named.test("Vault"));
+        assertFalse(JavadocScope.inJavaLang("Vault"));
     }
 }

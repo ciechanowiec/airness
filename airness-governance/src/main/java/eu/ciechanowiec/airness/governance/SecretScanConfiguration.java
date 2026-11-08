@@ -3,9 +3,11 @@ package eu.ciechanowiec.airness.governance;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SequencedCollection;
+import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,10 +34,19 @@ import java.util.stream.Stream;
  * therefore anchored as {@code ^value$}, matched against the secret alone, and scoped to at least one
  * named rule, because gitleaks applies an exception with an empty {@code targetRules} to every rule.
  *
+ * <p>An exact value is written as a literal string, {@code '''^value$'''}. Gitleaks decodes the escapes of
+ * a double-quoted string before it compiles the regex, so {@code "^\\w$"} reaches it as {@code ^\w$}, a
+ * class, while this reader would see an escaped backslash beside a letter. Judging what gitleaks compiles
+ * would mean decoding every TOML escape here, so a double-quoted regex is refused instead, and a literal
+ * string reads the same to both.
+ *
  * <p>A line this reader cannot account for is reported rather than skipped. The grammar is a handful of
  * keys wide, so reading it needs no library, but a reader that ignored what it did not recognise would
  * pass a key it had never heard of in silence, and that silence is the thing being removed.
- * {@link EntryFileCheck} makes the same trade about {@code AGENTS.md}.
+ * {@link EntryFileCheck} makes the same trade about {@code AGENTS.md}. So each table accepts only the keys
+ * it is read for, a table this reader does not know is reported, and so is an inline table: written as
+ * {@code allowlists = [{ ... }]} it is the same exception as the table form, and a reader that took it
+ * for one opaque value would let it excuse whatever it names.
  */
 public final class SecretScanConfiguration {
 
@@ -71,7 +82,17 @@ public final class SecretScanConfiguration {
     private static final String REGEX_TARGET = "regexTarget";
     private static final String SECRET_TARGET = "secret";
     private static final String DESCRIPTION = "description";
+    private static final String REGEXES = "regexes";
     private static final List<String> WHOLE_SWEEPS = List.of("paths", "commits", "stopwords");
+    // The keys each table is read for. A sweep is known wherever it appears, because broad() names it.
+    private static final Map<String, Set<String>> KNOWN_KEYS = Map.of(
+        "", Set.of("title"),
+        EXTEND, Set.of("useDefault", "disabledRules"),
+        ALLOWLISTS, Set.of(DESCRIPTION, TARGET_RULES, REGEX_TARGET, REGEXES)
+    );
+    // Tables unscoped() refuses outright, whose keys therefore need no reading of their own.
+    private static final Set<String> REFUSED_TABLES = Set.of("allowlist", "rules");
+    private static final char INLINE_TABLE = '{';
 
     private final List<Statement> statements;
     private final List<String> unreadable;
@@ -85,6 +106,7 @@ public final class SecretScanConfiguration {
         List<Statement> read = new ArrayList<>();
         List<String> rejected = new ArrayList<>();
         joined(content).forEach(line -> classify(line, read, rejected));
+        read.stream().flatMap(statement -> unknown(statement).stream()).forEach(rejected::add);
         this.statements = List.copyOf(read);
         this.unreadable = List.copyOf(rejected);
     }
@@ -163,9 +185,18 @@ public final class SecretScanConfiguration {
                 )
             ).forEach(problems::add);
         this.statements.stream()
-            .filter(statement -> statement.is(ALLOWLISTS, "regexes"))
+            .filter(statement -> statement.is(ALLOWLISTS, REGEXES))
+            .filter(statement -> doubleQuoted(statement.value()))
+            .map(
+                statement -> statement.at(
+                    REGEXES + " holds a double-quoted string, whose escapes gitleaks decodes before compiling"
+                        + " the regex; write each value as a literal '''^value$''' string"
+                )
+            ).forEach(problems::add);
+        this.statements.stream()
+            .filter(statement -> statement.is(ALLOWLISTS, REGEXES))
             .flatMap(
-                statement -> strings(statement.value()).stream()
+                statement -> literals(statement.value()).stream()
                     .flatMap(
                         value -> inexactness(value).stream()
                             .map(reason -> statement.at('"' + value + "\" " + reason))
@@ -209,9 +240,13 @@ public final class SecretScanConfiguration {
         return Optional.ofNullable(table.group(1)).orElseGet(() -> table.group(2));
     }
 
+    /*
+     * A value holding a brace outside its strings is an inline table, which carries keys of its own that
+     * this reader would otherwise take for one opaque value, so the line is reported as unreadable.
+     */
     private static Optional<Statement> entryOf(Line line, SequencedCollection<Statement> read) {
         Matcher entry = ENTRY.matcher(line.text());
-        return entry.matches()
+        return entry.matches() && STRING.matcher(entry.group(2)).replaceAll("").indexOf(INLINE_TABLE) < 0
             ? Optional.of(new Statement(line.number(), enclosing(read), entry.group(1), entry.group(2).strip()))
             : Optional.empty();
     }
@@ -253,6 +288,40 @@ public final class SecretScanConfiguration {
                     + SHORTEST_EXACT_VALUE + " characters"
             )
             : Optional.empty();
+    }
+
+    /*
+     * A header must name a table whose keys are listed or one unscoped() refuses. A key is judged only in a
+     * table whose keys are listed, because a refused or unknown table has been reported once already.
+     */
+    private static Optional<String> unknown(Statement statement) {
+        String table = statement.table();
+        String key = statement.key();
+        boolean listed = KNOWN_KEYS.containsKey(table);
+        boolean header = key.isEmpty();
+        boolean known = header
+            ? listed || REFUSED_TABLES.contains(table)
+            : !listed || WHOLE_SWEEPS.contains(key) || KNOWN_KEYS.getOrDefault(table, Set.of()).contains(key);
+        String detail = header
+            ? "[" + table + "] is not a table this reader knows"
+            : key + " is not a key this reader knows in " + described(table);
+        return known ? Optional.empty() : Optional.of(statement.at(detail));
+    }
+
+    private static String described(String table) {
+        return table.isEmpty() ? "the top level" : "[" + table + "]";
+    }
+
+    private static boolean doubleQuoted(CharSequence value) {
+        return STRING.matcher(value).results().anyMatch(hit -> hit.group(2) != null);
+    }
+
+    // The literal strings of a value, which reach gitleaks exactly as they are written.
+    private static List<String> literals(CharSequence value) {
+        return STRING.matcher(value).results()
+            .filter(hit -> hit.group(2) == null)
+            .map(hit -> Objects.requireNonNullElse(hit.group(1), Objects.requireNonNullElse(hit.group(3), "")))
+            .toList();
     }
 
     private static List<String> strings(CharSequence value) {

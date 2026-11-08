@@ -9,6 +9,8 @@ import {
   APPLICATION_LAYER_RULE,
   cloudFrontRules,
   layerRules,
+  misplacedRouteDirectoryFindings,
+  productionImportsNoDevelopmentDependencyRule,
   productionImportsNoTestCodeRule,
   pureLogicRule,
 } from '@/architecture-layers.js'
@@ -56,16 +58,35 @@ describe('parseBuildDirectory', PROCESS_TIME, () => {
   })
 })
 
+// Whether a member declared whole as a root exempts a file from the development-only dependency rule.
+const isExemptFromDevelopmentDependencyRule = (file: string): boolean =>
+  new RegExp(String(asRecord(productionImportsNoDevelopmentDependencyRule(['.'])?.['from'])['pathNot'])).test(file)
+
 describe('architecture layers', PROCESS_TIME, () => {
   it('adds the application layer only to a Next.js application', () => {
-    expect(layerRules(true, [], ['src'])).toEqual([APPLICATION_LAYER_RULE, productionImportsNoTestCodeRule(['src'])])
+    expect(layerRules(true, [], ['src'])).toEqual([
+      APPLICATION_LAYER_RULE,
+      productionImportsNoTestCodeRule(['src']),
+      productionImportsNoDevelopmentDependencyRule(['src']),
+    ])
     expect(layerRules(false, [], ['tests', 'scripts'])).toEqual([])
     expect(cloudFrontRules([])).toEqual([])
     expect(cloudFrontRules(['edge/function.cjs'])).toMatchObject([
       { name: 'not-to-unresolvable', from: { pathNot: String.raw`^(edge/function\.cjs)$` } },
       { from: { path: String.raw`^(edge/function\.cjs)$` }, to: { couldNotResolve: true, pathNot: '^cloudfront$' } },
     ])
-    expect(layerRules(false, [], ['src'], ['edge/function.cjs'])).toHaveLength(3)
+    expect(layerRules(false, [], ['src'], ['edge/function.cjs'])).toHaveLength(4)
+  })
+
+  it('refuses a Next.js routes directory at the member root, and only in a Next.js member', () => {
+    expect(misplacedRouteDirectoryFindings(true, ['app/layout.tsx', 'pages/index.tsx', 'src/lib/a.ts'])).toEqual([
+      expect.stringContaining('app/: move the Next.js routes directory under src/ (src/app/)'),
+      expect.stringContaining('pages/: move the Next.js routes directory under src/ (src/pages/)'),
+    ])
+    expect(
+      misplacedRouteDirectoryFindings(true, ['src/app/layout.tsx', 'src/pages/index.tsx', 'application/a.ts']),
+    ).toEqual([])
+    expect(misplacedRouteDirectoryFindings(false, ['app/layout.tsx', 'pages/index.tsx'])).toEqual([])
   })
 
   it('escapes a declared floor into the pure-logic rule', () => {
@@ -86,6 +107,30 @@ describe('architecture layers', PROCESS_TIME, () => {
     expect(productionImportsNoTestCodeRule(['src', '.'])).toMatchObject({ from: { path: '^(src/|)' } })
     expect(productionImportsNoTestCodeRule(['tests'])).toBeUndefined()
   })
+
+  // The rule replaces the shipped one of the same name, which reads `src` alone.
+  it('keeps every production root, the whole member included, from importing a development-only dependency', () => {
+    expect(productionImportsNoDevelopmentDependencyRule(['src', 'tests', 'scripts', 'lib'])).toMatchObject({
+      name: 'not-to-dev-dep',
+      from: { path: '^(src/|lib/)' },
+      to: { dependencyTypes: ['npm-dev'], dependencyTypesNot: ['type-only'] },
+    })
+    expect(productionImportsNoDevelopmentDependencyRule(['tests'])).toBeUndefined()
+  })
+
+  it.each(['postcss.config.mjs', 'eslint.config.js', 'tailwind.config.ts', 'vitest.config.mts', 'tests/total.spec.ts'])(
+    'exempts the development-time file %s of a member declared whole as a root',
+    (file: string) => {
+      expect(isExemptFromDevelopmentDependencyRule(file)).toBe(true)
+    },
+  )
+
+  it.each(['index.ts', 'src/app/page.tsx', 'next.config.ts', 'lib/postcss.config.ts'])(
+    'holds the production file %s of a member declared whole as a root',
+    (file: string) => {
+      expect(isExemptFromDevelopmentDependencyRule(file)).toBe(false)
+    },
+  )
 })
 
 describe('nextBiomeConfig', PROCESS_TIME, () => {

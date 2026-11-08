@@ -1,9 +1,11 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
@@ -18,6 +20,11 @@ import lombok.experimental.UtilityClass;
  * regions are read past, because a name in them is already accounted for: an existing link, a
  * {@code <pre>} sample, which is code rather than prose, and the target of a {@code @param},
  * {@code @throws} or {@code @see} tag, which the Javadoc tool links on its own.
+ *
+ * <p>A name that resolves only because {@code java.lang} is imported into every file is read as an
+ * ordinary word where it opens a sentence, because that is where every word is capitalized, and a sentence
+ * opening on the word for a count or a fault speaks of neither type. Elsewhere in a sentence, and wherever
+ * the file names the type itself, it is a type.
  */
 @UtilityClass
 final class JavadocLinkRules {
@@ -33,17 +40,27 @@ final class JavadocLinkRules {
     // about a repository-relative path was reported in the file that imports Repository and passed in the
     // file beside it that does not.
     private static final Pattern NAME = Pattern.compile("\\b[A-Z][A-Za-z0-9]*\\b(?!-[a-z])");
+    // What a sentence opens after, so the end of a match is where its first word starts: the comment's
+    // opening, a paragraph or list item, or the stop of the sentence before followed by blank space.
+    private static final Pattern SENTENCE_OPENING = Pattern.compile(
+        "(?i)(?:/\\*\\*|<p>|<li>)[\\s*]*|[.!?][\\s*]+"
+    );
     private static final String SPACE = " ";
 
     /**
      * The type names {@code source} mentions in Javadoc without linking them, in encounter order and
      * without repeats.
+     *
+     * @param source   the Java source
+     * @param named    whether a name resolves through what the file names itself
+     * @param implicit whether a name resolves through what every file resolves without naming it
+     * @return the unlinked names
      */
-    static List<String> unlinked(CharSequence source, Predicate<String> resolves) {
+    static List<String> unlinked(CharSequence source, Predicate<String> named, Predicate<String> implicit) {
         return TOKEN.matcher(source).results()
             .map(MatchResult::group)
             .filter(token -> token.startsWith("/**"))
-            .flatMap(comment -> namesIn(comment, resolves))
+            .flatMap(comment -> namesIn(comment, named, implicit))
             .distinct()
             .toList();
     }
@@ -52,11 +69,15 @@ final class JavadocLinkRules {
         return TOKEN.matcher(source).replaceAll(SPACE);
     }
 
-    private static Stream<String> namesIn(CharSequence comment, Predicate<String> resolves) {
+    private static Stream<String> namesIn(CharSequence comment, Predicate<String> named, Predicate<String> implicit) {
         String prose = accountedFor(comment);
+        Set<Integer> openings = SENTENCE_OPENING.matcher(prose).results()
+            .map(MatchResult::end)
+            .collect(Collectors.toUnmodifiableSet());
+        Predicate<String> anywhere = named.or(implicit);
         return NAME.matcher(prose).results()
-            .map(MatchResult::group)
-            .filter(resolves);
+            .filter(name -> (openings.contains(name.start()) ? named : anywhere).test(name.group()))
+            .map(MatchResult::group);
     }
 
     private static String accountedFor(CharSequence comment) {

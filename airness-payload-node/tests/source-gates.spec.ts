@@ -41,6 +41,16 @@ describe('payload-source-rules', PROCESS_TIME, () => {
     ).toBe(true)
   })
 
+  // The handler's own file holds no Local API call; the helper it calls holds the privileged default.
+  it('names the route handler whose helper leaves the access decision to the default', () => {
+    const root: string = projectForTest({
+      'src/endpoints/posts.ts': "import { read } from '@/lib/reads'\nexport const handler = () => read()",
+      'src/lib/reads.ts': "export const read = () => payload.find({ collection: 'posts', depth: 0, limit: 10 })",
+    })
+    const result: GateResult = payloadSourceRules(payloadMemberAt(root, PAYLOAD_MANIFEST))
+    expect(result.findings.join('\n')).toContain('src/endpoints/posts.ts:2 [require-endpoint-access]')
+  })
+
   it('requires a recorded migration when the configuration pushes no schema', () => {
     const root: string = projectForTest({
       'src/payload.config.ts': 'export default buildConfig({ db: postgresAdapter({ push: false }) })',

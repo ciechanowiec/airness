@@ -274,6 +274,61 @@ XML
     expect_exit artifact_repackaged 'artifact: report-only permits inspection of the repackaged archive' 0
     expect_match artifact_repackaged 'artifact: the final repackaged archive is the one inspected' \
         'Source or development files packaged in the JAR'
+    run_vendored_artifact_boundary
+}
+
+# A dependency's own published bytes, which a shade copies into the archive unchanged, are that dependency's
+# to answer for. The goal is invoked on its own, as in the neighbouring cases, so the archives it exempts
+# reach it only through the dependencies the goal itself requires resolved.
+run_vendored_artifact_boundary() {
+    new_consumer vendored-content
+    vendored_consumer="${consumer_directory}"
+    mkdir -p "${vendored_consumer}/vendor/.idea"
+    printf 'vendor workspace metadata\n' > "${vendored_consumer}/vendor/.idea/workspace.xml"
+    jar --create --file "${vendored_consumer}/vendor.jar" -C "${vendored_consumer}/vendor" .idea/workspace.xml
+    prepare_maven vendored_install setup "${repository}" --non-recursive install:install-file \
+        "-Dfile=${vendored_consumer}/vendor.jar" -DgroupId=com.example \
+        -DartifactId=airness-it-vendored-library -Dversion=1.0.0 -Dpackaging=jar
+    vendored_block="$(cat <<'XML'
+  <dependencies>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>airness-it-vendored-library</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>repackage</id>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+XML
+)"
+    VENDORED_BLOCK="${vendored_block}" perl -0pi -e \
+        's{</project>}{$ENV{VENDORED_BLOCK}."\n</project>"}e' "${vendored_consumer}/pom.xml"
+    prepare_maven vendored_build repository "${vendored_consumer}" --quiet jar:jar shade:shade@repackage -DskipTests
+    if jar --list --file "${vendored_consumer}/target/consumer-9.4.2.jar" | grep -q '^[.]idea/workspace[.]xml$'; then
+        pass 'artifact: the shade copied the dependency entry into the finished JAR'
+    else
+        fail 'artifact: the shade copied the dependency entry into the finished JAR' 'vendored entry missing'
+    fi
+    run_maven vendored_accept repository "${vendored_consumer}" airness:artifact-content
+    expect_exit vendored_accept 'artifact: a dependency entry the shade copied unchanged is not rejected' 0
+    expect_no_match vendored_accept 'artifact: the vendored entry is not reported as development material' \
+        'Source or development files packaged in the JAR|[.]idea/workspace[.]xml'
 }
 
 # A versioned class that reaches the archive after its manifest was written. The plugin that packages
