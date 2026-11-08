@@ -26,8 +26,11 @@ import java.util.stream.Stream;
  * <p>The npm SBOM names every resolved package by its package URL, which is what OSV's batch query takes, so the
  * scan needs no Docker, no credential and no lockfile reader of its own. It runs under the extended profile with
  * the compliance report, as the Maven scan does. A query or an advisory that cannot be read fails the scan: an
- * unreachable database is never a clean result. A withdrawn advisory is passed over. The findings retain the
- * database's aliases so project mitigations can identify the exact advisory they address.
+ * unreachable database is never a clean result. A query OSV answers in part, with a page token in place of the
+ * rest of its vulnerabilities, is asked again with that token until no token comes back: OSV cuts a query short
+ * when it runs long, and reading the first page alone would pass the vulnerabilities on the pages it never asked
+ * for. A withdrawn advisory is passed over. The findings retain the database's aliases so project mitigations
+ * can identify the exact advisory they address.
  *
  * @param base   the OSV API, ending in a slash
  * @param client the HTTP client every request of one scan shares
@@ -43,6 +46,7 @@ record OsvScan(String base, HttpClient client) {
     private static final int OK = 200;
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final String NEXT_PAGE = "next_page_token";
 
     /**
      * A scan against one OSV API.
@@ -80,21 +84,29 @@ record OsvScan(String base, HttpClient client) {
 
     // Each package with the identifier of every vulnerability OSV lists for it.
     private Stream<Map.Entry<String, String>> batch(List<String> purls) {
-        Map<String, Object> body = Map.of(
-            "queries", purls.stream().map(purl -> Map.of("package", Map.of("purl", purl))).toList()
-        );
+        return this.pages(purls.stream().map(purl -> new Query(purl, "")).toList());
+    }
+
+    // One page of every query, followed by the pages OSV still holds for the queries it answered in part.
+    private Stream<Map.Entry<String, String>> pages(List<Query> queries) {
+        Map<String, Object> body = Map.of("queries", queries.stream().map(Query::body).toList());
         JsonNode results = this.send(
             HttpRequest.newBuilder(URI.create(this.base + "v1/querybatch")).timeout(TIMEOUT)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(ReportJson.encode(body))).build()
         ).path("results");
-        if (!results.isArray() || results.size() != purls.size()) {
-            throw new IllegalStateException("OSV answered " + results.size() + " result(s) for " + purls.size());
+        if (!results.isArray() || results.size() != queries.size()) {
+            throw new IllegalStateException("OSV answered " + results.size() + " result(s) for " + queries.size());
         }
-        return IntStream.range(0, purls.size()).boxed().flatMap(
+        List<Map.Entry<String, String>> found = IntStream.range(0, queries.size()).boxed().flatMap(
             index -> results.get(index).path("vulns").valueStream()
-                .map(vulnerability -> Map.entry(purls.get(index), vulnerability.path("id").asText()))
-        );
+                .map(vulnerability -> Map.entry(queries.get(index).purl(), vulnerability.path("id").asText()))
+        ).toList();
+        List<Query> unfinished = IntStream.range(0, queries.size())
+            .filter(index -> !results.get(index).path(NEXT_PAGE).asText().isEmpty())
+            .mapToObj(index -> new Query(queries.get(index).purl(), results.get(index).path(NEXT_PAGE).asText()))
+            .toList();
+        return Stream.concat(found.stream(), unfinished.isEmpty() ? Stream.empty() : this.pages(unfinished));
     }
 
     private JsonNode vulnerability(String id) {
@@ -133,6 +145,20 @@ record OsvScan(String base, HttpClient client) {
             throw new IllegalStateException("OSV returned an invalid JSON tree at " + address, exception);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("OSV could not be read at " + address, exception);
+        }
+    }
+
+    /**
+     * One package query of a batch.
+     *
+     * @param purl  the package URL
+     * @param token the page token OSV returned for the package, empty for its first page
+     */
+    private record Query(String purl, String token) {
+
+        Map<String, Object> body() {
+            Map<String, String> pkg = Map.of("purl", this.purl);
+            return this.token.isEmpty() ? Map.of("package", pkg) : Map.of("package", pkg, "page_token", this.token);
         }
     }
 }

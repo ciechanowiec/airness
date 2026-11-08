@@ -40,6 +40,7 @@ final class ArchiveServer implements AutoCloseable {
     private final AtomicInteger requests;
     private final Map<String, Integer> statuses;
     private final List<Runnable> beforeAnswer;
+    private final List<String> bodies;
 
     @SneakyThrows
     ArchiveServer() {
@@ -48,6 +49,7 @@ final class ArchiveServer implements AutoCloseable {
         this.requests = new AtomicInteger();
         this.statuses = new ConcurrentHashMap<>();
         this.beforeAnswer = new CopyOnWriteArrayList<>();
+        this.bodies = new CopyOnWriteArrayList<>();
         this.server.createContext("/", this::answer);
         this.server.start();
     }
@@ -73,6 +75,11 @@ final class ArchiveServer implements AutoCloseable {
 
     int requests() {
         return this.requests.get();
+    }
+
+    // The bodies of the requests answered so far, in the order they arrived.
+    List<String> bodies() {
+        return List.copyOf(this.bodies);
     }
 
     @Override
@@ -102,6 +109,7 @@ final class ArchiveServer implements AutoCloseable {
 
     private void answer(HttpExchange exchange) throws IOException {
         this.requests.incrementAndGet();
+        this.bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
         this.beforeAnswer.forEach(Runnable::run);
         Optional<byte[]> body = Optional.ofNullable(this.archives.get(exchange.getRequestURI().getPath()));
         if (body.isEmpty()) {

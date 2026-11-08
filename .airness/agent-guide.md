@@ -452,7 +452,8 @@ Earlier report pairs are removed only after a complete replacement has been rend
   the scanners' native files, `.gitleaksignore`, which gitleaks reads whatever its flags say, and the
   `junit.jupiter.execution.timeout.*` keys of a `junit-platform.properties`, which the parents pin as launcher
   parameters. A fixture exception belongs in `.gitleaks.toml`, and the rest of `junit-platform.properties` stays the
-  project's.
+  project's. That exception names its `targetRules` and writes the whole fixture as `^value$`, matched against the
+  secret, because gitleaks excuses every finding that contains an unanchored value.
 
 ### Vulnerability Exceptions
 
