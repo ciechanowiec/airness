@@ -41,7 +41,9 @@ class NodeSuppressionCeilingCheckTest {
         Path root = new GitFixture("node-ceiling-over").write(
             "web/src/loud.ts", "// @ts-ignore\n// @ts-ignore\n/* v8 ignore next */\nexport const a = 1\n"
         ).root();
-        NodeSuppressionCeilingCheck check = new NodeSuppressionCeilingCheck(root, List.of(root.resolve("web/src/loud.ts")));
+        NodeSuppressionCeilingCheck check = new NodeSuppressionCeilingCheck(
+            root, List.of(root.resolve("web/src/loud.ts"))
+        );
         List<String> offences = check.findings().getFirst().offences();
         assertEquals(3, offences.size());
         assertTrue(offences.getFirst().startsWith("web/src/loud.ts: line 1"));

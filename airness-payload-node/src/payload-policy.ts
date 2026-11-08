@@ -58,13 +58,9 @@ const SHARED_RECEIVERS: string = String.raw`payload|(?:[\w$]+\.)*${REQUEST}\.pay
 
 const receiverOf = (alternatives: string): RegExp => new RegExp(String.raw`(?:^|[^\w$.])(?:${alternatives})$`)
 
-/**
- * Recognized Payload receivers, which exclude unrelated collection methods such as array.find().
- *
- * Exported so a rule about WHERE a Local API call runs derives the receiver from here rather than
- * restating it. Two spellings of "this is Payload" would be two rules disagreeing about what Payload is.
- */
-export const PAYLOAD_RECEIVER: RegExp = receiverOf(SHARED_RECEIVERS)
+// Recognized Payload receivers, which exclude unrelated collection methods such as array.find(). Every rule
+// derives its receiver through payloadReceiverIn, so no two rules disagree about what Payload is.
+const PAYLOAD_RECEIVER: RegExp = receiverOf(SHARED_RECEIVERS)
 
 // A name a file binds to the instance `getPayload()` resolves to, as `const cms = await getPayload(...)` or
 // with its type written, `const cms: Payload = await getPayload(...)`. Named, never any `<name>.payload`: a
@@ -274,11 +270,22 @@ const ENDPOINT_PATH: RegExp = /^src\/(?:endpoints\/|app\/(?:.*\/)?route\.[jt]s$)
 
 // Payload's own admin and API glue, which it generates and regenerates: its server functions hand the
 // request to Payload's handlers, which decide access themselves.
-const GENERATED_APP_PATH: RegExp = /^src\/app\/\(payload\)\//u
+const GENERATED_APP_PATH: string = 'src/app/(payload)/'
+
+// One statement of a directive prologue, the run of string statements that opens a module.
+const PROLOGUE_STATEMENT: RegExp = /^(?<quote>['"])(?<directive>[^'"\n]*)\k<quote>;?/u
+
+const prologueOf = (code: string): readonly string[] => {
+  const text: string = code.trimStart()
+  const statement: RegExpExecArray | null = PROLOGUE_STATEMENT.exec(text)
+  return statement === null
+    ? []
+    : [statement.groups?.['directive'] ?? '', ...prologueOf(text.slice(statement[0].length))]
+}
 
 // A module whose directive prologue says `'use server'`: every function it exports is a server action.
-// The prologue is the run of string statements that opens the module, so another directive may precede it.
-const MODULE_SERVER_DIRECTIVE: RegExp = /^(?:\s*(['"])[^'"\n]*\1\s*;?)*?\s*(['"])use server\2/u
+// Another directive may precede it in the prologue.
+const opensWithServerDirective = (code: string): boolean => prologueOf(code).includes('use server')
 
 // A function whose own body opens with `'use server'`, which makes that function alone a server action,
 // written inline in a Server Component.
@@ -299,17 +306,17 @@ const serverActionScopes = (code: string): readonly EndpointScope[] =>
 // The whole file for an endpoint module, a route handler or a server-action module; each inline server
 // action's body otherwise.
 const isEndpointModule = (filePath: string, code: string): boolean =>
-  ENDPOINT_PATH.test(filePath) || MODULE_SERVER_DIRECTIVE.test(code)
+  ENDPOINT_PATH.test(filePath) || opensWithServerDirective(code)
 
 const endpointScopesIn = (filePath: string, code: string): readonly EndpointScope[] => {
-  if (GENERATED_APP_PATH.test(filePath)) {
+  if (filePath.startsWith(GENERATED_APP_PATH)) {
     return []
   }
   return isEndpointModule(filePath, code) ? [{ start: 0, end: code.length }] : serverActionScopes(code)
 }
 
 // Whether a call leaves the access decision to Payload's privileged default.
-const leavesAccessToDefault = (source: string, call: string, found: number, receiver: RegExp): boolean => {
+const isAccessLeftToDefault = (source: string, call: string, found: number, receiver: RegExp): boolean => {
   if (!receiver.test(source.slice(0, found))) {
     return false
   }
@@ -326,11 +333,11 @@ const ENDPOINT_CONSEQUENCE: string =
 const unstatedAccessIn = (code: string, receiver: RegExp): readonly (readonly [string, number])[] =>
   LOCAL_API_CALLS.flatMap((call: string): readonly (readonly [string, number])[] =>
     occurrences(code, call)
-      .filter((found: number): boolean => leavesAccessToDefault(code, call, found, receiver))
+      .filter((found: number): boolean => isAccessLeftToDefault(code, call, found, receiver))
       .map((found: number): readonly [string, number] => [call, found]),
   )
 
-const inScope = (found: number, scopes: readonly EndpointScope[]): boolean =>
+const isInScope = (found: number, scopes: readonly EndpointScope[]): boolean =>
   scopes.some((scope: EndpointScope): boolean => found >= scope.start && found < scope.end)
 
 /**
@@ -380,7 +387,7 @@ export const findEndpointViolations = (filePath: string, source: string): readon
   const code: string = stripComments(source)
   const scopes: readonly EndpointScope[] = endpointScopesIn(filePath, code)
   return unstatedAccessIn(code, payloadReceiverIn(code))
-    .filter(([, found]: readonly [string, number]): boolean => inScope(found, scopes))
+    .filter(([, found]: readonly [string, number]): boolean => isInScope(found, scopes))
     .map(
       ([call, found]: readonly [string, number]): PayloadViolation => ({
         line: lineOf(code, found),
@@ -406,8 +413,8 @@ const reachedAccessViolations = (
 ): readonly PayloadViolation[] =>
   [
     ...new Set(
-      unstatedAccessIn(reached.body, payloadReceiverIn(reached.body)).map(
-        ([call]: readonly [string, number]): string => call.slice(1, -1),
+      unstatedAccessIn(reached.body, payloadReceiverIn(reached.body)).map(([call]: readonly [string, number]): string =>
+        call.slice(1, -1),
       ),
     ),
   ].map(

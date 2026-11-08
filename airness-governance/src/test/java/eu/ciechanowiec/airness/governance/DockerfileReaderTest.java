@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -128,10 +129,11 @@ class DockerfileReaderTest {
 
     @Test
     void readsPackagesAfterOptionsWrittenBeforeTheInstallVerb() {
-        for (String install : List.of(
+        List<String> installs = List.of(
             "apt-get -y install", "apt-get -qq -y install", "apt -y install", "yum -y install", "dnf -y install",
             "microdnf -y install", "apk --no-cache add", "zypper -n install", "zypper --non-interactive install"
-        )) {
+        );
+        for (String install : installs) {
             assertEquals(
                 List.of("ghostscript"), packages("RUN " + install + " --quiet ghostscript\n"),
                 "an option before the verb still leaves an install: " + install
@@ -177,26 +179,33 @@ class DockerfileReaderTest {
 
     @Test
     void readsTheBodyOfEveryHereDocumentSpelling() {
-        for (String marker : List.of("<<EOT", "<<\"EOT\"", "<<'EOT'", "<<-EOT")) {
-            String text = """
-                RUN %s
-                \tset -e
-                \t# apt-get install -y commented-out
-                \tapt-get update
-                \tapt-get install -y \\
-                \t  ghostscript
-                \tapk add mupdf
-                \tEOT
-                EOT
-                FROM redis:8
-                """.formatted(marker);
-            String terminated = marker.contains("-") ? text.replace("\tEOT\nEOT\n", "\tEOT\n") : text;
-            assertEquals(
-                List.of("ghostscript", "mupdf"), packages(terminated), "the body is the script it runs: " + marker
-            );
-            int from = marker.contains("-") ? 9 : 10;
-            assertEquals(List.of(from), DockerfileReader.images(terminated).stream().map(Located::line).toList());
-        }
+        // Only <<- ends a body at a terminator indented by tabs. Every other marker reads on to the terminator
+        // that follows at the start of a line.
+        Map<String, String> terminators = Map.of(
+            "<<EOT", "\tEOT\nEOT\n", "<<\"EOT\"", "\tEOT\nEOT\n", "<<'EOT'", "\tEOT\nEOT\n", "<<-EOT", "\tEOT\n"
+        );
+        terminators.forEach(
+            (marker, terminator) -> {
+                String text = """
+                    RUN %s
+                    \tset -e
+                    \t# apt-get install -y commented-out
+                    \tapt-get update
+                    \tapt-get install -y \\
+                    \t  ghostscript
+                    \tapk add mupdf
+                    %sFROM redis:8
+                    """.formatted(marker, terminator);
+                assertEquals(
+                    List.of("ghostscript", "mupdf"), packages(text), "the body is the script it runs: " + marker
+                );
+                assertEquals(
+                    List.of(Math.toIntExact(text.lines().count())),
+                    DockerfileReader.images(text).stream().map(Located::line).toList(),
+                    "the instruction after the body keeps its own line: " + marker
+                );
+            }
+        );
     }
 
     @Test

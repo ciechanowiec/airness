@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 class EnvironmentCheckTest {
 
     private static final String NEXT = "next";
+    private static final String EMPTY_MANIFEST = "{}\n";
     private static final String NEXT_CONFIG
         = "const a = process.env.NEXT_PUBLIC_SITE\nconst b = process.env['NEXT_PUBLIC_KEY']\n";
 
@@ -95,10 +96,10 @@ class EnvironmentCheckTest {
     @Test
     void namesEveryVariableANextBuildInlinesThatTheDockerfileBuildingItDoesNotDeclare() {
         Path root = new GitFixture("environment-next")
-            .write("web/package.json", "{}\n")
+            .write("web/package.json", EMPTY_MANIFEST)
             .write("web/next.config.ts", NEXT_CONFIG)
             .write("web/Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_SITE=x \\\n    OTHER\nRUN build\n")
-            .write("api/package.json", "{}\n")
+            .write("api/package.json", EMPTY_MANIFEST)
             .write("api/next.config.ts", "process.env.NEXT_PUBLIC_ELSEWHERE\n")
             .write("Dockerfile", "FROM node:26\n")
             .root();
@@ -116,7 +117,7 @@ class EnvironmentCheckTest {
     @Test
     void readsNoNodePackageWithoutAManifestReader() {
         Path root = new GitFixture("environment-next-unread")
-            .write("package.json", "{}\n")
+            .write("package.json", EMPTY_MANIFEST)
             .write("next.config.ts", "process.env.NEXT_PUBLIC_SITE\n")
             .write("Dockerfile", "FROM node:26\n")
             .root();
@@ -126,9 +127,9 @@ class EnvironmentCheckTest {
     @Test
     void readsADockerfileOutsideTheApplicationThatNamesItsDirectory() {
         Path root = new GitFixture("environment-next-root-dockerfile")
-            .write("apps/web/package.json", "{}\n")
+            .write("apps/web/package.json", EMPTY_MANIFEST)
             .write("apps/web/next.config.ts", NEXT_CONFIG)
-            .write("apps/admin/package.json", "{}\n")
+            .write("apps/admin/package.json", EMPTY_MANIFEST)
             .write("apps/admin/next.config.ts", "process.env.NEXT_PUBLIC_ADMIN\n")
             .write("docker/web.Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_SITE\nCOPY apps/web /app\n")
             .write("Dockerfile", "FROM node:26\nCOPY . /src\n")
@@ -146,11 +147,11 @@ class EnvironmentCheckTest {
     @Test
     void readsNoDockerfileThatOnlyContainsTheDirectoryNameInsideAnotherWord() {
         Path root = new GitFixture("environment-next-substring")
-            .write("ui/package.json", "{}\n")
+            .write("ui/package.json", EMPTY_MANIFEST)
             .write("ui/next.config.ts", NEXT_CONFIG)
-            .write("app/package.json", "{}\n")
+            .write("app/package.json", EMPTY_MANIFEST)
             .write("app/next.config.ts", NEXT_CONFIG)
-            .write("web/package.json", "{}\n")
+            .write("web/package.json", EMPTY_MANIFEST)
             .write("web/next.config.ts", NEXT_CONFIG)
             .write("services/api/Dockerfile", "FROM golang:1.25\nRUN make build\n")
             .write("services/worker/Dockerfile", "FROM node:26\nWORKDIR /app\nCOPY . /app\n")
@@ -165,7 +166,7 @@ class EnvironmentCheckTest {
     @Test
     void readsEverySpellingOfARelativePathNamingTheApplicationDirectory() {
         Path root = new GitFixture("environment-next-spellings")
-            .write("web/package.json", "{}\n")
+            .write("web/package.json", EMPTY_MANIFEST)
             .write("web/next.config.ts", NEXT_CONFIG)
             .write("docker/a-plain.Dockerfile", "FROM node:26\nCOPY web /app\n")
             .write("docker/b-current.Dockerfile", "FROM node:26\nCOPY ./web/ ./\n")
@@ -191,7 +192,7 @@ class EnvironmentCheckTest {
     @Test
     void judgesEachDockerfileBuildingTheApplicationByItsOwnDeclarations() {
         Path root = new GitFixture("environment-next-each")
-            .write("web/package.json", "{}\n")
+            .write("web/package.json", EMPTY_MANIFEST)
             .write("web/next.config.ts", NEXT_CONFIG)
             .write("web/Dockerfile", "FROM node:26\nARG NEXT_PUBLIC_SITE\nARG NEXT_PUBLIC_KEY\n")
             .write("web/Dockerfile.e2e", "FROM node:26\nRUN build\n")

@@ -197,16 +197,22 @@ final class SpringConfiguration {
             this.unreadable.add("line " + number + ": " + text);
             return;
         }
-        while (!path.isEmpty() && path.getLast().column() >= column) {
-            path.removeLast();
-        }
         String written = text.substring(0, separated).strip();
-        path.addLast(new Level(column, canonical(written)));
+        nest(path, new Level(column, canonical(written)));
         String value = scalar(text.substring(separated + 1).strip());
         if (!value.isEmpty()) {
             String key = String.join(".", path.stream().map(Level::key).toList());
             this.settings.add(new Setting(key, written, value, number, document));
         }
+    }
+
+    // A key sits under the nearest key above it written further left, so every level at its column or
+    // deeper is closed before it is placed.
+    private static void nest(Deque<Level> path, Level level) {
+        while (!path.isEmpty() && path.getLast().column() >= level.column()) {
+            path.removeLast();
+        }
+        path.addLast(level);
     }
 
     /*

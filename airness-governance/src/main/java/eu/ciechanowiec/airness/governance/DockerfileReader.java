@@ -21,11 +21,9 @@ import lombok.experimental.UtilityClass;
  * or external {@code COPY --from} references pull, and the system packages its {@code RUN} lines install.
  *
  * <p>A line reader over a known syntax, in the manner of {@link SpringConfiguration}: what has to be
- * recognised is one keyword and the tokens after it. Continued lines are joined first, so a
- * {@code RUN} split across lines reads as the one command it is, and every value keeps the line its
- * instruction started on. Docker drops a comment line and a blank line inside a continuation rather than
- * ending the instruction there, and so does this. The body of a here-document a {@code RUN}, {@code COPY}
- * or {@code ADD} opens is part of that instruction, each of its lines one more command.
+ * recognised is one keyword and the tokens after it. It reads the logical lines {@link DockerfileLines}
+ * gives, so a {@code RUN} split across lines or carrying a here-document reads as the one command it is,
+ * and every value keeps the line its instruction started on.
  *
  * <p>{@code FROM node:${NODE_VERSION}} is the common way to state a version once, and the {@code ARG}
  * that gives it a default is the only place the value lives, so those defaults are substituted. An
@@ -50,29 +48,16 @@ final class DockerfileReader {
     private static final Pattern INSTALL = Pattern.compile(
         "\\b(?:apt-get|apt|apk|dnf|microdnf|yum|zypper)(?:[ \\t]+-\\S+)*[ \\t]+(?:install|add)\\b"
     );
-    private static final String SEPARATOR = " ; ";
     private static final Pattern COMMAND_SEPARATOR = Pattern.compile("&&|\\|\\||;|\\|");
     // What ends a package name in an install token: apt's version and suite, and apk's version.
     private static final Pattern PACKAGE_END = Pattern.compile("[=/~]");
     private static final Pattern BLANK = Pattern.compile("[ \\t]+");
-    private static final Pattern LINE_BREAK = Pattern.compile("\\r?\\n");
-    // A line a backslash ends continues the instruction onto the next, and every other one ends it.
-    private static final Pattern CONTINUED = Pattern.compile("\\\\[ \\t]*$");
-    private static final Pattern CONTINUATION = Pattern.compile("\\\\\\r?\\n");
-    private static final Pattern HEREDOC_INSTRUCTION = Pattern.compile("(?i)^[ \\t]*(?:RUN|COPY|ADD)[ \\t]");
-    // A shell word opening a here-document: <<EOT, <<-EOT, <<"EOT" or <<'EOT', after an optional descriptor.
-    private static final Pattern HEREDOC = Pattern.compile(
-        "(?<![^ \\t])[0-9]*<<(?<tabs>-?)(?<quote>[\"']?)(?<word>[A-Za-z_][\\w.-]*)\\k<quote>"
-    );
-    private static final Pattern LEADING_TABS = Pattern.compile("^\\t+");
     private static final Pattern VARIABLE = Pattern.compile(
         "\\$(?:\\{(?<braced>[A-Za-z_]\\w*)}|(?<bare>[A-Za-z_]\\w*))"
     );
-    private static final String COMMENT = "#";
     private static final String SCRATCH = "scratch";
     private static final String STAGE = "as";
     private static final String OPTION = "-";
-    private static final String NEWLINE = "\n";
     private static final int STAGE_NAME = 2;
 
     /**
@@ -108,92 +93,9 @@ final class DockerfileReader {
             .toList();
     }
 
-    /**
-     * The logical lines: backslash-continued lines joined, and the here-documents an instruction opens
-     * appended to it, each carrying the line it started on.
-     *
-     * @param text the Dockerfile
-     * @return one entry per logical line
-     */
-    static List<Located<String>> logicalLines(String text) {
-        List<String> physical = Arrays.asList(LINE_BREAK.split(text, -1));
-        List<Located<String>> lines = new ArrayList<>();
-        int next = 0;
-        while (next < physical.size()) {
-            StringBuilder logical = new StringBuilder();
-            int start = next;
-            next = heredocs(physical, joined(physical, next, logical), logical);
-            lines.add(new Located<>(start + 1, logical.toString()));
-        }
-        return lines;
-    }
-
-    // Appends the line at index and every line a backslash continues it onto, and returns the index after
-    // the last line read. A comment line ends nothing, not even with a backslash of its own, and inside a
-    // continuation it and a blank line are skipped, which is what Docker does with them.
-    private static int joined(List<String> physical, int index, StringBuilder logical) {
-        String last = physical.get(index);
-        logical.append(last);
-        int next = index + 1;
-        while (next < physical.size() && continues(last)) {
-            String line = physical.get(next);
-            next++;
-            if (!comment(line) && !line.isBlank()) {
-                String joined = CONTINUED.matcher(logical).replaceFirst(" ") + line;
-                logical.setLength(0);
-                logical.append(joined);
-                last = line;
-            }
-        }
-        return next;
-    }
-
-    // Appends the body of every here-document the instruction opens, in the order it opens them, and
-    // returns the index after the last terminator read. A body is a script, so its own continued lines
-    // join, a shell comment in it is no command, and each remaining line is a command of its own.
-    private static int heredocs(List<String> physical, int index, StringBuilder logical) {
-        if (!HEREDOC_INSTRUCTION.matcher(logical).find()) {
-            return index;
-        }
-        int next = index;
-        Matcher marker = HEREDOC.matcher(logical.toString());
-        while (marker.find()) {
-            boolean tabs = !marker.group("tabs").isEmpty();
-            String word = marker.group("word");
-            List<String> body = new ArrayList<>();
-            while (next < physical.size() && !terminates(physical.get(next), word, tabs)) {
-                body.add(physical.get(next));
-                next++;
-            }
-            next = Math.min(next + 1, physical.size());
-            logical.append(script(body));
-        }
-        return next;
-    }
-
-    private static boolean terminates(String line, String word, boolean tabs) {
-        return word.equals(tabs ? LEADING_TABS.matcher(line).replaceFirst("") : line);
-    }
-
-    private static String script(List<String> body) {
-        String joined = CONTINUATION.matcher(String.join(NEWLINE, body)).replaceAll(" ");
-        return Arrays.stream(joined.split(NEWLINE))
-            .filter(line -> !comment(line))
-            .map(line -> SEPARATOR + line)
-            .collect(Collectors.joining());
-    }
-
-    private static boolean continues(String line) {
-        return !comment(line) && CONTINUED.matcher(line).find();
-    }
-
-    private static boolean comment(String line) {
-        return line.strip().startsWith(COMMENT);
-    }
-
     private static List<Located<String>> contentLines(String text) {
-        return logicalLines(text).stream()
-            .filter(line -> !comment(line.value()))
+        return DockerfileLines.of(text).stream()
+            .filter(line -> !DockerfileLines.comment(line.value()))
             .toList();
     }
 

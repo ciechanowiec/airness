@@ -114,13 +114,12 @@ describe('bodyAfterParameters', () => {
 })
 
 describe('functionBodyIn', () => {
-  it('reads the body of an exported function declaration', () => {
-    const source: string = 'export async function seed(payload) { await payload.create({}) }'
-    expect(functionBodyIn(source, 'seed')).toContain('create')
-  })
-
-  it('reads the body of an exported arrow constant', () => {
-    const source: string = 'export const seed = async (payload) => { await payload.create({}) }'
+  it.each([
+    'export async function seed(payload) { await payload.create({}) }',
+    'export const seed = async (payload) => { await payload.create({}) }',
+    'async function seed(payload) { await payload.create({}) }\nexport { seed }',
+    'export const seed: (p: Payload) => Promise<void> = async (p) => { await p.create({}) }',
+  ])('reads the body of every spelling of an exported function: %s', (source: string) => {
     expect(functionBodyIn(source, 'seed')).toContain('create')
   })
 
@@ -131,16 +130,6 @@ describe('functionBodyIn', () => {
       'export const other = () => payload.delete({})',
     ].join('\n')
     expect(functionBodyIn(source, 'seed')).toBe("payload.create({ collection: 'pages' })")
-  })
-
-  it('reads a function declared first and exported in a clause of its own', () => {
-    const source: string = 'async function seed(payload) { await payload.create({}) }\nexport { seed }'
-    expect(functionBodyIn(source, 'seed')).toContain('create')
-  })
-
-  it('reads past an arrow in the type annotation to the value', () => {
-    const source: string = 'export const seed: (p: Payload) => Promise<void> = async (p) => { await p.create({}) }'
-    expect(functionBodyIn(source, 'seed')).toContain('create')
   })
 
   it('does not read a longer name that starts with the one asked for', () => {

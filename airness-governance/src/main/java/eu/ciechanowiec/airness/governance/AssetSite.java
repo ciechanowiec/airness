@@ -11,18 +11,18 @@ import java.util.stream.Stream;
  * its shared files hold a block for each. Each declared node project is another, carrying only what that
  * project is.
  *
- * @param directory    the directory, relative to the repository root, and empty for the root itself
- * @param location     which manifest rows apply here
- * @param layers the layers present here
+ * @param directory the directory, relative to the repository root, and empty for the root itself
+ * @param location  which manifest rows apply here
+ * @param layers    the layers present here
  */
 public record AssetSite(String directory, AssetLocation location, Set<Layer> layers) {
 
     /**
      * Copies the layers, so the site cannot change after it was described.
      *
-     * @param directory    the directory, relative to the repository root, and empty for the root itself
-     * @param location     which manifest rows apply here
-     * @param layers the layers present here
+     * @param directory the directory, relative to the repository root, and empty for the root itself
+     * @param location  which manifest rows apply here
+     * @param layers    the layers present here
      */
     public AssetSite {
         layers = Set.copyOf(layers);

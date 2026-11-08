@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.SequencedCollection;
 import java.util.Set;
@@ -61,21 +60,6 @@ public final class SecretScanConfiguration {
         "^(?:\\[(" + TABLE_NAME + ")]|\\[\\[(" + TABLE_NAME + ")]])$"
     );
     private static final Pattern ENTRY = Pattern.compile("^([A-Za-z_][A-Za-z0-9_-]*)\\s*=\\s*(.+)$");
-    private static final Pattern STRING = Pattern.compile("'''(.*?)'''|\"([^\"]*)\"|'([^']*)'", Pattern.DOTALL);
-    /**
-     * The body of one exact value between its anchors: ordinary characters, punctuation escaped with a
-     * backslash, and {@code \n} for the line break a multi-line fixture carries. Tested by what widens a
-     * match rather than by an alphabet a value is allowed to draw from, because an exact credential is
-     * entitled to a space, a dash or any other ordinary character, and a whole key carries a {@code +}
-     * that only an escape lets it spell. An escaped letter or digit other than {@code n} is a class such as
-     * {@code \d}, which widens the match.
-     */
-    private static final Pattern EXACT_BODY = Pattern.compile("(?:[^.*+?|()\\[\\]{}^$\\\\]|\\\\[^A-Za-z0-9]|\\\\n)*");
-    // One character of an exact body, an escape counting as the single character it spells.
-    private static final Pattern EXACT_CHARACTER = Pattern.compile("\\\\.|.", Pattern.DOTALL);
-    private static final String ANCHOR_START = "^";
-    private static final String ANCHOR_END = "$";
-    private static final int SHORTEST_EXACT_VALUE = 12;
     private static final String EXTEND = "extend";
     private static final String ALLOWLISTS = "allowlists";
     private static final String TARGET_RULES = "targetRules";
@@ -155,13 +139,12 @@ public final class SecretScanConfiguration {
             ).forEach(problems::add);
         this.statements.stream()
             .filter(statement -> statement.is(ALLOWLISTS, TARGET_RULES))
-            .filter(statement -> strings(statement.value()).stream().allMatch(String::isBlank))
+            .filter(statement -> SecretScanValue.strings(statement.value()).stream().allMatch(String::isBlank))
             .map(
                 statement -> statement.at(
                     TARGET_RULES + " names no rule, and gitleaks applies such an exception to every rule"
                 )
-            )
-            .forEach(problems::add);
+            ).forEach(problems::add);
         return List.copyOf(problems);
     }
 
@@ -177,7 +160,7 @@ public final class SecretScanConfiguration {
             ).forEach(problems::add);
         this.statements.stream()
             .filter(statement -> statement.is(ALLOWLISTS, REGEX_TARGET))
-            .filter(statement -> !List.of(SECRET_TARGET).equals(strings(statement.value())))
+            .filter(statement -> !List.of(SECRET_TARGET).equals(SecretScanValue.strings(statement.value())))
             .map(
                 statement -> statement.at(
                     REGEX_TARGET + " = " + statement.value()
@@ -186,7 +169,7 @@ public final class SecretScanConfiguration {
             ).forEach(problems::add);
         this.statements.stream()
             .filter(statement -> statement.is(ALLOWLISTS, REGEXES))
-            .filter(statement -> doubleQuoted(statement.value()))
+            .filter(statement -> SecretScanValue.doubleQuoted(statement.value()))
             .map(
                 statement -> statement.at(
                     REGEXES + " holds a double-quoted string, whose escapes gitleaks decodes before compiling"
@@ -196,9 +179,9 @@ public final class SecretScanConfiguration {
         this.statements.stream()
             .filter(statement -> statement.is(ALLOWLISTS, REGEXES))
             .flatMap(
-                statement -> literals(statement.value()).stream()
+                statement -> SecretScanValue.literals(statement.value()).stream()
                     .flatMap(
-                        value -> inexactness(value).stream()
+                        value -> SecretScanValue.inexactness(value).stream()
                             .map(reason -> statement.at('"' + value + "\" " + reason))
                     )
             ).forEach(problems::add);
@@ -246,7 +229,7 @@ public final class SecretScanConfiguration {
      */
     private static Optional<Statement> entryOf(Line line, SequencedCollection<Statement> read) {
         Matcher entry = ENTRY.matcher(line.text());
-        return entry.matches() && STRING.matcher(entry.group(2)).replaceAll("").indexOf(INLINE_TABLE) < 0
+        return entry.matches() && SecretScanValue.outsideStrings(entry.group(2)).indexOf(INLINE_TABLE) < 0
             ? Optional.of(new Statement(line.number(), enclosing(read), entry.group(1), entry.group(2).strip()))
             : Optional.empty();
     }
@@ -257,37 +240,6 @@ public final class SecretScanConfiguration {
             .map(Statement::table)
             .findFirst()
             .orElse("");
-    }
-
-    /**
-     * Why an allowlist value is not one exact value, or nothing when it is.
-     *
-     * <p>A value fails this for any of three unrelated reasons, and each asks for a different repair.
-     * Reporting them as the same sentence sent the reader of a short literal looking for a
-     * metacharacter that was never there, so each says what it means.
-     *
-     * @param value the allowlist value as written
-     * @return the reason the value is not exact, or nothing when it is
-     */
-    private static Optional<String> inexactness(String value) {
-        boolean anchored = value.startsWith(ANCHOR_START) && value.endsWith(ANCHOR_END);
-        String body = anchored
-            ? value.substring(ANCHOR_START.length(), value.length() - ANCHOR_END.length())
-            : value;
-        if (!EXACT_BODY.matcher(body).matches()) {
-            return Optional.of("is a pattern rather than an exact value");
-        }
-        if (!anchored) {
-            return Optional.of(
-                "matches every finding that contains it; write it as ^value$ so it matches one whole secret"
-            );
-        }
-        return EXACT_CHARACTER.matcher(body).results().count() < SHORTEST_EXACT_VALUE
-            ? Optional.of(
-                "is too short to be an exact value, which needs at least "
-                    + SHORTEST_EXACT_VALUE + " characters"
-            )
-            : Optional.empty();
     }
 
     /*
@@ -310,29 +262,6 @@ public final class SecretScanConfiguration {
 
     private static String described(String table) {
         return table.isEmpty() ? "the top level" : "[" + table + "]";
-    }
-
-    private static boolean doubleQuoted(CharSequence value) {
-        return STRING.matcher(value).results().anyMatch(hit -> hit.group(2) != null);
-    }
-
-    // The literal strings of a value, which reach gitleaks exactly as they are written.
-    private static List<String> literals(CharSequence value) {
-        return STRING.matcher(value).results()
-            .filter(hit -> hit.group(2) == null)
-            .map(hit -> Objects.requireNonNullElse(hit.group(1), Objects.requireNonNullElse(hit.group(3), "")))
-            .toList();
-    }
-
-    private static List<String> strings(CharSequence value) {
-        return STRING.matcher(value).results()
-            .map(
-                hit -> Objects.requireNonNullElse(
-                    hit.group(1), Objects.requireNonNullElse(
-                        hit.group(2), Objects.requireNonNullElse(hit.group(3), "")
-                    )
-                )
-            ).toList();
     }
 
     /**

@@ -79,8 +79,7 @@ class JavadocLinkCheckTest {
                     class Subject {
                     }
                     """
-            )
-            .root();
+            ).root();
         assertEquals(
             List.of(Path.of(SUBJECT) + ": String"),
             Verdicts.offences(new JavadocLinkCheck(root, MAIN).findings(), "Javadoc names"),

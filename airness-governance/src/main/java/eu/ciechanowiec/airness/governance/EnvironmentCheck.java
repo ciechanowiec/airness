@@ -153,7 +153,12 @@ public final class EnvironmentCheck {
 
     private boolean builds(Path dockerfile, Path application, String directory, List<Path> packages) {
         boolean held = owner(dockerfile, packages).filter(application::equals).isPresent();
-        return held || (!directory.isEmpty() && names(this.read(dockerfile), directory));
+        return held || this.namesDirectory(dockerfile, directory);
+    }
+
+    // The repository root is no directory a Dockerfile can name, so it is named by none.
+    private boolean namesDirectory(Path dockerfile, String directory) {
+        return !directory.isEmpty() && names(this.read(dockerfile), directory);
     }
 
     // A Dockerfile names a directory with a word that is a path relative to the build context at or under it,

@@ -30,6 +30,10 @@ final class ImageFixtures {
     private static final int JPEG_COMMENT = 0xFE;
     private static final int JPEG_SCAN = 0xDA;
     private static final int JPEG_RESTART = 0xD0;
+    // Any byte but the marker byte is entropy-coded data, so the value stands for every such byte.
+    private static final byte ENTROPY_CODED = 0x12;
+    // A baseline scan selects the coefficients 0 to 63.
+    private static final byte LAST_COEFFICIENT = 0x3F;
     private static final int BYTE = 8;
     private static final int GIF_TRAILER = 0x3B;
     // Room for a stream that does not compress at all, plus the zlib header and checksum.
@@ -84,8 +88,11 @@ final class ImageFixtures {
 
     // A scan header, then entropy-coded data holding an escaped 0xFF and a restart marker, then fill bytes.
     static byte[] jpegScan() {
-        byte[] data = {0x12, (byte) MARKER, 0x00, 0x34, (byte) MARKER, (byte) JPEG_RESTART, 0x56, (byte) MARKER};
-        return joined(jpegSegment(JPEG_SCAN, new byte[] {0x01, 0x01, 0x00, 0x00, 0x3F, 0x00}), data);
+        byte[] data = {
+            ENTROPY_CODED, (byte) MARKER, 0x00, ENTROPY_CODED, (byte) MARKER, (byte) JPEG_RESTART, ENTROPY_CODED,
+            (byte) MARKER
+        };
+        return joined(jpegSegment(JPEG_SCAN, new byte[] {0x01, 0x01, 0x00, 0x00, LAST_COEFFICIENT, 0x00}), data);
     }
 
     static byte[] joined(byte[]... parts) {

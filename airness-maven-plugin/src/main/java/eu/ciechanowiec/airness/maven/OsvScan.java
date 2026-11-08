@@ -157,8 +157,10 @@ record OsvScan(String base, HttpClient client) {
     private record Query(String purl, String token) {
 
         Map<String, Object> body() {
-            Map<String, String> pkg = Map.of("purl", this.purl);
-            return this.token.isEmpty() ? Map.of("package", pkg) : Map.of("package", pkg, "page_token", this.token);
+            Map<String, String> coordinates = Map.of("purl", this.purl);
+            return this.token.isEmpty()
+                ? Map.of("package", coordinates)
+                : Map.of("package", coordinates, "page_token", this.token);
         }
     }
 }
