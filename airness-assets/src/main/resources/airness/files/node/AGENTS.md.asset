@@ -1,3 +1,3 @@
 ## Airness node layer
 
-Each directory a module lists in `airness.node.projects` is a node project and carries the node layer in its own `AGENTS.md`.
+Each directory a module lists in `airness.node.projects` is a node project. In it, also follow the Node projects domain of `.airness/agent-guide.md` and the sections that domain names.

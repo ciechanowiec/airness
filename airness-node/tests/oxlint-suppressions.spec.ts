@@ -67,7 +67,7 @@ describe('native accessibility suppression policy', () => {
     expect(oxlintSuppressionProblems([comment('// The native checker owns this rule.')])).toEqual([])
   })
 
-  it('refuses a closing directive without creating a second budget entry', () => {
+  it('refuses a closing directive without counting a second suppression', () => {
     const source: SourceComment = comment('// oxlint-enable jsx-a11y/alt-text -- end')
     expect(isOxlintSuppression(source)).toBe(false)
     expect(oxlintSuppressionProblems([source])).not.toEqual([])

@@ -1,22 +1,16 @@
 # Airness Agent Guide
 
-This guide maps the governing standard to the Airness harness for every repository, whatever stacks it holds.
-The guide of each stack layer present adds to it, and the managed blocks of `AGENTS.md` name them. After them,
-follow the remaining steps of `AGENTS.md` in the order it declares. Exact analyzer rules remain in the executable
-harness.
-
-## Governing Standard
-
-- Read `README-guideline-software-project.adoc` before using this Airness-specific mapping.
+This guide maps the governing standard, `README-guideline-software-project.adoc`, to the Airness harness for every
+repository, whatever stacks it holds. The guide of each stack layer present adds to it, and the managed blocks of
+`AGENTS.md` name them. After them, follow the remaining steps of `AGENTS.md` in the order it declares. Exact
+analyzer rules remain in the executable harness.
 
 ## Harness Invariants
 
 - Each module inherits the Airness parent for what it contains: `airness-parent` for a monorepo root or a module
   with no code, `airness-parent-java` for Java, `airness-parent-spring-boot` for a Spring Boot project, or
   `airness-parent-node` for a module whose main content is JavaScript or TypeScript. That
-  choice is the only place a module states which kind it is, and it is what decides which rules apply. Do not
-  weaken, replace, duplicate, or version the plugins, dependencies, analyzers, rules, thresholds, or managed files
-  that the parent owns.
+  choice is the only place a module states which kind it is, and it is what decides which rules apply.
 - Use exactly Java 25, Maven 3.10.0 or later, and a Git working tree. Default verification reads Maven Central and
   Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon
   that can read the repository through a bind mount. Extended verification refuses to start under `-o` or offline
@@ -27,7 +21,6 @@ harness.
   repository under Downloads, Desktop or Documents is unreadable inside a container until the terminal that starts
   Colima is granted access to that folder under System Settings, Privacy and Security, Files and Folders, so keep
   the repository elsewhere or grant it.
-  Keep every production and test package under the `airness.package.root` declared in the root `pom.xml`.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.
 
@@ -46,7 +39,9 @@ Airness governs all of the following domains:
   (`mvn sonar:sonar verify`) or run it in an invocation of its own. Once every module of the build has
   completed, one closing step compares the committable tree with the one the build started from, holds the
   Java sources and the node projects' own code to their suppression ceilings, and under Extended verification
-  writes the compliance report and looks every npm package up in the OSV database.
+  writes the compliance report and looks every npm package up in the OSV database. Build Helper and Assembly
+  are optional managed plugins: declare one without a version in the module that uses it. Build Helper's source
+  and resource roots and Assembly's distribution descriptors belong to the project.
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
   instruction files; editor and Git configuration; and an unchanged committable tree during verification. Managed
   files follow what the repository contains rather than which parent a module names: the root carries the files
@@ -54,9 +49,9 @@ Airness governs all of the following domains:
   per stack, the lines below the blocks belong to the project, and each declared node project carries the node
   files in its own directory. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
-  rather than reported: build output and a tool's scratch are not content this style governs. Neither is a file
-  a generator owns (one a stack layer, `airness.generated.files` or a node project's `airness.generatedArtefacts`
-  declares), which the editor configuration and the typography check leave unread.
+  rather than reported: build output and a tool's scratch are not content this style governs. Neither is a
+  generated file, which is a file a stack layer, `airness.generated.files` or a node project's
+  `airness.generatedArtefacts` declares, and which the editor configuration and the typography check leave unread.
   Ignored files selected as Java or resource inputs are different: Maven can consume them locally
   while a checkout omits them. The per-module `build-inputs` preflight rejects that mismatch at
   `validate`, `process-resources` and `process-test-resources`, using Maven's roots and file filters,
@@ -74,21 +69,17 @@ Airness governs all of the following domains:
   keys are all ones the agent runtime knows; every
   variable a compose file interpolates without a default is documented in `.env.example` (or `.env.sample`,
   `.env.template`) and supplied by every workflow that runs Maven through `verify`; and `.claude/settings.json`
-  denies `Edit(...)` of every generated file a stack layer, `airness.generated.files` or a node project's
-  `airness.generatedArtefacts` declares and of every pinned managed file, with no local settings allowing one
-  back. `mvn airness:assets-sync` writes those rules beside the project's own.
+  denies `Edit(...)` of every generated file and of every pinned managed file, with no local settings allowing
+  one back. `mvn airness:assets-sync` writes those rules beside the project's own.
 - **Frontend resources:** at `validate`, every module inventories the scripts (`.js`, `.mjs`, `.cjs`, `.jsx`,
   `.ts`, `.mts`, `.cts`, `.tsx`) and stylesheets (`.css`, `.scss`) a commit would carry, whether or not it has a
   `package.json`. Each must lie in a declared node project and under one of its checked source roots (`src`,
   `tests`, `scripts` and `airness.sourceRoots`); a script directly in a project's top directory is a tooling file
   the linters and the type check read. `.sass` and `.less` files are refused because no gate reads them. Only a
-  file a generator owns (a stack layer, `airness.generated.files` or `airness.generatedArtefacts`) or the harness
-  places is passed over; a `vendor` directory or a minified name is not evidence of third-party ownership, so take
+  generated file or a file the harness places is passed over; a `vendor` directory or a minified name is not evidence of third-party ownership, so take
   a distribution from a dependency (a WebJar, or an npm package a `node-run` build copies under `target/`). An
   ignored file the Maven build or a node project's toolchain consumes is refused by `build-inputs`; a file only a
-  custom tool reads from outside both the Maven inputs and the commit is beyond the inventory. A Java application
-  keeps its Java runtime: declare a frontend tooling directory, which may be the module itself with `sourceRoots`
-  naming its static resources.
+  custom tool reads from outside both the Maven inputs and the commit is beyond the inventory.
   A tooling project with stylesheets and no script of its own needs no TypeScript, no tests and no server: the
   script gates report not applicable and the `css` gate judges the stylesheets.
 - **Node projects:** every `package.json` in a module belongs to a node project the module lists in
@@ -140,7 +131,8 @@ Airness governs all of the following domains:
   pages the crawl renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets
   goal seeds `src/proxy.ts`. A node project declares only what the harness cannot know, under the `airness` key
   of its `package.json`, through the keys the table Node Project Settings lists. Diagnose one finding with
-  `pnpm exec airness-node gate <id> --verbose`, which gives no verdict.
+  `pnpm exec airness-node gate <id> --verbose`, which gives no verdict. The sections Node Application
+  Preparation and Security Corrections, Browser Verification and Node Project Settings complete this domain.
 - **Maven repository routing:** Airness owns `.mvn/maven.config`, `.mvn/jvm.config` and `.mvn/settings.xml`,
   since a `-D` option in the JVM options would set a property such as `skipTests` for every build. The startup
   configuration loads the latter as Maven's global settings and mirrors every remote repository to
@@ -243,113 +235,18 @@ Check a commit as soon as it is recorded, with
 `mvn airness:commit-history airness:commit-typography airness:linear-history`. All three goals read the repository
 rather than the module, so none of them needs a build, and an unpublished commit can still be amended.
 
-### Assertions
-
-The harness checks that every test reaches an assertion and that no assertion compares one written-out value with
-another. Neither check decides the question those two stand in for, which is whether the assertion would notice if
-the behaviour went missing. That half binds in prose: a test fails when the behaviour its name states is removed
-from the code under test. Write each test so that it would, and read it back that way before finishing.
-
-A test helper that asserts carries a name starting with `assert` or `verify`, such as `check.assertSingleAt(...)`.
-An assertion is recognized by that prefix wherever the helper is declared. A helper named otherwise is followed at
-most within its own file, so a test that reaches its assertion only through such a helper in another type reports
-as unproven. Rename the helper or move the assertion into the test's own source rather than suppressing the
-finding.
-
 ### History Shape
 
 The linear-history check counts the parents Git recorded rather than reading the header, so a subject that
 mentions merging is an ordinary commit, and rewording a merge does not hide it. Avoid a merge rather than plan to
 repair one: once it is published, only a fresh history satisfies the rule.
 
-## Command Workflow
+### Assertions
 
-1. Read `airness.package.root` from the root `pom.xml` before adding or moving Java packages.
-2. Run `mvn airness:assets-sync` only to create or restore managed repository files, then review and commit its edits.
-   `mvn airness:assets-init` also synchronizes managed files and creates absent optional scaffolds, including a
-   nightly and release full-verification workflow in a repository with node projects. Scaffolds belong to the
-   project: ordinary `assets-sync` and verification neither require nor recreate them. Customize the workflow's
-   services and environment, or delete it when verification runs elsewhere.
-3. Run `mvn process-resources -Pformat` to apply formatting and import order, then review the resulting source.
-4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
-   its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
-5. Run `mvn clean verify -Pextended` before finishing. Extended verification includes Default verification and adds
-   the known-vulnerability scan, the HTML/PDF compliance report, and the history, secret, and Qodana checks. Default verification alone never reads the
-   vulnerability database. Maven resolves effective plugin dependencies from the clean and deploy lifecycles,
-   requested goals, and project build extensions, including plugin dependency overrides. Unused lifecycle defaults
-   enter the scan when requested. A full Airness reactor build collects its own plugin inputs in the parent module.
-   Confirmed incorrect product or version matches have narrowly scoped, dated harness exceptions; project exceptions append
-   to them, and unused exceptions fail verification.
-
-### Browser Verification
-
-Default verification runs no automatic browser sweep; browser tests a project writes itself may run there as
-ordinary tests. Extended verification runs the complete browser sweep, including
-Chromium, Firefox and WebKit, alongside the security-header, stack-layer and project specifications. Prepare
-the Playwright image matching the node harness's pinned `@playwright/test` before the run. A missing image
-fails with its pull command. The host Chromium used for compliance reports is a separate toolchain.
-
-`mvn clean verify -Pextended,delta` runs the Extended checks with the automatic sweep restricted to affected
-routes and stories in Chromium. The delta profile requires Extended and cannot be used for a release. It
-never narrows the project's or a layer's own specifications. Its result and report explicitly state the scope,
-and its report is a draft rather than a complete Extended verdict. Use unscoped Extended verification for a
-release and a full assessment. `pnpm exec airness-node scope --json` explains the selected targets without
-running verification. The baseline is the remote default branch's merge-base; committed, staged, unstaged and
-untracked changes all count. Unknown baselines and global inputs broaden the sweep, while unreadable graphs
-fail. No pass or scope is cached.
-
-The sweep applies to every module that serves user-facing HTML, whatever its backend language. A Java module
-is a web interface when it resolves `spring-webmvc` or `spring-webflux` and declares a `@Controller`, view
-controllers or a static HTML page under `static`, `public`, `resources` or `META-INF/resources`; a library or a
-JSON-only service is not, and no setting relabels a detected interface. At `validate`, a web interface must
-declare a node project whose `airness.serve` script launches `$AIRNESS_APPLICATION_ARTIFACT`, for example
-`"$JAVA_HOME/bin/java" -jar "$AIRNESS_APPLICATION_ARTIFACT" --server.port=$PORT`, and start what the application
-needs through `airness.testWrapper`, never against a developer's data. In Extended, `e2e` exports the artifact
-this invocation packaged, the Maven JVM's `JAVA_HOME` and a route inventory: the HTML handler routes the
-application's startup tests recorded in this build, and its static pages. A missing artifact, missing or stale
-evidence, an empty inventory, or a web interface whose every `e2e` result is not applicable is unassessed, and
-unassessed fails. An inventory route the crawl does not reach needs a completed `expectSweptPage` scan in a
-project specification, which is how authenticated roles and prepared states are covered, or an
-`accessibilitySkipRoutes` entry with its reason. A temporary redirect (302, 303, 307) credits only the page it
-lands on, so a protected page answered by the sign-in page stays uncovered; a permanent redirect still credits
-its source. Same-origin `hx-get` fragments found on swept and scanned pages are requested with the page's
-session, must answer HTML, and are reported as fragment coverage apart from swept pages. A Java web interface is
-always swept completely, because no Java change maps to its pages.
-
-The node setting `clock` selects an ISO instant or `real`; by default the build, application, test worker and
-browser start at `2100-01-01T12:00:00.000Z`. Application clocks advance normally; browser Date stays fixed
-while timers and animation clocks continue. `auxiliaryServers` names the command and URL
-of each server the application needs before it starts, with an optional member-relative `cwd`. The sweep
-finds Storybook stories on those servers. In verification, `e2e` keeps the scheme, host and path of
-`serverUrl` and of each auxiliary URL but serves on a loopback port chosen for the run, handed to the server as
-`$PORT`, so a `serve` script and every auxiliary command listen on `$PORT`, such as
-`storybook dev --port $PORT`; the declared port matters only outside verification. Specifications reach the application through
-Playwright's `baseURL` or relative URLs, never a written-out origin. An application that builds absolute links
-or a list of accepted origins from its own variable names it in `serverUrlVariables`, which the run sets to the
-served origin, and reads it at runtime. The node harness owns the general browser rules; an installed
-stack layer supplies the content selectors of its framework's views through `airness.layer.browser`.
-
-Resting and reflow measurements keep motion reduced and animations still. Keyboard and disclosure checks
-also run with normal motion, preserving transitions and animations. They verify that activation opens the
-disclosure and that focus becomes perceivable, including ancestor opacity, clipping and inert state. Pointer
-geometry and pixel-contrast comparisons remain in the still passes. Text clipped by a non-scrollable ancestor
-is a finding; inactive subtrees and text deliberately outside a scrollable region are distinguished from it.
-
-Authored Next.js `not-found` boundaries are scanned through their real application layouts, with concrete
-locale and dynamic prefixes taken from discovered routes. The expected top-level document 404 is allowed;
-failed subresources remain findings. A boundary with no resolvable public prefix fails discovery.
-An application with several root layouts answers an address none of them claims with `global-not-found`,
-which is scanned at the root; without it Next.js serves its bare built-in page, and that page is judged.
-
-A route delegated to project specifications needs a completed `expectSweptPage(page)` scan from
-`@airness/node/a11y` in the current run. The helper records evidence only after every required viewport passes
-and the URL remains unchanged. Discovery clears earlier evidence before dependent specifications start;
-teardown checks it after they finish. A source-level call that never executes fails as `route-unexecuted`.
-Project and layer specifications depend on discovery. Playwright's `--no-deps` is available for a focused
-diagnostic, which establishes no complete sweep verdict.
-
-`expectPerceivable(control)` from `@airness/node/a11y` checks painted visibility within 1.5 seconds, without
-moving focus or scrolling on the test's behalf. Use it for time-sensitive keyboard regressions.
+The harness checks that every test reaches an assertion and that no assertion compares one written-out value with
+another. Neither check decides the question those two stand in for, which is whether the assertion would notice if
+the behaviour went missing. That half binds in prose: a test fails when the behaviour its name states is removed
+from the code under test. Write each test so that it would, and read it back that way before finishing.
 
 ### Node Application Preparation and Security Corrections
 
@@ -415,6 +312,87 @@ one the lockfile records, and names the lockfile-only `pnpm install` that refres
 packages retain their public registry metadata and release-age checks. Only the unpublished harness packages may
 be excluded from the age floor.
 
+## Command Workflow
+
+1. Read `airness.package.root` from the root `pom.xml` before adding or moving Java packages.
+2. Run `mvn airness:assets-sync` only to create or restore managed repository files, then review and commit its edits.
+   `mvn airness:assets-init` also synchronizes managed files and creates absent optional scaffolds, including a
+   nightly and release Extended verification workflow in a repository with node projects. Scaffolds belong to the
+   project: ordinary `assets-sync` and verification neither require nor recreate them. Customize the workflow's
+   services and environment, or delete it when verification runs elsewhere.
+3. Run `mvn process-resources -Pformat` to apply formatting and import order, then review the resulting source.
+4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
+   its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
+5. Run `mvn clean verify -Pextended` before finishing. Extended verification is the verification command of the
+   governing standard; Default and delta verification run declared subsets of its checks. It includes Default
+   verification and adds the known-vulnerability scan, the HTML/PDF compliance report, and the history, secret, and Qodana checks. Default verification alone never reads the
+   vulnerability database. Maven resolves effective plugin dependencies from the clean and deploy lifecycles,
+   requested goals, and project build extensions, including plugin dependency overrides. Unused lifecycle defaults
+   enter the scan when requested. A full Airness reactor build collects its own plugin inputs in the parent module.
+   Confirmed incorrect product or version matches have narrowly scoped, dated harness exceptions; project exceptions append
+   to them, and unused exceptions fail verification.
+
+### Browser Verification
+
+Default verification runs no automatic browser sweep; browser tests a project writes itself may run there as
+ordinary tests. Extended verification runs the complete browser sweep, including
+Chromium, Firefox and WebKit, alongside the security-header, stack-layer and project specifications. Prepare
+the Playwright image matching the node harness's pinned `@playwright/test` before the run. A missing image
+fails with its pull command. The host Chromium used for compliance reports is a separate toolchain.
+
+`mvn clean verify -Pextended,delta` runs the Extended checks with the automatic sweep restricted to affected
+routes and stories in Chromium. The delta profile requires Extended and cannot be used for a release. It
+never narrows the project's or a layer's own specifications. Its result and report explicitly state the scope,
+and its report is a draft rather than a complete Extended verdict. Use Extended verification without `delta`
+for a release and a full assessment. `pnpm exec airness-node scope --json` explains the selected targets without
+running verification. The baseline is the remote default branch's merge-base; committed, staged, unstaged and
+untracked changes all count. Unknown baselines and global inputs broaden the sweep, while unreadable graphs
+fail. No pass or scope is cached.
+
+The sweep applies to every module that serves user-facing HTML, whatever its backend language. The Java layer's
+guide states when a Java module is such a web interface, how it is served and where its route inventory comes
+from. An inventory route the crawl does not reach needs a completed `expectSweptPage` scan in a project
+specification, which is how authenticated roles and prepared states are covered, or an `accessibilitySkipRoutes`
+entry with its reason. A temporary redirect (302, 303, 307) credits only the page it lands on, so a protected page
+answered by the sign-in page stays uncovered; a permanent redirect still credits its source. Same-origin `hx-get`
+fragments found on swept and scanned pages are requested with the page's session, must answer HTML, and are
+reported as fragment coverage apart from swept pages.
+
+The node setting `clock` selects an ISO instant or `real`; by default the build, application, test worker and
+browser start at `2100-01-01T12:00:00.000Z`. Application clocks advance normally; browser Date stays fixed
+while timers and animation clocks continue. `auxiliaryServers` names the command and URL
+of each server the application needs before it starts, with an optional member-relative `cwd`. The sweep
+finds Storybook stories on those servers. In verification, `e2e` keeps the scheme, host and path of
+`serverUrl` and of each auxiliary URL but serves on a loopback port chosen for the run, handed to the server as
+`$PORT`, so a `serve` script and every auxiliary command listen on `$PORT`, such as
+`storybook dev --port $PORT`; the declared port matters only outside verification. Specifications reach the application through
+Playwright's `baseURL` or relative URLs, never a written-out origin. An application that builds absolute links
+or a list of accepted origins from its own variable names it in `serverUrlVariables`, which the run sets to the
+served origin, and reads it at runtime. The node harness owns the general browser rules; an installed
+stack layer supplies the content selectors of its framework's views through `airness.layer.browser`.
+
+Resting and reflow measurements keep motion reduced and animations still. Keyboard and disclosure checks
+also run with normal motion, preserving transitions and animations. They verify that activation opens the
+disclosure and that focus becomes perceivable, including ancestor opacity, clipping and inert state. Pointer
+geometry and pixel-contrast comparisons remain in the still passes. Text clipped by a non-scrollable ancestor
+is a finding; inactive subtrees and text deliberately outside a scrollable region are distinguished from it.
+
+Authored Next.js `not-found` boundaries are scanned through their real application layouts, with concrete
+locale and dynamic prefixes taken from discovered routes. The expected top-level document 404 is allowed;
+failed subresources remain findings. A boundary with no resolvable public prefix fails discovery.
+An application with several root layouts answers an address none of them claims with `global-not-found`,
+which is scanned at the root; without it Next.js serves its bare built-in page, and that page is judged.
+
+A route delegated to project specifications needs a completed `expectSweptPage(page)` scan from
+`@airness/node/a11y` in the current run. The helper records evidence only after every required viewport passes
+and the URL remains unchanged. Discovery clears earlier evidence before dependent specifications start;
+teardown checks it after they finish. A source-level call that never executes fails as `route-unexecuted`.
+Project and layer specifications depend on discovery. Playwright's `--no-deps` is available for a focused
+diagnostic, which establishes no complete sweep verdict.
+
+`expectPerceivable(control)` from `@airness/node/a11y` checks painted visibility within 1.5 seconds, without
+moving focus or scrolling on the test's behalf. Use it for time-sensitive keyboard regressions.
+
 ### Compliance Reports
 
 Extended verification writes one HTML and PDF compliance report for the participating reactor under the
@@ -432,7 +410,7 @@ renderer explicitly use `~/.cache/airness/report-browser/<Playwright version>`, 
 `PLAYWRIGHT_BROWSERS_PATH`. Report rendering reads no remote fonts or scripts. Missing browser tooling and incomplete evidence fail generation.
 
 Run `mvn -Pextended airness:compliance-report` to regenerate the prerequisite package-phase evidence
-and the report outside full verification. This command establishes the dependency-policy result, not
+and the report outside Extended verification. This command establishes the dependency-policy result, not
 an Extended verification pass. `-Dairness.compliance.output=<directory>` changes the destination only;
 it must be ignored by Git or outside the repository and may not traverse a symbolic link.
 
@@ -476,55 +454,10 @@ Earlier report pairs are removed only after a complete replacement has been rend
   parameters. A fixture exception belongs in `.gitleaks.toml`, and the rest of `junit-platform.properties` stays the
   project's.
 
-### Change Requests
+### Vulnerability Exceptions
 
-A project cannot repair the harness from inside itself, and that is the design rather than a gap in it: a rule a
-project can edit is not a rule. What follows from it is that a rule improves only when somebody reports it, which
-makes the report part of the contract rather than a courtesy.
-
-Raise it with the Airness maintainers when:
-
-- a check blocks work that is correct, and the only way past it is a suppression or an exclusion;
-- the same finding is repaired the same way in project after project, which is a rule that belongs in the harness
-  rather than in each project's habits;
-- a project-owned check turns out to be true of every project of this kind, and should move into the harness;
-- a message names a defect without naming the repair, or names the wrong repair.
-
-Bring the failing output, the smallest case that reproduces it, and what the rule should have said. A suppression to
-get past a check is a local answer to a general problem: take it when the work cannot wait, and report it either
-way, because the next project meets the same check with no memory of this one, and a suppression left in place
-spends a ceiling the next repair will need.
-
-### Project Settings
-
-| Setting | Use |
-| --- | --- |
-| `airness.package.root` | the prefix of every production and test package, and the only required key |
-| `airness.assets.unmanaged` | repository paths the project takes over from the harness |
-| `airness.node.projects` | the module's node project directories, comma-separated, and none unless set |
-| `airness.generated.files` | further repository paths a generator owns, comma-separated, denied to agents and skipped by the typography and `.editorconfig` checks |
-| `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them; generated files are skipped without it |
-| `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip, never all of them |
-| `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
-| `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path below unless set |
-
-Those eight are the whole of what a project file may declare. Every other name under `airness.` is refused there, and
-so is every property a goal the parents bind reads in place of a parameter that decides a verdict, such as `skipTests`,
-`maven.test.failure.ignore`, `checkstyle.maxAllowedViolations` or `license.excludedGroups`, because Maven fills an
-unset parameter from that property without the plugin being declared. A property that only tunes how a plugin the
-project may configure runs, such as `argLine`, stays the project's. The refusal
-reads the file as written, so a name inside a profile that is never activated is refused too. Both
-`-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
-Raw-model integrity checks read the current POM and every consumer parent up to the trusted Airness chain,
-even with `-DskipTests`; skipping execution cannot hide a forbidden committed property or inherited override.
-
-A property naming a version is refused where nothing in the same file reads it. The platform reaches a project as a
-bill of materials the parent imports rather than inherits, and an imported one resolves its own properties, so a
-`tomcat.version` written beside the settings above moves no version at all and leaves the file claiming a pin that is
-not there. Manage the artifact in a `dependencyManagement` block of the project's own and version it from the
-property, which is what makes the property the pin it reads as.
-
-Reach for the suppression file only when no upgrade answers an advisory. Keep it at
+Reach for the OWASP suppression file, which `airness.dependency-check.suppression.file` locates, only when no
+upgrade answers an advisory. Keep it at
 `.airness/dependency-check-suppressions.xml` in the directory of the module whose dependency it excuses, which is the
 path the scan of that module reads: the document's presence there is what puts it in front of the scan, so one kept
 elsewhere is never read and the setting itself needs no declaring. In a multi-module build a document at the
@@ -560,6 +493,64 @@ including their supported regex forms, and a dependency selector is not mandator
 and entries using namespace prefixes are checked too. Each entry carries its own explanation, mitigation plan and
 date.
 
+Each `airness.vulnerabilityAllowlist` entry carries `package`, `advisory`, `reason`, `mitigation` and `addedOn`.
+Name one exact npm package and one literal advisory identifier or an alias OSV supplies, explain why it cannot be
+exploited here, state the removal plan, and use a YYYY-MM-DD calendar date. Prefer an available, compatible
+upgrade or an approved security replacement. An exception belongs only to that node project's inventory: it
+cannot excuse another module or frontend. Missing fields, malformed declarations, unused entries and overlapping
+entries fail verification. The report keeps each mitigated advisory and its explanation, while any remaining open
+finding still fails. A scanner that cannot run cannot be waived.
+
+### Change Requests
+
+A project cannot repair the harness from inside itself, and that is the design rather than a gap in it: a rule a
+project can edit is not a rule. What follows from it is that a rule improves only when somebody reports it, which
+makes the report part of the contract rather than a courtesy.
+
+Raise it with the Airness maintainers when:
+
+- a check blocks work that is correct, and the only way past it is a suppression or an exclusion;
+- the same finding is repaired the same way in project after project, which is a rule that belongs in the harness
+  rather than in each project's habits;
+- a project-owned check turns out to be true of every project of this kind, and should move into the harness;
+- a message names a defect without naming the repair, or names the wrong repair.
+
+Bring the failing output, the smallest case that reproduces it, and what the rule should have said. A suppression to
+get past a check is a local answer to a general problem: take it when the work cannot wait, and report it either
+way, because the next project meets the same check with no memory of this one, and a suppression left in place
+spends a ceiling the next repair will need.
+
+## Settings
+
+### Project Settings
+
+| Setting | Use |
+| --- | --- |
+| `airness.package.root` | the prefix of every production and test package, and the only required key |
+| `airness.assets.unmanaged` | repository paths the project takes over from the harness |
+| `airness.node.projects` | the module's node project directories, comma-separated, and none unless set |
+| `airness.generated.files` | further generated files, comma-separated |
+| `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them; generated files are skipped without it |
+| `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip, never all of them |
+| `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
+| `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path Vulnerability Exceptions names unless set |
+
+Those eight are the whole of what a project file may declare. Every other name under `airness.` is refused there, and
+so is every property a goal the parents bind reads in place of a parameter that decides a verdict, such as `skipTests`,
+`maven.test.failure.ignore`, `checkstyle.maxAllowedViolations` or `license.excludedGroups`, because Maven fills an
+unset parameter from that property without the plugin being declared. A property that only tunes how a plugin the
+project may configure runs, such as `argLine`, stays the project's. The refusal
+reads the file as written, so a name inside a profile that is never activated is refused too. Both
+`-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
+Raw-model integrity checks read the current POM and every consumer parent up to the trusted Airness chain,
+even with `-DskipTests`; skipping execution cannot hide a forbidden committed property or inherited override.
+
+A property naming a version is refused where nothing in the same file reads it. The platform reaches a project as a
+bill of materials the parent imports rather than inherits, and an imported one resolves its own properties, so a
+`tomcat.version` written beside the settings above moves no version at all and leaves the file claiming a pin that is
+not there. Manage the artifact in a `dependencyManagement` block of the project's own and version it from the
+property, which is what makes the property the pin it reads as.
+
 ### Node Project Settings
 
 A node project declares what the harness cannot know through these keys under `airness` in its `package.json`:
@@ -581,11 +572,3 @@ A node project declares what the harness cannot know through these keys under `a
 
 Each `generatedArtefacts`, `frameworkGlue`, `javascriptAllowlist`, `coverageExclude`, `pureLogicRoots` and
 `accessibilitySkipRoutes` entry names a `pattern` and a `reason`.
-
-Each `airness.vulnerabilityAllowlist` entry carries `package`, `advisory`, `reason`, `mitigation` and `addedOn`.
-Name one exact npm package and one literal advisory identifier or an alias OSV supplies, explain why it cannot be
-exploited here, state the removal plan, and use a YYYY-MM-DD calendar date. Prefer an available, compatible
-upgrade or an approved security replacement. An exception belongs only to that node project's inventory: it
-cannot excuse another module or frontend. Missing fields, malformed declarations, unused entries and overlapping
-entries fail verification. The report keeps each mitigated advisory and its explanation, while any remaining open
-finding still fails. A scanner that cannot run cannot be waived.
