@@ -1,14 +1,6 @@
 import type { SpecSource } from '@airness/node/axe-coverage'
 import { describe, expect, it } from 'vitest'
-import {
-  type BootstrapHook,
-  bootstrapHooksIn,
-  candidatePathsFor,
-  exportedBodyIn,
-  findBootstrapWrites,
-  LOCAL_API_MUTATIONS,
-  moduleOfImport,
-} from '@/payload-bootstrap.js'
+import { type BootstrapHook, bootstrapHooksIn, findBootstrapWrites, LOCAL_API_MUTATIONS } from '@/payload-bootstrap.js'
 import type { LocatedViolation } from '@/relationship-cleanup.js'
 
 const CONFIG_PATH: string = 'src/payload.config.ts'
@@ -61,75 +53,46 @@ describe('bootstrapHooksIn', () => {
     expect(found[0]?.body).toContain('warm')
   })
 
-  it('finds nothing when the hook value opens no body', () => {
-    expect(bootstrapHooksIn(configWith('seedEverything'))).toEqual([])
-  })
-})
-
-describe('moduleOfImport', () => {
-  it('reads the specifier a name is imported from', () => {
-    expect(moduleOfImport("import { seedContent } from './seed/seed'", 'seedContent')).toBe('./seed/seed')
+  // A hook named by reference runs the function it names; the caller follows an imported one.
+  it('reads a hook given by reference as the name it gives', () => {
+    expect(bootstrapHooksIn(configWith('seedEverything'))).toEqual([
+      { body: undefined, reference: 'seedEverything', line: 1 },
+    ])
   })
 
-  it('reads a renamed binding by the name the file uses', () => {
-    expect(moduleOfImport("import { seed as seedContent } from '@/seed'", 'seedContent')).toBe('@/seed')
+  it('reads the shorthand hook as a reference to onInit', () => {
+    const config: string = 'export default buildConfig({\n  collections: [Users],\n  onInit,\n})'
+    expect(bootstrapHooksIn(config)[0]?.reference).toBe('onInit')
   })
 
-  it('is undefined for a name the file never imports', () => {
-    expect(moduleOfImport("import { other } from '@/seed'", 'seedContent')).toBeUndefined()
-  })
-})
-
-describe('candidatePathsFor', () => {
-  it('resolves the alias against the source root', () => {
-    expect(candidatePathsFor('@/seed/seed', CONFIG_PATH)).toContain('src/seed/seed.ts')
+  // The value ends at its own comma, so a later key's literal is never read as the hook's body.
+  it('reads no later literal as the body of a hook given by reference', () => {
+    const config: string = configWith("seedEverything,\n  admin: { user: 'users' }")
+    expect(bootstrapHooksIn(config)[0]?.body).toBeUndefined()
   })
 
-  // The real defect imported its seed relatively, so this form has to resolve or the rule misses it.
-  it('resolves a relative specifier against the importing file', () => {
-    expect(candidatePathsFor('./seed/seed', CONFIG_PATH)).toContain('src/seed/seed.ts')
+  it('reads a reference to a function the configuration declares as that body', () => {
+    const config: string = [
+      'const seedEverything = async (payload) => { await warm(payload) }',
+      configWith('seedEverything'),
+    ].join('\n')
+    expect(bootstrapHooksIn(config)[0]?.body).toContain('warm')
   })
 
-  it('climbs out of a directory for a parent-relative specifier', () => {
-    expect(candidatePathsFor('../seed', 'src/config/payload.config.ts')).toContain('src/seed.ts')
+  it('reads the expression an arrow without a block returns as its body', () => {
+    expect(bootstrapHooksIn(configWith('async (payload) => warm(payload)'))[0]?.body).toBe('warm(payload)')
   })
 
-  it('offers the barrel as a candidate', () => {
-    expect(candidatePathsFor('@/seed', CONFIG_PATH)).toContain('src/seed/index.ts')
-  })
+  it.each(['onInit(payload) { await warm(payload) }', 'async onInit(payload) { await warm(payload) }'])(
+    'reads the body of a hook written as the method %s',
+    (method: string) => {
+      const config: string = `export default buildConfig({\n  collections: [Users],\n  ${method},\n})`
+      expect(bootstrapHooksIn(config)[0]?.body).toContain('warm')
+    },
+  )
 
-  it('names nothing for a package specifier', () => {
-    expect(candidatePathsFor('payload', CONFIG_PATH)).toEqual([])
-  })
-
-  // A configuration at the member root has no directory to resolve against.
-  it('resolves a relative specifier from a file that sits at the root', () => {
-    expect(candidatePathsFor('./seed', 'payload.config.ts')).toContain('seed.ts')
-  })
-
-  it('collapses a redundant current-directory segment', () => {
-    expect(candidatePathsFor('././seed', CONFIG_PATH)).toContain('src/seed.ts')
-  })
-})
-
-describe('exportedBodyIn', () => {
-  it('reads the body of an exported function declaration', () => {
-    const source: string = 'export async function seed(payload) { await payload.create({}) }'
-    expect(exportedBodyIn(source, 'seed')).toContain('create')
-  })
-
-  it('reads the body of an exported arrow constant', () => {
-    const source: string = 'export const seed = async (payload) => { await payload.create({}) }'
-    expect(exportedBodyIn(source, 'seed')).toContain('create')
-  })
-
-  it('is undefined for a binding the module does not export', () => {
-    expect(exportedBodyIn('export const other = 1', 'seed')).toBeUndefined()
-  })
-
-  // An export that opens no body at all: the declaration matches, and there is nothing to read.
-  it('is undefined for an export that opens no body', () => {
-    expect(exportedBodyIn('export const seed = 1', 'seed')).toBeUndefined()
+  it('finds nothing when the hook value is neither a function nor a name', () => {
+    expect(bootstrapHooksIn(configWith('hooks.onInit'))).toEqual([])
   })
 })
 
@@ -232,6 +195,62 @@ describe('findBootstrapWrites', () => {
       configWith('async (payload) => { await seedContent(payload) }'),
     ].join('\n')
     expect(rulesOf([file(CONFIG_PATH, config)])).toEqual([])
+  })
+
+  // Every spelling of a hook that hands the work to an imported seeder runs that seeder at boot.
+  it.each([
+    ['a reference', 'onInit: seedContent'],
+    ['an arrow that returns the call', 'onInit: async (payload) => seedContent(payload)'],
+    ['a destructuring arrow that returns the call', 'onInit: async ({ payload }) => seedContent(payload)'],
+    ['a function expression', 'onInit: async function (payload) { await seedContent(payload) }'],
+    ['a method', 'async onInit(payload) { await seedContent(payload) }'],
+  ])('reports a write reached through %s', (_spelling: string, hook: string) => {
+    const config: string = [
+      "import { seedContent } from './seed/seed'",
+      `export default buildConfig({\n  collections: [Users],\n  ${hook},\n})`,
+    ].join('\n')
+    const seed: string = 'export async function seedContent(payload) { await payload.updateGlobal({}) }'
+    expect(rulesOf([file(CONFIG_PATH, config), file('src/seed/seed.ts', seed)])).toEqual(['no-boot-time-writes'])
+  })
+
+  it('reports a write reached through the shorthand hook', () => {
+    const config: string = [
+      "import { onInit } from './seed/seed'",
+      'export default buildConfig({\n  collections: [Users],\n  onInit,\n})',
+    ].join('\n')
+    const seed: string = 'export const onInit = async (payload) => { await payload.create({}) }'
+    expect(rulesOf([file(CONFIG_PATH, config), file('src/seed/seed.ts', seed)])).toEqual(['no-boot-time-writes'])
+  })
+
+  it('reports a write an arrow without a block performs itself', () => {
+    const config: string = configWith("async ({ payload }) => payload.create({ collection: 'pages', data: {} })")
+    expect(rulesOf([file(CONFIG_PATH, config)])).toEqual(['no-boot-time-writes'])
+  })
+
+  it('reports a write in a local function the hook names', () => {
+    const config: string = [
+      'async function seedEverything(payload) { await payload.updateGlobal({}) }',
+      configWith('seedEverything'),
+    ].join('\n')
+    expect(rulesOf([file(CONFIG_PATH, config)])).toEqual(['no-boot-time-writes'])
+  })
+
+  // A seeder that opens its own instance writes through that instance rather than the parameter.
+  it('reports a write through an instance the reached seeder opens itself', () => {
+    const config: string = ["import { seedContent } from '@/seed'", configWith('seedContent')].join('\n')
+    const seed: string = [
+      'export const seedContent = async () => {',
+      '  const cms = await getPayload({ config })',
+      "  await cms.create({ collection: 'pages', data: {} })",
+      '}',
+    ].join('\n')
+    expect(rulesOf([file(CONFIG_PATH, config), file('src/seed/index.ts', seed)])).toEqual(['no-boot-time-writes'])
+  })
+
+  it('accepts a hook that names an imported function which only reads', () => {
+    const config: string = ["import { warm } from './seed/seed'", configWith('warm')].join('\n')
+    const seed: string = 'export async function warm(payload) { await payload.find({}) }'
+    expect(rulesOf([file(CONFIG_PATH, config), file('src/seed/seed.ts', seed)])).toEqual([])
   })
 
   it('ignores a hook written inside a comment', () => {

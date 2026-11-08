@@ -631,6 +631,23 @@ join_lane() {
     fi
 }
 
+# A lane runs in the background of a shell that is not interactive, so it ignores the interrupt that stops
+# this one and would otherwise run on, outside the lock of the next run, after its scratch is gone. Every lane
+# still running is therefore stopped with each process it started, and a lane's own trap then
+# removes the containers it started. Only a lane that is still a child of this shell is stopped, because the
+# identifier of a lane already joined may since have been given to an unrelated process. The interrupt is
+# ignored first, because a shell whose interrupt trap is what ended it can re-deliver that interrupt to a
+# subshell this function forks, as the sh of macOS does, and end before any lane is stopped.
 cleanup() {
+    trap '' INT TERM
+    for lane_file in "${lane_results}"/*.pid; do
+        if [ -f "${lane_file}" ]; then
+            lane_pid="$(cat "${lane_file}")"
+            if pgrep -P "$$" 2>/dev/null | grep -qx "${lane_pid}"; then
+                lane_tree="$(process_tree "${lane_pid}")"
+                printf '%s\n' "${lane_tree}" | xargs kill 2>/dev/null || true
+            fi
+        fi
+    done
     rm -rf "${scratch}" 2>/dev/null || true
 }

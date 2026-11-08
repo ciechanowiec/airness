@@ -1,17 +1,18 @@
 // Module architecture: no cycle, no unresolvable import, no production import of a spec, of test code or of a
 // development-only dependency, under the shipped dependency-cruiser contract; and, where the member has them,
-// the Next.js application layer and the declared pure-logic floor, rendered on top of it outside the tree.
+// the Next.js application layer and the declared pure-logic floor, rendered on top of it outside the tree, with the
+// application's routes directory under `src` where that layer is drawn.
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { type ArchitectureRule, layerRules } from './architecture-layers.js'
+import { type ArchitectureRule, layerRules, misplacedRouteDirectoryFindings } from './architecture-layers.js'
 import { importGraphOf } from './change-scope-policy.js'
-import { failed, fromRun, type GateResult, passed, type RunResult, runNode } from './exec.js'
+import { failed, fromRun, type GateResult, passed, type RunResult, runNode, withOutput } from './exec.js'
 import { isNextApp } from './facets.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { parseJsonc } from './json-shapes.js'
 import { harnessDirectory, type Member, resolveTool } from './project.js'
-import { allowedJavaScriptFiles } from './source-selection.js'
+import { allowedJavaScriptFiles, memberFiles } from './source-selection.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
 const JSON_INDENT: number = 2
@@ -54,11 +55,25 @@ const cruise = (member: Member, options: readonly string[]): RunResult => {
   }
 }
 
-/** The member's modules hold to the shipped architecture contract. */
-export const architecture = (member: Member): GateResult =>
+const cruised = (member: Member): GateResult =>
   presentSourceRoots(member).length === 0
     ? passed('the member holds no source directory to cruise')
     : fromRun(cruise(member, []), 'the module architecture holds', 'the module architecture contract is broken')
+
+/** The member's modules hold to the shipped architecture contract, and a Next.js member's routes sit under `src`. */
+export const architecture = (member: Member): GateResult => {
+  const misplaced: readonly string[] = misplacedRouteDirectoryFindings(
+    isNextApp(member),
+    memberFiles(presentWorkingTreeFiles(member.root), member.siblingPaths),
+  )
+  const result: GateResult = cruised(member)
+  return misplaced.length === 0
+    ? result
+    : withOutput(
+        failed('the Next.js routes sit outside src', [...misplaced, ...(result.ok ? [] : result.findings)]),
+        result.output ?? '',
+      )
+}
 
 /** Read the architecture analyzer's graph; malformed output or a failed analyzer is never an empty graph. */
 export const importGraph = (member: Member): Readonly<Record<string, readonly string[]>> | GateResult => {

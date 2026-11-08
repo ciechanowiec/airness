@@ -119,3 +119,51 @@ describe('values no theme namespace could hold', () => {
     expect(isReported('<div className="shadow-[0_0_6px_#000]" />')).toBe(true)
   })
 })
+
+// An arbitrary property is the same hardcoded value spelled as a whole class: `[padding:13px]` states the
+// number `p-[13px]` does. It opens where a class opens, and only a number or a colour is a finding.
+describe('arbitrary properties', () => {
+  it.each([
+    ['<div className="[padding:13px]" />', '[padding:13px]'],
+    ['<div className="hover:[color:#0a7]" />', '[color:#0a7]'],
+    ["<div className='[margin-top:-2px] p-4' />", '[margin-top:-2px]'],
+    ['<div className={`flex [gap:.5rem]`} />', '[gap:.5rem]'],
+    ['<div className="![color:rgb(0,0,0)]" />', '[color:rgb(0,0,0)]'],
+    ['<div className="[background-color:oklch(70%_0.1_200)]" />', '[background-color:oklch(70%_0.1_200)]'],
+    ['<div className="[--gap:13px]" />', '[--gap:13px]'],
+    ['<div className="[transition-duration:400ms]" />', '[transition-duration:400ms]'],
+    ['[padding:13px]', '[padding:13px]'],
+  ])('reports the arbitrary property in %s', (line: string, value: string) => {
+    expect(valuesIn(line)).toEqual([value])
+  })
+
+  it('says where an arbitrary property is', () => {
+    expect(findArbitraryValues('\n  className="md:[padding:13px]"')).toEqual([
+      { line: 2, column: 17, value: '[padding:13px]' },
+    ])
+  })
+
+  it('reports values and properties on one line in the order they are written', () => {
+    expect(valuesIn('className="[padding:13px] bg-[#0a7] [color:#fff]"')).toEqual([
+      '[padding:13px]',
+      '-[#0a7]',
+      '[color:#fff]',
+    ])
+  })
+
+  it.each([
+    '<div className="[mask-type:luminance]" />',
+    '<div className="[content-visibility:auto]" />',
+    '<div className="[font-family:Inter2]" />',
+    '<div className="[padding:var(--gap)]" />',
+    '<div className="[width:calc(100%-1px)]" />',
+    '<div className="[&>tr]:border-0 data-[state=open]:bg-primary" />',
+    '<div className="[@media(min-width:900px)]:flex" />',
+    'type Scores = { [key: string]: number }',
+    'type Scores = { [key:string]: number }',
+    'const chip: string = medalChip[result.medal]',
+    'const picked = items[index]',
+  ])('leaves alone what states no themeable value: %s', (line: string) => {
+    expect(valuesIn(line)).toEqual([])
+  })
+})

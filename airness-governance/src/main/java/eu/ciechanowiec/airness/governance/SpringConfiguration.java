@@ -36,6 +36,11 @@ import java.util.regex.Pattern;
  * the item of a list, so the line was neither honoured nor mentioned. The scalar items of a sequence
  * were already reported, and this puts the mapping items beside them.
  *
+ * <p>Nesting is read from the column each key starts at rather than from a fixed indent width. YAML lets a
+ * file indent by any number of spaces, and dividing by two read four-space nesting as twice as deep as it
+ * is, so a sibling became the child of the key before it. A key belongs under the nearest key above it that
+ * starts further left.
+ *
  * <p>Each setting also records which document of the file it sits in. One file may hold several,
  * separated by {@code ---}, and the same key in two of them is the ordinary way a profile overrides a
  * default rather than a key written twice by accident.
@@ -53,7 +58,6 @@ final class SpringConfiguration {
     private static final String PROPERTIES = ".properties";
     private static final char SEPARATOR = ':';
     private static final char ASSIGNMENT = '=';
-    private static final int INDENT = 2;
     private static final int FIRST = 0;
 
     private final List<Setting> settings;
@@ -171,7 +175,7 @@ final class SpringConfiguration {
     }
 
     private void readYaml(List<String> lines) {
-        Deque<String> path = new ArrayDeque<>();
+        Deque<Level> path = new ArrayDeque<>();
         int document = FIRST;
         for (int number = 0; number < lines.size(); number++) {
             String line = lines.get(number);
@@ -185,22 +189,23 @@ final class SpringConfiguration {
         }
     }
 
-    private void entry(Deque<String> path, String line, int number, int document) {
+    private void entry(Deque<Level> path, String line, int number, int document) {
         String text = line.strip();
-        int depth = (line.length() - line.stripLeading().length()) / INDENT;
+        int column = line.length() - line.stripLeading().length();
         int separated = text.indexOf(SEPARATOR);
         if (separated < 0 || text.startsWith(SEQUENCE)) {
             this.unreadable.add("line " + number + ": " + text);
             return;
         }
-        while (path.size() > depth) {
+        while (!path.isEmpty() && path.getLast().column() >= column) {
             path.removeLast();
         }
         String written = text.substring(0, separated).strip();
-        path.addLast(canonical(written));
+        path.addLast(new Level(column, canonical(written)));
         String value = scalar(text.substring(separated + 1).strip());
         if (!value.isEmpty()) {
-            this.settings.add(new Setting(String.join(".", path), written, value, number, document));
+            String key = String.join(".", path.stream().map(Level::key).toList());
+            this.settings.add(new Setting(key, written, value, number, document));
         }
     }
 
@@ -222,6 +227,10 @@ final class SpringConfiguration {
 
     private static boolean hasContent(String line) {
         return !line.isEmpty() && !line.startsWith(COMMENT);
+    }
+
+    // One key of the path to a setting, with the column it starts at.
+    private record Level(int column, String key) {
     }
 
     /**

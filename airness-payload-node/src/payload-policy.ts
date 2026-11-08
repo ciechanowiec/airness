@@ -1,7 +1,9 @@
 // The Payload half of the source rules: explicit read bounds, request threading, and access decisions.
 // The language half, which holds in any package, is the node layer's source-rules gate.
 
+import type { SpecSource } from '@airness/node/axe-coverage'
 import { balancedArguments, lineOf, occurrences, stripComments, topLevelSlice } from '@airness/node/source-text'
+import { escapeForRegex } from '@airness/node/text-escapes'
 import {
   findAnonymousDraftReads,
   findUndecidedSvgHeaders,
@@ -14,6 +16,8 @@ import {
 import { findUnreviewedSchemaPush } from './payload-database.js'
 import { findUnprotectedPrivilegedFields } from './payload-field-access.js'
 import type { PayloadViolation } from './payload-source.js'
+import type { LocatedViolation } from './relationship-cleanup.js'
+import { type ReachedFunction, reachedFunctions } from './source-reach.js'
 
 interface BoundedCallRule {
   readonly call: string
@@ -45,13 +49,41 @@ const BOUNDED_CALLS: readonly BoundedCallRule[] = [
   },
 ]
 
+// The names a Payload request goes by: `req`, as Payload's own examples spell it, and `request`, as a handler
+// that spells its parameter out does. The ESLint configuration bans destructuring `payload` out of either.
+const REQUEST: string = '(?:req|request)'
+
+// The receivers every file shares: `payload`, the request-scoped instance and an instance a class holds.
+const SHARED_RECEIVERS: string = String.raw`payload|(?:[\w$]+\.)*${REQUEST}\.payload|this\.payload`
+
+const receiverOf = (alternatives: string): RegExp => new RegExp(String.raw`(?:^|[^\w$.])(?:${alternatives})$`)
+
 /**
  * Recognized Payload receivers, which exclude unrelated collection methods such as array.find().
  *
  * Exported so a rule about WHERE a Local API call runs derives the receiver from here rather than
  * restating it. Two spellings of "this is Payload" would be two rules disagreeing about what Payload is.
  */
-export const PAYLOAD_RECEIVER: RegExp = /(?:^|[^\w$.])(?:payload|(?:[\w$]+\.)*req\.payload|this\.payload)$/
+export const PAYLOAD_RECEIVER: RegExp = receiverOf(SHARED_RECEIVERS)
+
+// A name a file binds to the instance `getPayload()` resolves to, as `const cms = await getPayload(...)` or
+// with its type written, `const cms: Payload = await getPayload(...)`. Named, never any `<name>.payload`: a
+// wildcard would read every object that happens to hold a `payload` property as the Local API.
+const BOUND_INSTANCE: RegExp = /\b(?:const|let|var)\s+([a-z_$][\w$]*)\s*(?::[^=;]*)?=\s*await\s+getPayload\s*\(/gi
+
+/**
+ * The Payload receivers of one text: the shared ones, and every name it binds to `getPayload()`.
+ * @param code the text whose calls are judged, with comments already stripped.
+ * @returns the receiver pattern, which matches the text before a call's `.`.
+ */
+export const payloadReceiverIn = (code: string): RegExp => {
+  const bound: readonly string[] = [...code.matchAll(BOUND_INSTANCE)].map(
+    (match: RegExpExecArray): string => match[1] ?? '',
+  )
+  return bound.length === 0
+    ? PAYLOAD_RECEIVER
+    : receiverOf([SHARED_RECEIVERS, ...new Set(bound.map((name: string): string => escapeForRegex(name)))].join('|'))
+}
 
 // A property boundary keeps a value such as request: req from being read as a req property.
 const declaresProperty = (topLevel: string, key: string): boolean =>
@@ -75,17 +107,22 @@ const hasEffectiveProperty = (topLevel: string, key: string): boolean => {
   return last !== undefined && last.index > topLevel.lastIndexOf('...')
 }
 
-const unboundedCallAt = (source: string, rule: BoundedCallRule, found: number): PayloadViolation | undefined => {
-  const topLevel: string | undefined = topLevelOptionsAt(source, rule.call, found, PAYLOAD_RECEIVER)
+const unboundedCallAt = (
+  source: string,
+  rule: BoundedCallRule,
+  found: number,
+  receiver: RegExp,
+): PayloadViolation | undefined => {
+  const topLevel: string | undefined = topLevelOptionsAt(source, rule.call, found, receiver)
   return topLevel === undefined || rule.required.some((key: string): boolean => hasEffectiveProperty(topLevel, key))
     ? undefined
     : { line: lineOf(source, found), rule: rule.rule, reason: rule.reason }
 }
 
-const findUnboundedCalls = (source: string): readonly PayloadViolation[] =>
+const findUnboundedCalls = (source: string, receiver: RegExp): readonly PayloadViolation[] =>
   BOUNDED_CALLS.flatMap((rule: BoundedCallRule): readonly PayloadViolation[] =>
     occurrences(source, rule.call)
-      .map((found: number): PayloadViolation | undefined => unboundedCallAt(source, rule, found))
+      .map((found: number): PayloadViolation | undefined => unboundedCallAt(source, rule, found, receiver))
       .filter((violation: PayloadViolation | undefined): violation is PayloadViolation => violation !== undefined),
   )
 
@@ -115,13 +152,12 @@ export const LOCAL_API_CALLS: readonly string[] = [
 // `payload` from `getPayload()` - a script, a seed, a Server Component that opened its own instance -
 // has no request to thread, and demanding one would be asking for a value that does not exist. Reaching
 // the instance THROUGH `req` is the proof that one does, so the omission is never a decision.
-const REQUEST_RECEIVER: RegExp = /(?:^|[^\w$.])(?:[\w$]+\.)*req\.payload$/
+const REQUEST_RECEIVER: RegExp = receiverOf(String.raw`(?:[\w$]+\.)*${REQUEST}\.payload`)
 
-const findOpaqueOptions = (source: string): readonly PayloadViolation[] =>
+const findOpaqueOptions = (source: string, receiver: RegExp): readonly PayloadViolation[] =>
   LOCAL_API_CALLS.flatMap((call: string): readonly PayloadViolation[] =>
     occurrences(source, call).flatMap((found: number): readonly PayloadViolation[] =>
-      PAYLOAD_RECEIVER.test(source.slice(0, found)) &&
-      topLevelOptionsAt(source, call, found, PAYLOAD_RECEIVER) === undefined
+      receiver.test(source.slice(0, found)) && topLevelOptionsAt(source, call, found, receiver) === undefined
         ? [
             {
               line: lineOf(source, found),
@@ -145,7 +181,7 @@ const unthreadedCallAt = (source: string, call: string, found: number): PayloadV
     rule: 'no-unthreaded-req',
     reason:
       `pass req to ${call.slice(1, -1)}() so it joins the caller's transaction; reached through ` +
-      'req.payload without it, the operation opens its own - it cannot see the in-flight write, and ' +
+      'the request without it, the operation opens its own - it cannot see the in-flight write, and ' +
       'it is not rolled back with it',
   }
 }
@@ -184,8 +220,13 @@ const hasEffectiveAccessControl = (topLevel: string): boolean => {
   return last?.value === 'false' && last.index > topLevel.lastIndexOf('...')
 }
 
-const userAccessViolationAt = (source: string, call: string, found: number): PayloadViolation | undefined => {
-  const topLevel: string | undefined = topLevelOptionsAt(source, call, found, PAYLOAD_RECEIVER)
+const userAccessViolationAt = (
+  source: string,
+  call: string,
+  found: number,
+  receiver: RegExp,
+): PayloadViolation | undefined => {
+  const topLevel: string | undefined = topLevelOptionsAt(source, call, found, receiver)
   if (
     topLevel === undefined ||
     !(declaresProperty(topLevel, 'user') || topLevel.includes('...')) ||
@@ -204,10 +245,10 @@ const userAccessViolationAt = (source: string, call: string, found: number): Pay
   }
 }
 
-const findIgnoredUsers = (source: string): readonly PayloadViolation[] =>
+const findIgnoredUsers = (source: string, receiver: RegExp): readonly PayloadViolation[] =>
   LOCAL_API_CALLS.flatMap((call: string): readonly PayloadViolation[] =>
     occurrences(source, call)
-      .map((found: number): PayloadViolation | undefined => userAccessViolationAt(source, call, found))
+      .map((found: number): PayloadViolation | undefined => userAccessViolationAt(source, call, found, receiver))
       .filter((violation: PayloadViolation | undefined): violation is PayloadViolation => violation !== undefined),
   )
 
@@ -227,27 +268,70 @@ const findOverrideAccess = (source: string): readonly PayloadViolation[] =>
 // The one layer whose caller is a stranger. Everywhere else a Local API call runs in a context the
 // project already trusts - a hook inside the write that authored it, a scheduled job, a seed - and
 // privilege there is legitimate rather than a mistake. A route handler serves whoever reached the URL,
-// so what it is allowed to read is the one thing it must never inherit by saying nothing.
+// and a server action whoever posted to the page that holds it, so what either is allowed to read is the
+// one thing it must never inherit by saying nothing.
 const ENDPOINT_PATH: RegExp = /^src\/(?:endpoints\/|app\/(?:.*\/)?route\.[jt]s$)/u
 
-// A route must prove access enforcement rather than inherit Payload's privileged default.
-const endpointAccessViolationAt = (source: string, call: string, found: number): PayloadViolation | undefined => {
-  if (!PAYLOAD_RECEIVER.test(source.slice(0, found))) {
-    return undefined
-  }
-  const topLevel: string | undefined = topLevelOptionsAt(source, call, found, PAYLOAD_RECEIVER)
-  if (topLevel !== undefined && hasEffectiveAccessControl(topLevel)) {
-    return undefined
-  }
-  return {
-    line: lineOf(source, found),
-    rule: 'require-endpoint-access',
-    reason:
-      `state overrideAccess: false on ${call.slice(1, -1)}() in a route handler; Payload defaults it to ` +
-      'true, so an omission runs as an administrator and serves the document to whoever called the ' +
-      'route - set overrideAccess: false',
-  }
+// Payload's own admin and API glue, which it generates and regenerates: its server functions hand the
+// request to Payload's handlers, which decide access themselves.
+const GENERATED_APP_PATH: RegExp = /^src\/app\/\(payload\)\//u
+
+// A module whose directive prologue says `'use server'`: every function it exports is a server action.
+// The prologue is the run of string statements that opens the module, so another directive may precede it.
+const MODULE_SERVER_DIRECTIVE: RegExp = /^(?:\s*(['"])[^'"\n]*\1\s*;?)*?\s*(['"])use server\2/u
+
+// A function whose own body opens with `'use server'`, which makes that function alone a server action,
+// written inline in a Server Component.
+const FUNCTION_SERVER_DIRECTIVE: RegExp = /\{\s*(['"])use server\1/gu
+
+/** A run of a file's text, by offset, whose Local API calls answer to a stranger. */
+interface EndpointScope {
+  readonly start: number
+  readonly end: number
 }
+
+const serverActionScopes = (code: string): readonly EndpointScope[] =>
+  [...code.matchAll(FUNCTION_SERVER_DIRECTIVE)].flatMap((match: RegExpExecArray): readonly EndpointScope[] => {
+    const body: string | undefined = balancedArguments(code, match.index)
+    return body === undefined ? [] : [{ start: match.index + 1, end: match.index + 1 + body.length }]
+  })
+
+// The whole file for an endpoint module, a route handler or a server-action module; each inline server
+// action's body otherwise.
+const isEndpointModule = (filePath: string, code: string): boolean =>
+  ENDPOINT_PATH.test(filePath) || MODULE_SERVER_DIRECTIVE.test(code)
+
+const endpointScopesIn = (filePath: string, code: string): readonly EndpointScope[] => {
+  if (GENERATED_APP_PATH.test(filePath)) {
+    return []
+  }
+  return isEndpointModule(filePath, code) ? [{ start: 0, end: code.length }] : serverActionScopes(code)
+}
+
+// Whether a call leaves the access decision to Payload's privileged default.
+const leavesAccessToDefault = (source: string, call: string, found: number, receiver: RegExp): boolean => {
+  if (!receiver.test(source.slice(0, found))) {
+    return false
+  }
+  const topLevel: string | undefined = topLevelOptionsAt(source, call, found, receiver)
+  return topLevel === undefined || !hasEffectiveAccessControl(topLevel)
+}
+
+const ENDPOINT_RULE: string = 'require-endpoint-access'
+const ENDPOINT_CONSEQUENCE: string =
+  'Payload defaults it to true, so an omission runs as an administrator and serves the document to ' +
+  'whoever called the route or action - set overrideAccess: false'
+
+// The Local API calls of a text that leave the decision to the default, as offsets.
+const unstatedAccessIn = (code: string, receiver: RegExp): readonly (readonly [string, number])[] =>
+  LOCAL_API_CALLS.flatMap((call: string): readonly (readonly [string, number])[] =>
+    occurrences(code, call)
+      .filter((found: number): boolean => leavesAccessToDefault(code, call, found, receiver))
+      .map((found: number): readonly [string, number] => [call, found]),
+  )
+
+const inScope = (found: number, scopes: readonly EndpointScope[]): boolean =>
+  scopes.some((scope: EndpointScope): boolean => found >= scope.start && found < scope.end)
 
 /**
  * The rules that are about Payload itself, which only a Payload package can break.
@@ -258,11 +342,12 @@ export const findPayloadViolations = (source: string): readonly PayloadViolation
   // Every rule reads the code, never the prose around it. A comment that names a banned construct in
   // order to explain why the code avoids it must not be reported as that construct.
   const code: string = stripComments(source)
+  const receiver: RegExp = payloadReceiverIn(code)
   return [
-    ...findOpaqueOptions(code),
-    ...findUnboundedCalls(code),
+    ...findOpaqueOptions(code, receiver),
+    ...findUnboundedCalls(code, receiver),
     ...findUnthreadedRequests(code),
-    ...findIgnoredUsers(code),
+    ...findIgnoredUsers(code, receiver),
     ...findOverrideAccess(code),
     ...findUndeclaredAccess(code),
     ...findUnhardenedAuth(code),
@@ -277,27 +362,85 @@ export const findPayloadViolations = (source: string): readonly PayloadViolation
 }
 
 /**
- * The access decision a route handler has to state rather than inherit.
+ * The access decision a route handler or server action has to state rather than inherit.
  *
  * The two rules that already read `overrideAccess` judge a value that is written down: one bans `true`,
  * the other requires `false` beside a `user`. Neither can see an absent property, and absent is the
  * dangerous spelling - Payload defaults `overrideAccess` to `true`, so the call that says nothing is
- * the call that runs as an administrator. Under `src/endpoints` the omission is therefore the
- * violation, which is why this rule reads the path and the others do not.
+ * the call that runs as an administrator. Under `src/endpoints`, in a route handler and in a server action
+ * the omission is therefore the violation, which is why this rule reads the path and the directive and the
+ * others do not.
  * @param filePath the repository-relative path of the file, which decides whether the rule applies.
  * @param source the file's text.
  * @returns one violation per Local API call that leaves the decision to the default.
  */
 export const findEndpointViolations = (filePath: string, source: string): readonly PayloadViolation[] => {
-  if (!ENDPOINT_PATH.test(filePath)) {
-    return []
-  }
   // Runs outside `findPayloadViolations`, so it strips its own comments: prose that names a call must
   // not be read as one.
   const code: string = stripComments(source)
-  return LOCAL_API_CALLS.flatMap((call: string): readonly PayloadViolation[] =>
-    occurrences(code, call)
-      .map((found: number): PayloadViolation | undefined => endpointAccessViolationAt(code, call, found))
-      .filter((violation: PayloadViolation | undefined): violation is PayloadViolation => violation !== undefined),
-  )
+  const scopes: readonly EndpointScope[] = endpointScopesIn(filePath, code)
+  return unstatedAccessIn(code, payloadReceiverIn(code))
+    .filter(([, found]: readonly [string, number]): boolean => inScope(found, scopes))
+    .map(
+      ([call, found]: readonly [string, number]): PayloadViolation => ({
+        line: lineOf(code, found),
+        rule: ENDPOINT_RULE,
+        reason:
+          `state overrideAccess: false on ${call.slice(1, -1)}() in a route handler or server action; ` +
+          ENDPOINT_CONSEQUENCE,
+      }),
+    )
 }
+
+// Where a scope first calls a name, so the finding points at the line that reaches the helper.
+const callSiteOf = (code: string, scope: EndpointScope, name: string): number => {
+  const call: RegExp = new RegExp(String.raw`(?<![\w$.])${escapeForRegex(name)}\s*\(`, 'u')
+  const found: number = code.slice(scope.start, scope.end).search(call)
+  return scope.start + Math.max(found, 0)
+}
+
+const reachedAccessViolations = (
+  code: string,
+  scope: EndpointScope,
+  reached: ReachedFunction,
+): readonly PayloadViolation[] =>
+  [
+    ...new Set(
+      unstatedAccessIn(reached.body, payloadReceiverIn(reached.body)).map(
+        ([call]: readonly [string, number]): string => call.slice(1, -1),
+      ),
+    ),
+  ].map(
+    (operation: string): PayloadViolation => ({
+      line: lineOf(code, callSiteOf(code, scope, reached.name)),
+      rule: ENDPOINT_RULE,
+      reason:
+        `state overrideAccess: false on ${operation}() in ${reached.name}(), which this route handler or ` +
+        `server action calls from "${reached.specifier}"; ${ENDPOINT_CONSEQUENCE}`,
+    }),
+  )
+
+/**
+ * The access decision a route handler or server action leaves to the default in a function it calls.
+ *
+ * A handler that hands its read to a helper in `src/lib` runs that read on behalf of the same stranger, so
+ * the helper's call answers to the rule exactly as one written in the handler would. The call is followed
+ * once, into the member's own source, as `source-reach.ts` explains; a helper in a module the rule already
+ * judges whole is left to that module's own finding.
+ * @param files every source file of the member, as read.
+ * @returns one violation per operation a reached function leaves to the default, located on the line of
+ *   the handler that calls it.
+ */
+export const findReachedEndpointViolations = (files: readonly SpecSource[]): readonly LocatedViolation[] =>
+  files.flatMap((file: SpecSource): readonly LocatedViolation[] => {
+    const code: string = stripComments(file.source)
+    return endpointScopesIn(file.path, code)
+      .flatMap((scope: EndpointScope): readonly PayloadViolation[] =>
+        reachedFunctions(code, code.slice(scope.start, scope.end), file.path, files)
+          .filter((reached: ReachedFunction): boolean => !isEndpointModule(reached.path, reached.module))
+          .flatMap((reached: ReachedFunction): readonly PayloadViolation[] =>
+            reachedAccessViolations(code, scope, reached),
+          ),
+      )
+      .map((violation: PayloadViolation): LocatedViolation => ({ path: file.path, violation }))
+  })

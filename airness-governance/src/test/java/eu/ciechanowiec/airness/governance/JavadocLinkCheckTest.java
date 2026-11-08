@@ -67,6 +67,28 @@ class JavadocLinkCheckTest {
     }
 
     @Test
+    void readsAJavaLangNameOpeningASentenceAsAWordAndOneInsideItAsAType() {
+        Path root = new GitFixture("javadoc-link-java-lang")
+            .write(
+                SUBJECT, """
+                    package sample;
+
+                    /**
+                     * Long names are cut short. Error codes are kept, and the result is a String.
+                     */
+                    class Subject {
+                    }
+                    """
+            )
+            .root();
+        assertEquals(
+            List.of(Path.of(SUBJECT) + ": String"),
+            Verdicts.offences(new JavadocLinkCheck(root, MAIN).findings(), "Javadoc names"),
+            "the words opening a sentence are words, and the type inside one is a type"
+        );
+    }
+
+    @Test
     void reportsAnEmptyScopeRatherThanACleanTree() {
         Path root = new GitFixture("javadoc-link-empty")
             .write(NEIGHBOUR, NEIGHBOUR_SOURCE)

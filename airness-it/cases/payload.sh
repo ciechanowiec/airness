@@ -9,7 +9,7 @@
 # reaches its finding through airness:node-gate.
 
 payload_gates='preflight payload-blocklist payload-source-rules admin-views payload-environment payload-generated
-payload-defaults'
+payload-defaults payload-migrations'
 
 # A release of the package this reactor did not build: the same package at another version, which a fixture
 # resolving it must fail wiring for, since airness-parent-payload names this reactor's version.
@@ -319,6 +319,8 @@ ${harness_version}"
     expect_match payload_report \
         'payload: payload-defaults reports the folder collection Payload builds with its default access' \
         'payload-folders'
+    expect_match payload_report 'payload: payload-migrations reports a schema change no migration records' \
+        'ALTER TABLE "posts" ADD COLUMN "folder_id"'
     for gate in ${payload_gates}; do
         expect_match payload_report "payload: ${gate} fails on its planted defect" "Node gate ${gate} in [.] failed"
     done

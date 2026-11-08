@@ -2,13 +2,17 @@ package eu.ciechanowiec.airness.governance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,6 +27,8 @@ class ArtifactContentCheckTest {
     private static final String UNSAFE = "Duplicate or unsafe JAR entries";
     private static final String VALUE = "value";
     private static final String BYTECODE = "bytecode";
+    // As many entries as a large shaded application archive carries.
+    private static final int SHADED_ENTRIES = 200_000;
 
     @TempDir
     private Path directory;
@@ -185,6 +191,28 @@ class ArtifactContentCheckTest {
             ),
             "an entry that escapes the extraction directory is dangerous whichever archive wrote it"
         );
+    }
+
+    @Test
+    void reportsEveryRepeatOfAnEntryNameAfterItsFirst() {
+        assertEquals(
+            List.of("a.txt", "a.txt", "../c.txt"),
+            ArtifactContentCheck.unsafeEntries(List.of("a.txt", "b.txt", "a.txt", "a.txt", "../c.txt")),
+            "the first entry under a name is the one an extractor keeps, so each later one is the ambiguity"
+        );
+    }
+
+    @Test
+    void findsTheRepeatsOfAShadedArchiveInLinearTime() {
+        List<String> names = Stream.concat(
+            IntStream.range(0, SHADED_ENTRIES).mapToObj("com/example/shaded/Type%06d.class"::formatted),
+            Stream.of("com/example/shaded/Type000000.class")
+        ).toList();
+        List<String> repeats = assertTimeoutPreemptively(
+            Duration.ofSeconds(2), () -> ArtifactContentCheck.unsafeEntries(names),
+            "each of the entries is read once rather than searched for among the others"
+        );
+        assertEquals(List.of("com/example/shaded/Type000000.class"), repeats);
     }
 
     private List<Findings> check(Path jar, Path main, Path test) {

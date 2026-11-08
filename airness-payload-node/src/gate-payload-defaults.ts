@@ -6,18 +6,16 @@
 // anonymous sweep cannot see that because a signed-in user is not anonymous.
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { type RunResult, runNode } from '@airness/node/exec'
+import type { RunResult } from '@airness/node/exec'
 import { failed, type GateResult, notApplicable, passed, withOutput } from '@airness/node/gate-result'
-import { readJson } from '@airness/node/project'
+import { payloadConfigFileOf, runConfigProbe } from './config-probe.js'
 import {
   findInheritedAccess,
   findUnconstrainedDraftReads,
   type InheritedAccessReport,
   parseInheritedAccessReport,
-  payloadConfigPathOf,
 } from './payload-defaults.js'
-import { analysisEnvironment, PAYLOAD_PACKAGE, type PayloadMember } from './payload-member.js'
+import { PAYLOAD_PACKAGE, type PayloadMember } from './payload-member.js'
 import {
   findPayloadSecurityViolations,
   type PayloadSecurityReport,
@@ -72,11 +70,6 @@ export const judgeProbe = (result: RunResult): GateResult => {
       )
 }
 
-const configFileOf = (root: string): string | undefined => {
-  const tsconfig: string = path.join(root, 'tsconfig.json')
-  return existsSync(tsconfig) ? path.join(root, payloadConfigPathOf(readJson(tsconfig))) : undefined
-}
-
 /**
  * Import the member's built configuration and fail on every operation it leaves to Payload's default.
  * @param target the member being judged.
@@ -86,40 +79,22 @@ export const payloadDefaults = (target: PayloadMember): GateResult => {
   if (!target.isPayload) {
     return notApplicable('this member is no Payload application')
   }
-  const root: string = target.member.root
-  const configFile: string | undefined = configFileOf(root)
-  if (configFile === undefined || !existsSync(configFile)) {
-    return failed('the Payload configuration could not be found', [
-      `${target.member.path}: no configuration at ${configFile ?? 'tsconfig.json'}; a Payload member names it under ` +
-        'compilerOptions.paths["@payload-config"] in tsconfig.json',
-    ])
+  const configFile: string | GateResult = payloadConfigFileOf(target)
+  if (typeof configFile !== 'string') {
+    return configFile
   }
-  const defaultAccessFile: string = path.join(root, 'node_modules', PAYLOAD_PACKAGE, ...DEFAULT_ACCESS_MODULE)
+  const defaultAccessFile: string = path.join(
+    target.member.root,
+    'node_modules',
+    PAYLOAD_PACKAGE,
+    ...DEFAULT_ACCESS_MODULE,
+  )
   if (!existsSync(defaultAccessFile)) {
     return failed("Payload's default access could not be located", [
       `${defaultAccessFile} is missing; the layer knows the layout of the Payload version it pins, and this ` +
         'installation differs or is absent',
     ])
   }
-  const result: RunResult = runNode(
-    '--no-deprecation',
-    [
-      fileURLToPath(import.meta.resolve('tsx/cli')),
-      '--tsconfig',
-      path.join(root, 'tsconfig.json'),
-      fileURLToPath(new URL('bin.js', import.meta.url)),
-      ...PROBE_COMMAND,
-      configFile,
-      defaultAccessFile,
-    ],
-    {
-      cwd: root,
-      env: {
-        ...analysisEnvironment(target),
-        NODE_ENV: 'production',
-      },
-      timeoutMs: PROBE_TIMEOUT_MS,
-    },
-  )
+  const result: RunResult = runConfigProbe(target, [...PROBE_COMMAND, configFile, defaultAccessFile], PROBE_TIMEOUT_MS)
   return withOutput(judgeProbe(result), result.output)
 }

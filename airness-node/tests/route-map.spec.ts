@@ -26,13 +26,16 @@ describe('which directory holds the routes', () => {
     expect(appRootOf(['src/app/layout.tsx', 'src/app/page.tsx'])).toBe('src/app')
   })
 
-  it('accepts a bare app directory', () => {
-    expect(appRootOf(['app/layout.tsx', 'app/page.tsx'])).toBe('app')
+  // The architecture gate refuses a routes directory at the member root, so it is never the application's.
+  it('reads no top-level app directory', () => {
+    expect(appRootOf(['app/layout.tsx', 'app/page.tsx'])).toBeUndefined()
   })
 
   it('recognizes root layouts under dynamic locale segments', () => {
     expect(appRootOf(['src/app/[language]/layout.tsx', 'src/app/[language]/page.tsx'])).toBe('src/app')
-    expect(appRootOf(['app/(public)/[language]/layout.tsx', 'app/(public)/[language]/page.tsx'])).toBe('app')
+    expect(appRootOf(['src/app/(public)/[language]/layout.tsx', 'src/app/(public)/[language]/page.tsx'])).toBe(
+      'src/app',
+    )
   })
 
   // The layout of an application that splits its site and its admin panel into route groups. Every one of its layouts sits inside a route group, so there
@@ -58,7 +61,7 @@ describe('which directory holds the routes', () => {
   })
 
   it('recognizes separate static root layouts when they own route pages', () => {
-    expect(appRootOf(['app/portal/layout.tsx', 'app/portal/dashboard/page.tsx'])).toBe('app')
+    expect(appRootOf(['src/app/portal/layout.tsx', 'src/app/portal/dashboard/page.tsx'])).toBe('src/app')
   })
 
   it('says nothing about a package that declares no routes at all', () => {

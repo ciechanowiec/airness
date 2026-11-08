@@ -127,6 +127,114 @@ class DockerfileReaderTest {
     }
 
     @Test
+    void readsPackagesAfterOptionsWrittenBeforeTheInstallVerb() {
+        for (String install : List.of(
+            "apt-get -y install", "apt-get -qq -y install", "apt -y install", "yum -y install", "dnf -y install",
+            "microdnf -y install", "apk --no-cache add", "zypper -n install", "zypper --non-interactive install"
+        )) {
+            assertEquals(
+                List.of("ghostscript"), packages("RUN " + install + " --quiet ghostscript\n"),
+                "an option before the verb still leaves an install: " + install
+            );
+        }
+    }
+
+    @Test
+    void readsNoPackagesFromAVerbThatInstallsNothing() {
+        String text = """
+            RUN apt-get -y update && apt-get -y remove ghostscript && apk --no-cache del mupdf
+            RUN apt-get -y --no-install-recommends upgrade
+            """;
+        assertEquals(List.of(), packages(text));
+    }
+
+    @Test
+    void readsPastACommentOrABlankLineInsideAContinuedInstruction() {
+        String text = """
+            FROM debian:13
+            RUN apt-get update && \\
+            # the renderer
+                apt-get install -y \\
+                  # ghostscript renders the previews
+                  ghostscript \\
+
+                  mupdf
+            RUN echo done
+            FROM redis:8
+            """;
+        assertEquals(List.of("ghostscript", "mupdf"), packages(text), "Docker drops those lines, not the rest");
+        assertEquals(List.of(1, 10), DockerfileReader.images(text).stream().map(Located::line).toList());
+    }
+
+    @Test
+    void endsNoInstructionAtACommentLineThatEndsWithABackslash() {
+        String text = """
+            # the base \\
+            FROM postgres:18
+            """;
+        assertEquals(List.of("postgres:18"), images(text), "a comment continues nothing");
+    }
+
+    @Test
+    void readsTheBodyOfEveryHereDocumentSpelling() {
+        for (String marker : List.of("<<EOT", "<<\"EOT\"", "<<'EOT'", "<<-EOT")) {
+            String text = """
+                RUN %s
+                \tset -e
+                \t# apt-get install -y commented-out
+                \tapt-get update
+                \tapt-get install -y \\
+                \t  ghostscript
+                \tapk add mupdf
+                \tEOT
+                EOT
+                FROM redis:8
+                """.formatted(marker);
+            String terminated = marker.contains("-") ? text.replace("\tEOT\nEOT\n", "\tEOT\n") : text;
+            assertEquals(
+                List.of("ghostscript", "mupdf"), packages(terminated), "the body is the script it runs: " + marker
+            );
+            int from = marker.contains("-") ? 9 : 10;
+            assertEquals(List.of(from), DockerfileReader.images(terminated).stream().map(Located::line).toList());
+        }
+    }
+
+    @Test
+    void readsEveryHereDocumentOneInstructionOpens() {
+        String text = """
+            RUN <<FIRST bash && 3<<SECOND cat
+            apt-get install -y ghostscript
+            FIRST
+            yum install mongodb-org
+            SECOND
+            COPY <<NOTES /notes.txt
+            FROM mongo:7 is no instruction here
+            NOTES
+            FROM redis:8
+            """;
+        assertEquals(List.of("ghostscript", "mongodb-org"), packages(text));
+        assertEquals(List.of("redis:8"), images(text), "a body is never read as an instruction of its own");
+    }
+
+    @Test
+    void substitutesEachVariableByItsWholeName() {
+        String text = """
+            ARG REDIS=redis
+            ARG REDIS_VERSION=7.2.4
+            ARG TAG=7
+            FROM $REDIS:$REDIS_VERSION
+            FROM ${REDIS}:${REDIS_VERSION}
+            FROM $REDIS_VERSION:$REDIS
+            FROM redis:$TAG_X
+            FROM redis:${TAG_X}
+            """;
+        assertEquals(
+            List.of("redis:7.2.4", "redis:7.2.4", "7.2.4:redis", "redis:$TAG_X", "redis:${TAG_X}"), images(text),
+            "a name is never resolved as a prefix of a longer one"
+        );
+    }
+
+    @Test
     void ignoresACommentedInstruction() {
         assertEquals(List.of(), images("# FROM mongo:7\n  # FROM redis:8\n"), "a comment pulls nothing");
     }

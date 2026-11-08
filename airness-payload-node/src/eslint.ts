@@ -19,6 +19,9 @@ const PAYLOAD_CONFIG_FILES: readonly string[] = [
 
 // The modules that may read `process.env`: the validated module, and the proxy Next runs in the edge runtime,
 // where the validated module is not reachable.
+// Every TypeScript source of the project, in each extension the Payload source rules read.
+const ENVIRONMENT_READ_FILES: readonly string[] = ['src/**/*.{ts,tsx,mts,cts}']
+
 const ENVIRONMENT_READ_EXEMPTIONS: readonly string[] = [VALIDATED_ENVIRONMENT_MODULE, 'src/proxy.ts']
 
 const RESTRICTED_SYNTAX: string = 'no-restricted-syntax'
@@ -32,24 +35,29 @@ const INLINE_CONFIG_FUNCTION: Readonly<Record<string, string>> = {
 }
 
 const UNTHREADED_REQUEST_MESSAGE: string =
-  'Do not destructure payload out of req. Call req.payload.<operation>({ ..., req }) instead, so the ' +
+  'Do not destructure payload out of the request. Call req.payload.<operation>({ ..., req }) instead, so the ' +
   'Payload source rules see the request-scoped instance and require req to be passed, which keeps the ' +
   "call inside the hook's transaction."
 
-// `payload` taken out of `req` loses the receiver the `no-unthreaded-req` source rule recognises, so a write
-// through it ran outside the hook's transaction unjudged. Banning the destructuring keeps that rule's text
+// The names the Payload source rules read as the request: `req`, as Payload's own examples spell it, and
+// `request`, as a handler that spells its parameter out does. One pattern for both, so the selectors below
+// cannot cover one spelling and miss the other.
+const REQUEST_NAME: string = '/^(?:req|request)$/'
+
+// `payload` taken out of the request loses the receiver the `no-unthreaded-req` source rule recognises, so a
+// write through it ran outside the hook's transaction unjudged. Banning the destructuring keeps that rule's text
 // reading true without scope analysis: the parameter form Payload's own examples use, and the declaration form.
 const UNTHREADED_REQUEST_SYNTAX: readonly Readonly<Record<string, string>>[] = [
   {
-    selector: "ObjectPattern > Property[key.name='req'] > ObjectPattern > Property[key.name='payload']",
+    selector: `ObjectPattern > Property[key.name=${REQUEST_NAME}] > ObjectPattern > Property[key.name='payload']`,
     message: UNTHREADED_REQUEST_MESSAGE,
   },
   {
-    selector: "VariableDeclarator[init.name='req'] > ObjectPattern > Property[key.name='payload']",
+    selector: `VariableDeclarator[init.name=${REQUEST_NAME}] > ObjectPattern > Property[key.name='payload']`,
     message: UNTHREADED_REQUEST_MESSAGE,
   },
   {
-    selector: "VariableDeclarator[init.property.name='req'] > ObjectPattern > Property[key.name='payload']",
+    selector: `VariableDeclarator[init.property.name=${REQUEST_NAME}] > ObjectPattern > Property[key.name='payload']`,
     message: UNTHREADED_REQUEST_MESSAGE,
   },
 ]
@@ -139,9 +147,10 @@ const payloadBlocks: readonly ConfigBlock[] = [
       [RESTRICTED_SYNTAX]: ['error', ...baseRestrictedSyntax(), ...UNTHREADED_REQUEST_SYNTAX, INLINE_CONFIG_FUNCTION],
     },
   },
-  // The environment surface stays auditable in one validated, unit-tested module.
+  // The environment surface stays auditable in one validated, unit-tested module. Every TypeScript extension
+  // is governed, so a page or a module-format file cannot read a variable the environment gate never sees.
   {
-    files: ['src/**/*.ts'],
+    files: [...ENVIRONMENT_READ_FILES],
     ignores: [...ENVIRONMENT_READ_EXEMPTIONS],
     rules: {
       'no-restricted-properties': [

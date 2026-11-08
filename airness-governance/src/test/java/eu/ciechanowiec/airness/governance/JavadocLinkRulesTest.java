@@ -15,9 +15,15 @@ class JavadocLinkRulesTest {
 
     private static final int LONG_TEXT_BLOCK_LENGTH = 20_000;
     private static final Set<String> RESOLVE = Set.of("Vault", "Base64", "Settings", "IOException");
+    private static final Set<String> NAMED = Set.of("Vault", "Record");
+    private static final Set<String> JAVA_LANG = Set.of("Long", "Error", "Number", "String", "Record", "Thread");
 
     private static List<String> unlinked(CharSequence source) {
-        return JavadocLinkRules.unlinked(source, RESOLVE::contains);
+        return JavadocLinkRules.unlinked(source, RESOLVE::contains, _ -> false);
+    }
+
+    private static List<String> unlinkedWithJavaLang(CharSequence source) {
+        return JavadocLinkRules.unlinked(source, NAMED::contains, JAVA_LANG::contains);
     }
 
     /**
@@ -99,6 +105,31 @@ class JavadocLinkRulesTest {
         assertEquals(
             List.of("Settings"), unlinked(document("Settings win last. Settings start from defaults.")),
             "one fix per name, not one per mention"
+        );
+    }
+
+    @Test
+    void readsAJavaLangNameOpeningASentenceAsAnOrdinaryWord() {
+        for (String body : List.of(
+            "Long names are cut short. Error codes are kept.", "Number of entries read.",
+            "Error Prone reads it.", "Reads it.\n * Thread count is fixed.", "Reads it.  Long ones wrap.",
+            "Reads it.\n *\n * <p>Error codes are kept.", "<P>Number of retries.", "Reads it!\n * Long ones wrap.",
+            "Reads it? Long ones wrap.", "Lists:\n * <ul>\n * <li>Long names\n * </ul>"
+        )) {
+            assertTrue(unlinkedWithJavaLang(document(body)).isEmpty(), "a capitalized opening is a word: " + body);
+        }
+    }
+
+    @Test
+    void readsAJavaLangNameElsewhereAndANamedTypeAnywhereAsAType() {
+        assertEquals(List.of("String"), unlinkedWithJavaLang(document("Returns the String it read.")), "mid-sentence");
+        assertEquals(
+            List.of("String"), unlinkedWithJavaLang(document("Reads a java.lang.String value.")),
+            "a stop with no space after it ends no sentence"
+        );
+        assertEquals(
+            List.of("Vault", "Record"), unlinkedWithJavaLang(document("Vault stores it. Record keeps it.")),
+            "a type the file names itself is a type wherever it stands, even one that shadows java.lang"
         );
     }
 

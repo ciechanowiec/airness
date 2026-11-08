@@ -30,9 +30,14 @@ export interface PayloadViolation {
 // `oauth:` was read as `auth:` and reported a collection with no auth as one with unhardened auth. The
 // delimiter is required rather than merely allowed, so the returned offset is the brace or comma that
 // opens the key rather than the key itself; every reader below looks forward from it either way.
-const depthOneKeyIndex = (text: string, key: string): number => {
-  const pattern: RegExp = new RegExp(String.raw`^[{,]\s*${key}\s*:`)
-  return scanDelimited<number>(
+/**
+ * Where a member matching a pattern sits directly inside the outermost object literal.
+ * @param text the config body, brace-delimited.
+ * @param pattern anchored at the brace or comma that opens the member, as `^[{,]\s*key\s*:` is.
+ * @returns the offset of that brace or comma, or NOT_FOUND when no depth-one member matches.
+ */
+export const depthOneMemberIndex = (text: string, pattern: RegExp): number =>
+  scanDelimited<number>(
     text,
     0,
     (found: number, step: ScanStep): Folded<number> =>
@@ -41,7 +46,9 @@ const depthOneKeyIndex = (text: string, key: string): number => {
         : { state: found, stop: false },
     NOT_FOUND,
   )
-}
+
+const depthOneKeyIndex = (text: string, key: string): number =>
+  depthOneMemberIndex(text, new RegExp(String.raw`^[{,]\s*${key}\s*:`))
 
 /**
  * The raw text of a depth-one key's value, from its colon to the end of the enclosing literal.

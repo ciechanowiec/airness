@@ -129,6 +129,17 @@
                             <command>airness-payload gate payload-defaults</command>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>node-gate-payload-migrations</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>payload-migrations</gate>
+                            <command>airness-payload gate payload-migrations</command>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

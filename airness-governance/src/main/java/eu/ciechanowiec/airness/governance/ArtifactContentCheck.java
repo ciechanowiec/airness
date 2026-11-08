@@ -6,7 +6,9 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -15,7 +17,6 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -155,10 +156,7 @@ public final class ArtifactContentCheck {
             Stream<Content> files = entries.stream().filter(entry -> !entry.directory());
             PackagedManifest manifest = PackagedManifest.of(jar);
             return Map.of(
-                Kind.UNSAFE, IntStream.range(0, names.size())
-                    .filter(index -> unsafeEntry(names, index))
-                    .mapToObj(names::get)
-                    .toList(),
+                Kind.UNSAFE, unsafeEntries(names),
                 Kind.DEVELOPMENT, entries.stream()
                     .filter(entry -> entry.firstParty(main, supplied))
                     .map(Content::name)
@@ -239,8 +237,23 @@ public final class ArtifactContentCheck {
         return new Content(entry.getName(), entry.isDirectory(), held);
     }
 
-    private static boolean unsafeEntry(List<String> names, int index) {
-        return names.indexOf(names.get(index)) != index || unsafe(names.get(index));
+    /**
+     * The entries that repeat a name an earlier entry carries, or whose name is unsafe to extract, in
+     * archive order. The names seen so far are remembered rather than searched, because a shaded archive
+     * holds a hundred thousand entries and searching them for each one is quadratic.
+     *
+     * @param names the entry names, in archive order
+     * @return each offending name, once per offending entry
+     */
+    static List<String> unsafeEntries(Collection<String> names) {
+        Set<String> seen = new HashSet<>();
+        List<String> unsafe = new ArrayList<>();
+        for (String name : names) {
+            if (!seen.add(name) || unsafe(name)) {
+                unsafe.add(name);
+            }
+        }
+        return unsafe;
     }
 
     private static boolean testOnly(

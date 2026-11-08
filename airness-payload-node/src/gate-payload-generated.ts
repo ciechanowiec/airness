@@ -1,5 +1,6 @@
 // The generated Payload artefacts must match the configuration that produces them: the gate regenerates the
-// types and the admin import map with the project's own Payload CLI and fails on any drift.
+// types, the admin import map and a database schema the project keeps with its own Payload CLI and fails on any
+// drift.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -11,18 +12,37 @@ import { findGeneratedDrift, type RegeneratedArtefact } from './generated-drift.
 import { analysisEnvironment, PAYLOAD_PACKAGE, type PayloadMember } from './payload-member.js'
 import { asFindings } from './tool-findings.js'
 
+/** Where `payload generate:db-schema` writes the Drizzle schema of a SQL adapter. */
+const GENERATED_SCHEMA: string = 'src/payload-generated-schema.ts'
+
 /** The files the Payload CLI generates in a member that keeps Payload's layout. */
 const PAYLOAD_GENERATED_FILES: readonly string[] = [
   'src/payload-types.ts',
-  'src/payload-generated-schema.ts',
+  GENERATED_SCHEMA,
   'src/app/(payload)/admin/importMap.js',
 ]
 
 // A path with no glob syntax, which names one file a generator writes.
 const GLOB_SYNTAX: RegExp = /[*?[\]{}!]/u
 
-/** The generators the Payload CLI runs, in order. */
-const GENERATORS: readonly string[] = ['generate:types', 'generate:importmap']
+/** One Payload CLI generator, and the file whose presence decides whether the member uses it. */
+interface Generator {
+  readonly command: string
+  readonly keptAs?: string
+}
+
+/**
+ * The generators the Payload CLI runs, in order.
+ *
+ * The schema generator runs only for a member that keeps the schema: it is the one artefact a project opts
+ * into, and only a SQL adapter can produce it, so regenerating it everywhere would write an untracked file
+ * into every project that never asked for one and fail it for that.
+ */
+const GENERATORS: readonly Generator[] = [
+  { command: 'generate:types' },
+  { command: 'generate:importmap' },
+  { command: 'generate:db-schema', keptAs: GENERATED_SCHEMA },
+]
 
 // A configuration import opens no socket, but a plugin might, and a hung import must end as a verdict.
 const GENERATOR_TIMEOUT_MS: number = 300_000
@@ -58,9 +78,16 @@ const payloadCliOf = (root: string): string | undefined => {
   }
 }
 
-const regenerate = (target: PayloadMember, cli: string): RunResult | undefined => {
-  for (const generator of GENERATORS) {
-    const result: RunResult = runNode('--no-deprecation', [cli, generator], {
+const regenerate = (
+  target: PayloadMember,
+  cli: string,
+  before: ReadonlyMap<string, string | undefined>,
+): RunResult | undefined => {
+  const applicable: readonly Generator[] = GENERATORS.filter(
+    (generator: Generator): boolean => generator.keptAs === undefined || before.get(generator.keptAs) !== undefined,
+  )
+  for (const generator of applicable) {
+    const result: RunResult = runNode('--no-deprecation', [cli, generator.command], {
       cwd: target.member.root,
       env: analysisEnvironment(target),
       timeoutMs: GENERATOR_TIMEOUT_MS,
@@ -73,7 +100,7 @@ const regenerate = (target: PayloadMember, cli: string): RunResult | undefined =
 }
 
 /**
- * Regenerate the Payload types and the admin import map, then fail on any drift.
+ * Regenerate the Payload types, the admin import map and a kept database schema, then fail on any drift.
  * @param target the member being judged.
  * @returns the gate result.
  */
@@ -100,7 +127,7 @@ export const payloadGenerated = (target: PayloadMember): GateResult => {
   const before: ReadonlyMap<string, string | undefined> = new Map(
     targets.map((file: string): readonly [string, string | undefined] => [file, readIfPresent(root, file)]),
   )
-  const failure: RunResult | undefined = regenerate(target, cli)
+  const failure: RunResult | undefined = regenerate(target, cli, before)
   if (failure !== undefined) {
     return withOutput(
       failed('the Payload CLI could not regenerate the artefacts', asFindings(failure.output)),

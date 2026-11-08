@@ -203,6 +203,64 @@ describe('arch', PROCESS_TIME, () => {
     TOOL_TIMEOUT_MS,
   )
 
+  it(
+    'fails production code under any production root that imports a development-only dependency',
+    () => {
+      const rooted: Readonly<Record<string, unknown>> = { ...MANIFEST, airness: { sourceRoots: ['lib/'] } }
+      withProject(
+        {
+          'package.json': `${JSON.stringify(rooted, null, JSON_INDENT)}\n`,
+          'src/orders.ts': "import { expect } from 'vitest'\n\nexport const order = expect\n",
+          'lib/auth.ts': "import { expect } from 'vitest'\n\nexport const auth = expect\n",
+          'lib/auth.spec.ts': "import { expect } from 'vitest'\n\nexport const checked = expect\n",
+        },
+        (root: string): void => {
+          const findings: string = architecture(memberAt(root, rooted))
+            .findings.filter((finding: string): boolean => finding.includes('not-to-dev-dep'))
+            .join('\n')
+          expect(findings).toContain('src/orders.ts')
+          expect(findings).toContain('lib/auth.ts')
+          expect(findings).not.toContain('auth.spec.ts')
+        },
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'refuses a Next.js routes directory at the member root, and tells the agent to move it under src',
+    () => {
+      const next: Readonly<Record<string, unknown>> = { ...MANIFEST, dependencies: { next: '16.0.0' } }
+      const nextMemberAt = (root: string): Member => ({ ...memberAt(root, next), hasOwnRuntime: true })
+      withProject(
+        {
+          'package.json': `${JSON.stringify(next, null, JSON_INDENT)}\n`,
+          'app/layout.tsx': 'export const layout = 1\n',
+          'pages/index.tsx': 'export const index = 1\n',
+        },
+        (root: string): void => {
+          const result: GateResult = architecture(nextMemberAt(root))
+          expect(result.ok).toBe(false)
+          expect(findingsOf(result)).toContain('app/: move the Next.js routes directory under src/ (src/app/)')
+          expect(findingsOf(result)).toContain('pages/: move the Next.js routes directory under src/ (src/pages/)')
+        },
+      )
+      withProject(
+        {
+          'package.json': `${JSON.stringify(next, null, JSON_INDENT)}\n`,
+          'src/app/layout.tsx': 'export const a = 1\n',
+        },
+        (root: string): void => {
+          expect(architecture(nextMemberAt(root)).ok).toBe(true)
+        },
+      )
+      withProject({ 'app/layout.tsx': 'export const layout = 1\n' }, (root: string): void => {
+        expect(architecture(memberAt(root)).ok).toBe(true)
+      })
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
   it('passes a member with no source directory', () => {
     withProject({}, (root: string): void => {
       expect(

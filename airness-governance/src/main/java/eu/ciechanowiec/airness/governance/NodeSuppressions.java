@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -16,7 +17,10 @@ import lombok.experimental.UtilityClass;
  * {@code @ts-nocheck}. A disable comment naming three rules sets three aside, as an annotation naming three
  * does in Java, and one naming no rule sets every rule aside and counts once. The text after {@code --} is the
  * reason, which is prose about the suppression rather than a rule. A directive is read only at the start of a
- * comment, where the tools read it. The coverage directives of V8, c8 and Istanbul count too, because they
+ * comment, where the tools read it. ESLint's inline configuration, a block comment opening with the bare word
+ * {@code eslint} and mapping rules to settings, counts once per rule it names, because it can switch a rule off
+ * or loosen its options for the whole file. A TypeScript directive counts in a JSDoc comment as well, which the
+ * compiler reads as readily as a line comment. The coverage directives of V8, c8 and Istanbul count too, because they
  * delete the measurement the coverage floor reads, and so do the secret scan's {@code gitleaks:allow} and the
  * layout sweep's exemption attribute, each of which turns a rule off where it stands.
  */
@@ -34,8 +38,14 @@ public final class NodeSuppressions {
         "(?://|/\\*)\\s*((?:eslint|oxlint|stylelint)-disable(?:-next-line|-line)?)(?=[\\s*]|$)([^\\n]*)"
     );
     private static final Pattern BIOME = Pattern.compile("(?://|/\\*)\\s*(biome-ignore(?:-all|-start)?)\\s+([^\\s:]+)");
+    // ESLint's inline configuration: a block comment opening with the bare word eslint, whose body maps each
+    // rule it names to a severity and options, up to the reason after -- or the end of the comment.
+    private static final Pattern INLINE_CONFIG = Pattern.compile("/\\*\\s*eslint\\s((?:(?!\\*/).)*)", Pattern.DOTALL);
+    private static final String INLINE_CONFIG_NAME = "eslint";
+    private static final String OPENING = "[{(";
+    private static final String CLOSING = "]})";
     private static final Pattern TYPESCRIPT = Pattern.compile(
-        "(?://|/\\*)\\s*(@ts-(?:ignore|expect-error|nocheck))\\b"
+        "(?://|/\\*+)\\s*(@ts-(?:ignore|expect-error|nocheck))\\b"
     );
     // The coverage directives delete the measurement the per-file coverage floor reads, which no other
     // suppression does, so each counts like a disabled rule. The closing "stop" of a range was counted at its
@@ -67,6 +77,7 @@ public final class NodeSuppressions {
     public static List<String> in(String source) {
         return Stream.of(
             DISABLE.matcher(source).results().flatMap(match -> disabled(source, match)),
+            INLINE_CONFIG.matcher(source).results().flatMap(match -> configured(source, match)),
             BIOME.matcher(source).results().map(match -> entry(source, match, match.group(1) + ' ' + match.group(2))),
             TYPESCRIPT.matcher(source).results().map(match -> entry(source, match, match.group(1))),
             COVERAGE.matcher(source).results().map(match -> entry(source, match, match.group(1))),
@@ -84,6 +95,48 @@ public final class NodeSuppressions {
         String directive = match.group(1);
         return rules.isEmpty() ? Stream.of(entry(source, match, directive + " (every rule)"))
             : rules.stream().map(rule -> entry(source, match, directive + ' ' + rule));
+    }
+
+    private static Stream<String> configured(String source, MatchResult match) {
+        String body = match.group(1);
+        int reason = body.indexOf(REASON);
+        return topLevel(reason >= 0 ? body.substring(0, reason) : body).stream()
+            .map(pair -> pair.split(":", 2)[0].strip().replace("\"", "").replace("'", ""))
+            .filter(rule -> !rule.isEmpty())
+            .map(rule -> entry(source, match, INLINE_CONFIG_NAME + ' ' + rule));
+    }
+
+    /*
+     * The comma-separated parts of a rule map that sit outside every bracket and string, so the options of one
+     * rule, which carry commas and colons of their own, stay with the rule they configure.
+     */
+    private static List<String> topLevel(String map) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder part = new StringBuilder();
+        int depth = 0;
+        char quote = 0;
+        for (int index = 0; index < map.length(); index++) {
+            char character = map.charAt(index);
+            boolean quoted = quote != 0;
+            boolean separates = !quoted && depth == 0 && character == ',';
+            if (quoted) {
+                quote = character == quote ? 0 : quote;
+            } else if (character == '"' || character == '\'') {
+                quote = character;
+            } else if (OPENING.indexOf(character) >= 0) {
+                depth++;
+            } else if (CLOSING.indexOf(character) >= 0) {
+                depth--;
+            }
+            if (separates) {
+                parts.add(part.toString());
+                part.setLength(0);
+            } else {
+                part.append(character);
+            }
+        }
+        parts.add(part.toString());
+        return List.copyOf(parts);
     }
 
     private static String entry(String source, MatchResult match, String rule) {

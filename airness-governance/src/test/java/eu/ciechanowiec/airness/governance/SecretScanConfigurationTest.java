@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -285,6 +286,92 @@ class SecretScanConfigurationTest {
         assertEquals(
             List.of(), broken(content),
             "an array written one value to a line is one value per line rather than one unreadable line each"
+        );
+    }
+
+    @Test
+    void rejectsARegexWrittenAsADoubleQuotedString() {
+        List<String> values = List.of(
+            "\"^fixture\\\\wvalue-one$\"", "\"\"\"^fixture\\\\wvalue-one$\"\"\"", "\"^fixture-value-one$\""
+        );
+        for (String value : values) {
+            String content = SHARED + """
+
+                [[allowlists]]
+                description = "a fixture"
+                targetRules = ["generic-api-key"]
+                regexes = [%s]
+                """.formatted(value);
+            assertTrue(
+                reported(content, "regexes holds a double-quoted string"),
+                "gitleaks decodes " + value + " before compiling it, so the regex it runs is not the one written"
+            );
+        }
+    }
+
+    @Test
+    void acceptsARegexWrittenAsEitherLiteralString() {
+        for (String value : List.of("'''^fixture-value-one$'''", "'^fixture-value-one$'")) {
+            String content = SHARED + """
+
+                [[allowlists]]
+                description = "a fixture"
+                targetRules = ["generic-api-key"]
+                regexes = [%s]
+                """.formatted(value);
+            assertEquals(List.of(), broken(content), "a literal string reaches gitleaks exactly as written");
+        }
+    }
+
+    @Test
+    void rejectsAnExceptionWrittenAsAnInlineTable() {
+        List<String> tables = List.of(
+            "allowlists = [{ description = \"a fixture\", targetRules = [\"generic-api-key\"], paths = ['''.*'''] }]",
+            "allowlists = [\n{ description = \"a fixture\", targetRules = [\"generic-api-key\"] },\n]",
+            "allowlist = { paths = ['''.*'''] }",
+            "rules = [{ id = \"generic-api-key\", regex = '''nothing''' }]"
+        );
+        for (String table : tables) {
+            String content = table + "\n" + SHARED;
+            assertTrue(
+                reported(content, "line the harness cannot read")
+                    && reported(content, "line 1: " + table.replace('\n', ' ')),
+                "gitleaks reads an inline table as the table it spells, so this reader must not take it for one value"
+            );
+        }
+    }
+
+    @Test
+    void rejectsAKeyItDoesNotReadInItsTable() {
+        String exception = """
+
+            [[allowlists]]
+            description = "a fixture"
+            targetRules = ["generic-api-key"]
+            regexes = ['''^fixture-value-one$''']
+            """;
+        Map<String, String> cases = Map.of(
+            "enabled = false\n" + SHARED, "enabled is not a key this reader knows in the top level",
+            SHARED + "path = \"loose.toml\"\n", "path is not a key this reader knows in [extend]",
+            SHARED + exception + "condition = \"AND\"\n", "condition is not a key this reader knows in [allowlists]"
+        );
+        cases.forEach(
+            (content, message) -> assertTrue(
+                reported(content, message),
+                "a key this reader passed over could change what gitleaks excuses without anyone seeing it"
+            )
+        );
+    }
+
+    @Test
+    void rejectsATableItDoesNotKnow() {
+        String content = SHARED + """
+
+            [other]
+            excuses = "everything"
+            """;
+        assertTrue(
+            reported(content, "[other] is not a table this reader knows"), "an unknown table is unaccounted for"
         );
     }
 

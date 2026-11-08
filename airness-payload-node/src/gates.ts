@@ -8,6 +8,7 @@ import { payloadBlocklist } from './gate-payload-blocklist.js'
 import { payloadDefaults } from './gate-payload-defaults.js'
 import { payloadEnvironment } from './gate-payload-environment.js'
 import { payloadGenerated } from './gate-payload-generated.js'
+import { payloadMigrations } from './gate-payload-migrations.js'
 import { payloadSourceRules } from './gate-payload-source-rules.js'
 import { preflight } from './gate-preflight.js'
 import type { PayloadMember } from './payload-member.js'
@@ -31,6 +32,7 @@ export const GATES: readonly Gate[] = [
   { id: 'payload-environment', title: 'validated environment coherence', run: payloadEnvironment },
   { id: 'payload-generated', title: 'generated Payload artefacts', run: payloadGenerated },
   { id: 'payload-defaults', title: 'access decided in the built configuration', run: payloadDefaults },
+  { id: 'payload-migrations', title: 'every schema change recorded by a migration', run: payloadMigrations },
 ]
 
 /**

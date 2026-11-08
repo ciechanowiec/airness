@@ -163,7 +163,7 @@ export const requestedFragments = async (page: Page, values: readonly string[]):
 
 // Where a project's own code can be. Walking from the member root would descend into `node_modules`
 // and `.next`, which are large, and into `dist`, which holds a compiled copy of the same routes.
-const WALKED_ROOTS: readonly string[] = ['src', 'app', 'tests']
+const WALKED_ROOTS: readonly string[] = ['src', 'tests']
 
 // The extensions a route file or a specification can have. Filtering here rather than in the rule
 // keeps the corpus small; the rule still decides what a `page.tsx` means.

@@ -1,7 +1,7 @@
 // The project-shaped half of the architecture contract, rendered into the rules dependency-cruiser reads:
 // the Next.js application layer, which nothing imports back, the pure-logic floor a project or a layer
-// package declares, and the production roots that import no test code. The framework-neutral rules stay in the
-// shipped configuration.
+// package declares, and the production roots that import no test code and no development-only dependency. The
+// framework-neutral rules stay in the shipped configuration.
 import { DEFAULT_SOURCE_ROOTS } from './settings.js'
 
 /** One forbidden rule, in dependency-cruiser's shape. */
@@ -24,6 +24,29 @@ export const APPLICATION_LAYER_RULE: ArchitectureRule = {
   from: { path: '^src/', pathNot: `^${APPLICATION_LAYER}/` },
   to: { path: `^${APPLICATION_LAYER}/` },
 }
+
+// The routes directories Next.js also reads from the member root. The harness places a Next.js application under
+// `src`: the application layer above, the entry points the coverage floor exempts, and the Next.js lint presets all
+// name `src/app`, so a routes directory at the root would escape each of them at once.
+const TOP_LEVEL_ROUTE_DIRECTORIES: readonly string[] = ['app', 'pages']
+
+/**
+ * The refusal of a Next.js routes directory at the member root, one finding per directory present.
+ * @param isNextApp whether the member is a Next.js application.
+ * @param files the member's files, member-relative and separated by forward slashes.
+ * @returns what to move, or nothing for a member whose routes sit under `src`.
+ */
+export const misplacedRouteDirectoryFindings = (isNextApp: boolean, files: readonly string[]): readonly string[] =>
+  isNextApp
+    ? TOP_LEVEL_ROUTE_DIRECTORIES.filter((directory: string): boolean =>
+        files.some((file: string): boolean => file.startsWith(`${directory}/`)),
+      ).map(
+        (directory: string): string =>
+          `${directory}/: move the Next.js routes directory under src/ (src/${directory}/); the application layer, ` +
+          'the coverage floor and the Next.js lint rules are held to src/, so a routes directory at the member ' +
+          'root escapes all three',
+      )
+    : []
 
 // Every root is spliced into a regular expression, so it is escaped on the way in: a directory such as
 // `src/app/(site)` would otherwise read as a capture group, and a glob-shaped root as an invalid expression.
@@ -66,6 +89,9 @@ export const pureLogicRule = (
 // The source roots that hold test code and tooling rather than production code.
 const NON_PRODUCTION_ROOTS: ReadonlySet<string> = new Set(['tests', 'scripts'])
 
+const productionRoots = (sourceRoots: readonly string[]): readonly string[] =>
+  sourceRoots.filter((root: string): boolean => !NON_PRODUCTION_ROOTS.has(root))
+
 // What under a production root is test code or test configuration itself: a colocated spec, and the Vitest and
 // Playwright files at the member root, which a member that declares the whole member as a root still holds.
 const TEST_CODE: string = String.raw`\.(spec|test)\.(ts|tsx)$|^(tests|scripts)/|^vitest\.[^/]*$|^playwright\.config\.[^/]*$`
@@ -77,7 +103,7 @@ const TEST_CODE: string = String.raw`\.(spec|test)\.(ts|tsx)$|^(tests|scripts)/|
  * @returns the rule, or undefined when the member has no production root.
  */
 export const productionImportsNoTestCodeRule = (sourceRoots: readonly string[]): ArchitectureRule | undefined => {
-  const production: readonly string[] = sourceRoots.filter((root: string): boolean => !NON_PRODUCTION_ROOTS.has(root))
+  const production: readonly string[] = productionRoots(sourceRoots)
   if (production.length === 0) {
     return undefined
   }
@@ -89,6 +115,35 @@ export const productionImportsNoTestCodeRule = (sourceRoots: readonly string[]):
       'tests would ship with it. Move what production needs out of tests, into a production module.',
     from: { path: `^(${alternation(production)})`, pathNot: TEST_CODE },
     to: { path: '^tests/' },
+  }
+}
+
+// The build tooling configuration a member that declares the whole member as a root holds at its root: each runs
+// at development time only, so a development-only dependency is exactly what it imports.
+const ROOT_TOOLING: string = String.raw`^(eslint|knip|lint-staged|postcss|prettier|stylelint|tailwind)\.config\.[^/]*$`
+
+/**
+ * The development-only dependency rule, rendered over every production source root rather than `src` alone: a
+ * production install leaves a devDependency out, so production code under any declared root never imports one.
+ * It replaces the shipped rule of the same name, which covers only `src`.
+ * @param sourceRoots the member's source roots; `tests` and `scripts` are not production roots.
+ * @returns the rule, or undefined when the member has no production root.
+ */
+export const productionImportsNoDevelopmentDependencyRule = (
+  sourceRoots: readonly string[],
+): ArchitectureRule | undefined => {
+  const production: readonly string[] = productionRoots(sourceRoots)
+  if (production.length === 0) {
+    return undefined
+  }
+  return {
+    name: 'not-to-dev-dep',
+    severity: 'error',
+    comment:
+      `Production source under ${production.join(', ')} never imports a development-only dependency, which a ` +
+      'production install leaves out. Move the dependency, or the code.',
+    from: { path: `^(${alternation(production)})`, pathNot: `${TEST_CODE}|${ROOT_TOOLING}` },
+    to: { dependencyTypes: ['npm-dev'], dependencyTypesNot: ['type-only'], pathNot: ['node_modules/@types/'] },
   }
 }
 
@@ -149,10 +204,12 @@ export const layerRules = (
 ): readonly ArchitectureRule[] => {
   const floor: ArchitectureRule | undefined = pureLogicRule(pureLogicRoots, sourceRoots)
   const production: ArchitectureRule | undefined = productionImportsNoTestCodeRule(sourceRoots)
+  const developmentOnly: ArchitectureRule | undefined = productionImportsNoDevelopmentDependencyRule(sourceRoots)
   return [
     ...(isNextApp ? [APPLICATION_LAYER_RULE] : []),
     ...(floor === undefined ? [] : [floor]),
     ...(production === undefined ? [] : [production]),
+    ...(developmentOnly === undefined ? [] : [developmentOnly]),
     ...cloudFrontRules(cloudFrontFiles),
   ]
 }

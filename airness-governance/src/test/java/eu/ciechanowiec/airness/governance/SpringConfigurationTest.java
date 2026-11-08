@@ -219,4 +219,65 @@ class SpringConfigurationTest {
             "and it makes no key out of the dash rather than recording one nothing could match"
         );
     }
+
+    @Test
+    void readsNestingFromTheColumnWhateverTheIndentWidth() {
+        List<String> spellings = List.of(
+            """
+                spring:
+                  datasource:
+                    url: jdbc:h2:mem:app
+                  h2:
+                    console:
+                      enabled: true
+                """,
+            """
+                spring:
+                    datasource:
+                        url: jdbc:h2:mem:app
+                    h2:
+                        console:
+                            enabled: true
+                """,
+            """
+                spring:
+                   datasource:
+                         url: jdbc:h2:mem:app
+                   h2:
+                    console:
+                            enabled: true
+                """
+        );
+        for (String content : spellings) {
+            SpringConfiguration read = yaml(content);
+
+            assertEquals(
+                List.of("spring.datasource.url", "spring.h2.console.enabled"),
+                read.settings().stream().map(SpringConfiguration.Setting::key).toList(),
+                "a sibling stays a sibling of the key before it, however wide the file indents:\n" + content
+            );
+        }
+    }
+
+    @Test
+    void returnsToAnOuterKeyAfterADeeperOne() {
+        String content = """
+            spring:
+                jpa:
+                    properties:
+                        hibernate:
+                            format_sql: true
+                    open-in-view: false
+            server:
+                port: 8080
+            """;
+
+        SpringConfiguration read = yaml(content);
+
+        assertEquals(
+            List.of("spring.jpa.properties.hibernate.formatsql", "spring.jpa.openinview", "server.port"),
+            read.settings().stream().map(SpringConfiguration.Setting::key).toList(),
+            "a key starting further left closes every deeper key above it"
+        );
+    }
 }

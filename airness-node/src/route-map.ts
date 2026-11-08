@@ -18,9 +18,9 @@ const PAGE_FILES: ReadonlySet<string> = new Set<string>(['page.tsx', 'page.ts', 
 // directory apart from a directory that happens to be called `app`.
 const ROOT_LAYOUTS: ReadonlySet<string> = new Set<string>(['layout.tsx', 'layout.ts', 'layout.jsx', 'layout.js'])
 
-// `src/app` first, because that is where a CMS application puts it and where a stray top-level
-// `app/` is least likely to be mistaken for one.
-const APP_ROOTS: readonly string[] = ['src/app', 'app']
+// The only app directory: the architecture gate refuses a Next.js routes directory at the member root and
+// says to move it under `src`, so a top-level `app/` is never the application's.
+const APP_ROOT: string = 'src/app'
 
 const ROOT_ROUTE: string = '/'
 
@@ -51,14 +51,6 @@ export const isRootLayout = (path: string, root: string): boolean => {
   )
 }
 
-/**
- * Which directory holds the application's routes.
- *
- * Chosen from the conventional two rather than searched for, and confirmed by the root layout Next.js
- * requires, so a library with a `src/app` module of its own is not mistaken for an application.
- * @param paths every file of the member, relative to its root, separated by forward slashes.
- * @returns the app directory, or nothing when the member declares no routes.
- */
 const hasLayoutAndPage = (paths: readonly string[], root: string): boolean =>
   paths.some((file: string): boolean => {
     if (!(file.startsWith(`${root}/`) && ROOT_LAYOUTS.has(file.split('/').at(-1) ?? ''))) {
@@ -71,11 +63,18 @@ const hasLayoutAndPage = (paths: readonly string[], root: string): boolean =>
     )
   })
 
+/**
+ * Which directory holds the application's routes.
+ *
+ * Never searched for, and confirmed by the root layout Next.js requires, so a library with a `src/app`
+ * module of its own is not mistaken for an application.
+ * @param paths every file of the member, relative to its root, separated by forward slashes.
+ * @returns the app directory, or nothing when the member declares no routes.
+ */
 export const appRootOf = (paths: readonly string[]): string | undefined =>
-  APP_ROOTS.find(
-    (root: string): boolean =>
-      paths.some((path: string): boolean => isRootLayout(path, root)) || hasLayoutAndPage(paths, root),
-  )
+  paths.some((path: string): boolean => isRootLayout(path, APP_ROOT)) || hasLayoutAndPage(paths, APP_ROOT)
+    ? APP_ROOT
+    : undefined
 
 // A segment wholly inside parentheses is a route group: it organises the tree and contributes nothing
 // to the address. `(.)photo` is not one - it is an intercepting route, and it opens with a parenthesis
