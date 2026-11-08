@@ -7,6 +7,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { type RunResult, runNode } from '@airness/node/exec'
 import { failed, type GateResult, notApplicable, passed, withOutput } from '@airness/node/gate-result'
 import { readJsonFile } from './json-file.js'
 import {
@@ -22,7 +23,6 @@ import {
   type PayloadSecurityReport,
   parsePayloadSecurityReport,
 } from './payload-security.js'
-import { type RunResult, runNode } from './process-run.js'
 import { asFindings } from './tool-findings.js'
 
 // Where Payload keeps the function it fills an undeclared operation with. Named by path because the package's

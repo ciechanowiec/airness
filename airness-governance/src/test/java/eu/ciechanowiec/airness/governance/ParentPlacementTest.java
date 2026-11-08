@@ -46,12 +46,13 @@ class ParentPlacementTest {
         Set<String> expected = new TreeSet<>(
             Stream.concat(
                 Stream.of(
-                    "actions", "assets-check", "blocklist", "build-inputs", "build-practices", "check-parameters",
+                    "actions", "assets-check", "blocklist", "build-inputs", "build-practices",
                     "checkov", "commit-history", "commit-typography", "completion-order",
-                    "dependency-freshness", "docker", "docs", "editorconfig-excludes", "entry-files", "environment",
-                    "generated-denial", "image-assets", "license-metadata", "linear-history", "module-complete",
+                    "dependency-freshness", "docker", "editorconfig-excludes", "entry-files", "environment",
+                    "generated-denial", "image-assets", "instruction-references", "license-metadata", "linear-history",
+                    "module-complete",
                     "node-dependencies", "node-gate", "node-install", "node-projects", "npm-dependencies",
-                    "plugin-inputs",
+                    "plugin-inputs", "project-settings",
                     "publication-content", "publication-metadata", "repository-policy", "require-full-history",
                     "require-online", "required-profiles", "scan-secrets", "shellcheck", "skills",
                     "tree-snapshot", "tree-verify", "typography",

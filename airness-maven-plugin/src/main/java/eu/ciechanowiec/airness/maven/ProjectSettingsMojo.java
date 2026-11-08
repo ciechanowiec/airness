@@ -29,8 +29,8 @@ import org.jspecify.annotations.Nullable;
  * property or declaration independently. A parent the harness publishes is the source of those
  * declarations rather than a consumer, so every one of them is outside this child policy.
  */
-@Mojo(name = "check-parameters", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
-public final class CheckParametersMojo extends AbstractPreflightMojo {
+@Mojo(name = "project-settings", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
+public final class ProjectSettingsMojo extends AbstractPreflightMojo {
 
     private static final String AIRNESS_GROUP = "eu.ciechanowiec";
     private static final String AIRNESS_PARENT = "airness-parent";

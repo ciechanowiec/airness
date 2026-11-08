@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Verifies that every instruction file's path references resolve, beside it or at the root.
  */
-class DocumentReferenceCheckTest {
+class InstructionReferenceCheckTest {
 
     private static final String UNDECLARED = "name an npm script";
     private static final String AGENTS = "AGENTS.md";
@@ -24,7 +24,7 @@ class DocumentReferenceCheckTest {
             .write(AGENTS, "Read `docs/guide.md` and `docs/removed.md`.\n")
             .write("docs/guide.md", "Guide.\n")
             .root();
-        DocumentReferenceCheck check = check(root, Map.of());
+        InstructionReferenceCheck check = check(root, Map.of());
         assertEquals(
             List.of(AGENTS + ": docs/removed.md"),
             Verdicts.offences(check.findings(), "name a file which does not exist"),
@@ -106,7 +106,7 @@ class DocumentReferenceCheckTest {
         );
     }
 
-    private static DocumentReferenceCheck check(Path root, Map<Path, PackageManifest> manifests) {
-        return new DocumentReferenceCheck(root, directory -> Optional.ofNullable(manifests.get(directory)));
+    private static InstructionReferenceCheck check(Path root, Map<Path, PackageManifest> manifests) {
+        return new InstructionReferenceCheck(root, directory -> Optional.ofNullable(manifests.get(directory)));
     }
 }

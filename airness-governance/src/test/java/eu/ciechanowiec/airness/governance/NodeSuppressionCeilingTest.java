@@ -11,26 +11,25 @@ import org.junit.jupiter.api.Test;
  * The node ceiling is two suppressions, and one more per five hundred non-blank lines of the project's own code,
  * and the offences are named only once it is passed.
  */
-class NodeSuppressionBudgetTest {
+class NodeSuppressionCeilingTest {
 
     private static final int LINES = 500;
 
-    private static NodeSuppressionBudget budgetFixture() {
+    private static NodeSuppressionCeiling ceilingFixture() {
         String lines = "const a = 1\n\n".repeat(LINES);
-        Path root = new GitFixture("node-budget").write("web/src/long.ts", lines)
+        Path root = new GitFixture("node-ceiling").write("web/src/long.ts", lines)
             .write("web/src/quiet.ts", "// eslint-disable-next-line no-console, no-alert\nconsole.log(1)\n")
             .write("web/README.md", "<!-- eslint-disable -->\n").root();
-        return new NodeSuppressionBudget(
+        return new NodeSuppressionCeiling(
             root, List.of(
                 root.resolve("web/src/long.ts"), root.resolve("web/src/quiet.ts"), root.resolve("web/README.md")
-            ),
-            List.of()
+            )
         );
     }
 
     @Test
     void earnsTwoAndOnePerFiveHundredNonBlankLines() {
-        NodeSuppressionBudget check = budgetFixture();
+        NodeSuppressionCeiling check = ceilingFixture();
         assertEquals(2, check.scanned(), "Markdown is no node source");
         assertEquals(3, check.ceiling(), "502 non-blank lines earn one beyond the two, blank lines earn nothing");
         assertEquals(2, check.count());
@@ -39,12 +38,10 @@ class NodeSuppressionBudgetTest {
 
     @Test
     void namesEveryOffenderOnceTheCeilingIsPassed() {
-        Path root = new GitFixture("node-budget-over").write(
+        Path root = new GitFixture("node-ceiling-over").write(
             "web/src/loud.ts", "// @ts-ignore\n// @ts-ignore\n/* v8 ignore next */\nexport const a = 1\n"
         ).root();
-        NodeSuppressionBudget check = new NodeSuppressionBudget(
-            root, List.of(root.resolve("web/src/loud.ts")), List.of()
-        );
+        NodeSuppressionCeiling check = new NodeSuppressionCeiling(root, List.of(root.resolve("web/src/loud.ts")));
         List<String> offences = check.findings().getFirst().offences();
         assertEquals(3, offences.size());
         assertTrue(offences.getFirst().startsWith("web/src/loud.ts: line 1"));

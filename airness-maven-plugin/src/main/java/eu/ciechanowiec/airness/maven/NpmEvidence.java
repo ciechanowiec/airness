@@ -56,7 +56,7 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
     }
 
     /**
-     * The directories of every node project a module declares, which the suppression budget reads.
+     * The directories of every node project a module declares, which the suppression ceiling reads.
      *
      * @param project the module
      * @return the node project directories

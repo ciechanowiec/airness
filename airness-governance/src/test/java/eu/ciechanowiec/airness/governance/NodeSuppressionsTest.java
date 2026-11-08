@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -68,7 +67,7 @@ class NodeSuppressionsTest {
     }
 
     @Test
-    void countsCoverageDirectivesTheSecretMarkerTheLayoutExemptionAndALayerForm() {
+    void countsCoverageDirectivesTheSecretMarkerAndTheLayoutExemption() {
         String source = """
             /* v8 ignore next */
             /* v8 ignore stop */
@@ -76,14 +75,13 @@ class NodeSuppressionsTest {
             /* istanbul ignore if */
             const key = 'fixture' // gitleaks:allow
             const box = <div data-airness-layout="overlap" />
-            // layer-ignore: generated
             """;
         assertEquals(
             List.of(
                 "line 1: v8 ignore", "line 3: c8 ignore", "line 4: istanbul ignore", "line 5: gitleaks:allow",
-                "line 6: data-airness-layout=", "line 7: layer-ignore"
+                "line 6: data-airness-layout="
             ),
-            NodeSuppressions.in(source, List.of(Pattern.compile("layer-ignore"))),
+            NodeSuppressions.in(source),
             "the stop of a range was counted at its start"
         );
     }

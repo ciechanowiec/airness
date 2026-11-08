@@ -66,6 +66,14 @@
       "types": "./dist/gate-result.d.ts",
       "default": "./dist/gate-result.js"
     },
+    "./gate-invocation": {
+      "types": "./dist/gate-invocation.d.ts",
+      "default": "./dist/gate-invocation.js"
+    },
+    "./exec": {
+      "types": "./dist/exec.d.ts",
+      "default": "./dist/exec.js"
+    },
     "./vitest": {
       "types": "./dist/vitest.d.ts",
       "default": "./dist/vitest.js"
@@ -83,7 +91,6 @@
       "default": "./dist/playwright.js"
     },
     "./biome": "./configs/airness-biome.json",
-    "./tsconfig": "./configs/tsconfig.json",
     "./tsconfig.json": "./configs/tsconfig.json",
     "./package.json": "./package.json",
     "./sweep": {

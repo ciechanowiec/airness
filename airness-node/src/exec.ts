@@ -111,7 +111,8 @@ const BYTES_PER_KIB: number = 1024
 const KIB_PER_MIB: number = 1024
 // Large enough that no analyzer's output is truncated before it can be reported.
 const MAX_OUTPUT_MIB: number = 64
-const MAX_OUTPUT_BYTES: number = MAX_OUTPUT_MIB * KIB_PER_MIB * BYTES_PER_KIB
+/** The most output a child process may write before it is reported as out of buffer. */
+export const MAX_OUTPUT_BYTES: number = MAX_OUTPUT_MIB * KIB_PER_MIB * BYTES_PER_KIB
 
 // A tool that could not start and a tool that produced more output than the buffer holds are different
 // problems, and reporting both as 127 made the second read as "Docker is not available". The buffer

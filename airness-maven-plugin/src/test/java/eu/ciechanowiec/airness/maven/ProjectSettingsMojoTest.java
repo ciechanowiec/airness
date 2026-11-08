@@ -6,7 +6,7 @@ import java.util.Optional;
 import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.Test;
 
-class CheckParametersMojoTest {
+class ProjectSettingsMojoTest {
 
     @Test
     void findsTheAirnessParentBeyondAReactorAggregator() {
@@ -14,7 +14,7 @@ class CheckParametersMojoTest {
         MavenProject aggregator = project("sample", "aggregator", "4.5.6", Optional.of(airness));
         MavenProject module = project("sample", "module", "4.5.6", Optional.of(aggregator));
 
-        assertEquals("1.2.3", CheckParametersMojo.airnessParentVersion(module).orElseThrow());
+        assertEquals("1.2.3", ProjectSettingsMojo.airnessParentVersion(module).orElseThrow());
     }
 
     private static MavenProject project(

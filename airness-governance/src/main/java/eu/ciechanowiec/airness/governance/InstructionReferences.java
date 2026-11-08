@@ -17,7 +17,7 @@ import lombok.experimental.UtilityClass;
  * family, or a {@code pnpm run} invocation.
  */
 @UtilityClass
-final class DocumentReferences {
+final class InstructionReferences {
 
     private static final Pattern BACKTICKED = Pattern.compile("`([^`\\n]+)`");
     private static final Pattern TRAILING_GLOB = Pattern.compile("/\\*\\*?$");

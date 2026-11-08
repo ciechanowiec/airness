@@ -2,10 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import path from 'node:path'
-
-const BYTES_PER_KIB: number = 1024
-const KIB_PER_MIB: number = 1024
-const MAX_OUTPUT_MIB: number = 64
+import { MAX_OUTPUT_BYTES } from './exec.js'
 
 /** Enumerate tracked and non-ignored untracked paths on each call, including indexed deletions. */
 export const workingTreeFiles = (root: string): readonly string[] =>
@@ -14,7 +11,7 @@ export const workingTreeFiles = (root: string): readonly string[] =>
       execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
         cwd: root,
         encoding: 'utf8',
-        maxBuffer: MAX_OUTPUT_MIB * KIB_PER_MIB * BYTES_PER_KIB,
+        maxBuffer: MAX_OUTPUT_BYTES,
         stdio: ['ignore', 'pipe', 'pipe'],
       })
         .split('\0')
@@ -63,7 +60,7 @@ export const ignoredWorkingTreePaths = (root: string): readonly string[] => {
     return execFileSync('git', ['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'], {
       cwd: root,
       encoding: 'utf8',
-      maxBuffer: MAX_OUTPUT_MIB * KIB_PER_MIB * BYTES_PER_KIB,
+      maxBuffer: MAX_OUTPUT_BYTES,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
       .split('\0')

@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * {@code @airness/node/tsconfig.json}, rather than a repository path. A script name must be declared by one
  * of those two manifests, and where neither exists no script is judged, since no npm script could be meant.
  */
-public final class DocumentReferenceCheck {
+public final class InstructionReferenceCheck {
 
     private static final String INSTRUCTIONS = "AGENTS.md";
     private static final String STALE
@@ -45,7 +45,7 @@ public final class DocumentReferenceCheck {
      * @param root      the working tree root
      * @param manifests the manifest in a directory, or empty where it has none
      */
-    public DocumentReferenceCheck(Path root, Function<Path, Optional<PackageManifest>> manifests) {
+    public InstructionReferenceCheck(Path root, Function<Path, Optional<PackageManifest>> manifests) {
         this.root = root;
         this.manifests = manifests;
         this.documents = Repository.trackedFiles(root).stream()
@@ -80,8 +80,8 @@ public final class DocumentReferenceCheck {
         Set<String> packages = this.near(document).stream()
             .flatMap(manifest -> manifest.dependencies().stream())
             .collect(Collectors.toSet());
-        return DocumentReferences.paths(Repository.readText(document).orElse("")).stream()
-            .filter(path -> !packages.contains(DocumentReferences.specifierPackage(path)))
+        return InstructionReferences.paths(Repository.readText(document).orElse("")).stream()
+            .filter(path -> !packages.contains(InstructionReferences.specifierPackage(path)))
             .filter(path -> !Files.exists(directory.resolve(path)) && !Files.exists(this.root.resolve(path)))
             .map(path -> this.root.relativize(document) + ": " + path);
     }
@@ -91,7 +91,7 @@ public final class DocumentReferenceCheck {
         Set<String> scripts = near.stream().flatMap(manifest -> manifest.scripts().stream()).collect(
             Collectors.toSet()
         );
-        return near.isEmpty() ? Stream.empty() : DocumentReferences.scripts(Repository.readText(document).orElse(""))
+        return near.isEmpty() ? Stream.empty() : InstructionReferences.scripts(Repository.readText(document).orElse(""))
             .stream()
             .filter(script -> !scripts.contains(script) && !GATES.contains(script))
             .map(script -> this.root.relativize(document) + ": " + script);
