@@ -167,9 +167,9 @@ jobs:
       # only after publication, when nothing can be withdrawn. The release commit is therefore held to be the
       # SNAPSHOT commit before it with nothing changed but the version, which the parent's verify-self run then
       # answers for, consumers included, before anything is published. The one other change a release commit
-      # makes is the integrity the payload lockfile records for the node package packed at the new version. Only
-      # a recovery run that publishes nothing, because Maven Central and npm both hold the version, may start from
-      # a later main: one that still publishes to either builds what it publishes from this commit.
+      # makes is the integrity the layer package's lockfile records for the node package packed at the new
+      # version. Only a recovery run that publishes nothing, because Maven Central and npm both hold the version,
+      # may start from a later main: one that still publishes to either builds what it publishes from this commit.
       - name: 'Require a version-only release commit over a verified SNAPSHOT'
         if: steps.release_state.outputs.central_published != 'true' || steps.npm_state.outputs.npm_published != 'true'
         env:
@@ -188,8 +188,8 @@ jobs:
               git show "$1:$2"
             fi
           }
-          # In the payload lockfile, only the integrity recorded for @airness/node at the release version, the
-          # line that follows its key, may differ; every other line, and that line's shape, must match.
+          # In the layer package's lockfile, only the integrity recorded for @airness/node at the release version,
+          # the line that follows its key, may differ; every other line, and that line's shape, must match.
           unpin_node() {
             awk -v key="  '@airness/node@${RELEASE_VERSION}':" '
               previous == key && /^    resolution: \{integrity: sha512-[A-Za-z0-9+\/=]+\}$/ {
