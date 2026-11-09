@@ -26,7 +26,8 @@ import java.util.stream.Stream;
  * {@code NEXT_PUBLIC_} read must be declared by an {@code ARG} in every Dockerfile that builds the application,
  * because docker discards a {@code --build-arg} the Dockerfile never named and warns rather than failing, so each
  * such Dockerfile is judged by its own declarations. A Dockerfile builds the node package whose directory most
- * closely holds it, and the one whose directory it names as a relative path. The variables application code
+ * closely holds it, and the one whose directory it names as a relative path outside a comment, other than as
+ * where a copy lands or by the package's manifest alone. The variables application code
  * reads through a validated environment module are a stack layer input, and the generic layer reads none.
  */
 public final class EnvironmentCheck {
@@ -51,6 +52,9 @@ public final class EnvironmentCheck {
     private static final Pattern WORD = Pattern.compile("[\\s,\\[\\]();&|]+");
     private static final Pattern OPTION_NAME = Pattern.compile("^--?[\\w-]+=");
     private static final Pattern CURRENT = Pattern.compile("^(?:\\./)+");
+    // An instruction that copies into the image, whose last argument is where the copy lands there.
+    private static final Pattern COPYING = Pattern.compile("(?i)^\\s*(?:COPY|ADD)\\s");
+    private static final String NEWLINE = "\n";
     private static final String SEPARATOR = "/";
 
     private final Path root;
@@ -164,11 +168,30 @@ public final class EnvironmentCheck {
     // A Dockerfile names a directory with a word that is a path relative to the build context at or under it,
     // quoted or not, written plainly or as the value of an option such as --workspace=web. A word merely
     // containing the name, as build contains ui, is another word, and an absolute path such as /app is a place
-    // inside the image rather than in the repository.
-    private static boolean names(CharSequence dockerfile, String directory) {
-        return WORD.splitAsStream(dockerfile)
+    // inside the image rather than in the repository. So is the destination of a copy, relative or not, and a
+    // comment names nothing. A copy of the package's manifest alone builds nothing either: an image that
+    // installs one member of a workspace copies the manifest of every other member, so the package manager
+    // can resolve the workspace, without their sources.
+    private static boolean names(String dockerfile, String directory) {
+        String manifest = directory + SEPARATOR + MANIFEST;
+        return DockerfileLines.of(dockerfile).stream()
+            .map(Located::value)
+            .filter(line -> !DockerfileLines.comment(line))
+            .flatMap(EnvironmentCheck::repositoryWords)
             .map(EnvironmentCheck::relativePath)
+            .filter(path -> !path.equals(manifest))
             .anyMatch(path -> path.equals(directory) || path.startsWith(directory + SEPARATOR));
+    }
+
+    // The words of an instruction that can be paths of the build context: all but a copy's destination, which
+    // is the last word of the instruction itself, before any here-document its line opens.
+    private static Stream<String> repositoryWords(String instruction) {
+        int end = instruction.indexOf(NEWLINE);
+        String head = end < 0 ? instruction : instruction.substring(0, end);
+        String bodies = end < 0 ? "" : instruction.substring(end);
+        List<String> words = WORD.splitAsStream(head).filter(word -> !word.isEmpty()).toList();
+        List<String> sources = COPYING.matcher(head).find() ? words.subList(0, words.size() - 1) : words;
+        return Stream.concat(sources.stream(), WORD.splitAsStream(bodies));
     }
 
     private static String relativePath(String word) {

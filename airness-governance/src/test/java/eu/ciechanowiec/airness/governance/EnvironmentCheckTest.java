@@ -165,6 +165,28 @@ class EnvironmentCheckTest {
     }
 
     @Test
+    void readsNoDockerfileThatOnlyCopiesTheManifestOrCopiesIntoTheDirectoryName() {
+        Path root = new GitFixture("environment-next-workspace-member")
+            .write("web/package.json", EMPTY_MANIFEST)
+            .write("web/next.config.ts", NEXT_CONFIG)
+            .write("api/package.json", EMPTY_MANIFEST)
+            .write("api/Dockerfile", """
+                FROM node:26
+                # The workspace needs web/package.json beside this member's.
+                COPY package.json pnpm-lock.yaml ./
+                COPY web/package.json web/
+                COPY ["api/package.json", "api/"]
+                RUN pnpm install --filter api
+                """)
+            .write("docker/assets.Dockerfile", "FROM nginx:1.29\nCOPY assets web/static\n")
+            .root();
+        assertTrue(
+            undeclared(root).isEmpty(),
+            "a manifest copied for the workspace, a copy's destination and a comment build no application"
+        );
+    }
+
+    @Test
     void readsEverySpellingOfARelativePathNamingTheApplicationDirectory() {
         Path root = new GitFixture("environment-next-spellings")
             .write("web/package.json", EMPTY_MANIFEST)
@@ -172,7 +194,7 @@ class EnvironmentCheckTest {
             .write("docker/a-plain.Dockerfile", "FROM node:26\nCOPY web /app\n")
             .write("docker/b-current.Dockerfile", "FROM node:26\nCOPY ./web/ ./\n")
             .write("docker/c-exec.Dockerfile", "FROM node:26\nCOPY [\"web\", \"/app\"]\n")
-            .write("docker/d-quoted.Dockerfile", "FROM node:26\nCOPY 'web/package.json' /app/\n")
+            .write("docker/d-quoted.Dockerfile", "FROM node:26\nCOPY 'web/next.config.ts' /app/\n")
             .write("docker/e-workspace.Dockerfile", "FROM node:26\nRUN npm run build --workspace=web\n")
             .write("docker/f-quoted-option.Dockerfile", "FROM node:26\nRUN npm run build --workspace=\"web\"\n")
             .write("docker/g-separate.Dockerfile", "FROM node:26\nRUN cd web&&npm run build -w web\n")
