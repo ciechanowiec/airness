@@ -1,6 +1,6 @@
-# The starters domain: an application airness:new makes from a starter passes Default verification as it is
-# made, and the goal refuses a request it cannot make. It needs Docker, because the application's tests start
-# their own PostgreSQL.
+# The starters domain: an application airness:new makes from a starter passes Extended verification as it is
+# made, and the goal refuses a request it cannot make. It needs Docker, because the application's tests and its
+# browser sweep start their own PostgreSQL, and Extended runs its scanners and Qodana in containers.
 
 run_starter_cases() {
     starter_goal="eu.ciechanowiec:airness-maven-plugin:${harness_version}:new"
@@ -41,11 +41,20 @@ run_starter_cases() {
         fail 'starters: the first commit says why it was made, as the commit-history policy asks' 'the body is empty'
     fi
 
-    run_maven starter_verify starters "${starter_application}" clean verify
-    expect_exit starter_verify 'starters: the application made from the spring-boot starter passes mvn clean verify' 0
+    # Extended rather than Default, because Default is a subset of it: a starter is held to the strictest
+    # verification of the harness it was made by, so the application a user starts from passes both.
+    run_maven starter_verify starters "${starter_application}" clean verify -Pextended
+    expect_exit starter_verify \
+        'starters: the application made from the spring-boot starter passes mvn clean verify -Pextended' 0
     expect_match starter_verify 'starters: the node gates run on the application' 'Node gate knip in [.] passed'
     expect_match starter_verify 'starters: the coverage floor holds for the application' \
         'All coverage checks have been met'
+    expect_match starter_verify 'starters: Dependency-Check reads the dependencies of the application' \
+        'dependency-check:[^ ]+:check [(]airness-known-vulnerabilities[)]'
+    expect_match starter_verify 'starters: Qodana finds no problem in the application' \
+        'Analysis results: 0 problem detected'
+    expect_match starter_verify 'starters: the browser sweep and the end-to-end suite pass on the application' \
+        'Node gate e2e in [.] passed'
 
     run_maven starter_occupied starters "${starter_home}" "${starter_goal}" \
         -Dairness.groupId=org.sample -Dairness.artifactId=task-tracker

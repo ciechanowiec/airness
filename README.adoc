@@ -58,7 +58,7 @@ _airness_ is a Maven parent that keeps shared build rules in one place. This gui
 [[starter-projects]]
 === Starter Projects
 
-. A new application can begin from a starter, a working application that already passes verification, instead of from an empty project. The `spring-boot` starter is a multi-user task tracker: sign-in with `USER` and `ADMIN` roles, account administration, an audit trail, English and Polish pages, and the tasks of each user. It is built with Spring Boot, server-rendered Thymeleaf pages with htmx, Tailwind CSS with daisyUI, Flyway and PostgreSQL, and it ships a `Dockerfile` and a `compose.yaml`. Node builds and checks its frontend; the application runs on Java alone.
+. A new application can begin from a starter, a working application that already passes xref:#extended-verification[Extended verification], instead of from an empty project. The `spring-boot` starter is a multi-user task tracker: sign-in with `USER` and `ADMIN` roles, account administration, an audit trail, English and Polish pages, and the tasks of each user. It is built with Spring Boot, server-rendered Thymeleaf pages with htmx, Tailwind CSS with daisyUI, Flyway and PostgreSQL, and it ships a `Dockerfile` and a `compose.yaml`. Node builds and checks its frontend; the application runs on Java alone.
 . The `new` goal makes the application in a new directory, outside any project:
 +
 [source,bash,subs="attributes+"]
