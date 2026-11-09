@@ -95,7 +95,8 @@ class StackConfinementTest {
         new Entry(".adocent/vocabulary.txt", Set.of(PRODUCT), "the product name the stack's documentation spells"),
         new Entry(
             ".github/workflows/release.yml", Set.of(NODE_MODULE, NPM_PACKAGE),
-            "the stack's npm package in the npm publication order"
+            "the stack's npm package in the npm publication order, and the lockfile whose node package integrity is"
+                + " the one line a release commit may change beyond the version"
         ),
         new Entry(
             "airness-it/verify.sh",
