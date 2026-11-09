@@ -21,7 +21,7 @@ class NodePackageVersionTest {
         "^ {4}\"@playwright/test\": \"([^\"]+)\",?$", Pattern.MULTILINE
     );
     private static final Pattern BROWSER_IMAGE = Pattern.compile(
-        "\"browserImage\": \"mcr\\.microsoft\\.com/playwright:v([^\"@]+)-noble@sha256:[a-f0-9]{64}\""
+        "\"browserImage\": \"mcr\\.microsoft\\.com/playwright:v([^\"@]+)-resolute@sha256:[a-f0-9]{64}\""
     );
     private static final Pattern VERSION = Pattern.compile("^ {2}\"version\": \"([^\"]+)\",$", Pattern.MULTILINE);
 
