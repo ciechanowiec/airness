@@ -35,6 +35,14 @@ import { loadFontFacesInPage, usedFontFamiliesInPage } from './font-settle.js'
 // test for it is `iterations`, which a spinner reports as `Infinity`; a paused or already-finished
 // animation is excluded too, because it is showing the frame a reader is looking at right now.
 //
+// An animation driven by scrolling rather than by time is excluded for the same reason. A scroll-driven
+// animation, such as the one daisyUI sets on the root while a modal is open to learn whether the page
+// scrolls, runs one finite iteration and reports itself running, yet it advances only as the page scrolls,
+// so its `finished` resolves only once the page is scrolled to its end and never while the sweep holds it
+// still. It shows the frame its scroll position gives it, which is the one a reader is looking at. An
+// animation is time-driven when it runs on the document's own timeline, which every CSS animation and
+// transition without an `animation-timeline` of its own does.
+//
 // A cancelled animation REJECTS `finished` rather than resolving, and that rejection is swallowed. A
 // cancellation is a state change like any other and the element-count check notices it; ending the
 // whole settle over one cancelled transition would report nothing useful about the page.
@@ -84,6 +92,7 @@ const BUSY_BUDGET_MS: number = 30_000
 // declaration `ambient.d.ts` makes for a plugin that ships no types.
 interface PageAnimation {
   readonly playState: string
+  readonly timeline: unknown
   readonly finished: Promise<unknown>
   readonly effect: {
     readonly getComputedTiming: () => { readonly iterations: number }
@@ -102,6 +111,7 @@ interface PageImage {
 
 declare const document: {
   readonly fonts: { readonly ready: Promise<unknown> } | undefined
+  readonly timeline: unknown
   readonly getAnimations: (() => readonly PageAnimation[]) | undefined
   readonly querySelectorAll: (selectors: string) => ArrayLike<PageElement>
   readonly images: ArrayLike<PageImage>
@@ -159,6 +169,7 @@ const isSettledInPage = async ([budgetMs, shouldWaitForMotion]: readonly [number
         .filter(
           (animation: PageAnimation): boolean =>
             animation.playState === 'running' &&
+            animation.timeline === document.timeline &&
             animation.effect !== null &&
             Number.isFinite(animation.effect.getComputedTiming().iterations),
         )
