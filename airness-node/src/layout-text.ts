@@ -1,5 +1,12 @@
 // Text that overlaps other text, text cut off by its own box, and a page wider than its viewport.
-import { intersectionOf, outerBoxOf, STATIC_POSITION, textClippingAncestor, visibleRectsOf } from './layout-clip.js'
+import {
+  clipOf,
+  intersectionOf,
+  outerBoxOf,
+  STATIC_POSITION,
+  textClippingAncestor,
+  visibleRectsOf,
+} from './layout-clip.js'
 import {
   hasArea,
   isAncestorOf,
@@ -65,9 +72,17 @@ const isIntersecting = (first: LayoutRect, second: LayoutRect): boolean => {
   return shared.right - shared.left > TEXT_OVERLAP_TOLERANCE && shared.bottom - shared.top > TEXT_OVERLAP_TOLERANCE
 }
 
-// What of an element's text a reader can see: each line box, cut by every ancestor that clips it.
-const visibleLineBoxesOf = (snapshot: LayoutSnapshot, node: LayoutNode): readonly LayoutRect[] =>
-  visibleRectsOf(snapshot, node, lineBoxesOf(node))
+// What of an element's text a reader can see: each line box, cut by the element's own box when that box
+// hides its overflow, as an ellipsis or a line clamp does, and then by every ancestor that clips it.
+const visibleLineBoxesOf = (snapshot: LayoutSnapshot, node: LayoutNode): readonly LayoutRect[] => {
+  const own: LayoutRect | undefined = clipOf(node)
+  const boxes: readonly LayoutRect[] = lineBoxesOf(node)
+  return visibleRectsOf(
+    snapshot,
+    node,
+    own === undefined ? boxes : boxes.map((box: LayoutRect): LayoutRect => intersectionOf(box, own)),
+  )
+}
 
 const ancestorsOf = (snapshot: LayoutSnapshot, node: LayoutNode): readonly LayoutNode[] => {
   const parent: LayoutNode | undefined = snapshot.nodes[node.parent]

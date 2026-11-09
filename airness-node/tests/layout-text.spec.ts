@@ -205,6 +205,57 @@ describe('text cut off by an ancestor that clips it', () => {
   })
 })
 
+// An address cut off with an ellipsis in a 112px column, beside a role chip from 124px. Its text runs on
+// to 200px, hidden by its own box, so only its first 112px are drawn.
+const truncatedAddress = (address: Partial<LayoutNode>): readonly LayoutNode[] => [
+  BODY,
+  nodeOf({
+    index: 1,
+    parent: 0,
+    tag: 'span',
+    label: 'span "ada@example.org"',
+    rects: [rect(0, 0, 112, 20)],
+    textRects: [rect(0, 0, 200, 20)],
+    overflowX: 'hidden',
+    textOverflow: 'ellipsis',
+    title: 'ada@example.org',
+    ...address,
+  }),
+  nodeOf({
+    index: 2,
+    parent: 0,
+    tag: 'span',
+    label: 'span.chip "Administrator"',
+    rects: [rect(124, 0, 230, 20)],
+    textRects: [rect(132, 0, 222, 20)],
+  }),
+]
+
+describe('text cut off by its own box', () => {
+  it('ignores the part of the text an ellipsis hides', () => {
+    expect(defectsOf(truncatedAddress({}))).toEqual([])
+  })
+
+  it('ignores the part of the text a box clips with overflow: clip', () => {
+    expect(defectsOf(truncatedAddress({ overflowX: 'clip' }))).toEqual([])
+  })
+
+  it('ignores the part of the text a line clamp hides', () => {
+    expect(defectsOf(truncatedAddress({ textOverflow: 'clip', lineClamp: '1' }))).toEqual([])
+  })
+
+  it('still reports the overlap when the box lets its text overflow', () => {
+    expect(defectsOf(truncatedAddress({ overflowX: 'visible', textOverflow: 'clip' }))).toEqual([
+      '[text-overlap] /news @390x844 (chromium, resting): overlapping text: ' +
+        'span "ada@example.org"  <->  span.chip "Administrator"',
+    ])
+  })
+
+  it('clips only along the axis the box clips', () => {
+    expect(defectsOf(truncatedAddress({ overflowX: 'visible', overflowY: 'hidden' }))).toHaveLength(1)
+  })
+})
+
 // An open menu panel laid over the page: the page's heading text runs beneath the panel's link.
 const openMenu = (panel: Partial<LayoutNode>, page: Partial<LayoutNode> = {}): readonly LayoutNode[] => [
   BODY,

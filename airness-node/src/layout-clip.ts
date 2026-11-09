@@ -34,9 +34,13 @@ export const outerBoxOf = (node: LayoutNode): LayoutRect | undefined => {
 
 export const STATIC_POSITION: string = 'static'
 
-// An ancestor whose overflow is not visible clips along that axis, inside its borders. Unbounded sides
-// stay unbounded, so a clip on one axis leaves the other alone.
-const clipOf = (node: LayoutNode): LayoutRect | undefined => {
+/**
+ * What an element whose overflow is not visible clips its content to along that axis: the area inside its
+ * borders. Unbounded sides stay unbounded, so a clip on one axis leaves the other alone.
+ * @param node the element.
+ * @returns the clipping rectangle, or undefined when the element clips along neither axis.
+ */
+export const clipOf = (node: LayoutNode): LayoutRect | undefined => {
   const box: LayoutRect | undefined = outerBoxOf(node)
   const isClippingX: boolean = node.overflowX !== 'visible'
   const isClippingY: boolean = node.overflowY !== 'visible'
