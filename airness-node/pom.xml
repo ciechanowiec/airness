@@ -13,7 +13,7 @@
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
-        <version>1.0.10-SNAPSHOT</version>
+        <version>1.0.10</version>
         <relativePath>../airness-parent-node/pom.xml</relativePath>
     </parent>
 
