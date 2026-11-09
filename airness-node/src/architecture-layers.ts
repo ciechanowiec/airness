@@ -84,8 +84,12 @@ export const pureLogicRule = (
   }
 }
 
+// Storybook's own configuration, which builds the component workbench at development time and imports Storybook, a
+// development-only dependency, by design.
+const STORYBOOK_CONFIGURATION: string = '.storybook'
+
 // The source roots that hold test code and tooling rather than production code.
-const NON_PRODUCTION_ROOTS: ReadonlySet<string> = new Set(['tests', 'scripts'])
+const NON_PRODUCTION_ROOTS: ReadonlySet<string> = new Set(['tests', 'scripts', STORYBOOK_CONFIGURATION])
 
 const productionRoots = (sourceRoots: readonly string[]): readonly string[] =>
   sourceRoots.filter((root: string): boolean => !NON_PRODUCTION_ROOTS.has(root))
@@ -116,9 +120,10 @@ export const productionImportsNoTestCodeRule = (sourceRoots: readonly string[]):
   }
 }
 
-// The build tooling configuration a member that declares the whole member as a root holds at its root: each runs
-// at development time only, so a development-only dependency is exactly what it imports.
-const ROOT_TOOLING: string = String.raw`^(eslint|knip|lint-staged|postcss|prettier|stylelint|tailwind)\.config\.[^/]*$`
+// The build tooling configuration a member that declares the whole member as a root holds at its root, and the
+// Storybook configuration beside it: each runs at development time only, so a development-only dependency is exactly
+// what it imports.
+const ROOT_TOOLING: string = String.raw`^(eslint|knip|lint-staged|postcss|prettier|stylelint|tailwind)\.config\.[^/]*$|^\.storybook/`
 
 /**
  * The development-only dependency rule, rendered over every production source root rather than `src` alone: a
