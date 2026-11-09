@@ -42,6 +42,17 @@ describe('the application lint scopes', () => {
     expect(production['unicorn/no-top-level-assignment-in-function']).toEqual([2])
   })
 
+  it.each(['src/page.ts', 'src/component.tsx', 'tests/logic.spec.ts', 'tests/e2e/example.e2e.spec.ts'])(
+    'holds date formatting in %s to an explicit time zone',
+    async (file: string) => {
+      const zoneMessage: unknown = expect.stringContaining('[implicit-time-zone]')
+      const rules: Record<string, unknown> = await rulesAt(file)
+      expect(rules['no-restricted-syntax']).toEqual(
+        expect.arrayContaining([expect.objectContaining({ message: zoneMessage })]),
+      )
+    },
+  )
+
   it('keeps user-facing component assertions and configuration composition in their proper scopes', async () => {
     const component: Record<string, unknown> = await rulesAt('tests/component/form.component.spec.tsx')
     expect(component['testing-library/no-container']).toEqual([2])

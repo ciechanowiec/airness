@@ -16,6 +16,7 @@ import tseslint from 'typescript-eslint'
 import { immutabilityPlugin as functional } from './eslint-immutability.js'
 import { javaScriptParser } from './eslint-javascript-parser.js'
 import { type RestrictedSyntax, SECURITY_RESTRICTIONS } from './eslint-security.js'
+import { TIME_ZONE_RESTRICTIONS } from './eslint-time-zone.js'
 import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesRole, type RolePattern } from './file-roles.js'
 import { PROJECT_SETUP_FILE } from './settings.js'
 
@@ -412,8 +413,9 @@ export const guidelineRules: RuleTable = {
   'unicorn/expiring-todo-comments': 'off',
 
   // Composition over inheritance. A type inherits only from a base the language or a dependency
-  // requires, and the error base is the one such base that appears in ordinary code.
-  'no-restricted-syntax': [...NO_INHERITANCE, ...SECURITY_RESTRICTIONS],
+  // requires, and the error base is the one such base that appears in ordinary code. Beside it, the
+  // output-boundary restrictions and date formatting that names its time zone.
+  'no-restricted-syntax': [...NO_INHERITANCE, ...SECURITY_RESTRICTIONS, ...TIME_ZONE_RESTRICTIONS],
 
   // Control-flow clarity.
   eqeqeq: ['error', 'always'],
@@ -828,6 +830,7 @@ export const testSuiteSyntaxRules: RuleTable = {
   'no-restricted-syntax': [
     ...NO_INHERITANCE,
     ...SECURITY_RESTRICTIONS,
+    ...TIME_ZONE_RESTRICTIONS,
     ...NO_LITERAL_ASSERTIONS,
     ...NO_FAST_CHECK_SEED,
     ...NO_TEST_ORDER_ESCAPE,
