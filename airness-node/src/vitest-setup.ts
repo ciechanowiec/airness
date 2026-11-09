@@ -1,7 +1,8 @@
-// The first setup file the shipped Vitest config loads. It does two things: it reads the project
-// environment, and it installs the network guard.
+// The first setup file the shipped Vitest config loads. It does three things: it reads the project
+// environment, it makes a component suite's DOM nodes instances of its EventTarget, and it installs the
+// network guard.
 //
-// It imports node builtins and the network policy, and NOTHING ELSE. A setup file that lives inside
+// It imports node builtins and the harness's own modules, and NOTHING ELSE. A setup file that lives inside
 // node_modules/@airness/node resolves `vitest`, `fast-check`, and `@testing-library/*` to the
 // harness's own copies rather than to the project's, so a hook, a matcher, or a global seed registered
 // against one of those would attach to a module instance the suite never loads and silently do nothing.
@@ -16,6 +17,7 @@ import dns from 'node:dns'
 import { existsSync } from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
+import { unifyEventTarget } from './dom-event-target.js'
 import { runEnvironmentFiles } from './environment-files.js'
 import { isRecord } from './json-shapes.js'
 import {
@@ -52,6 +54,10 @@ const isIntercepted = (value: unknown): value is Intercepted => typeof value ===
 for (const file of runEnvironmentFiles(existsSync)) {
   process.loadEnvFile(file)
 }
+
+// A component suite's DOM must answer `instanceof EventTarget` for its nodes as a browser does; the module says why
+// happy-dom does not. Repeating it per spec file repairs nothing twice, since a repaired scope already answers.
+unifyEventTarget(globalThis)
 
 // Vitest re-runs a setup module once per spec file, while the builtins it patches live for the whole
 // worker. Without a mark, each file would wrap the previous file's wrapper one layer deeper.
