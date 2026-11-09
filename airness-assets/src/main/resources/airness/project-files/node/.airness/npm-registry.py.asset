@@ -40,7 +40,7 @@ does, so a branch whose committed lock is stale fails there.
 
 With --port it binds that port and fails when the port is taken. With --port-file it binds a free port and
 writes it into the file once it serves. It stops when the process that started it is gone, so an interrupted
-build leaves no server behind.
+build leaves no server behind, and a SIGTERM stops it with exit 0, as the build that started it ends it.
 """
 
 import argparse
@@ -52,6 +52,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tarfile
@@ -313,6 +314,10 @@ def main():
         def log_message(self, *arguments):
             pass
 
+    # The build that starts the registry stops it with SIGTERM once it is done with it. That is how a serving
+    # registry is meant to end, so it ends with exit 0 rather than the signal's 143, which Maven reports as a
+    # failed process. A refresh keeps the default, so an interrupted refresh still ends as a failure.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     try:
         server = ThreadingHTTPServer(('127.0.0.1', arguments.port or 0), Registry)
     except OSError as error:
