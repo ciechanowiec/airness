@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Version already declared in pom.xml and in every npm package.json'
+        description: 'Version declared by a version-only commit over a SNAPSHOT that verify-self passed'
         required: true
         default: '1.0.10'
         type: string
@@ -38,6 +38,7 @@ jobs:
     timeout-minutes: 180
     environment: maven-central
     permissions:
+      actions: read
       contents: read
     outputs:
       central_done: ${{ steps.release_state.outputs.central_published == 'true' || steps.publish.outcome == 'success' }}
@@ -160,6 +161,86 @@ jobs:
             echo 'npm_published=true' >> "$GITHUB_OUTPUT"
           else
             echo 'npm_published=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      # The consumer suite installs its node fixtures from npm, so for a version npm does not hold yet it can run
+      # only after publication, when nothing can be withdrawn. The release commit is therefore held to be the
+      # SNAPSHOT commit before it with nothing changed but the version, which the parent's verify-self run then
+      # answers for, consumers included, before anything is published. The one other change a release commit
+      # makes is the integrity the payload lockfile records for the node package packed at the new version. Only
+      # a recovery run that publishes nothing, because Maven Central and npm both hold the version, may start from
+      # a later main: one that still publishes to either builds what it publishes from this commit.
+      - name: 'Require a version-only release commit over a verified SNAPSHOT'
+        if: steps.release_state.outputs.central_published != 'true' || steps.npm_state.outputs.npm_published != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+          lockfile='airness-payload-node/pnpm-lock.yaml'
+          parent="$(git rev-parse HEAD^)"
+          scratch="$(mktemp -d)"
+          # A file as it reads at a commit: the parent's with its SNAPSHOT version spelled as the release.
+          read_at() {
+            if [ "$1" = "$parent" ]; then
+              git show "$1:$2" | sed "s/${RELEASE_VERSION//./\\.}-SNAPSHOT/${RELEASE_VERSION}/g"
+            else
+              git show "$1:$2"
+            fi
+          }
+          # In the payload lockfile, only the integrity recorded for @airness/node at the release version, the
+          # line that follows its key, may differ; every other line, and that line's shape, must match.
+          unpin_node() {
+            awk -v key="  '@airness/node@${RELEASE_VERSION}':" '
+              previous == key && /^    resolution: \{integrity: sha512-[A-Za-z0-9+\/=]+\}$/ {
+                print "    resolution: {integrity: <released node package>}"; previous = $0; next
+              }
+              { print; previous = $0 }'
+          }
+          offenders=()
+          pom_changed=false
+          while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
+            read -r old_mode new_mode _ _ status <<< "${meta#:}"
+            if [ "$status" != 'M' ]; then
+              offenders+=("$path is added, removed or renamed")
+              continue
+            fi
+            if [ "$old_mode" != "$new_mode" ]; then
+              offenders+=("$path changes its mode")
+              continue
+            fi
+            [ "$path" = 'pom.xml' ] && pom_changed=true
+            read_at "$parent" "$path" > "$scratch/before"
+            read_at HEAD "$path" > "$scratch/after"
+            if [ "$path" = "$lockfile" ]; then
+              unpin_node < "$scratch/before" > "$scratch/before.unpinned"
+              unpin_node < "$scratch/after" > "$scratch/after.unpinned"
+              mv "$scratch/before.unpinned" "$scratch/before"
+              mv "$scratch/after.unpinned" "$scratch/after"
+            fi
+            if ! cmp -s "$scratch/before" "$scratch/after"; then
+              offenders+=("$path changes more than the version")
+            fi
+          done < <(git diff -z --raw --no-renames "$parent" HEAD)
+          if [ "$pom_changed" != 'true' ]; then
+            offenders+=("pom.xml does not move from ${RELEASE_VERSION}-SNAPSHOT to ${RELEASE_VERSION}")
+          fi
+          if [ "${#offenders[@]}" -gt 0 ]; then
+            echo "The release commit must change only the version over the verified SNAPSHOT commit ${parent}:" >&2
+            printf '  %s\n' "${offenders[@]}" >&2
+            exit 1
+          fi
+          runs="repos/${GITHUB_REPOSITORY}/actions/workflows/verify-self.yml/runs?head_sha=${parent}&per_page=100"
+          passed="$(gh api "$runs" --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
+          pending="$(gh api "$runs" --jq '[.workflow_runs[] | select(.status != "completed")] | length')"
+          if [ "$passed" -gt 0 ]; then
+            echo "verify-self passed on ${parent}, consumers included; the release commit changes only the version."
+          elif [ "$pending" -gt 0 ]; then
+            echo "verify-self is still running on ${parent}; release once it has passed." >&2
+            exit 1
+          else
+            echo "verify-self has not passed on ${parent}; verify the SNAPSHOT commit before releasing it." >&2
+            exit 1
           fi
 
       - name: 'Pull the pinned check images while the build runs'
