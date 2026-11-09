@@ -2,11 +2,8 @@
 # made, and the goal refuses a request it cannot make. It needs Docker, because the application's tests start
 # their own PostgreSQL.
 
-starter_goal() {
-    printf 'eu.ciechanowiec:airness-maven-plugin:%s:new' "${harness_version}"
-}
-
 run_starter_cases() {
+    starter_goal="eu.ciechanowiec:airness-maven-plugin:${harness_version}:new"
     starter_home="${scratch}/starters"
     mkdir -p "${starter_home}"
     # The goal commits the application it makes, and a CI runner configures no Git identity.
@@ -16,7 +13,7 @@ run_starter_cases() {
     GIT_COMMITTER_EMAIL=fixture@example.invalid
     export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
 
-    run_maven starter_new starters "${starter_home}" "$(starter_goal)" \
+    run_maven starter_new starters "${starter_home}" "${starter_goal}" \
         -Dairness.groupId=org.sample -Dairness.artifactId=task-tracker
     expect_exit starter_new 'starters: airness:new makes an application from the spring-boot starter' 0
     expect_match starter_new 'starters: airness:new names the application and where it made it' \
@@ -50,13 +47,13 @@ run_starter_cases() {
     expect_match starter_verify 'starters: the coverage floor holds for the application' \
         'All coverage checks have been met'
 
-    run_maven starter_occupied starters "${starter_home}" "$(starter_goal)" \
+    run_maven starter_occupied starters "${starter_home}" "${starter_goal}" \
         -Dairness.groupId=org.sample -Dairness.artifactId=task-tracker
     expect_exit starter_occupied 'starters: airness:new refuses a directory that is not empty' 1
     expect_match starter_occupied 'starters: the refusal names the occupied directory' \
         'task-tracker already exists and is not empty'
 
-    run_maven starter_keyword starters "${starter_home}" "$(starter_goal)" \
+    run_maven starter_keyword starters "${starter_home}" "${starter_goal}" \
         -Dairness.groupId=org.sample -Dairness.artifactId=new
     expect_exit starter_keyword 'starters: airness:new refuses a package with a Java keyword in it' 1
     expect_match starter_keyword 'starters: the refusal names the package' \
