@@ -17,8 +17,8 @@ importers:
   .:
     dependencies:
       '@airness/node':
-        specifier: 1.0.10
-        version: 1.0.10(@types/node@26.6.6)(@typescript-eslint/eslint-plugin@8.72.1(@typescript-eslint/parser@8.72.1(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(jiti@2.7.0)(playwright-core@1.64.1)(postcss@8.5.32)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        specifier: 1.0.11-SNAPSHOT
+        version: 1.0.11-SNAPSHOT(@types/node@26.6.6)(@typescript-eslint/eslint-plugin@8.72.1(@typescript-eslint/parser@8.72.1(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(jiti@2.7.0)(playwright-core@1.64.1)(postcss@8.5.32)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       tsx:
         specifier: 4.23.15
         version: 4.23.15
@@ -44,8 +44,8 @@ importers:
 
 packages:
 
-  '@airness/node@1.0.10':
-    resolution: {integrity: sha512-/8MEDKCxMpGT+tA71LooO0MWDKhBS/GztL3gpgLyb9vMqSUhQIHlpC9ERZi3BnwpmLyRtpiUG3U5ACP9my8ZoA==}
+  '@airness/node@1.0.11-SNAPSHOT':
+    resolution: {integrity: sha512-XqMl9pp5CbGPIKUS2bvPO4BeCNP1GEGXdwOWYZqAutk75MpuO9OXAlh8jqxJiqaQ33dU9R0lwFGu8sHOkzfwsQ==}
     engines: {node: '>=26'}
     hasBin: true
 
@@ -2723,7 +2723,7 @@ packages:
 
 snapshots:
 
-  '@airness/node@1.0.10(@types/node@26.6.6)(@typescript-eslint/eslint-plugin@8.72.1(@typescript-eslint/parser@8.72.1(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(jiti@2.7.0)(playwright-core@1.64.1)(postcss@8.5.32)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
+  '@airness/node@1.0.11-SNAPSHOT(@types/node@26.6.6)(@typescript-eslint/eslint-plugin@8.72.1(@typescript-eslint/parser@8.72.1(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.14.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(jiti@2.7.0)(playwright-core@1.64.1)(postcss@8.5.32)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@axe-core/playwright': 4.14.0(playwright-core@1.64.1)
       '@biomejs/biome': 2.6.4
