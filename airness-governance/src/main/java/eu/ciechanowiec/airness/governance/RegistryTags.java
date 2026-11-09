@@ -72,11 +72,13 @@ record RegistryTags(String registry, String authorization) {
             request.header("Authorization", "Bearer " + token);
         }
         try (HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
-            HttpResponse<String> response = client.send(request.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = TransientRetry.REGISTRIES.send(client, request.build());
             requireSuccess(uri, response);
             return response;
         } catch (IOException exception) {
-            throw new UncheckedIOException("Registry is unreachable: " + uri, exception);
+            throw new UncheckedIOException(
+                "Registry is unreachable: " + uri + ": " + exception.getMessage(), exception
+            );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while reading registry tags", exception);
