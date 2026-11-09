@@ -55,7 +55,7 @@ class ParentPlacementTest {
                     "node-dependencies", "node-gate", "node-install", "node-projects", "npm-dependencies",
                     "plugin-inputs", "project-settings",
                     "publication-content", "publication-metadata", "repository-policy", "require-full-history",
-                    "require-online", "required-profiles", "scan-secrets", "shellcheck", "skills",
+                    "require-online", "required-profiles", "runner-images", "scan-secrets", "shellcheck", "skills",
                     "tree-snapshot", "tree-verify", "typography",
                     /*
                      * Java checks bound here only for their position: a child parent's verify executions run
