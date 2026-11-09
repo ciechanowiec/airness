@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-11-09. httpclient5 5.5.1 is reached only as the copy shaded into
+            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
+            tests run against. It never runs in the deployed application, which neither packages nor loads it.
+            The client talks only to the local Docker daemon through its socket, and the responses of that
+            daemon are not attacker input, so nothing an attacker controls reaches the defect.
+
+            Mitigation: The client exists only while the tests run on a machine that already trusts its own
+            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
+            shaded httpclient5 and httpcore5 carry the fix.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.client5/httpclient5@5\.5\.1$</packageUrl>
+        <cve>CVE-2026-71290</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-11-09. httpclient5 5.5.1 is reached only as the copy shaded into
+            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
+            tests run against. It never runs in the deployed application, which neither packages nor loads it.
+            The client talks only to the local Docker daemon through its socket, and the responses of that
+            daemon are not attacker input, so nothing an attacker controls reaches the defect.
+
+            Mitigation: The client exists only while the tests run on a machine that already trusts its own
+            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
+            shaded httpclient5 and httpcore5 carry the fix.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.client5/httpclient5@5\.5\.1$</packageUrl>
+        <cve>CVE-2026-64607</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-11-09. httpcore5 and httpcore5-h2 5.3.6 are reached only as the copies shaded into
+            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
+            tests run against. They never run in the deployed application, which neither packages nor loads them.
+            The client talks only to the local Docker daemon through its socket, and the responses of that
+            daemon are not attacker input, so nothing an attacker controls reaches the defect.
+
+            Mitigation: The client exists only while the tests run on a machine that already trusts its own
+            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
+            shaded httpclient5 and httpcore5 carry the fix.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.core5/httpcore5(?:-h2)?@5\.3\.6$</packageUrl>
+        <cve>CVE-2026-54399</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+            Added 2026-11-09. httpcore5 and httpcore5-h2 5.3.6 are reached only as the copies shaded into
+            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
+            tests run against. They never run in the deployed application, which neither packages nor loads them.
+            The client talks only to the local Docker daemon through its socket, and the responses of that
+            daemon are not attacker input, so nothing an attacker controls reaches the defect.
+
+            Mitigation: The client exists only while the tests run on a machine that already trusts its own
+            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
+            shaded httpclient5 and httpcore5 carry the fix.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.core5/httpcore5(?:-h2)?@5\.3\.6$</packageUrl>
+        <cve>CVE-2026-54428</cve>
+    </suppress>
+</suppressions>

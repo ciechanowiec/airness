@@ -10,10 +10,9 @@ import org.springframework.data.repository.Repository;
 public interface AuditEventRepository extends Repository<AuditEvent, Long> {
 
     /**
-     * Writes the given entry.
+     * Writes the given entry. Nothing is answered, because the trail writes an entry and never reads it back.
      *
      * @param event the entry to write
-     * @return the entry as written
      */
-    AuditEvent save(AuditEvent event);
+    void save(AuditEvent event);
 }

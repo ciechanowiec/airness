@@ -1,7 +1,8 @@
 <!--/*
     Where the reader is in a list and how to step through it. The steps are ordinary links, so a page of a
     list can be shared and reopened. A narrowed list hands over its narrowing as written query, each
-    parameter led by its ampersand, so the second page of a search is the second page of that search.
+    parameter led by its ampersand, so the second page of a search is the second page of that search. The two
+    steps stand apart rather than joined, so neither control's edge touches the other's.
 */-->
 <nav
     th:fragment="pagination(page, pages, target, query)"
@@ -10,9 +11,9 @@
     xmlns:th="http://www.thymeleaf.org"
 >
     <p th:text="#{pagination.page(${page}, ${pages})}">Page 1 of 1</p>
-    <div class="join">
+    <div class="flex gap-2">
         <a
-            class="join-item btn btn-sm"
+            class="btn btn-sm"
             th:classappend="${page <= 1} ? 'btn-disabled' : ''"
             th:href="@{|${target}?page=${page - 1}${query}|}"
             th:attr="aria-disabled=${page <= 1} ? 'true' : null"
@@ -20,7 +21,7 @@
             >Previous</a
         >
         <a
-            class="join-item btn btn-sm"
+            class="btn btn-sm"
             th:classappend="${page >= pages} ? 'btn-disabled' : ''"
             th:href="@{|${target}?page=${page + 1}${query}|}"
             th:attr="aria-disabled=${page >= pages} ? 'true' : null"

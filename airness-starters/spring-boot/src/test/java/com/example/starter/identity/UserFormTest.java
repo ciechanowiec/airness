@@ -28,7 +28,7 @@ class UserFormTest {
 
     @Test
     void standsAnEmptyFormInThePlaceOfNothing() {
-        assertEquals(UserForm.blank(), new UserForm(null, null, null));
+        assertEquals(new UserForm(null, null, null), UserForm.blank());
     }
 
     @Test

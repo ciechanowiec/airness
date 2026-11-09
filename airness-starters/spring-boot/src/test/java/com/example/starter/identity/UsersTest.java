@@ -39,8 +39,9 @@ class UsersTest {
         return this.repository.findByProfileEmail(Caller.ADMINISTRATOR).orElseThrow().getReference();
     }
 
-    private static UserForm form(String email, Role role, String password) {
-        return new UserForm(new UserProfile(email, "Somebody"), role, password);
+    // Every account these rules are asked about is an ordinary one, because none of them turns on the role.
+    private static UserForm form(String email, String password) {
+        return new UserForm(new UserProfile(email, "Somebody"), Role.USER, password);
     }
 
     private static void actAsAdministrator() {
@@ -54,14 +55,14 @@ class UsersTest {
     @Test
     void refusesToAdmitAnAddressTwice() {
         actAsAdministrator();
-        UserForm form = form(Caller.ADMINISTRATOR, Role.USER, Accounts.SECRET);
+        UserForm form = form(Caller.ADMINISTRATOR, Accounts.SECRET);
         assertThrows(IllegalStateException.class, () -> this.users.register(form));
     }
 
     @Test
     void refusesToAdmitAnAccountWithAPasswordThePolicyRefuses() {
         actAsAdministrator();
-        UserForm form = form(Accounts.fresh("weak"), Role.USER, "short");
+        UserForm form = form(Accounts.fresh("weak"), "short");
         assertThrows(IllegalStateException.class, () -> this.users.register(form));
     }
 
@@ -69,7 +70,7 @@ class UsersTest {
     void refusesToRestateAnAccountNobodyCarries() {
         actAsAdministrator();
         UUID nobody = UUID.randomUUID();
-        UserForm form = form(Accounts.fresh("ghost"), Role.USER, "");
+        UserForm form = form(Accounts.fresh("ghost"), "");
         assertThrows(IllegalStateException.class, () -> this.users.restate(nobody, form));
     }
 
@@ -78,7 +79,7 @@ class UsersTest {
         String email = Accounts.admitted(this.users, "taker", Role.USER);
         UUID reference = this.repository.findByProfileEmail(email).orElseThrow().getReference();
         actAsAdministrator();
-        UserForm form = form(Caller.ADMINISTRATOR, Role.USER, "");
+        UserForm form = form(Caller.ADMINISTRATOR, "");
         assertThrows(IllegalStateException.class, () -> this.users.restate(reference, form));
     }
 
@@ -86,7 +87,7 @@ class UsersTest {
     void refusesToMakeTheLastAdministratorAUser() {
         UUID administrator = this.administrator();
         actAsAdministrator();
-        UserForm form = form(Caller.ADMINISTRATOR, Role.USER, "");
+        UserForm form = form(Caller.ADMINISTRATOR, "");
         assertThrows(IllegalStateException.class, () -> this.users.restate(administrator, form));
     }
 
@@ -120,7 +121,7 @@ class UsersTest {
     @Test
     void refusesToAdmitAnAccountForAUser() {
         actAsUser();
-        UserForm form = form(Accounts.fresh("refused"), Role.USER, Accounts.SECRET);
+        UserForm form = form(Accounts.fresh("refused"), Accounts.SECRET);
         assertThrows(AccessDeniedException.class, () -> this.users.register(form));
     }
 

@@ -50,7 +50,7 @@ public final class TaskCriteria {
             .replace("_", "\\_");
         String pattern = "%%%s%%".formatted(escaped);
         return (root, _, builder) -> builder.like(
-            builder.lower(root.get(CONTENT).<String>get("title")), pattern, ESCAPE
+            builder.lower(root.get(CONTENT).get("title")), pattern, ESCAPE
         );
     }
 
@@ -63,7 +63,7 @@ public final class TaskCriteria {
     public static Specification<Task> overdueOn(LocalDate today) {
         return (root, _, builder) -> builder.and(
             builder.notEqual(root.get(CONTENT).get("status"), TaskStatus.DONE),
-            builder.lessThan(root.get(CONTENT).<LocalDate>get("dueOn"), today)
+            builder.lessThan(root.get(CONTENT).get("dueOn"), today)
         );
     }
 }
