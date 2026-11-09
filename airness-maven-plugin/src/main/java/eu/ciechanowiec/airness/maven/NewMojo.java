@@ -59,7 +59,7 @@ public final class NewMojo extends AbstractMojo {
             this.write(request, destination);
             // The harness reads a project through Git, so the repository exists before assets-init reads it.
             this.run(List.of("git", "init", "--quiet", "--initial-branch=main"), destination, "git-init.log");
-            this.run(this.maven("assets-init"), destination, "assets-init.log");
+            this.run(this.assetsInit(), destination, "assets-init.log");
             this.lock(destination);
             this.commit(request, destination);
         } catch (IOException exception) {
@@ -150,14 +150,13 @@ public final class NewMojo extends AbstractMojo {
         );
     }
 
-    private List<String> maven(String goal) {
+    private List<String> assetsInit() {
         LocalRepository repository = LocalRepository.of(this.session());
         Stream<String> tails = repository.tails().isEmpty()
             ? Stream.empty()
             : Stream.of(
-                "-D" + LocalRepository.TAIL + "=" + String.join(
-                    ",", repository.tails().stream()
-                        .map(Path::toString).toList()
+                "-D%s=%s".formatted(
+                    LocalRepository.TAIL, String.join(",", repository.tails().stream().map(Path::toString).toList())
                 )
             );
         return Stream.of(
@@ -166,7 +165,7 @@ public final class NewMojo extends AbstractMojo {
                 "--no-transfer-progress", "-Dmaven.repo.local=" + repository.head()
             ),
             tails,
-            Stream.of(this.pluginId() + ":" + goal)
+            Stream.of(this.pluginId() + ":assets-init")
         ).flatMap(stream -> stream).toList();
     }
 

@@ -4,11 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -57,8 +57,8 @@ class StarterTemplateTest {
     @SneakyThrows
     void refusesAStarterThatDoesNotExist() {
         try (URLClassLoader loader = new URLClassLoader(new URL[] {this.directory.toUri().toURL()}, null)) {
-            NoSuchFileException refusal = assertThrows(
-                NoSuchFileException.class, () -> StarterTemplate.open(loader, "missing")
+            IOException refusal = assertThrows(
+                IOException.class, () -> StarterTemplate.open(loader, "missing")
             );
             String message = String.valueOf(refusal.getMessage());
             assertTrue(message.contains("no starter named missing"), message);
