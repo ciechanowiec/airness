@@ -147,10 +147,9 @@ public final class RunnerImageCheck {
 
     private static Optional<Refusal> refusal(MatchResult label) {
         String subject = label.group();
-        String release = label.group(RELEASE);
-        return release == null
-            ? Optional.of(new Refusal(subject, ALIASED, PREFIX + CURRENT_RELEASE))
-            : outdated(subject, release, label.group(REST));
+        return Optional.ofNullable(label.group(RELEASE))
+            .map(release -> outdated(subject, release, label.group(REST)))
+            .orElseGet(() -> Optional.of(new Refusal(subject, ALIASED, PREFIX + CURRENT_RELEASE)));
     }
 
     // The replacement keeps what follows the release, so an Arm or a larger runner stays one.

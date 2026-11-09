@@ -186,8 +186,7 @@ class RunnerImageCheckTest {
         Path root = new GitFixture("runner-files")
             .write(
                 ".github/actions/setup/action.yml", "runs:\n  using: composite\n# ubuntu-latest\n  os: ubuntu-22.04\n"
-            )
-            .write("azure-pipelines.yml", "pool:\n  vmImage: ubuntu-latest\n")
+            ).write("azure-pipelines.yml", "pool:\n  vmImage: ubuntu-latest\n")
             .write("ci/azure-pipelines.yaml", "pool:\n  vmImage: 'ubuntu-24.04'\n")
             .write(".azure-pipelines/templates/build.yml", "variables:\n  image: \"ubuntu-22.04\"\n")
             .write(".azure-pipelines/README.md", "ubuntu-latest\n")
