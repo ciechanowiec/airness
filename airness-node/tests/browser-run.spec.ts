@@ -53,7 +53,7 @@ describe('the verification clock', () => {
 
 describe('the pinned browsers and the pass budgets', () => {
   it('names the Playwright image of the pinned version', () => {
-    expect(playwrightImageOf('1.64.1')).toBe('mcr.microsoft.com/playwright:v1.64.1-noble')
+    expect(playwrightImageOf('1.64.1')).toBe('mcr.microsoft.com/playwright:v1.64.1-resolute')
   })
 
   it('grows a pass budget with the work it discovered', () => {
@@ -83,7 +83,7 @@ describe('the pinned browser server', () => {
   it('runs the host Playwright, read-only, against the image browsers on a loopback port', () => {
     expect(
       pinnedBrowserServerArguments({
-        image: 'mcr.microsoft.com/playwright:v1.64.1-noble',
+        image: 'mcr.microsoft.com/playwright:v1.64.1-resolute',
         name: 'airness-browsers-4100',
         port: 4100,
         playwrightCore: '/repo/node_modules/playwright-core',
@@ -105,7 +105,7 @@ describe('the pinned browser server', () => {
       '--volume=/repo/node_modules/playwright-core:/airness/playwright-core:ro',
       '--env=MOZ_WEBGL_FORCE_EGL=1',
       '--workdir=/tmp',
-      'mcr.microsoft.com/playwright:v1.64.1-noble',
+      'mcr.microsoft.com/playwright:v1.64.1-resolute',
       'sh',
       '-c',
       'for config in /ms-playwright/firefox-*/firefox/playwright.cfg; do ' +
@@ -121,7 +121,7 @@ describe('the pinned browser server', () => {
 
   it('shares the host network instead of publishing a port where the host network reaches loopback', () => {
     const hostArguments: readonly string[] = pinnedBrowserServerArguments({
-      image: 'mcr.microsoft.com/playwright:v1.64.1-noble',
+      image: 'mcr.microsoft.com/playwright:v1.64.1-resolute',
       name: 'airness-browsers-4100',
       port: 4100,
       playwrightCore: '/repo/node_modules/playwright-core',
@@ -217,10 +217,10 @@ describe('the parts an engine pass runs in', () => {
 describe('the harness browser image pin', () => {
   it('requires an immutable digest at the installed Playwright version', () => {
     const digest: string = 'a'.repeat(64)
-    const image: string = `mcr.microsoft.com/playwright:v1.64.1-noble@sha256:${digest}`
+    const image: string = `mcr.microsoft.com/playwright:v1.64.1-resolute@sha256:${digest}`
     expect(isPinnedBrowserImage('1.64.1', image)).toBe(true)
     expect(isPinnedBrowserImage('1.63.0', image)).toBe(false)
-    expect(isPinnedBrowserImage('1.64.1', 'mcr.microsoft.com/playwright:v1.64.1-noble')).toBe(false)
+    expect(isPinnedBrowserImage('1.64.1', 'mcr.microsoft.com/playwright:v1.64.1-resolute')).toBe(false)
     expect(isPinnedBrowserImage('1.64.1', image.slice(0, -1))).toBe(false)
   })
 })

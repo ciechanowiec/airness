@@ -43,8 +43,8 @@ jobs:
       - name: 'Prepare the pinned browsers'
         run: |
           mvn --batch-mode airness:report-browser-install
-          image='mcr.microsoft.com/playwright:v1.64.1-noble@sha256:'
-          image="${image}47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea"
+          image='mcr.microsoft.com/playwright:v1.64.1-resolute@sha256:'
+          image="${image}f76885029244e5a384243a930ff283cef67d90653978ee27a77dd4cff8882fb4"
           docker pull "${image}"
       - name: 'Run complete Extended verification'
         run: mvn --batch-mode clean verify -Pextended

@@ -46,12 +46,19 @@ export const shiftedTime = (instantMs: number, startedMs: number, realMs: number
 /** The variable naming the pinned browser server the suite connects to. */
 export const BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE: string = 'AIRNESS_BROWSER_ENDPOINT'
 
+// The codename of the Ubuntu release the pinned Playwright image is built on. Its fonts and libraries
+// decide what the browsers measure, so it follows the hosted runners the workflows use: raise it with the
+// next Ubuntu LTS once that release's hosted runners are generally available, together with the digest
+// of `airness.browserImage`.
+const BROWSER_IMAGE_UBUNTU: string = 'resolute'
+
 /**
  * The pinned Playwright image whose browsers a verification run measures in.
  * @param version the `@playwright/test` version Airness pins.
  * @returns the image reference.
  */
-export const playwrightImageOf = (version: string): string => `mcr.microsoft.com/playwright:v${version}-noble`
+export const playwrightImageOf = (version: string): string =>
+  `mcr.microsoft.com/playwright:v${version}-${BROWSER_IMAGE_UBUNTU}`
 
 /** Whether the harness's immutable image pin belongs to the Playwright that will connect to it. */
 export const isPinnedBrowserImage = (version: string, image: string): boolean =>
