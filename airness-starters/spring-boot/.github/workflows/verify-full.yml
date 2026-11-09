@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   verify-full:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 360
     # The values compose.yaml interpolates, which verification reads only to load the compose project.
     # They reach no database: the tests and the browser sweep start services of their own.

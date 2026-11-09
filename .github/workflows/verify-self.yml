@@ -31,7 +31,7 @@ jobs:
             group: 'group-4'
           - part: 'consumers, group-5'
             group: 'group-5'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 90
     steps:
       # The check images, the consumer fixtures and their node packages outgrow what the runner image leaves
@@ -119,7 +119,7 @@ jobs:
   geometry:
     strategy:
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        runner: [ubuntu-26.04, ubuntu-26.04-arm]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     steps:
@@ -155,7 +155,7 @@ jobs:
 
   geometry-agreement:
     needs: geometry
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 40
     permissions:
       contents: read
@@ -183,21 +183,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run download "${{ github.run_id }}" --name geometry-ubuntu-24.04 --dir target/amd64
-          gh run download "${{ github.run_id }}" --name geometry-ubuntu-24.04-arm --dir target/arm64
+          gh run download "${{ github.run_id }}" --name geometry-ubuntu-26.04 --dir target/amd64
+          gh run download "${{ github.run_id }}" --name geometry-ubuntu-26.04-arm --dir target/arm64
       - name: 'Require the two architectures to agree'
         working-directory: airness-node
         run: |
           set -eu
           sh ../airness-it/node.sh scripts/browser/compare-geometry.ts \
-            target/amd64/geometry-ubuntu-24.04.json target/arm64/geometry-ubuntu-24.04-arm.json
+            target/amd64/geometry-ubuntu-26.04.json target/arm64/geometry-ubuntu-26.04-arm.json
 
   # A pull request from a fork gets a read-only token whatever the job asks for, so its measurements stay until
   # the artifact retention of the repository removes them.
   geometry-cleanup:
     needs: geometry-agreement
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       actions: write
@@ -208,7 +208,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -eu
-          for name in geometry-ubuntu-24.04 geometry-ubuntu-24.04-arm; do
+          for name in geometry-ubuntu-26.04 geometry-ubuntu-26.04-arm; do
             id="$(gh api "repos/$GH_REPO/actions/runs/${{ github.run_id }}/artifacts" --jq ".artifacts[] | select(.name == \"$name\") | .id")"
             gh api --method DELETE "repos/$GH_REPO/actions/artifacts/$id"
           done

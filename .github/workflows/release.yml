@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 180
     environment: maven-central
     permissions:
@@ -345,7 +345,7 @@ jobs:
   npm:
     needs: release
     if: always() && needs.release.outputs.npm_ready == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     environment: npm
     permissions:
@@ -459,7 +459,7 @@ jobs:
       always() &&
       needs.release.outputs.central_done == 'true' &&
       (needs.release.outputs.npm_published == 'true' || needs.npm.result == 'success')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: write
