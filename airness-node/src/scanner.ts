@@ -26,7 +26,10 @@ import {
   isFailedStatus,
   PAGE_ERROR_RULE,
   PAGE_NOT_STABLE_RULE,
+  pageOwnEntries,
   reportedText,
+  SCREENSHOT_BEGINS,
+  SCREENSHOT_ENDS,
 } from './browser-health.js'
 import {
   FONT_LOAD_RULE,
@@ -77,6 +80,33 @@ export const engineOf = (page: Page): string => page.context().browser()?.browse
 
 /** The route path or story a page shows, as a finding names it. */
 export const locationOf = (page: Page): string => new URL(page.url()).pathname
+
+const logMarkerInPage = (marker: string): void => {
+  console.info(marker)
+}
+
+/** How the sweep takes a screenshot of its own. */
+export interface SweepScreenshotOptions {
+  readonly fullPage?: boolean
+  readonly animations?: 'disabled'
+  readonly caret?: 'hide'
+}
+
+/**
+ * A screenshot the sweep takes for its own judgement or report, framed by a marker on each side in the page's
+ * console, so what taking it makes the page log is told apart from what the page logs itself.
+ * @param page the page.
+ * @param options how the screenshot is taken.
+ * @returns the screenshot.
+ */
+export const sweepScreenshot = async (page: Page, options: SweepScreenshotOptions): Promise<Buffer> => {
+  await page.evaluate(logMarkerInPage, SCREENSHOT_BEGINS)
+  try {
+    return await page.screenshot(options)
+  } finally {
+    await page.evaluate(logMarkerInPage, SCREENSHOT_ENDS)
+  }
+}
 
 const SETTLE_MESSAGES: Readonly<Record<Exclude<SettleOutcome, 'settled'>, string>> = {
   ceiling: 'the page kept changing until the settle ceiling; nothing measured on it can be trusted',
@@ -316,16 +346,18 @@ export const healthFindings = async (
 ): Promise<HealthReading> => {
   const errors: readonly Error[] = await page.pageErrors()
   const logged: readonly ConsoleMessage[] = await page.consoleMessages()
-  const messages: readonly ConsoleEntry[] = logged
-    .filter(
-      (message: ConsoleMessage): boolean =>
-        !(
-          place.location.startsWith(NOT_FOUND_LOCATION_PREFIX) &&
-          message.location().url === page.url() &&
-          /^Failed to load resource: the server responded with a status of 404\b/u.test(message.text())
-        ),
-    )
-    .map((message: ConsoleMessage): ConsoleEntry => ({ type: message.type(), text: message.text() }))
+  const messages: readonly ConsoleEntry[] = pageOwnEntries(
+    logged
+      .filter(
+        (message: ConsoleMessage): boolean =>
+          !(
+            place.location.startsWith(NOT_FOUND_LOCATION_PREFIX) &&
+            message.location().url === page.url() &&
+            /^Failed to load resource: the server responded with a status of 404\b/u.test(message.text())
+          ),
+      )
+      .map((message: ConsoleMessage): ConsoleEntry => ({ type: message.type(), text: message.text() })),
+  )
   const requests: readonly Request[] = await page.requests()
   const lastNavigation: number = requests.findLastIndex(
     (request: Request): boolean => request.isNavigationRequest() && request.frame() === page.mainFrame(),

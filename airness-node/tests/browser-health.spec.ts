@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { allowedOrigins, consolePageError, isAllowedRequest, isFailedStatus, reportedText } from '@/browser-health'
+import {
+  allowedOrigins,
+  type ConsoleEntry,
+  consolePageError,
+  isAllowedRequest,
+  isFailedStatus,
+  pageOwnEntries,
+  reportedText,
+  SCREENSHOT_BEGINS,
+  SCREENSHOT_ENDS,
+} from '@/browser-health'
 
 const ORIGINS: readonly string[] = allowedOrigins(['http://localhost:3100', 'http://localhost:3000/', 'not a url'])
 
@@ -69,5 +79,43 @@ describe('failed responses', () => {
       false,
       false,
     ])
+  })
+})
+
+const BEGINS: ConsoleEntry = { type: 'info', text: SCREENSHOT_BEGINS }
+const ENDS: ConsoleEntry = { type: 'info', text: SCREENSHOT_ENDS }
+
+// WebKit words the refusal by whether the policy names a style-src directive or falls back to default-src.
+const DEFAULT_REFUSAL: ConsoleEntry = {
+  type: 'error',
+  text: "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' appears in neither the style-src directive nor the default-src directive of the Content Security Policy.",
+}
+const STYLE_SRC_REFUSAL: ConsoleEntry = {
+  type: 'error',
+  text: "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src directive of the Content Security Policy.",
+}
+
+describe('the console messages a page answers for', () => {
+  it("drops the refusal of the style each of the sweep's own screenshots adds, in either wording", () => {
+    expect(pageOwnEntries([BEGINS, DEFAULT_REFUSAL, ENDS, BEGINS, STYLE_SRC_REFUSAL, ENDS])).toEqual([])
+  })
+
+  it('keeps a refusal the page caused before, after or between screenshots', () => {
+    expect(pageOwnEntries([DEFAULT_REFUSAL, BEGINS, ENDS, STYLE_SRC_REFUSAL, BEGINS, ENDS, DEFAULT_REFUSAL])).toEqual([
+      DEFAULT_REFUSAL,
+      STYLE_SRC_REFUSAL,
+      DEFAULT_REFUSAL,
+    ])
+  })
+
+  it('keeps every other message logged while a screenshot is taken', () => {
+    const thrown: ConsoleEntry = { type: 'error', text: 'TypeError: x is undefined' }
+    const warned: ConsoleEntry = { type: 'warning', text: DEFAULT_REFUSAL.text }
+    expect(pageOwnEntries([BEGINS, thrown, warned, ENDS])).toEqual([thrown, warned])
+  })
+
+  it('takes a marker only as the info message the sweep logs, so a page logging its text otherwise opens no window', () => {
+    const logged: ConsoleEntry = { type: 'log', text: SCREENSHOT_BEGINS }
+    expect(pageOwnEntries([logged, DEFAULT_REFUSAL])).toEqual([logged, DEFAULT_REFUSAL])
   })
 })

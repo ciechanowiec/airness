@@ -76,6 +76,47 @@ export const consolePageError = (entry: ConsoleEntry): string | undefined => {
   return entry.type === 'warning' && HYDRATION.test(entry.text) ? `hydration warning: ${entry.text}` : undefined
 }
 
+/** What the sweep logs into a page, as an info message, just before a screenshot of its own. */
+export const SCREENSHOT_BEGINS: string = 'airness: the sweep takes a screenshot'
+
+/** What the sweep logs into a page, as an info message, once that screenshot is taken. */
+export const SCREENSHOT_ENDS: string = 'airness: the sweep took a screenshot'
+
+const MARKER_TYPE: string = 'info'
+
+// Playwright's WebKit driver appends a style element of its own before every screenshot, so the CSS
+// animations it captures are in step, and a content security policy that admits no inline style refuses it.
+// WebKit logs that refusal as an error of the page, with the same text and location as a refusal of a style
+// the page itself added, so only when it was logged tells the two apart. WebKit words the refusal one way when
+// the policy names a style-src directive and another when it falls back to default-src.
+const STYLE_REFUSAL: string = "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline'"
+
+interface ScreenshotWindow {
+  readonly isOpen: boolean
+  readonly kept: readonly ConsoleEntry[]
+}
+
+const isMarker = (entry: ConsoleEntry, text: string): boolean => entry.type === MARKER_TYPE && entry.text === text
+
+/**
+ * The console messages of the page itself, in the order it logged them: every message but the sweep's own
+ * screenshot markers and the stylesheet refusals logged between a pair of them, which the screenshot itself
+ * caused. A refusal the page caused at any other moment, and every other message, is kept.
+ * @param entries the console messages, in the order they were logged.
+ * @returns the messages the page answers for.
+ */
+export const pageOwnEntries = (entries: readonly ConsoleEntry[]): readonly ConsoleEntry[] =>
+  entries.reduce(
+    (window: ScreenshotWindow, entry: ConsoleEntry): ScreenshotWindow => {
+      if (isMarker(entry, SCREENSHOT_BEGINS) || isMarker(entry, SCREENSHOT_ENDS)) {
+        return { isOpen: isMarker(entry, SCREENSHOT_BEGINS), kept: window.kept }
+      }
+      const isScreenshotStyle: boolean = window.isOpen && entry.type === 'error' && entry.text.startsWith(STYLE_REFUSAL)
+      return { isOpen: window.isOpen, kept: isScreenshotStyle ? window.kept : [...window.kept, entry] }
+    },
+    { isOpen: false, kept: [] },
+  ).kept
+
 /** The longest stretch of a browser message a finding repeats. */
 const MAX_MESSAGE: number = 300
 
