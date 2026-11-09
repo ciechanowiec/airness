@@ -44,12 +44,22 @@ public record TaskForm(
 ) {
 
     /**
-     * Stands the empty string in the place of a text the binder could not read, which it hands over as
-     * nothing, and trims what was typed.
+     * Stands the empty string in the place of a text the binder could not read, and trims what was typed.
      */
     public TaskForm {
-        title = Objects.requireNonNullElse(title, "").strip();
-        description = Objects.requireNonNullElse(description, "").strip();
+        title = typed(title);
+        description = typed(description);
+    }
+
+    /**
+     * Answers a text as it was typed, without the space around it. The binder hands a text it could not
+     * read over as nothing, whatever the component it binds declares, so nothing reads as the empty string.
+     *
+     * @param text the text the binder handed over, or nothing
+     * @return the text without surrounding space
+     */
+    private static String typed(@Nullable String text) {
+        return Objects.requireNonNullElse(text, "").strip();
     }
 
     /**

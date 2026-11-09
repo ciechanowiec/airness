@@ -6,4 +6,11 @@
  */
 @import "tailwindcss" source(none);
 @source "../../resources/templates";
-@plugin "daisyui";
+/*
+ * The noise texture daisyUI lays over buttons, badges, alerts and menus is left out. It is an inline SVG
+ * image, which the content security policy of the pages refuses, because it allows images from the
+ * application only.
+ */
+@plugin "daisyui" {
+    exclude: svg;
+}

@@ -42,7 +42,7 @@ class ReaderLanguageTest {
     @Test
     void keepsTheLanguageChosenWithTheSwitch(@LocalServerPort int port) {
         Caller caller = new Caller(port);
-        HttpResponse<String> answer = caller.post("/language", "language=POLISH&back=/login");
+        HttpResponse<String> answer = caller.post("/language", "language=%s&back=/login".formatted(Language.POLISH));
         assertAll(
             () -> assertTrue(landing(answer).endsWith(LOGIN)),
             () -> assertTrue(caller.get(LOGIN).body().contains(POLISH))
@@ -52,13 +52,13 @@ class ReaderLanguageTest {
     @Test
     void prefersTheLanguageChosenOverTheOneTheBrowserAsksFor(@LocalServerPort int port) {
         Caller caller = new Caller(port);
-        caller.post("/language", "language=ENGLISH&back=/");
+        caller.post("/language", "language=%s&back=/".formatted(Language.ENGLISH));
         assertTrue(caller.reading(LOGIN, "pl").body().contains(ENGLISH));
     }
 
     @Test
     void keepsTheChoiceWhereThePageCannotReadIt(@LocalServerPort int port) {
-        String cookie = new Caller(port).post("/language", "language=POLISH&back=/")
+        String cookie = new Caller(port).post("/language", "language=%s&back=/".formatted(Language.POLISH))
             .headers()
             .firstValue(HttpHeaders.SET_COOKIE)
             .orElse("");
@@ -77,6 +77,7 @@ class ReaderLanguageTest {
 
     @Test
     void sendsTheReaderHomeRatherThanToAnotherHost(@LocalServerPort int port) {
-        assertEquals("/", landing(new Caller(port).post("/language", "language=POLISH&back=//elsewhere.test/")));
+        String elsewhere = "language=%s&back=//elsewhere.test/".formatted(Language.POLISH);
+        assertEquals("/", landing(new Caller(port).post("/language", elsewhere)));
     }
 }

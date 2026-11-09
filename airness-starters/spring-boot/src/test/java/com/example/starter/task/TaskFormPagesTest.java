@@ -42,10 +42,9 @@ class TaskFormPagesTest {
         return response.headers().firstValue(HttpHeaders.LOCATION).orElse("");
     }
 
-    private static String form(String title, String status, String dueOn, long version) {
-        return "title=%s&description=&status=%s&dueOn=%s&version=%d".formatted(
-            Caller.encoded(title), status, dueOn, version
-        );
+    // Each form is opened on the first version of its task, which is the version a stale change is made against too.
+    private static String form(String title, String status, String dueOn) {
+        return "title=%s&description=&status=%s&dueOn=%s&version=0".formatted(Caller.encoded(title), status, dueOn);
     }
 
     private String reader() {
@@ -57,7 +56,7 @@ class TaskFormPagesTest {
         String email = this.reader();
         String title = Notes.title("Written");
         Caller reader = Caller.signedIn(port, email, Accounts.SECRET);
-        HttpResponse<String> answer = reader.post(TASKS, form(title, "OPEN", this.soon.toString(), 0));
+        HttpResponse<String> answer = reader.post(TASKS, form(title, "OPEN", this.soon.toString()));
         assertAll(
             () -> assertTrue(landing(answer).endsWith("/tasks?notice=CREATED")),
             () -> assertTrue(reader.get(TASKS).body().contains(title))
@@ -72,7 +71,7 @@ class TaskFormPagesTest {
 
     @Test
     void refusesATaskWithEveryMistakeAtOnce(@LocalServerPort int port) {
-        String page = Caller.signedIn(port, this.reader(), Accounts.SECRET).post(TASKS, form("", "", "", 0)).body();
+        String page = Caller.signedIn(port, this.reader(), Accounts.SECRET).post(TASKS, form("", "", "")).body();
         assertAll(
             () -> assertTrue(page.contains("Say what is to be done.")),
             () -> assertTrue(page.contains("Choose how the task stands.")),
@@ -83,7 +82,7 @@ class TaskFormPagesTest {
     @Test
     void refusesADueDayThatCannotBeRead(@LocalServerPort int port) {
         String page = Caller.signedIn(port, this.reader(), Accounts.SECRET)
-            .post(TASKS, form("Unreadable", "OPEN", "someday", 0))
+            .post(TASKS, form("Unreadable", "OPEN", "someday"))
             .body();
         assertTrue(page.contains("This value could not be read."));
     }
@@ -104,7 +103,7 @@ class TaskFormPagesTest {
         String after = Notes.title("After");
         Caller reader = Caller.signedIn(port, email, Accounts.SECRET);
         HttpResponse<String> answer = reader.post(
-            "/tasks/%s".formatted(task), form(after, "IN_PROGRESS", this.soon.toString(), 0)
+            "/tasks/%s".formatted(task), form(after, "IN_PROGRESS", this.soon.toString())
         );
         assertAll(
             () -> assertTrue(landing(answer).endsWith("/tasks?notice=SAVED")),
@@ -117,8 +116,8 @@ class TaskFormPagesTest {
         String email = this.reader();
         UUID task = Notes.written(this.tasks, email, Notes.open(Notes.title("Contested"), this.soon));
         Caller reader = Caller.signedIn(port, email, Accounts.SECRET);
-        reader.post("/tasks/%s".formatted(task), form(Notes.title("First"), "OPEN", this.soon.toString(), 0));
-        String second = form(Notes.title("Second"), "OPEN", this.soon.toString(), 0);
+        reader.post("/tasks/%s".formatted(task), form(Notes.title("First"), "OPEN", this.soon.toString()));
+        String second = form(Notes.title("Second"), "OPEN", this.soon.toString());
         String page = reader.post("/tasks/%s".formatted(task), second).body();
         assertTrue(page.contains("Somebody changed this task after you opened it."));
     }
@@ -128,7 +127,7 @@ class TaskFormPagesTest {
         String email = this.reader();
         UUID task = Notes.written(this.tasks, email, Notes.open(Notes.title("Mistaken"), this.soon));
         String page = Caller.signedIn(port, email, Accounts.SECRET)
-            .post("/tasks/%s".formatted(task), form("", "OPEN", this.soon.toString(), 0))
+            .post("/tasks/%s".formatted(task), form("", "OPEN", this.soon.toString()))
             .body();
         assertTrue(page.contains("Say what is to be done."));
     }
@@ -159,7 +158,7 @@ class TaskFormPagesTest {
             ),
             () -> assertEquals(
                 HttpStatus.NOT_FOUND.value(),
-                stranger.post("/tasks/%s".formatted(task), form("Taken", "DONE", this.soon.toString(), 0)).statusCode()
+                stranger.post("/tasks/%s".formatted(task), form("Taken", "DONE", this.soon.toString())).statusCode()
             ),
             () -> assertEquals(
                 HttpStatus.NOT_FOUND.value(),

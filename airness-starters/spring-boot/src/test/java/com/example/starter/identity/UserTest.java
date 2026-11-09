@@ -46,6 +46,8 @@ class UserTest {
 
     @Test
     void isNoOtherKindOfObject() {
-        assertNotEquals(account(), new Object(), "an account equals only an account");
+        User account = account();
+        Object reference = account.getReference();
+        assertNotEquals(account, reference, "an account equals only an account, not the reference it is known by");
     }
 }
