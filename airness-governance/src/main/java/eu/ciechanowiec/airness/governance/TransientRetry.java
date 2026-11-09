@@ -75,7 +75,7 @@ public final class TransientRetry {
     ) throws InterruptedException {
         try {
             return Optional.of(client.send(request, HttpResponse.BodyHandlers.ofString()));
-        } catch (IOException exception) {
+        } catch (IOException _) {
             // A failure before the last attempt only earns another one. The last attempt reports its own.
             return Optional.empty();
         }
@@ -104,7 +104,9 @@ public final class TransientRetry {
     }
 
     private static boolean isTransient(int status) {
-        return status == TOO_MANY_REQUESTS || (status >= SERVER_ERROR_FLOOR && status <= SERVER_ERROR_CEILING);
+        boolean rateLimited = status == TOO_MANY_REQUESTS;
+        boolean serverError = status >= SERVER_ERROR_FLOOR && status <= SERVER_ERROR_CEILING;
+        return rateLimited || serverError;
     }
 
     /**

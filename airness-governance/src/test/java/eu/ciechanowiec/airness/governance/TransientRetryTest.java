@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,23 +40,25 @@ class TransientRetryTest {
     private static final Duration SECOND_PAUSE = Duration.ofMillis(20);
     private static final Duration CAP = Duration.ofSeconds(5);
     private static final Duration SHORT_TIMEOUT = Duration.ofMillis(300);
-    private static final Duration SLOW_ANSWER = Duration.ofSeconds(2);
     private static final int ATTEMPTS = 3;
 
     private final List<HttpServer> servers;
     private final ExecutorService executor;
     private final List<Duration> waited;
     private final AtomicInteger requests;
+    private final CountDownLatch held;
 
     TransientRetryTest() {
         this.servers = new ArrayList<>();
         this.executor = Executors.newCachedThreadPool();
         this.waited = new ArrayList<>();
         this.requests = new AtomicInteger();
+        this.held = new CountDownLatch(1);
     }
 
     @AfterEach
     void stopServers() {
+        this.held.countDown();
         this.servers.forEach(server -> server.stop(0));
         this.executor.shutdownNow();
     }
@@ -63,11 +66,13 @@ class TransientRetryTest {
     @Test
     @SneakyThrows
     void answersAfterAServerErrorAndARateLimitWaitingAsTheRateLimitAsks() {
-        URI uri = this.server(request -> switch (request) {
-            case 1 -> new Answer(UNAVAILABLE, "");
-            case 2 -> new Answer(TOO_MANY_REQUESTS, "1");
-            default -> new Answer(OK, "");
-        });
+        URI uri = this.server(
+            request -> switch (request) {
+                case 1 -> new Answer(UNAVAILABLE, "");
+                case 2 -> new Answer(TOO_MANY_REQUESTS, "1");
+                default -> new Answer(OK, "");
+            }
+        );
         HttpResponse<String> response = this.retry().send(client(), get(uri));
         assertEquals(OK, response.statusCode(), "the third attempt is answered");
         assertEquals(ATTEMPTS, this.requests.get(), "after two transient failures");
@@ -103,12 +108,15 @@ class TransientRetryTest {
     @Test
     @SneakyThrows
     void answersAfterARequestThatTimedOut() {
-        URI uri = this.server(request -> {
-            if (request == 1) {
-                pauseFor(SLOW_ANSWER);
+        // The first request is held unanswered until the test ends, so it times out however fast the machine is.
+        URI uri = this.server(
+            request -> {
+                if (request == 1) {
+                    hold(this.held);
+                }
+                return new Answer(OK, "");
             }
-            return new Answer(OK, "");
-        });
+        );
         HttpRequest request = HttpRequest.newBuilder(uri).timeout(SHORT_TIMEOUT).GET().build();
         assertEquals(OK, this.retry().send(client(), request).statusCode(), "the attempt after the timeout answers");
         assertEquals(List.of(FIRST_PAUSE), this.waited, "after one planned wait");
@@ -137,8 +145,8 @@ class TransientRetryTest {
     }
 
     @SneakyThrows
-    private static void pauseFor(Duration duration) {
-        Thread.sleep(duration);
+    private static void hold(CountDownLatch latch) {
+        latch.await();
     }
 
     @SneakyThrows
