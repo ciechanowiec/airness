@@ -39,7 +39,7 @@ import { type JudgedPage, LAYOUT_RULES } from './layout-defects.js'
 import { adoptStyle } from './page-style.js'
 import { writeJson } from './project.js'
 import { projectSettings } from './project-settings.js'
-import { engineOf, type HealthReading, healthFindings, type PlaceScan } from './scanner.js'
+import { engineOf, type HealthReading, healthFindings, type PlaceScan, sweepScreenshot } from './scanner.js'
 import { passStartLine } from './sweep-progress.js'
 import { recordProgress, reportPartFindings, reportPass } from './sweep-progress-log.js'
 import { firstUntaken, takeNext, untakenCount } from './sweep-queue.js'
@@ -465,7 +465,7 @@ export const screenshotOf = async (page: Page, scan: PlaceScan, place: FindingPl
   }
   await outlineElements(page, elements)
   await test.info().attach(`${place.state} ${place.location} ${String(place.viewport?.width ?? '')}`, {
-    body: await page.screenshot({ fullPage: true }),
+    body: await sweepScreenshot(page, { fullPage: true }),
     contentType: 'image/png',
   })
 }

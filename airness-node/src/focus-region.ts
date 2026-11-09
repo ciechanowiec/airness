@@ -13,6 +13,7 @@ import {
   type IndicatorElement,
   type IndicatorStyle,
 } from './focus-reach.js'
+import { sweepScreenshot } from './scanner.js'
 
 interface StyledElement {
   readonly getBoundingClientRect: () => ElementBox
@@ -214,13 +215,13 @@ const captureFocus = async (page: Page): Promise<FocusCapture> => {
   const facts: readonly [string, number] = [`[${FOCUSED_ATTRIBUTE}]`, MAX_DESCENDANTS]
   await page.evaluate(markFocusedInPage, FOCUSED_ATTRIBUTE)
   const focusedFacts: IndicatorFacts = await page.evaluate(indicatorFactsInPage, facts)
-  const focusedShot: Uint8Array = await page.screenshot({
+  const focusedShot: Uint8Array = await sweepScreenshot(page, {
     animations: 'disabled',
     caret: 'hide',
   })
   await page.evaluate(blurInPage)
   const unfocusedFacts: IndicatorFacts = await page.evaluate(indicatorFactsInPage, facts)
-  const unfocusedShot: Uint8Array = await page.screenshot({
+  const unfocusedShot: Uint8Array = await sweepScreenshot(page, {
     animations: 'disabled',
     caret: 'hide',
   })
