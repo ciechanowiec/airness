@@ -52,9 +52,9 @@ The root `pom.xml` also aggregates the Payload stack: `airness-payload-assets` (
   partial run; the complete integration verdict still requires the command without a domain. The domains are
   `maven`, `analysis`, `templates`, `stylesheets`, `repository`, `spring`, `containers`, `scanners`, `node`,
   `browser`, `payload` (the Payload stack against a real Payload application and an isolated PostgreSQL; it needs
-  Docker), `starters` (an application `airness:new` makes from each starter passes Default verification; it needs
-  Docker) and `browser-evidence` (motion, ancestor clipping, missing-page layouts and completed project scans,
-  which also run in the browser domain).
+  Docker), `starters` (an application `airness:new` makes from each starter passes Extended verification; it
+  needs Docker) and `browser-evidence` (motion, ancestor clipping, missing-page layouts and completed project
+  scans, which also run in the browser domain).
 
 ## Coding Style & Naming Conventions
 
