@@ -52,7 +52,11 @@ Airness governs all of the following domains:
   files follow what the repository contains rather than which parent a module names: the root carries the files
   of every stack present in any module, `AGENTS.md`, `.gitignore` and `.dockerignore` lead with one marked block
   per stack, the lines below the blocks belong to the project, and each declared node project carries the node
-  files in its own directory. The editor
+  files in its own directory. No ignore file repeats a pattern an earlier declaration already applies: a line
+  equal to an earlier line of its own file, or an un-anchored `.gitignore` line (no slash but a trailing one) equal
+  to a line of a `.gitignore` in a directory above, with no negation between them that could reverse it. A
+  managed line counts as declared, so remove the project's copy; a Docker ignore file is compared with itself
+  alone. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
   rather than reported: build output and a tool's scratch are not content this style governs. Neither is a
   generated file, which is a file a stack layer, `airness.generated.files` or a node project's

@@ -29,6 +29,7 @@ final class ManagedSections {
     private static final String END = "END AIRNESS MANAGED: ";
     private static final String MARKDOWN = ".md";
     private static final String LF = "\n";
+    private static final Pattern OPENING = Pattern.compile(Pattern.quote(BEGIN) + "(\\S+)");
 
     /**
      * One block as it appears in the file, markers included.
@@ -75,6 +76,26 @@ final class ManagedSections {
         return Optional.of(content)
             .filter(_ -> PAIRED.matcher(markers).matches())
             .map(text -> LEADING_BLANK_LINES.matcher(BLOCK.matcher(text).replaceAll("")).replaceFirst(""));
+    }
+
+    /**
+     * The layer whose block a line opens, read from its begin marker.
+     *
+     * @param line one line of a file
+     * @return the layer named after the begin marker, or nothing for a line that opens no block
+     */
+    static Optional<String> opened(String line) {
+        return OPENING.matcher(line).results().map(opening -> opening.group(1)).findFirst();
+    }
+
+    /**
+     * Whether a line carries a marker, opening or closing a block.
+     *
+     * @param line one line of a file
+     * @return whether the line is a block marker
+     */
+    static boolean marks(String line) {
+        return MARKER.matcher(line).find();
     }
 
     // One token per marker line, so a well-formed file reads as begin, end, begin, end. A line carrying
