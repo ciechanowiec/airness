@@ -117,6 +117,15 @@ describe('architecture layers', PROCESS_TIME, () => {
     expect(productionImportsNoDevelopmentDependencyRule(['tests'])).toBeUndefined()
   })
 
+  it('leaves the Storybook configuration, a root of its own or under the whole member, to import the workbench', () => {
+    expect(productionImportsNoDevelopmentDependencyRule(['src', '.storybook'])).toMatchObject({
+      from: { path: '^(src/)' },
+    })
+    expect(productionImportsNoTestCodeRule(['.storybook'])).toBeUndefined()
+    expect(isExemptFromDevelopmentDependencyRule('.storybook/preview.tsx')).toBe(true)
+    expect(isExemptFromDevelopmentDependencyRule('src/storybook/preview.tsx')).toBe(false)
+  })
+
   it.each(['postcss.config.mjs', 'eslint.config.js', 'tailwind.config.ts', 'vitest.config.mts', 'tests/total.spec.ts'])(
     'exempts the development-time file %s of a member declared whole as a root',
     (file: string) => {
