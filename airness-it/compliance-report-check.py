@@ -42,7 +42,7 @@ if sys.argv[2] == "mixed":
     components = sbom["components"]
     references = {component.get("bom-ref") for component in components}
     purls = {component.get("purl", "") for component in components}
-    if "pkg:npm/%40airness/node@1.0.10-SNAPSHOT" not in purls:
+    if "pkg:npm/%40airness/node@1.0.10" not in purls:
         raise SystemExit("The SBOM omits the npm packages of the TypeScript module")
     if "pkg:npm/fixture-library" not in references:
         raise SystemExit("The SBOM omits the node project the npm packages belong to")

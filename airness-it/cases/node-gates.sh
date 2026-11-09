@@ -19,7 +19,7 @@ run_node_gate_cases() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
-        <version>1.0.10-SNAPSHOT</version>
+        <version>1.0.10</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>library</artifactId>
@@ -497,7 +497,7 @@ run_node_next_cases() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
-        <version>1.0.10-SNAPSHOT</version>
+        <version>1.0.10</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>site</artifactId>
