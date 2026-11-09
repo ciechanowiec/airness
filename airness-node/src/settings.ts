@@ -2,7 +2,8 @@ import type { Viewport } from './browser-findings.js'
 import { type AuxiliaryServer, browserSettings } from './browser-settings.js'
 // The facts a node project may declare under the `airness` key of its package.json. Every field is
 // optional and every default is strict, so a project that declares nothing still receives the full
-// contract.
+// contract. The one exception is `productionDeadCode`, a stricter reading of the dead-code rule that a project
+// opts into while the harness's own packages and its consumers cannot yet all meet it.
 //
 // The set is deliberately small: where first-party source lives, which files a generator owns, which
 // files are framework glue, and which hand-written JavaScript a tool forces on the project. There is no
@@ -87,6 +88,12 @@ export interface Settings extends InvocationSettings {
   readonly layoutMinimumGap: number
   /** Viewports the layout scan measures beside the ones the harness requires. */
   readonly layoutViewports: readonly Viewport[]
+  /**
+   * Whether the dead-code gate also judges production code by production use alone, so an export or a production
+   * file that only tests and tooling reach fails. Off unless the project declares `true`: the stricter reading,
+   * which a project opts into and can only tighten the gate.
+   */
+  readonly productionDeadCode: boolean
 }
 
 /** The origin the end-to-end suite drives when the project declares none. */
@@ -372,6 +379,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     ],
     javascriptRuntimes: [...DEFAULT_JAVASCRIPT_RUNTIMES, ...layerRuntimes, ...declaredRuntimeRoles(javascript)],
     pureLogicRoots: floorOf(floor, layers),
+    productionDeadCode: raw['productionDeadCode'] === true,
     ...appSettings(raw, layers, honouredRoutes(routes)),
     ...browserSettings(raw),
   }

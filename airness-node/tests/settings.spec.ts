@@ -37,6 +37,12 @@ describe('reading the airness block of package.json', () => {
     ).toEqual([...DEFAULT_SOURCE_ROOTS, 'lib', 'tools', '.', '../shared'])
   })
 
+  it('judges dead code by production use only where the project declares it with true', () => {
+    expect(readSettings({ airness: { productionDeadCode: true } }).productionDeadCode).toBe(true)
+    expect(readSettings({ airness: { productionDeadCode: 'true' } }).productionDeadCode).toBe(false)
+    expect(readSettings({}).productionDeadCode).toBe(false)
+  })
+
   it('falls back to the defaults on a malformed value rather than widening a rule', () => {
     const settings: Settings = readSettings({ airness: { sourceRoots: 'lib', generatedArtefacts: [1] } })
     expect(settings.sourceRoots).toEqual(DEFAULT_SOURCE_ROOTS)

@@ -4,13 +4,24 @@
 // name of the shipped Vitest configuration, which knip cannot see from a member that keeps no copy of it, and a
 // declared stack layer package as used, because the harness reads it by name: node-gate runs its gates and the
 // layer seams read its defaults, ESLint blocks and end-to-end specifications, none of which an import shows.
+//
+// That run counts every test and tool as an entry point, so an export only a test imports reads as used. A member
+// that declares `productionDeadCode` gets a second, production run: knip follows the production entry points
+// alone, the package's declared public interface among them, and judges the exports and files under the production
+// source roots, so an export or a production file that only tests and tooling reach fails too.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { localEnvironment } from './environment-files.js'
-import { fromRun, runNode } from './exec.js'
-import type { GateResult } from './gate-result.js'
+import { fromRun, type RunResult, runNode } from './exec.js'
+import {
+  JAVASCRIPT_EXTENSIONS,
+  NON_PRODUCTION_ROOTS,
+  productionSourceRoots,
+  TYPESCRIPT_SOURCE_EXTENSIONS,
+} from './file-roles.js'
+import { failed, type GateResult, withOutput } from './gate-result.js'
 import { HARNESS_PACKAGE } from './harness-packages.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
@@ -79,12 +90,35 @@ const runtimeModules = (member: Member, files: readonly string[]): readonly stri
     ? ['cloudfront']
     : []
 
+// The issue types of the production run: the export kinds the first run judges, and the production file that only
+// tests reach. Dependencies stay with the first run, which already judges every declared one.
+const PRODUCTION_ISSUE_TYPES: string = 'files,exports,types,enumMembers,namespaceMembers'
+
+const SOURCE_EXTENSIONS: string = [...TYPESCRIPT_SOURCE_EXTENSIONS, ...JAVASCRIPT_EXTENSIONS]
+  .map((extension: string): string => extension.slice(1))
+  .join(',')
+
+// The files the production run judges: those under a production source root, with knip's production suffix. A
+// member that declares itself whole as a root keeps its top-level files out, which are its tooling.
+const productionProject = (member: Member): readonly string[] => [
+  ...productionSourceRoots(member.settings.sourceRoots).map(
+    (root: string): string => `${root === '.' ? '*' : root}/**/*.{${SOURCE_EXTENSIONS}}!`,
+  ),
+  ...NON_PRODUCTION_ROOTS.map((root: string): string => `!${root}/**`),
+]
+
+/** The configurations a run renders: the one every member gets, and the production one. */
+interface RenderedConfigs {
+  readonly directory: string
+  readonly config: string
+  readonly production: string
+}
+
 // Written outside the working tree, so the run leaves nothing the tree check would notice.
-const knipConfig = (member: Member, layers: readonly string[]): string => {
+const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs => {
   const shippedPath: string = path.join(harnessDirectory(), 'configs', 'knip.json')
   const shipped: Record<string, unknown> = asRecord(readJson(shippedPath))
   const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-knip-'))
-  const rendered: string = path.join(directory, 'knip.json')
   const files: readonly string[] = presentWorkingTreeFiles(member.root)
   const entries: readonly string[] = allowedJavaScriptFiles(
     files,
@@ -107,28 +141,64 @@ const knipConfig = (member: Member, layers: readonly string[]): string => {
     // member's tool configurations without that member's environment. Each member is judged by its own run.
     ignoreWorkspaces: [...texts(shipped['ignoreWorkspaces']), ...member.siblingPaths],
   }
-  writeJson(rendered, config)
+  const rendered: RenderedConfigs = {
+    directory,
+    config: path.join(directory, 'knip.json'),
+    production: path.join(directory, 'knip-production.json'),
+  }
+  writeJson(rendered.config, config)
+  writeJson(rendered.production, { ...config, project: productionProject(member) })
   return rendered
 }
 
+const runKnip = (member: Member, config: string, options: readonly string[]): RunResult =>
+  runNode(resolveTool('knip'), ['--config', config, '--no-progress', ...options], {
+    cwd: member.root,
+    env: localEnvironment(member.root),
+  })
+
+const PRODUCTION_REPAIR: string =
+  'Production run: these exports and production files are reached only from tests or tooling. Test each through ' +
+  'the production code that uses it, or remove it.'
+
+const productionResult = (member: Member, configs: RenderedConfigs): GateResult => {
+  const result: GateResult = fromRun(
+    runKnip(member, configs.production, ['--production', '--include', PRODUCTION_ISSUE_TYPES]),
+    'no export or production file only tests reach',
+    'an export or a production file only tests reach was found',
+  )
+  return result.ok ? result : { ...result, findings: [PRODUCTION_REPAIR, ...result.findings] }
+}
+
 /**
- * No unused file, export or dependency.
+ * No unused file, export or dependency, and under `productionDeadCode` no export or production file that only
+ * tests and tooling reach.
  * @param member the member to judge.
  * @param layers the packages counted as layers, the registered ones unless a caller names others.
  * @returns the verdict.
  */
 export const knip = (member: Member, layers: readonly string[] = LAYER_NAMES): GateResult => {
-  const config: string = knipConfig(member, layers)
+  const configs: RenderedConfigs = knipConfigs(member, layers)
   try {
-    return fromRun(
-      runNode(resolveTool('knip'), ['--config', config, '--no-progress'], {
-        cwd: member.root,
-        env: localEnvironment(member.root),
-      }),
+    const whole: GateResult = fromRun(
+      runKnip(member, configs.config, []),
       'no dead code or unused dependency',
       'dead code or an unused dependency was found',
     )
+    if (!member.settings.productionDeadCode) {
+      return whole
+    }
+    const production: GateResult = productionResult(member, configs)
+    if (production.ok) {
+      return whole
+    }
+    return whole.ok
+      ? production
+      : withOutput(
+          failed(`${whole.summary}; ${production.summary}`, [...whole.findings, ...production.findings]),
+          [whole.output, production.output].join(''),
+        )
   } finally {
-    rmSync(path.dirname(config), { recursive: true, force: true })
+    rmSync(configs.directory, { recursive: true, force: true })
   }
 }
