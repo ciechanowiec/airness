@@ -81,9 +81,11 @@ final class DockerHub {
     private String fetch(URI uri) {
         HttpRequest request = HttpRequest.newBuilder(uri).timeout(TIMEOUT).GET().build();
         try (HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
-            return body(uri, client.send(request, HttpResponse.BodyHandlers.ofString()));
+            return body(uri, TransientRetry.REGISTRIES.send(client, request));
         } catch (IOException exception) {
-            throw new UncheckedIOException("Docker Hub is unreachable: " + uri, exception);
+            throw new UncheckedIOException(
+                "Docker Hub is unreachable: " + uri + ": " + exception.getMessage(), exception
+            );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while querying Docker Hub", exception);

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.ciechanowiec.airness.governance.TransientRetry;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -332,9 +333,11 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
             .header("Accept", "application/vnd.npm.install-v1+json, application/json");
         token.ifPresent(value -> builder.header("Authorization", "Bearer " + value));
         try {
-            return this.client.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString());
+            return TransientRetry.REGISTRIES.send(this.client, builder.GET().build());
         } catch (IOException exception) {
-            throw new IllegalStateException(redacted(address.toString()) + " could not be read", exception);
+            throw new IllegalStateException(
+                redacted(address.toString()) + " could not be read: " + exception.getMessage(), exception
+            );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while reading " + redacted(address.toString()), exception);

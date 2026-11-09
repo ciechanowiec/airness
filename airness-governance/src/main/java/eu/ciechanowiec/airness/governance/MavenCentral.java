@@ -86,9 +86,11 @@ final class MavenCentral {
 
     private static HttpResponse<String> send(HttpClient client, HttpRequest request) {
         try {
-            return client.send(request, HttpResponse.BodyHandlers.ofString());
+            return TransientRetry.REGISTRIES.send(client, request);
         } catch (IOException exception) {
-            throw new UncheckedIOException("Registry unreachable: " + request.uri(), exception);
+            throw new UncheckedIOException(
+                "Registry unreachable: " + request.uri() + ": " + exception.getMessage(), exception
+            );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while querying the registry", exception);
