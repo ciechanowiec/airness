@@ -2,6 +2,7 @@
 // the Next.js application layer, which nothing imports back, the pure-logic floor a project or a layer
 // package declares, and the production roots that import no test code and no development-only dependency. The
 // framework-neutral rules stay in the shipped configuration.
+import { productionSourceRoots } from './file-roles.js'
 import { APP_ROOT } from './route-map.js'
 import { DEFAULT_SOURCE_ROOTS } from './settings.js'
 
@@ -84,16 +85,6 @@ export const pureLogicRule = (
   }
 }
 
-// Storybook's own configuration, which builds the component workbench at development time and imports Storybook, a
-// development-only dependency, by design.
-const STORYBOOK_CONFIGURATION: string = '.storybook'
-
-// The source roots that hold test code and tooling rather than production code.
-const NON_PRODUCTION_ROOTS: ReadonlySet<string> = new Set(['tests', 'scripts', STORYBOOK_CONFIGURATION])
-
-const productionRoots = (sourceRoots: readonly string[]): readonly string[] =>
-  sourceRoots.filter((root: string): boolean => !NON_PRODUCTION_ROOTS.has(root))
-
 // What under a production root is test code or test configuration itself: a colocated spec, and the Vitest and
 // Playwright files at the member root, which a member that declares the whole member as a root still holds.
 const TEST_CODE: string = String.raw`\.(spec|test)\.(ts|tsx)$|^(tests|scripts)/|^vitest\.[^/]*$|^playwright\.config\.[^/]*$`
@@ -105,7 +96,7 @@ const TEST_CODE: string = String.raw`\.(spec|test)\.(ts|tsx)$|^(tests|scripts)/|
  * @returns the rule, or undefined when the member has no production root.
  */
 export const productionImportsNoTestCodeRule = (sourceRoots: readonly string[]): ArchitectureRule | undefined => {
-  const production: readonly string[] = productionRoots(sourceRoots)
+  const production: readonly string[] = productionSourceRoots(sourceRoots)
   if (production.length === 0) {
     return undefined
   }
@@ -135,7 +126,7 @@ const ROOT_TOOLING: string = String.raw`^(eslint|knip|lint-staged|postcss|pretti
 export const productionImportsNoDevelopmentDependencyRule = (
   sourceRoots: readonly string[],
 ): ArchitectureRule | undefined => {
-  const production: readonly string[] = productionRoots(sourceRoots)
+  const production: readonly string[] = productionSourceRoots(sourceRoots)
   if (production.length === 0) {
     return undefined
   }

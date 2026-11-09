@@ -123,3 +123,17 @@ export const isWithinSourceRoots = (file: string, roots: readonly string[]): boo
     const normalised: string = normalisedSourceRoot(root)
     return normalised === '.' || file.startsWith(`${normalised}/`)
   })
+
+/**
+ * The source roots that hold test code and tooling rather than production code: the tests, the scripts, and
+ * Storybook's own configuration, which builds the component workbench at development time.
+ */
+export const NON_PRODUCTION_ROOTS: readonly string[] = ['tests', 'scripts', '.storybook']
+
+/**
+ * The source roots that hold production code.
+ * @param sourceRoots the member's source roots.
+ * @returns every root but the ones {@link NON_PRODUCTION_ROOTS} names.
+ */
+export const productionSourceRoots = (sourceRoots: readonly string[]): readonly string[] =>
+  sourceRoots.filter((root: string): boolean => !NON_PRODUCTION_ROOTS.includes(root))
