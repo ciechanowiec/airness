@@ -20,8 +20,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Actionlint reads the staged copy of the committable tree, so the local actions and reusable workflows a
  * workflow calls are validated beside it. It finds the project by a Git directory, so the staged tree gets
- * an empty one, and nothing of the history is read. Its configuration file is refused by the inventory, because
- * it can ignore any finding.
+ * an empty one, and nothing of the history is read. A project's configuration file is refused by the inventory,
+ * because it can ignore any finding, and the staged tree gets the {@link ActionlintConfiguration} instead.
  */
 @Mojo(name = "actions", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, threadSafe = true)
 public final class ActionsMojo extends AbstractRepositoryMojo {
@@ -51,6 +51,7 @@ public final class ActionsMojo extends AbstractRepositoryMojo {
 
     private static List<Findings> lint(ScannerTree tree, String pinned) throws IOException {
         Files.createDirectory(tree.input().resolve(".git"));
+        ActionlintConfiguration.writeInto(tree.input());
         ScannerProcess process = new ScannerProcess(pinned, tree);
         process.validate(ACTIONLINT);
         int exit = AbstractDockerCheckMojo.executeScanner(
