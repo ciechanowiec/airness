@@ -13,6 +13,7 @@
 import type { Rule } from 'eslint'
 import { type FileMatcher, type FlatConfigBlock, NO_INHERITANCE } from './eslint-core.js'
 import { type RestrictedSyntax, SECURITY_RESTRICTIONS } from './eslint-security.js'
+import { TIME_ZONE_RESTRICTIONS } from './eslint-time-zone.js'
 import { CLOUDFRONT_RUNTIME } from './javascript-runtimes.js'
 import { isWithinCallArguments } from './javascript-syntax.js'
 
@@ -103,7 +104,12 @@ export const cloudFrontBlock = (files: readonly FileMatcher[]): FlatConfigBlock 
   },
   rules: {
     'cloudfront/no-await-in-arguments': 'error',
-    'no-restricted-syntax': [...NO_INHERITANCE, ...SECURITY_RESTRICTIONS, ...CLOUDFRONT_SYNTAX],
+    'no-restricted-syntax': [
+      ...NO_INHERITANCE,
+      ...SECURITY_RESTRICTIONS,
+      ...TIME_ZONE_RESTRICTIONS,
+      ...CLOUDFRONT_SYNTAX,
+    ],
     'no-restricted-globals': ['error', ...CLOUDFRONT_GLOBALS],
     // It demands the `Set` this runtime lacks for every array only searched with `includes`, which is
     // the replacement named above, so no file could satisfy both.

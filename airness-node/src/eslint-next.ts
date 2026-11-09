@@ -12,6 +12,7 @@ import {
   withoutWarnings,
 } from './eslint-core.js'
 import { SECURITY_RESTRICTIONS } from './eslint-security.js'
+import { TIME_ZONE_RESTRICTIONS } from './eslint-time-zone.js'
 
 /** The end-to-end specs of a browser application, which Playwright runs rather than Vitest. */
 export const END_TO_END_FILES: readonly string[] = ['tests/e2e/**/*.ts', 'tests/e2e/**/*.tsx']
@@ -84,7 +85,12 @@ export const endToEndBlocks: readonly FlatConfigBlock[] = [
     plugins: { playwright },
     rules: {
       ...testIdiomRules,
-      'no-restricted-syntax': [...NO_INHERITANCE, ...SECURITY_RESTRICTIONS, ...NO_NETWORK_GUARD_ESCAPE],
+      'no-restricted-syntax': [
+        ...NO_INHERITANCE,
+        ...SECURITY_RESTRICTIONS,
+        ...TIME_ZONE_RESTRICTIONS,
+        ...NO_NETWORK_GUARD_ESCAPE,
+      ],
       'sonarjs/assertions-in-tests': 'off',
       'playwright/no-focused-test': 'error',
       'playwright/no-skipped-test': 'error',
