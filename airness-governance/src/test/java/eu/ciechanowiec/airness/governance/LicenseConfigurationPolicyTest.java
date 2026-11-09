@@ -71,10 +71,10 @@ class LicenseConfigurationPolicyTest {
     }
 
     @Test
-    void admitsTheUnconditionalGrantOfTruncateUtf8BytesButNoFontLicense() {
+    void admitsTheUnconditionalGrantOfTruncateUtf8BytesAndTheOpenFontLicense() {
         List<String> allowed = allowlist();
         assertTrue(allowed.contains("WTFPL"), "sanitize-filename reaches truncate-utf8-bytes under WTFPL");
-        assertFalse(allowed.contains("OFL-1.1"));
+        assertTrue(allowed.contains("OFL-1.1"), "the starter self-hosts its fonts from npm under OFL-1.1");
     }
 
     @Test

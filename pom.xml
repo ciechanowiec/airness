@@ -771,7 +771,13 @@
 
                                 WTFPL grants every use without condition. It is admitted because truncate-utf8-bytes,
                                 which sanitize-filename reaches, carries it, so without it every application that
-                                depends on sanitize-filename fails this list. Font licenses are not admitted.
+                                depends on sanitize-filename fails this list.
+
+                                OFL-1.1 is the license of the fonts an application self-hosts from npm, such as the
+                                Fontsource packages the Spring Boot starter draws its pages with. It lets the fonts be
+                                bundled, embedded and redistributed with any software, commercial software included,
+                                and reaches nothing of that software. It conditions only the fonts themselves: they
+                                are not sold on their own, and a modified font gives up the names the authors reserve.
                             -->
                             <includedLicense>AFL-2.1</includedLicense>
                             <includedLicense>AFL-3.0</includedLicense>
@@ -782,6 +788,7 @@
                             <includedLicense>CC-BY-4.0</includedLicense>
                             <includedLicense>MulanPSL-2.0</includedLicense>
                             <includedLicense>NCSA</includedLicense>
+                            <includedLicense>OFL-1.1</includedLicense>
                             <includedLicense>PostgreSQL</includedLicense>
                             <includedLicense>PSF-2.0</includedLicense>
                             <includedLicense>Python-2.0</includedLicense>
