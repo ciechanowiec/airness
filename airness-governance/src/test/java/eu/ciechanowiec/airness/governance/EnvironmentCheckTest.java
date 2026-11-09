@@ -170,15 +170,16 @@ class EnvironmentCheckTest {
             .write("web/package.json", EMPTY_MANIFEST)
             .write("web/next.config.ts", NEXT_CONFIG)
             .write("api/package.json", EMPTY_MANIFEST)
-            .write("api/Dockerfile", """
-                FROM node:26
-                # The workspace needs web/package.json beside this member's.
-                COPY package.json pnpm-lock.yaml ./
-                COPY web/package.json web/
-                COPY ["api/package.json", "api/"]
-                RUN pnpm install --filter api
-                """)
-            .write("docker/assets.Dockerfile", "FROM nginx:1.29\nCOPY assets web/static\n")
+            .write(
+                "api/Dockerfile", """
+                    FROM node:26
+                    # The workspace needs web/package.json beside this member's.
+                    COPY package.json pnpm-lock.yaml ./
+                    COPY web/package.json web/
+                    COPY ["api/package.json", "api/"]
+                    RUN pnpm install --filter api
+                    """
+            ).write("docker/assets.Dockerfile", "FROM nginx:1.29\nCOPY assets web/static\n")
             .root();
         assertTrue(
             undeclared(root).isEmpty(),
