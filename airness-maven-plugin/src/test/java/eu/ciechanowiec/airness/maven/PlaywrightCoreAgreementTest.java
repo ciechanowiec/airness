@@ -1,12 +1,14 @@
 package eu.ciechanowiec.airness.maven;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.playwright.Playwright;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,7 +33,7 @@ class PlaywrightCoreAgreementTest {
 
     private static final String DRIVER_PACKAGE = "/driver/package/";
     private static final String CORE = "playwright-core";
-    private static final List<String> NPM_PACKAGES = List.of("airness-node", "airness-payload-node");
+    private static final String LOCKFILE = "pnpm-lock.yaml";
 
     @Test
     void resolvesTheCoreTheJavaDriverBundlesInEveryNpmPackage() {
@@ -41,9 +43,13 @@ class PlaywrightCoreAgreementTest {
             .map(browser -> browser.path("browserVersion").asText())
             .findFirst()
             .orElse("an unnamed build");
+        List<Path> npmPackages = SelfModules.directories().stream()
+            .filter(module -> !resolved(module).isEmpty())
+            .toList();
+        assertFalse(npmPackages.isEmpty(), "a check that read no lockfile proves nothing about this repository");
         assertEquals(
-            NPM_PACKAGES.stream().map(module -> module + " resolves " + CORE + " " + bundled).toList(),
-            NPM_PACKAGES.stream().map(module -> module + " resolves " + CORE + " " + resolved(module)).toList(),
+            npmPackages.stream().map(module -> described(module, List.of(bundled))).toList(),
+            npmPackages.stream().map(module -> described(module, resolved(module))).toList(),
             "the Java driver bundles " + CORE + " " + bundled + " with Chromium " + chromium + "; raise "
                 + "playwright.version in airness-maven-plugin and @playwright/test in each npm package together"
         );
@@ -59,18 +65,23 @@ class PlaywrightCoreAgreementTest {
         }
     }
 
+    private static String described(Path module, List<String> releases) {
+        return module.getFileName() + " resolves " + CORE + " " + releases;
+    }
+
+    // Every reactor module with a lockfile that resolves the core is read, so a new npm package is held too.
     @SneakyThrows
-    private static String resolved(String module) {
-        String lockfile = Files.readString(SelfModules.repository().resolve(module).resolve("pnpm-lock.yaml"));
-        Object document = new Yaml(new SafeConstructor(new LoaderOptions())).load(lockfile);
+    private static List<String> resolved(Path module) {
+        Path lockfile = module.resolve(LOCKFILE);
+        Object document = Files.isRegularFile(lockfile)
+            ? new Yaml(new SafeConstructor(new LoaderOptions())).load(Files.readString(lockfile)) : Map.of();
         Map<?, ?> packages = document instanceof Map<?, ?> root && root.get("packages") instanceof Map<?, ?> listed
             ? listed : Map.of();
-        List<String> versions = packages.keySet().stream()
+        return packages.keySet().stream()
             .map(String::valueOf)
             .filter(key -> key.startsWith(CORE + "@"))
             .map(key -> key.substring(CORE.length() + 1).replaceFirst("\\(.*", ""))
             .distinct()
             .toList();
-        return versions.size() == 1 ? versions.getFirst() : "no single release but " + versions;
     }
 }
