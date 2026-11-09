@@ -276,6 +276,7 @@
                             <goal>entry-files</goal>
                             <goal>image-assets</goal>
                             <goal>environment</goal>
+                            <goal>runner-images</goal>
                             <goal>instruction-references</goal>
                             <goal>skills</goal>
                             <goal>generated-denial</goal>

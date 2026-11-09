@@ -1,12 +1,12 @@
 package eu.ciechanowiec.airness.governance;
 
 /**
- * One thing the blocklist refused, ready to be printed beside the file that named it.
+ * One thing the blocklist or the runner image rule refused, ready to be printed beside the file that named it.
  *
  * <p>Every refusal names the reason and the replacement, because a refusal that stops a build without
- * saying what to use instead sends the reader to the same search the table already did.
+ * saying what to use instead sends the reader to the same search the rule already did.
  *
- * @param subject     the reference, the coordinate, or the name as written
+ * @param subject     the reference, the coordinate, the label, or the name as written
  * @param reason      why it is refused
  * @param replacement what to use instead
  */

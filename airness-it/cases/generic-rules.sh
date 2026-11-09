@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 
-# The generic repository rules: image integrity, environment coherence, agent documentation
-# references, skill manifests, generated-file denial, container definitions and workflows. Their variants
-# are unit-tested in airness-governance and airness-maven-plugin. These runs prove each goal is bound in
-# the installed parent: one report-only run up to the Extended scanners carries a planted defect for every
-# rule, since none of the defects reads what another rule reads, and one enforcing Default run proves
-# that the findings fail the build.
+# The generic repository rules: image integrity, environment coherence, hosted runner images, agent
+# documentation references, skill manifests, generated-file denial, container definitions and workflows.
+# Their variants are unit-tested in airness-governance and airness-maven-plugin. These runs prove each goal
+# is bound in the installed parent: one report-only run up to the Extended scanners carries a planted defect
+# for every rule, since none of the defects reads what another rule reads, and one enforcing Default run
+# proves that the findings fail the build.
 run_generic_rule_cases() {
     new_consumer generic-rules
     generic_consumer="${consumer_directory}"
@@ -43,6 +43,8 @@ YAML
         'public/broken[.]png: truncated PNG [(]no IEND chunk[)]'
     expect_match generic_batch 'generic rules: environment coherence names the undocumented compose variable' \
         'DB_PASSWORD in compose[.]yaml'
+    expect_match generic_batch 'generic rules: runner images name the aliased hosted runner with its replacement' \
+        '[.]github/workflows/ci[.]yml:7: ubuntu-latest - .*; use ubuntu-26[.]04'
     expect_match generic_batch 'generic rules: agent documentation names the missing file' \
         'AGENTS[.]md: docs/missing-guide[.]md'
     expect_match generic_batch 'generic rules: skill manifests name the missing frontmatter' \

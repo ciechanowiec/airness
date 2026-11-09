@@ -33,6 +33,11 @@ Airness governs all of the following domains:
   properties, valid Airness parameters, and current build practices: no Java version below 25 stated in the project
   file, no superseded coordinate, a version on every managed dependency, a groupId on every plugin, `project.`-prefixed
   expressions, the documented order of pom elements, and Java 21 or later in every workflow's `setup-java`.
+  Every hosted Ubuntu runner a workflow, a composite action or an Azure Pipelines definition names runs the
+  current Ubuntu long-term-support release, named rather than aliased: `ubuntu-26.04`, or `ubuntu-26.04-arm` for
+  Arm. `ubuntu-latest` and every earlier release are refused wherever the label is written, a matrix value
+  included, and a larger runner whose label carries a release is held to it too. The required release moves to the
+  next long-term-support one only once GitHub-hosted runners for it are generally available.
   Every module ends with `airness:module-complete`, the last execution of `verify`: a project binds nothing in
   `verify` and names no goal after it, and either is refused at `validate`. Bind a project step to an earlier
   phase, such as `post-integration-test`, and name a command-line goal before the lifecycle

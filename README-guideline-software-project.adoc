@@ -398,6 +398,12 @@ Masking them in the header parser closes the leak for every consumer.
 . The history is linear: no commit has more than one parent. A branch takes the work of another by a rebase or a cherry-pick.
 . A xref:#check[check] walks the commit history, back to and including the first commit. A commit with more than one parent fails the check.
 
+[[continuous-integration]]
+=== Continuous Integration
+
+. The continuous integration selects the operating system image of each hosted runner by a named release, never by an alias that the hosting provider moves to another release. An alias changes the environment of the xref:#verification-command[verification command] while the xref:#governed-repository[governed repository] stays unchanged.
+. The named release is the current long-term-support release for which the hosting provider offers generally available runners. A xref:#check[check] reads every continuous integration configuration file and fails on an alias or an earlier release.
+
 [[scouts]]
 == Scouts
 
