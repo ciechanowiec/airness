@@ -5,6 +5,7 @@ run_repository_cases() {
     run_formatting_boundaries
     run_binary_formatting_boundary
     run_indentation_boundary
+    run_ignore_pattern_boundary
     run_ignored_output_boundary
     run_tree_boundary
     run_report_only_boundaries
@@ -117,6 +118,29 @@ run_indentation_boundary() {
         'src/main/resources/application[.]yml: indent_size = 2, but line 2 nests 4 columns deeper than line 1'
     expect_no_match indentation_departing 'indentation: the make recipe and the tab-separated data stay clean' \
         'Makefile: |table[.]tsv: '
+}
+
+# An ignore line that repeats a declaration git already applies is named, whether it repeats a managed line of its
+# own file or an un-anchored line of the .gitignore above it; a managed line and an anchored one never are.
+run_ignore_pattern_boundary() {
+    new_consumer ignore-patterns
+    ignore_consumer="${consumer_directory}"
+    run_maven ignore_conforming repository "${ignore_consumer}" airness:ignore-patterns
+    expect_exit ignore_conforming 'ignore patterns: the managed blocks alone repeat nothing' 0
+    expect_match ignore_conforming 'ignore patterns: the check read the ignore files' \
+        'Ignore patterns read [1-9][0-9]* ignore file'
+
+    printf '\n# Build output\ntarget/\n' >> "${ignore_consumer}/.gitignore"
+    mkdir -p "${ignore_consumer}/module"
+    printf '*.log\n/target\n' > "${ignore_consumer}/module/.gitignore"
+    run_maven ignore_repeating repository "${ignore_consumer}" airness:ignore-patterns
+    expect_exit ignore_repeating 'ignore patterns: a repeated pattern fails the check' 1
+    expect_match ignore_repeating 'ignore patterns: a project line repeating a managed one names both' \
+        '[.]gitignore:[0-9]+: target/ - repeats [.]gitignore:[0-9]+ in the Airness managed generic block and no line'
+    expect_match ignore_repeating 'ignore patterns: a nested un-anchored repeat names the file above' \
+        'module/[.]gitignore:1: [*][.]log - repeats [.]gitignore:[0-9]+ in the Airness managed generic block, an '
+    expect_no_match ignore_repeating 'ignore patterns: an anchored nested line is its own pattern' \
+        'module/[.]gitignore:2'
 }
 
 # Output a build writes after validate to a path git ignores outside the build directory, as a compiled package
