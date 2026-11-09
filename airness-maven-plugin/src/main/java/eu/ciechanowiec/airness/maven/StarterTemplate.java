@@ -6,7 +6,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,7 +47,7 @@ final class StarterTemplate implements AutoCloseable {
      */
     static StarterTemplate open(ClassLoader loader, String name) throws IOException {
         URL marker = Optional.ofNullable(loader.getResource(LOCATION + name + "/" + MARKER))
-            .orElseThrow(() -> new NoSuchFileException("Airness has no starter named " + name));
+            .orElseThrow(() -> new IOException("Airness has no starter named " + name));
         URI address = address(marker);
         if (!JAR.equals(address.getScheme())) {
             return new StarterTemplate(parent(Path.of(address)), Optional.empty());
