@@ -138,7 +138,13 @@ public final class NewMojo extends AbstractMojo {
         this.run(
             List.of(
                 "git", "commit", "--quiet", "--message",
-                "feat: start " + request.name() + " from the Airness " + this.starter() + " starter"
+                "feat: start " + request.name() + " from the Airness " + this.starter() + " starter",
+                // The commit-history policy wants the reason for every change beyond a trivial one, the first
+                // included, so the first commit says why the application starts from a starter.
+                "--message",
+                "The application begins from a starter that already passes Airness verification, so its first "
+                    + "change is made on a working base rather than on an empty project. airness:new wrote the "
+                    + "starter under the names of this application, ran assets-init and wrote the first lockfile."
             ),
             destination, "git-commit.log"
         );
