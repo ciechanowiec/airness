@@ -37,6 +37,13 @@ run_starter_cases() {
             "${starter_commits} commit(s), and uncommitted: ${starter_changes}"
     fi
 
+    starter_body="$(git -C "${starter_application}" log -1 --format=%b 2>/dev/null || printf '')"
+    if [ -n "${starter_body}" ]; then
+        pass 'starters: the first commit says why it was made, as the commit-history policy asks'
+    else
+        fail 'starters: the first commit says why it was made, as the commit-history policy asks' 'the body is empty'
+    fi
+
     run_maven starter_verify starters "${starter_application}" clean verify
     expect_exit starter_verify 'starters: the application made from the spring-boot starter passes mvn clean verify' 0
     expect_match starter_verify 'starters: the node gates run on the application' 'Node gate knip in [.] passed'
