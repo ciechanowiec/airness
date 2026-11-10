@@ -13,7 +13,7 @@ minimumReleaseAgeExclude:
 overrides:
   "eslint-plugin-functional@10.0.1>deepmerge-ts": "8.0.2"
   "@eslint/config-array@0.23.5>minimatch": "11.0.4"
-  "@typescript-eslint/typescript-estree@8.72.1>minimatch": "11.0.4"
+  "@typescript-eslint/typescript-estree@8.72.2>minimatch": "11.0.4"
   "eslint-plugin-sonarjs@4.2.2>minimatch": "11.0.4"
   "eslint@10.14.0>minimatch": "11.0.4"
   "type-coverage-core@2.31.1>minimatch": "11.0.4"
