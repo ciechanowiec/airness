@@ -14,6 +14,9 @@ import java.util.Optional;
  * instructions beside it. Such files are refused in every directory, since Claude Code also loads nested
  * ones. The names are constants rather than project parameters, and no setting exempts a path, because
  * a configurable rule could pass over the very file the tool would read.
+ *
+ * <p>The rule directories of the other agent tools and a {@code GEMINI.md} below the root are refused the
+ * same way, because each holds instructions of its own beside {@code AGENTS.md}.
  */
 public final class EntryFileCheck {
 
@@ -21,6 +24,9 @@ public final class EntryFileCheck {
     private static final String EMPTY_INSTRUCTIONS = "AGENTS.md contains no instructions";
     private static final String FORBIDDEN_CLAUDE
         = "CLAUDE.md files are forbidden because Claude Code reads AGENTS.md (delete them)";
+    private static final String FORBIDDEN_TOOL_RULES = "Agent tool rule directories and nested GEMINI.md files are "
+        + "forbidden because they hold instructions beside AGENTS.md (delete them, and point the tool at AGENTS.md "
+        + "from its root reference file)";
 
     private final Path root;
 
@@ -42,7 +48,8 @@ public final class EntryFileCheck {
         return List.of(
             new Findings(MISSING_INSTRUCTIONS, this.missingInstructions()),
             new Findings(EMPTY_INSTRUCTIONS, this.emptyInstructions()),
-            new Findings(FORBIDDEN_CLAUDE, this.forbiddenClaude())
+            new Findings(FORBIDDEN_CLAUDE, this.forbiddenClaude()),
+            new Findings(FORBIDDEN_TOOL_RULES, this.forbiddenToolRules())
         );
     }
 
@@ -63,6 +70,14 @@ public final class EntryFileCheck {
         return Repository.trackedFiles(this.root).stream()
             .filter(EntryFileRules::isForbidden)
             .map(file -> this.root.relativize(file).toString())
+            .toList();
+    }
+
+    private List<String> forbiddenToolRules() {
+        return Repository.trackedFiles(this.root).stream()
+            .map(this.root::relativize)
+            .filter(EntryFileRules::isToolInstruction)
+            .map(Path::toString)
             .toList();
     }
 
