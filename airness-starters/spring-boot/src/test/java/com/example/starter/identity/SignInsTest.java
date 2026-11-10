@@ -40,8 +40,6 @@ class SignInsTest {
 
     private static final String WRONG = "not-the-current-password";
 
-    private static final Runnable NOTHING = () -> { };
-
     private static final String CHOSEN = "a-new-fixture-not-a-secret";
 
     // What another session wrote as the password while a change was being made. It is no hash any password
@@ -87,6 +85,11 @@ class SignInsTest {
         );
     }
 
+    // What happens meanwhile in a test where nothing does.
+    private static void nothing() {
+        // The attempts are let go as they stand.
+    }
+
     // Holds the account's row until every attempt waits on it, does what the test says happens meanwhile,
     // and lets them all go when the holding transaction commits. Answers what each attempt answered.
     @SneakyThrows
@@ -112,7 +115,7 @@ class SignInsTest {
     }
 
     private void refusedAtOnce(String email, int count) {
-        this.heldThrough(email, Collections.nCopies(count, this.refusal(email)), NOTHING);
+        this.heldThrough(email, Collections.nCopies(count, this.refusal(email)), SignInsTest::nothing);
     }
 
     private Callable<Boolean> refusal(String email) {
@@ -180,7 +183,7 @@ class SignInsTest {
     @Test
     void countsEveryOneOfWrongCurrentPasswordsTypedAtOnce() {
         String email = Accounts.admitted(this.users, "hurried", Role.USER);
-        this.heldThrough(email, Collections.nCopies(Lockout.LIMIT - 1, this.proof(email, WRONG)), NOTHING);
+        this.heldThrough(email, Collections.nCopies(Lockout.LIMIT - 1, this.proof(email, WRONG)), SignInsTest::nothing);
         assertEquals(Lockout.LIMIT - 1, this.failedAttempts(email));
     }
 
