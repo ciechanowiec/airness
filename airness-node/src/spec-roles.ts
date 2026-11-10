@@ -19,6 +19,16 @@ const isSpecFile = (file: string): boolean =>
     return name.endsWith(`.spec${extension}`) || name.endsWith(`.test${extension}`)
   })
 
+// The root that holds a member's specifications and the helpers only they use.
+const TEST_ROOT: string = 'tests'
+
+/**
+ * Whether a file is test code: anything under the test root, and a spec or test file wherever it lies.
+ * @param file the member-relative path.
+ * @returns true for test code.
+ */
+export const isTestFile = (file: string): boolean => file.startsWith(`${TEST_ROOT}/`) || isSpecFile(file)
+
 const isUnitSpec = (file: string): boolean =>
   matchesGlob(UNIT_SPEC_GLOB, file) && !matchesGlob(END_TO_END_SPEC_GLOB, file)
 

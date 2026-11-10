@@ -43,6 +43,33 @@ describe('reading the airness block of package.json', () => {
     expect(readSettings({}).productionDeadCode).toBe(false)
   })
 
+  it('counts as production entry points the layer entries, then only the declared ones that give a reason', () => {
+    const settings: Settings = readSettings(
+      {
+        airness: {
+          productionEntries: [{ pattern: 'scripts/migrate.ts', reason: 'the start script runs it' }, 'scripts/seed.ts'],
+        },
+      },
+      [{ generatedArtefacts: [], frameworkGlue: [], javascriptRuntimes: [], productionEntries: ['src/app.config.ts'] }],
+    )
+    expect(settings.productionEntries).toEqual(['src/app.config.ts', 'scripts/migrate.ts'])
+    expect(findConvenienceExclusions(settings.declaredExclusions)).toEqual([
+      'productionEntries entry "scripts/seed.ts" states no reason; ' +
+        'an exclusion is granted by file role, so the role must be written down',
+    ])
+  })
+
+  it('reports a declared production entry point that names no file in the words of an entry point', () => {
+    const settings: Settings = readSettings({
+      airness: { productionEntries: [{ pattern: 'scripts/gone.ts', reason: 'the start script runs it' }] },
+    })
+    expect(findUnreachedExclusionsBySetting(settings.declaredExclusions, ['scripts/migrate.ts'])).toEqual([
+      'productionEntries entry "scripts/gone.ts" names no file; ' +
+        'an entry point that matches nothing records a decision with no effect',
+    ])
+    expect(findUnreachedExclusionsBySetting(settings.declaredExclusions, ['scripts/gone.ts'])).toEqual([])
+  })
+
   it('falls back to the defaults on a malformed value rather than widening a rule', () => {
     const settings: Settings = readSettings({ airness: { sourceRoots: 'lib', generatedArtefacts: [1] } })
     expect(settings.sourceRoots).toEqual(DEFAULT_SOURCE_ROOTS)
