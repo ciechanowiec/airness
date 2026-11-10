@@ -592,6 +592,7 @@ A node project declares what the harness cannot know through these keys under `a
 | `coverageExclude` | source files the coverage floor doesn't measure |
 | `pureLogicRoots` | directories of pure logic, which `arch` forbids to import anything else under a source root |
 | `productionDeadCode` | `true` holds every export and production file to production use; test a helper through the production code that uses it |
+| `productionEntries` | files that run in production though no entry point knip reads reaches them, such as a script `start` runs or a site build that renders a story; never a test, and no suppression |
 | `accessibilitySkipRoutes` | route prefixes the sweep doesn't follow |
 | `serve`, `serverUrl`, `serverUrlVariables`, `auxiliaryServers`, `clock` | how a browser application is served and the clock it starts at, as Browser Verification describes |
 | `bundleBudgetBytes`, `accessibilityRouteBudget` | lower ceilings for the client bundle and for the routes the sweep discovers |
@@ -599,5 +600,5 @@ A node project declares what the harness cannot know through these keys under `a
 | `pretest`, `testWrapper` | the preparation and the wrapper that Node Application Preparation and Security Corrections describes |
 | `vulnerabilityAllowlist` | npm advisories that can't be exploited here, in the root node project only |
 
-Each `generatedArtefacts`, `frameworkGlue`, `javascriptAllowlist`, `coverageExclude`, `pureLogicRoots` and
-`accessibilitySkipRoutes` entry names a `pattern` and a `reason`.
+Each `generatedArtefacts`, `frameworkGlue`, `javascriptAllowlist`, `coverageExclude`, `pureLogicRoots`,
+`productionEntries` and `accessibilitySkipRoutes` entry names a `pattern` and a `reason`.

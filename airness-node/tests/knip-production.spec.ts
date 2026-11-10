@@ -115,6 +115,31 @@ const FRAMEWORK_LAYER: LayerDefaults = layerDefaultsOf({
   airness: { layer: { productionEntries: ['src/app.config.ts'] } },
 })
 
+// Shared logic under the sources that only a script reaches, a script the application runs before it serves, by a
+// package script knip's production mode does not follow.
+const SCRIPT_REACH: Readonly<Record<string, string>> = {
+  'src/lib/migrate.ts': 'export const migrate = (version: number): number => version + 1\n',
+  'scripts/migrate.ts': "import { migrate } from '../src/lib/migrate.js'\n\nmigrate(1)\n",
+  'tests/migrate.spec.ts': [
+    "import { expect, it } from 'vitest'",
+    "import { migrate } from '@/lib/migrate.js'",
+    '',
+    "it('moves to the next version', () => {",
+    '  expect(migrate(1)).toBe(2)',
+    '})',
+    '',
+  ].join('\n'),
+}
+
+const MIGRATION_REASON: string = 'the start script runs the migration before the server'
+
+// A member whose start runs the migration through a package script.
+const scriptManifest = (entries: readonly unknown[]): Readonly<Record<string, unknown>> => ({
+  ...MANIFEST,
+  scripts: { migrate: 'node scripts/migrate.ts', start: 'pnpm run migrate && node src/refund.ts' },
+  airness: { productionDeadCode: true, productionEntries: entries },
+})
+
 const manifestFile = (manifest: Readonly<Record<string, unknown>>): string =>
   `${JSON.stringify(manifest, null, JSON_INDENT)}\n`
 
@@ -230,6 +255,52 @@ describe('knip production run', PROCESS_TIME, () => {
     'leaves what only a framework configuration reaches to the tests where no layer names it',
     () => {
       expect(findingsOf(judged(FRAMEWORK_REACH))).toMatch(/^src\/records\/posts\.ts/mu)
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'counts a production entry point the project declares, and names it with its reason in the verdict',
+    () => {
+      const result: GateResult = judged(
+        SCRIPT_REACH,
+        scriptManifest([{ pattern: 'scripts/migrate.ts', reason: MIGRATION_REASON }]),
+      )
+      expect(result.ok).toBe(true)
+      expect(result.summary).toContain(
+        `production entry points the project declares: scripts/migrate.ts (${MIGRATION_REASON})`,
+      )
+      expect(result.output).toContain('scripts/migrate.ts')
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'leaves what only an undeclared script reaches to the tests, and an entry without a reason undeclared',
+    () => {
+      expect(findingsOf(judged(SCRIPT_REACH, scriptManifest([])))).toMatch(/^src\/lib\/migrate\.ts/mu)
+      expect(findingsOf(judged(SCRIPT_REACH, scriptManifest(['scripts/migrate.ts'])))).toMatch(
+        /^src\/lib\/migrate\.ts/mu,
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'refuses a declared production entry point that names a test, whether by its root or by its name',
+    () => {
+      const result: GateResult = judged(
+        { ...SCRIPT_REACH, 'src/lib/migrate.test.ts': 'export {}\n' },
+        scriptManifest([
+          { pattern: 'tests/**', reason: 'every spec' },
+          { pattern: 'src/lib/*.test.ts', reason: 'a test beside its source' },
+        ]),
+      )
+      expect(result.summary).toBe('a declared production entry point names a test')
+      expect(findingsOf(result)).toContain('productionEntries entry "tests/**" names the test tests/migrate.spec.ts')
+      expect(findingsOf(result)).toContain(
+        'productionEntries entry "src/lib/*.test.ts" names the test src/lib/migrate.test.ts',
+      )
     },
     TOOL_TIMEOUT_MS,
   )

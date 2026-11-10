@@ -94,7 +94,10 @@ export interface Settings extends InvocationSettings {
    * which a project opts into and can only tighten the gate.
    */
   readonly productionDeadCode: boolean
-  /** Files the production run of the dead-code gate counts as production entry points, beyond those knip reads. */
+  /**
+   * Files the production run of the dead-code gate counts as production entry points, beyond those knip reads: the
+   * ones each layer's framework runs, then the ones the project declares with a reason.
+   */
   readonly productionEntries: readonly string[]
   /**
    * The knip plugins the production run of the dead-code gate leaves out, because each reads one of
@@ -312,14 +315,25 @@ const appSettings = (
   }
 }
 
-// What the dead-code gate reads: whether the project opts into the production run, and the production entry points
-// and the knip plugins each layer's framework adds to it.
+/** The setting a project names the production entry points knip cannot see under. */
+export const PRODUCTION_ENTRIES_SETTING: string = 'productionEntries'
+
+// The entries a setting of file globs declares.
+const globExclusions = (raw: Readonly<Record<string, unknown>>, setting: string): readonly DeclaredExclusion[] =>
+  asDeclaredExclusions(raw[setting], setting, 'glob')
+
+// What the dead-code gate reads: whether the project opts into the production run, the production entry points each
+// layer's framework and the project add to it, and the knip plugins the layers turn off there.
 const deadCodeSettings = (
   raw: Readonly<Record<string, unknown>>,
   layers: readonly LayerDefaults[],
+  entries: readonly DeclaredExclusion[],
 ): Pick<Settings, 'productionDeadCode' | 'productionEntries' | 'knipConfigPlugins'> => ({
   productionDeadCode: raw['productionDeadCode'] === true,
-  productionEntries: layers.flatMap((layer: LayerDefaults): readonly string[] => layer.productionEntries ?? []),
+  productionEntries: [
+    ...layers.flatMap((layer: LayerDefaults): readonly string[] => layer.productionEntries ?? []),
+    ...honoured(entries),
+  ],
   knipConfigPlugins: [
     ...new Set<string>(layers.flatMap((layer: LayerDefaults): readonly string[] => layer.knipConfigPlugins ?? [])),
   ],
@@ -368,13 +382,10 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     JAVASCRIPT_SETTING,
     'regex',
   )
-  const glue: readonly DeclaredExclusion[] = asDeclaredExclusions(raw['frameworkGlue'], 'frameworkGlue', 'glob')
-  const generated: readonly DeclaredExclusion[] = asDeclaredExclusions(
-    raw['generatedArtefacts'],
-    'generatedArtefacts',
-    'glob',
-  )
-  const coverage: readonly DeclaredExclusion[] = asDeclaredExclusions(raw['coverageExclude'], 'coverageExclude', 'glob')
+  const glue: readonly DeclaredExclusion[] = globExclusions(raw, 'frameworkGlue')
+  const generated: readonly DeclaredExclusion[] = globExclusions(raw, 'generatedArtefacts')
+  const coverage: readonly DeclaredExclusion[] = globExclusions(raw, 'coverageExclude')
+  const entries: readonly DeclaredExclusion[] = globExclusions(raw, PRODUCTION_ENTRIES_SETTING)
   const floor: readonly DeclaredExclusion[] = asDeclaredExclusions(raw['pureLogicRoots'], 'pureLogicRoots', 'directory')
   const routes: readonly DeclaredExclusion[] = asDeclaredExclusions(
     raw['accessibilitySkipRoutes'],
@@ -398,7 +409,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
       ...honoured(generated),
     ],
     coverageExclude: honoured(coverage),
-    declaredExclusions: [...javascript, ...glue, ...generated, ...coverage, ...floor, ...routes],
+    declaredExclusions: [...javascript, ...glue, ...generated, ...coverage, ...floor, ...routes, ...entries],
     javascriptAllowlist: [
       ...DEFAULT_JAVASCRIPT_ALLOWLIST,
       ...layerRuntimes.map((role: RuntimeRole): RolePattern => role.role),
@@ -406,7 +417,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     ],
     javascriptRuntimes: [...DEFAULT_JAVASCRIPT_RUNTIMES, ...layerRuntimes, ...declaredRuntimeRoles(javascript)],
     pureLogicRoots: floorOf(floor, layers),
-    ...deadCodeSettings(raw, layers),
+    ...deadCodeSettings(raw, layers, entries),
     ...appSettings(raw, layers, honouredRoutes(routes)),
     ...browserSettings(raw),
   }
@@ -478,10 +489,12 @@ export const findUnreachedExclusions = (
   entries
     .filter((entry: DeclaredExclusion): boolean => entry.pattern.length > 0 && entry.reason.length > 0)
     .filter((entry: DeclaredExclusion): boolean => !reachesAny(entry, candidates))
-    .map(
-      (entry: DeclaredExclusion): string =>
-        `${entry.setting} entry "${entry.pattern}" excludes nothing; ` +
-        'it matches no file the gate would have judged, so it records a decision with no effect',
+    .map((entry: DeclaredExclusion): string =>
+      entry.setting === PRODUCTION_ENTRIES_SETTING
+        ? `${entry.setting} entry "${entry.pattern}" names no file; ` +
+          'an entry point that matches nothing records a decision with no effect'
+        : `${entry.setting} entry "${entry.pattern}" excludes nothing; ` +
+          'it matches no file the gate would have judged, so it records a decision with no effect',
     )
 
 // Which paths an exclusion has to reach is decided by the SETTING it came from, never by how its pattern

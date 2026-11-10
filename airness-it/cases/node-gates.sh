@@ -117,6 +117,10 @@ POM
         "it('doubles an amount', () => {
   expect(doubled(2)).toBe(4)
 })" > "${node_library}/tests/amount.spec.ts"
+    # A declared production entry point: shared logic under src that only a script the start script runs reaches.
+    mkdir -p "${node_library}/src/lib" "${node_library}/scripts"
+    printf 'export const migrate = (version: number): number => version + 1\n' > "${node_library}/src/lib/migrate.ts"
+    printf "import { migrate } from '@/lib/migrate.js'\n\nmigrate(1)\n" > "${node_library}/scripts/migrate.ts"
     printf 'a {\n  colr: red;\n}\n' > "${node_library}/src/site.css"
     printf 'export const Badge = (): unknown => <span className="p-4 bg-[#0a7]" />\n' > "${node_library}/src/badge.tsx"
     printf "import { expect, it } from 'vitest'\nimport { total } from '@/total.js'\n\n%s\n" \
@@ -136,9 +140,11 @@ with open(path, encoding='utf-8') as manifest:
 document['devDependencies']['typescript'] = '6.0.2'
 document['devDependencies']['tailwindcss'] = '4.3.3'
 document['main'] = 'src/refund.ts'
+document['scripts'] = {'migrate': 'node scripts/migrate.ts', 'start': 'pnpm run migrate && node src/refund.ts'}
 document['airness'] = {
     'generatedArtefacts': [{'pattern': 'src/generated/**', 'reason': 'the API client generator writes it'}],
     'productionDeadCode': True,
+    'productionEntries': [{'pattern': 'scripts/migrate.ts', 'reason': 'the start script runs it before the server'}],
 }
 with open(path, 'w', encoding='utf-8') as manifest:
     json.dump(document, manifest, indent=2)
@@ -170,6 +176,10 @@ PY
         'node gates: knip passes an export production code uses, under productionDeadCode' 'negated +src/amount[.]ts'
     expect_no_match node_library_report 'node gates: knip passes over an export a release tag sets aside' \
         'tripled +src/amount[.]ts'
+    expect_file_no_match "${node_library}/target/airness/node/module/knip.json" \
+        'node gates: knip counts what a declared production entry point reaches as used' 'src/lib/migrate[.]ts'
+    expect_match node_library_report 'node gates: knip names each production entry point the project declares' \
+        'production entry points the project declares: scripts/migrate[.]ts [(]the start script runs it'
     expect_match node_library_report 'node gates: tests reports the failing spec' 'tests/wrong[.]spec[.]ts'
     expect_match node_library_report 'node gates: css reports the Stylelint finding' \
         'Unknown property "colr".*property-no-unknown'

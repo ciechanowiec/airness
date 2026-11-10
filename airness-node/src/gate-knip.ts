@@ -18,6 +18,7 @@ import { localEnvironment } from './environment-files.js'
 import { fromRun, type RunResult, runNode } from './exec.js'
 import {
   JAVASCRIPT_EXTENSIONS,
+  matchesGlob,
   NON_PRODUCTION_ROOTS,
   productionSourceRoots,
   TYPESCRIPT_SOURCE_EXTENSIONS,
@@ -28,7 +29,9 @@ import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
 import { LAYER_NAMES } from './layer.js'
 import { harnessDirectory, type Member, readJson, resolveTool, writeJson } from './project.js'
-import { allowedJavaScriptFiles } from './source-selection.js'
+import { type DeclaredExclusion, isHonouredExclusion, PRODUCTION_ENTRIES_SETTING } from './settings.js'
+import { allowedJavaScriptFiles, memberFiles } from './source-selection.js'
+import { isTestFile } from './spec-roles.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
 // The harness itself reaches these by name, through the manifest resolution the gates share, which knip
@@ -206,34 +209,75 @@ const productionResult = (member: Member, configs: RenderedConfigs): GateResult 
   return result.ok ? result : { ...result, findings: [PRODUCTION_REPAIR, ...result.findings] }
 }
 
+// The production entry points the project declares, each with the reason it gives.
+const declaredEntries = (member: Member): readonly DeclaredExclusion[] =>
+  member.settings.declaredExclusions.filter(
+    (entry: DeclaredExclusion): boolean => entry.setting === PRODUCTION_ENTRIES_SETTING && isHonouredExclusion(entry),
+  )
+
+// A test is no production entry point: declaring one would count what only tests reach as production code.
+const testEntries = (member: Member): readonly string[] => {
+  const files: readonly string[] = memberFiles(presentWorkingTreeFiles(member.root), member.siblingPaths)
+  return declaredEntries(member).flatMap((entry: DeclaredExclusion): readonly string[] =>
+    files
+      .filter((file: string): boolean => matchesGlob(entry.pattern, file) && isTestFile(file))
+      .map(
+        (file: string): string =>
+          `${PRODUCTION_ENTRIES_SETTING} entry "${entry.pattern}" names the test ${file}; a test is no production ` +
+          'entry point, so declare the production file that runs, never the test that exercises it',
+      ),
+  )
+}
+
+// Every entry point the project declares is printed with the verdict, so a reader sees what the production run
+// counted as production beyond what knip found itself.
+const withDeclaredEntries = (member: Member, result: GateResult): GateResult => {
+  const entries: readonly string[] = declaredEntries(member).map(
+    (entry: DeclaredExclusion): string => `${entry.pattern} (${entry.reason})`,
+  )
+  if (entries.length === 0) {
+    return result
+  }
+  const listing: string = `production entry points the project declares: ${entries.join('; ')}`
+  return withOutput({ ...result, summary: `${result.summary}; ${listing}` }, `${listing}\n${result.output ?? ''}`)
+}
+
+const verdict = (member: Member, configs: RenderedConfigs): GateResult => {
+  const whole: GateResult = fromRun(
+    runKnip(member, configs.config, []),
+    'no dead code or unused dependency',
+    'dead code or an unused dependency was found',
+  )
+  if (!member.settings.productionDeadCode) {
+    return whole
+  }
+  const production: GateResult = productionResult(member, configs)
+  if (production.ok) {
+    return whole
+  }
+  return whole.ok
+    ? production
+    : withOutput(
+        failed(`${whole.summary}; ${production.summary}`, [...whole.findings, ...production.findings]),
+        [whole.output, production.output].join(''),
+      )
+}
+
 /**
  * No unused file, export or dependency, and under `productionDeadCode` no export or production file that only
- * tests and tooling reach.
+ * tests and tooling reach. A production entry point the project declares that names a test is refused.
  * @param member the member to judge.
  * @param layers the packages counted as layers, the registered ones unless a caller names others.
- * @returns the verdict.
+ * @returns the verdict, naming every production entry point the project declares.
  */
 export const knip = (member: Member, layers: readonly string[] = LAYER_NAMES): GateResult => {
+  const refused: readonly string[] = testEntries(member)
+  if (refused.length > 0) {
+    return failed('a declared production entry point names a test', refused)
+  }
   const configs: RenderedConfigs = knipConfigs(member, layers)
   try {
-    const whole: GateResult = fromRun(
-      runKnip(member, configs.config, []),
-      'no dead code or unused dependency',
-      'dead code or an unused dependency was found',
-    )
-    if (!member.settings.productionDeadCode) {
-      return whole
-    }
-    const production: GateResult = productionResult(member, configs)
-    if (production.ok) {
-      return whole
-    }
-    return whole.ok
-      ? production
-      : withOutput(
-          failed(`${whole.summary}; ${production.summary}`, [...whole.findings, ...production.findings]),
-          [whole.output, production.output].join(''),
-        )
+    return withDeclaredEntries(member, verdict(member, configs))
   } finally {
     rmSync(configs.directory, { recursive: true, force: true })
   }
