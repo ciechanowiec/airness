@@ -1361,6 +1361,144 @@ import org.slf4j.*; class C { private static final Logger log = LoggerFactory.ge
 import org.jboss.logging.Logger; class C { void m(Logger l) { l.log(Logger.Level.INFO, "x"); } }
 ]]></source>
         </case>
+        <case name="slm1" flagged="true" scope="main">
+            <source><![CDATA[package example.slm1;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String id) { log.info(AUDIT, "user " + id + " signed in"); } }
+]]></source>
+        </case>
+        <case name="slm2" flagged="true" scope="main">
+            <source><![CDATA[package example.slm2;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String a, Exception e) { log.error(AUDIT, "a " + a, e); } }
+]]></source>
+        </case>
+        <case name="slm3" flagged="true" scope="main">
+            <source><![CDATA[package example.slm3;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(int a) { log.info(AUDIT, String.format("a %d", a)); } }
+]]></source>
+        </case>
+        <case name="slm4" flagged="true" scope="main">
+            <source><![CDATA[package example.slm4;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(int a) { log.warn(AUDIT, "a %d".formatted(a)); } }
+]]></source>
+        </case>
+        <case name="slm5" flagged="true" scope="main">
+            <source><![CDATA[package example.slm5;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(int a) { log.debug(AUDIT, java.text.MessageFormat.format("a {0}", a)); } }
+]]></source>
+        </case>
+        <case name="slm6" flagged="true" scope="main">
+            <source><![CDATA[package example.slm6;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(Object a) { log.info(AUDIT, "a {}", a.toString()); } }
+]]></source>
+        </case>
+        <case name="slm7" flagged="true" scope="main">
+            <source><![CDATA[package example.slm7;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(int a, int b) { log.info(AUDIT, "a {} {}", new Object[]{a, b}); } }
+]]></source>
+        </case>
+        <case name="slm8" flagged="true" scope="main">
+            <source><![CDATA[package example.slm8;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m() { log.debug(AUDIT, "a {}", e()); } String e() { return ""; } }
+]]></source>
+        </case>
+        <case name="slm9" flagged="false" scope="main">
+            <source><![CDATA[package example.slm9;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String a) { log.info(AUDIT, "a {}", a); } }
+]]></source>
+        </case>
+        <case name="slm10" flagged="false" scope="main">
+            <source><![CDATA[package example.slm10;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String a, Exception e) { log.error(AUDIT, "a {}", a, e); } }
+]]></source>
+        </case>
+        <case name="flu1" flagged="true" scope="main">
+            <source><![CDATA[package example.flu1;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atInfo().log("a " + b); } }
+]]></source>
+        </case>
+        <case name="flu2" flagged="true" scope="main">
+            <source><![CDATA[package example.flu2;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(int b) { log.atInfo().log(String.format("a %d", b)); } }
+]]></source>
+        </case>
+        <case name="flu3" flagged="true" scope="main">
+            <source><![CDATA[package example.flu3;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(int b) { log.atWarn().log("a %d".formatted(b)); } }
+]]></source>
+        </case>
+        <case name="flu4" flagged="true" scope="main">
+            <source><![CDATA[package example.flu4;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(int b) { log.atError().log(java.text.MessageFormat.format("a {0}", b)); } }
+]]></source>
+        </case>
+        <case name="flu5" flagged="true" scope="main">
+            <source><![CDATA[package example.flu5;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atInfo().setMessage("a " + b).log(); } }
+]]></source>
+        </case>
+        <case name="flu6" flagged="true" scope="main">
+            <source><![CDATA[package example.flu6;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atInfo().addMarker(AUDIT).log("a " + b); } }
+]]></source>
+        </case>
+        <case name="flu7" flagged="true" scope="main">
+            <source><![CDATA[package example.flu7;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(Object b) { log.atInfo().log("a {}", b.toString()); } }
+]]></source>
+        </case>
+        <case name="flu8" flagged="true" scope="main">
+            <source><![CDATA[package example.flu8;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atLevel(org.slf4j.event.Level.INFO).log(("a " + b)); } }
+]]></source>
+        </case>
+        <case name="flu9" flagged="false" scope="main">
+            <source><![CDATA[package example.flu9;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atInfo().log("a {}", b); } }
+]]></source>
+        </case>
+        <case name="flu10" flagged="false" scope="main">
+            <source><![CDATA[package example.flu10;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atInfo().addArgument(b).log("a {}"); } }
+]]></source>
+        </case>
+        <case name="flu11" flagged="false" scope="main">
+            <source><![CDATA[package example.flu11;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atInfo().setMessage("a {}").addArgument(b).log(); } }
+]]></source>
+        </case>
+        <case name="flu12" flagged="false" scope="main">
+            <source><![CDATA[package example.flu12;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b) { log.atInfo().log(() -> "a " + b); } }
+]]></source>
+        </case>
+        <case name="flu13" flagged="false" scope="main">
+            <source><![CDATA[package example.flu13;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b, Exception e) { log.atError().setCause(e).addKeyValue("b", b).log("a {}", b); } }
+]]></source>
+        </case>
     </rule>
     <rule tool="ErrorProne" id="AirnessMapContainsKey" kind="new">
         <case name="mck1" flagged="true" scope="main">
