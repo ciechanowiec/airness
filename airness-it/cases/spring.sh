@@ -19,7 +19,7 @@ cat > "${spring_fixture}/pom.xml" <<'POM'
     <artifactId>spring-app</artifactId>
     <version>1.0.0</version>
     <properties>
-        <airness.coverage.excluded.classes>com.example.Application</airness.coverage.excluded.classes>
+        <airness.coverage.excluded.classes>com.example.Application -- started only by the Spring Boot launcher</airness.coverage.excluded.classes>
         <airness.package.root>com.example</airness.package.root>
     </properties>
     <dependencies>

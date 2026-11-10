@@ -33,7 +33,7 @@ public record ContainerDefinitions(Path root) {
      * @return the Dockerfiles, ordered by path
      */
     public List<Path> dockerfiles() {
-        return BlocklistFiles.dockerfiles(this.root, this.tracked()).stream().sorted().toList();
+        return BlocklistFiles.dockerfiles(this.tracked()).stream().sorted().toList();
     }
 
     /**

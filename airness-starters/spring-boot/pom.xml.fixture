@@ -188,10 +188,12 @@
             </resource>
         </resources>
         <plugins>
+            <!-- @SNAPSHOT_ONLY_BEGIN@ -->
             <!--
-                The unpublished harness package comes from the installed, versioned Maven artifact. The
-                loopback registry is process-local, writes only the ignored .npmrc, refuses a lockfile
-                whose recorded integrity the installed package no longer matches, and stops with Maven.
+                A SNAPSHOT harness package is never published, so it comes from the installed, versioned
+                Maven artifact. The loopback registry is process-local, writes only the ignored .npmrc,
+                refuses a lockfile whose recorded integrity the installed package no longer matches, and
+                stops with Maven. A released harness package installs from the public registry instead.
             -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -255,6 +257,7 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- @SNAPSHOT_ONLY_END@ -->
             <!--
                 Builds the stylesheet with Tailwind and daisyUI and bundles htmx with the page script,
                 all from their npm releases, into target/frontend, which the resources above serve.

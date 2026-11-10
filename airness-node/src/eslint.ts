@@ -15,6 +15,7 @@ import {
   prettierLast,
   processConfigBlock,
   specEnvironmentBlock,
+  testIdiomPlugins,
   testIdiomRules,
   testIntegrityRules,
   testSuiteSyntaxRules,
@@ -97,7 +98,7 @@ const config: ReturnType<typeof compose> = compose(
     files: ['tests/**'],
     // The end-to-end specs are Playwright's, held to the browser-application facet's block below instead.
     ignores: [...END_TO_END_FILES],
-    plugins: { vitest: vitestPlugin },
+    plugins: { vitest: vitestPlugin, ...testIdiomPlugins },
     rules: {
       ...testIdiomRules,
       ...testIntegrityRules,

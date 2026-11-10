@@ -119,6 +119,19 @@ class PmdConfigurationTest {
             3
         ),
         new Fixture(
+            "Ignoring.java",
+            """
+                package example;
+                final class Ignoring {
+                    String named(String first, String second) {
+                        return first;
+                    }
+                }
+                """,
+            "UnusedFormalParameter",
+            3
+        ),
+        new Fixture(
             "Hugging.java",
             """
                 package example;
@@ -168,7 +181,9 @@ class PmdConfigurationTest {
                 }
             }
             final class WideTest {
+                private final String joined;
                 WideTest(String first, String second, String third, String fourth, String fifth) {
+                    this.joined = first + second + third + fourth + fifth;
                 }
             }
             final class Grouped {
@@ -176,6 +191,16 @@ class PmdConfigurationTest {
                     java.util.Map<String, String> held = new java.util.HashMap<>();
                     held.put("kepler", "hall");
                     return held;
+                }
+            }
+            final class Compared {
+                @Override
+                public boolean equals(Object other) {
+                    return false;
+                }
+                @Override
+                public int hashCode() {
+                    return 0;
                 }
             }
             final class Paired {
@@ -259,7 +284,8 @@ class PmdConfigurationTest {
             "CyclomaticComplexity",
             "ExcessiveParameterList",
             "UseConcurrentHashMap",
-            "PairedConditionParentheses"
+            "PairedConditionParentheses",
+            "UnusedFormalParameter"
         );
         assertTrue(
             report.getViolations().stream().noneMatch(

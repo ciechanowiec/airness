@@ -16,6 +16,7 @@ import tseslint from 'typescript-eslint'
 import { immutabilityPlugin as functional } from './eslint-immutability.js'
 import { javaScriptParser } from './eslint-javascript-parser.js'
 import { type RestrictedSyntax, SECURITY_RESTRICTIONS } from './eslint-security.js'
+import { specFunctionLength } from './eslint-spec-length.js'
 import { TIME_ZONE_RESTRICTIONS } from './eslint-time-zone.js'
 import { hasExtension, JAVASCRIPT_EXTENSIONS, matchesRole, type RolePattern } from './file-roles.js'
 import { PROJECT_SETUP_FILE } from './settings.js'
@@ -678,9 +679,11 @@ export const testIntegrityRules: RuleTable = {
  * relaxation that made a test easier to write by making it less checked would exempt the suite from the
  * contract it exists to enforce.
  *
- * The one exception is `max-lines-per-function`, and it is a role distinction rather than a relaxation:
- * the cap bounds a unit of logic, and a `describe` body is a list of independent declarations. The file
- * cap still applies. See the entry itself for the argument.
+ * The function-length cap is measured by a rule of this package rather than by the core one, and it is a
+ * role distinction rather than a relaxation: the cap bounds a unit of logic, and a `describe` body is a
+ * list of independent declarations. Every test, hook and helper is still held to the cap, and the file cap
+ * still applies. See the entry itself for the argument. A block that mounts these rules mounts
+ * {@link testIdiomPlugins} beside them.
  *
  * Shared by every shipped config rather than stated in each, because what earns the exemption is being a
  * SPEC rather than being an application's spec. Stated twice it drifted: a library consumer's
@@ -700,9 +703,16 @@ export const testIdiomRules: RuleTable = {
   // A `describe` body is a list of independent declarations rather than a unit of logic: nothing flows
   // between its tests, so reading the twelfth needs none of the first eleven, and the cognitive load the
   // cap bounds does not accumulate. Splitting one to satisfy the cap invents a group name that marks a
-  // linter boundary rather than a real one. A spec file that genuinely IS too long is still caught, by
-  // `max-lines`, which stays on.
+  // linter boundary rather than a real one. The core rule cannot tell that body from the test inside it,
+  // so it is replaced by one that holds every other function of a spec to the same cap. A spec file that
+  // genuinely IS too long is still caught, by `max-lines`, which stays on.
   'max-lines-per-function': 'off',
+  'airness-specs/function-length': 'error',
+}
+
+/** The plugin {@link testIdiomRules} names, which every block mounting those rules mounts beside them. */
+export const testIdiomPlugins: Readonly<Record<string, unknown>> = {
+  'airness-specs': { rules: { 'function-length': specFunctionLength(MAX_LINES_PER_FUNCTION) } },
 }
 
 // Property tests must stay deterministic: one seed decides the whole suite, and a per-call override

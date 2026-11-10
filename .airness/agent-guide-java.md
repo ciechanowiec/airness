@@ -148,6 +148,11 @@ Airness governs all of the following domains in a Java module:
   standard `IT*`, `*IT` and `*ITCase` names, shares Surefire's timeout and ordering, and fails when the
   opted-in module has no integration tests. Run through `verify`: coverage combines both test phases,
   Spring runtime evidence reads both, and the final tree check includes integration-test writes.
+  A test reaches no network beyond the machine it runs on. The parent supplies `airness-network-guard` at test
+  scope, a host name resolver the runtime loads in place of its own: it answers `localhost` and the names below
+  it, the machine's own name and the Docker host, and refuses every other name with an `UnknownHostException`
+  that names this rule. Run a remote service's protocol on the machine instead, for example in a container the
+  test starts. The guard cannot see an address literal, so never dial a remote address directly either.
 - **Spring Boot, for a project inheriting `airness-parent-spring-boot` alone:** the constructs the container
   accepts and then does not honour, covering proxy semantics, bean wiring, transactions, persistence mapping, the
   web layer, security configuration, asynchrony and scheduling, and test context handling; the runtime settings an

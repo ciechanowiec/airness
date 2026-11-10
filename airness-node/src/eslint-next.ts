@@ -8,6 +8,7 @@ import {
   type FlatConfigBlock,
   NO_INHERITANCE,
   NO_NETWORK_GUARD_ESCAPE,
+  testIdiomPlugins,
   testIdiomRules,
   withoutWarnings,
 } from './eslint-core.js'
@@ -82,7 +83,7 @@ export const componentTestBlocks: readonly FlatConfigBlock[] = [
 export const endToEndBlocks: readonly FlatConfigBlock[] = [
   {
     files: [...END_TO_END_FILES],
-    plugins: { playwright },
+    plugins: { playwright, ...testIdiomPlugins },
     rules: {
       ...testIdiomRules,
       'no-restricted-syntax': [

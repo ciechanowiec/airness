@@ -27,14 +27,13 @@ import org.w3c.dom.Node;
 public final class ProjectProperties {
 
     private static final String NAMESPACE = "airness.";
-    private static final String COVERAGE_EXCLUDES = "airness.coverage.excluded.classes";
     /**
      * The only Airness settings a project may declare. Every entry is documented as a project key in the
      * user guide, and nothing reaches this list by being merely harmless.
      */
     private static final Set<String> PROJECT_OWNED = Set.of(
         "airness.assets.unmanaged",
-        COVERAGE_EXCLUDES,
+        CoverageExclusions.PROPERTY,
         "airness.dependency-check.suppression.file",
         "airness.generated.files",
         "airness.node.projects",

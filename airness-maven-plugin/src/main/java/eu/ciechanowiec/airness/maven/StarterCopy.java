@@ -21,6 +21,11 @@ import lombok.experimental.UtilityClass;
  * is kept. The pom marks each value with a placeholder instead, because its comments speak of Spring Boot
  * starters too. Every file is read for the harness version placeholder, and a file stored under an added
  * fixture suffix loses it.
+ *
+ * <p>A region between a line naming {@value #SNAPSHOT_BEGIN} and a line naming {@value #SNAPSHOT_END} serves a
+ * SNAPSHOT harness alone, whose npm packages are never published: for one the two marker lines are dropped and
+ * the region kept, and for a release the region goes with them, so the application installs the harness packages
+ * from the public registry.
  */
 @UtilityClass
 final class StarterCopy {
@@ -32,12 +37,26 @@ final class StarterCopy {
 
     static final String VERSION = "@AIRNESS_VERSION@";
 
+    /**
+     * The marker on the line that opens a region kept for a SNAPSHOT harness alone.
+     */
+    static final String SNAPSHOT_BEGIN = "@SNAPSHOT_ONLY_BEGIN@";
+
+    /**
+     * The marker on the line that closes a region kept for a SNAPSHOT harness alone.
+     */
+    static final String SNAPSHOT_END = "@SNAPSHOT_ONLY_END@";
+
     private static final String POM = "pom.xml" + FIXTURE;
     private static final String PACKAGE = "com.example.starter";
     private static final String PACKAGE_PATH = "/com/example/starter/";
     private static final String SEPARATOR = "/";
     private static final Pattern ARTIFACT = Pattern.compile("(?<![\\w-])starter(?!\\w)");
     private static final Pattern NAME = Pattern.compile("(?<![\\w-])Starter(?!\\w)");
+    private static final Pattern SNAPSHOT_REGION = Pattern.compile(
+        "^[^\\n]*" + SNAPSHOT_BEGIN + "[^\\n]*\\n(.*?)^[^\\n]*" + SNAPSHOT_END + "[^\\n]*\\n",
+        Pattern.MULTILINE | Pattern.DOTALL
+    );
 
     /**
      * Writes every file of the starter into the destination under the application's names.
@@ -91,13 +110,27 @@ final class StarterCopy {
      * @return what the file holds in the application
      */
     static String content(String relative, String text, StarterRequest request, String version) {
-        String versioned = text.replace(VERSION, version);
+        String versioned = regions(text, version).replace(VERSION, version);
         if (POM.equals(relative)) {
             return versioned.replace("@GROUP_ID@", request.groupId())
                 .replace("@ARTIFACT_ID@", request.artifactId())
                 .replace("@PACKAGE@", request.javaPackage());
         }
         return renamed(versioned.replace(PACKAGE, request.javaPackage()), request);
+    }
+
+    /**
+     * Whether a harness version is a SNAPSHOT, whose npm packages are never published.
+     *
+     * @param version the harness version the application builds against
+     * @return whether the version is a SNAPSHOT
+     */
+    static boolean snapshot(String version) {
+        return SnapshotVersions.snapshot(version);
+    }
+
+    private static String regions(String text, String version) {
+        return SNAPSHOT_REGION.matcher(text).replaceAll(snapshot(version) ? "$1" : "");
     }
 
     private static String renamed(String text, StarterRequest request) {

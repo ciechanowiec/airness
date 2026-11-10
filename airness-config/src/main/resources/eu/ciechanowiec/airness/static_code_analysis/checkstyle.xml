@@ -59,9 +59,10 @@
         Composition over inheritance: a base class is extended only where a framework or the JDK leaves no
         alternative. The allowlist carries those cases across the project types this configuration serves.
         AsciidoctorJ registers a Java tree processor through Treeprocessor and its process(Document) hook.
+        The JDK loads a host name resolver only as a subclass of InetAddressResolverProvider.
         -->
         <property name="format"
-                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo|AbstractNodeMojo|AbstractSimpleMarkupHandler|TreeScanner|BugChecker|Treeprocessor|AbstractCheck)\b)\w+[^{]*\{"/>
+                  value="(?s)class\s+\w+[^{]*extends\s+(?!\b(SlingJakartaAllMethodsServlet|SlingJakartaSafeMethodsServlet|HttpServlet|ResourceProvider|TestEnvironment|RuntimeException|Exception|JsonSerializer|InputStream|OutputStream|AnnotatedStandardMBean|TurboFilter|HttpServletRequestWrapper|HttpServletResponseWrapper|Handler\.Abstract|AbstractMojo|AbstractGovernanceMojo|AbstractRepositoryMojo|AbstractPreflightMojo|AbstractDockerCheckMojo|AbstractPublicationMojo|AbstractNodeMojo|AbstractSimpleMarkupHandler|TreeScanner|BugChecker|Treeprocessor|AbstractCheck|InetAddressResolverProvider)\b)\w+[^{]*\{"/>
         <property name="message"
                   value="Inheritance is allowed only for explicitly specified cases."/>
     </module>
@@ -1108,7 +1109,14 @@
         <module name="NoCodeInFile"/>
         <module name="NumericalPrefixesInfixesSuffixesCharacterCase"/>
         <module name="OuterTypeFilename"/>
-        <module name="TodoComment"/>
+        <!--
+            The default format is the literal TODO: alone, so a FIXME, a lower-case todo or a TODO
+            without its colon would pass. The guideline bans both words, whatever their case or
+            punctuation, as the node lint does.
+        -->
+        <module name="TodoComment">
+            <property name="format" value="(?i)\b(TODO|FIXME)\b"/>
+        </module>
         <module name="TrailingComment"/>
         <module name="UncommentedMain">
             <property name="excludedClasses" value="^$"/>

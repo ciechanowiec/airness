@@ -22,8 +22,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>It runs outside any project. It writes the starter into a new directory under the names it is given,
  * starts a Git repository there, runs assets-init, so the managed files come from this same harness, writes the
- * first lockfile against the installed harness package, and commits the result as the repository's first commit.
- * Its own logs stay under the application's ignored target directory.
+ * first lockfile, and commits the result as the repository's first commit. A released harness's npm package
+ * installs from the public registry. A SNAPSHOT harness's package is never published, so the lockfile is written
+ * against the one installed in the local Maven repository, served by a loopback registry. Its own logs stay under
+ * the application's ignored target directory.
  *
  * <p>Outside a project a parameter can come from the command line alone, so each is read there:
  * {@code -Dairness.groupId} and {@code -Dairness.artifactId}, and optionally {@code -Dairness.package},
@@ -101,9 +103,18 @@ public final class NewMojo extends AbstractMojo {
         this.getLog().info("Wrote the " + this.starter() + " starter into " + destination);
     }
 
-    // The application's pom starts the same registry for every build, but a build installs from a lockfile, and
-    // this writes the first one. The registry serves the harness package installed in the local repository.
+    // A build installs from a lockfile, and this writes the first one.
     private void lock(Path destination) throws IOException {
+        if (StarterCopy.snapshot(this.version())) {
+            this.lockAgainstLocalRegistry(destination);
+        } else {
+            this.install(destination);
+        }
+    }
+
+    // The application's pom starts the same registry for every build of a SNAPSHOT harness. The registry serves
+    // the harness package installed in the local repository.
+    private void lockAgainstLocalRegistry(Path destination) throws IOException {
         Path logs = destination.resolve(LOGS);
         Path tarball = LocalRepository.of(this.session()).head()
             .resolve(Path.of("eu", "ciechanowiec", HARNESS_PACKAGE, this.version()))
@@ -118,18 +129,23 @@ public final class NewMojo extends AbstractMojo {
         ).redirectErrorStream(true).redirectOutput(logs.resolve("registry.log").toFile()).start();
         try {
             awaitPort(registry, port);
-            NodeTools tools = AbstractNodeMojo.install(this.session(), this.getLog());
-            Path log = logs.resolve("install.log");
-            int exit = tools.pnpm(
-                List.of("install", "--no-frozen-lockfile", "--ignore-scripts", "--ignore-pnpmfile"), destination, log,
-                Map.of("pnpm_config_cache_dir", logs.resolve("pnpm-cache").toString())
-            );
-            if (exit != 0) {
-                AbstractNodeMojo.replay(log, this.getLog());
-                throw new IOException("pnpm install failed with exit " + exit + "; see " + log);
-            }
+            this.install(destination);
         } finally {
             registry.destroy();
+        }
+    }
+
+    private void install(Path destination) throws IOException {
+        Path logs = destination.resolve(LOGS);
+        NodeTools tools = AbstractNodeMojo.install(this.session(), this.getLog());
+        Path log = logs.resolve("install.log");
+        int exit = tools.pnpm(
+            List.of("install", "--no-frozen-lockfile", "--ignore-scripts", "--ignore-pnpmfile"), destination, log,
+            Map.of("pnpm_config_cache_dir", logs.resolve("pnpm-cache").toString())
+        );
+        if (exit != 0) {
+            AbstractNodeMojo.replay(log, this.getLog());
+            throw new IOException("pnpm install failed with exit " + exit + "; see " + log);
         }
     }
 

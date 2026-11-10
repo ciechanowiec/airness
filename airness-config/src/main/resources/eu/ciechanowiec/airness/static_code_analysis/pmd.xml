@@ -20,6 +20,16 @@
             <property name="allowTypeImportsFrom" value=""/>
         </properties>
     </rule>
+    <rule ref="category/java/bestpractices.xml/UnusedFormalParameter">
+        <properties>
+            <!--
+                The default reads private methods alone, which leaves every unused parameter of a
+                visible method in place. The guideline bans an unused parameter wherever it stands. An
+                overriding method, which does not choose its own parameter list, is still left alone.
+            -->
+            <property name="checkAll" value="true"/>
+        </properties>
+    </rule>
     <rule ref="category/java/bestpractices.xml">
         <exclude name="ConstantsInInterface"/>
         <exclude name="DoubleBraceInitialization"/>

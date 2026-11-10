@@ -41,8 +41,8 @@ public final class RepositoryBlocklistCheck {
      */
     public RepositoryBlocklistCheck(Path root, String runtimeName) {
         List<Path> tracked = Repository.trackedFiles(root);
-        List<Path> dockerfiles = BlocklistFiles.dockerfiles(root, tracked);
-        List<Path> composeFiles = BlocklistFiles.composeFiles(root, tracked);
+        List<Path> dockerfiles = BlocklistFiles.dockerfiles(tracked);
+        List<Path> composeFiles = BlocklistFiles.composeFiles(tracked);
         List<Path> workflows = BlocklistFiles.workflows(root, tracked);
         this.scanned = dockerfiles.size() + composeFiles.size() + workflows.size() + 1;
         this.offences = Stream.of(
