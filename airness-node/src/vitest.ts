@@ -1,5 +1,6 @@
 // Every collected test has its runtime and setup fixed by the harness. Database-backed application
-// suites are serial, while plain library suites retain the ordinary Node worker pool.
+// suites are serial, while plain library suites retain the ordinary Node worker pool. Every test reads the
+// managed Git configuration, as the tests gate also sets it for the whole run, so a run outside the gate does too.
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +9,7 @@ import { defineConfig } from 'vitest/config'
 import { coverageExclusions, coverageIncludes } from './coverage-policy.js'
 import { isBrowserAppAt } from './facets.js'
 import { TYPESCRIPT_SOURCE_EXTENSIONS } from './file-roles.js'
+import { isolatedGitEnvironment } from './git-isolation.js'
 import { declaredDependencies } from './json-shapes.js'
 import { LAYER_NAMES, layerDefaultsFor, layerTestDependenciesFor } from './layer.js'
 import { readJson } from './project.js'
@@ -19,6 +21,15 @@ import { hasOwnRuntime } from './workspace.js'
 
 /** The per-file floor for lines, branches, functions and statements. */
 export const COVERAGE_THRESHOLD: number = 80
+
+// Every measure of every measured file is held to the floor on its own.
+const PER_FILE_THRESHOLDS: Readonly<Record<string, number | boolean>> = {
+  perFile: true,
+  lines: COVERAGE_THRESHOLD,
+  branches: COVERAGE_THRESHOLD,
+  functions: COVERAGE_THRESHOLD,
+  statements: COVERAGE_THRESHOLD,
+}
 
 const GLOBAL_SETUP_FILE: string = 'vitest.global-setup.ts'
 
@@ -64,6 +75,7 @@ export const vitestConfig = (directory: string, layers: readonly string[] = LAYE
       include: [...suite.include],
       exclude: [...suite.exclude],
       setupFiles: [...setup],
+      env: { ...isolatedGitEnvironment(directory) },
       server: { deps: { inline: [...inline] } },
       sequence: TEST_SEQUENCE,
       fileParallelism: !(isBrowser || settings.testWrapper.length > 0),
@@ -85,13 +97,7 @@ export const vitestConfig = (directory: string, layers: readonly string[] = LAYE
           reportsDirectory: 'node_modules/.airness/coverage',
           include: [...coverageIncludes(settings.sourceRoots)],
           exclude: [...coverageExclusions(settings, hasOwnRuntime(manifest))],
-          thresholds: {
-            perFile: true,
-            lines: COVERAGE_THRESHOLD,
-            branches: COVERAGE_THRESHOLD,
-            functions: COVERAGE_THRESHOLD,
-            statements: COVERAGE_THRESHOLD,
-          },
+          thresholds: { ...PER_FILE_THRESHOLDS },
         },
       },
     }),

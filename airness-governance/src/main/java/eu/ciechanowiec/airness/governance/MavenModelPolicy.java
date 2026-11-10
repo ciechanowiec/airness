@@ -30,7 +30,10 @@ import org.w3c.dom.Node;
 @UtilityClass
 public final class MavenModelPolicy {
 
+    // The two environment variables name the Git configuration every test reads, the managed one alone, so a
+    // child that set either would hand its tests a machine's hooks, signing and ignore files back.
     private static final Set<String> TEST_CONFIGURATION = Set.of(
+        "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM",
         "airness.spring.context.evidence.file", "configurationParameters", "excludeJUnit5Engines",
         "excludedGroups", "excludes", "excludesFile", "failIfNoSpecifiedTests", "failIfNoTests",
         "failOnFlakeCount", "groups", "includeJUnit5Engines", "includes", "includesFile",

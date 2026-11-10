@@ -30,8 +30,30 @@ run_maven_cases() {
     expect_match profile_missing_deactivation 'profiles: the missing deactivation is named precisely' \
         'requested profiles \[missing-profile\].*do not exist'
 
+    # The consumer's own test reads the Git configuration its parent names, the one assets-sync placed in the
+    # consumer, rather than the one this suite exports for its own git or the machine's.
+    cat > "${maven_consumer}/src/test/java/com/example/GitConfigurationTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+
+class GitConfigurationTest {
+
+    @Test
+    void readsTheManagedGitConfiguration() {
+        assertEquals(
+            Path.of(".airness/test.gitconfig").toAbsolutePath().toString(), System.getenv("GIT_CONFIG_GLOBAL")
+        );
+    }
+}
+JAVA
     run_maven lifecycle_clean maven "${maven_consumer}" clean verify
     expect_exit lifecycle_clean 'lifecycle: a clean installed-parent consumer verifies' 0
+    expect_match lifecycle_clean 'lifecycle: the consumer tests read the managed Git configuration' \
+        'Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* in com[.]example[.]GitConfigurationTest'
     expect_match lifecycle_clean 'lifecycle: Checkstyle is selected from the installed parent' \
         'checkstyle:[^:]+:check'
     expect_match lifecycle_clean 'lifecycle: PMD and CPD are both bound' \

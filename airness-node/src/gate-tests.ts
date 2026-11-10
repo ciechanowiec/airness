@@ -10,6 +10,7 @@ import { fromRun } from './exec.js'
 import { isBrowserApp } from './facets.js'
 import { matchesGlob } from './file-roles.js'
 import { failed, type GateResult, passed } from './gate-result.js'
+import { isolatedGitEnvironment } from './git-isolation.js'
 import { isHarnessPackage, SHIPPED_SPEC_SOURCES } from './harness-packages.js'
 import { asRecord, asStringRecord, asText } from './json-shapes.js'
 import { harnessDirectory, type Member, readJson } from './project.js'
@@ -55,7 +56,8 @@ const suite = (member: Member): GateResult => {
     fromRun(
       runApp(member, [vitest, 'run', '--config', config, '--coverage'], {
         cwd: member.root,
-        env: clockedEnvironment(member, '--no-deprecation'),
+        // The whole run, its global setup included, reads the managed Git configuration rather than the machine's.
+        env: { ...clockedEnvironment(member, '--no-deprecation'), ...isolatedGitEnvironment(member.root) },
       }),
       'the suite passes and every measured file meets the coverage floor',
       'the suite failed, or a file is below the coverage floor',
