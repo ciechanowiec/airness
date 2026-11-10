@@ -25,6 +25,7 @@
     "@playwright/test": "1.64.1"
   },
   "airness": {
+    "productionDeadCode": true,
     "coverageExclude": [
       {
         "pattern": "src/migrations/**",

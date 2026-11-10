@@ -7,7 +7,7 @@ export interface Environment {
 }
 
 /** Raw environment variables, as the process holds them. */
-export type EnvironmentSource = Readonly<Record<string, string | undefined>>
+type EnvironmentSource = Readonly<Record<string, string | undefined>>
 
 const required = (source: EnvironmentSource, name: string): string => {
   const value: string | undefined = source[name]
@@ -18,21 +18,25 @@ const required = (source: EnvironmentSource, name: string): string => {
 }
 
 /**
- * Read and validate the environment from a plain record, which keeps the rule testable.
+ * Read and validate the environment from a plain record.
  * @param source the raw variables, normally the process environment.
  * @returns the narrowed values.
  */
-export const parseEnvironment = (source: EnvironmentSource): Environment => ({
+const parseEnvironment = (source: EnvironmentSource): Environment => ({
   payloadSecret: required(source, 'PAYLOAD_SECRET'),
   databaseUrl: required(source, 'DATABASE_URL'),
 })
 
+// The variables the process carries.
+const processEnvironment = (): EnvironmentSource => ({
+  PAYLOAD_SECRET: process.env['PAYLOAD_SECRET'],
+  DATABASE_URL: process.env['DATABASE_URL'],
+})
+
 /**
- * Read and validate the process environment, failing fast on a missing variable.
+ * Read and validate the environment, failing fast on a missing variable.
+ * @param source the raw variables, the process environment unless the caller passes a record of its own.
  * @returns the narrowed values.
  */
-export const loadEnvironment = (): Environment =>
-  parseEnvironment({
-    PAYLOAD_SECRET: process.env['PAYLOAD_SECRET'],
-    DATABASE_URL: process.env['DATABASE_URL'],
-  })
+export const loadEnvironment = (source: EnvironmentSource = processEnvironment()): Environment =>
+  parseEnvironment(source)

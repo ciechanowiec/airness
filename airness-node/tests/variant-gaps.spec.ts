@@ -38,13 +38,24 @@ describe('the Biome selection', PROCESS_TIME, () => {
 describe('a layer block', PROCESS_TIME, () => {
   it('contributes nothing from fields of the wrong shape', () => {
     expect(
-      layerDefaultsOf({ airness: { layer: { generatedArtefacts: 'src/types.ts', javascriptAllowlist: 'all' } } }),
+      layerDefaultsOf({
+        airness: {
+          layer: {
+            generatedArtefacts: 'src/types.ts',
+            javascriptAllowlist: 'all',
+            productionEntries: 'src/app.config.ts',
+            knipConfigPlugins: { app: false },
+          },
+        },
+      }),
     ).toEqual({
       generatedArtefacts: [],
       frameworkGlue: [],
       javascriptRuntimes: [],
       pureLogicRoots: [],
       accessibilitySkipRoutes: [],
+      productionEntries: [],
+      knipConfigPlugins: [],
     })
   })
 })

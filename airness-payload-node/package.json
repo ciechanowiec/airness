@@ -82,6 +82,13 @@
         "/admin",
         "/api"
       ],
+      "productionEntries": [
+        "src/payload.config.ts",
+        "src/migrations/*.ts"
+      ],
+      "knipConfigPlugins": [
+        "payload"
+      ],
       "e2eSpecs": "dist",
       "eslint": "./eslint",
       "browser": "./browser",

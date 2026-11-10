@@ -94,6 +94,13 @@ export interface Settings extends InvocationSettings {
    * which a project opts into and can only tighten the gate.
    */
   readonly productionDeadCode: boolean
+  /** Files the production run of the dead-code gate counts as production entry points, beyond those knip reads. */
+  readonly productionEntries: readonly string[]
+  /**
+   * The knip plugins the production run of the dead-code gate leaves out, because each reads one of
+   * {@link Settings.productionEntries} as a tool's configuration, which knip's production mode passes over.
+   */
+  readonly knipConfigPlugins: readonly string[]
 }
 
 /** The origin the end-to-end suite drives when the project declares none. */
@@ -124,6 +131,13 @@ export interface LayerDefaults {
   readonly pureLogicRoots?: readonly string[]
   /** Route prefixes the layer's framework serves outside the public site, such as an admin panel. */
   readonly accessibilitySkipRoutes?: readonly string[]
+  /**
+   * Files the layer's framework runs in production of its own accord, such as the configuration an application
+   * boots from, which no import from the package's interface reaches.
+   */
+  readonly productionEntries?: readonly string[]
+  /** The knip plugins that read one of {@link LayerDefaults.productionEntries} as a tool's configuration. */
+  readonly knipConfigPlugins?: readonly string[]
 }
 
 /** The directories a project holds first-party source in, whatever else it declares. */
@@ -298,6 +312,19 @@ const appSettings = (
   }
 }
 
+// What the dead-code gate reads: whether the project opts into the production run, and the production entry points
+// and the knip plugins each layer's framework adds to it.
+const deadCodeSettings = (
+  raw: Readonly<Record<string, unknown>>,
+  layers: readonly LayerDefaults[],
+): Pick<Settings, 'productionDeadCode' | 'productionEntries' | 'knipConfigPlugins'> => ({
+  productionDeadCode: raw['productionDeadCode'] === true,
+  productionEntries: layers.flatMap((layer: LayerDefaults): readonly string[] => layer.productionEntries ?? []),
+  knipConfigPlugins: [
+    ...new Set<string>(layers.flatMap((layer: LayerDefaults): readonly string[] => layer.knipConfigPlugins ?? [])),
+  ],
+})
+
 /** The raw `airness` block of a manifest, before any default is applied. */
 export const settingsBlock = (packageJson: unknown): Record<string, unknown> => {
   const declared: unknown = asRecord(packageJson)[SETTINGS_KEY]
@@ -379,7 +406,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     ],
     javascriptRuntimes: [...DEFAULT_JAVASCRIPT_RUNTIMES, ...layerRuntimes, ...declaredRuntimeRoles(javascript)],
     pureLogicRoots: floorOf(floor, layers),
-    productionDeadCode: raw['productionDeadCode'] === true,
+    ...deadCodeSettings(raw, layers),
     ...appSettings(raw, layers, honouredRoutes(routes)),
     ...browserSettings(raw),
   }
