@@ -124,6 +124,18 @@ class IntegrationPluginsPolicyTest {
         );
     }
 
+    @Test
+    void instrumentsOnlyTheClassesUnderThePackageRoot() {
+        Element includes = ProjectFiles.child(
+            ProjectFiles.parentExecution("airness-coverage-agent"), "configuration", "includes"
+        );
+        assertEquals(
+            List.of("${airness.package.root}.*"),
+            Xml.children(includes, "include").stream().map(include -> include.getTextContent().strip()).toList(),
+            "a library class carries probes no coverage rule reads, and they slow every test that drives it"
+        );
+    }
+
     private static String plugin(String artifact, String contents) {
         String group = "build-helper-maven-plugin".equals(artifact)
             ? "org.codehaus.mojo" : "org.apache.maven.plugins";
