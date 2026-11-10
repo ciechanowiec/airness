@@ -67,6 +67,11 @@ public final class MavenModelPolicy {
     // Maven names every execution it binds from a lifecycle mapping "default-" followed by the goal, so
     // an execution written under one of those names edits the inherited run rather than adding to it.
     private static final String LIFECYCLE_EXECUTION = "default-";
+    // The profile ids the Airness parents declare, besides every airness-* id. Maven activates a selected id in
+    // every model of the lineage, and a profile active by default in a project's own model is active for that
+    // project, so a project profile of one of these ids joins the harness's own or stands in for it unasked.
+    private static final Set<String> HARNESS_PROFILES = Set.of("delta", "extended", "format", "release");
+    private static final String HARNESS_PREFIX = "airness-";
 
     /**
      * Every child declaration that can weaken or make dependency resolution machine-specific.
@@ -81,6 +86,7 @@ public final class MavenModelPolicy {
             VersionProperties.problems(root),
             PomPropertyOrder.problems(root).stream(),
             executionProblems(root),
+            profileProblems(root),
             testPhaseProblems(root),
             pluginConfigurationProblems(root),
             mergeOverrideProblems(root),
@@ -109,9 +115,18 @@ public final class MavenModelPolicy {
         return DeclaredCoordinates.plugins(root)
             .flatMap(MavenModelPolicy::executions)
             .map(Xml::idTextOrEmpty)
-            .filter(id -> id.startsWith("airness-"))
+            .filter(id -> id.startsWith(HARNESS_PREFIX))
             .distinct()
             .map(id -> "Remove child execution " + id + "; Airness owns every airness-* execution");
+    }
+
+    private static Stream<String> profileProblems(Element root) {
+        return Xml.firstChild(root, "profiles").stream()
+            .flatMap(profiles -> Xml.children(profiles, "profile").stream())
+            .map(Xml::idTextOrEmpty)
+            .filter(id -> HARNESS_PROFILES.contains(id) || id.startsWith(HARNESS_PREFIX))
+            .distinct()
+            .map(id -> "Remove child profile " + id + "; Airness owns every profile of that id, so name yours apart");
     }
 
     private static Stream<String> pluginConfigurationProblems(Element root) {

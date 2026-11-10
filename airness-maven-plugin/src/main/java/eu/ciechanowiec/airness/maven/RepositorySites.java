@@ -3,22 +3,25 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.AssetLocation;
 import eu.ciechanowiec.airness.governance.AssetSite;
 import eu.ciechanowiec.airness.governance.Layer;
+import eu.ciechanowiec.airness.governance.Repository;
 import eu.ciechanowiec.airness.maven.NodeProjects.NodeProject;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.apache.maven.model.building.ModelProblem;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuilder;
@@ -29,11 +32,18 @@ import org.apache.maven.project.ProjectBuildingResult;
 /**
  * The directories of a repository that receive managed files, with the layers present in each.
  *
- * <p>Read from the model of every {@code pom.xml} in the working tree, built without building the modules
- * themselves. Reading every project file rather than the reactor, or the modules one aggregator lists, is
- * what makes the answer the same whichever module a build started in: two builds that share a repository
- * root but no aggregator would otherwise each demand root blocks without the other's stack, and no tree
- * could satisfy both.
+ * <p>Read from the model of every {@code pom.xml} a commit from the working tree would carry, built without
+ * building the modules themselves. Reading every project file rather than the reactor, or the modules one
+ * aggregator lists, is what makes the answer the same whichever module a build started in: two builds that share
+ * a repository root but no aggregator would otherwise each demand root blocks without the other's stack, and no
+ * tree could satisfy both.
+ *
+ * <p>Git says which files those are, as it does for every other reader of the repository: what it ignores, such
+ * as build output, a scratch checkout, a worktree nested in the clone or a directory a container owns, is no
+ * project of this repository, and is not even listed, so an unreadable one stops nothing. A project file that is
+ * data rather than a module is passed over too: one under a resource directory, such as an archetype's template
+ * or a test fixture, and one under {@code src/it}, which an integration test copies and filters before Maven ever
+ * reads it.
  */
 @UtilityClass
 final class RepositorySites {
@@ -46,7 +56,11 @@ final class RepositorySites {
     private static final List<String> HOOK_EXTENSIONS = List.of(".ts", ".js", ".mts", ".mjs", ".cts", ".cjs");
     private static final String SEEDED_PROXY = "src/proxy.ts";
     private static final String PARENT_DIRECTORY = "..";
-    private static final Set<String> PRUNED = Set.of("target", "node_modules", ".git");
+    // Output and installed packages, which a project that ignores nothing would otherwise have offered, then a
+    // resource directory and the integration tests' templates, which hold project files as data.
+    private static final Pattern DATA = Pattern.compile(
+        "(?:^|/)(?:target|node_modules|src/it|src/[^/]+/resources)/"
+    );
 
     /**
      * The parent of each stack, by artifactId, with the layer a module inheriting it carries. A stack's
@@ -56,6 +70,10 @@ final class RepositorySites {
 
     /**
      * Reads the sites of the repository from every project file in it.
+     *
+     * <p>A project file Maven cannot build into a model is left out rather than failing the read. It is none of
+     * this build's modules, which Maven built before any goal ran, and a module that cannot be built carries no
+     * stack: the build that selects it fails on that file in its own words.
      *
      * @param builder the Maven project builder
      * @param request the session's project building request
@@ -67,16 +85,27 @@ final class RepositorySites {
         ProjectBuildingRequest models = new DefaultProjectBuildingRequest(request);
         models.setProcessPlugins(false);
         models.setResolveDependencies(false);
+        return of(
+            root, results(builder, poms, models).stream()
+                .filter(RepositorySites::built)
+                .map(ProjectBuildingResult::getProject)
+                .toList()
+        );
+    }
+
+    private static List<ProjectBuildingResult> results(
+        ProjectBuilder builder, List<File> poms, ProjectBuildingRequest request
+    ) {
         try {
-            return of(
-                root, builder.build(poms, false, models).stream().map(ProjectBuildingResult::getProject).toList()
-            );
+            return builder.build(poms, false, request);
         } catch (ProjectBuildingException exception) {
-            throw new IllegalStateException(
-                "Could not read the models of the project files in " + root + ", which decide the managed files",
-                exception
-            );
+            return Optional.ofNullable(exception.getResults()).orElse(List.of());
         }
+    }
+
+    private static boolean built(ProjectBuildingResult result) {
+        return Optional.ofNullable(result.getProject()).isPresent() && result.getProblems().stream()
+            .noneMatch(problem -> problem.getSeverity() != ModelProblem.Severity.WARNING);
     }
 
     /**
@@ -187,26 +216,18 @@ final class RepositorySites {
     }
 
     private static List<File> projectFiles(Path root) {
-        return searched(root).map(Path::toFile).toList();
-    }
-
-    // Lists one directory and descends into every subdirectory except build output, installed node
-    // packages and Git metadata, which can be large and hold no project file of this repository.
-    private static Stream<Path> searched(Path directory) {
-        try (Stream<Path> entries = Files.list(directory)) {
-            List<Path> listed = entries.sorted().toList();
-            return listed.stream().flatMap(RepositorySites::found);
-        } catch (IOException exception) {
-            throw new UncheckedIOException("Could not search " + directory + " for project files", exception);
-        }
-    }
-
-    private static Stream<Path> found(Path entry) {
-        String name = entry.getFileName().toString();
-        if (Files.isDirectory(entry, LinkOption.NOFOLLOW_LINKS)) {
-            return PRUNED.contains(name) ? Stream.empty() : searched(entry);
-        }
-        return Stream.of(entry).filter(_ -> POM.equals(name));
+        List<Path> committable = Repository.committableFiles(root).orElseThrow(
+            () -> new IllegalStateException(
+                "Git could not list the files of " + root + ", whose project files decide the managed files"
+            )
+        );
+        return committable.stream()
+            .map(file -> root.relativize(file).toString().replace(File.separatorChar, '/'))
+            .filter(file -> POM.equals(file) || file.endsWith('/' + POM))
+            .filter(file -> !DATA.matcher(file).find())
+            .sorted()
+            .map(file -> root.resolve(file).toFile())
+            .toList();
     }
 
     private static Path real(Path path) {

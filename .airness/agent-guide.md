@@ -43,8 +43,9 @@ Airness governs all of the following domains:
   phase, such as `post-integration-test`, and name a command-line goal before the lifecycle
   (`mvn sonar:sonar verify`) or run it in an invocation of its own. Once every module of the build has
   completed, one closing step compares the committable tree with the one the build started from, holds the
-  Java sources and the node projects' own code to their suppression ceilings, and under Extended verification
-  writes the compliance report and looks every npm package up in the OSV database. Build Helper and Assembly
+  Java sources and the node projects' own code to their suppression ceilings, refuses every module of the build
+  that holds code (Java under its source roots, or a `package.json`) without inheriting an Airness parent, and
+  under Extended verification writes the compliance report and looks every npm package up in the OSV database. Build Helper and Assembly
   are optional managed plugins: declare one without a version in the module that uses it. Build Helper's source
   and resource roots and Assembly's distribution descriptors belong to the project.
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
@@ -217,7 +218,8 @@ Airness governs all of the following domains:
   `~/.cache/airness/scan/<tool>-<number>`, beneath the home directory because Docker mounts a folder it does not
   share as an empty one, and Colima shares only the home directory by default. A scan that passes deletes its
   copy. A finding or a failure keeps it, with the scanner output beside it, and prints
-  `Scanner evidence: <path>`. `mvn clean` does not remove a kept copy, so delete it by hand once it has been read.
+  `Scanner evidence: <path>`. `mvn clean` does not remove a kept copy; every scan first removes each copy older
+  than a day, whichever tool and repository kept it, so read the evidence within a day.
   Missing tools, unreadable inputs, incomplete reports and parsing failures fail verification.
 
 Do not treat a domain omitted from one command's output as ungoverned. The parent POM, bundled configurations, and
@@ -488,7 +490,8 @@ Earlier report pairs are removed only after a complete replacement has been rend
 ### Vulnerability Exceptions
 
 Reach for the OWASP suppression file, which `airness.dependency-check.suppression.file` locates, only when no
-upgrade answers an advisory. Keep it at
+upgrade answers an advisory. Every entry of that setting names an existing file inside the repository: a URL, a
+`file:` URI, a missing path or a path outside the repository is refused. Keep it at
 `.airness/dependency-check-suppressions.xml` in the directory of the module whose dependency it excuses, which is the
 path the scan of that module reads: the document's presence there is what puts it in front of the scan, so one kept
 elsewhere is never read and the setting itself needs no declaring. In a multi-module build a document at the
@@ -572,7 +575,9 @@ so is every property a goal the parents bind reads in place of a parameter that 
 `maven.test.failure.ignore`, `checkstyle.maxAllowedViolations` or `license.excludedGroups`, because Maven fills an
 unset parameter from that property without the plugin being declared. A property that only tunes how a plugin the
 project may configure runs, such as `argLine`, stays the project's. The refusal
-reads the file as written, so a name inside a profile that is never activated is refused too. Both
+reads the file as written, so a name inside a profile that is never activated is refused too. So is a profile whose
+id an Airness parent owns, `delta`, `extended`, `format`, `release` or any `airness-` id, because Maven activates a
+profile of that id beside the harness's own; only the invocation's `-Pformat` selects formatting. Both
 `-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
 Raw-model integrity checks read the current POM and every consumer parent up to the trusted Airness chain,
 even with `-DskipTests`; skipping execution cannot hide a forbidden committed property or inherited override.

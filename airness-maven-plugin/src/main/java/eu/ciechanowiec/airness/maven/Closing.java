@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -29,6 +30,8 @@ import org.apache.maven.project.MavenProject;
 final class Closing {
 
     static final String HEADLINE = "Committable files changed during the build";
+    static final String UNGOVERNED = "Modules holding code that no Airness parent governs";
+    private static final List<String> JAVA_ROOTS = List.of("src/main/java", "src/test/java");
     private static final String MOVED
         = "The working tree content differs from the snapshot the first module took at validate, so a build step"
             + " wrote to a tracked file or the tree was edited while the build ran";
@@ -78,6 +81,29 @@ final class Closing {
             project -> project.getId() + " inherits no Airness parent and no module that completes depends on it, so"
                 + " closing does not cover it."
         ).toList();
+    }
+
+    /**
+     * The participating modules that hold code but inherit no Airness parent, whether or not closing covers them.
+     *
+     * <p>Such a module binds no Airness goal: no compiler check, analyzer, test rule, coverage floor or node gate
+     * judges its code, and a module depending on it says nothing about that code either. A module that holds
+     * none, such as a distribution module on a parent of its own, stays allowed, and closing only names it when it
+     * leaves it out. Code is a Java source under the module's source roots or the conventional ones, or a
+     * {@code package.json} a commit would carry in the module rather than in a child module or its build output.
+     *
+     * @param required the participating modules
+     * @return one offence per module that holds code and completes no Airness verdict
+     */
+    static Findings ungoverned(Collection<MavenProject> required) {
+        return new Findings(
+            UNGOVERNED,
+            required.stream().filter(project -> !completes(project)).filter(Closing::holdsCode).map(
+                project -> project.getId() + " holds code but inherits no Airness parent, so no Airness rule judges"
+                    + " it; name airness-parent-java, airness-parent-spring-boot or airness-parent-node as its parent,"
+                    + " or move the code into a module that inherits one"
+            ).toList()
+        );
     }
 
     /**
@@ -138,6 +164,27 @@ final class Closing {
             .map(Path::getFileName)
             .filter(Objects::nonNull)
             .anyMatch(name -> segment.equals(name.toString()));
+    }
+
+    private static boolean holdsCode(MavenProject project) {
+        Path basedir = project.getBasedir().toPath();
+        Stream<Path> conventional = JAVA_ROOTS.stream().map(basedir::resolve);
+        Stream<Path> declared = Stream.concat(
+            project.getCompileSourceRoots().stream(), project.getTestCompileSourceRoots().stream()
+        ).map(Path::of);
+        boolean java = Stream.concat(conventional, declared).distinct().filter(Files::isDirectory)
+            .anyMatch(JavaParents::containsJava);
+        return java || !NodeManifests.in(basedir.toAbsolutePath().normalize(), owned(project, basedir)).isEmpty();
+    }
+
+    // A child module answers for its own directory, and the build directory holds output.
+    private static List<Path> owned(MavenProject project, Path basedir) {
+        Stream<Path> modules = project.getModules().stream()
+            .map(module -> basedir.resolve(module).toAbsolutePath().normalize())
+            .map(module -> Files.isRegularFile(module) ? module.resolveSibling("") : module);
+        Stream<Path> output = Optional.ofNullable(project.getBuild().getDirectory()).stream()
+            .map(directory -> Path.of(directory).toAbsolutePath().normalize());
+        return Stream.concat(modules, output).toList();
     }
 
     private static boolean completes(MavenProject project) {

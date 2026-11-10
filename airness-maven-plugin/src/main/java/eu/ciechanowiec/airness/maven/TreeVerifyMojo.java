@@ -41,7 +41,7 @@ public final class TreeVerifyMojo extends AbstractGovernanceMojo {
     }
 
     private boolean formatProfile() {
-        return ReportProjects.active(this.project(), "format");
+        return ReportProjects.formatting(this.session().getRequest());
     }
 
     private String scope() {

@@ -29,8 +29,9 @@ import org.jspecify.annotations.Nullable;
  * order Maven planned: nothing runs after it in {@code verify} and no goal named on the command line runs after
  * it, or it refuses the build before closing. It then records the module as complete. The module whose record
  * completes the set runs the closing step, once per invocation, sequentially or as the last of a parallel
- * build: the final tree comparison against the tree the first module saw, the suppression ceiling across the
- * whole repository, and under the extended profile one SBOM and one compliance report for every module. A
+ * build: the final tree comparison against the tree the first module saw, a refusal of every participating module
+ * that holds code without inheriting an Airness parent, the suppression ceiling across the whole repository, and
+ * under the extended profile one SBOM and one compliance report for every module. A
  * module that fails never records itself, so a failed build never closes.
  */
 @Mojo(
@@ -85,23 +86,24 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
             return List.of();
         }
         // Airness's own libraries inherit its aggregator, and its reactor builds them ahead of the parents.
-        List<MavenProject> covered = RepositoryProjects.selfRepository(this.session().getTopLevelProject()) ? required
+        boolean self = RepositoryProjects.selfRepository(this.session().getTopLevelProject());
+        List<MavenProject> covered = self ? required
             : Closing.covered(
                 required, project -> this.session().getProjectDependencyGraph().getUpstreamProjects(project, true)
             );
         List<String> uncovered = Closing.uncovered(required, covered);
         uncovered.forEach(line -> this.getLog().warn(line));
         this.getLog().info("Every module of this build is complete; closing runs here");
+        Stream<Findings> ungoverned = self ? Stream.empty() : Stream.of(Closing.ungoverned(required));
         return Stream.of(
-            Stream.of(this.tree()), this.suppressions().stream(), this.report(covered, uncovered).stream()
+            Stream.of(this.tree()), ungoverned, this.suppressions().stream(), this.report(covered, uncovered).stream()
         ).flatMap(stream -> stream).toList();
     }
 
     private Findings tree() {
-        // The profile as the invocation selected it, on the top-level project: a module declaring a profile of the
-        // same name cannot switch the comparison off for the whole repository.
-        boolean format = ReportProjects.active(this.session().getTopLevelProject(), "format");
-        if (format) {
+        // The profile as the invocation selected it: a project declaring a profile of the same id, active by default,
+        // cannot switch the comparison off for the whole repository.
+        if (ReportProjects.formatting(this.session().getRequest())) {
             this.getLog().info("The format profile intentionally edits sources; the closing tree comparison is off");
             return Closing.tree(true);
         }
