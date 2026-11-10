@@ -22,8 +22,15 @@ import lombok.experimental.UtilityClass;
 final class CommitLog {
 
     private static final String SEPARATOR = Character.toString(0);
+    /*
+     * Every option that changes the statistics is written out, because each one has a setting that would
+     * otherwise decide it on the machine running the check: diff.algorithm moves lines between the added and
+     * deleted counts, diff.renames turns a rename into a deletion and an addition, log.showRoot drops the
+     * statistics of the first commit, and a textconv driver counts converted text rather than the content.
+     */
     private static final List<String> COMMAND = List.of(
         "log", "--no-color", "--no-show-signature", "--diff-merges=first-parent", "--numstat",
+        "--diff-algorithm=myers", "--find-renames", "--root", "--no-textconv",
         "--format=%x00%H %P%n%B%x00", "HEAD"
     );
     private static final int FIELDS_PER_COMMIT = 2;
