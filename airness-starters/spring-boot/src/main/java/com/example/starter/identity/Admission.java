@@ -62,19 +62,18 @@ public final class Admission {
 
     /**
      * Answers whether the given password is the one the given account signs in with, and the account may
-     * sign in now. A password that does not prove the account is counted and recorded as refused, in the
-     * transaction of whoever asked.
+     * sign in now. The account is read before the comparison, which takes a quarter of a second, so the
+     * outcome is settled afterwards on the account as the database then holds it: a password that matched
+     * proves nothing once the account was stopped meanwhile, and one that does not prove it is counted and
+     * recorded as refused in a transaction of its own, which stands whatever becomes of the caller's.
      *
      * @param password the password typed
-     * @param account  the account it is meant to prove
+     * @param account  the account it is meant to prove, as it was read before the comparison
      * @return whether it is that account's password and the account is not stopped
      */
     public boolean proves(String password, User account) {
-        boolean proved = !account.getLockout().locks(this.clock.instant())
+        boolean matched = !account.getLockout().locks(this.clock.instant())
             && this.encoder.matches(password, account.getPasswordHash());
-        if (!proved) {
-            this.signIns.disproved(account.getProfile().email());
-        }
-        return proved;
+        return this.signIns.settled(account.getProfile().email(), matched);
     }
 }

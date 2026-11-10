@@ -4,7 +4,9 @@ import com.example.starter.audit.AuditAction;
 import com.example.starter.audit.AuditOutcome;
 import com.example.starter.audit.AuditTrail;
 import java.time.Clock;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -72,17 +74,29 @@ public class SignIns {
     }
 
     /**
-     * Records that a signed-in reader typed a current password that is not theirs, or typed one while their
-     * account is stopped, on the page that changes it. It counts against the account exactly as a refused
-     * sign-in does, because both are a guess at the same password, and the change it was meant to prove is
-     * recorded as refused.
+     * Settles whether the current password a signed-in reader typed, on the page that changes it, proves
+     * their account. One that did not match, or that matched while the account is stopped as it stands now,
+     * counts against the account exactly as a refused sign-in does, because both are a guess at the same
+     * password, and the change it was meant to prove is recorded as refused.
      *
-     * @param email the address the reader signs in with
+     * <p>It runs in a transaction of its own. The caller's transaction read the account before the
+     * comparison and keeps that reading, so a count made in it would start from a standing other attempts
+     * have since changed, and a caller that refuses the change undoes its whole transaction, the count with
+     * it.
+     *
+     * @param email   the address the reader signs in with
+     * @param matched whether the password typed matched the account as it was read before the comparison
+     * @return whether the password proves the account
      */
-    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
-    public void disproved(String email) {
-        this.countedAgainst(email);
-        this.trail.write(email, AuditAction.PASSWORD_CHANGED, email, AuditOutcome.REFUSED);
+    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS, propagation = Propagation.REQUIRES_NEW)
+    public boolean settled(String email, boolean matched) {
+        Optional<User> held = this.repository.heldUnder(email);
+        boolean proved = matched && held.filter(user -> !user.getLockout().locks(this.clock.instant())).isPresent();
+        if (!proved) {
+            held.ifPresent(this::counted);
+            this.trail.write(email, AuditAction.PASSWORD_CHANGED, email, AuditOutcome.REFUSED);
+        }
+        return proved;
     }
 
     private void countedAgainst(String email) {

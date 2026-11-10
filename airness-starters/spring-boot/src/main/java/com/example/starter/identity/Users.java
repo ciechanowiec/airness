@@ -3,11 +3,14 @@ package com.example.starter.identity;
 import com.example.starter.audit.AuditAction;
 import com.example.starter.audit.AuditOutcome;
 import com.example.starter.audit.AuditTrail;
+import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -38,19 +41,34 @@ public class Users {
 
     private final Sessions sessions;
 
+    // The one write that cannot be a method of its own behind the proxy: a password change, which compares
+    // and hashes passwords before it writes and holds no transaction while it does.
+    private final TransactionTemplate writing;
+
+    private final Clock clock;
+
     /**
      * Reads and writes the accounts through the given repository.
      *
-     * @param repository the accounts as the database holds them
-     * @param admission  what hashes a password and turns a form into the account it admits
-     * @param trail      what records every change to an account
-     * @param sessions   the sessions every account is signed in under
+     * @param repository   the accounts as the database holds them
+     * @param admission    what hashes a password and turns a form into the account it admits
+     * @param trail        what records every change to an account
+     * @param sessions     the sessions every account is signed in under
+     * @param transactions what a password change writes its new password under
+     * @param clock        the clock every instant of the application is read from
      */
-    public Users(UserRepository repository, Admission admission, AuditTrail trail, Sessions sessions) {
+    public Users(
+        UserRepository repository, Admission admission, AuditTrail trail, Sessions sessions,
+        PlatformTransactionManager transactions, Clock clock
+    ) {
         this.repository = repository;
         this.admission = admission;
         this.trail = trail;
         this.sessions = sessions;
+        this.writing = new TransactionTemplate(transactions);
+        this.writing.setReadOnly(false);
+        this.writing.setTimeout(TIMEOUT_SECONDS);
+        this.clock = clock;
     }
 
     /**
@@ -131,11 +149,13 @@ public class Users {
      * account as a refused sign-in does and is recorded as a refused change, and while the account is
      * stopped under the policy on refused sign-ins no password is theirs.
      *
+     * <p>It holds no transaction of its own: the comparison takes a quarter of a second, and the outcome is
+     * settled in a transaction of its own once the comparison is over.
+     *
      * @param password the password the reader typed as their current one
      * @return whether it is theirs, and their account is not stopped
      */
     @PreAuthorize("isAuthenticated()")
-    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
     public boolean proves(String password) {
         return this.admission.proves(password, this.reader());
     }
@@ -143,28 +163,60 @@ public class Users {
     /**
      * Changes the password the signed-in reader signs in with, and ends every other session of the account.
      *
+     * <p>The current password is proved, and the chosen one hashed, before any transaction begins, so no
+     * connection is held through either comparison and a refused proof stays counted although the change
+     * is refused. The new password is then written on the account as the database holds it then, held for
+     * the write, rather than on the reading the proof began with, and only while that is still the account
+     * proved: the same one, with the same password, enabled and not stopped. One that changed meanwhile,
+     * by another session changing the password first or an administrator stopping it, keeps what it has,
+     * and the change is recorded as refused.
+     *
      * @param current the password the reader signs in with today
      * @param chosen  the password the reader signs in with from now on
      * @throws IllegalStateException when the current password is not theirs, when their account is stopped
-     *                               under the policy on refused sign-ins, or when the chosen one does not
-     *                               meet the policy
+     *                               under the policy on refused sign-ins, when the chosen one does not
+     *                               meet the policy, or when the account changed while the change was made
      */
     @PreAuthorize("isAuthenticated()")
-    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
     public void changePassword(String current, String chosen) {
-        User user = this.reader();
-        if (!this.admission.proves(current, user)) {
+        User reader = this.reader();
+        if (!this.admission.proves(current, reader)) {
             throw new IllegalStateException("The current password is not the reader's");
         }
-        this.repository.save(user.withPassword(this.admission.hashed(chosen)));
+        String hash = this.admission.hashed(chosen);
+        String email = reader.getProfile().email();
         // A session opened by whoever knew the old password must not outlive it. The one making the
         // change stays, because its reader has just proved the password.
-        this.sessions.endOthers(
-            user.getProfile().email(),
-            Optional.ofNullable(RequestContextHolder.getRequestAttributes()).map(RequestAttributes::getSessionId)
-                .orElse("")
-        );
-        this.trail.write(actor(), AuditAction.PASSWORD_CHANGED, user.getProfile().email(), AuditOutcome.SUCCEEDED);
+        String kept = Optional.ofNullable(RequestContextHolder.getRequestAttributes())
+            .map(RequestAttributes::getSessionId)
+            .orElse("");
+        boolean changed = Boolean.TRUE.equals(this.writing.execute(_ -> this.written(email, reader, hash, kept)));
+        if (!changed) {
+            throw new IllegalStateException("The account changed while its password was being changed");
+        }
+    }
+
+    // Writes the new password on the account held for the write, while it is still the one proved, and
+    // answers whether it did. Runs inside the transaction that holds the account.
+    private boolean written(String email, User proved, String hash, String kept) {
+        Optional<User> held = this.repository.heldUnder(email)
+            .filter(account -> this.standsAsProved(account, proved));
+        if (held.isEmpty()) {
+            this.trail.write(actor(), AuditAction.PASSWORD_CHANGED, email, AuditOutcome.REFUSED);
+            return false;
+        }
+        this.repository.save(held.orElseThrow().withPassword(hash));
+        this.sessions.endOthers(email, kept);
+        this.trail.write(actor(), AuditAction.PASSWORD_CHANGED, email, AuditOutcome.SUCCEEDED);
+        return true;
+    }
+
+    // Whether the account held for the write is still the one the current password proved.
+    private boolean standsAsProved(User held, User proved) {
+        return held.getReference().equals(proved.getReference())
+            && held.getPasswordHash().equals(proved.getPasswordHash())
+            && held.getAccess().enabled()
+            && !held.getLockout().locks(this.clock.instant());
     }
 
     /**
@@ -234,7 +286,11 @@ public class Users {
     private User reader() {
         return Reader.email()
             .flatMap(this.repository::findByProfileEmail)
-            .orElseThrow(() -> new IllegalStateException("The reader of this request has no account"));
+            .orElseThrow(Users::readerless);
+    }
+
+    private static IllegalStateException readerless() {
+        return new IllegalStateException("The reader of this request has no account");
     }
 
     private static String actor() {
