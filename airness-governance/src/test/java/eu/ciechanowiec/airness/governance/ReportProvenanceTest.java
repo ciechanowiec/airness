@@ -42,6 +42,18 @@ class ReportProvenanceTest {
     }
 
     @Test
+    void readsAnUntrackedFileAsDirtyWhateverTheRepositoryShowsOfUntrackedFiles() {
+        GitFixture fixture = new GitFixture("report-source-untracked").write("source.txt", "initial\n")
+            .commit("feat(core): record report fixture sources");
+        fixture.git("config", "status.showUntrackedFiles", "no");
+        fixture.write("untracked.txt", "new\n");
+        assertTrue(
+            ReportSource.read(fixture.root(), "later").dirty(),
+            "a setting that hides untracked files from status must not make the report read as release evidence"
+        );
+    }
+
+    @Test
     void permitsIgnoredDestinationsButRefusesAuthoredOutputs() {
         GitFixture fixture = new GitFixture("report-output").write(".gitignore", "target/\n");
         Path root = fixture.root().toAbsolutePath();

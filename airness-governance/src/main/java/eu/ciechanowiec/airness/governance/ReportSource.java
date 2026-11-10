@@ -40,7 +40,9 @@ public record ReportSource(String commit, String fingerprint, String generatedAt
      */
     public static ReportSource read(Path root, String generatedAt) {
         String commit = GitPlumbing.run(root, List.of("rev-parse", "HEAD")).strip();
-        boolean dirty = !GitPlumbing.run(root, List.of("status", "--porcelain")).isBlank();
+        // Pinned, because status.showUntrackedFiles=no would otherwise hide a new file from the dirty verdict.
+        boolean dirty = !GitPlumbing.run(root, List.of("status", "--porcelain", "--untracked-files=normal"))
+            .isBlank();
         List<String> reasons = dirty ? List.of(DIRTY) : List.of();
         return new ReportSource(commit, TreeFingerprint.from(root), generatedAt, reasons);
     }

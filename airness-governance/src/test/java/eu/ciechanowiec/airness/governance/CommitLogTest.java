@@ -40,6 +40,32 @@ class CommitLogTest {
         assertEquals(new DiffStat(1, 1), commit.stat(), "and the statistics count only the file the commit changed");
     }
 
+    /*
+     * Each setting changes what a plain git log reports for one of these commits: histogram counts five
+     * changed lines where myers counts three, a rename without detection reads as a deletion and an addition,
+     * and a log that does not show the root drops the statistics of the first commit.
+     */
+    @Test
+    void readsTheSameStatisticsWhateverTheRepositoryConfiguresForDiffs() {
+        GitFixture fixture = new GitFixture("commit-log-configured")
+            .write(FILE, "a\nx\nb\n").commit("feat(core): add the first fixture file")
+            .write(FILE, "b\na\nb\na\n").commit("feat(core): reorder the fixture file lines");
+        fixture.git("mv", FILE, "GUIDE.md");
+        fixture.commit("docs(core): rename the fixture file to a guide");
+        List<DiffStat> unconfigured = CommitLog.commits(fixture.root()).stream().map(Commit::stat).toList();
+        assertEquals(
+            List.of(new DiffStat(1, 0), new DiffStat(1, 3), new DiffStat(1, 3)), unconfigured,
+            "a rename changes no line, myers counts three changed lines, and the first commit adds three"
+        );
+        fixture.git("config", "diff.algorithm", "histogram");
+        fixture.git("config", "diff.renames", "false");
+        fixture.git("config", "log.showRoot", "false");
+        assertEquals(
+            unconfigured, CommitLog.commits(fixture.root()).stream().map(Commit::stat).toList(),
+            "a local setting of the repository does not move the body requirement of any commit"
+        );
+    }
+
     @Test
     void readsNoCommitFromAnEmptyOutput() {
         assertEquals(List.of(), CommitLog.parse(""), "an output without a record holds no commit");
