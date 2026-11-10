@@ -55,6 +55,12 @@ done
 # scheduled by the Docker daemon rather than by a child of this shell.
 renice 19 -p "$$" > /dev/null 2>&1 || true
 
+# Every git the suite starts, in the fixtures it writes and in the builds and tests it runs, reads the managed test
+# configuration rather than the machine's, so no hook, signing key or ignore file of the host decides a case.
+GIT_CONFIG_GLOBAL="${repository}/.airness/test.gitconfig"
+GIT_CONFIG_NOSYSTEM=1
+export GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM
+
 . "${repository}/airness-it/local-repository.sh"
 shared_repository="${HOME}/.m2/repository"
 # The consumer fixtures build outside this clone, so its .mvn/maven.config never reaches them. Each is handed the

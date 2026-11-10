@@ -28,6 +28,18 @@ run_model_policy_cases() {
     run_maven model_format_profile maven "${model_consumer}" airness:project-settings -DskipTests
     expect_exit model_format_profile 'model: a project profile cannot reuse the format id' 1
     expect_match model_format_profile 'model: the reused profile id is identified' 'Remove child profile format'
+    # The Git configuration the tests read is the harness's, so a consumer that names its own is refused.
+    cp "${scratch}/model-original.xml" "${model_consumer}/pom.xml"
+    model_environment='<build><plugins><plugin><groupId>org.apache.maven.plugins</groupId>'
+    model_environment="${model_environment}<artifactId>maven-surefire-plugin</artifactId><configuration>"
+    model_environment="${model_environment}<environmentVariables><GIT_CONFIG_GLOBAL>/elsewhere</GIT_CONFIG_GLOBAL>"
+    model_environment="${model_environment}</environmentVariables></configuration></plugin></plugins></build>"
+    MODEL_ENVIRONMENT="${model_environment}" perl -0pi -e \
+        's{</project>}{$ENV{MODEL_ENVIRONMENT}."</project>"}e' "${model_consumer}/pom.xml"
+    run_maven model_git_environment maven "${model_consumer}" airness:project-settings -DskipTests
+    expect_exit model_git_environment 'model: a consumer cannot name its own test Git configuration' 1
+    expect_match model_git_environment 'model: the renamed Git configuration is identified' \
+        'maven-surefire-plugin configuration GIT_CONFIG_GLOBAL'
     cp "${scratch}/model-original.xml" "${model_consumer}/pom.xml"
     model_execution='<build><plugins><plugin><groupId>org.apache.maven.plugins</groupId>'
     model_execution="${model_execution}<artifactId>maven-surefire-plugin</artifactId><executions><execution>"

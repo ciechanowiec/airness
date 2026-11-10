@@ -390,6 +390,16 @@
                     -->
                     <configuration>
                         <testFailureIgnore>false</testFailureIgnore>
+                        <!--
+                            The Git configuration every test reads: the managed one in place of the machine's global
+                            one, and no system one, so a developer's hooks, signing or ignore file cannot change a
+                            verdict. Written here because a consumer inherits this file as well, through
+                            airness-parent; MavenModelPolicy refuses a child that sets either variable.
+                        -->
+                        <environmentVariables>
+                            <GIT_CONFIG_NOSYSTEM>1</GIT_CONFIG_NOSYSTEM>
+                            <GIT_CONFIG_GLOBAL>${maven.multiModuleProjectDirectory}/.airness/test.gitconfig</GIT_CONFIG_GLOBAL>
+                        </environmentVariables>
                         <properties>
                             <configurationParameters>
                                 junit.jupiter.execution.timeout.default = ${airness.test.timeout}
@@ -420,6 +430,10 @@
                         <skipITs>${skipTests}</skipITs>
                         <testFailureIgnore>false</testFailureIgnore>
                         <failIfNoTests>true</failIfNoTests>
+                        <environmentVariables>
+                            <GIT_CONFIG_NOSYSTEM>1</GIT_CONFIG_NOSYSTEM>
+                            <GIT_CONFIG_GLOBAL>${maven.multiModuleProjectDirectory}/.airness/test.gitconfig</GIT_CONFIG_GLOBAL>
+                        </environmentVariables>
                         <properties>
                             <configurationParameters>
                                 junit.jupiter.execution.timeout.default = ${airness.test.timeout}

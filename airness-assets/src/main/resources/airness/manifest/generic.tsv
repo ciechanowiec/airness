@@ -9,6 +9,7 @@
 # generic because every repository builds with Maven on exactly Java 25. The JVM options file is pinned with
 # them: a -D option there becomes a system property every Maven expression reads ahead of the project's own,
 # so a committed one could set skipTests or airness.enforce for every build of the repository.
+# The test Git configuration is generic because the tests of a Java module and of a node project both read it.
 
 .editorconfig	PINNED
 .gitattributes	PINNED
@@ -19,6 +20,7 @@
 .airness/agent-guide.md	PINNED
 README-guideline-software-project.adoc	PINNED
 .airness/license-inventory.ftl	PINNED
+.airness/test.gitconfig	PINNED
 AGENTS.md	SECTION
 .gitignore	SECTION
 .dockerignore	SECTION

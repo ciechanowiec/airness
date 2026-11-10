@@ -473,6 +473,12 @@ Earlier report pairs are removed only after a complete replacement has been rend
   obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
   suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
+- So is the Git configuration a test reads. Every Surefire, Failsafe and Vitest run reads the managed
+  `.airness/test.gitconfig` as its global Git configuration and no system one, through `GIT_CONFIG_GLOBAL` and
+  `GIT_CONFIG_NOSYSTEM`, which a project file may not set. It turns hooks, commit and tag signing and the
+  machine's ignore and attribute files off, starts a repository on `main` and commits under a fixture identity,
+  so a developer's or a CI image's Git configuration never decides a verdict. A test that needs another Git
+  setting writes it into its own fixture repository.
 - There is no setting that turns a check off. If a check is wrong for the project, that is an Airness bug to be
   fixed in Airness, not a local override.
 - ShellCheck, Checkov, hadolint and actionlint accept no project-owned suppression or replacement configuration. Their image pins

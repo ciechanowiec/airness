@@ -10,6 +10,7 @@
       "Edit(.airness/agent-guide.md)",
       "Edit(README-guideline-software-project.adoc)",
       "Edit(.airness/license-inventory.ftl)",
+      "Edit(.airness/test.gitconfig)",
       "Edit(lombok.config)",
       "Edit(qodana.yaml)",
       "Edit(.airness/agent-guide-java.md)",
