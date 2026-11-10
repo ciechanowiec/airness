@@ -140,7 +140,6 @@ A xref:#governed-repository[governed repository] grows through many separate cha
 
 . [[part]]A _part_ is a directory, a file, or a named division of a file in the xref:#governed-repository[governed repository], such as a section of a document or a type in code.
 . Each xref:#part[part] covers one distinct area of the domain, and no two parts cover the same area. Each fact, rule, and piece of logic therefore has one authoritative location, and other parts refer to that location instead of copying it. For example, the xref:#root-instruction-file[root instruction file] describes all build commands in one section, not partly in a second section that a later change appended. Similarly, the maximum upload size is one named constant that the upload check and its error message both read, not two constants with the same value.
-. An xref:#instruction-file[instruction file] that relies on a value from the code, such as a cache key prefix, a layout breakpoint, or a timeout, names the constant or the file that defines the value and doesn't copy the value. A copied value goes stale without notice when the code changes.
 . A xref:#part[part] holds the parts that cover the more specific areas within its own area: a directory holds directories and files, and a file holds named divisions. A specific area doesn't sit beside the general area it belongs to.
 . Each xref:#part[part] is as large as its role in the xref:#project-goal[project goal] requires and no larger. A minor case takes less code, documentation, and instruction text than a major one, and no part holds an abstraction, a configuration option, or an extension point that no current use needs.
 . xref:#part[Parts] that solve the same kind of problem solve it the same way. Two approaches coexist only where the problems differ. For example, either every xref:#callable[callable] reports an expected failure through a result type, or every callable raises an error for it, never a mix of both.
@@ -398,12 +397,6 @@ Masking them in the header parser closes the leak for every consumer.
 
 . The history is linear: no commit has more than one parent. A branch takes the work of another by a rebase or a cherry-pick.
 . A xref:#check[check] walks the commit history, back to and including the first commit. A commit with more than one parent fails the check.
-
-[[continuous-integration]]
-=== Continuous Integration
-
-. The continuous integration selects the operating system image of each hosted runner by a named release, never by an alias that the hosting provider moves to another release. An alias changes the environment of the xref:#verification-command[verification command] while the xref:#governed-repository[governed repository] stays unchanged.
-. The named release is the current long-term-support release for which the hosting provider offers generally available runners. A xref:#check[check] reads every continuous integration configuration file and fails on an alias or an earlier release.
 
 [[scouts]]
 == Scouts
