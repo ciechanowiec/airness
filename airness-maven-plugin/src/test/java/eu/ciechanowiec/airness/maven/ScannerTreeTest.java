@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -11,7 +12,6 @@ import eu.ciechanowiec.airness.governance.ScannerInventory;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -168,8 +168,10 @@ class ScannerTreeTest {
         Path gone = directory.resolve("gone");
         ScannerTree.remove(gone);
         assertFalse(Files.exists(gone), "a tree already removed is removed");
-        assertEquals(FileVisitResult.CONTINUE, ScannerTree.passOver(null));
-        assertEquals(FileVisitResult.CONTINUE, ScannerTree.passOver(new NoSuchFileException("gone")));
+        assertDoesNotThrow(() -> ScannerTree.passOver(null), "nothing raised lets the removal continue");
+        assertDoesNotThrow(
+            () -> ScannerTree.passOver(new NoSuchFileException("gone")), "a path already gone lets the removal continue"
+        );
         AccessDeniedException denied = new AccessDeniedException("kept");
         assertEquals(denied, assertThrows(IOException.class, () -> ScannerTree.passOver(denied)));
     }

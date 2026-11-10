@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 class LocalNamesTest {
@@ -19,8 +20,8 @@ class LocalNamesTest {
 
         assertEquals(
             List.of(),
-            List.of("localhost", "LocalHost", "api.localhost", MACHINE, "Build-Agent-7", "host.docker.internal")
-                .stream().filter(host -> !local.allows(host)).toList(),
+            Stream.of("localhost", "LocalHost", "api.localhost", MACHINE, "Build-Agent-7", "host.docker.internal")
+                .filter(host -> !local.allows(host)).toList(),
             "every name that stays on the machine resolves, whatever its case"
         );
     }
@@ -31,8 +32,8 @@ class LocalNamesTest {
 
         assertEquals(
             List.of(),
-            List.of("example.com", "api.sandbox.example.com", "localhost.example.com", "build-agent-8")
-                .stream().filter(local::allows).toList(),
+            Stream.of("example.com", "api.sandbox.example.com", "localhost.example.com", "build-agent-8")
+                .filter(local::allows).toList(),
             "a name that only ends in a local one is no local name"
         );
     }

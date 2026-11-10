@@ -57,8 +57,8 @@ class SpringConfigurationParityTest {
     }
 
     @SneakyThrows
-    private static List<Map<String, String>> loaded(PropertySourceLoader loader, String name) {
-        ByteArrayResource resource = new ByteArrayResource(fixture(name).getBytes(StandardCharsets.UTF_8));
+    private static List<Map<String, String>> loaded(PropertySourceLoader loader, String name, String text) {
+        ByteArrayResource resource = new ByteArrayResource(text.getBytes(StandardCharsets.UTF_8));
         return loader.load(name, resource).stream().map(SpringConfigurationParityTest::flattened).toList();
     }
 
@@ -74,8 +74,8 @@ class SpringConfigurationParityTest {
             );
     }
 
-    private static List<Map<String, String>> read(String name, boolean flow) {
-        Map<Integer, List<SpringConfiguration.Setting>> documents = new SpringConfiguration(name, fixture(name))
+    private static List<Map<String, String>> read(String name, String text, boolean flow) {
+        Map<Integer, List<SpringConfiguration.Setting>> documents = new SpringConfiguration(name, text)
             .settings().stream()
             .collect(Collectors.groupingBy(SpringConfiguration.Setting::document, TreeMap::new, Collectors.toList()));
         return documents.values().stream()
@@ -105,7 +105,7 @@ class SpringConfigurationParityTest {
     @Test
     void readsAYamlFileIntoTheDocumentsAndSettingsSpringBootLoads() {
         assertEquals(
-            loaded(new YamlPropertySourceLoader(), YAML), read(YAML, true),
+            loaded(new YamlPropertySourceLoader(), YAML, fixture(YAML)), read(YAML, fixture(YAML), true),
             "each document holds the keys and values the container binds from it"
         );
     }
@@ -113,8 +113,19 @@ class SpringConfigurationParityTest {
     @Test
     void readsAPropertiesFileIntoTheDocumentsAndSettingsSpringBootLoads() {
         assertEquals(
-            loaded(new PropertiesPropertySourceLoader(), PROPERTIES), read(PROPERTIES, false),
+            loaded(new PropertiesPropertySourceLoader(), PROPERTIES, fixture(PROPERTIES)),
+            read(PROPERTIES, fixture(PROPERTIES), false),
             "each document holds the keys and values the container binds from it"
+        );
+    }
+
+    // Written here rather than in the fixture, whose own properties inspection asks for one delimiter.
+    @Test
+    void readsAColonDelimitedPropertyAsSpringBootLoadsIt() {
+        String text = "server.shutdown: graceful\nspring.application.name:example\n";
+        assertEquals(
+            loaded(new PropertiesPropertySourceLoader(), PROPERTIES, text), read(PROPERTIES, text, false),
+            "a colon divides a key from its value as an equals sign does"
         );
     }
 
