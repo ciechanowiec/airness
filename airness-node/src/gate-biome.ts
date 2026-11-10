@@ -22,11 +22,11 @@ const shippedConfig = (): string => path.join(harnessDirectory(), 'configs', 'ai
  * @param config the text of the configuration.
  * @returns one problem when the versions differ, or none.
  */
-export const biomeSchemaProblems = (installed: string, config: string): readonly string[] => {
-  const declared: string | undefined = SCHEMA_PATTERN.exec(config)?.[1]
+const biomeSchemaProblems = (installed: string, config: string): readonly string[] => {
+  const declared: string = SCHEMA_PATTERN.exec(config)?.[1] ?? 'unknown'
   return declared === installed
     ? []
-    : [`the Airness Biome configuration is written for Biome ${declared ?? 'unknown'}, but Biome ${installed} runs`]
+    : [`the Airness Biome configuration is written for Biome ${declared}, but Biome ${installed} runs`]
 }
 
 const schemaProblems = (): readonly string[] =>
@@ -43,7 +43,7 @@ const NEXT_DOMAINS: Readonly<Record<string, string>> = { next: 'all', react: 'al
  * @param shipped the shipped configuration's text.
  * @returns the configuration a Next.js application is checked with.
  */
-export const nextBiomeConfig = (shipped: string): Readonly<Record<string, unknown>> => {
+const nextBiomeConfig = (shipped: string): Readonly<Record<string, unknown>> => {
   const config: Record<string, unknown> = asRecord(JSON.parse(shipped))
   const linter: Record<string, unknown> = asRecord(config['linter'])
   return { ...config, linter: { ...linter, domains: { ...asRecord(linter['domains']), ...NEXT_DOMAINS } } }

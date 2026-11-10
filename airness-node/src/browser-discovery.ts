@@ -106,13 +106,11 @@ const STORY_PREFIX: string = 'story:'
 /** The location a story is reported under. */
 export const storyLocation = (story: Pick<DiscoveredStory, 'id'>): string => `${STORY_PREFIX}${story.id}`
 
-/**
- * The axe rules that judge a whole document, which a story is not: it renders one component alone in a
- * frame, without the page's landmarks, its level-one heading, its title or its skip link. Storybook's
- * own accessibility addon leaves them out for the same reason. The page that places the component is
- * judged by them where it is crawled or scanned.
- */
-export const DOCUMENT_AXE_RULES: readonly string[] = [
+// The axe rules that judge a whole document, which a story is not: it renders one component alone in a
+// frame, without the page's landmarks, its level-one heading, its title or its skip link. Storybook's
+// own accessibility addon leaves them out for the same reason. The page that places the component is
+// judged by them where it is crawled or scanned.
+const DOCUMENT_AXE_RULES: readonly string[] = [
   'landmark-one-main',
   'page-has-heading-one',
   'region',

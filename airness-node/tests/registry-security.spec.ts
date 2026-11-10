@@ -1,23 +1,26 @@
 // The three follow-ups to the registry handling: a token goes only to the registry its key names, no URL
 // reaches a finding with its credentials, and a harness package must come from a registry too.
 import { describe, expect, it } from 'vitest'
-import { undatedFinding } from '@/gate-release-age.js'
+import { releaseAge } from '@/gate-release-age.js'
+import type { GateResult } from '@/gate-result.js'
 import type { Lockfile, ResolvedPackage } from '@/lockfile.js'
-import { isFromItsRegistry, type NpmConfig, parseNpmrc, tokenFor } from '@/npmrc.js'
+import { isFromItsRegistry, type NpmConfig, tokenFor } from '@/npmrc.js'
 import { redactUrls } from '@/redaction.js'
 import { type WiringInputs, wiringFindings } from '@/wiring-policy.js'
+import { projectNpmConfig } from './helpers/npmrc-file.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
+import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 describe('tokenFor', PROCESS_TIME, () => {
   it('matches the host exactly, so a key without a trailing slash reaches no look-alike host', () => {
-    const config: NpmConfig = parseNpmrc('//registry.example.com:_authToken=secret\n', {})
+    const config: NpmConfig = projectNpmConfig('//registry.example.com:_authToken=secret\n')
     expect(tokenFor(config, 'https://registry.example.com/')).toBe('secret')
     expect(tokenFor(config, 'https://registry.example.com.evil.net/')).toBeUndefined()
     expect(tokenFor(config, 'https://registry.example.co/')).toBeUndefined()
   })
 
   it('matches the port, and the path on whole segments only', () => {
-    const config: NpmConfig = parseNpmrc('//npm.corp:8443/team/:_authToken=team\n', {})
+    const config: NpmConfig = projectNpmConfig('//npm.corp:8443/team/:_authToken=team\n')
     expect(tokenFor(config, 'https://npm.corp:8443/team/')).toBe('team')
     expect(tokenFor(config, 'https://npm.corp:8443/team/sub/')).toBe('team')
     expect(tokenFor(config, 'https://npm.corp:8443/teammates/')).toBeUndefined()
@@ -25,14 +28,14 @@ describe('tokenFor', PROCESS_TIME, () => {
   })
 
   it('never sends a token to a registry reached over plain HTTP, or to a URL that does not parse', () => {
-    const config: NpmConfig = parseNpmrc('//npm.corp/:_authToken=secret\n', {})
+    const config: NpmConfig = projectNpmConfig('//npm.corp/:_authToken=secret\n')
     // The plain scheme is the subject of the test, assembled so no literal names an insecure URL.
     expect(tokenFor(config, `${['http', ''].join(':')}//npm.corp/`)).toBeUndefined()
     expect(tokenFor(config, 'not a url')).toBeUndefined()
   })
 
   it('ignores a key that is not nerf-darted', () => {
-    expect(tokenFor(parseNpmrc('_authToken=secret\n', {}), 'https://npm.corp/')).toBeUndefined()
+    expect(tokenFor(projectNpmConfig('_authToken=secret\n'), 'https://npm.corp/')).toBeUndefined()
   })
 })
 
@@ -53,16 +56,31 @@ describe('redactUrls', PROCESS_TIME, () => {
     expect(redactUrls('https://user:pw@[bad/x?token=1')).toBe('https://[bad/x')
   })
 
-  it('reaches the undated finding of a release-age result', () => {
-    const resolved: ResolvedPackage = {
-      name: 'remote',
-      version: '1.0.0',
-      source: 'tarball',
-      tarball: 'https://user:pw@example.invalid/remote-1.0.0.tgz?sig=abc',
-      isPlatformLimited: false,
+  it('reaches the undated finding of a release-age result', async () => {
+    // A lockfile whose one release resolves from a tarball no registry serves, at a URL carrying credentials.
+    const root: string = temporaryProject({
+      'pnpm-lock.yaml': [
+        "lockfileVersion: '9.0'",
+        'importers:',
+        '  .:',
+        '    dependencies:',
+        '      remote:',
+        '        specifier: 1.0.0',
+        '        version: 1.0.0',
+        'packages:',
+        '  remote@1.0.0:',
+        "    resolution: {integrity: sha512-stu, tarball: 'https://user:pw@example.invalid/remote-1.0.0.tgz?sig=abc'}",
+        '',
+      ].join('\n'),
+    })
+    try {
+      const result: GateResult = await releaseAge(memberAt(root), undefined, { npm_config_userconfig: '/nonexistent' })
+      const findings: string = result.findings.join('\n')
+      expect(findings).toContain('remote@1.0.0 resolves from a tarball (https://example.invalid/remote-1.0.0.tgz)')
+      expect(findings).not.toContain('pw')
+    } finally {
+      removeProject(root)
     }
-    expect(undatedFinding(resolved)).toContain('(https://example.invalid/remote-1.0.0.tgz)')
-    expect(undatedFinding(resolved)).not.toContain('pw')
   })
 })
 
@@ -82,7 +100,7 @@ const lockfileWith = (harness: ResolvedPackage): Lockfile => ({
   rewrites: [],
 })
 
-const config: NpmConfig = parseNpmrc('@airness:registry=http://127.0.0.1:4873/\n', {})
+const config: NpmConfig = projectNpmConfig('@airness:registry=http://127.0.0.1:4873/\n')
 
 const inputsFor = (harness: ResolvedPackage): WiringInputs => ({
   memberPath: '.',

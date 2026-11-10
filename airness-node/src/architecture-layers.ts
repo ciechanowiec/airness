@@ -4,7 +4,6 @@
 // framework-neutral rules stay in the shipped configuration.
 import { productionSourceRoots } from './file-roles.js'
 import { APP_ROOT } from './route-map.js'
-import { DEFAULT_SOURCE_ROOTS } from './settings.js'
 
 /** One forbidden rule, in dependency-cruiser's shape. */
 export type ArchitectureRule = Readonly<Record<string, unknown>>
@@ -14,7 +13,7 @@ export type ArchitectureRule = Readonly<Record<string, unknown>>
  * imports it. Phrased against everything outside the layer, so a new source directory is governed the moment
  * it exists.
  */
-export const APPLICATION_LAYER_RULE: ArchitectureRule = {
+const APPLICATION_LAYER_RULE: ArchitectureRule = {
   name: 'nothing-imports-app',
   severity: 'error',
   comment:
@@ -66,9 +65,9 @@ const alternation = (directories: readonly string[]): string =>
  * @param sourceRoots the member's source roots.
  * @returns the rule, or undefined when nothing declares a floor.
  */
-export const pureLogicRule = (
+const pureLogicRule = (
   pureLogicRoots: readonly string[],
-  sourceRoots: readonly string[] = DEFAULT_SOURCE_ROOTS,
+  sourceRoots: readonly string[],
 ): ArchitectureRule | undefined => {
   if (pureLogicRoots.length === 0) {
     return undefined
@@ -95,7 +94,7 @@ const TEST_CODE: string = String.raw`\.(spec|test)\.(ts|tsx)$|^(tests|scripts)/|
  * @param sourceRoots the member's source roots; `tests` and `scripts` are not production roots.
  * @returns the rule, or undefined when the member has no production root.
  */
-export const productionImportsNoTestCodeRule = (sourceRoots: readonly string[]): ArchitectureRule | undefined => {
+const productionImportsNoTestCodeRule = (sourceRoots: readonly string[]): ArchitectureRule | undefined => {
   const production: readonly string[] = productionSourceRoots(sourceRoots)
   if (production.length === 0) {
     return undefined
@@ -123,9 +122,7 @@ const ROOT_TOOLING: string = String.raw`^(eslint|knip|lint-staged|postcss|pretti
  * @param sourceRoots the member's source roots; `tests` and `scripts` are not production roots.
  * @returns the rule, or undefined when the member has no production root.
  */
-export const productionImportsNoDevelopmentDependencyRule = (
-  sourceRoots: readonly string[],
-): ArchitectureRule | undefined => {
+const productionImportsNoDevelopmentDependencyRule = (sourceRoots: readonly string[]): ArchitectureRule | undefined => {
   const production: readonly string[] = productionSourceRoots(sourceRoots)
   if (production.length === 0) {
     return undefined
@@ -159,7 +156,7 @@ const exactFiles = (files: readonly string[]): string =>
  * @param cloudFrontFiles the member's declared CloudFront files, member-relative.
  * @returns the two rules, or none when the member declares no CloudFront file.
  */
-export const cloudFrontRules = (cloudFrontFiles: readonly string[]): readonly ArchitectureRule[] => {
+const cloudFrontRules = (cloudFrontFiles: readonly string[]): readonly ArchitectureRule[] => {
   if (cloudFrontFiles.length === 0) {
     return []
   }

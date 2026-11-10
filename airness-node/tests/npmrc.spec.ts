@@ -1,14 +1,15 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_REGISTRY, type NpmConfig, npmConfigOf, parseNpmrc, registryFor, tokenFor } from '@/npmrc.js'
+import { type NpmConfig, npmConfigOf, registryFor, tokenFor } from '@/npmrc.js'
+import { projectNpmConfig } from './helpers/npmrc-file.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 describe('the npm configuration', PROCESS_TIME, () => {
   it('reads keys and values, skips comments, and expands variables', () => {
     expect(
-      parseNpmrc(
+      projectNpmConfig(
         ['# comment', '; other', 'registry = https://npm.corp', '//npm.corp/:_authToken=$' + '{TOKEN}'].join('\n'),
         {
           TOKEN: 'x',
@@ -79,8 +80,8 @@ describe('the npm configuration', PROCESS_TIME, () => {
   })
 
   it('falls back to the public registry, and finds the token of the longest matching prefix', () => {
-    const config: NpmConfig = parseNpmrc('//npm.corp/:_authToken=short\n//npm.corp/private/:_authToken=long\n', {})
-    expect(registryFor(config, 'left-pad')).toBe(DEFAULT_REGISTRY)
+    const config: NpmConfig = projectNpmConfig('//npm.corp/:_authToken=short\n//npm.corp/private/:_authToken=long\n')
+    expect(registryFor(config, 'left-pad')).toBe('https://registry.npmjs.org/')
     expect(tokenFor(config, 'https://npm.corp/private/')).toBe('long')
     expect(tokenFor(config, 'https://npm.corp/')).toBe('short')
     expect(tokenFor(config, 'https://registry.npmjs.org/')).toBeUndefined()

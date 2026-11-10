@@ -20,7 +20,7 @@ const EXEMPTION_RULE: string = 'exemption'
  * The rules an element can be exempted from: those that judge one element. A rule that judges the
  * whole page - an error, a failed request, a font, stability - has no element to carry an exemption.
  */
-export const EXEMPTIBLE_RULES: readonly string[] = [
+const EXEMPTIBLE_RULES: readonly string[] = [
   'attached',
   'overflow',
   'text-overlap',

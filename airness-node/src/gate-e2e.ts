@@ -1,5 +1,3 @@
-export { BROWSER_INSTALL_REPAIR, judgeRun } from './browser-verdict.js'
-
 // The end-to-end suite of a browser application: the harness's accessibility and layout sweep, its
 // security-header spec, and the member's own end-to-end specs, run by Playwright under the shipped
 // configuration against the application the configuration starts.
@@ -21,7 +19,7 @@ const SERVE_EXAMPLE: string = '"airness": { "serve": "<script>" }'
  * @param member the browser application.
  * @returns the finding, or undefined when the member can be served.
  */
-export const serveProblem = (member: Member): string | undefined => {
+const serveProblem = (member: Member): string | undefined => {
   const serve: string | undefined = member.settings.serve
   if (serve === undefined) {
     return isNextApp(member)
@@ -50,7 +48,7 @@ const staleBuild = (member: Member): string | undefined => {
  * @param member the browser application.
  * @returns the application's address and the auxiliary servers', in declaration order.
  */
-export const assignOrigins = async (member: Member): Promise<ServedOrigins> => {
+const assignOrigins = async (member: Member): Promise<ServedOrigins> => {
   const fixed: readonly number[] = fixedPorts(member.settings)
   const chosen: readonly number[] = await freePorts(member.settings.auxiliaryServers.length + 1 - fixed.length, fixed)
   return servedOrigins(member.settings, portsFor(member.settings, chosen))
@@ -63,7 +61,7 @@ export const assignOrigins = async (member: Member): Promise<ServedOrigins> => {
  * @param origins the addresses the run chose.
  * @returns the failure, or undefined when every address is free.
  */
-export const occupiedOrigins = async (origins: ServedOrigins): Promise<GateResult | undefined> => {
+const occupiedOrigins = async (origins: ServedOrigins): Promise<GateResult | undefined> => {
   const occupied: readonly string[] = await browserServerProblems([origins.serverUrl, ...origins.auxiliaryUrls])
   return occupied.length > 0 ? failed('the browser endpoint is not free', occupied) : undefined
 }

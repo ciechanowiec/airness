@@ -5,8 +5,8 @@
 import { describe, expect, it } from 'vitest'
 import { gateById } from '@/gates.js'
 import { HARNESS_MODULES, HARNESS_PACKAGES, isHarnessPackage } from '@/harness-packages.js'
-import { LAYER_PACKAGES } from '@/layer.js'
-import { composeLayered, LAYER_RELAXATIONS } from '@/layer-lint-policy.js'
+import { LAYER_NAMES, LAYER_PACKAGES } from '@/layer.js'
+import { composeLayered } from '@/layer-lint-policy.js'
 import type { DirectDependency, Lockfile, ResolvedPackage } from '@/lockfile.js'
 import { releaseAgeSettingFindings } from '@/release-age.js'
 import { type WiringInputs, wiringFindings } from '@/wiring-policy.js'
@@ -86,8 +86,13 @@ describe('the Payload registration', () => {
         rules: { 'functional/immutable-data': ['error', { ignoreAccessorPattern: ['req.context.*.**'] }] },
       },
     ]
+    expect(LAYER_NAMES).toContain(LAYER)
     expect(composeLayered(node, [{ name: LAYER, config: [...node, ...blocks] }])).toHaveLength(node.length + 3)
-    expect(LAYER_RELAXATIONS.every((relaxation): boolean => relaxation.layer === LAYER)).toBe(true)
+    for (const block of blocks) {
+      expect(() => composeLayered(node, [{ name: 'other-layer', config: [...node, block] }])).toThrow(
+        'stack layer other-layer weakens the node rule',
+      )
+    }
     expect(() =>
       composeLayered(node, [
         {

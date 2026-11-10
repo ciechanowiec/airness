@@ -35,7 +35,7 @@ const unreadFindings = (lookups: readonly Lookup[]): readonly string[] => {
  * @param resolved how the lockfile resolves the release.
  * @returns the finding.
  */
-export const undatedFinding = (resolved: ResolvedPackage): string => {
+const undatedFinding = (resolved: ResolvedPackage): string => {
   const where: string = resolved.tarball.length > 0 ? ` (${redactUrls(resolved.tarball)})` : ''
   return (
     `${resolved.name}@${resolved.version} resolves from a ${resolved.source}${where}, which no registry dates, ` +

@@ -1,13 +1,8 @@
 // Promote only mechanically decidable axe incomplete results to failures; retain cases requiring visual judgment.
 import { asRecord, asText, isArray } from './json-shapes.js'
 
-/**
- * The axe `incomplete` message keys that describe a defect rather than a question.
- *
- * Exported so a project reading a finding can see the whole of what is enforced, and so a spec can
- * assert the enforced set rather than a single member of it.
- */
-export const DEFINITE_INCOMPLETE_KEYS: readonly string[] = ['equalRatio']
+// The axe `incomplete` message keys that describe a defect rather than a question.
+const DEFINITE_INCOMPLETE_KEYS: ReadonlySet<string> = new Set<string>(['equalRatio'])
 
 // A node's checks live under three keys, and which one carries the result depends on how the rule was
 // composed rather than on anything the reader chose. Reading only `any` would miss a rule expressed as
@@ -51,7 +46,7 @@ const messageKeyOf = (check: unknown): string => {
 
 const definiteChecks = (ruleId: string, node: unknown): readonly string[] =>
   checksOf(node)
-    .filter((check: unknown): boolean => DEFINITE_INCOMPLETE_KEYS.includes(messageKeyOf(check)))
+    .filter((check: unknown): boolean => DEFINITE_INCOMPLETE_KEYS.has(messageKeyOf(check)))
     .map((check: unknown): string => describeCheck(ruleId, node, check))
 
 const definiteNodes = (result: unknown): readonly string[] => {

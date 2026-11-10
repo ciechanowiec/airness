@@ -12,7 +12,7 @@ import path from 'node:path'
 import { readText } from './project.js'
 
 /** The registry pnpm uses when nothing names another. */
-export const DEFAULT_REGISTRY: string = 'https://registry.npmjs.org/'
+const DEFAULT_REGISTRY: string = 'https://registry.npmjs.org/'
 
 const PNPM_PREFIX: string = 'pnpm_config_'
 const NPM_PREFIX: string = 'npm_config_'
@@ -33,7 +33,7 @@ const expand = (value: string, environment: NodeJS.ProcessEnv): string =>
  * @param environment the variables `${NAME}` expands from.
  * @returns each key with its value.
  */
-export const parseNpmrc = (text: string, environment: NodeJS.ProcessEnv): NpmConfig =>
+const parseNpmrc = (text: string, environment: NodeJS.ProcessEnv): NpmConfig =>
   new Map(
     text
       .split(/\r?\n/u)

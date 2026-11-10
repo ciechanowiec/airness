@@ -4,10 +4,9 @@ import {
   type DeclaredExemption,
   declaredExemptions,
   malformedExemptions,
-  staleExemptions,
   type UsedExemption,
 } from './browser-exemptions.js'
-import { type BrowserFinding, type FindingPlace, findingAt, findingLine, type Viewport } from './browser-findings.js'
+import { type BrowserFinding, type FindingPlace, findingAt, type Viewport } from './browser-findings.js'
 import { BASELINE_VIEWPORTS } from './browser-viewports.js'
 import { type BoxFinding, findTouchingBoxes } from './layout-boxes.js'
 import { ATTACHED_EXEMPTION, keyOf, type LayoutNode, type LayoutSnapshot } from './layout-snapshot.js'
@@ -154,51 +153,6 @@ export const judgeLayout = (
     ],
     declared: declaredExemptions(snapshot, place.location),
   }
-}
-
-/**
- * Every layout defect on one page, across the viewports it was measured at, as report lines.
- * @param snapshots the same page measured at each required viewport.
- * @param minimumGap the smallest gap, in CSS pixels, between a boxed element and its sibling.
- * @param engine the engine it was measured in.
- * @param state the state it was measured in.
- * @returns one line per defect, without duplicates, in the order the viewports were measured.
- */
-export const findLayoutDefects = (
-  snapshots: readonly LayoutSnapshot[],
-  minimumGap: number,
-  engine: string = 'chromium',
-  state: string = 'resting',
-): readonly string[] => {
-  const judged: readonly JudgedPage[] = snapshots.map(
-    (snapshot: LayoutSnapshot): JudgedPage =>
-      judgeLayout(
-        snapshot,
-        {
-          location: snapshot.route,
-          state,
-          engine,
-          viewport: {
-            width: snapshot.viewportWidth,
-            height: snapshot.viewportHeight,
-          },
-        },
-        { minimumGap },
-      ),
-  )
-  const stale: readonly BrowserFinding[] = staleExemptions(
-    judged.flatMap((page: JudgedPage): readonly DeclaredExemption[] => page.declared),
-    judged.flatMap((page: JudgedPage): readonly UsedExemption[] => page.used),
-    LAYOUT_RULES,
-    engine,
-  )
-  return [
-    ...new Set<string>(
-      [...judged.flatMap((page: JudgedPage): readonly BrowserFinding[] => page.findings), ...stale].map(
-        (finding: BrowserFinding): string => findingLine(finding),
-      ),
-    ),
-  ]
 }
 
 /**

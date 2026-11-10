@@ -3,8 +3,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { biomeIncludes, biomeSelection } from '@/biome-selection.js'
-import { biomeSchemaProblems } from '@/gate-biome.js'
+import { biome } from '@/gate-biome.js'
 import { configReferences } from '@/gate-config-references.js'
+import type { GateResult } from '@/gate-result.js'
 import { layerDefaultsOf } from '@/layer.js'
 import { matchesAnyGlob } from '@/source-selection.js'
 import { workingTreeFiles, workingTreeFingerprint } from '@/working-tree.js'
@@ -22,15 +23,15 @@ describe('the Biome selection', PROCESS_TIME, () => {
     ).toEqual(['src/total.ts'])
   })
 
-  it('fails a Biome whose version is not the one the configuration was written for', () => {
-    const config: string = '{ "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json" }'
-    expect(biomeSchemaProblems('2.5.15', config)).toEqual([])
-    expect(biomeSchemaProblems('2.6.0', config)).toEqual([
-      'the Airness Biome configuration is written for Biome 2.5.15, but Biome 2.6.0 runs',
-    ])
-    expect(biomeSchemaProblems('2.6.0', '{}')).toEqual([
-      'the Airness Biome configuration is written for Biome unknown, but Biome 2.6.0 runs',
-    ])
+  it('runs the Biome the shipped configuration was written for', () => {
+    const root: string = temporaryProject({ 'notes.md': 'notes\n' })
+    try {
+      const result: GateResult = biome(memberAt(root))
+      expect(result.findings.join('\n')).not.toContain('the Airness Biome configuration is written for Biome')
+      expect(result.ok).toBe(true)
+    } finally {
+      removeProject(root)
+    }
   })
 })
 

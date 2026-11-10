@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { isJavascriptRuntime, type RuntimeRole, rolesFor, runtimesOf } from '@/javascript-runtimes.js'
+import { matchesRole } from '@/file-roles.js'
+import { isJavascriptRuntime, type RuntimeRole, rolesFor } from '@/javascript-runtimes.js'
 import { findUndeclaredRuntimes, readSettings, type Settings } from '@/settings.js'
 
 const EDGE: string = String.raw`^edge/viewer-request\.cjs$`
@@ -17,27 +18,22 @@ describe('isJavascriptRuntime', () => {
   })
 })
 
-describe('runtimesOf', () => {
+describe('rolesFor', () => {
   const roles: readonly RuntimeRole[] = [
     { role: '^edge/', runtime: 'cloudfront-js-2.0' },
     { role: { memberPath: 'web', pattern: '^tools/' }, runtime: 'node' },
   ]
 
-  it('names the engine of the entry a file matches, scoped as the entry is', () => {
-    expect(runtimesOf('edge/viewer-request.cjs', roles)).toEqual(['cloudfront-js-2.0'])
-    expect(runtimesOf('web/tools/build.mjs', roles)).toEqual(['node'])
-    expect(runtimesOf('tools/build.mjs', roles)).toEqual([])
-  })
-
-  it('reports both engines when two entries disagree about one file', () => {
-    expect(runtimesOf('edge/a.cjs', [...roles, { role: String.raw`\.cjs$`, runtime: 'node' }])).toEqual([
-      'node',
-      'cloudfront-js-2.0',
-    ])
-  })
-
   it('selects the roles of one engine', () => {
     expect(rolesFor(roles, 'cloudfront-js-2.0')).toEqual(['^edge/'])
+    expect(rolesFor(roles, 'node')).toEqual([{ memberPath: 'web', pattern: '^tools/' }])
+  })
+
+  it('keeps each selected role scoped as its entry is', () => {
+    expect(matchesRole('edge/viewer-request.cjs', rolesFor(roles, 'cloudfront-js-2.0'))).toBe(true)
+    expect(matchesRole('edge/viewer-request.cjs', rolesFor(roles, 'node'))).toBe(false)
+    expect(matchesRole('web/tools/build.mjs', rolesFor(roles, 'node'))).toBe(true)
+    expect(matchesRole('tools/build.mjs', rolesFor(roles, 'node'))).toBe(false)
   })
 })
 
@@ -51,7 +47,8 @@ describe('the runtime an allowlist entry declares', () => {
 
   it('keeps the same file plain Node.js when it is declared so', () => {
     const settings: Settings = allowlisted({ runtime: 'node' })
-    expect(runtimesOf('edge/viewer-request.cjs', settings.javascriptRuntimes)).toEqual(['node'])
+    expect(rolesFor(settings.javascriptRuntimes, 'node')).toContain(EDGE)
+    expect(rolesFor(settings.javascriptRuntimes, 'cloudfront-js-2.0')).toEqual([])
   })
 
   it('refuses an entry without a runtime, naming the values it may declare', () => {
@@ -87,6 +84,8 @@ describe('the runtime an allowlist entry declares', () => {
   })
 
   it('declares the built-in allowlist as Node.js', () => {
-    expect(runtimesOf('eslint.config.mjs', readSettings({}).javascriptRuntimes)).toEqual(['node'])
+    const roles: readonly RuntimeRole[] = readSettings({}).javascriptRuntimes
+    expect(matchesRole('eslint.config.mjs', rolesFor(roles, 'node'))).toBe(true)
+    expect(rolesFor(roles, 'cloudfront-js-2.0')).toEqual([])
   })
 })

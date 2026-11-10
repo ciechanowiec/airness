@@ -7,13 +7,13 @@ import type { PublicAccess } from './payload-settings.js'
  * One operation's verdict as Payload sends it: `true` for an unconstrained grant, `{ permission: true,
  * where }` for a constrained one, and absent for a denial, which Payload deletes from the response.
  */
-export type ReportedPermission = boolean | { readonly permission?: boolean; readonly where?: unknown }
+type ReportedPermission = boolean | { readonly permission?: boolean; readonly where?: unknown }
 
 /**
  * A `fields` map as Payload sends it, or the bare `true` its sanitisation collapses a fully permitted
  * one to - which says every field without naming one, and so cannot be enumerated.
  */
-export type ReportedFields = boolean | Readonly<Record<string, ReportedEntity>>
+type ReportedFields = boolean | Readonly<Record<string, ReportedEntity>>
 
 /**
  * One entity's operations and, beside them, the per-field map Payload reports for it.
@@ -65,11 +65,7 @@ export interface Granted {
  * Composed from the lists `payload-defaults.ts` already declares rather than restated here, so the two
  * halves of the harness cannot drift into disagreeing about what an operation is called.
  */
-export const JUDGED_OPERATIONS: readonly string[] = [
-  ...COLLECTION_OPERATIONS,
-  READ_VERSIONS_OPERATION,
-  UNLOCK_OPERATION,
-]
+const JUDGED_OPERATIONS: readonly string[] = [...COLLECTION_OPERATIONS, READ_VERSIONS_OPERATION, UNLOCK_OPERATION]
 
 /** The path standing in for a `fields` map Payload collapsed, which grants every field at once. */
 const EVERY_FIELD: string = '*'
@@ -77,7 +73,7 @@ const EVERY_FIELD: string = '*'
 const PATH_SEPARATOR: string = '.'
 
 /** Whether Payload reported this operation as permitted, in either of the two shapes it sends. */
-export const isPermitted = (permission: ReportedFields | ReportedPermission | undefined): boolean => {
+const isPermitted = (permission: ReportedFields | ReportedPermission | undefined): boolean => {
   if (permission === undefined || typeof permission === 'boolean') {
     return permission === true
   }
@@ -130,13 +126,13 @@ const grantsIn = (entities: Readonly<Record<string, ReportedEntity>>): readonly 
   )
 
 /** Every permission an access report grants, across collections and globals alike. */
-export const grantedPermissions = (report: AccessReport): readonly Granted[] => [
+const grantedPermissions = (report: AccessReport): readonly Granted[] => [
   ...grantsIn(report.collections ?? {}),
   ...grantsIn(report.globals ?? {}),
 ]
 
 /** How one grant is named, both in a report and in the `publicAccess` entry that would declare it. */
-export const describeGrant = (granted: Granted): string =>
+const describeGrant = (granted: Granted): string =>
   granted.field === undefined
     ? `${granted.entity}.${granted.operation}`
     : `${granted.entity}.${granted.operation}${PATH_SEPARATOR}${granted.field}`

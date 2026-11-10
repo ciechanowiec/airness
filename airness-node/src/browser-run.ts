@@ -12,7 +12,7 @@ export const CLOCK_ENVIRONMENT_VARIABLE: string = 'AIRNESS_CLOCK'
  * believed it was earlier than now would set absolute cookie expiries the browser already considers
  * past, and every sign-in would fail. Noon, so that a run lasting hours still sees one date.
  */
-export const DEFAULT_CLOCK_INSTANT: string = '2100-01-01T12:00:00.000Z'
+const DEFAULT_CLOCK_INSTANT: string = '2100-01-01T12:00:00.000Z'
 
 /** The clock setting that leaves every clock real. */
 export const REAL_CLOCK: string = 'real'
@@ -32,16 +32,6 @@ export const clockOf = (declared: unknown): string => {
     ? new Date(Date.parse(declared)).toISOString()
     : DEFAULT_CLOCK_INSTANT
 }
-
-/**
- * The time a shifted clock reads: the instant it started at, advanced by the real time since.
- * @param instantMs the instant the clock started at.
- * @param startedMs the real time it started.
- * @param realMs the real time now.
- * @returns the shifted time now.
- */
-export const shiftedTime = (instantMs: number, startedMs: number, realMs: number): number =>
-  instantMs + (realMs - startedMs)
 
 /** The variable naming the pinned browser server the suite connects to. */
 export const BROWSER_ENDPOINT_ENVIRONMENT_VARIABLE: string = 'AIRNESS_BROWSER_ENDPOINT'
@@ -128,7 +118,7 @@ export const itemLimitMs = (pass: SweepPass, units: number): number =>
  * @param units how many units of work it has.
  * @returns its budget in milliseconds.
  */
-export const passBudgetMs = (pass: SweepPass, units: number): number =>
+const passBudgetMs = (pass: SweepPass, units: number): number =>
   PASS_OVERHEAD_MS + ALLOWANCES_MS[pass] * Math.max(0, units)
 
 // Every sweep test loads its pages fresh and judges each one alone, so which worker runs it, and what

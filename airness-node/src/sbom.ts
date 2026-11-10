@@ -30,7 +30,7 @@ export interface SbomSubject {
  * @param version the version.
  * @returns the package URL.
  */
-export const npmPackageUrl = (name: string, version: string): string => {
+const npmPackageUrl = (name: string, version: string): string => {
   const encoded: string = name.startsWith('@') ? `%40${name.slice(1)}` : name
   // A package URL without a version is valid; one ending in `@` is not, and a private application often
   // declares no version.

@@ -11,7 +11,7 @@ import type { Shard, SweepPass } from './browser-run.js'
 const SWEEP_PROGRESS_MARKER: string = '[airness-sweep]'
 
 /** How often a working part of the sweep says how far it has got. */
-export const HEARTBEAT_MS: number = 60_000
+const HEARTBEAT_MS: number = 60_000
 
 const MS_PER_SECOND: number = 1000
 const SECONDS_PER_MINUTE: number = 60

@@ -71,7 +71,7 @@ const isRendered = (snapshot: LayoutSnapshot, node: LayoutNode): boolean =>
  * @param snapshot the measured page.
  * @returns one candidate per element whose own text is too small.
  */
-export const findSmallText = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+const findSmallText = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
   snapshot.nodes
     .filter(
       (node: LayoutNode): boolean =>
@@ -105,7 +105,7 @@ const isImage = (node: LayoutNode): boolean => node.tag === 'img'
  * @param snapshot the measured page.
  * @returns one candidate per incomplete or empty image.
  */
-export const findUnloadedImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+const findUnloadedImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
   renderedMedia(snapshot)
     .filter(
       ({ node, media }: MediaNode): boolean =>
@@ -129,7 +129,7 @@ const hasRaster = (media: MediaFacts): boolean =>
  * @param snapshot the measured page.
  * @returns one candidate per image whose `object-fit: fill` rendering changes its proportions.
  */
-export const findDistortedImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+const findDistortedImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
   renderedMedia(snapshot).flatMap(({ node, media }: MediaNode): readonly CandidateFinding[] => {
     if (!(isImage(node) && hasRaster(media)) || media.objectFit !== 'fill') {
       return []
@@ -175,7 +175,7 @@ const displayedScale = (media: MediaFacts): number => {
  * @param snapshot the measured page.
  * @returns one candidate per raster image enlarged by more than 10%.
  */
-export const findUpscaledImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+const findUpscaledImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
   renderedMedia(snapshot).flatMap(({ node, media }: MediaNode): readonly CandidateFinding[] => {
     if (!(isImage(node) && hasRaster(media))) {
       return []
@@ -202,7 +202,7 @@ export const findUpscaledImages = (snapshot: LayoutSnapshot): readonly Candidate
  * @returns one candidate per raster image denser than three source pixels per CSS pixel by more than 10%,
  * whose surplus over that density is at least a mebipixel.
  */
-export const findOversizedImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+const findOversizedImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
   renderedMedia(snapshot).flatMap(({ node, media }: MediaNode): readonly CandidateFinding[] => {
     if (!(isImage(node) && hasRaster(media))) {
       return []
@@ -235,7 +235,7 @@ const OUT_OF_FLOW: ReadonlySet<string> = new Set<string>(['absolute', 'fixed'])
  * @param snapshot the measured page.
  * @returns one candidate per in-flow element that does not reserve its rendered size.
  */
-export const findUnreservedMedia = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+const findUnreservedMedia = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
   renderedMedia(snapshot).flatMap(({ node, media }: MediaNode): readonly CandidateFinding[] => {
     if (OUT_OF_FLOW.has(node.position)) {
       return []
@@ -401,7 +401,7 @@ const luminanceAt = (pixels: ArrayLike<number>, offset: number): number =>
  * @param second the other.
  * @returns the ratio, from 1 to 21.
  */
-export const contrastRatio = (first: number, second: number): number =>
+const contrastRatio = (first: number, second: number): number =>
   (Math.max(first, second) + FLARE) / (Math.min(first, second) + FLARE)
 
 /** A focused element's region rendered focused and unfocused, decoded to RGBA. */

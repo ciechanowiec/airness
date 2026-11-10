@@ -8,7 +8,7 @@ import { asRecord, type ParsedJson, parseJsonc } from './json-shapes.js'
  * The shipped configuration a project's tsconfig.json extends: the literal file path, which TypeScript and
  * Next.js both resolve, rather than the bare subpath Next.js does not read.
  */
-export const REQUIRED_TSCONFIG_EXTENDS: string = '@airness/node/tsconfig.json'
+const REQUIRED_TSCONFIG_EXTENDS: string = '@airness/node/tsconfig.json'
 
 // The compiler options a project may set for itself. Every other one is a strictness decision the harness
 // owns, so a local override is how a project would weaken type checking.
@@ -53,10 +53,10 @@ const STORYBOOK_CONFIGURATION: readonly string[] = ['.storybook/**/*.ts', '.stor
  * @param hasStorybook whether the member keeps a Storybook configuration directory, `.storybook`.
  * @returns the required include and exclude.
  */
-export const tsconfigPathsFor = (
+const tsconfigPathsFor = (
   hasOwnRuntime: boolean,
   nestedMembers: readonly string[],
-  hasStorybook: boolean = false,
+  hasStorybook: boolean,
 ): Readonly<Record<string, readonly string[]>> => {
   const base: Readonly<Record<string, readonly string[]>> = hasOwnRuntime ? APPLICATION_PATHS : LIBRARY_PATHS
   return {

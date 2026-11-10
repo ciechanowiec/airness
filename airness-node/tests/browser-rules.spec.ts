@@ -1,28 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import type { CandidateFinding } from '@/browser-exemptions'
 import {
-  contrastRatio,
   type DisclosureProbe,
   disclosureDefects,
   type FocusPosition,
-  findDistortedImages,
-  findOversizedImages,
-  findSmallText,
   findUnloadedFonts,
-  findUnloadedImages,
-  findUnreservedMedia,
-  findUpscaledImages,
   hasContrastingFocus,
   hasVisibleFocus,
   instability,
   isFocusBackwards,
   obscuringContent,
+  restingCandidates,
 } from '@/browser-rules'
 import type { FontFaceFacts, LayoutNode, LayoutSnapshot, MediaFacts } from '@/layout-snapshot'
 import { BODY, nodeOf, rect, snapshotOf } from './helpers/layout-fixture.js'
 
 const messages = (candidates: readonly CandidateFinding[]): readonly string[] =>
   candidates.map((candidate: CandidateFinding): string => `${candidate.rule}: ${candidate.message}`)
+
+// The candidates one rule of the resting scan finds on a page, read from every rule's candidates.
+const candidatesOf = (rule: string, snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+  restingCandidates(snapshot).filter((candidate: CandidateFinding): boolean => candidate.rule === rule)
 
 const smallTextParagraph = (fontSize: number, fields: Partial<LayoutNode> = {}): LayoutSnapshot =>
   snapshotOf([
@@ -42,8 +40,8 @@ const smallTextParagraph = (fontSize: number, fields: Partial<LayoutNode> = {}):
 describe('small text', () => {
   it('fails text below 12 px and passes text at 12 px', () => {
     expect([
-      messages(findSmallText(smallTextParagraph(11.5))),
-      messages(findSmallText(smallTextParagraph(12))),
+      messages(candidatesOf('small-text', smallTextParagraph(11.5))),
+      messages(candidatesOf('small-text', smallTextParagraph(12))),
     ]).toEqual([['small-text: text rendered at 11.5px, below 12px: p.note'], []])
   })
 
@@ -54,7 +52,7 @@ describe('small text', () => {
         smallTextParagraph(8, { isAriaHidden: true }),
         smallTextParagraph(8, { visibility: 'hidden' }),
         smallTextParagraph(8, { textRects: [] }),
-      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] => findSmallText(snapshot)),
+      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] => restingCandidates(snapshot)),
     ).toEqual([])
   })
 })
@@ -88,20 +86,14 @@ const image = (media: Partial<MediaFacts>, fields: Partial<LayoutNode> = {}): La
 describe('image rules', () => {
   it('passes an image served at its size, in proportion, with its space reserved', () => {
     const valid: LayoutSnapshot = image({})
-    expect([
-      ...findUnloadedImages(valid),
-      ...findDistortedImages(valid),
-      ...findUpscaledImages(valid),
-      ...findOversizedImages(valid),
-      ...findUnreservedMedia(valid),
-    ]).toEqual([])
+    expect(restingCandidates(valid)).toEqual([])
   })
 
   it('fails an image that did not load, but not a vector without an intrinsic size', () => {
     expect([
-      messages(findUnloadedImages(image({ isComplete: false }))),
-      messages(findUnloadedImages(image({ naturalWidth: 0 }))),
-      messages(findUnloadedImages(image({ naturalWidth: 0, isVector: true }))),
+      messages(candidatesOf('image-load', image({ isComplete: false }))),
+      messages(candidatesOf('image-load', image({ naturalWidth: 0 }))),
+      messages(candidatesOf('image-load', image({ naturalWidth: 0, isVector: true }))),
     ]).toEqual([
       ['image-load: image did not load (complete false, natural width 800): img.hero'],
       ['image-load: image did not load (complete true, natural width 0): img.hero'],
@@ -111,9 +103,9 @@ describe('image rules', () => {
 
   it('fails a stretched image unless object-fit keeps its proportions', () => {
     expect([
-      messages(findDistortedImages(image({ contentHeight: 200 }))),
-      messages(findDistortedImages(image({ contentHeight: 200, objectFit: 'cover' }))),
-      messages(findDistortedImages(image({ contentHeight: 301 }))),
+      messages(candidatesOf('image-distorted', image({ contentHeight: 200 }))),
+      messages(candidatesOf('image-distorted', image({ contentHeight: 200, objectFit: 'cover' }))),
+      messages(candidatesOf('image-distorted', image({ contentHeight: 301 }))),
     ]).toEqual([
       ['image-distorted: image rendered at 400x200px from a 800x600px source, out of proportion: img.hero'],
       [],
@@ -123,11 +115,13 @@ describe('image rules', () => {
 
   it('fails an image enlarged by more than 10%, at the scale its object-fit displays it', () => {
     expect([
-      messages(findUpscaledImages(image({ naturalWidth: 300, naturalHeight: 225 }))),
-      messages(findUpscaledImages(image({ naturalWidth: 370, naturalHeight: 278 }))),
-      messages(findUpscaledImages(image({ naturalWidth: 400, naturalHeight: 100, objectFit: 'cover' }))).length,
+      messages(candidatesOf('image-upscaled', image({ naturalWidth: 300, naturalHeight: 225 }))),
+      messages(candidatesOf('image-upscaled', image({ naturalWidth: 370, naturalHeight: 278 }))),
+      messages(candidatesOf('image-upscaled', image({ naturalWidth: 400, naturalHeight: 100, objectFit: 'cover' })))
+        .length,
       messages(
-        findUpscaledImages(
+        candidatesOf(
+          'image-upscaled',
           image({
             naturalWidth: 400,
             naturalHeight: 100,
@@ -135,9 +129,11 @@ describe('image rules', () => {
           }),
         ),
       ).length,
-      messages(findUpscaledImages(image({ naturalWidth: 100, naturalHeight: 75, objectFit: 'none' }))).length,
+      messages(candidatesOf('image-upscaled', image({ naturalWidth: 100, naturalHeight: 75, objectFit: 'none' })))
+        .length,
       messages(
-        findUpscaledImages(
+        candidatesOf(
+          'image-upscaled',
           image({
             naturalWidth: 100,
             naturalHeight: 75,
@@ -156,7 +152,7 @@ describe('image rules', () => {
   })
 
   it('fails a source denser than any screen draws, at the scale its object-fit displays it', () => {
-    expect(messages(findOversizedImages(image({ naturalWidth: 4000, naturalHeight: 3000 })))).toEqual([
+    expect(messages(candidatesOf('image-oversized', image({ naturalWidth: 4000, naturalHeight: 3000 })))).toEqual([
       'image-oversized: image source 4000x3000px fills a 400x300px box at 10.0 source pixels per CSS pixel, ' +
         'beyond the 3 any screen draws, so 10.9 megapixels are decoded and never shown; serve a smaller source, ' +
         'or a srcset whose sizes match the box: img.hero',
@@ -167,7 +163,7 @@ describe('image rules', () => {
         image({ naturalWidth: 4000, naturalHeight: 1000, objectFit: 'cover' }),
         image({ naturalWidth: 4000, naturalHeight: 3000, objectFit: 'none' }),
         image({ naturalWidth: 4000, naturalHeight: 3000, isVector: true }),
-      ].map((snapshot: LayoutSnapshot): number => findOversizedImages(snapshot).length),
+      ].map((snapshot: LayoutSnapshot): number => candidatesOf('image-oversized', snapshot).length),
     ).toEqual([1, 0, 0, 0])
   })
 
@@ -178,14 +174,16 @@ describe('image rules', () => {
         image({ naturalWidth: 1300, naturalHeight: 975 }),
         image({ naturalWidth: 1400, naturalHeight: 1050 }),
         image({ naturalWidth: 64, naturalHeight: 64, contentWidth: 16, contentHeight: 16 }),
-      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] => findOversizedImages(snapshot)),
+      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+        candidatesOf('image-oversized', snapshot),
+      ),
     ).toEqual([])
   })
 
   it('fails media that takes a different box once loaded, unless it is out of flow', () => {
     expect([
-      messages(findUnreservedMedia(image({ reservedWidth: 400, reservedHeight: 0 }))),
-      messages(findUnreservedMedia(image({ reservedHeight: 0 }, { position: 'absolute' }))),
+      messages(candidatesOf('media-space', image({ reservedWidth: 400, reservedHeight: 0 }))),
+      messages(candidatesOf('media-space', image({ reservedHeight: 0 }, { position: 'absolute' }))),
     ]).toEqual([
       [
         'media-space: img reserves 400x0px before loading and takes 400x300px after; give it width and height ' +
@@ -256,6 +254,10 @@ const placed = (top: number, left: number, changes: Partial<FocusPosition> = {})
   ...changes,
 })
 
+// Whether one pixel changing from `unfocused` to `focused` is a contrasting focus change.
+const isContrastingChange = (unfocused: readonly number[], focused: readonly number[]): boolean =>
+  hasContrastingFocus({ unfocused, focused, scale: 1, extent: 2 })
+
 const pixels = (count: number, colour: readonly number[]): readonly number[] =>
   Array.from({ length: count }, (): readonly number[] => colour).flat()
 
@@ -282,8 +284,20 @@ describe('focus and disclosures', () => {
     ]).toEqual([false, true, true])
   })
 
-  it('measures the WCAG contrast ratio from either side', () => {
-    expect([contrastRatio(1, 0), contrastRatio(0, 1), contrastRatio(0.5, 0.5)]).toEqual([21, 21, 1])
+  it('measures the WCAG contrast ratio from either side, and needs at least 3:1', () => {
+    const white: readonly number[] = [255, 255, 255, 255]
+    const black: readonly number[] = [0, 0, 0, 255]
+    // A grey of 148 contrasts 3.03:1 with white, and one of 149 contrasts 2.99:1.
+    const passingGrey: readonly number[] = [148, 148, 148, 255]
+    const failingGrey: readonly number[] = [149, 149, 149, 255]
+    expect([
+      isContrastingChange(white, black),
+      isContrastingChange(black, white),
+      isContrastingChange(white, white),
+      isContrastingChange(white, passingGrey),
+      isContrastingChange(passingGrey, white),
+      isContrastingChange(white, failingGrey),
+    ]).toEqual([true, true, false, true, true, false])
   })
 
   it('accepts a focus change whose contrasting pixels cover a line along half the longer side', () => {

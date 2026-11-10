@@ -4,18 +4,10 @@ import {
   type ForwardedStops,
   forwardStops,
   type ProcessRow,
-  parseProcessTable,
-  reachable,
   readProcessTable,
   STOP_SIGNALS,
   type StopWiring,
-  stopTree,
   subscribeToStops,
-  TREE_GRACE_MS,
-  TREE_POLL_MS,
-  TREE_WATCH_MS,
-  type TreeMachine,
-  treeOf,
 } from '@/process-tree.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
@@ -25,6 +17,13 @@ const row = (pid: number, ppid: number, isZombie: boolean = false, pgid: number 
   pgid,
   isZombie,
 })
+
+/** What stopping a tree does to the machine. */
+type TreeMachine = StopWiring['machine']
+
+// How long a stopped tree's processes may take, and how often the tree of a running command is looked at.
+const GRACE_MS: number = 10_000
+const WATCH_MS: number = 2000
 
 // 10 runs 11 and 12; 11 runs 13; 20 is not under 10.
 const TABLE: readonly ProcessRow[] = [row(1, 0), row(10, 1), row(11, 10), row(12, 10), row(13, 11), row(20, 1)]
@@ -68,9 +67,12 @@ const machineOf = (
 
 describe('the process table', () => {
   it('reads each process with its parent and whether it only waits to be collected', () => {
-    expect(
-      parseProcessTable('    1     0     1 Ss\n  10     1    10 S+\n  11    10    10 Z\n\nPID PPID PGID STAT\n'),
-    ).toEqual([row(1, 0), row(10, 1, false, 10), row(11, 10, true, 10)])
+    const stdout: string = '    1     0     1 Ss\n  10     1    10 S+\n  11    10    10 Z\n\nPID PPID PGID STAT\n'
+    expect(readProcessTable(() => ({ code: 0, stdout }))).toEqual([
+      row(1, 0),
+      row(10, 1, false, 10),
+      row(11, 10, true, 10),
+    ])
   })
 
   it('is empty when ps cannot be run', () => {
@@ -80,20 +82,6 @@ describe('the process table', () => {
   it('is read from ps on this machine, with this process in it', () => {
     const rows: readonly ProcessRow[] = SYSTEM_STOPS.machine.table()
     expect(rows.find((candidate: ProcessRow): boolean => candidate.pid === process.pid)?.ppid).toBe(process.ppid)
-  })
-
-  it('finds every process under a root, parents before their children, and nothing beside them', () => {
-    expect(treeOf(10, TABLE)).toEqual([10, 11, 12, 13])
-    expect(treeOf(13, TABLE)).toEqual([13])
-  })
-
-  it('reaches a remembered process left to the system while it runs in its group, with what runs under it', () => {
-    const seen: readonly ProcessRow[] = [row(11, 10, false, 7), row(13, 11, false, 7)]
-    // 11 ended, so 13 was left to the system, and 14 runs under 13. 21 was given the number of a process
-    // seen before, in a group of its own.
-    const now: readonly ProcessRow[] = [row(10, 1), row(12, 10), row(13, 1, false, 7), row(14, 13, false, 7)]
-    expect(reachable(10, seen, now)).toEqual([10, 12, 13, 14])
-    expect(reachable(10, [row(12, 10, false, 21)], now)).toEqual([10, 12])
   })
 })
 
@@ -115,44 +103,6 @@ describe('the stop signals of this process', () => {
 
   it('are what a streamed command forwards', () => {
     expect(SYSTEM_STOPS.subscribe).toBe(subscribeToStops)
-  })
-})
-
-describe('stopping a tree', () => {
-  it('sends the signal to every process under the root and kills none that ended within the grace period', async () => {
-    const { machine, sent }: Machine = machineOf(TABLE, [10, 11, 12, 13])
-    expect(await stopTree(machine, 10, 'SIGINT')).toEqual([])
-    expect(sent).toEqual([
-      [10, 'SIGINT'],
-      [11, 'SIGINT'],
-      [12, 'SIGINT'],
-      [13, 'SIGINT'],
-    ])
-  })
-
-  it('kills what still runs when the grace period is over, after waiting for it', async () => {
-    const { machine, sent }: Machine = machineOf(TABLE, [10, 11])
-    const started: number = machine.now()
-    expect(await stopTree(machine, 10, 'SIGTERM')).toEqual([12, 13])
-    expect(machine.now() - started).toBeGreaterThanOrEqual(TREE_GRACE_MS)
-    expect(sent.slice(-2)).toEqual([
-      [12, 'SIGKILL'],
-      [13, 'SIGKILL'],
-    ])
-  })
-
-  it('stops a remembered process that was left to the system', async () => {
-    const { machine, sent }: Machine = machineOf([row(10, 1), row(13, 1, false, 7)], [10, 13])
-    expect(await stopTree(machine, 10, 'SIGINT', { known: [row(13, 11, false, 7)] })).toEqual([])
-    expect(sent).toEqual([
-      [10, 'SIGINT'],
-      [13, 'SIGINT'],
-    ])
-  })
-
-  it('counts a process that only waits to be collected as ended', async () => {
-    const { machine }: Machine = machineOf([row(10, 1), row(11, 10, true)], [10])
-    expect(await stopTree(machine, 10, 'SIGINT', { graceMs: TREE_POLL_MS })).toEqual([])
   })
 })
 
@@ -190,7 +140,7 @@ const wiringOf = (machine: TreeMachine): Wiring => {
         reported.push(line)
       },
       watch: (tick: () => void, periodMs: number): (() => void) => {
-        expect(periodMs).toBe(TREE_WATCH_MS)
+        expect(periodMs).toBe(WATCH_MS)
         ticks.push(tick)
         return (): void => {
           ticks.splice(ticks.indexOf(tick), 1)
@@ -216,40 +166,83 @@ describe('forwarding the stops of a running command', () => {
     send(wiring, 'SIGINT')
     send(wiring, 'SIGINT')
     await stops.stopping()
-    expect(sent.filter(([pid]: readonly [number, NodeJS.Signals]): boolean => pid === 10)).toEqual([[10, 'SIGINT']])
+    // Every process under the root, parents before their children, and nothing beside them.
+    expect(sent).toEqual([
+      [10, 'SIGINT'],
+      [11, 'SIGINT'],
+      [12, 'SIGINT'],
+      [13, 'SIGINT'],
+    ])
     expect(wiring.raised).toEqual(['SIGINT'])
     expect(wiring.handlers).toEqual([])
     expect(wiring.reported).toEqual([])
   })
 
-  it('names the processes it had to kill', async () => {
-    const { machine }: Machine = machineOf(TABLE, [10, 11, 12])
+  it('stops only the process itself when nothing runs under it', async () => {
+    const { machine, sent }: Machine = machineOf(TABLE, [13])
     const wiring: Wiring = wiringOf(machine)
+    const stops: ForwardedStops = forwardStops(13, wiring.wiring)
+    send(wiring, 'SIGINT')
+    await stops.stopping()
+    expect(sent).toEqual([[13, 'SIGINT']])
+  })
+
+  it('kills what still runs when the grace period is over, after waiting for it, and names it', async () => {
+    const { machine, sent }: Machine = machineOf(TABLE, [10, 11])
+    const wiring: Wiring = wiringOf(machine)
+    const started: number = machine.now()
     const stops: ForwardedStops = forwardStops(10, wiring.wiring)
     send(wiring, 'SIGTERM')
     await stops.stopping()
-    expect(wiring.reported).toEqual([
-      `processes 13 were still running ${String(TREE_GRACE_MS / 1000)}s after SIGTERM and were ended outright`,
+    expect(machine.now() - started).toBeGreaterThanOrEqual(GRACE_MS)
+    expect(sent.slice(-2)).toEqual([
+      [12, 'SIGKILL'],
+      [13, 'SIGKILL'],
     ])
+    expect(wiring.reported).toEqual(['processes 12, 13 were still running 10s after SIGTERM and were ended outright'])
+  })
+
+  it('counts a process that only waits to be collected as ended', async () => {
+    const { machine, sent }: Machine = machineOf([row(10, 1), row(11, 10, true)], [10])
+    const wiring: Wiring = wiringOf(machine)
+    const stops: ForwardedStops = forwardStops(10, wiring.wiring)
+    send(wiring, 'SIGINT')
+    await stops.stopping()
+    expect(sent).toEqual([
+      [10, 'SIGINT'],
+      [11, 'SIGINT'],
+    ])
+    expect(machine.now()).toBe(0)
+    expect(wiring.reported).toEqual([])
   })
 
   it('stops what it saw under the command, though it was left to the system before the stop', async () => {
-    const table: { rows: readonly ProcessRow[] } = { rows: TABLE.map((entry: ProcessRow) => ({ ...entry, pgid: 10 })) }
-    const { machine, sent }: Machine = machineOf((): readonly ProcessRow[] => table.rows, [10, 11, 12, 13])
+    const table: { rows: readonly ProcessRow[] } = {
+      rows: [...TABLE, row(15, 10)].map((entry: ProcessRow) => ({ ...entry, pgid: 10 })),
+    }
+    const { machine, sent }: Machine = machineOf((): readonly ProcessRow[] => table.rows, [10, 11, 12, 13, 14])
     const wiring: Wiring = wiringOf(machine)
     const stops: ForwardedStops = forwardStops(10, wiring.wiring)
     for (const tick of wiring.ticks) {
       tick()
     }
-    // 11 ended by itself and 13, which ran under it, was left to the system.
+    // 11 ended by itself and 13, which ran under it, was left to the system, still in its group, and now runs
+    // 14. 15 ended, and its number was given to an unrelated process in a group of its own, which is left alone.
     // eslint-disable-next-line functional/immutable-data -- the table changes as the machine's processes do
-    table.rows = [row(10, 1, false, 10), row(12, 10, false, 10), row(13, 1, false, 10)]
+    table.rows = [
+      row(10, 1, false, 10),
+      row(12, 10, false, 10),
+      row(13, 1, false, 10),
+      row(14, 13, false, 10),
+      row(15, 1, false, 21),
+    ]
     send(wiring, 'SIGTERM')
     await stops.stopping()
     expect(sent).toEqual([
       [10, 'SIGTERM'],
       [12, 'SIGTERM'],
       [13, 'SIGTERM'],
+      [14, 'SIGTERM'],
     ])
     expect(wiring.ticks).toEqual([])
   })
@@ -321,7 +314,7 @@ describe('a streamed command that is stopped', PROCESS_TIME, () => {
       "const { spawn } = require('node:child_process')",
       `const sleeper = spawn(process.execPath, ['-e', ${JSON.stringify(sleeperScript)}], { stdio: 'ignore' })`,
       'console.log("sleeper " + sleeper.pid)',
-      `setTimeout(() => process.exit(0), ${String(TREE_WATCH_MS + 1000)})`,
+      `setTimeout(() => process.exit(0), ${String(WATCH_MS + 1000)})`,
     ].join('\n')
     const finished: Promise<RunResult> = runStreaming(
       process.execPath,

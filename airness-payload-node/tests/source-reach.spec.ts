@@ -2,11 +2,8 @@ import type { SpecSource } from '@airness/node/axe-coverage'
 import { describe, expect, it } from 'vitest'
 import {
   bodyAfterParameters,
-  calledNamesIn,
-  candidatePathsFor,
   functionBodyIn,
   functionValueBody,
-  moduleOfImport,
   type ReachedFunction,
   reachedFunction,
   reachedFunctions,
@@ -17,55 +14,85 @@ const CONFIG_PATH: string = 'src/payload.config.ts'
 
 const file = (path: string, source: string): SpecSource => ({ path, source })
 
-describe('calledNamesIn', () => {
-  it('names each called function once, without the statement keywords', () => {
-    expect(calledNamesIn('if (ready) { await seed(a); await seed(b); return warm() }')).toEqual(['seed', 'warm'])
+// A module that declares one function under a name, for a specifier to resolve to.
+const declaring = (path: string, name: string): SpecSource =>
+  file(path, `export const ${name} = async () => { await run() }`)
+
+const reachedPathOf = (specifier: string, fromPath: string, files: readonly SpecSource[]): string | undefined =>
+  reachedFunction(`import { seed } from '${specifier}'`, 'seed', fromPath, files)?.path
+
+describe('reachedFunctions over the names a body calls', () => {
+  it('follows each called function once, without the statement keywords', () => {
+    const code: string = "import { seed, warm, ready } from '@/seed'"
+    const module: SpecSource = file(
+      'src/seed.ts',
+      ['seed', 'warm', 'ready'].map((name: string): string => `export function ${name}() { a() }`).join('\n'),
+    )
+    const body: string = 'if (ready) { await seed(a); await seed(b); return warm() }'
+    expect(reachedFunctions(code, body, CONFIG_PATH, [module]).map((found) => found.name)).toEqual(['seed', 'warm'])
   })
 })
 
-describe('moduleOfImport', () => {
+describe('reachedFunction over the import that binds a name', () => {
   it('reads the specifier a name is imported from', () => {
-    expect(moduleOfImport("import { seedContent } from './seed/seed'", 'seedContent')).toBe('./seed/seed')
+    const code: string = "import { seedContent } from './seed/seed'"
+    const reached: ReachedFunction | undefined = reachedFunction(code, 'seedContent', CONFIG_PATH, [
+      declaring('src/seed/seed.ts', 'seedContent'),
+    ])
+    expect(reached?.specifier).toBe('./seed/seed')
   })
 
   it('reads a renamed binding by the name the file uses', () => {
-    expect(moduleOfImport("import { seed as seedContent } from '@/seed'", 'seedContent')).toBe('@/seed')
+    const code: string = "import { seed as seedContent } from '@/seed'"
+    const module: SpecSource = file(
+      'src/seed.ts',
+      'const seedContent = () => { run() }\nexport { seedContent as seed }',
+    )
+    expect(reachedFunction(code, 'seedContent', CONFIG_PATH, [module])?.specifier).toBe('@/seed')
   })
 
   it('is undefined for a name the file never imports', () => {
-    expect(moduleOfImport("import { other } from '@/seed'", 'seedContent')).toBeUndefined()
+    const code: string = "import { other } from '@/seed'"
+    expect(reachedFunction(code, 'seedContent', CONFIG_PATH, [declaring('src/seed.ts', 'seedContent')])).toBeUndefined()
   })
 })
 
-describe('candidatePathsFor', () => {
+describe('reachedFunction over the paths a specifier names', () => {
   it('resolves the alias against the source root', () => {
-    expect(candidatePathsFor('@/seed/seed', CONFIG_PATH)).toContain('src/seed/seed.ts')
+    expect(reachedPathOf('@/seed/seed', CONFIG_PATH, [declaring('src/seed/seed.ts', 'seed')])).toBe('src/seed/seed.ts')
   })
 
   // The real defect imported its seed relatively, so this form has to resolve or the rule misses it.
   it('resolves a relative specifier against the importing file', () => {
-    expect(candidatePathsFor('./seed/seed', CONFIG_PATH)).toContain('src/seed/seed.ts')
+    expect(reachedPathOf('./seed/seed', CONFIG_PATH, [declaring('src/seed/seed.ts', 'seed')])).toBe('src/seed/seed.ts')
   })
 
   it('climbs out of a directory for a parent-relative specifier', () => {
-    expect(candidatePathsFor('../seed', 'src/config/payload.config.ts')).toContain('src/seed.ts')
+    const files: readonly SpecSource[] = [declaring('src/seed.ts', 'seed')]
+    expect(reachedPathOf('../seed', 'src/config/payload.config.ts', files)).toBe('src/seed.ts')
   })
 
   it('offers the barrel as a candidate', () => {
-    expect(candidatePathsFor('@/seed', CONFIG_PATH)).toContain('src/seed/index.ts')
+    expect(reachedPathOf('@/seed', CONFIG_PATH, [declaring('src/seed/index.ts', 'seed')])).toBe('src/seed/index.ts')
   })
 
-  it('names nothing for a package specifier', () => {
-    expect(candidatePathsFor('payload', CONFIG_PATH)).toEqual([])
+  it('names nothing for a package specifier, whatever the member holds', () => {
+    const files: readonly SpecSource[] = [
+      declaring('payload.ts', 'seed'),
+      declaring('src/payload.ts', 'seed'),
+      declaring('payload/index.ts', 'seed'),
+      declaring('src/payload/index.ts', 'seed'),
+    ]
+    expect(reachedPathOf('payload', CONFIG_PATH, files)).toBeUndefined()
   })
 
   // A configuration at the member root has no directory to resolve against.
   it('resolves a relative specifier from a file that sits at the root', () => {
-    expect(candidatePathsFor('./seed', 'payload.config.ts')).toContain('seed.ts')
+    expect(reachedPathOf('./seed', 'payload.config.ts', [declaring('seed.ts', 'seed')])).toBe('seed.ts')
   })
 
   it('collapses a redundant current-directory segment', () => {
-    expect(candidatePathsFor('././seed', CONFIG_PATH)).toContain('src/seed.ts')
+    expect(reachedPathOf('././seed', CONFIG_PATH, [declaring('src/seed.ts', 'seed')])).toBe('src/seed.ts')
   })
 })
 

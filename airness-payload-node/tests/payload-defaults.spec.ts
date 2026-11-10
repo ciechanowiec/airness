@@ -3,18 +3,15 @@ import {
   type AnonymousRead,
   accessOperationsFor,
   COLLECTION_OPERATIONS,
-  DEFAULT_PAYLOAD_CONFIG_PATH,
-  EXEMPT_PAYLOAD_SUBJECTS,
-  type ExemptPayloadSubject,
   findInheritedAccess,
   findUnconstrainedDraftReads,
   GLOBAL_OPERATIONS,
   INHERITED_ACCESS_REPORT_MARKER,
   type InheritedAccessReport,
+  type PayloadSubjectKind,
   parseInheritedAccessReport,
   payloadConfigPathOf,
   QUERY_PRESETS_SLUG,
-  requiresPublishedStatus,
 } from '@/payload-defaults.js'
 
 const DECIDED: InheritedAccessReport = {
@@ -27,6 +24,19 @@ const DECIDED: InheritedAccessReport = {
 }
 
 const reportOf = (line: string): string => `${INHERITED_ACCESS_REPORT_MARKER}${line}`
+
+interface ExemptSubject {
+  readonly kind: PayloadSubjectKind
+  readonly slug: string
+}
+
+// The entities Payload builds for its own bookkeeping, which keep the default access by design.
+const EXEMPT: readonly ExemptSubject[] = [
+  { kind: 'collection', slug: 'payload-locked-documents' },
+  { kind: 'collection', slug: 'payload-preferences' },
+  { kind: 'collection', slug: 'payload-migrations' },
+  { kind: 'global', slug: 'payload-jobs-stats' },
+]
 
 // Two of the operations are conditional, and both would be wrong as constants. Payload writes `unlock`
 // onto every collection during sanitisation, auth or not, so asking for it unconditionally would report
@@ -127,9 +137,12 @@ describe('findInheritedAccess', () => {
   // hazard: exempting it would restore exactly the blindness this rule was added to close, because an
   // undecided `create` there admits every signed-in user.
   it('judges the query-presets collection rather than exempting it as framework bookkeeping', () => {
-    expect(EXEMPT_PAYLOAD_SUBJECTS.map((subject: ExemptPayloadSubject): string => subject.slug)).not.toContain(
-      QUERY_PRESETS_SLUG,
-    )
+    const report: InheritedAccessReport = {
+      collections: [{ slug: QUERY_PRESETS_SLUG, inherited: ['create'] }],
+      draftReads: [],
+      globals: [],
+    }
+    expect(findInheritedAccess(report)).toHaveLength(1)
   })
 
   it('points a project or plugin collection at its own access block, singular for one operation', () => {
@@ -156,21 +169,18 @@ describe('findInheritedAccess', () => {
     )
   })
 
-  it.each(EXEMPT_PAYLOAD_SUBJECTS)(
-    'exempts $kind "$slug", which keeps the default by design',
-    ({ kind, slug }: ExemptPayloadSubject) => {
-      const operations: readonly string[] = kind === 'collection' ? COLLECTION_OPERATIONS : GLOBAL_OPERATIONS
-      const entry: { readonly slug: string; readonly inherited: readonly string[] } = {
-        slug,
-        inherited: operations,
-      }
-      const report: InheritedAccessReport =
-        kind === 'collection'
-          ? { collections: [entry], draftReads: [], globals: [] }
-          : { collections: [], draftReads: [], globals: [entry] }
-      expect(findInheritedAccess(report)).toEqual([])
-    },
-  )
+  it.each(EXEMPT)('exempts $kind "$slug", which keeps the default by design', ({ kind, slug }: ExemptSubject) => {
+    const operations: readonly string[] = kind === 'collection' ? COLLECTION_OPERATIONS : GLOBAL_OPERATIONS
+    const entry: { readonly slug: string; readonly inherited: readonly string[] } = {
+      slug,
+      inherited: operations,
+    }
+    const report: InheritedAccessReport =
+      kind === 'collection'
+        ? { collections: [entry], draftReads: [], globals: [] }
+        : { collections: [], draftReads: [], globals: [entry] }
+    expect(findInheritedAccess(report)).toEqual([])
+  })
 
   // An exemption names a kind as well as a slug, so a project collection that borrows an exempt
   // global's name is still judged.
@@ -211,26 +221,29 @@ const draftsOf = (anonymousRead: AnonymousRead): InheritedAccessReport => ({
 
 // The filter a read returns is the half `/api/access` reports and the anonymous sweep never opens, so
 // this is the only place in the harness that reads what a constraint constrains.
-describe('requiresPublishedStatus', () => {
+const filteredFindings = (where: unknown): readonly string[] =>
+  findUnconstrainedDraftReads(draftsOf({ kind: 'filtered', where }))
+
+describe('findUnconstrainedDraftReads over the filter a read returns', () => {
   it('accepts the clause at the top level and inside an and, however deep', () => {
-    expect(requiresPublishedStatus(PUBLISHED)).toBe(true)
-    expect(requiresPublishedStatus({ and: [AUDIENCE, PUBLISHED] })).toBe(true)
-    expect(requiresPublishedStatus({ and: [{ and: [PUBLISHED] }, AUDIENCE] })).toBe(true)
+    expect(filteredFindings(PUBLISHED)).toEqual([])
+    expect(filteredFindings({ and: [AUDIENCE, PUBLISHED] })).toEqual([])
+    expect(filteredFindings({ and: [{ and: [PUBLISHED] }, AUDIENCE] })).toEqual([])
   })
 
   // Every branch of an or holds, or none of them does: one branch without the clause is the way in.
   it('accepts an or only when every branch carries the clause', () => {
-    expect(requiresPublishedStatus({ or: [{ and: [PUBLISHED, AUDIENCE] }, PUBLISHED] })).toBe(true)
-    expect(requiresPublishedStatus({ or: [PUBLISHED, AUDIENCE] })).toBe(false)
-    expect(requiresPublishedStatus({ or: [] })).toBe(false)
+    expect(filteredFindings({ or: [{ and: [PUBLISHED, AUDIENCE] }, PUBLISHED] })).toEqual([])
+    expect(filteredFindings({ or: [PUBLISHED, AUDIENCE] })).toHaveLength(1)
+    expect(filteredFindings({ or: [] })).toHaveLength(1)
   })
 
   it('refuses a filter that names another field, another status, or nothing at all', () => {
-    expect(requiresPublishedStatus({ and: [AUDIENCE] })).toBe(false)
-    expect(requiresPublishedStatus({ _status: { equals: 'draft' } })).toBe(false)
-    expect(requiresPublishedStatus({ _status: { not_equals: 'draft' } })).toBe(false)
+    expect(filteredFindings({ and: [AUDIENCE] })).toHaveLength(1)
+    expect(filteredFindings({ _status: { equals: 'draft' } })).toHaveLength(1)
+    expect(filteredFindings({ _status: { not_equals: 'draft' } })).toHaveLength(1)
     for (const nothing of [undefined, null, true, 'published', []]) {
-      expect(requiresPublishedStatus(nothing)).toBe(false)
+      expect(filteredFindings(nothing)).toHaveLength(1)
     }
   })
 })
@@ -370,6 +383,6 @@ describe('payloadConfigPathOf', () => {
     ['an alias that is not a list', { compilerOptions: { paths: { '@payload-config': 'x' } } }],
     ['an empty alias', { compilerOptions: { paths: { '@payload-config': [] } } }],
   ])('falls back to the default path with %s', (_case: string, tsconfig: unknown) => {
-    expect(payloadConfigPathOf(tsconfig)).toBe(DEFAULT_PAYLOAD_CONFIG_PATH)
+    expect(payloadConfigPathOf(tsconfig)).toBe('src/payload.config.ts')
   })
 })

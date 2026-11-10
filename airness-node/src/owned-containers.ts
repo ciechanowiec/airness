@@ -45,7 +45,7 @@ export const ownerLabelArguments = (owner: ContainerOwner): readonly string[] =>
 ]
 
 /** The `docker` arguments that list every container recording its owner, one per line. */
-export const ownedContainerListingArguments: readonly string[] = [
+const ownedContainerListingArguments: readonly string[] = [
   'ps',
   '--all',
   `--filter=label=${OWNER_LABELS.pid}`,
@@ -58,7 +58,7 @@ export const ownedContainerListingArguments: readonly string[] = [
 ]
 
 /** A listed container, and its owner when the labels name one completely. */
-export interface ListedContainer {
+interface ListedContainer {
   readonly name: string
   readonly owner: ContainerOwner | undefined
 }
@@ -71,7 +71,7 @@ const ownerOf = (pid: string, started: string, host: string): ContainerOwner | u
  * @param listing what `docker` wrote.
  * @returns each listed container.
  */
-export const listedContainers = (listing: string): readonly ListedContainer[] =>
+const listedContainers = (listing: string): readonly ListedContainer[] =>
   listing
     .split('\n')
     .filter((line: string): boolean => line.trim() !== '')
@@ -91,7 +91,7 @@ export const listedContainers = (listing: string): readonly ListedContainer[] =>
  * @param running when the process now holding the owner's PID started, or undefined when none does.
  * @returns true when the container may be removed.
  */
-export const isOrphanedContainer = (owner: ContainerOwner, host: string, running: string | undefined): boolean =>
+const isOrphanedContainer = (owner: ContainerOwner, host: string, running: string | undefined): boolean =>
   running !== owner.started && owner.host === host
 
 /** Why a run could not take ownership of the containers it is about to start. */

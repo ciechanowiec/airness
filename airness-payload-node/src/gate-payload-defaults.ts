@@ -45,7 +45,7 @@ const summariseAccessFindings = (inherited: number, draftReads: number): string 
  * @param result what the probe exited with and printed.
  * @returns the gate result.
  */
-export const judgeProbe = (result: RunResult): GateResult => {
+const judgeProbe = (result: RunResult): GateResult => {
   if (result.code !== 0) {
     return failed('the Payload configuration could not be built', asFindings(result.output))
   }

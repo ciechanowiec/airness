@@ -5,11 +5,8 @@ import type { RunResult } from '@/exec.js'
 import {
   type ContainerOwner,
   claimOwnership,
-  isOrphanedContainer,
   isOwnershipFailure,
-  listedContainers,
   type OwnershipFailure,
-  ownedContainerListingArguments,
   ownerLabelArguments,
 } from '@/owned-containers.js'
 
@@ -20,46 +17,12 @@ const OWNER: ContainerOwner = {
 }
 
 describe('the owner a run records on its containers', () => {
-  it('is written as labels the listing reads back', () => {
+  it('is written as labels', () => {
     expect(ownerLabelArguments(OWNER)).toEqual([
       '--label=airness.owner.pid=4321',
       '--label=airness.owner.started=Mon Oct 26 09:52:44 2026',
       '--label=airness.owner.host=builder',
     ])
-    expect(ownedContainerListingArguments).toContain('--filter=label=airness.owner.pid')
-  })
-})
-
-describe('a container left behind by its run', () => {
-  it('is read from the listing with its owner, and without one when a label is missing', () => {
-    expect(
-      listedContainers(
-        [
-          'airness-browsers-4100|4321|Mon Oct 26 09:52:44 2026|builder',
-          '',
-          'airness-browsers-4200||Mon Oct 26 09:52:44 2026|builder',
-          'airness-browsers-4300|0|Mon Oct 26 09:52:44 2026|builder',
-        ].join('\n'),
-      ),
-    ).toEqual([
-      { name: 'airness-browsers-4100', owner: OWNER },
-      { name: 'airness-browsers-4200', owner: undefined },
-      { name: 'airness-browsers-4300', owner: undefined },
-    ])
-  })
-
-  it('is an orphan once no process holds its owner PID, or one that started at another time does', () => {
-    expect([
-      isOrphanedContainer(OWNER, 'builder', undefined),
-      isOrphanedContainer(OWNER, 'builder', 'Mon Oct 26 10:01:07 2026'),
-    ]).toEqual([true, true])
-  })
-
-  it('is kept while its owner runs, and whenever it was started on another machine', () => {
-    expect([
-      isOrphanedContainer(OWNER, 'builder', OWNER.started),
-      isOrphanedContainer(OWNER, 'another-machine', undefined),
-    ]).toEqual([false, false])
   })
 })
 
@@ -70,9 +33,11 @@ const answered = (stdout: string, code: number = 0): RunResult => ({ code, outpu
 // `present` those `docker container inspect` still finds.
 const RUN_START: string = 'Sun Nov  1 07:00:00 2026'
 
+// 300 was given to another process after the run that owned `dam-cd-objects` ended.
 const STARTS: Readonly<Record<string, string>> = {
   [String(process.pid)]: RUN_START,
   '100': 'Mon Oct 26 09:52:44 2026',
+  '300': 'Mon Oct 26 10:01:07 2026',
 }
 
 const processStartOf = (pid: string): RunResult => answerIf(STARTS[pid] !== undefined, STARTS[pid] ?? '')
@@ -104,18 +69,60 @@ const LISTING: RunResult = answered(
   ].join('\n'),
 )
 
-describe('a run claiming the containers it starts', () => {
-  it('removes the containers of runs that are gone and keeps those of live runs and other machines', () => {
-    const removed: string[] = []
-    const claim: ContainerOwner | OwnershipFailure = claimOwnership('.', (command, commandArguments) => {
+/** A claim on a machine, the containers it removed, and the `docker` calls it made. */
+interface Claimed {
+  readonly claim: ContainerOwner | OwnershipFailure
+  readonly removed: readonly string[]
+  readonly docker: readonly (readonly string[])[]
+}
+
+const claimed = (listing: RunResult, removable: readonly string[]): Claimed => {
+  const removed: string[] = []
+  const docker: (readonly string[])[] = []
+  const claim: ContainerOwner | OwnershipFailure = claimOwnership(
+    '.',
+    (command: string, commandArguments: readonly string[]): RunResult => {
+      if (command === 'docker') {
+        docker.push(commandArguments)
+      }
       if (commandArguments[0] === 'rm') {
         removed.push(commandArguments.at(-1) ?? '')
       }
-      return machine(['teron-ab-db', 'dam-cd-objects'], LISTING)(command, commandArguments)
-    })
+      return machine(removable, listing)(command, commandArguments)
+    },
+  )
+  return { claim, removed, docker }
+}
+
+describe('a run claiming the containers it starts', () => {
+  it('removes the containers of runs that are gone and keeps those of live runs and other machines', () => {
+    const { claim, removed }: Claimed = claimed(LISTING, ['teron-ab-db', 'dam-cd-objects'])
     // `ps` pads a one-digit day; the owner records it with single spaces, as every later `ps` is read.
     expect(claim).toEqual({ pid: process.pid, started: 'Sun Nov 1 07:00:00 2026', host })
+    // teron-ab-db's owner is gone, and dam-cd-objects' PID is held by a process that started at another time.
     expect(removed).toEqual(['teron-ab-db', 'dam-cd-objects'])
+  })
+
+  it('lists only the containers that record an owner, and reads their owners back from the labels', () => {
+    const { removed, docker }: Claimed = claimed(
+      answered(
+        [
+          ` airness-browsers-4100 | 4321 |Mon Oct 26 09:52:44 2026|${host}`,
+          '',
+          `airness-browsers-4200||Mon Oct 26 09:52:44 2026|${host}`,
+          `airness-browsers-4300|0|Mon Oct 26 09:52:44 2026|${host}`,
+          `airness-browsers-4400|4400||${host}`,
+          'airness-browsers-4500|4500|Mon Oct 26 09:52:44 2026|',
+        ].join('\n'),
+      ),
+      ['airness-browsers-4100'],
+    )
+    expect(docker[0]).toContain('--filter=label=airness.owner.pid')
+    expect(docker[0]?.at(-1)).toBe(
+      '--format={{.Names}}|{{.Label "airness.owner.pid"}}|{{.Label "airness.owner.started"}}|{{.Label "airness.owner.host"}}',
+    )
+    // Only the container whose labels name an owner completely is judged, and its owner is gone.
+    expect(removed).toEqual(['airness-browsers-4100'])
   })
 
   it('counts a removal another run made at the same moment as done', () => {

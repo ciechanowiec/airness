@@ -4,12 +4,13 @@ import { createInterface } from 'node:readline'
 import type { Readable } from 'node:stream'
 import { type Browser, type PinnedServer, startPinnedServer } from '#browser/pinned-server'
 import { type RunResult, run } from '#harness/exec'
-import { listedContainers, ownedContainerListingArguments } from '#harness/owned-containers'
 
 const READY: string = 'browser-server-ready'
 const ARGUMENT_OFFSET: number = 2
 const START_TIMEOUT: number = 120_000
 const HEARTBEAT: number = 1000
+// The label every container the harness starts records its owner's process in, as docker filters on it.
+const OWNER_PID_LABEL: string = 'airness.owner.pid'
 
 type Child = ChildProcessByStdio<null, Readable, Readable>
 
@@ -47,11 +48,15 @@ const stop = async (child: Child, signal: NodeJS.Signals): Promise<void> => {
 }
 
 const hasServer = (child: Child): boolean => {
-  const result: RunResult = run('docker', ownedContainerListingArguments, { cwd: process.cwd() })
+  const result: RunResult = run(
+    'docker',
+    ['ps', '--all', '--quiet', `--filter=label=${OWNER_PID_LABEL}=${String(child.pid)}`],
+    { cwd: process.cwd() },
+  )
   if (result.code !== 0) {
     throw new Error(result.output)
   }
-  return listedContainers(result.stdout).some((server): boolean => server.owner?.pid === child.pid)
+  return result.stdout.trim() !== ''
 }
 
 const verifyLifecycle = async (): Promise<void> => {

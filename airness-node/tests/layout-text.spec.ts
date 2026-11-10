@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { findLayoutDefects } from '@/layout-defects.js'
 import type { LayoutNode, LayoutSnapshot } from '@/layout-snapshot.js'
 import { LAYOUT_MINIMUM_GAP } from '@/settings.js'
 
-import { nodeOf as layoutNode, rect } from './helpers/layout-fixture.js'
+import { layoutDefectsOf, nodeOf as layoutNode, rect } from './helpers/layout-fixture.js'
 
 // Text that collides with other text, text its own box cuts off, and a page wider than its viewport,
 // each stated as the numbers the browser reports.
@@ -20,7 +19,7 @@ const BODY: LayoutNode = nodeOf({
 })
 
 const defectsOf = (nodes: readonly LayoutNode[], scrollWidth: number = 390): readonly string[] =>
-  findLayoutDefects(
+  layoutDefectsOf(
     [
       {
         route: '/news',

@@ -17,7 +17,7 @@ export interface LayerRelaxation {
 }
 
 /** The relaxations each layer needs, owned by the harness rather than by the layer. */
-export const LAYER_RELAXATIONS: readonly LayerRelaxation[] = [
+const LAYER_RELAXATIONS: readonly LayerRelaxation[] = [
   // Each relaxation names a registered layer package, and goes with that layer's registration.
   {
     layer: '@airness/payload',

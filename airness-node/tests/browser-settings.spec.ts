@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLOCK_ENVIRONMENT_VARIABLE, DEFAULT_CLOCK_INSTANT } from '@/browser-run.js'
+import { CLOCK_ENVIRONMENT_VARIABLE } from '@/browser-run.js'
 import { browserSettings } from '@/browser-settings.js'
 import { clockedEnvironment } from '@/clock-environment.js'
 import { readSettings } from '@/settings.js'
@@ -109,7 +109,7 @@ describe('the browser startup inputs', () => {
       '--no-deprecation',
       '',
     )
-    expect(fixed[CLOCK_ENVIRONMENT_VARIABLE]).toBe(DEFAULT_CLOCK_INSTANT)
+    expect(fixed[CLOCK_ENVIRONMENT_VARIABLE]).toBe('2100-01-01T12:00:00.000Z')
     expect(fixed['NODE_OPTIONS']).toContain('--import=file:')
     expect(
       clockedEnvironment({ settings: readSettings({ airness: { clock: 'real' } }) }, '--no-deprecation', ''),

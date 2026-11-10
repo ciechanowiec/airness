@@ -3,7 +3,6 @@ import {
   alternateHrefs,
   axeRulesExcludedAt,
   type DiscoveredStory,
-  DOCUMENT_AXE_RULES,
   localAddress,
   onOrigin,
   sitemapEntries,
@@ -188,7 +187,7 @@ describe('story sampling', () => {
 describe('axe rules for a story', () => {
   it('leaves out the document rules for a story and keeps every rule for a route', () => {
     expect([axeRulesExcludedAt('story:ui-button--primary'), axeRulesExcludedAt('/en')]).toEqual([
-      DOCUMENT_AXE_RULES,
+      ['landmark-one-main', 'page-has-heading-one', 'region', 'bypass', 'document-title', 'html-has-lang'],
       [],
     ])
   })

@@ -42,7 +42,7 @@ const MUTATION_NAMES: ReadonlySet<string> = new Set([
  * in step, and the two would disagree the first time Payload gained an operation. A read at boot is
  * legitimate and deliberately absent from this set.
  */
-export const LOCAL_API_MUTATIONS: readonly string[] = LOCAL_API_CALLS.filter((call: string): boolean =>
+const LOCAL_API_MUTATIONS: readonly string[] = LOCAL_API_CALLS.filter((call: string): boolean =>
   MUTATION_NAMES.has(call.slice(1, -1)),
 )
 
@@ -54,7 +54,7 @@ export const LOCAL_API_MUTATIONS: readonly string[] = LOCAL_API_CALLS.filter((ca
  * code at boot. A reference to a function the configuration's own file declares is read as that body; one
  * to an imported function is left for the caller to follow, since only the caller holds the other files.
  */
-export interface BootstrapHook {
+interface BootstrapHook {
   /** The body the hook runs, or the expression an arrow returns; undefined when it names an import. */
   readonly body: string | undefined
   /** The name the hook is given by, when it names a function rather than writing one. */
@@ -105,7 +105,7 @@ const hookOf = (code: string, config: FoundRootConfig): BootstrapHook | undefine
  * @param code the file's text, with comments already stripped.
  * @returns one entry per configuration that declares `onInit` as a function or a reference to one.
  */
-export const bootstrapHooksIn = (code: string): readonly BootstrapHook[] =>
+const bootstrapHooksIn = (code: string): readonly BootstrapHook[] =>
   rootConfigsIn(code).flatMap((config: FoundRootConfig): readonly BootstrapHook[] => {
     const hook: BootstrapHook | undefined = hookOf(code, config)
     return hook === undefined ? [] : [hook]

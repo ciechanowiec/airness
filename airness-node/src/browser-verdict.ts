@@ -4,7 +4,7 @@ import type { GateResult } from './gate-result.js'
 import { resolvedVersion } from './project.js'
 
 /** The repair for a run that found no browser to drive. */
-export const BROWSER_INSTALL_REPAIR: string = `Playwright found no browser executable; run docker pull ${playwrightImageOf(resolvedVersion('@playwright/test'))} before verification`
+const BROWSER_INSTALL_REPAIR: string = `Playwright found no browser executable; run docker pull ${playwrightImageOf(resolvedVersion('@playwright/test'))} before verification`
 
 // What Playwright prints when the browser it was asked to launch is not where it looks for it.
 const MISSING_BROWSER: RegExp = /Executable doesn't exist|Please run the following command to download new browsers/u

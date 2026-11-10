@@ -9,13 +9,13 @@
 import type { RunResult } from './exec.js'
 
 /** How often the guard asks whether the wrapper is still there. */
-export const GUARD_INTERVAL_MS: number = 500
+const GUARD_INTERVAL_MS: number = 500
 
 /**
  * How long the guard waits before its second sweep: a `docker run` the wrapper had sent when it went can still
  * create its container after the first one.
  */
-export const GUARD_SETTLE_MS: number = 2000
+const GUARD_SETTLE_MS: number = 2000
 
 /** What a guard does to the machine, replaceable so its decisions can be measured without Docker. */
 export interface GuardMachine {

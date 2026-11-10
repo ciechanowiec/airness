@@ -167,7 +167,7 @@ const isOpaqueColor = (color: string): boolean => {
  * @param color a computed colour string.
  * @returns false for `transparent` and any colour whose alpha is zero.
  */
-export const isVisibleColor = (color: string): boolean => {
+const isVisibleColor = (color: string): boolean => {
   const trimmed: string = color.trim()
   if (trimmed === 'transparent' || trimmed === '') {
     return false
