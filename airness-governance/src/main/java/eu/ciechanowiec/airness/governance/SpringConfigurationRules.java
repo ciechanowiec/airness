@@ -41,10 +41,6 @@ final class SpringConfigurationRules {
     private static final Pattern KEBAB = Pattern.compile("[A-Z_]");
     private static final String ALWAYS = "always";
     private static final String LIST = ",";
-    private static final String OPENING = "${";
-    private static final char OPENS = '{';
-    private static final char CLOSES = '}';
-    private static final char FALLBACK = ':';
     private static final Pattern FLOW = Pattern.compile("^\\[|]$");
     private static final Pattern QUOTES = Pattern.compile("^([\"'])(.*)\\1$");
 
@@ -249,7 +245,7 @@ final class SpringConfigurationRules {
 
     private static Stream<String> secret(String path, SpringConfiguration.Setting setting) {
         boolean literal = SENSITIVE.matcher(setting.key()).find()
-            && !placeholders(QUOTES.matcher(setting.value().strip()).replaceFirst("$2"));
+            && !SpringPlaceholders.environmentOnly(QUOTES.matcher(setting.value().strip()).replaceFirst("$2"));
         return literal
             ? Stream.of(
                 offence(
@@ -304,46 +300,6 @@ final class SpringConfigurationRules {
                 + " is declared more than once in this document, at line " + earlier
                 + " as well, and Spring binds the last of them, so every earlier line is read by nothing"
         );
-    }
-
-    /*
-     * Whether a value is nothing but placeholders, none of which falls back to a literal. A default
-     * written after the colon is what the application runs with wherever the variable is unset, so it
-     * ships inside the artifact as surely as a value written outright. An empty default carries
-     * nothing, and a default that is itself such a placeholder reads the environment again.
-     */
-    private static boolean placeholders(String text) {
-        if (text.isEmpty()) {
-            return true;
-        }
-        if (!text.startsWith(OPENING)) {
-            return false;
-        }
-        String inside = text.substring(OPENING.length());
-        int closes = depthless(inside, CLOSES);
-        return closes >= 0 && defaultless(inside.substring(0, closes)) && placeholders(inside.substring(closes + 1));
-    }
-
-    private static boolean defaultless(String inner) {
-        int fallback = depthless(inner, FALLBACK);
-        return fallback < 0 || placeholders(inner.substring(fallback + 1));
-    }
-
-    // The first occurrence of a character outside every brace the text opens, or -1 when there is none.
-    private static int depthless(String text, char wanted) {
-        int depth = 0;
-        for (int at = 0; at < text.length(); at++) {
-            char current = text.charAt(at);
-            if (current == wanted && depth == 0) {
-                return at;
-            }
-            depth += step(current);
-        }
-        return -1;
-    }
-
-    private static int step(char current) {
-        return (current == OPENS ? 1 : 0) - (current == CLOSES ? 1 : 0);
     }
 
     private static String unquoted(String value) {
