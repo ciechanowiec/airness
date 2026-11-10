@@ -29,6 +29,8 @@ import lombok.experimental.UtilityClass;
  * better than one that inlines them. The search follows a call to any method the same file declares and
  * stops at the file boundary. A test that keeps every assertion in another type therefore reports as
  * unproven, which is answered by moving the assertion back or by a suppression that says why not.
+ *
+ * <p>What counts as an assertion is the {@link AssertionLibrary} vocabulary of the source.
  */
 @UtilityClass
 final class AssertionRules {
@@ -54,7 +56,6 @@ final class AssertionRules {
         "\\b(?!if\\b|for\\b|while\\b|switch\\b|catch\\b|synchronized\\b|do\\b|else\\b|return\\b|new\\b|try\\b)"
             + "(\\w+)\\s*\\((?:[^()]++|\\([^()]*+\\))*+\\)\\s*(?:throws[^{;]*)?\\{"
     );
-    private static final Pattern ASSERTION = Pattern.compile("\\b(?:assert\\w*|fail|expect\\w*|verify\\w*)\\s*\\(");
     private static final Pattern CALL = Pattern.compile("\\b(\\w+)\\s*\\(");
     /*
      * An operand written out rather than computed. A call whose operands are all of this shape compares
@@ -107,8 +108,9 @@ final class AssertionRules {
     static List<String> unproven(CharSequence source) {
         String code = JavaCode.blanked(source);
         Map<String, String> bodies = bodies(code);
+        Pattern assertion = AssertionLibrary.assertions(code);
         return cases(code).stream()
-            .filter(unit -> !reaches(unit.in(code), bodies, new TreeSet<>(Set.of(unit.name()))))
+            .filter(unit -> !reaches(unit.in(code), assertion, bodies, new TreeSet<>(Set.of(unit.name()))))
             .map(unit -> "line %d: %s".formatted(JavaCode.lineOf(code, unit.start()), unit.name()))
             .toList();
     }
@@ -143,12 +145,14 @@ final class AssertionRules {
         return start < blanked.length() && !Character.isWhitespace(blanked.charAt(start));
     }
 
-    private static boolean reaches(CharSequence body, Map<String, String> bodies, Set<String> visited) {
-        return ASSERTION.matcher(body).find() || CALL.matcher(body).results()
+    private static boolean reaches(
+        CharSequence body, Pattern assertion, Map<String, String> bodies, Set<String> visited
+    ) {
+        return assertion.matcher(body).find() || CALL.matcher(body).results()
             .map(call -> call.group(1))
             .filter(visited::add)
             .filter(bodies::containsKey)
-            .anyMatch(called -> reaches(bodies.getOrDefault(called, ""), bodies, visited));
+            .anyMatch(called -> reaches(bodies.getOrDefault(called, ""), assertion, bodies, visited));
     }
 
     private static List<CaseBody> cases(CharSequence code) {
