@@ -6,11 +6,13 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 
 /**
- * What an entry of the audit trail says was done: who did what to which account, and how it turned out.
+ * What an entry of the audit trail says was done: who did what to which account or task, and how it
+ * turned out.
  *
  * @param actor   who did it, by the address they sign in with, or {@link AuditTrail#APPLICATION}
  * @param action  what was done
- * @param target  the account it was done to, by the address that account signs in with
+ * @param target  the account it was done to, by the address that account signs in with, or the task it
+ *                was done to, by the reference that task is known by
  * @param outcome how it turned out
  */
 @Embeddable

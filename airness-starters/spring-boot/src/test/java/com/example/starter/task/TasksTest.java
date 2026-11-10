@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.example.starter.Caller;
 import com.example.starter.DatabaseTest;
+import com.example.starter.audit.AuditAction;
+import com.example.starter.audit.AuditOutcome;
+import com.example.starter.audit.Entries;
 import com.example.starter.identity.Accounts;
 import com.example.starter.identity.Role;
 import com.example.starter.identity.Users;
@@ -14,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,10 +35,13 @@ class TasksTest {
     // The day by the clock the application reads, which is what decides whether a task is overdue.
     private final LocalDate today;
 
-    TasksTest(Users users, Tasks tasks, Clock clock) {
+    private final Entries entries;
+
+    TasksTest(Users users, Tasks tasks, Clock clock, JdbcTemplate database) {
         this.users = users;
         this.tasks = tasks;
         this.today = LocalDate.now(clock);
+        this.entries = new Entries(database);
     }
 
     @AfterEach
@@ -44,6 +51,13 @@ class TasksTest {
 
     private String reader() {
         return Accounts.admitted(this.users, "rules", Role.USER);
+    }
+
+    // A task somebody else keeps, which the test then acts on as the first administrator.
+    private UUID othersTask() {
+        UUID task = Notes.written(this.tasks, this.reader(), Notes.open(Notes.title("Kept"), this.today));
+        Caller.acting(Caller.ADMINISTRATOR, Role.ADMIN.getAuthority());
+        return task;
     }
 
     @Test
@@ -94,5 +108,35 @@ class TasksTest {
     void refusesTheTasksToSomebodyWhoHasNotSignedIn() {
         TaskFilter filter = new TaskFilter("", "", "");
         assertThrows(AuthenticationCredentialsNotFoundException.class, () -> this.tasks.listing(filter, 1));
+    }
+
+    @Test
+    void recordsATaskAnAdministratorRevisedForSomebodyElse() {
+        UUID task = this.othersTask();
+        this.tasks.revise(task, Notes.open("Revised", this.today), 0);
+        assertEquals(1, this.entries.written(AuditAction.TASK_REVISED, task.toString(), AuditOutcome.SUCCEEDED));
+    }
+
+    @Test
+    void recordsATaskAnAdministratorMovedForSomebodyElse() {
+        UUID task = this.othersTask();
+        this.tasks.move(task, TaskStatus.DONE);
+        assertEquals(1, this.entries.written(AuditAction.TASK_MOVED, task.toString(), AuditOutcome.SUCCEEDED));
+    }
+
+    @Test
+    void recordsATaskAnAdministratorRemovedForSomebodyElse() {
+        UUID task = this.othersTask();
+        this.tasks.remove(task);
+        assertEquals(1, this.entries.written(AuditAction.TASK_REMOVED, task.toString(), AuditOutcome.SUCCEEDED));
+    }
+
+    @Test
+    void recordsNothingWhenAReaderChangesATaskOfTheirOwn() {
+        String email = this.reader();
+        UUID task = Notes.written(this.tasks, email, Notes.open(Notes.title("Own"), this.today));
+        Caller.acting(email, Role.USER.getAuthority());
+        this.tasks.move(task, TaskStatus.DONE);
+        assertEquals(0, this.entries.written(AuditAction.TASK_MOVED, task.toString(), AuditOutcome.SUCCEEDED));
     }
 }

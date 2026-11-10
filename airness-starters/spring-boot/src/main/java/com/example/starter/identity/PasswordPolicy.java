@@ -1,6 +1,7 @@
 package com.example.starter.identity;
 
 import com.example.starter.web.Wording;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -20,8 +21,10 @@ public final class PasswordPolicy {
     static final int SHORTEST = 12;
 
     /**
-     * How long a password is refused. BCrypt reads the first seventy-two bytes of what it is given and
-     * ignores the rest, so a longer password would end in characters that decide nothing.
+     * How long a password is refused, in the bytes of its UTF-8 encoding rather than in characters. BCrypt
+     * reads at most seventy-two bytes, and the encoder refuses a longer password outright, so a password of
+     * seventy-two characters holding a letter with a diacritic or an emoji would otherwise pass the policy
+     * and then fail where it is hashed.
      */
     static final int LONGEST = 72;
 
@@ -51,7 +54,7 @@ public final class PasswordPolicy {
         return Stream.of(
             Map.entry(password.isBlank(), "password.blank"),
             Map.entry(password.length() < SHORTEST, "password.short"),
-            Map.entry(password.length() > LONGEST, "password.long")
+            Map.entry(password.getBytes(StandardCharsets.UTF_8).length > LONGEST, "password.long")
         ).filter(Map.Entry::getKey).map(Map.Entry::getValue).findFirst();
     }
 }

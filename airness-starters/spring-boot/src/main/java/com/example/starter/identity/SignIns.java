@@ -8,9 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Every attempt to sign in, as the application records it and as the policy on refused sign-ins counts
- * it. It runs while the reader is being signed in, before anybody holds a role, so it guards nothing:
- * what it changes is decided by the outcome the framework announced, never by the caller.
+ * Every attempt to prove a password, as the application records it and as the policy on refused sign-ins
+ * counts it: a sign-in, and the current password a signed-in reader types to change it. It runs while the
+ * reader is being signed in, before anybody holds a role, so it guards nothing: what it changes is
+ * decided by the outcome the framework or the application layer announced, never by the caller.
+ *
+ * <p>Each change to the count is made on the account's row held for the transaction, read as it stands
+ * then, so attempts arriving at once are counted one after another and none of them writes back a
+ * standing it read before another attempt, or an administrator, changed it.
  *
  * <p>The class is not final because the container wraps it in a proxy, which is a subclass, and the
  * transaction is applied by that proxy.
@@ -47,7 +52,7 @@ public class SignIns {
      */
     @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
     public void succeeded(String email) {
-        this.repository.findByProfileEmail(email)
+        this.repository.heldUnder(email)
             .filter(user -> user.getLockout().failedAttempts() > 0)
             .ifPresent(user -> this.repository.save(user.standing(Lockout.clear())));
         this.trail.write(email, AuditAction.SIGN_IN, email, AuditOutcome.SUCCEEDED);
@@ -62,8 +67,26 @@ public class SignIns {
     @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
     public void refused(String typed) {
         String email = UserProfile.canonical(typed);
-        this.repository.findByProfileEmail(email).ifPresent(this::counted);
+        this.countedAgainst(email);
         this.trail.write(email, AuditAction.SIGN_IN, email, AuditOutcome.REFUSED);
+    }
+
+    /**
+     * Records that a signed-in reader typed a current password that is not theirs, or typed one while their
+     * account is stopped, on the page that changes it. It counts against the account exactly as a refused
+     * sign-in does, because both are a guess at the same password, and the change it was meant to prove is
+     * recorded as refused.
+     *
+     * @param email the address the reader signs in with
+     */
+    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
+    public void disproved(String email) {
+        this.countedAgainst(email);
+        this.trail.write(email, AuditAction.PASSWORD_CHANGED, email, AuditOutcome.REFUSED);
+    }
+
+    private void countedAgainst(String email) {
+        this.repository.heldUnder(email).ifPresent(this::counted);
     }
 
     private void counted(User user) {

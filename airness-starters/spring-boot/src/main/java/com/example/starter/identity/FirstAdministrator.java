@@ -14,7 +14,8 @@ import org.springframework.stereotype.Component;
  * <p>There is no self-registration, so without this a fresh database would hold no account and the
  * application would be unreachable. The address and the password are read from configuration, so a
  * deployment that supplies neither fails at startup rather than falling back to a credential shipped
- * inside the artifact, and one whose password breaks the policy fails there too.
+ * inside the artifact, and one whose password breaks the policy fails there too. A blank password breaks
+ * it, which is what a copy of the example environment file nobody chose a password in supplies.
  *
  * <p>It runs at every start and writes at most once, and first among the runners, so anything else that
  * admits somebody at startup finds the administrator already written.
