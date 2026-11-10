@@ -22,6 +22,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -86,6 +87,16 @@ final class SpringOpenEndpoints {
      * a refusal out of an application.
      */
     private static final Set<String> FILTERED = Set.of("ASYNC", ERROR_DISPATCH, "REQUEST");
+
+    /**
+     * The methods a mapping restricted to no method is asked about, in the order they are asked. The
+     * one a caller would try first leads, so a mapping open to every method is recorded under it, and
+     * trace is left out because the dispatcher refuses it before any handler is chosen.
+     */
+    private static final List<RequestMethod> ANY_METHOD = List.of(
+        RequestMethod.GET, RequestMethod.HEAD, RequestMethod.POST, RequestMethod.PUT,
+        RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.OPTIONS
+    );
 
     /**
      * Every mapping of the application that an anonymous request is allowed to reach.
@@ -185,8 +196,9 @@ final class SpringOpenEndpoints {
             .filter(handler -> !guarded(handler.getValue()))
             .flatMap(handler -> probes(handler.getKey()))
             .distinct()
-            .filter(probe -> open(proxy, probe))
+            .flatMap(alternatives -> alternatives.stream().filter(probe -> open(proxy, probe)).findFirst().stream())
             .map(Probe::line)
+            .distinct()
             .sorted()
             .toList();
     }
@@ -221,20 +233,28 @@ final class SpringOpenEndpoints {
     }
 
     /**
-     * One probe per method and pattern the mapping declares.
+     * The probes a mapping is read by, grouped so that each group records at most one line.
+     *
+     * <p>A mapping that names its methods is asked once per method and pattern, each its own group. A
+     * mapping restricted to no method is reached by whichever method a caller picks, and a chain may admit
+     * a caller by one of them while refusing the rest, so for each pattern it is one group asking every
+     * method a caller can send in a fixed order, recorded under the first the chain admits.
      *
      * @param mapping the mapping the container registered
-     * @return the probes, a mapping restricted to no method being read as the one method a caller
-     *         reaches an unguarded endpoint by
+     * @return the groups of alternative probes, each read up to the first one the chain admits
      */
-    private static Stream<Probe> probes(RequestMappingInfo mapping) {
+    private static Stream<List<Probe>> probes(RequestMappingInfo mapping) {
         Set<String> patterns = mapping.getPatternValues();
-        List<String> methods = mapping.getMethodsCondition().getMethods().isEmpty()
-            ? List.of("GET")
-            : mapping.getMethodsCondition().getMethods().stream().map(Enum::name).toList();
-        return patterns.stream().flatMap(
-            pattern -> methods.stream().map(method -> new Probe(method, pattern, DispatcherType.REQUEST))
-        );
+        Set<RequestMethod> declared = mapping.getMethodsCondition().getMethods();
+        return declared.isEmpty()
+            ? patterns.stream().map(pattern -> alternatives(ANY_METHOD, pattern))
+            : patterns.stream().flatMap(
+                pattern -> declared.stream().map(method -> alternatives(List.of(method), pattern))
+            );
+    }
+
+    private static List<Probe> alternatives(List<RequestMethod> methods, String pattern) {
+        return methods.stream().map(method -> new Probe(method.name(), pattern, DispatcherType.REQUEST)).toList();
     }
 
     /**
