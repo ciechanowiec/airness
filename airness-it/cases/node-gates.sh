@@ -108,8 +108,11 @@ POM
     # Under productionDeadCode, an export only a spec imports fails, while one production code uses passes.
     printf "import { negated } from './amount.js'\n\nexport const refund = (paid: number): number => negated(paid)\n" \
         > "${node_library}/src/refund.ts"
+    # A release tag knip honours hides the unused export below it, and counts against the suppression ceiling.
     printf '%s\n' 'export const negated = (amount: number): number => -amount' '' \
-        'export const doubled = (amount: number): number => amount + amount' > "${node_library}/src/amount.ts"
+        'export const doubled = (amount: number): number => amount + amount' '' '/** @public */' \
+        'export const tripled = (amount: number): number => amount + amount + amount' \
+        > "${node_library}/src/amount.ts"
     printf "import { expect, it } from 'vitest'\nimport { doubled } from '@/amount.js'\n\n%s\n" \
         "it('doubles an amount', () => {
   expect(doubled(2)).toBe(4)
@@ -165,6 +168,8 @@ PY
         'node gates: knip reports an export only a spec imports, under productionDeadCode' 'doubled +src/amount[.]ts'
     expect_no_match node_library_report \
         'node gates: knip passes an export production code uses, under productionDeadCode' 'negated +src/amount[.]ts'
+    expect_no_match node_library_report 'node gates: knip passes over an export a release tag sets aside' \
+        'tripled +src/amount[.]ts'
     expect_match node_library_report 'node gates: tests reports the failing spec' 'tests/wrong[.]spec[.]ts'
     expect_match node_library_report 'node gates: css reports the Stylelint finding' \
         'Unknown property "colr".*property-no-unknown'
@@ -176,8 +181,9 @@ PY
         'minimumReleaseAgeStrict: must be true'
     expect_match node_library_report 'npm evidence: an inventory written past a failing wiring is named as such' \
         'npm evidence written past a failing wiring gate'
-    expect_match node_library_report 'npm evidence: closing counts a node suppression against the ceiling' \
-        'Node suppressions in force: 1 of 2 allowed'
+    expect_match node_library_report \
+        'npm evidence: closing counts a disable comment and a knip release tag against the ceiling' \
+        'Node suppressions in force: 2 of 2 allowed'
     for node_gate in ${node_gates} ${node_facet_gates}; do
         if [ "${node_gate}" = npm-inventory ]; then
             continue

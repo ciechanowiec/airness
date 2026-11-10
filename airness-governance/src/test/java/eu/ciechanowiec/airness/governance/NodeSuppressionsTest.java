@@ -141,4 +141,62 @@ class NodeSuppressionsTest {
             "the stop of a range was counted at its start"
         );
     }
+
+    @Test
+    void countsEachReleaseTagKnipHonoursAboveAnExport() {
+        String source = """
+            /** @public
+             */
+            export const kept = 1
+            /* @beta the next major removes it */
+            export const trial = 2
+            // @alias
+            export const renamed = kept
+            /**
+             * The adapter the plugin calls.
+             *
+             * @internal
+             */
+            export const adapter = 3
+            """;
+        assertEquals(
+            List.of("line 1: knip @public", "line 4: knip @beta", "line 6: knip @alias", "line 11: knip @internal"),
+            NodeSuppressions.in(source),
+            "each tag sets the export below it aside from the dead-code rule, and is counted where it stands"
+        );
+    }
+
+    @Test
+    void countsOneCommentOnceHoweverManyReleaseTagsItNames() {
+        String source = """
+            /** @public @beta @internal
+             */
+            export const kept = 1
+            """;
+        assertEquals(
+            List.of("line 1: knip @public"),
+            NodeSuppressions.in(source),
+            "one comment sets one export aside"
+        );
+    }
+
+    @Test
+    void readsAReleaseTagOnlyWhereKnipReadsOne() {
+        String source = """
+            export const first = 1 // @public
+            /** @publicly and @internals are other tags
+             */
+            export const second = 2
+            const text = '@beta'
+            /** The owner's address, team@alias.example.
+             */
+            export const third = 3
+            """;
+        assertEquals(
+            List.of("line 6: knip @alias"),
+            NodeSuppressions.in(source),
+            "a trailing line comment, a longer tag and a string are passed over, as knip passes over them, and an "
+                + "address in a comment reads as a tag, as knip reads it"
+        );
+    }
 }

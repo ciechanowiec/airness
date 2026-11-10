@@ -120,7 +120,8 @@ Airness governs all of the following domains:
   import, or production import of a spec, test code or development-only dependency), `type-coverage` (no `any`
   and no type assertion in hand-written logic, and no `typeCoverage` key), `knip` (no unused file, export or dependency,
   each judged with every test and tool as an entry point; under `productionDeadCode` also no export, outside the
-  declared public interface, and no file under a production source root that only tests and tooling reach),
+  declared public interface, and no file under a production source root that only tests and tooling reach; a
+  release tag knip honours, `@public`, `@beta`, `@alias` or `@internal`, counts as a suppression),
   `tests` (the member's own Vitest under the shipped configuration, with 80% per-file coverage), `install-scripts`
   (`allowBuilds` in `pnpm-workspace.yaml` decides every dependency that runs an install script, and only those;
   `node-dependencies` installs with every script off and then runs only the approved ones) and `release-age`
