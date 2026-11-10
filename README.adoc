@@ -100,7 +100,7 @@ It moves the code to the package `com.example.tasktracker`, names the applicatio
     </properties>
 </project>
 ----
-. [[package-root]]`airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`.
+. [[package-root]]`airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`. The test coverage agent instruments only the classes under this root.
 
 . A Spring Boot project names `airness-parent-spring-boot` as its parent instead. Everything above still applies, and the parent additionally supplies the Spring Boot platform and the rules that only a Spring Boot project can break:
 +

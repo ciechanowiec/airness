@@ -301,9 +301,22 @@
                 <executions>
                     <execution>
                         <id>airness-coverage-agent</id>
+                        <!--
+                            Only the classes under the package root are instrumented. The report measures
+                            nothing else, because the project-settings preflight keeps every source package
+                            under the root, so a probe in a library class records evidence no rule reads. It
+                            is not free: a test that drives a library through most of its work, such as a
+                            document rendered by a Ruby runtime on the JVM, ran about half again as long with
+                            the runtime's classes instrumented as without.
+                        -->
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <includes>
+                                <include>${airness.package.root}.*</include>
+                            </includes>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>airness-coverage-report</id>
