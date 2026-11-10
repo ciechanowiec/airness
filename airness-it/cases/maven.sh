@@ -269,6 +269,11 @@ run_suppression_boundaries() {
 XML
     run_maven suppression_literal maven "${suppression_consumer}" validate
     expect_exit suppression_literal 'suppressions: preflight accepts named advisories and dependency patterns' 0
+    run_maven suppression_remote maven "${suppression_consumer}" validate \
+        "-Dairness.dependency-check.suppression.file=${suppression_document},https://example.org/suppressions.xml"
+    expect_exit suppression_remote 'suppressions: a document the scan would download is refused' 1
+    expect_match suppression_remote 'suppressions: the refusal names the remote entry' \
+        'names https://example[.]org/suppressions[.]xml, which is a URL'
     cat > "${suppression_document}" <<'XML'
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
     <suppress>

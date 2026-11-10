@@ -1,7 +1,5 @@
 package eu.ciechanowiec.airness.maven;
 
-import eu.ciechanowiec.airness.governance.SuppressionDocument;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -50,8 +48,9 @@ public final class ProjectSettingsMojo extends AbstractPreflightMojo {
      * The Dependency-Check suppression document this project declared, if it declared one.
      *
      * <p>Read here rather than where the scan runs, because this is where a parameter is validated and
-     * because the scan runs only under Extended verification. A local path only: a document fetched over
-     * the network at validate time would make a verdict depend on a host rather than on the tree.
+     * because the scan runs only under Extended verification. A local file inside the repository only: a document
+     * fetched over the network, or read from outside the tree, would make a verdict depend on something other than
+     * the tree, so every other entry is refused.
      */
     @Parameter(property = "airness.dependency-check.suppression.file")
     private @Nullable String suppressionFile;
@@ -93,10 +92,9 @@ public final class ProjectSettingsMojo extends AbstractPreflightMojo {
     }
 
     private Stream<String> suppressions() {
-        return CommaList.entries(this.suppressionFile).stream()
-            .map(Path::of)
-            .filter(Files::isRegularFile)
-            .flatMap(document -> new SuppressionDocument(document).problems().stream());
+        return SuppressionEntries.problems(
+            this.suppressionFile, this.project().getBasedir().toPath(), this.repositoryRoot()
+        ).stream();
     }
 
     private List<Path> sourceRoots() {

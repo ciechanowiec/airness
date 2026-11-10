@@ -18,6 +18,16 @@ run_model_policy_cases() {
         expect_match "model_${model_property}" "model: committed ${model_property} is identified" \
             "Remove child property ${model_property}"
     done
+    # A project profile of the format id, active by default, would switch the tree comparisons off on every build
+    # without anyone asking for formatting, so the id is the harness's alone.
+    cp "${scratch}/model-original.xml" "${model_consumer}/pom.xml"
+    model_profile='<profiles><profile><id>format</id><activation>'
+    model_profile="${model_profile}<activeByDefault>true</activeByDefault></activation></profile></profiles>"
+    MODEL_PROFILE="${model_profile}" perl -0pi -e \
+        's{</project>}{$ENV{MODEL_PROFILE}."</project>"}e' "${model_consumer}/pom.xml"
+    run_maven model_format_profile maven "${model_consumer}" airness:project-settings -DskipTests
+    expect_exit model_format_profile 'model: a project profile cannot reuse the format id' 1
+    expect_match model_format_profile 'model: the reused profile id is identified' 'Remove child profile format'
     cp "${scratch}/model-original.xml" "${model_consumer}/pom.xml"
     model_execution='<build><plugins><plugin><groupId>org.apache.maven.plugins</groupId>'
     model_execution="${model_execution}<artifactId>maven-surefire-plugin</artifactId><executions><execution>"

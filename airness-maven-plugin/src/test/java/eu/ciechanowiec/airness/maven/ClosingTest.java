@@ -48,6 +48,47 @@ class ClosingTest {
     }
 
     @Test
+    @SneakyThrows
+    void refusesEveryModuleThatHoldsCodeWithoutAnAirnessParent(@TempDir Path root) {
+        write(root.resolve("core/src/main/java/com/example/Core.java"));
+        write(root.resolve("tests/src/test/java/com/example/CoreTest.java"));
+        write(root.resolve("custom/sources/com/example/Custom.java"));
+        write(root.resolve("web/package.json"));
+        write(root.resolve("embedded/src/main/frontend/package.json"));
+        MavenProject custom = located(root, "custom", false);
+        custom.addCompileSourceRoot(root.resolve("custom/sources").toString());
+        List<MavenProject> ungoverned = List.of(
+            located(root, "core", false), located(root, "tests", false), custom, located(root, "web", false),
+            located(root, "embedded", false)
+        );
+        assertEquals(
+            ungoverned.stream().map(ClosingTest::refusal).toList(),
+            Closing.ungoverned(ungoverned).offences(),
+            "Java under any source root and a package.json anywhere in the module are code no Airness rule judges"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void allowsAModuleWithoutCodeAndAnyModuleThatCompletes(@TempDir Path root) {
+        write(root.resolve("distribution/src/assembly/distribution.xml"));
+        Files.createDirectories(root.resolve("distribution/src/main/java"));
+        write(root.resolve("distribution/target/classes/package.json"));
+        write(root.resolve("platform/member/package.json"));
+        write(root.resolve("platform/member/src/main/java/com/example/Member.java"));
+        write(root.resolve("governed/src/main/java/com/example/Governed.java"));
+        MavenProject aggregator = located(root, "platform", false);
+        aggregator.getModules().add("member");
+        List<MavenProject> allowed = List.of(
+            located(root, "distribution", false), aggregator, located(root, "governed", true)
+        );
+        assertTrue(
+            Closing.ungoverned(allowed).clean(),
+            "a distribution, an aggregator whose code belongs to its child module, and a governed module all pass"
+        );
+    }
+
+    @Test
     void comparesTheWholeTree() {
         assertTrue(Closing.tree(true).clean());
         Findings moved = Closing.tree(false);
@@ -103,6 +144,25 @@ class ClosingTest {
             process.destroyForcibly();
             throw new IllegalStateException("Fixture Git command failed: " + command);
         }
+    }
+
+    private static MavenProject located(Path root, String name, boolean completes) {
+        MavenProject project = project(name, completes);
+        project.setFile(root.resolve(name).resolve("pom.xml").toFile());
+        project.getBuild().setDirectory(root.resolve(name).resolve("target").toString());
+        return project;
+    }
+
+    private static String refusal(MavenProject project) {
+        return project.getId() + " holds code but inherits no Airness parent, so no Airness rule judges it; name"
+            + " airness-parent-java, airness-parent-spring-boot or airness-parent-node as its parent, or move the code"
+            + " into a module that inherits one";
+    }
+
+    @SneakyThrows
+    private static void write(Path file) {
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, "{}\n");
     }
 
     private static MavenProject project(String name, boolean completes) {

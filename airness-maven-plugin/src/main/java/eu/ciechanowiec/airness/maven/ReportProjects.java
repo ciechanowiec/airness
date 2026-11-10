@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.model.Profile;
 import org.apache.maven.project.MavenProject;
 
@@ -14,6 +15,10 @@ import org.apache.maven.project.MavenProject;
 @UtilityClass
 final class ReportProjects {
 
+    /**
+     * The profile that applies what the ordinary build only reports, and so edits the sources it judges.
+     */
+    static final String FORMAT = "format";
     private static final String EXTENDED = "extended";
 
     static boolean extended(MavenProject project) {
@@ -33,6 +38,21 @@ final class ReportProjects {
             project.getActiveProfiles().stream().map(Profile::getId),
             project.getInjectedProfileIds().values().stream().flatMap(Collection::stream)
         ).anyMatch(id::equals);
+    }
+
+    /**
+     * Whether the invocation itself selected the format profile, with {@code -Pformat} or the active profiles of
+     * the Maven settings, and did not deselect it.
+     *
+     * <p>Only the invocation can switch the tree comparisons off. A profile of that id in a project's own model,
+     * active by default or by a condition that always holds, is active for the project without anyone having
+     * asked for formatting, so it never answers this question. The model policy refuses such a profile as well.
+     *
+     * @param request the execution request of the invocation
+     * @return whether the invocation selected the format profile
+     */
+    static boolean formatting(MavenExecutionRequest request) {
+        return request.getActiveProfiles().contains(FORMAT) && !request.getInactiveProfiles().contains(FORMAT);
     }
 
     static MavenProject root(List<MavenProject> projects) {

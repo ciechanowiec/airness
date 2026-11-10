@@ -3,13 +3,23 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.ScannerInventory;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An invocation's private input tree. scanner ignores cannot change Git's selected set.
@@ -23,13 +33,21 @@ import java.util.stream.Stream;
  * leaves no nested repository in the build output.
  *
  * <p>A scan that passed leaves nothing worth reading, so its tree is deleted. A finding or a failure keeps
- * the tree and names it, because what the scanner read and wrote is the evidence a reader needs.
+ * the tree and names it, because what the scanner read and wrote is the evidence a reader needs. A kept tree
+ * is read soon after the run that kept it or not at all, so every scan first removes each tree in the cache older
+ * than {@link #KEPT}, whichever tool and repository kept it. The age, rather than the tool or the repository,
+ * decides, so a scan never removes the tree of another scan still running beside it, on this repository or
+ * another, and evidence never piles up beneath the home directory.
  *
  * @param directory the scanner's output directory, beside the staged input
  * @param input     staged committable files
  */
 record ScannerTree(Path directory, Path input) {
 
+    /**
+     * How long a kept tree stays in the cache: far longer than any scan runs, and long enough to read it.
+     */
+    static final Duration KEPT = Duration.ofDays(1);
     private static final String EVIDENCE = "Scanner evidence: ";
 
     /**
@@ -46,6 +64,7 @@ record ScannerTree(Path directory, Path input) {
         if (!problems.isEmpty()) {
             throw new IOException(String.join(System.lineSeparator(), problems));
         }
+        prune(parent, Clock.systemUTC());
         ScannerTree tree = empty(parent, tool);
         for (Path source : inventory.files()) {
             try {
@@ -55,6 +74,28 @@ record ScannerTree(Path directory, Path input) {
             }
         }
         return tree;
+    }
+
+    /**
+     * Removes every tree in the cache that is older than {@link #KEPT}, which an earlier scan kept as evidence.
+     *
+     * <p>A tree's age is the age of its directory, which the scan creates once and never touches again. A tree
+     * another scan removes while this one walks it is gone either way, so that is no failure.
+     *
+     * @param parent the cache the trees are created in
+     * @param clock  the clock that says what time it is
+     * @throws IOException when the cache cannot be listed or an old tree cannot be removed
+     */
+    static void prune(Path parent, Clock clock) throws IOException {
+        if (!Files.isDirectory(parent)) {
+            return;
+        }
+        Instant cutoff = clock.instant().minus(KEPT);
+        for (Path tree : trees(parent)) {
+            if (modified(tree).filter(time -> time.isBefore(cutoff)).isPresent()) {
+                remove(tree);
+            }
+        }
     }
 
     static ScannerTree empty(Path parent, String tool) throws IOException {
@@ -129,11 +170,81 @@ record ScannerTree(Path directory, Path input) {
         return failure;
     }
 
+    private static List<Path> trees(Path parent) throws IOException {
+        try (Stream<Path> entries = Files.list(parent)) {
+            return entries.filter(entry -> Files.isDirectory(entry, LinkOption.NOFOLLOW_LINKS)).toList();
+        }
+    }
+
+    private static Optional<Instant> modified(Path tree) throws IOException {
+        try {
+            return Optional.of(Files.getLastModifiedTime(tree, LinkOption.NOFOLLOW_LINKS).toInstant());
+        } catch (NoSuchFileException _) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Continues a removal past nothing, or past a path that is already gone, and fails on anything else.
+     *
+     * @param exception what reading a path raised, if anything
+     * @return the walk continues
+     * @throws IOException the exception itself, unless the path is gone
+     */
+    static FileVisitResult passOver(@Nullable IOException exception) throws IOException {
+        Optional<IOException> failure = Optional.ofNullable(exception)
+            .filter(found -> !(found instanceof NoSuchFileException));
+        if (failure.isPresent()) {
+            throw failure.get();
+        }
+        return FileVisitResult.CONTINUE;
+    }
+
+    static void remove(Path tree) throws IOException {
+        try {
+            Files.walkFileTree(tree, new Removal());
+        } catch (IOException exception) {
+            throw new IOException(
+                "Could not remove the scanner tree " + tree + ", which an earlier scan kept; delete it by hand",
+                exception
+            );
+        }
+    }
+
     private void delete() throws IOException {
         try (Stream<Path> paths = Files.walk(this.location())) {
             for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
                 Files.delete(path);
             }
+        }
+    }
+
+    /**
+     * Deletes a tree bottom up, passing over what another scan's pruning removed first.
+     */
+    private static final class Removal implements FileVisitor<Path> {
+
+        @Override
+        public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+            Files.deleteIfExists(file);
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
+            return passOver(exception);
+        }
+
+        @Override
+        public FileVisitResult postVisitDirectory(Path directory, @Nullable IOException exception) throws IOException {
+            FileVisitResult result = passOver(exception);
+            Files.deleteIfExists(directory);
+            return result;
         }
     }
 }

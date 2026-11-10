@@ -19,7 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The sites that receive managed files come from the layers of every module in the repository,
- * read from every project file in it, whichever module the build started in.
+ * read from every project file a commit would carry, whichever module the build started in.
  */
 class RepositorySitesTest {
 
@@ -29,6 +29,7 @@ class RepositorySitesTest {
     private static final String PACKAGE = "package.json";
     private static final String PACKAGE_BODY = "{}\n";
     private static final String CMS = "cms";
+    private static final String WEB = "web";
     private static final String NEXT_MANIFEST = "{\"dependencies\": {\"next\": \"16.4.2\"}}\n";
     private static final String PAGE = "export default function Page() {}\n";
 
@@ -43,7 +44,7 @@ class RepositorySitesTest {
                 List.of(
                     AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
                     new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
-                    new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
+                    new AssetSite(WEB, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE))
                 ),
                 sorted(RepositorySites.read(maven.builder(), maven.request(), root)),
                 "the root carries Java and node although no root parent names them, and the frontend is a node project"
@@ -54,15 +55,15 @@ class RepositorySitesTest {
     @Test
     void addsTheNextJsSiteToANodeProjectThatDeclaresNext() {
         Path root = this.monorepo();
-        write(root.resolve("web").resolve(PACKAGE), NEXT_MANIFEST);
+        write(root.resolve(WEB).resolve(PACKAGE), NEXT_MANIFEST);
         write(root.resolve("web/src/app/page.tsx"), PAGE);
         try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
             assertEquals(
                 List.of(
                     AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
                     new AssetSite(FRONTEND, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
-                    new AssetSite("web", AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
-                    new AssetSite("web", AssetLocation.NEXT_PROJECT, Set.of(Layer.NODE))
+                    new AssetSite(WEB, AssetLocation.NODE_PROJECT, Set.of(Layer.NODE)),
+                    new AssetSite(WEB, AssetLocation.NEXT_PROJECT, Set.of(Layer.NODE))
                 ),
                 sorted(RepositorySites.read(maven.builder(), maven.request(), root)),
                 "a node project that installs next and routes under src is also a site for the Next.js facet's files"
@@ -74,7 +75,7 @@ class RepositorySitesTest {
     @SneakyThrows
     void addsNoNextJsSiteWhereTheSeedWouldBeASecondHookOrUnread() {
         Path root = this.monorepo();
-        write(root.resolve("web").resolve(PACKAGE), NEXT_MANIFEST);
+        write(root.resolve(WEB).resolve(PACKAGE), NEXT_MANIFEST);
         write(root.resolve("web/src/app/page.tsx"), PAGE);
         write(root.resolve("web/src/middleware.ts"), PAGE);
         write(root.resolve(FRONTEND).resolve(PACKAGE), "{\"peerDependencies\": {\"next\": \">=16\"}}\n");
@@ -114,19 +115,6 @@ class RepositorySitesTest {
                 AssetSite.root(Set.of(Layer.JAVA, Layer.NODE)),
                 RepositorySites.read(maven.builder(), maven.request(), root).getFirst(),
                 "two builds sharing a root but no aggregator must demand the same root blocks"
-            );
-        }
-    }
-
-    @Test
-    void failsOnAnUnreadableProjectFileRatherThanSeeingNoLayers() {
-        Path root = this.monorepo();
-        write(root.resolve("pom.xml"), "");
-        try (ReportMavenFixture maven = new ReportMavenFixture(this.directory)) {
-            assertThrows(
-                IllegalStateException.class,
-                () -> RepositorySites.read(maven.builder(), maven.request(), root),
-                "an unreadable project file is a failure that names it, never an empty set of layers"
             );
         }
     }
@@ -190,12 +178,27 @@ class RepositorySitesTest {
         assertThrows(IllegalStateException.class, () -> RepositorySites.of(root, modules));
     }
 
-    private static List<AssetSite> sorted(List<AssetSite> sites) {
+    @SneakyThrows
+    static void initializeGit(Path directory) {
+        Path output = Files.createTempFile("airness-git", ".txt");
+        try {
+            ScannerCommand.run(List.of("git", "init", "--quiet", directory.toString()), output);
+        } finally {
+            Files.deleteIfExists(output);
+            Files.deleteIfExists(output.resolveSibling(output.getFileName() + ".log"));
+        }
+    }
+
+    static List<AssetSite> sorted(List<AssetSite> sites) {
         return sites.stream().sorted(Comparator.comparing(AssetSite::directory)).toList();
     }
 
     private Path monorepo() {
-        Path root = this.directory.resolve("platform");
+        return monorepo(this.directory);
+    }
+
+    static Path monorepo(Path directory) {
+        Path root = directory.resolve("platform");
         write(
             root.resolve("pom.xml"),
             pom(
@@ -230,16 +233,17 @@ class RepositorySitesTest {
                 nodeProjects(".")
             )
         );
-        write(root.resolve("web").resolve(PACKAGE), PACKAGE_BODY);
+        write(root.resolve(WEB).resolve(PACKAGE), PACKAGE_BODY);
         write(root.resolve("web/node_modules/dependency/pom.xml"), "not a project file\n");
+        initializeGit(root);
         return root;
     }
 
-    private static String nodeProjects(String directories) {
+    static String nodeProjects(String directories) {
         return "<properties><" + NODE_PROJECTS + ">" + directories + "</" + NODE_PROJECTS + "></properties>";
     }
 
-    private static String pom(String coordinates, String properties) {
+    static String pom(String coordinates, String properties) {
         return "<project xmlns=\"http://maven.apache.org/POM/4.0.0\"><modelVersion>4.0.0</modelVersion>"
             + coordinates + properties + "</project>\n";
     }
