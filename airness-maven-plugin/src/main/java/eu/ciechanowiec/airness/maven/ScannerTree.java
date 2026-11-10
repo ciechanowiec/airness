@@ -185,19 +185,17 @@ record ScannerTree(Path directory, Path input) {
     }
 
     /**
-     * Continues a removal past nothing, or past a path that is already gone, and fails on anything else.
+     * Lets a removal continue past nothing, or past a path that is already gone, and fails on anything else.
      *
      * @param exception what reading a path raised, if anything
-     * @return the walk continues
      * @throws IOException the exception itself, unless the path is gone
      */
-    static FileVisitResult passOver(@Nullable IOException exception) throws IOException {
+    static void passOver(@Nullable IOException exception) throws IOException {
         Optional<IOException> failure = Optional.ofNullable(exception)
             .filter(found -> !(found instanceof NoSuchFileException));
         if (failure.isPresent()) {
             throw failure.get();
         }
-        return FileVisitResult.CONTINUE;
     }
 
     static void remove(Path tree) throws IOException {
@@ -237,14 +235,15 @@ record ScannerTree(Path directory, Path input) {
 
         @Override
         public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
-            return passOver(exception);
+            passOver(exception);
+            return FileVisitResult.CONTINUE;
         }
 
         @Override
         public FileVisitResult postVisitDirectory(Path directory, @Nullable IOException exception) throws IOException {
-            FileVisitResult result = passOver(exception);
+            passOver(exception);
             Files.deleteIfExists(directory);
-            return result;
+            return FileVisitResult.CONTINUE;
         }
     }
 }

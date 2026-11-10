@@ -316,11 +316,12 @@ final class SpringConfigurationRules {
         if (text.isEmpty()) {
             return true;
         }
-        String inside = text.substring(Math.min(OPENING.length(), text.length()));
+        if (!text.startsWith(OPENING)) {
+            return false;
+        }
+        String inside = text.substring(OPENING.length());
         int closes = depthless(inside, CLOSES);
-        return text.startsWith(OPENING) && closes >= 0
-            && defaultless(inside.substring(0, closes))
-            && placeholders(inside.substring(closes + 1));
+        return closes >= 0 && defaultless(inside.substring(0, closes)) && placeholders(inside.substring(closes + 1));
     }
 
     private static boolean defaultless(String inner) {
