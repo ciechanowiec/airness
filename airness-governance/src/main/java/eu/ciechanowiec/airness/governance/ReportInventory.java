@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.List;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -18,6 +19,7 @@ public record ReportInventory(
 ) {
 
     private static final Pattern PACKAGE_URL = Pattern.compile("^pkg:maven/([^/]+)/([^@]+)@([^?]+)");
+    private static final String NPM_PACKAGE = "pkg:npm/";
 
     public ReportInventory {
         packages = List.copyOf(packages);
@@ -86,16 +88,23 @@ public record ReportInventory(
     }
 
     /**
-     * Whether the advisory's artifact is on the production classpath of any module.
+     * The scope a reviewer reads an advisory under. A Maven artifact is in production when the production classpath
+     * of any module carries that version, and in development otherwise. An npm package is labelled as such, because
+     * the npm evidence does not tell production use from development use, and any other artifact, such as a file
+     * name, has no scope the evidence determines.
      *
      * @param advisory a reported advisory
-     * @return whether a production artifact version carries it
+     * @return {@code Production}, {@code Development}, {@code npm} or {@code Not determined}
      */
-    public boolean production(ReportAdvisory advisory) {
+    public String scope(ReportAdvisory advisory) {
         Matcher address = PACKAGE_URL.matcher(advisory.artifact());
-        if (!address.find()) {
-            return false;
+        if (address.find()) {
+            return this.production(address) ? "Production" : "Development";
         }
+        return advisory.artifact().startsWith(NPM_PACKAGE) ? "npm" : "Not determined";
+    }
+
+    private boolean production(MatchResult address) {
         String prefix = address.group(1) + ':' + address.group(2) + ':';
         String suffix = ':' + address.group(3);
         return this.packages.stream().filter(ReportPackage::production).map(ReportPackage::coordinate)
