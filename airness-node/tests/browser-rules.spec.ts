@@ -174,9 +174,7 @@ describe('image rules', () => {
         image({ naturalWidth: 1300, naturalHeight: 975 }),
         image({ naturalWidth: 1400, naturalHeight: 1050 }),
         image({ naturalWidth: 64, naturalHeight: 64, contentWidth: 16, contentHeight: 16 }),
-      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
-        candidatesOf('image-oversized', snapshot),
-      ),
+      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] => candidatesOf('image-oversized', snapshot)),
     ).toEqual([])
   })
 
