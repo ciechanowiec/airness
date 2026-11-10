@@ -6,22 +6,22 @@
 // where a project put its breakpoints, so the page is asked.
 import type { Viewport } from './browser-findings.js'
 
+/** The phone every baseline starts from, and the one the scrolling pass crosses pages on. */
+export const PHONE: Viewport = { width: 390, height: 844 }
+
 /**
  * The viewports every page is loaded at, each a fresh load: a phone, a tablet and a desktop. The width
  * sweep measures overflow at every width between them, and each page adds its own breakpoint edges. A
  * project may add more, never remove any.
  */
 export const BASELINE_VIEWPORTS: readonly Viewport[] = [
-  { width: 390, height: 844 },
+  PHONE,
   { width: 768, height: 1024 },
   { width: 1280, height: 800 },
 ]
 
 /** The phone and desktop viewports the text-stress passes and the axe scans run at. */
-export const STRESS_VIEWPORTS: readonly Viewport[] = [
-  { width: 390, height: 844 },
-  { width: 1280, height: 800 },
-]
+export const STRESS_VIEWPORTS: readonly Viewport[] = [PHONE, { width: 1280, height: 800 }]
 
 /**
  * The viewports the interaction and disclosure passes drive a location at. A story renders one component

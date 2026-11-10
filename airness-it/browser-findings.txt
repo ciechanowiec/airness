@@ -7,6 +7,7 @@
 [failed-request] /image-load (chromium, resting): GET http
 [image-distorted] /image-distorted @390x844 (chromium, resting): image rendered at 160x60px from a 160x120px source
 [image-upscaled] /image-upscaled @390x844 (chromium, resting): image source 160x120px displayed at 150%
+[image-oversized] /image-oversized @390x844 (chromium, resting): image source 1600x1200px fills a 160x120px box at 10.0 source pixels per CSS pixel
 [media-space] /media-space @390x844 (chromium, resting): img reserves 160x0px before loading
 [image-upscaled] /srcset-image @390x844 (chromium, resting): image source 160x120px displayed at 150%
 [media-space] /flex-media @390x844 (chromium, resting): img reserves
@@ -18,6 +19,8 @@
 [font-load] /font-load @390x844 (chromium, resting): @font-face \"Broken\"
 [page-error] /page-error (chromium, resting): console.error: fixture page error
 [page-not-stable] /unstable @390x844 (chromium, resting):
+[scroll-hijack] /scroll-hijack @390x844 (chromium, scrolling): a wheel gesture of
+[unrevealed-content] /unrevealed-content @390x844 (chromium, scrolling): h2
 [obscured] /obscured @1280x800 (chromium, resting): a \"Covered link\" cannot be reached by a pointer
 [focus-visible] /focus-visible @390x844 (chromium, focus): button.no-ring \"Silent focus\" shows no visible change
 [focus-order] /focus-order @390x844 (chromium, focus): a \"Second in source\" takes focus after a \"First in source\"

@@ -12,6 +12,8 @@
 // judges discovery's problems and the exemptions no pass used, reports a shard that did not finish,
 // and prints what was covered. Under `mvn verify -Pextended` the sweep also runs in Firefox and WebKit,
 // where the engine pass covers one route per template and one story per component; `mvn verify -Pextended,delta` sweeps only the routes and stories the change reaches, in Chromium.
+// The scrolling pass crosses one route per template and one story per component on a touch phone, so its
+// context emulates one: a coarse pointer without hover, which a page that scrolls natively on touch keys on.
 import { test } from '@playwright/test'
 import {
   expectDarkScheme,
@@ -20,6 +22,7 @@ import {
   expectEngineRules,
   expectInteractionStates,
   expectRestingRules,
+  expectScrolling,
   expectSweepSummary,
   expectTextStress,
   expectWidthSweep,
@@ -45,6 +48,7 @@ const DISCLOSURE_TITLE: string = 'every disclosure passes open and answers the k
 const TEXT_STRESS_TITLE: string = 'text survives WCAG spacing and doubled size'
 const WIDTH_TITLE: string = 'layout holds across the whole width range'
 const DARK_TITLE: string = 'every page passes in its dark scheme'
+const SCROLLING_TITLE: string = 'every sampled page rests where it is scrolled and reveals what it brings into view'
 const ENGINE_TITLE: string = 'every sampled page passes in this engine'
 
 const partTitle = (title: string, shard: Shard): string =>
@@ -102,4 +106,15 @@ test.describe('Airness browser sweep', () => {
   test('every exemption excuses something, and every pass finished', { tag: '@airness-summary' }, async () => {
     await expectSweepSummary()
   })
+})
+
+// A describe of its own, because a context's touch and mobile emulation is fixed when the context opens.
+test.describe('Airness browser sweep on a touch phone', () => {
+  test.use({ hasTouch: true, isMobile: true })
+
+  for (const shard of SHARDS) {
+    test(partTitle(SCROLLING_TITLE, shard), { tag: CHROMIUM }, async ({ page }) => {
+      await expectScrolling(page, shard)
+    })
+  }
 })

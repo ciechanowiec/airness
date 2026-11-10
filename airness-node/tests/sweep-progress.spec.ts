@@ -46,14 +46,14 @@ describe('the progress a running browser suite shows live', () => {
 describe('the progress of a sweep pass', () => {
   it('places the pass among the engine passes and says how many items it shares out', () => {
     expect([passStartLine('chromium', 'width-sweep', 71, 4), passStartLine('webkit', 'engine', 509, 4)]).toEqual([
-      '[airness-sweep] chromium width-sweep (pass 6 of 7): started, 71 items across 4 parallel parts',
+      '[airness-sweep] chromium width-sweep (pass 6 of 8): started, 71 items across 4 parallel parts',
       '[airness-sweep] webkit engine (pass 1 of 1): started, 509 items across 4 parallel parts',
     ])
   })
 
   it('counts what is done, under way and waiting, and estimates what is left at the pace so far', () => {
     expect(passProgressLine(WIDTHS)).toBe(
-      '[airness-sweep] chromium width-sweep (pass 6 of 7): 41/71 done (57%), 4 in progress, 26 waiting · ' +
+      '[airness-sweep] chromium width-sweep (pass 6 of 8): 41/71 done (57%), 4 in progress, 26 waiting · ' +
         '2m 12s elapsed, about 1m 36s left',
     )
   })
@@ -66,7 +66,7 @@ describe('the progress of a sweep pass', () => {
 
   it('reports the whole pass once it is finished', () => {
     expect(passFinishLine('chromium', 'width-sweep', 71, 220_400)).toBe(
-      '[airness-sweep] chromium width-sweep (pass 6 of 7): finished 71 items in 3m 40s',
+      '[airness-sweep] chromium width-sweep (pass 6 of 8): finished 71 items in 3m 40s',
     )
   })
 
@@ -86,7 +86,7 @@ describe('the findings a part reports as soon as it ends', () => {
         '[page-not-stable] story:pages-homepage--post-games @768x1024 (chromium, resting): the page kept changing',
       ]),
     ).toEqual([
-      '[airness-sweep] chromium resting (pass 2 of 7) part 3 of 4: 1 finding',
+      '[airness-sweep] chromium resting (pass 2 of 8) part 3 of 4: 1 finding',
       '[airness-sweep]   [page-not-stable] story:pages-homepage--post-games @768x1024 ' +
         '(chromium, resting): the page kept changing',
     ])

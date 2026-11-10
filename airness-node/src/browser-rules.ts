@@ -24,18 +24,36 @@ const UPSCALE_ALLOWANCE: number = 0.1
 
 const PERCENT: number = 100
 
+// An image carrying more pixels than any screen draws is decoded whole and mostly thrown away, and on a phone
+// the decoded bitmap is what fills memory: four bytes a pixel, whatever the file's compression. The densest
+// screens in use draw three device pixels per CSS pixel, so a source denser than that is waste on every
+// device a page can reach. A small icon served a little large wastes nothing worth a finding, so only a
+// source that decodes at least a mebipixel beyond what the densest screen shows is judged.
+
+/** The densest screen in use, in device pixels per CSS pixel. */
+const MAXIMUM_DEVICE_PIXEL_RATIO: number = 3
+
+/** How far beyond that density an image may go before it is judged oversized. */
+const OVERSIZE_ALLOWANCE: number = 0.1
+
+/** The decoded pixels beyond what the densest screen shows that make an oversized image a finding. */
+const OVERSIZE_FLOOR_PIXELS: number = 1_048_576
+
+const PIXELS_PER_MEGAPIXEL: number = 1_000_000
+
 /** The device pixel ratio every viewport is rendered at. */
 export const DEVICE_SCALE_FACTOR: number = 1
 
 /** The width of the ring around a focused element whose pixels the focus-visible rule compares. */
 export const FOCUS_RING_WIDTH: number = 4
 
-/** The element rules of the resting scan beyond geometry: T4 and M1 to M4. */
+/** The element rules of the resting scan beyond geometry: T4 and M1 to M5. */
 export const RESTING_ELEMENT_RULES: readonly string[] = [
   'small-text',
   'image-load',
   'image-distorted',
   'image-upscaled',
+  'image-oversized',
   'media-space',
 ]
 
@@ -173,6 +191,38 @@ export const findUpscaledImages = (snapshot: LayoutSnapshot): readonly Candidate
               `${String(Math.round(scale * PERCENT))}% in a ` +
               `${String(media.contentWidth)}x${String(media.contentHeight)}px ` +
               `box; serve a larger source: ${node.label}`,
+          },
+        ]
+      : []
+  })
+
+/**
+ * Images whose source carries more pixels than the densest screen draws in their box (rule `image-oversized`).
+ * @param snapshot the measured page.
+ * @returns one candidate per raster image denser than three source pixels per CSS pixel by more than 10%,
+ * whose surplus over that density is at least a mebipixel.
+ */
+export const findOversizedImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+  renderedMedia(snapshot).flatMap(({ node, media }: MediaNode): readonly CandidateFinding[] => {
+    if (!(isImage(node) && hasRaster(media))) {
+      return []
+    }
+    const density: number = 1 / displayedScale(media)
+    const pixels: number = media.naturalWidth * media.naturalHeight
+    const shown: number = MAXIMUM_DEVICE_PIXEL_RATIO / density
+    const surplus: number = pixels * (1 - shown * shown)
+    return density > MAXIMUM_DEVICE_PIXEL_RATIO * (1 + OVERSIZE_ALLOWANCE) && surplus >= OVERSIZE_FLOOR_PIXELS
+      ? [
+          {
+            rule: 'image-oversized',
+            subjects: [node],
+            message:
+              `image source ${String(media.naturalWidth)}x${String(media.naturalHeight)}px fills a ` +
+              `${String(media.contentWidth)}x${String(media.contentHeight)}px box at ` +
+              `${density.toFixed(1)} source pixels per CSS pixel, beyond the ` +
+              `${String(MAXIMUM_DEVICE_PIXEL_RATIO)} any screen draws, so ` +
+              `${(surplus / PIXELS_PER_MEGAPIXEL).toFixed(1)} megapixels are decoded and never shown; serve a ` +
+              `smaller source, or a srcset whose sizes match the box: ${node.label}`,
           },
         ]
       : []
@@ -502,12 +552,13 @@ export const instability = (first: GeometrySnapshot, second: GeometrySnapshot): 
 /**
  * Every element candidate the resting scan's text and media rules find on one page.
  * @param snapshot the measured page.
- * @returns the candidates of T4 and M1 to M4.
+ * @returns the candidates of T4 and M1 to M5.
  */
 export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateFinding[] => [
   ...findSmallText(snapshot),
   ...findUnloadedImages(snapshot),
   ...findDistortedImages(snapshot),
   ...findUpscaledImages(snapshot),
+  ...findOversizedImages(snapshot),
   ...findUnreservedMedia(snapshot),
 ]
