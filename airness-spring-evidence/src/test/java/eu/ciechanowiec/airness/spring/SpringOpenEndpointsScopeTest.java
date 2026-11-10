@@ -6,9 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
 import org.springframework.security.authorization.SingleResultAuthorizationManager;
+import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
@@ -27,6 +29,16 @@ class SpringOpenEndpointsScopeTest {
 
     private static List<String> reached(GenericWebApplicationContext context) {
         return SpringOpenEndpoints.reached(context, Set.of(SpringEndpointFixtures.ROOT));
+    }
+
+    private static FilterChainProxy webhooks() {
+        return SpringEndpointFixtures.proxy(
+            RequestMatcherDelegatingAuthorizationManager.builder().add(
+                PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/webhooks/**"),
+                SingleResultAuthorizationManager.permitAll()
+            ).add(AnyRequestMatcher.INSTANCE, AuthenticatedAuthorizationManager.authenticated())
+                .build()
+        );
     }
 
     @Test
@@ -81,8 +93,29 @@ class SpringOpenEndpointsScopeTest {
         try (GenericWebApplicationContext context = admitting(Any.class)) {
             assertEquals(
                 List.of("open GET /any"), reached(context),
-                "a mapping open to every method is reached by the one a caller would try first"
+                "a mapping open to every method is recorded once, under the one a caller would try first"
             );
+        }
+    }
+
+    @Test
+    void readsAMappingThatRestrictsItselfToNoMethodByEveryMethodACallerCanSend() {
+        try (GenericWebApplicationContext context = SpringEndpointFixtures.context(webhooks(), Webhook.class)) {
+            assertEquals(
+                List.of("open POST /webhooks/payment"), reached(context),
+                "a mapping restricted to no method is open by the one method the chain admits a stranger by"
+            );
+        }
+    }
+
+    @Test
+    void passesOverAMappingThatRestrictsItselfToNoMethodTheChainAdmitsByNone() {
+        try (
+            GenericWebApplicationContext context = SpringEndpointFixtures.context(
+                SpringEndpointFixtures.deciding(), Webhook.class
+            )
+        ) {
+            assertTrue(reached(context).isEmpty(), "a mapping no method of which is admitted is not open");
         }
     }
 
