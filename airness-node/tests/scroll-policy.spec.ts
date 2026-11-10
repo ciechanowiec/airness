@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  hasMoved,
-  hijackMessage,
-  intendedRest,
-  type ScrollStep,
-  scrollDeltas,
-  unrevealedMessage,
-} from '@/scroll-policy'
+import { hasMoved, hijackMessage, type ScrollStep, scrollDeltas, unrevealedMessage } from '@/scroll-policy'
 
 const step = (fields: Partial<ScrollStep>): ScrollStep => ({
   from: 0,
@@ -16,6 +9,12 @@ const step = (fields: Partial<ScrollStep>): ScrollStep => ({
   maximum: 5000,
   ...fields,
 })
+
+// A document parked away from where the gesture should leave it names that rest in its message.
+const intendedRest = (fields: Partial<ScrollStep>): string | undefined =>
+  /instead of (?<rest>-?\d+)px/u.exec(hijackMessage(step({ rest: 2500, travelled: 422, ...fields })) ?? '')?.groups?.[
+    'rest'
+  ]
 
 describe('scroll deltas', () => {
   it('crosses a document down and back in half-viewport gestures', () => {
@@ -35,10 +34,10 @@ describe('scroll deltas', () => {
 describe('where a gesture leaves the document', () => {
   it('is its start plus its delta, within the scroll range', () => {
     expect([
-      intendedRest(step({ from: 100, delta: 422 })),
-      intendedRest(step({ from: 4800, delta: 422 })),
-      intendedRest(step({ from: 100, delta: -422 })),
-    ]).toEqual([522, 5000, 0])
+      intendedRest({ from: 100, delta: 422 }),
+      intendedRest({ from: 4800, delta: 422 }),
+      intendedRest({ from: 100, delta: -422 }),
+    ]).toEqual(['522', '5000', '0'])
   })
 })
 

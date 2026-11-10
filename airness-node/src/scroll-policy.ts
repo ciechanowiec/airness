@@ -85,7 +85,7 @@ export interface ScrollStep {
  * @param step the gesture.
  * @returns its start plus its delta, within the document's scroll range.
  */
-export const intendedRest = (step: ScrollStep): number =>
+const intendedRest = (step: ScrollStep): number =>
   Math.min(Math.max(step.from + step.delta, 0), Math.max(step.maximum, 0))
 
 /**
