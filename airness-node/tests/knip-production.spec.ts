@@ -1,6 +1,6 @@
 // The production run of the dead-code gate against real projects in temporary working trees: an export or a
-// production file that only a Vitest or a Playwright spec reaches fails a member that declares
-// `productionDeadCode`, while an export production code uses, and the declared public interface, pass.
+// production file that only a Vitest or a Playwright spec reaches fails every member, while an export production
+// code uses, and the declared public interface, pass.
 import { describe, expect, it } from 'vitest'
 import { knip } from '@/gate-knip.js'
 import type { GateResult } from '@/gate-result.js'
@@ -32,7 +32,6 @@ const MANIFEST: Readonly<Record<string, unknown>> = {
   type: 'module',
   main: 'src/refund.ts',
   devDependencies: { '@airness/node': '2.0.0', vitest: '5.0.5', '@vitest/coverage-v8': '5.0.5' },
-  airness: { productionDeadCode: true },
 }
 
 const PLAYWRIGHT_MANIFEST: Readonly<Record<string, unknown>> = {
@@ -137,7 +136,7 @@ const MIGRATION_REASON: string = 'the start script runs the migration before the
 const scriptManifest = (entries: readonly unknown[]): Readonly<Record<string, unknown>> => ({
   ...MANIFEST,
   scripts: { migrate: 'node scripts/migrate.ts', start: 'pnpm run migrate && node src/refund.ts' },
-  airness: { productionDeadCode: true, productionEntries: entries },
+  airness: { productionEntries: entries },
 })
 
 const manifestFile = (manifest: Readonly<Record<string, unknown>>): string =>
@@ -210,10 +209,26 @@ describe('knip production run', PROCESS_TIME, () => {
   )
 
   it(
-    'judges an export only a spec imports as used where the member does not declare the production run',
+    'refuses a leftover productionDeadCode key, naming the repair, beside the findings of both runs',
     () => {
-      const { airness: _declared, ...undeclared } = MANIFEST
-      expect(judged(VITEST_REACH, undeclared).findings).toEqual([])
+      const result: GateResult = judged(VITEST_REACH, { ...MANIFEST, airness: { productionDeadCode: true } })
+      expect(result.ok).toBe(false)
+      expect(findingsOf(result)).toContain('package.json airness.productionDeadCode:')
+      expect(findingsOf(result)).toContain('delete it')
+      expect(findingsOf(result)).toMatch(/doubled\s+src\/amount\.ts/u)
+      expect(result.summary).toBe(
+        'an export or a production file only tests reach was found; ' +
+          'the project declares a setting the harness no longer reads',
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'refuses a leftover productionDeadCode key on a member that passes both runs',
+    () => {
+      const result: GateResult = judged({}, { ...MANIFEST, airness: { productionDeadCode: false } })
+      expect(result.summary).toBe('the project declares a setting the harness no longer reads')
     },
     TOOL_TIMEOUT_MS,
   )
@@ -328,7 +343,7 @@ describe('knip production run', PROCESS_TIME, () => {
       const whole: Readonly<Record<string, unknown>> = {
         ...MANIFEST,
         main: 'lib/refund.ts',
-        airness: { productionDeadCode: true, sourceRoots: ['.'] },
+        airness: { sourceRoots: ['.'] },
       }
       const moved: Readonly<Record<string, string>> = Object.fromEntries(
         Object.entries({ ...LEDGER, ...VITEST_REACH }).map(([file, content]: readonly [string, string]) => [

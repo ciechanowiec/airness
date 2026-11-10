@@ -105,7 +105,7 @@ POM
     printf "import { first } from './cycle-first.js'\n\nexport const second = (): number => first()\n" \
         > "${node_library}/src/cycle-second.ts"
     printf 'export const loose = (value: any): number => value.length\n' > "${node_library}/src/loose.ts"
-    # Under productionDeadCode, an export only a spec imports fails, while one production code uses passes.
+    # An export only a spec imports fails the production run, while one production code uses passes.
     printf "import { negated } from './amount.js'\n\nexport const refund = (paid: number): number => negated(paid)\n" \
         > "${node_library}/src/refund.ts"
     # A release tag knip honours hides the unused export below it, and counts against the suppression ceiling.
@@ -143,6 +143,7 @@ document['main'] = 'src/refund.ts'
 document['scripts'] = {'migrate': 'node scripts/migrate.ts', 'start': 'pnpm run migrate && node src/refund.ts'}
 document['airness'] = {
     'generatedArtefacts': [{'pattern': 'src/generated/**', 'reason': 'the API client generator writes it'}],
+    # A leftover of the setting that once made the production run optional, which the gate refuses.
     'productionDeadCode': True,
     'productionEntries': [{'pattern': 'scripts/migrate.ts', 'reason': 'the start script runs it before the server'}],
 }
@@ -171,9 +172,11 @@ PY
     expect_match node_library_report 'node gates: type-coverage reports the explicit any' 'src/loose[.]ts'
     expect_match node_library_report 'node gates: knip reports the unused file' 'src/legacy[.]js'
     expect_match node_library_report \
-        'node gates: knip reports an export only a spec imports, under productionDeadCode' 'doubled +src/amount[.]ts'
-    expect_no_match node_library_report \
-        'node gates: knip passes an export production code uses, under productionDeadCode' 'negated +src/amount[.]ts'
+        'node gates: knip reports an export only a spec imports' 'doubled +src/amount[.]ts'
+    expect_no_match node_library_report 'node gates: knip passes an export production code uses' \
+        'negated +src/amount[.]ts'
+    expect_match node_library_report 'node gates: knip refuses the retired productionDeadCode setting' \
+        'package[.]json airness[.]productionDeadCode: the production run of the knip gate always happens'
     expect_no_match node_library_report 'node gates: knip passes over an export a release tag sets aside' \
         'tripled +src/amount[.]ts'
     expect_file_no_match "${node_library}/target/airness/node/module/knip.json" \
@@ -539,18 +542,6 @@ run_node_next_cases() {
     </properties>
 </project>
 POM
-    python3 - "${node_next}/package.json" <<'PY'
-import json
-import sys
-
-path = sys.argv[1]
-with open(path, encoding='utf-8') as manifest:
-    document = json.load(manifest)
-document['airness']['productionDeadCode'] = True
-with open(path, 'w', encoding='utf-8') as manifest:
-    json.dump(document, manifest, indent=2)
-    manifest.write('\n')
-PY
     git -C "${node_next}" init --quiet
     git -C "${node_next}" config user.name Fixture
     git -C "${node_next}" config user.email fixture@example.invalid
@@ -570,7 +561,7 @@ PY
     expect_match node_next 'node next: the suite leaves the App Router entry points and the proxy to e2e' \
         'Node gate tests in [.] passed'
     expect_match node_next \
-        'node next: knip passes an export a page uses and a spec imports, under productionDeadCode' \
+        'node next: knip passes an export a page uses and a spec imports' \
         'Node gate knip in [.] passed'
 
     run_maven node_next_extended node "${node_next}" -Pextended airness:node-gate@node-gate-npm-sbom \

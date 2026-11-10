@@ -119,9 +119,10 @@ Airness governs all of the following domains:
   `javascript-allowlist` (no hand-written JavaScript outside the allowlist), `arch` (no cycle, unresolvable
   import, or production import of a spec, test code or development-only dependency), `type-coverage` (no `any`
   and no type assertion in hand-written logic, and no `typeCoverage` key), `knip` (no unused file, export or dependency,
-  each judged with every test and tool as an entry point; under `productionDeadCode` also no export, outside the
-  declared public interface, and no file under a production source root that only tests and tooling reach; a
-  release tag knip honours, `@public`, `@beta`, `@alias` or `@internal`, counts as a suppression),
+  each judged with every test and tool as an entry point, and also no export, outside the declared public
+  interface, and no file under a production source root that only tests and tooling reach; test such a helper
+  through the production code that uses it, or remove it; a release tag knip honours, `@public`, `@beta`, `@alias`
+  or `@internal`, counts as a suppression),
   `tests` (the member's own Vitest under the shipped configuration, with 80% per-file coverage), `install-scripts`
   (`allowBuilds` in `pnpm-workspace.yaml` decides every dependency that runs an install script, and only those;
   `node-dependencies` installs with every script off and then runs only the approved ones) and `release-age`
@@ -591,7 +592,6 @@ A node project declares what the harness cannot know through these keys under `a
 | `javascriptAllowlist` | JavaScript files a tool forces on the project, each with the `runtime` of `node` or `cloudfront-js-2.0` that runs it |
 | `coverageExclude` | source files the coverage floor doesn't measure |
 | `pureLogicRoots` | directories of pure logic, which `arch` forbids to import anything else under a source root |
-| `productionDeadCode` | `true` holds every export and production file to production use; test a helper through the production code that uses it |
 | `productionEntries` | files that run in production though no entry point knip reads reaches them, such as a script `start` runs or a site build that renders a story; never a test, and no suppression |
 | `accessibilitySkipRoutes` | route prefixes the sweep doesn't follow |
 | `serve`, `serverUrl`, `serverUrlVariables`, `auxiliaryServers`, `clock` | how a browser application is served and the clock it starts at, as Browser Verification describes |

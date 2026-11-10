@@ -5,11 +5,11 @@
 // declared stack layer package as used, because the harness reads it by name: node-gate runs its gates and the
 // layer seams read its defaults, ESLint blocks and end-to-end specifications, none of which an import shows.
 //
-// That run counts every test and tool as an entry point, so an export only a test imports reads as used. A member
-// that declares `productionDeadCode` gets a second, production run: knip follows the production entry points
-// alone, the package's declared public interface among them, and the files a stack layer's framework runs, and judges
-// the exports and files under the production source roots, so an export or a production file that only tests and
-// tooling reach fails too.
+// That run counts every test and tool as an entry point, so an export only a test imports reads as used. Every
+// member therefore gets a second, production run: knip follows the production entry points alone, the package's
+// declared public interface among them, the files a stack layer's framework runs and those the project declares,
+// and judges the exports and files under the production source roots, so an export or a production file that only
+// tests and tooling reach fails too.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -29,7 +29,7 @@ import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
 import { LAYER_NAMES } from './layer.js'
 import { harnessDirectory, type Member, readJson, resolveTool, writeJson } from './project.js'
-import { type DeclaredExclusion, isHonouredExclusion, PRODUCTION_ENTRIES_SETTING } from './settings.js'
+import { type DeclaredExclusion, isHonouredExclusion, PRODUCTION_ENTRIES_SETTING, retiredSettings } from './settings.js'
 import { allowedJavaScriptFiles, memberFiles } from './source-selection.js'
 import { isTestFile } from './spec-roles.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
@@ -242,30 +242,38 @@ const withDeclaredEntries = (member: Member, result: GateResult): GateResult => 
   return withOutput({ ...result, summary: `${result.summary}; ${listing}` }, `${listing}\n${result.output ?? ''}`)
 }
 
-const verdict = (member: Member, configs: RenderedConfigs): GateResult => {
-  const whole: GateResult = fromRun(
-    runKnip(member, configs.config, []),
-    'no dead code or unused dependency',
-    'dead code or an unused dependency was found',
+// Two failures as one verdict, each summary, finding and output kept in order.
+const merged = (left: GateResult, right: GateResult): GateResult =>
+  withOutput(
+    failed(`${left.summary}; ${right.summary}`, [...left.findings, ...right.findings]),
+    `${left.output ?? ''}${right.output ?? ''}`,
   )
-  if (!member.settings.productionDeadCode) {
-    return whole
-  }
-  const production: GateResult = productionResult(member, configs)
-  if (production.ok) {
-    return whole
-  }
-  return whole.ok
-    ? production
-    : withOutput(
-        failed(`${whole.summary}; ${production.summary}`, [...whole.findings, ...production.findings]),
-        [whole.output, production.output].join(''),
-      )
+
+// The whole run's verdict, joined by every other one that failed.
+const combined = (whole: GateResult, others: readonly GateResult[]): GateResult =>
+  others
+    .filter((result: GateResult): boolean => !result.ok)
+    .reduce((verdict: GateResult, next: GateResult): GateResult => (verdict.ok ? next : merged(verdict, next)), whole)
+
+// A setting the harness no longer reads, which the project still declares as though it changed this gate.
+const retiredVerdict = (member: Member): readonly GateResult[] => {
+  const retired: readonly string[] = retiredSettings(member.packageJson)
+  return retired.length > 0 ? [failed('the project declares a setting the harness no longer reads', retired)] : []
 }
 
+const verdict = (member: Member, configs: RenderedConfigs): GateResult =>
+  combined(
+    fromRun(
+      runKnip(member, configs.config, []),
+      'no dead code or unused dependency',
+      'dead code or an unused dependency was found',
+    ),
+    [productionResult(member, configs), ...retiredVerdict(member)],
+  )
+
 /**
- * No unused file, export or dependency, and under `productionDeadCode` no export or production file that only
- * tests and tooling reach. A production entry point the project declares that names a test is refused.
+ * No unused file, export or dependency, and no export or production file that only tests and tooling reach. A
+ * production entry point the project declares that names a test is refused, and so is a retired setting.
  * @param member the member to judge.
  * @param layers the packages counted as layers, the registered ones unless a caller names others.
  * @returns the verdict, naming every production entry point the project declares.
