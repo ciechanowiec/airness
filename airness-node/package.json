@@ -237,7 +237,7 @@
         "reason": "browser measurements and trusted view scoping execute inside the real Playwright contracts; pure snapshot policies have their own measured unit suites"
       },
       {
-        "pattern": "src/{sweep,sweep-answers,sweep-disclosures,sweep-discovery,sweep-interaction,sweep-interaction-plan,sweep-progress-log,sweep-reflow,sweep-resting,sweep-shared,sweep-workers}.ts",
+        "pattern": "src/{sweep,sweep-answers,sweep-disclosures,sweep-discovery,sweep-interaction,sweep-interaction-plan,sweep-progress-log,sweep-reflow,sweep-resting,sweep-scrolling,sweep-shared,sweep-workers}.ts",
         "reason": "the shipped sweep executes inside Playwright workers against real pages; its verdict policies, queue and deadlines are measured separately"
       },
       {
@@ -283,7 +283,9 @@
   },
   "imports": {
     "#browser/pinned-server": "./scripts/browser/pinned-server.ts",
+    "#browser/scroll-components": "./scripts/browser/visual-scroll-components.ts",
     "#browser/visual-components": "./scripts/browser/visual-busy-components.ts",
+    "#browser/visual-images": "./scripts/browser/visual-images.ts",
     "#package/compare-packs": "./scripts/package/compare-packs.ts",
     "#harness/*": "./dist/*.js"
   }

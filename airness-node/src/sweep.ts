@@ -25,6 +25,7 @@ import { coversEveryEngine } from './change-scope-policy.js'
 import { writeJson } from './project.js'
 import { projectSettings } from './project-settings.js'
 import { completedScanRoutes } from './scan-evidence.js'
+import { SCROLLING_RULES } from './scroll-policy.js'
 import {
   type Discovery,
   type DiscoveryReport,
@@ -50,6 +51,7 @@ export {
   expectEngineRules,
   expectRestingRules,
 } from './sweep-resting.js'
+export { expectScrolling } from './sweep-scrolling.js'
 export type { Shard } from './sweep-shared.js'
 export { SWEEP_WORKERS as SWEEP_SHARDS } from './sweep-workers.js'
 
@@ -62,6 +64,7 @@ const CHROMIUM_PASSES: readonly SweepPass[] = [
   'text-stress',
   'width-sweep',
   'dark-scheme',
+  'scrolling',
 ]
 
 const ENGINE_PASSES: readonly SweepPass[] = ['engine']
@@ -187,13 +190,26 @@ const coverageText = (record: SweepRecord): string =>
     ...record.missing,
   ].join('\n')
 
-// An exemption is stale in an engine when no part of any pass in that engine used it.
+// An exemption is stale in an engine when no part of any pass in that engine used it. The scrolling pass's
+// rules are judged on one route per template, so at a route it did not cross they were never applied, and an
+// exemption there cannot have proved itself and is not judged stale for them. Every other rule keeps the
+// stricter reading: judged anywhere in the engine, it must excuse something.
 const staleIn = (engine: string, reports: readonly PassReport[]): readonly BrowserFinding[] => {
   const own: readonly PassReport[] = reports.filter((report: PassReport): boolean => report.engine === engine)
+  const isJudgedAt = (location: string, rule: string): boolean =>
+    !SCROLLING_RULES.includes(rule) ||
+    own.some((report: PassReport): boolean => report.judgedRules.includes(rule) && report.locations.includes(location))
   return own.length === 0
     ? []
     : staleExemptions(
-        own.flatMap((report: PassReport): readonly DeclaredExemption[] => report.declared),
+        own
+          .flatMap((report: PassReport): readonly DeclaredExemption[] => report.declared)
+          .map(
+            (entry: DeclaredExemption): DeclaredExemption => ({
+              ...entry,
+              rules: entry.rules.filter((rule: string): boolean => isJudgedAt(entry.location, rule)),
+            }),
+          ),
         own.flatMap((report: PassReport): readonly UsedExemption[] => report.used),
         [...new Set<string>(own.flatMap((report: PassReport): readonly string[] => report.judgedRules))],
         engine,

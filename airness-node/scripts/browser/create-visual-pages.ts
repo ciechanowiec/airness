@@ -8,8 +8,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import path from 'node:path'
-import { deflateSync } from 'node:zlib'
+import { SCROLL_COMPONENTS, SCROLL_PAGES, SCROLL_STYLES } from '#browser/scroll-components'
 import { GROW, SETTLE } from '#browser/visual-components'
+import { PHOTO_HEIGHT, PHOTO_WIDTH, POSTER_HEIGHT, POSTER_WIDTH, photo } from '#browser/visual-images'
 import { asRecord } from '#harness/json-shapes'
 
 const ARGUMENT_OFFSET: number = 2
@@ -22,66 +23,6 @@ if (directory === undefined || (mode !== 'defects' && mode !== 'valid')) {
 type Mode = 'defects' | 'valid'
 
 const JSON_INDENT: number = 2
-
-// A raster source of a known natural size, so the image rules judge real decoding rather than a stub.
-const PHOTO_WIDTH: number = 160
-const PHOTO_HEIGHT: number = 120
-const BYTE: number = 256
-const CRC_POLYNOMIAL: number = 0xed_b8_83_20
-const CRC_BITS: number = 8
-const CRC_INITIAL: number = 0xff_ff_ff_ff
-const BIT_DEPTH: number = 8
-const TRUE_COLOUR: number = 2
-const WORD_BYTES: number = 4
-const HEADER_BYTES: number = 13
-const DEPTH_OFFSET: number = 8
-const COLOUR_OFFSET: number = 9
-const PNG_SIGNATURE: Buffer = Buffer.from('89504e470d0a1a0a', 'hex')
-const PHOTO_SHADE: Buffer = Buffer.from('2563eb', 'hex')
-
-const CRC_TABLE: readonly number[] = Array.from({ length: BYTE }, (_unused: unknown, index: number): number =>
-  Array.from({ length: CRC_BITS }).reduce<number>(
-    (value: number): number => ((value & 1) === 1 ? CRC_POLYNOMIAL ^ (value >>> 1) : value >>> 1),
-    index,
-  ),
-)
-
-const crc32 = (bytes: Buffer): number =>
-  (bytes.reduce(
-    (crc: number, byte: number): number => (CRC_TABLE[(crc ^ byte) & (BYTE - 1)] ?? 0) ^ (crc >>> CRC_BITS),
-    CRC_INITIAL,
-  ) ^
-    CRC_INITIAL) >>>
-  0
-
-const chunk = (type: string, data: Buffer): Buffer => {
-  const typed: Buffer = Buffer.concat([Buffer.from(type, 'ascii'), data])
-  const length: Buffer = Buffer.alloc(WORD_BYTES)
-  length.writeUInt32BE(data.length)
-  const checksum: Buffer = Buffer.alloc(WORD_BYTES)
-  checksum.writeUInt32BE(crc32(typed))
-  return Buffer.concat([length, typed, checksum])
-}
-
-const photo = (): Buffer => {
-  const header: Buffer = Buffer.alloc(HEADER_BYTES)
-  header.writeUInt32BE(PHOTO_WIDTH, 0)
-  header.writeUInt32BE(PHOTO_HEIGHT, WORD_BYTES)
-  header.writeUInt8(BIT_DEPTH, DEPTH_OFFSET)
-  header.writeUInt8(TRUE_COLOUR, COLOUR_OFFSET)
-  // Each row opens with filter type 0, then the same shade in every pixel.
-  const row: Buffer = Buffer.concat([
-    Buffer.alloc(1),
-    ...Array.from({ length: PHOTO_WIDTH }, (): Buffer => PHOTO_SHADE),
-  ])
-  const pixels: Buffer = Buffer.concat(Array.from({ length: PHOTO_HEIGHT }, (): Buffer => row))
-  return Buffer.concat([
-    PNG_SIGNATURE,
-    chunk('IHDR', header),
-    chunk('IDAT', deflateSync(pixels)),
-    chunk('IEND', Buffer.alloc(0)),
-  ])
-}
 
 const freePort = async (): Promise<number> => {
   const server: Server = createServer()
@@ -125,6 +66,13 @@ const PAGES: Readonly<Record<string, Variant>> = {
     valid:
       '<div data-airness-layout="image-upscaled" data-airness-layout-reason="the fixture shows its only source">' +
       '<img src="/photo.png" alt="Enlarged photo" width={240} height={180} /></div>',
+  },
+  // The repair keeps the large source for screens that need it and lets the browser choose by the box.
+  'image-oversized': {
+    defect: '<img src="/poster.png" alt="Oversized photo" width={160} height={120} />',
+    valid:
+      '<img src="/poster.png" srcSet="/photo.png 160w, /poster.png 1600w" sizes="160px" alt="Fitted photo" ' +
+      'width={160} height={120} />',
   },
   'media-space': {
     defect: '<img src="/photo.png" alt="Unsized photo" className="fluid" />',
@@ -229,6 +177,7 @@ const PAGES: Readonly<Record<string, Variant>> = {
       '<p data-airness-layout="small-text" data-airness-layout-reason="the note is set small on purpose">Note</p>',
     valid: '<p>Note</p>',
   },
+  ...SCROLL_PAGES,
   locale: {
     defect: '<link rel="alternate" hrefLang="pl" href="/pl-locale" /><p>English</p>',
     valid: '<link rel="alternate" hrefLang="pl" href="/pl-locale" /><p>English</p>',
@@ -477,7 +426,16 @@ const writeModule = (file: string, source: string | Buffer): void => {
   writeFileSync(file, source)
 }
 
-const COMPONENTS: readonly string[] = ['AxeEcho', 'Complaint', 'Glide', 'Grow', 'Guard', 'Menu', 'Settle']
+const COMPONENTS: readonly string[] = [
+  'AxeEcho',
+  'Complaint',
+  'Glide',
+  'Grow',
+  'Guard',
+  'Menu',
+  'Settle',
+  ...Object.keys(SCROLL_COMPONENTS),
+]
 
 // Each page imports only the client components it renders, as the compiler requires.
 const importsOf = (body: string): readonly string[] =>
@@ -534,14 +492,18 @@ writeModule(path.join(directory, 'src', 'complaint.tsx'), COMPLAINT)
 writeModule(path.join(directory, 'src', 'glide.tsx'), GLIDE)
 writeModule(path.join(directory, 'src', 'grow.tsx'), GROW)
 writeModule(path.join(directory, 'src', 'settle.tsx'), SETTLE)
+for (const [name, source] of Object.entries(SCROLL_COMPONENTS)) {
+  writeModule(path.join(directory, 'src', `${name.toLowerCase()}.tsx`), source)
+}
 writeModule(path.join(directory, 'src', 'guard.tsx'), GUARD)
 writeModule(path.join(directory, 'src', 'menu.tsx'), MENU)
 writeModule(path.join(directory, 'src', 'axeecho.tsx'), AXE_ECHO)
 writeModule(
   path.join(appRoot, 'globals.css'),
-  `${readFileSync(path.join(appRoot, 'globals.css'), 'utf8')}${STYLES}${PINNED_STYLES}`,
+  `${readFileSync(path.join(appRoot, 'globals.css'), 'utf8')}${STYLES}${PINNED_STYLES}${SCROLL_STYLES}`,
 )
-writeModule(path.join(directory, 'public', 'photo.png'), photo())
+writeModule(path.join(directory, 'public', 'photo.png'), photo(PHOTO_WIDTH, PHOTO_HEIGHT))
+writeModule(path.join(directory, 'public', 'poster.png'), photo(POSTER_WIDTH, POSTER_HEIGHT))
 const storyPort: number = await freePort()
 writeModule(path.join(directory, 'story-server.mjs'), storyServer(mode))
 const manifestPath: string = path.join(directory, 'package.json')

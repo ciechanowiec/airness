@@ -6,6 +6,7 @@ import {
   disclosureDefects,
   type FocusPosition,
   findDistortedImages,
+  findOversizedImages,
   findSmallText,
   findUnloadedFonts,
   findUnloadedImages,
@@ -91,6 +92,7 @@ describe('image rules', () => {
       ...findUnloadedImages(valid),
       ...findDistortedImages(valid),
       ...findUpscaledImages(valid),
+      ...findOversizedImages(valid),
       ...findUnreservedMedia(valid),
     ]).toEqual([])
   })
@@ -151,6 +153,33 @@ describe('image rules', () => {
       0,
       0,
     ])
+  })
+
+  it('fails a source denser than any screen draws, at the scale its object-fit displays it', () => {
+    expect(messages(findOversizedImages(image({ naturalWidth: 4000, naturalHeight: 3000 })))).toEqual([
+      'image-oversized: image source 4000x3000px fills a 400x300px box at 10.0 source pixels per CSS pixel, ' +
+        'beyond the 3 any screen draws, so 10.9 megapixels are decoded and never shown; serve a smaller source, ' +
+        'or a srcset whose sizes match the box: img.hero',
+    ])
+    expect(
+      [
+        image({ naturalWidth: 4000, naturalHeight: 1000, objectFit: 'contain' }),
+        image({ naturalWidth: 4000, naturalHeight: 1000, objectFit: 'cover' }),
+        image({ naturalWidth: 4000, naturalHeight: 3000, objectFit: 'none' }),
+        image({ naturalWidth: 4000, naturalHeight: 3000, isVector: true }),
+      ].map((snapshot: LayoutSnapshot): number => findOversizedImages(snapshot).length),
+    ).toEqual([1, 0, 0, 0])
+  })
+
+  it('passes a source the densest screen uses, and one whose surplus is under a mebipixel', () => {
+    expect(
+      [
+        image({ naturalWidth: 1200, naturalHeight: 900 }),
+        image({ naturalWidth: 1300, naturalHeight: 975 }),
+        image({ naturalWidth: 1400, naturalHeight: 1050 }),
+        image({ naturalWidth: 64, naturalHeight: 64, contentWidth: 16, contentHeight: 16 }),
+      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] => findOversizedImages(snapshot)),
+    ).toEqual([])
   })
 
   it('fails media that takes a different box once loaded, unless it is out of flow', () => {

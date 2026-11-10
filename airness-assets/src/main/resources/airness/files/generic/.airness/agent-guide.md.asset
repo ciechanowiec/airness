@@ -398,6 +398,16 @@ also run with normal motion, preserving transitions and animations. They verify 
 disclosure and that focus becomes perceivable, including ancestor opacity, clipping and inert state. Pointer
 geometry and pixel-contrast comparisons remain in the still passes. Text clipped by a non-scrollable ancestor
 is a finding; inactive subtrees and text deliberately outside a scrollable region are distinguished from it.
+An image whose source carries more than three pixels per CSS pixel of its box, decoding at least a mebipixel
+no screen shows, is `image-oversized`; serve a smaller source, or a `srcset` whose `sizes` match the box.
+
+The scrolling pass crosses one route per template and one story per component on an emulated touch phone with
+normal motion, by wheel gestures down to the end and back. The document must come to rest where each gesture
+left it (`scroll-hijack`): a page that snaps to sections or runs on past a gesture fails, while sticky pinning
+and scroll-driven animation, which leave the scroll position alone, pass. A heading, paragraph, quotation or
+caption not yet seen visible must not stay fully transparent 1.5 seconds after the document rests with it in
+the upper half of the view (`unrevealed-content`). It reports wheel gestures, not swipes; a project's own specifications cover its touch
+gestures and any reveal timing tighter than that bound.
 
 Authored Next.js `not-found` boundaries are scanned through their real application layouts, with concrete
 locale and dynamic prefixes taken from discovered routes. The expected top-level document 404 is allowed;
