@@ -11,7 +11,12 @@ export interface RestrictedSyntax {
   readonly message: string
 }
 
-const SENSITIVE_NAME: string = '/^(?:password|token|secret|apiKey|privateKey|creditCard|ssn|cvv)$/'
+// A credential named alone, or as the last word of a camelCase compound such as `accessToken`,
+// `clientSecret` or `dbPassword`. The compound needs a lowercase letter or digit before its last word, so
+// `tokenCount` and `passwordPolicy`, which name something about a credential, are not credentials.
+const SENSITIVE_NAME: string =
+  '/^(?:password|token|secret|apiKey|privateKey|creditCard|ssn|cvv|' +
+  '[a-z][a-zA-Z0-9]*[a-z0-9](?:Password|Token|Secret|ApiKey|PrivateKey))$/'
 
 // The syntax that carries a value through to the expression holding it without a function call in
 // between: a conditional's branches (never its test), either operand of a logical expression, a string
@@ -53,7 +58,13 @@ const CONSOLE_CALL: string =
   "[callee.object.name='console']" +
   '[callee.property.name=/^(?:log|error|warn|info|debug|trace)$/]'
 
-const SENSITIVE_VALUE: string = `:matches(Identifier[name=${SENSITIVE_NAME}], MemberExpression[property.name=${SENSITIVE_NAME}])`
+// A member read names its key as an identifier, or computed as a string literal or a template without a
+// substitution: `user.token`, `user['token']` and the same key quoted by backticks read one property.
+const SENSITIVE_VALUE: string =
+  `:matches(Identifier[name=${SENSITIVE_NAME}], MemberExpression[property.name=${SENSITIVE_NAME}], ` +
+  `MemberExpression[computed=true][property.value=${SENSITIVE_NAME}], ` +
+  "MemberExpression[computed=true][property.type='TemplateLiteral'][property.expressions.length=0]" +
+  `[property.quasis.0.value.cooked=${SENSITIVE_NAME}])`
 
 /** Console arguments that write a credential-bearing value without passing it through a call. */
 const SENSITIVE_LOGGING: RestrictedSyntax = {

@@ -128,21 +128,39 @@ const topLevelOperators = (condition: string, operator: string): readonly number
     [],
   )
 
-const splitTopLevel = (condition: string, operator: string): readonly string[] => {
-  const cuts: readonly number[] = topLevelOperators(condition, operator)
-  const ends: readonly number[] = [...cuts, condition.length]
-  return [0, ...cuts.map((cut: number): number => cut + OPERATOR_WIDTH)].map(
-    (start: number, position: number): string => condition.slice(start, ends[position] ?? condition.length).trim(),
-  )
+// A credential named as a property chain, optional links included, read in the mask. A segment may be a
+// string key in brackets, `process.env['CRON_SECRET']`, which the shipped `noPropertyAccessFromIndexSignature`
+// makes the only spelling of an environment read; the mask has filled that key, so the shapes below locate
+// the name there and the source at the same offsets says what the key is.
+const IDENTIFIER: string = String.raw`[a-z_$][\w$]*`
+
+const chainOf = (key: string): string =>
+  String.raw`${IDENTIFIER}(?:\s*\??\.\s*${IDENTIFIER}|\s*(?:\?\.\s*)?\[\s*${key}\s*\])*`
+
+const NAME: string = chainOf('x+')
+
+// The same chain in the source, where a bracketed segment must hold a string literal rather than an expression.
+const STRING_KEY: string = String.raw`(?:'[^'\n]*'|"[^"\n]*"|\`[^\`$\n]*\`)`
+
+const SOURCE_NAME: RegExp = new RegExp(`^${chainOf(STRING_KEY)}$`, 'i')
+
+// The flags of a shape: case-insensitive, and with the offsets of what it captured, which the source is read at.
+const SHAPE_FLAGS: string = 'di'
+
+// The name a shape captured in the mask, read from the source at the same offsets. Whitespace is dropped and
+// optional links are folded to plain ones for the report: `?.` to `.`, and `?.[` to `[`.
+const capturedName = (shape: RegExp, masked: string, source: string): string | undefined => {
+  const span: readonly [number, number] | undefined = shape.exec(masked)?.indices?.[1]
+  const name: string | undefined = span === undefined ? undefined : source.slice(span[0], span[1])
+  return name !== undefined && SOURCE_NAME.test(name)
+    ? name.replaceAll(/\s/g, '').replaceAll('?.[', '[').replaceAll('?.', '.')
+    : undefined
 }
 
-// A credential named as a property chain, optional links included; `?.` is folded to `.` for the report.
-const NAME: string = String.raw`[a-z_$][\w$]*(?:\s*\??\.\s*[a-z_$][\w$]*)*`
-
 const BARE_PRESENCE_SHAPES: readonly RegExp[] = [
-  new RegExp(`^(${NAME})$`, 'i'),
-  new RegExp(String.raw`^!\s*!\s*(${NAME})$`, 'i'),
-  new RegExp(String.raw`^Boolean\s*\(\s*(${NAME})\s*\)$`, 'i'),
+  new RegExp(`^(${NAME})$`, SHAPE_FLAGS),
+  new RegExp(String.raw`^!\s*!\s*(${NAME})$`, SHAPE_FLAGS),
+  new RegExp(String.raw`^Boolean\s*\(\s*(${NAME})\s*\)$`, SHAPE_FLAGS),
 ]
 
 // The first comparison operator, its longer spellings tried before the shorter ones they begin with.
@@ -152,6 +170,8 @@ const MIRRORED: Readonly<Record<string, string>> = { '>': '<', '<': '>', '>=': '
 
 interface Comparison {
   readonly operand: string
+  /** The operand in the source, at the offsets it has in the mask. */
+  readonly operandSource: string
   readonly operator: string
   readonly constant: string
 }
@@ -169,10 +189,20 @@ const comparisonIn = (masked: string, source: string): Comparison | undefined =>
   const left: string = masked.slice(0, found.index).trimEnd()
   const right: string = masked.slice(found.index + operator.length).trimStart()
   if (isConstant(right)) {
-    return { operand: left, operator, constant: source.slice(source.length - right.length) }
+    return {
+      operand: left,
+      operandSource: source.slice(0, left.length),
+      operator,
+      constant: source.slice(source.length - right.length),
+    }
   }
   return isConstant(left)
-    ? { operand: right, operator: MIRRORED[operator] ?? operator, constant: source.slice(0, left.length) }
+    ? {
+        operand: right,
+        operandSource: source.slice(source.length - right.length),
+        operator: MIRRORED[operator] ?? operator,
+        constant: source.slice(0, left.length),
+      }
     : undefined
 }
 
@@ -200,16 +230,18 @@ const isDefinedByType = ({ operator, constant }: Comparison): boolean => {
 // above zero, a `typeof` that names a type other than `'undefined'` or denies that one, and a value compared
 // unequal to `undefined` or `null`. The length shape comes first, as a chain ending in `.length` is a value too.
 const PRESENCE_COMPARISONS: readonly (readonly [RegExp, (comparison: Comparison) => boolean])[] = [
-  [new RegExp(String.raw`^(${NAME})\s*\??\.\s*length$`, 'i'), isNonEmpty],
-  [new RegExp(String.raw`^typeof\s+(${NAME})$`, 'i'), isDefinedByType],
-  [new RegExp(`^(${NAME})$`, 'i'), isDefined],
+  [new RegExp(String.raw`^(${NAME})\s*\??\.\s*length$`, SHAPE_FLAGS), isNonEmpty],
+  [new RegExp(String.raw`^typeof\s+(${NAME})$`, SHAPE_FLAGS), isDefinedByType],
+  [new RegExp(`^(${NAME})$`, SHAPE_FLAGS), isDefined],
 ]
 
 const comparedPresence = (comparison: Comparison): string | undefined => {
   const shape: readonly [RegExp, (comparison: Comparison) => boolean] | undefined = PRESENCE_COMPARISONS.find(
     ([operand]: readonly [RegExp, (comparison: Comparison) => boolean]): boolean => operand.test(comparison.operand),
   )
-  return shape?.[1](comparison) === true ? shape[0].exec(comparison.operand)?.[1] : undefined
+  return shape?.[1](comparison) === true
+    ? capturedName(shape[0], comparison.operand, comparison.operandSource)
+    : undefined
 }
 
 // The two characters a parenthesised conjunct adds around what it holds.
@@ -230,18 +262,17 @@ const unwrapped = (masked: string, source: string): readonly [string, string] =>
 // allow: bare truthiness, `!!`, `Boolean()`, and the comparison forms above with either operand first.
 const presentNameIn = (maskedConjunct: string, sourceConjunct: string): string | undefined => {
   const [masked, source] = unwrapped(maskedConjunct, sourceConjunct)
-  const bare: string | undefined = BARE_PRESENCE_SHAPES.map(
-    (shape: RegExp): string | undefined => shape.exec(masked)?.[1],
+  const bare: string | undefined = BARE_PRESENCE_SHAPES.map((shape: RegExp): string | undefined =>
+    capturedName(shape, masked, source),
   ).find((name: string | undefined): name is string => name !== undefined)
   const comparison: Comparison | undefined = bare === undefined ? comparisonIn(masked, source) : undefined
-  const name: string | undefined = bare ?? (comparison === undefined ? undefined : comparedPresence(comparison))
-  return name?.replaceAll(/\s/g, '').replaceAll('?.', '.')
+  return bare ?? (comparison === undefined ? undefined : comparedPresence(comparison))
 }
 
-// The conjuncts of a condition, each read from the mask for structure and from the source at the same
-// offsets for the literals the mask hides.
-const conjunctsOf = (masked: string, source: string): readonly (readonly [string, string])[] => {
-  const cuts: readonly number[] = topLevelOperators(masked, '&&')
+// The operands of a condition's top-level `&&` or `||`, each read from the mask for structure and from the
+// source at the same offsets for the literals the mask hides.
+const operandsOf = (masked: string, source: string, operator: string): readonly (readonly [string, string])[] => {
+  const cuts: readonly number[] = topLevelOperators(masked, operator)
   const ends: readonly number[] = [...cuts, masked.length]
   return [0, ...cuts.map((cut: number): number => cut + OPERATOR_WIDTH)].map(
     (start: number, position: number): readonly [string, string] => {
@@ -257,7 +288,7 @@ const conjunctsOf = (masked: string, source: string): readonly (readonly [string
 const MINIMUM_CONJUNCTS: number = 2
 
 const guardedCredential = (masked: string, source: string): string | undefined => {
-  const conjuncts: readonly (readonly [string, string])[] = conjunctsOf(masked, source)
+  const conjuncts: readonly (readonly [string, string])[] = operandsOf(masked, source, '&&')
   return conjuncts.length < MINIMUM_CONJUNCTS
     ? undefined
     : conjuncts
@@ -296,17 +327,15 @@ export const findFailOpenSecretGuards = (source: string): readonly SourceViolati
 // string literal INCLUDING its quotes, so an empty string is indistinguishable from an identifier by
 // the time this reads the text. `.length === 0` expresses the same test and survives masking.
 const ABSENCE_SHAPES: readonly RegExp[] = [
-  /^!\s*([\w$]+(?:\s*\??\.\s*[\w$]+)*)$/,
-  /^([\w$]+(?:\s*\??\.\s*[\w$]+)*)\s*===?\s*(?:undefined|null)$/,
-  /^([\w$]+(?:\s*\??\.\s*[\w$]+)*)\s*\.\s*length\s*===?\s*0$/,
+  new RegExp(String.raw`^!\s*(${NAME})$`, SHAPE_FLAGS),
+  new RegExp(String.raw`^(${NAME})\s*===?\s*(?:undefined|null)$`, SHAPE_FLAGS),
+  new RegExp(String.raw`^(${NAME})\s*\.\s*length\s*===?\s*0$`, SHAPE_FLAGS),
 ]
 
-const absentNameIn = (disjunct: string): string | undefined => {
-  const matched: RegExpExecArray | undefined = ABSENCE_SHAPES.map((shape: RegExp): RegExpExecArray | null =>
-    shape.exec(disjunct),
-  ).find((found: RegExpExecArray | null): found is RegExpExecArray => found !== null)
-  return matched?.[1]?.replaceAll(/\s/g, '').replaceAll('?.', '.')
-}
+const absentNameIn = (masked: string, source: string): string | undefined =>
+  ABSENCE_SHAPES.map((shape: RegExp): string | undefined => capturedName(shape, masked, source)).find(
+    (name: string | undefined): name is string => name !== undefined,
+  )
 
 // The credential a condition admits on absence, or nothing when the condition is not that shape.
 //
@@ -315,12 +344,12 @@ const absentNameIn = (disjunct: string): string | undefined => {
 // disjunct must be an absence test, which is the conservative reading - `if (!secret || isDevelopment)`
 // is fail-open too, but it is not PROVABLY this defect from text, and a false positive here costs more
 // than the finding is worth.
-const acceptedAbsence = (condition: string): string | undefined => {
+const acceptedAbsence = (condition: string, source: string): string | undefined => {
   if (topLevelOperators(condition, '&&').length > 0) {
     return undefined
   }
-  const names: readonly (string | undefined)[] = splitTopLevel(condition, '||').map(
-    (disjunct: string): string | undefined => absentNameIn(disjunct),
+  const names: readonly (string | undefined)[] = operandsOf(condition, source, '||').map(
+    ([masked, disjunct]: readonly [string, string]): string | undefined => absentNameIn(masked, disjunct),
   )
   return names.includes(undefined)
     ? undefined
@@ -354,8 +383,9 @@ export const findAbsentSecretAcceptances = (source: string): readonly SourceViol
     if (condition === undefined) {
       return []
     }
-    const credential: string | undefined = acceptedAbsence(condition)
-    return credential !== undefined && hasAcceptanceAfter(masked, open + condition.length + 1)
+    const close: number = open + condition.length + 1
+    const credential: string | undefined = acceptedAbsence(condition, source.slice(open + 1, close))
+    return credential !== undefined && hasAcceptanceAfter(masked, close)
       ? [
           {
             line: lineOf(source, match.index),

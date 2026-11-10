@@ -11,7 +11,7 @@
 // it in CloudFront proves that.
 
 import type { Rule } from 'eslint'
-import { type FileMatcher, type FlatConfigBlock, NO_INHERITANCE } from './eslint-core.js'
+import { type FileMatcher, type FlatConfigBlock, NO_INHERITANCE, NO_MOCK_SYNTAX } from './eslint-core.js'
 import { type RestrictedSyntax, SECURITY_RESTRICTIONS } from './eslint-security.js'
 import { TIME_ZONE_RESTRICTIONS } from './eslint-time-zone.js'
 import { CLOUDFRONT_RUNTIME } from './javascript-runtimes.js'
@@ -108,6 +108,7 @@ export const cloudFrontBlock = (files: readonly FileMatcher[]): FlatConfigBlock 
       ...NO_INHERITANCE,
       ...SECURITY_RESTRICTIONS,
       ...TIME_ZONE_RESTRICTIONS,
+      ...NO_MOCK_SYNTAX,
       ...CLOUDFRONT_SYNTAX,
     ],
     'no-restricted-globals': ['error', ...CLOUDFRONT_GLOBALS],

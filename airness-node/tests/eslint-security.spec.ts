@@ -44,6 +44,18 @@ describe('sensitive-data-logged', () => {
     'console.log([token])',
     'console.log(token as string)',
     'console.log(token!)',
+    'console.log(accessToken)',
+    'console.log(session.refreshToken)',
+    'console.log(clientSecret)',
+    'console.log(config.dbPassword)',
+    'console.log(stripeApiKey)',
+    'console.log(signingPrivateKey)',
+    'console.log(oauth2Token)',
+    `console.log(\`header \${user.idToken}\`)`,
+    'console.log(user["token"])',
+    "console.log(user['password'])",
+    "console.log(user?.['refreshToken'])",
+    'console.log(user[`apiKey`])',
   ])('reports %s', (code: string) => {
     expect(tagsOf(code)).toEqual(['sensitive-data-logged'])
   })
@@ -59,6 +71,13 @@ describe('sensitive-data-logged', () => {
     "console.log({ token: 'redacted' })",
     'console.log(token.length)',
     'logger.info(token)',
+    'console.log(tokenCount)',
+    'console.log(passwordPolicy)',
+    'console.log(user.tokenType)',
+    'console.log(Token)',
+    "console.log(user['tokenType'])",
+    ['console.log(user[`$', '{prefix}Token`])'].join(''),
+    "console.log(redact(user['token']))",
   ])('leaves the call boundary and non-values alone: %s', (code: string) => {
     expect(tagsOf(code)).toEqual([])
   })

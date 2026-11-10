@@ -203,6 +203,36 @@ describe('the pages a change reaches', () => {
   })
 })
 
+describe('a change outside the source roots', () => {
+  it('follows a catalogue a page imports through the graph', () => {
+    const graph: Readonly<Record<string, readonly string[]>> = {
+      ...GRAPH,
+      [`${APP}/about/page.tsx`]: ['messages/en.json'],
+      'messages/en.json': [],
+    }
+    expect(targetsOf(sweepScopeOf({ ...SOLE, graph, changed: changes('messages/en.json') }))).toEqual({
+      routes: ['/about'],
+      stories: [],
+    })
+  })
+
+  it('changes no page for documentation, the hosting configuration, or a test outside the graph', () => {
+    const scope: SweepScope = scopeOf(
+      'CHANGELOG.md',
+      'LICENSE',
+      'docs/README.md',
+      '.github/CODEOWNERS',
+      'tests/fixtures/order.json',
+    )
+    expect(targetsOf(scope)).toEqual({ routes: [], stories: [] })
+  })
+
+  it('sweeps everything when a file outside the source roots is deleted', () => {
+    const scope: SweepScope = sweepScopeOf({ ...SOLE, changed: [{ path: 'messages/fr.json', isDeleted: true }] })
+    expect(scope.isComplete).toBe(true)
+  })
+})
+
 describe('a change that sweeps everything', () => {
   it('broadens Maven and backend configuration changes', () => {
     for (const changed of ['pom.xml', 'backend/src/main/resources/application.yml', '.github/workflows/verify.yml']) {
@@ -221,6 +251,18 @@ describe('a change that sweeps everything', () => {
     ['pnpm-lock.yaml', 'pnpm-lock.yaml decides what is installed for every member'],
     ['package.json', 'package.json decides what is installed for every member'],
     ['src/content/tokens.json', 'src/content/tokens.json is not in the import graph, so what it reaches is unknown'],
+    [
+      'messages/en.json',
+      'messages/en.json lies outside the source roots and the import graph, so what it reaches is unknown',
+    ],
+    [
+      'content/posts/hello.mdx',
+      'content/posts/hello.mdx lies outside the source roots and the import graph, so what it reaches is unknown',
+    ],
+    [
+      'content/posts/hello.md',
+      'content/posts/hello.md lies outside the source roots and the import graph, so what it reaches is unknown',
+    ],
   ])('sweeps everything when %s changes', (file: string, reason: string) => {
     expect(targetsOf(scopeOf('src/components/Card.tsx', file))).toEqual({
       complete: [reason],

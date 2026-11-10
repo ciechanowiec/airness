@@ -1,6 +1,7 @@
 // The source rules that hold in any JS/TS package, whatever framework it uses. A framework's own source
 // rules stay with its stack layer, so no rule here asks which framework the package is built on.
 
+import path from 'node:path'
 import type { TextRange } from 'typescript'
 import { literalRanges } from './source-comments.js'
 import { findAbsentSecretAcceptances, findFailOpenSecretGuards } from './source-security.js'
@@ -11,7 +12,11 @@ import type { SourceViolation } from './source-violation.js'
 // opens it. Requiring the whole statement to fit on one line missed a multi-line brace list, which is
 // how a long import is normally written, and requiring `from` missed both a side-effect import and the
 // dynamic `import('../x')` form. Comments are already blanked, so a `from` reached here is code.
-const RELATIVE_IMPORT: RegExp = /\b(?:from|import)\s*(?:\(\s*)?['"](\.\.\/[^'"]*)['"]/g
+//
+// Every relative specifier is read and then normalised, because the climb has more spellings than a leading
+// `../`: the parent itself, `'..'`, and a climb behind a current-directory step, `'./../x'` or `'./a/../../x'`.
+const RELATIVE_IMPORT: RegExp = /\b(?:from|import)\s*(?:\(\s*)?['"](\.[^'"]*)['"]/g
+const PARENT: string = '..'
 // Test helpers live outside the `@/` alias root. The exemption is anchored at a path boundary so
 // `../helpersOfMine` is not excused by `../helpers`.
 //
@@ -29,13 +34,20 @@ const RELATIVE_IMPORT_EXEMPT: RegExp = /^(?:\.\.\/)+helpers(?:\/|$)/
 const isInLiteral = (literals: readonly TextRange[], index: number): boolean =>
   literals.some((literal: TextRange): boolean => index >= literal.pos && index < literal.end)
 
+// The specifier as the climb it makes: `./../x` is `../x`, and `./x` climbs nowhere.
+const climbOf = (specifier: string): string | undefined => {
+  const normalised: string = path.posix.normalize(specifier)
+  return normalised === PARENT || normalised.startsWith(`${PARENT}/`) ? normalised : undefined
+}
+
 const findDeepRelativeImports = (source: string, file: string): readonly SourceViolation[] => {
   const literals: readonly TextRange[] = literalRanges(source, file)
   return [...stripComments(source).matchAll(RELATIVE_IMPORT)]
     .filter((match: RegExpExecArray): boolean => !isInLiteral(literals, match.index))
     .flatMap((match: RegExpExecArray): readonly SourceViolation[] => {
       const specifier: string = match[1] ?? ''
-      return RELATIVE_IMPORT_EXEMPT.test(specifier)
+      const climb: string | undefined = climbOf(specifier)
+      return climb === undefined || RELATIVE_IMPORT_EXEMPT.test(climb)
         ? []
         : [
             {

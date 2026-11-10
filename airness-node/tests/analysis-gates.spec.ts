@@ -314,6 +314,33 @@ describe('knip', PROCESS_TIME, () => {
       expect(findingsOf(knip(memberAt(root, withoutTests)))).toContain('esbuild')
     })
   })
+
+  it(
+    'fails an unused Vite peer declared for production, which no test engine loads',
+    () => {
+      const manifest: Readonly<Record<string, unknown>> = { ...MANIFEST, dependencies: { yaml: '2.9.1' } }
+      withProject({ 'package.json': JSON.stringify(manifest) }, (root: string): void => {
+        expect(findingsOf(knip(memberAt(root, manifest)))).toContain('yaml')
+      })
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'counts a stylesheet preprocessor declared in any block as used beside a stylesheet it compiles',
+    () => {
+      const manifest: Readonly<Record<string, unknown>> = { ...MANIFEST, dependencies: { sass: '1.99.0' } }
+      const styled: Readonly<Record<string, string>> = {
+        'package.json': JSON.stringify(manifest),
+        'src/theme.scss': '$gap: 1rem;\n',
+        'src/total.ts': `import './theme.scss'\n\n${CONFORMING['src/total.ts'] ?? ''}`,
+      }
+      withProject(styled, (root: string): void => {
+        expect(knip(memberAt(root, manifest)).ok).toBe(true)
+      })
+    },
+    TOOL_TIMEOUT_MS,
+  )
   it(
     'passes a project whose every file and export is used, and fails an unused file',
     () => {

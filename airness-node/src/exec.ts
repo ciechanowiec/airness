@@ -31,6 +31,8 @@ export interface RunOptions {
    * said which it was, because nothing ended.
    */
   readonly timeoutMs?: number
+  /** The most output the tool may write before it is reported as out of buffer; `MAX_OUTPUT_BYTES` when omitted. */
+  readonly maxOutputBytes?: number
 }
 
 /** The raw outcome of a child process. */
@@ -62,23 +64,29 @@ export const MAX_OUTPUT_BYTES: number = MAX_OUTPUT_MIB * KIB_PER_MIB * BYTES_PER
 // The third case is a tool killed for exceeding its deadline. It is not a tool that is missing, and
 // saying "not installed" about a registry that merely hung sends a team looking for the wrong thing.
 //
-// Matched on the message because node writes it - `spawnSync <cmd> ETIMEDOUT` - so no output a tool
-// produced can reach this decision, which is the same guarantee the `maxBuffer` line already relies on.
+// Matched on the error's code, which node sets - `ENOBUFS` for the buffer and `ETIMEDOUT` for the deadline -
+// so no output a tool produced can reach this decision. The buffer case was once matched on the message
+// containing `maxBuffer`, which `spawnSync` never writes: its message is `spawnSync <cmd> ENOBUFS`, so an
+// overflow was reported as a tool that could not start.
 const OUT_OF_BUFFER: string = 'ENOBUFS'
 const TIMED_OUT: string = 'ETIMEDOUT'
 
 /** The exit status reported for a tool killed for exceeding the deadline its caller set. */
 const TIMED_OUT_CODE: number = 124
 
-const startupFailure = (error: Error): RunResult => {
-  if (error.message.includes('maxBuffer')) {
+const errorCode = (error: Error): string | undefined =>
+  'code' in error && typeof error.code === 'string' ? error.code : undefined
+
+const startupFailure = (error: Error, maxOutputBytes: number = MAX_OUTPUT_BYTES): RunResult => {
+  const code: string | undefined = errorCode(error)
+  if (code === OUT_OF_BUFFER) {
     return {
       code: 1,
-      output: `${OUT_OF_BUFFER}: the tool produced more than ${String(MAX_OUTPUT_MIB)} MiB of output`,
+      output: `${OUT_OF_BUFFER}: the tool produced more than ${String(maxOutputBytes)} bytes of output`,
       stdout: '',
     }
   }
-  return error.message.includes(TIMED_OUT)
+  return code === TIMED_OUT
     ? {
         code: TIMED_OUT_CODE,
         output: `${TIMED_OUT}: ${error.message}`,
@@ -119,16 +127,17 @@ const withProjectBinaries = (
 }
 
 export const run = (command: string, commandArguments: readonly string[], options: RunOptions): RunResult => {
+  const maxOutputBytes: number = options.maxOutputBytes ?? MAX_OUTPUT_BYTES
   const result: SpawnSyncReturns<string> = spawnSync(command, [...commandArguments], {
     cwd: options.cwd,
     encoding: 'utf8',
-    maxBuffer: MAX_OUTPUT_BYTES,
+    maxBuffer: maxOutputBytes,
     env: withProjectBinaries(options.cwd, options.env),
     ...(options.input !== undefined && { input: options.input }),
     ...(options.timeoutMs !== undefined && { timeout: options.timeoutMs }),
   })
   if (result.error !== undefined) {
-    return startupFailure(result.error)
+    return startupFailure(result.error, maxOutputBytes)
   }
   return {
     code: result.status ?? 1,

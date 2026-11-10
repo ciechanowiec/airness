@@ -6,14 +6,11 @@ import playwright from 'eslint-plugin-playwright'
 import testingLibrary from 'eslint-plugin-testing-library'
 import {
   type FlatConfigBlock,
-  NO_INHERITANCE,
-  NO_NETWORK_GUARD_ESCAPE,
   testIdiomPlugins,
   testIdiomRules,
+  testSuiteSyntaxRules,
   withoutWarnings,
 } from './eslint-core.js'
-import { SECURITY_RESTRICTIONS } from './eslint-security.js'
-import { TIME_ZONE_RESTRICTIONS } from './eslint-time-zone.js'
 
 /** The end-to-end specs of a browser application, which Playwright runs rather than Vitest. */
 export const END_TO_END_FILES: readonly string[] = ['tests/e2e/**/*.ts', 'tests/e2e/**/*.tsx']
@@ -79,6 +76,10 @@ export const componentTestBlocks: readonly FlatConfigBlock[] = [
  * The browser-application facet: Playwright's own runner forbids a focused test, and every test must still
  * assert, which Playwright's rule decides by name: the helpers the harness ships, and a project's own helper
  * named `expect` and a capital, the convention those follow.
+ *
+ * Its specs are held to the whole shared spec table. This block once restated four of its tables by hand,
+ * and the one it left out was the ban on an assertion over a literal, so `expect(true).toBe(true)` passed
+ * in exactly the specs the Vitest block above ignores.
  */
 export const endToEndBlocks: readonly FlatConfigBlock[] = [
   {
@@ -86,12 +87,7 @@ export const endToEndBlocks: readonly FlatConfigBlock[] = [
     plugins: { playwright, ...testIdiomPlugins },
     rules: {
       ...testIdiomRules,
-      'no-restricted-syntax': [
-        ...NO_INHERITANCE,
-        ...SECURITY_RESTRICTIONS,
-        ...TIME_ZONE_RESTRICTIONS,
-        ...NO_NETWORK_GUARD_ESCAPE,
-      ],
+      ...testSuiteSyntaxRules,
       'sonarjs/assertions-in-tests': 'off',
       'playwright/no-focused-test': 'error',
       'playwright/no-skipped-test': 'error',

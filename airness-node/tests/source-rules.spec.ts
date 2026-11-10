@@ -66,6 +66,37 @@ describe('no-deep-relative-imports', () => {
   })
 })
 
+describe('every spelling of a parent-relative import', () => {
+  it.each([
+    "import { a } from '..'",
+    "import { a } from './../a'",
+    "import { a } from './/../a'",
+    "import { a } from './nested/../../a'",
+    "import '..'",
+    "export * from '..'",
+    "export { a } from './../a'",
+    "const m = await import('..')",
+    "const m = await import('./../a')",
+    'import { a } from "../a"',
+  ])('flags %s', (source: string) => {
+    expect(sourceRulesOf(source)).toEqual(['no-deep-relative-imports'])
+  })
+
+  it.each([
+    "import { a } from '.'",
+    "import { a } from './a'",
+    "import { a } from './nested/../a'",
+    "import { seed } from './../helpers/seed'",
+    "export { seed } from './../../helpers/seed'",
+  ])('accepts %s, which stays inside the directory or lands on a helper root', (source: string) => {
+    expect(sourceRulesOf(source)).toEqual([])
+  })
+
+  it('names the specifier as written', () => {
+    expect(findSourceViolations("import { a } from './../a'")[0]?.reason).toContain('"./../a"')
+  })
+})
+
 describe('the secret-guard rules join the import rule', () => {
   it('reports a fail-open credential guard as a source rule', () => {
     expect(sourceRulesOf('if (secret && supplied !== secret) return unauthorized()')).toEqual([
