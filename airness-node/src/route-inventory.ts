@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import type { DeclaredRoute } from './route-map.js'
 
 /** The variable naming the inventory file, which `airness:node-gate` sets for a detected web interface. */
-export const ROUTE_INVENTORY_VARIABLE: string = 'AIRNESS_ROUTE_INVENTORY'
+const ROUTE_INVENTORY_VARIABLE: string = 'AIRNESS_ROUTE_INVENTORY'
 
 const SEPARATOR: string = '\t'
 
@@ -45,7 +45,7 @@ const routeSegment = (segment: string, index: number): string => {
  * @param pattern the pattern, starting with a slash.
  * @returns the address with each variable or wildcard as a dynamic segment.
  */
-export const routeOfPattern = (pattern: string): string => {
+const routeOfPattern = (pattern: string): string => {
   const segments: readonly string[] = pattern
     .split(SEGMENT_SEPARATOR)
     .filter((segment: string): boolean => segment !== '')
@@ -72,7 +72,7 @@ const lineProblem = (line: string, number: number): string | undefined => {
  * @returns the declared routes, in the inventory's order.
  * @throws {Error} when a line is malformed.
  */
-export const routesOfInventory = (text: string): readonly DeclaredRoute[] => {
+const routesOfInventory = (text: string): readonly DeclaredRoute[] => {
   const lines: readonly string[] = text.split('\n').filter((line: string): boolean => line.trim() !== '')
   const problems: readonly string[] = lines.flatMap((line: string, index: number): readonly string[] => {
     const problem: string | undefined = lineProblem(line, index + 1)

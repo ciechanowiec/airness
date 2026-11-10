@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  HEARTBEAT_MS,
   heartbeatSlot,
   isProgressLine,
   type PassProgress,
@@ -9,6 +8,9 @@ import {
   passProgressLine,
   passStartLine,
 } from '@/sweep-progress'
+
+// The interval at which a working part of the sweep says how far it has got.
+const HEARTBEAT_INTERVAL_MS: number = 60_000
 
 const WIDTHS: PassProgress = {
   engine: 'chromium',
@@ -72,9 +74,9 @@ describe('the progress of a sweep pass', () => {
 
   it('shares one heartbeat slot per interval among the parts, whatever moment each reaches it at', () => {
     expect([
-      heartbeatSlot(HEARTBEAT_MS * 5),
-      heartbeatSlot(HEARTBEAT_MS * 6 - 1),
-      heartbeatSlot(HEARTBEAT_MS * 6),
+      heartbeatSlot(HEARTBEAT_INTERVAL_MS * 5),
+      heartbeatSlot(HEARTBEAT_INTERVAL_MS * 6 - 1),
+      heartbeatSlot(HEARTBEAT_INTERVAL_MS * 6),
     ]).toEqual([5, 5, 6])
   })
 })

@@ -62,7 +62,7 @@ export const isBrowserApp = (member: Member): boolean => isBrowserAppAt(member.p
  * @param nestedMembers the members nested inside it, relative to it.
  * @returns the script sources, in the order given.
  */
-export const scriptSourcesOf = (
+const scriptSourcesOf = (
   files: readonly string[],
   settings: Settings,
   nestedMembers: readonly string[],

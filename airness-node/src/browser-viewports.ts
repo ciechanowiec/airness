@@ -34,10 +34,10 @@ export const drivenViewports = (isStory: boolean): readonly Viewport[] =>
   isStory ? STRESS_VIEWPORTS.slice(-1) : STRESS_VIEWPORTS
 
 /** The narrowest width the sweep measures: the WCAG 1.4.10 reflow bound. */
-export const SWEEP_MIN_WIDTH: number = 320
+const SWEEP_MIN_WIDTH: number = 320
 
 /** The widest width the sweep measures. */
-export const SWEEP_MAX_WIDTH: number = 1920
+const SWEEP_MAX_WIDTH: number = 1920
 
 /**
  * The step of the width sweep, in CSS pixels. A failing step is bisected to the exact pixel, so the step only

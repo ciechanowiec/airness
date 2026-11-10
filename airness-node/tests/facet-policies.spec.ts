@@ -5,25 +5,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Ajv, type ValidateFunction } from 'ajv'
 import { describe, expect, it } from 'vitest'
-import {
-  APPLICATION_LAYER_RULE,
-  cloudFrontRules,
-  layerRules,
-  misplacedRouteDirectoryFindings,
-  productionImportsNoDevelopmentDependencyRule,
-  productionImportsNoTestCodeRule,
-  pureLogicRule,
-} from '@/architecture-layers.js'
+import { type ArchitectureRule, layerRules, misplacedRouteDirectoryFindings } from '@/architecture-layers.js'
 import { BUILD_DIRECTORY_MARKER, evaluateBundle, parseBuildDirectory } from '@/bundle-budget.js'
-import { scriptSourcesOf } from '@/facets.js'
-import { nextBiomeConfig } from '@/gate-biome.js'
+import { hasScriptSources } from '@/facets.js'
 import { notApplicable, passed, resultOf } from '@/gate-result.js'
 import { asRecord } from '@/json-shapes.js'
 import type { Lockfile } from '@/lockfile.js'
 import type { ResolvedSet } from '@/resolved-set.js'
-import { npmPackageUrl, type SbomSubject, sbomOf } from '@/sbom.js'
-import { readSettings } from '@/settings.js'
+import { type SbomSubject, sbomOf } from '@/sbom.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
+import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 describe('evaluateBundle', PROCESS_TIME, () => {
   it('sums the gzipped sizes against the budget', () => {
@@ -57,23 +48,39 @@ describe('parseBuildDirectory', PROCESS_TIME, () => {
   })
 })
 
+const TEST_CODE_RULE: string = 'production-imports-no-test-code'
+const DEVELOPMENT_DEPENDENCY_RULE: string = 'not-to-dev-dep'
+
+const namesOf = (rules: readonly ArchitectureRule[]): readonly unknown[] =>
+  rules.map((rule: ArchitectureRule): unknown => rule['name'])
+
+// The rule of one name a member with these source roots is held to, if any.
+const ruleNamed = (name: string, sourceRoots: readonly string[]): ArchitectureRule | undefined =>
+  layerRules(false, [], sourceRoots).find((rule: ArchitectureRule): boolean => rule['name'] === name)
+
 // Whether a member declared whole as a root exempts a file from the development-only dependency rule.
 const isExemptFromDevelopmentDependencyRule = (file: string): boolean =>
-  new RegExp(String(asRecord(productionImportsNoDevelopmentDependencyRule(['.'])?.['from'])['pathNot'])).test(file)
+  new RegExp(String(asRecord(ruleNamed(DEVELOPMENT_DEPENDENCY_RULE, ['.'])?.['from'])['pathNot'])).test(file)
 
 describe('architecture layers', PROCESS_TIME, () => {
   it('adds the application layer only to a Next.js application', () => {
-    expect(layerRules(true, [], ['src'])).toEqual([
-      APPLICATION_LAYER_RULE,
-      productionImportsNoTestCodeRule(['src']),
-      productionImportsNoDevelopmentDependencyRule(['src']),
-    ])
+    const nextApp: readonly ArchitectureRule[] = layerRules(true, [], ['src'])
+    expect(namesOf(nextApp)).toEqual(['nothing-imports-app', TEST_CODE_RULE, DEVELOPMENT_DEPENDENCY_RULE])
+    expect(nextApp[0]).toMatchObject({ severity: 'error', from: { path: '^src/', pathNot: '^src/app/' } })
+    expect(nextApp[0]).toMatchObject({ to: { path: '^src/app/' } })
+    expect(nextApp.slice(1)).toEqual(layerRules(false, [], ['src']))
     expect(layerRules(false, [], ['tests', 'scripts'])).toEqual([])
-    expect(cloudFrontRules([])).toEqual([])
-    expect(cloudFrontRules(['edge/function.cjs'])).toMatchObject([
+  })
+
+  it('splits the unresolvable-import rule only for a member that declares a CloudFront file', () => {
+    expect(layerRules(false, [], ['tests'], [])).toEqual([])
+    expect(layerRules(false, [], ['tests'], ['edge/function.cjs'])).toMatchObject([
       { name: 'not-to-unresolvable', from: { pathNot: String.raw`^(edge/function\.cjs)$` } },
-      { from: { path: String.raw`^(edge/function\.cjs)$` }, to: { couldNotResolve: true, pathNot: '^cloudfront$' } },
+      { name: 'not-to-unresolvable-cloudfront', from: { path: String.raw`^(edge/function\.cjs)$` } },
     ])
+    expect(layerRules(false, [], ['tests'], ['edge/function.cjs'])[1]).toMatchObject({
+      to: { couldNotResolve: true, pathNot: '^cloudfront$' },
+    })
     expect(layerRules(false, [], ['src'], ['edge/function.cjs'])).toHaveLength(4)
   })
 
@@ -89,39 +96,37 @@ describe('architecture layers', PROCESS_TIME, () => {
   })
 
   it('escapes a declared floor into the pure-logic rule', () => {
-    expect(pureLogicRule(['src/(core)', 'src/lib'], ['src', 'tests'])).toMatchObject({
+    expect(layerRules(false, ['src/(core)', 'src/lib'], ['src', 'tests'])[0]).toMatchObject({
       name: 'pure-logic-stays-pure',
       from: { path: String.raw`^(src/\(core\)/|src/lib/)` },
       to: { path: '^(src/|tests/)', pathNot: String.raw`^(src/\(core\)/|src/lib/)` },
     })
-    expect(pureLogicRule([])).toBeUndefined()
+    expect(namesOf(layerRules(false, [], ['src', 'tests']))).not.toContain('pure-logic-stays-pure')
   })
 
   it('keeps every production root, the whole member included, from importing test code', () => {
-    expect(productionImportsNoTestCodeRule(['src', 'tests', 'scripts', 'lib'])).toMatchObject({
-      name: 'production-imports-no-test-code',
+    expect(ruleNamed(TEST_CODE_RULE, ['src', 'tests', 'scripts', 'lib'])).toMatchObject({
       from: { path: '^(src/|lib/)' },
       to: { path: '^tests/' },
     })
-    expect(productionImportsNoTestCodeRule(['src', '.'])).toMatchObject({ from: { path: '^(src/|)' } })
-    expect(productionImportsNoTestCodeRule(['tests'])).toBeUndefined()
+    expect(ruleNamed(TEST_CODE_RULE, ['src', '.'])).toMatchObject({ from: { path: '^(src/|)' } })
+    expect(ruleNamed(TEST_CODE_RULE, ['tests'])).toBeUndefined()
   })
 
   // The rule replaces the shipped one of the same name, which reads `src` alone.
   it('keeps every production root, the whole member included, from importing a development-only dependency', () => {
-    expect(productionImportsNoDevelopmentDependencyRule(['src', 'tests', 'scripts', 'lib'])).toMatchObject({
-      name: 'not-to-dev-dep',
+    expect(ruleNamed(DEVELOPMENT_DEPENDENCY_RULE, ['src', 'tests', 'scripts', 'lib'])).toMatchObject({
       from: { path: '^(src/|lib/)' },
       to: { dependencyTypes: ['npm-dev'], dependencyTypesNot: ['type-only'] },
     })
-    expect(productionImportsNoDevelopmentDependencyRule(['tests'])).toBeUndefined()
+    expect(ruleNamed(DEVELOPMENT_DEPENDENCY_RULE, ['tests'])).toBeUndefined()
   })
 
   it('leaves the Storybook configuration, a root of its own or under the whole member, to import the workbench', () => {
-    expect(productionImportsNoDevelopmentDependencyRule(['src', '.storybook'])).toMatchObject({
+    expect(ruleNamed(DEVELOPMENT_DEPENDENCY_RULE, ['src', '.storybook'])).toMatchObject({
       from: { path: '^(src/)' },
     })
-    expect(productionImportsNoTestCodeRule(['.storybook'])).toBeUndefined()
+    expect(ruleNamed(TEST_CODE_RULE, ['.storybook'])).toBeUndefined()
     expect(isExemptFromDevelopmentDependencyRule('.storybook/preview.tsx')).toBe(true)
     expect(isExemptFromDevelopmentDependencyRule('src/storybook/preview.tsx')).toBe(false)
   })
@@ -139,14 +144,6 @@ describe('architecture layers', PROCESS_TIME, () => {
       expect(isExemptFromDevelopmentDependencyRule(file)).toBe(false)
     },
   )
-})
-
-describe('nextBiomeConfig', PROCESS_TIME, () => {
-  it('adds the React and Next.js domains and keeps the shipped ones', () => {
-    expect(nextBiomeConfig('{"linter":{"domains":{"project":"all"}}}')).toEqual({
-      linter: { domains: { project: 'all', next: 'all', react: 'all' } },
-    })
-  })
 })
 
 describe('resultOf', PROCESS_TIME, () => {
@@ -188,8 +185,12 @@ describe('sbomOf', PROCESS_TIME, () => {
   const subject: SbomSubject = { name: 'web', version: '1.0.0', harnessVersion: '2.0.0' }
 
   it('writes a scoped package URL with its encoded namespace', () => {
-    expect(npmPackageUrl('@scope/tool', '1.0.0')).toBe('pkg:npm/%40scope/tool@1.0.0')
-    expect(npmPackageUrl('left-pad', '1.3.0')).toBe('pkg:npm/left-pad@1.3.0')
+    const components: readonly unknown[] = [sbomOf(SET, subject)['components']].flat()
+    expect(components.map((component: unknown): unknown => asRecord(component)['purl'])).toEqual([
+      'pkg:npm/%40scope/tool@1.0.0',
+      'pkg:npm/fsevents@2.3.3',
+      'pkg:npm/left-pad@1.3.0',
+    ])
   })
 
   it('describes every resolved package, its license and the dependency graph', () => {
@@ -262,32 +263,42 @@ describe('sbomOf against the CycloneDX 1.6 schema', PROCESS_TIME, () => {
   })
 })
 
-describe('scriptSourcesOf', PROCESS_TIME, () => {
+// Whether a member holding exactly these files, with this manifest and these nested members, keeps a script source.
+const hasScripts = (
+  files: readonly string[],
+  manifest: Readonly<Record<string, unknown>> = {},
+  nestedMembers: readonly string[] = [],
+): boolean => {
+  const root: string = temporaryProject(Object.fromEntries(files.map((file: string): [string, string] => [file, ''])))
+  try {
+    return hasScriptSources({ ...memberAt(root, manifest), siblingPaths: nestedMembers })
+  } finally {
+    removeProject(root)
+  }
+}
+
+const GENERATED: Readonly<Record<string, unknown>> = {
+  airness: { generatedArtefacts: [{ pattern: 'src/generated/**', reason: 'a client generator writes it' }] },
+}
+
+describe('hasScriptSources', PROCESS_TIME, () => {
   it('counts no script in a stylesheet-only member that carries the pinned configurations', () => {
     expect(
-      scriptSourcesOf(
-        ['eslint.config.mjs', 'vitest.config.mts', 'package.json', 'src/main/resources/static/css/site.css'],
-        readSettings({}),
-        [],
-      ),
-    ).toEqual([])
+      hasScripts(['eslint.config.mjs', 'vitest.config.mts', 'package.json', 'src/main/resources/static/css/site.css']),
+    ).toBe(false)
   })
 
-  it('counts every other script, whatever its directory, but not a generated or a nested member one', () => {
-    expect(
-      scriptSourcesOf(
-        [
-          'tests/e2e/home.e2e.spec.ts',
-          'public/menu.js',
-          'src/generated/api.ts',
-          'ui/src/main.ts',
-          'nested/eslint.config.mjs',
-        ],
-        readSettings({
-          airness: { generatedArtefacts: [{ pattern: 'src/generated/**', reason: 'a client generator writes it' }] },
-        }),
-        ['ui'],
-      ),
-    ).toEqual(['tests/e2e/home.e2e.spec.ts', 'public/menu.js', 'nested/eslint.config.mjs'])
-  })
+  it.each(['tests/e2e/home.e2e.spec.ts', 'public/menu.js', 'nested/eslint.config.mjs'])(
+    'counts the script %s, whatever its directory',
+    (file: string) => {
+      expect(hasScripts([file], GENERATED, ['ui'])).toBe(true)
+    },
+  )
+
+  it.each(['src/generated/api.ts', 'ui/src/main.ts'])(
+    'counts no generated or nested member script: %s',
+    (file: string) => {
+      expect(hasScripts([file], GENERATED, ['ui'])).toBe(false)
+    },
+  )
 })

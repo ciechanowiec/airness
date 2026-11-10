@@ -4,12 +4,6 @@ import {
   accessReportOf,
   type DatalessFields,
   datalessFieldsIn,
-  describeGrant,
-  type Granted,
-  grantedPermissions,
-  isPermitted,
-  JUDGED_OPERATIONS,
-  type ReportedPermission,
   staleDeclarations,
   undeclaredGrants,
 } from '@/access-boundary.js'
@@ -26,6 +20,9 @@ const declaringFields = (entity: string, operation: string, fields: readonly str
   { entity, operation, reason: 'the public site reads it', fields },
 ]
 
+// One operation's verdict, in the shape a report carries it.
+type ReportedPermission = NonNullable<AccessReport['collections']>[string][string]
+
 // The two shapes Payload's own sanitisation produces, named for what distinguishes them. An
 // unconstrained grant is collapsed to a bare `true`; the object survives only when a `where` clause
 // does. A denial is deleted from the response rather than sent as false, which is why absence is the
@@ -36,29 +33,34 @@ const CONSTRAINED: ReportedPermission = {
   where: { _status: { equals: 'published' } },
 }
 
-describe('isPermitted', () => {
+// Every grant a report makes, named as a finding names it: with nothing declared, every one is undeclared.
+const grantsOf = (report: AccessReport): readonly string[] => undeclaredGrants(report, NOTHING_DECLARED)
+
+const readGrantsOf = (read: ReportedPermission): readonly string[] => grantsOf({ collections: { pages: { read } } })
+
+describe('undeclaredGrants over the verdict of one operation', () => {
   it('readsTheBareBooleanAnUnconstrainedGrantCollapsesTo', () => {
-    expect(isPermitted(OPEN)).toBe(true)
+    expect(readGrantsOf(OPEN)).toEqual(['pages.read'])
   })
 
   it('readsThePermissionObjectAConstrainedGrantKeeps', () => {
-    expect(isPermitted(CONSTRAINED)).toBe(true)
+    expect(readGrantsOf(CONSTRAINED)).toEqual(['pages.read'])
   })
 
   it('treatsAnAbsentOperationAsDenied', () => {
-    expect(isPermitted(undefined)).toBe(false)
+    expect(readGrantsOf(undefined)).toEqual([])
   })
 
   it('treatsAFalseBooleanAsDenied', () => {
-    expect(isPermitted(false)).toBe(false)
+    expect(readGrantsOf(false)).toEqual([])
   })
 
   it('treatsAPermissionObjectSayingFalseAsDenied', () => {
-    expect(isPermitted({ permission: false })).toBe(false)
+    expect(readGrantsOf({ permission: false })).toEqual([])
   })
 })
 
-describe('grantedPermissions', () => {
+describe('undeclaredGrants over every grant a report makes', () => {
   // The regression this module exists for: `read: anyone` reaches the sweep as a bare `true`, and a
   // reader that only understood the object shape reported the collection constrained to published
   // documents while staying silent on the one open to every stranger.
@@ -69,17 +71,12 @@ describe('grantedPermissions', () => {
         pages: { read: CONSTRAINED },
       },
     }
-    expect(grantedPermissions(report).map((granted: Granted): string => describeGrant(granted))).toEqual([
-      'media.read',
-      'pages.read',
-    ])
+    expect(grantsOf(report)).toEqual(['media.read', 'pages.read'])
   })
 
   it('readsGlobalsAsWellAsCollections', () => {
     const report: AccessReport = { globals: { configuration: { read: OPEN } } }
-    expect(grantedPermissions(report).map((granted: Granted): string => describeGrant(granted))).toEqual([
-      'configuration.read',
-    ])
+    expect(grantsOf(report)).toEqual(['configuration.read'])
   })
 
   it('reportsEveryOperationItJudgesAndNotOnlyRead', () => {
@@ -95,7 +92,14 @@ describe('grantedPermissions', () => {
         },
       },
     }
-    expect(grantedPermissions(report)).toHaveLength(JUDGED_OPERATIONS.length)
+    expect(grantsOf(report)).toEqual([
+      'pages.create',
+      'pages.read',
+      'pages.update',
+      'pages.delete',
+      'pages.readVersions',
+      'pages.unlock',
+    ])
   })
 
   // A version is the whole document, so a read narrowed by a filter is undone by asking for a version
@@ -103,7 +107,7 @@ describe('grantedPermissions', () => {
   // beside the four, and it was passing unlooked-at.
   it('reportsAnAnonymousVersionRead', () => {
     const report: AccessReport = { collections: { pages: { readVersions: OPEN } } }
-    expect(grantedPermissions(report)).toEqual([{ entity: 'pages', operation: 'readVersions' }])
+    expect(grantsOf(report)).toEqual(['pages.readVersions'])
   })
 
   // Payload reports field-level entries beside the operations this sweep judges, and collapses a
@@ -113,11 +117,11 @@ describe('grantedPermissions', () => {
     const report: AccessReport = {
       collections: { pages: { fields: OPEN, count: OPEN } },
     }
-    expect(grantedPermissions(report)).toEqual([])
+    expect(grantsOf(report)).toEqual([])
   })
 
   it('reportsNothingForAReportWithNeitherHalf', () => {
-    expect(grantedPermissions({})).toEqual([])
+    expect(grantsOf({})).toEqual([])
   })
 
   // The joint between the two halves of the harness: an operation `payload-defaults` makes a config
@@ -125,25 +129,27 @@ describe('grantedPermissions', () => {
   // stranger about. Asserting the joint rather than the literal is what keeps the lists from drifting
   // apart the next time one of them grows.
   it('judgesEveryOperationAConfigIsMadeToDecide', () => {
-    const owed: ReadonlySet<string> = new Set([
-      ...accessOperationsFor({ kind: 'collection', hasAuth: true, hasVersions: true }),
-      ...accessOperationsFor({ kind: 'global', hasAuth: false, hasVersions: true }),
-    ])
-    for (const operation of owed) {
-      expect(JUDGED_OPERATIONS).toContain(operation)
+    const owed: readonly string[] = [
+      ...new Set([
+        ...accessOperationsFor({ kind: 'collection', hasAuth: true, hasVersions: true }),
+        ...accessOperationsFor({ kind: 'global', hasAuth: false, hasVersions: true }),
+      ]),
+    ]
+    const report: AccessReport = {
+      collections: { pages: Object.fromEntries(owed.map((operation: string): [string, boolean] => [operation, true])) },
     }
+    expect(grantsOf(report)).toEqual(
+      expect.arrayContaining(owed.map((operation: string): string => `pages.${operation}`)),
+    )
   })
 })
 
-describe('grantedPermissions over the field map', () => {
+describe('undeclaredGrants over the fields an operation reaches', () => {
   it('namesAFieldGrantByTheEntityTheOperationAndTheField', () => {
     const report: AccessReport = {
       collections: { leaderboard: { read: OPEN, fields: { displayName: { read: OPEN } } } },
     }
-    expect(grantedPermissions(report).map((granted: Granted): string => describeGrant(granted))).toEqual([
-      'leaderboard.read',
-      'leaderboard.read.displayName',
-    ])
+    expect(grantsOf(report)).toEqual(['leaderboard.read', 'leaderboard.read.displayName'])
   })
 
   // The rule that keeps this free of findings nobody can answer. Payload reports a field's own verdict
@@ -153,10 +159,7 @@ describe('grantedPermissions over the field map', () => {
     const report: AccessReport = {
       collections: { users: { create: OPEN, fields: { email: { create: OPEN, read: OPEN } } } },
     }
-    expect(grantedPermissions(report).map((granted: Granted): string => describeGrant(granted))).toEqual([
-      'users.create',
-      'users.create.email',
-    ])
+    expect(grantsOf(report)).toEqual(['users.create', 'users.create.email'])
   })
 
   // An array field carries a field map of its own, and two arrays on one collection routinely share a
@@ -170,31 +173,21 @@ describe('grantedPermissions over the field map', () => {
         },
       },
     }
-    expect(grantedPermissions(report).map((granted: Granted): string => describeGrant(granted))).toEqual([
-      'games.create',
-      'games.create.playerShots',
-      'games.create.playerShots.row',
-    ])
+    expect(grantsOf(report)).toEqual(['games.create', 'games.create.playerShots', 'games.create.playerShots.row'])
   })
 
   // Payload collapses a fully permitted field map to a bare `true`, which says every field without
   // naming one. Reporting nothing there would make the most open case the least judged.
   it('namesACollapsedFieldMapAsEveryField', () => {
     const report: AccessReport = { collections: { pages: { read: OPEN, fields: true } } }
-    expect(grantedPermissions(report).map((granted: Granted): string => describeGrant(granted))).toEqual([
-      'pages.read',
-      'pages.read.*',
-    ])
+    expect(grantsOf(report)).toEqual(['pages.read', 'pages.read.*'])
   })
 
   it('readsAConstrainedFieldGrantAsPermittedJustAsAnEntityOne', () => {
     const report: AccessReport = {
       collections: { pages: { read: OPEN, fields: { body: { read: CONSTRAINED } } } },
     }
-    expect(grantedPermissions(report).map((granted: Granted): string => describeGrant(granted))).toEqual([
-      'pages.read',
-      'pages.read.body',
-    ])
+    expect(grantsOf(report)).toEqual(['pages.read', 'pages.read.body'])
   })
 })
 

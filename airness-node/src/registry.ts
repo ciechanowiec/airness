@@ -53,7 +53,7 @@ const REDIRECT_STATUSES: ReadonlySet<number> = new Set([
  * @param to where it redirects.
  * @returns true when the redirect may be followed.
  */
-export const isPermittedRedirect = (from: URL, to: URL): boolean =>
+const isPermittedRedirect = (from: URL, to: URL): boolean =>
   to.protocol === 'https:' || (to.protocol === 'http:' && from.protocol === 'http:')
 
 // Where a redirect leads, or why it is not followed: at most a few hops, and never from HTTPS to plain HTTP.

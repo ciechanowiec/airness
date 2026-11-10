@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  isEslintOwnedSuppression,
-  isOxlintSuppression,
-  oxlintSuppressionProblems,
-  type SourceComment,
-} from '@/oxlint-suppressions.js'
+import { isEslintOwnedSuppression, oxlintSuppressionProblems, type SourceComment } from '@/oxlint-suppressions.js'
 
 const NATIVE: string = 'oxlint-disable'
 const LEGACY: string = 'eslint-disable'
@@ -13,7 +8,6 @@ const comment = (text: string): SourceComment => ({ line: 7, text })
 describe('native accessibility suppression policy', () => {
   it.each(['line', 'next-line'])('accepts a named, explained %s directive', (scope) => {
     const source: SourceComment = comment(`// ${NATIVE}-${scope} jsx-a11y/alt-text -- supplied by the adapter`)
-    expect(isOxlintSuppression(source)).toBe(true)
     expect(isEslintOwnedSuppression(source)).toBe(false)
     expect(oxlintSuppressionProblems([source])).toEqual([])
   })
@@ -58,7 +52,6 @@ describe('native accessibility suppression policy', () => {
 
   it.each(['disable-next-line', 'enable'])('leaves foreign %s directives with their analyzer', (form) => {
     const source: SourceComment = comment(`// eslint-${form} functional/no-let -- parser cursor`)
-    expect(isOxlintSuppression(source)).toBe(false)
     expect(isEslintOwnedSuppression(source)).toBe(true)
     expect(oxlintSuppressionProblems([source])).toEqual([])
   })
@@ -67,9 +60,8 @@ describe('native accessibility suppression policy', () => {
     expect(oxlintSuppressionProblems([comment('// The native checker owns this rule.')])).toEqual([])
   })
 
-  it('refuses a closing directive without counting a second suppression', () => {
+  it('refuses a closing directive', () => {
     const source: SourceComment = comment('// oxlint-enable jsx-a11y/alt-text -- end')
-    expect(isOxlintSuppression(source)).toBe(false)
     expect(oxlintSuppressionProblems([source])).not.toEqual([])
   })
 })

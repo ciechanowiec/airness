@@ -22,10 +22,6 @@ const commentBody = (text: string): string =>
     .replace(/\*\/$/u, '')
     .trim()
 
-/** Whether a native directive opens a suppression and therefore counts against the suppression ceiling. */
-export const isOxlintSuppression = (comment: SourceComment): boolean =>
-  commentBody(comment.text).startsWith(`${NATIVE}-${DISABLE}`)
-
 const directiveProblems = (body: string, applicable: readonly string[]): readonly string[] => {
   const [declaration = '', explanation = '']: readonly string[] = body.split(' -- ', CLAUSE_COUNT)
   const [form = '', ...names]: readonly string[] = declaration.split(/\s+/u)

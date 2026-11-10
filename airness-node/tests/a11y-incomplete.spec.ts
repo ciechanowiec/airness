@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFINITE_INCOMPLETE_KEYS, findDefiniteIncomplete } from '@/a11y-incomplete.js'
+import { findDefiniteIncomplete } from '@/a11y-incomplete.js'
 
 // Captured from a real page, not invented: a skip link drawn in its own background colour, scanned
 // with withRules(['color-contrast']). axe filed it under `incomplete` with zero violations, which is
@@ -97,6 +97,12 @@ describe('findDefiniteIncomplete', () => {
   })
 })
 
+// A color-contrast result whose one node axe could not decide for the reason `messageKey` names.
+const resultWithKey = (messageKey: string): unknown => ({
+  id: 'color-contrast',
+  nodes: [{ target: [messageKey], any: [{ message: 'm', data: { messageKey } }] }],
+})
+
 // The shapes axe can hand back that are not findings: an empty run, a result with no nodes, a check
 // with no data. Each returned an empty list already; they are asserted so a future reader of the walk
 // can change it without having to rediscover which absences are legal.
@@ -125,6 +131,24 @@ describe('findDefiniteIncomplete on incomplete input', () => {
   })
 
   it('enforces equalRatio and nothing wider', () => {
-    expect([...DEFINITE_INCOMPLETE_KEYS]).toEqual(['equalRatio'])
+    // The other reasons axe's color-contrast check files a node as incomplete. Each is a question a
+    // project may answer, so none of them may become a finding.
+    const undecidedKeys: readonly string[] = [
+      'bgImage',
+      'bgGradient',
+      'imgNode',
+      'bgOverlap',
+      'fgAlpha',
+      'elmPartiallyObscured',
+      'elmPartiallyObscuring',
+      'outsideViewport',
+      'nonBmp',
+      'pseudoContent',
+      'shortTextContent',
+      'nonTextContent',
+    ]
+    expect(
+      findDefiniteIncomplete(['equalRatio', ...undecidedKeys].map((key: string): unknown => resultWithKey(key))),
+    ).toEqual(['color-contrast on equalRatio: m'])
   })
 })

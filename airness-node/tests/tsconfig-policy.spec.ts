@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { REQUIRED_TSCONFIG_EXTENDS, tsconfigPathsFor, tsconfigProblems } from '@/tsconfig-policy.js'
+import { tsconfigProblems } from '@/tsconfig-policy.js'
+
+const EXTENDS: string = '@airness/node/tsconfig.json'
+const LIBRARY_INCLUDE: readonly string[] = ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts']
+const LIBRARY_EXCLUDE: readonly string[] = ['node_modules', 'dist', 'target']
 
 const conforming = (extra: Readonly<Record<string, unknown>> = {}): string =>
-  JSON.stringify({ extends: REQUIRED_TSCONFIG_EXTENDS, ...tsconfigPathsFor(false, []), ...extra })
+  JSON.stringify({ extends: EXTENDS, include: LIBRARY_INCLUDE, exclude: LIBRARY_EXCLUDE, ...extra })
 
 describe('the project tsconfig.json', () => {
   it('passes a file that extends the shipped one and sets only project options', () => {
@@ -12,7 +16,9 @@ describe('the project tsconfig.json', () => {
   })
 
   it('fails a missing or unreadable file', () => {
-    expect(tsconfigProblems(undefined, false, [])[0]).toContain('tsconfig.json is missing')
+    expect(tsconfigProblems(undefined, false, [])).toEqual([
+      `tsconfig.json is missing; write one that extends ${EXTENDS}`,
+    ])
     expect(tsconfigProblems('{', false, [])[0]).toContain('is not valid JSON')
   })
 
@@ -24,7 +30,7 @@ describe('the project tsconfig.json', () => {
         [],
       ),
     ).toEqual([
-      `tsconfig.json must declare "extends": "${REQUIRED_TSCONFIG_EXTENDS}"`,
+      `tsconfig.json must declare "extends": "${EXTENDS}"`,
       'tsconfig.json compilerOptions.strict: the harness owns this compiler option; remove the override',
       'tsconfig.json include: must be exactly ["**/*.ts","**/*.tsx","**/*.mts","**/*.cts"]',
       'tsconfig.json exclude: must be exactly ["node_modules","dist","target"]',
@@ -32,22 +38,24 @@ describe('the project tsconfig.json', () => {
   })
 
   it('requires every nested member to be excluded, so a root never compiles a member under its own paths', () => {
-    expect(tsconfigPathsFor(false, ['apps/web'])['exclude']).toEqual(['node_modules', 'dist', 'target', 'apps/web'])
     expect(tsconfigProblems(conforming(), false, ['apps/web'])).toEqual([
       'tsconfig.json exclude: must be exactly ["node_modules","dist","target","apps/web"]',
     ])
+    expect(tsconfigProblems(conforming({ exclude: [...LIBRARY_EXCLUDE, 'apps/web'] }), false, ['apps/web'])).toEqual([])
   })
 
   it('requires the Next type files of an application', () => {
-    expect(tsconfigPathsFor(true, [])['include']).toContain('next-env.d.ts')
+    expect(tsconfigProblems(conforming(), true, [])).toEqual([
+      'tsconfig.json include: must be exactly ' +
+        '["next-env.d.ts","**/*.ts","**/*.tsx","**/*.mts","**/*.cts",".next/types/**/*.ts",".next/dev/types/**/*.ts"]',
+      'tsconfig.json exclude: must be exactly ["node_modules","target"]',
+    ])
   })
 
   it('brings a Storybook configuration directory into the project, which a recursive include passes over', () => {
-    expect(tsconfigPathsFor(true, [], true)['include']?.slice(-2)).toEqual([
-      '.storybook/**/*.ts',
-      '.storybook/**/*.tsx',
-    ])
-    expect(tsconfigPathsFor(false, [])['include']).not.toContain('.storybook/**/*.ts')
+    expect(tsconfigProblems(conforming(), true, [], true)[0]).toMatch(
+      /^tsconfig\.json include: must be exactly \["next-env\.d\.ts",.*,"\.storybook\/\*\*\/\*\.ts","\.storybook\/\*\*\/\*\.tsx"\]$/u,
+    )
     expect(tsconfigProblems(conforming(), false, [], true)).toEqual([
       'tsconfig.json include: must be exactly ["**/*.ts","**/*.tsx","**/*.mts","**/*.cts",".storybook/**/*.ts",".storybook/**/*.tsx"]',
     ])

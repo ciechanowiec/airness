@@ -4,15 +4,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { RunResult } from '@/exec.js'
 import { startGuard } from '@/services.js'
-import {
-  GUARD_INTERVAL_MS,
-  GUARD_SETTLE_MS,
-  type GuardMachine,
-  guardArguments,
-  guardRun,
-  isRunning,
-  removeByPrefix,
-} from '@/services-guard.js'
+import { type GuardMachine, guardArguments, guardRun, isRunning, removeByPrefix } from '@/services-guard.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 const answered = (stdout: string = '', code: number = 0): RunResult => ({ code, output: stdout, stdout })
@@ -111,11 +103,15 @@ describe('a running process', () => {
   })
 })
 
+// How often a guard asks after the wrapper, and how long it waits before its second sweep.
+const POLL_MS: number = 500
+const SETTLE_MS: number = 2000
+
 describe('a guard', () => {
   it('waits while the wrapper runs, then sweeps twice, the second time after a pause', async () => {
     const { machine, docker, pauses }: Machine = machineOf(3, RUN_LISTING)
     expect(await guardRun(machine, 'teron-0a1b')).toEqual([])
-    expect(pauses).toEqual([GUARD_INTERVAL_MS, GUARD_INTERVAL_MS, GUARD_INTERVAL_MS, GUARD_SETTLE_MS])
+    expect(pauses).toEqual([POLL_MS, POLL_MS, POLL_MS, SETTLE_MS])
     expect(docker.filter((call: readonly string[]): boolean => call[0] === 'rm')).toHaveLength(2)
   })
 

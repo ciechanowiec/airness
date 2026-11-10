@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  analysisBoundaries,
-  eslintArguments,
-  hasOwnRuntime,
-  ignoredPatterns,
-  nestedWithin,
-  readWorkspacePackages,
-} from '@/workspace.js'
+import { analysisBoundaries, eslintArguments, hasOwnRuntime, nestedWithin, readWorkspacePackages } from '@/workspace.js'
 
 describe('workspace members', () => {
   it('reads the packages a workspace file selects', () => {
@@ -31,6 +24,8 @@ describe('workspace members', () => {
   })
 })
 
+const CONFIG: string = '/harness/dist/eslint.js'
+
 describe('the ESLint invocation', () => {
   it('names the harness configuration, fails on a warning, and stops at every nested member', () => {
     const argumentsOf: readonly string[] = eslintArguments('/harness/dist/eslint.js', ['apps/web'])
@@ -45,12 +40,17 @@ describe('the ESLint invocation', () => {
   })
 
   it('reads an ignored directory with everything under it and an ignored file alone, each path literally', () => {
-    expect(ignoredPatterns(['.site-build/', 'notes.local.ts', 'app/[slug]/out (copy)/', 'a*b?.ts'])).toEqual([
+    const ignored: readonly string[] = ['.site-build/', 'notes.local.ts', 'app/[slug]/out (copy)/', 'a*b?.ts']
+    expect(eslintArguments(CONFIG, [], ignored).slice(-8)).toEqual([
+      '--ignore-pattern',
       '.site-build/**',
+      '--ignore-pattern',
       'notes.local.ts',
+      '--ignore-pattern',
       String.raw`app/\[slug\]/out \(copy\)/**`,
+      '--ignore-pattern',
       String.raw`a\*b\?.ts`,
     ])
-    expect(ignoredPatterns([])).toEqual([])
+    expect(eslintArguments(CONFIG, [], [])).not.toContain('--ignore-pattern')
   })
 })

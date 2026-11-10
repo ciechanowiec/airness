@@ -9,10 +9,10 @@ import type { AuxiliaryServer } from './browser-settings.js'
 import { isArray } from './json-shapes.js'
 
 /** The origin this run serves the application on, set by the e2e gate for Playwright and its workers. */
-export const SERVER_URL_ENVIRONMENT_VARIABLE: string = 'AIRNESS_SERVER_URL'
+const SERVER_URL_ENVIRONMENT_VARIABLE: string = 'AIRNESS_SERVER_URL'
 
 /** The URLs of the auxiliary servers in declaration order, as a JSON array, set beside the origin. */
-export const AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE: string = 'AIRNESS_AUXILIARY_SERVER_URLS'
+const AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE: string = 'AIRNESS_AUXILIARY_SERVER_URLS'
 
 /** The settings a served origin replaces, and the variables an application reads its own origin from. */
 export interface OriginSettings {
@@ -35,7 +35,7 @@ export interface ServedOrigins {
  * @param port the port this run serves it on.
  * @returns the URL, with no trailing slash added to a bare origin.
  */
-export const onPort = (url: string, port: number): string => {
+const onPort = (url: string, port: number): string => {
   const parsed: URL = new URL(url)
   const origin: string = `${parsed.protocol}//${parsed.hostname}:${String(port)}`
   return parsed.pathname === '/' ? origin : `${origin}${parsed.pathname}`
@@ -68,7 +68,7 @@ const DEFAULT_PORTS: Readonly<Record<string, number>> = { 'http:': 80, 'https:':
  * @param url the declared URL.
  * @returns the port.
  */
-export const declaredPort = (url: string): number => {
+const declaredPort = (url: string): number => {
   const parsed: URL = new URL(url)
   return parsed.port === '' ? (DEFAULT_PORTS[parsed.protocol] ?? 0) : Number(parsed.port)
 }

@@ -160,7 +160,7 @@ const BARRELS: ReadonlySet<string> = new Set(['index.ts', 'index.js'])
  * @param name the file's base name.
  * @returns true when Payload would read it as a migration.
  */
-export const isMigrationFile = (name: string): boolean =>
+const isMigrationFile = (name: string): boolean =>
   MIGRATION_EXTENSIONS.some((extension: string): boolean => name.endsWith(extension)) && !BARRELS.has(name)
 
 /**

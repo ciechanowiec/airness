@@ -1,6 +1,6 @@
 import type { SpecSource } from '@airness/node/axe-coverage'
 import { describe, expect, it } from 'vitest'
-import { type BootstrapHook, bootstrapHooksIn, findBootstrapWrites, LOCAL_API_MUTATIONS } from '@/payload-bootstrap.js'
+import { findBootstrapWrites } from '@/payload-bootstrap.js'
 import type { LocatedViolation } from '@/relationship-cleanup.js'
 
 const CONFIG_PATH: string = 'src/payload.config.ts'
@@ -13,86 +13,95 @@ const file = (path: string, source: string): SpecSource => ({ path, source })
 const rulesOf = (files: readonly SpecSource[]): readonly string[] =>
   findBootstrapWrites(files).map((located: LocatedViolation): string => located.violation.rule)
 
-describe('LOCAL_API_MUTATIONS', () => {
-  it('holds the operations that change stored state', () => {
-    expect(LOCAL_API_MUTATIONS).toContain('.updateGlobal(')
-    expect(LOCAL_API_MUTATIONS).toContain('.create(')
+const reasonsOf = (files: readonly SpecSource[]): readonly string[] =>
+  findBootstrapWrites(files).map((located: LocatedViolation): string => located.violation.reason)
+
+const SEEDER: string = 'export async function seedEverything(payload) { await payload.create({}) }'
+
+describe('findBootstrapWrites over the operations that change stored state', () => {
+  it.each(['updateGlobal', 'create'])('reports %s as a write', (operation: string) => {
+    const config: string = configWith(`async (payload) => { await payload.${operation}({}) }`)
+    const reasons: readonly string[] = reasonsOf([file(CONFIG_PATH, config)])
+    expect(reasons).toHaveLength(1)
+    expect(reasons[0]).toContain(`${operation}() here runs on every boot`)
   })
 
   // A read at boot is legitimate, so the derived subset must not carry one.
-  it('holds none of the operations that only read', () => {
-    expect(LOCAL_API_MUTATIONS).not.toContain('.find(')
-    expect(LOCAL_API_MUTATIONS).not.toContain('.findGlobal(')
+  it.each(['find', 'findGlobal'])('does not report %s, which only reads', (operation: string) => {
+    const config: string = configWith(`async (payload) => { await payload.${operation}({}) }`)
+    expect(rulesOf([file(CONFIG_PATH, config)])).toEqual([])
   })
 })
 
-describe('bootstrapHooksIn', () => {
+describe('findBootstrapWrites over the spellings of a boot hook', () => {
   it('reads the body of an arrow hook', () => {
-    const found: readonly BootstrapHook[] = bootstrapHooksIn(configWith('async (payload) => { await warm(payload) }'))
-    expect(found).toHaveLength(1)
-    expect(found[0]?.body).toContain('warm')
+    expect(rulesOf([file(CONFIG_PATH, configWith('async (payload) => { await payload.create({}) }'))])).toEqual([
+      'no-boot-time-writes',
+    ])
   })
 
   // A destructured parameter opens a brace before the body does, so the body cannot be the first one.
   it('reads the body of a hook whose parameter is destructured', () => {
-    const found: readonly BootstrapHook[] = bootstrapHooksIn(
-      configWith('async ({ payload }) => { await warm(payload) }'),
-    )
-    expect(found[0]?.body).toContain('warm')
-  })
-
-  it('finds nothing in a configuration that declares no hook', () => {
-    expect(bootstrapHooksIn('export default buildConfig({ collections: [Users] })')).toEqual([])
+    const config: string = configWith('async ({ payload }) => { await payload.create({}) }')
+    expect(rulesOf([file(CONFIG_PATH, config)])).toEqual(['no-boot-time-writes'])
   })
 
   // A hook written as a function expression opens no arrow, so the body is the first brace after it.
   it('reads the body of a hook written as a function expression', () => {
-    const found: readonly BootstrapHook[] = bootstrapHooksIn(
-      configWith('async function (payload) { await warm(payload) }'),
-    )
-    expect(found[0]?.body).toContain('warm')
+    const config: string = configWith('async function (payload) { await payload.create({}) }')
+    expect(rulesOf([file(CONFIG_PATH, config)])).toEqual(['no-boot-time-writes'])
   })
 
-  // A hook named by reference runs the function it names; the caller follows an imported one.
+  // A hook named by reference runs the function it names; the write is followed into the module that
+  // declares it and located on the configuration's own line.
   it('reads a hook given by reference as the name it gives', () => {
-    expect(bootstrapHooksIn(configWith('seedEverything'))).toEqual([
-      { body: undefined, reference: 'seedEverything', line: 1 },
+    const config: string = ["import { seedEverything } from './seed'", configWith('seedEverything')].join('\n')
+    const found: readonly LocatedViolation[] = findBootstrapWrites([
+      file(CONFIG_PATH, config),
+      file('src/seed.ts', SEEDER),
     ])
+    expect(found).toHaveLength(1)
+    expect(found[0]?.violation.line).toBe(2)
+    expect(found[0]?.violation.reason).toContain('it calls seedEverything() from "./seed"')
   })
 
   it('reads the shorthand hook as a reference to onInit', () => {
-    const config: string = 'export default buildConfig({\n  collections: [Users],\n  onInit,\n})'
-    expect(bootstrapHooksIn(config)[0]?.reference).toBe('onInit')
+    const config: string = [
+      "import { onInit } from './seed'",
+      'export default buildConfig({\n  collections: [Users],\n  onInit,\n})',
+    ].join('\n')
+    const seed: string = 'export const onInit = async (payload) => { await payload.create({}) }'
+    expect(reasonsOf([file(CONFIG_PATH, config), file('src/seed.ts', seed)])[0]).toContain('it calls onInit()')
   })
 
   // The value ends at its own comma, so a later key's literal is never read as the hook's body.
   it('reads no later literal as the body of a hook given by reference', () => {
-    const config: string = configWith("seedEverything,\n  admin: { user: 'users' }")
-    expect(bootstrapHooksIn(config)[0]?.body).toBeUndefined()
+    const config: string = configWith('seedEverything,\n  admin: async (payload) => { await payload.create({}) }')
+    expect(rulesOf([file(CONFIG_PATH, config)])).toEqual([])
   })
 
   it('reads a reference to a function the configuration declares as that body', () => {
-    const config: string = [
-      'const seedEverything = async (payload) => { await warm(payload) }',
-      configWith('seedEverything'),
-    ].join('\n')
-    expect(bootstrapHooksIn(config)[0]?.body).toContain('warm')
+    const config: string = [SEEDER.replace('export ', ''), configWith('seedEverything')].join('\n')
+    expect(reasonsOf([file(CONFIG_PATH, config)])[0]).toContain('create() here runs on every boot')
   })
 
   it('reads the expression an arrow without a block returns as its body', () => {
-    expect(bootstrapHooksIn(configWith('async (payload) => warm(payload)'))[0]?.body).toBe('warm(payload)')
+    const config: string = configWith('async (payload) => payload.create({})')
+    expect(reasonsOf([file(CONFIG_PATH, config)])[0]).toContain('create() here runs on every boot')
   })
 
-  it.each(['onInit(payload) { await warm(payload) }', 'async onInit(payload) { await warm(payload) }'])(
+  it.each(['onInit(payload) { await payload.create({}) }', 'async onInit(payload) { await payload.create({}) }'])(
     'reads the body of a hook written as the method %s',
     (method: string) => {
       const config: string = `export default buildConfig({\n  collections: [Users],\n  ${method},\n})`
-      expect(bootstrapHooksIn(config)[0]?.body).toContain('warm')
+      expect(rulesOf([file(CONFIG_PATH, config)])).toEqual(['no-boot-time-writes'])
     },
   )
 
   it('finds nothing when the hook value is neither a function nor a name', () => {
-    expect(bootstrapHooksIn(configWith('hooks.onInit'))).toEqual([])
+    const config: string = ["import { onInit } from './seed'", configWith('hooks.onInit')].join('\n')
+    const seed: string = 'export const onInit = async (payload) => { await payload.create({}) }'
+    expect(rulesOf([file(CONFIG_PATH, config), file('src/seed.ts', seed)])).toEqual([])
   })
 })
 

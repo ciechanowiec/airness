@@ -47,7 +47,7 @@ const pieceReach = (piece: string): number => {
  * @param style the element's computed outline and box shadow while focused.
  * @returns the reach in CSS pixels, never less than `FOCUS_RING_WIDTH`.
  */
-export const indicatorReach = (style: IndicatorStyle): number => {
+const indicatorReach = (style: IndicatorStyle): number => {
   const outline: number =
     style.outlineStyle === 'none' ? 0 : pixelsOf(style.outlineWidth) + pixelsOf(style.outlineOffset)
   const shadows: readonly number[] =

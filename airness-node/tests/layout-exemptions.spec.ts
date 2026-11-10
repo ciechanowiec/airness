@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { EXEMPTIBLE_RULES } from '@/browser-exemptions.js'
-import { findLayoutDefects } from '@/layout-defects.js'
 import type { LayoutNode, LayoutSnapshot } from '@/layout-snapshot.js'
 import { LAYOUT_MINIMUM_GAP } from '@/settings.js'
-import { BODY, defectsOf, nodeOf, RED, rect, snapshotOf, TINT } from './helpers/layout-fixture.js'
+import {
+  BODY,
+  defectsOf,
+  EXEMPTIBLE_RULES,
+  layoutDefectsOf,
+  nodeOf,
+  RED,
+  rect,
+  snapshotOf,
+  TINT,
+} from './helpers/layout-fixture.js'
 
 const attachedTab = (exemption: Partial<LayoutNode>, panelTop: number = 40): readonly LayoutNode[] => [
   BODY,
@@ -65,7 +73,7 @@ describe('an edge shared on purpose', () => {
       width: 1280,
       height: 800,
     })
-    expect(findLayoutDefects([phone, desktop], LAYOUT_MINIMUM_GAP)).toEqual([])
+    expect(layoutDefectsOf([phone, desktop], LAYOUT_MINIMUM_GAP)).toEqual([])
   })
 
   it('reports it once when it is stale at every viewport', () => {
@@ -74,7 +82,7 @@ describe('an edge shared on purpose', () => {
       width: 1280,
       height: 800,
     })
-    expect(findLayoutDefects([phone, desktop], LAYOUT_MINIMUM_GAP)).toEqual([
+    expect(layoutDefectsOf([phone, desktop], LAYOUT_MINIMUM_GAP)).toEqual([
       '[exemption] /en/account/verify (chromium, every): stale layout exemption "attached" on div.tab: ' +
         'it excuses nothing in any pass, viewport, engine or state; remove it from data-airness-layout',
     ])

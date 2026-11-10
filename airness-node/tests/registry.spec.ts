@@ -1,7 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import type { AddressInfo } from 'node:net'
+import { createServer as createSecureServer } from 'node:https'
+import type { AddressInfo, Server as NetServer } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { isPermittedRedirect, type Lookup, publicationTimesOf } from '@/registry.js'
+import { type Lookup, publicationTimesOf } from '@/registry.js'
+import { type LocalCertificate, localCertificate, trusting } from './helpers/local-certificate.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 // A registry on a local port, answering the way the npm registry answers a package document request, and
@@ -34,6 +36,8 @@ const registryServer: Server = createServer((incoming: IncomingMessage, response
     '/loop': '/loop',
     '/bad': `${['http', ''].join(':')}//[bad`,
     '/@corp%2fsame': PRIVATE,
+    '/upgrade': `https://127.0.0.1:${portOf(secureServer)}/left-pad`,
+    '/ftp': 'ftp://127.0.0.1/left-pad',
   }
   const target: string | undefined = redirects[location]
   if (target !== undefined) {
@@ -62,11 +66,32 @@ const proxyServer: Server = createServer((_: IncomingMessage, response: ServerRe
   answer(response, 200, { time: { '1.0.0': PROXY_TIME } })
 })
 
-const portOf = (server: Server): string => String((server.address() as AddressInfo).port)
+// The same registry over HTTPS, with a certificate only the specs that trust it accept, which redirects
+// within HTTPS and down to plain HTTP.
+const CERTIFICATE: LocalCertificate = localCertificate()
+const secureServer: NetServer = createSecureServer(
+  CERTIFICATE,
+  (incoming: IncomingMessage, response: ServerResponse): void => {
+    const redirects: Readonly<Record<string, string>> = {
+      '/upgraded': '/left-pad',
+      '/downgraded': `${registry()}left-pad`,
+    }
+    const target: string | undefined = redirects[incoming.url ?? '/']
+    if (target !== undefined) {
+      response.writeHead(FOUND, { location: target })
+      response.end()
+      return
+    }
+    const document: unknown = DOCUMENTS[incoming.url ?? '/']
+    answer(response, document === undefined ? NOT_FOUND : 200, document ?? { error: 'not found' })
+  },
+)
+
+const portOf = (server: NetServer): string => String((server.address() as AddressInfo).port)
 const registry = (): string => `http://127.0.0.1:${portOf(registryServer)}/`
 
 beforeAll(async (): Promise<void> => {
-  for (const server of [registryServer, proxyServer, elsewhereServer]) {
+  for (const server of [registryServer, proxyServer, elsewhereServer, secureServer]) {
     await new Promise<void>((resolve: () => void): void => {
       server.listen(0, '127.0.0.1', resolve)
     })
@@ -74,7 +99,7 @@ beforeAll(async (): Promise<void> => {
 })
 
 afterAll(async (): Promise<void> => {
-  for (const server of [registryServer, proxyServer, elsewhereServer]) {
+  for (const server of [registryServer, proxyServer, elsewhereServer, secureServer]) {
     await new Promise<void>((resolve: () => void): void => {
       server.close((): void => {
         resolve()
@@ -127,14 +152,22 @@ describe('publication times', PROCESS_TIME, () => {
     ])
   })
 
-  it('never follows a redirect from HTTPS to plain HTTP', () => {
-    const secure: URL = new URL('https://npm.example/kit')
-    const plain: URL = new URL(`${['http', ''].join(':')}//127.0.0.1:4873/kit`)
-    expect(isPermittedRedirect(secure, new URL('https://cdn.example/kit'))).toBe(true)
-    expect(isPermittedRedirect(plain, secure)).toBe(true)
-    expect(isPermittedRedirect(plain, plain)).toBe(true)
-    expect(isPermittedRedirect(secure, plain)).toBe(false)
-    expect(isPermittedRedirect(plain, new URL('ftp://127.0.0.1/kit'))).toBe(false)
+  it('follows a redirect to HTTPS from anywhere, and never one from HTTPS to plain HTTP or to another scheme', async () => {
+    const secure: string = `https://127.0.0.1:${portOf(secureServer)}/`
+    const lookups: readonly Lookup[] = await trusting(CERTIFICATE.cert, async () =>
+      publicationTimesOf([
+        { name: 'upgraded', version: '1.0.0', registry: secure },
+        { name: 'upgrade', version: '1.0.0', registry: registry() },
+        { name: 'downgraded', version: '1.0.0', registry: secure },
+        { name: 'ftp', version: '1.0.0', registry: registry() },
+      ]),
+    )
+    expect(lookups.map((lookup: Lookup): number | string => lookup.publishedAt ?? lookup.problem)).toEqual([
+      Date.parse('2020-01-01T00:00:00.000Z'),
+      Date.parse('2020-01-01T00:00:00.000Z'),
+      expect.stringContaining(`redirected to ${registry()}left-pad, which is not followed`),
+      expect.stringContaining('redirected to ftp://127.0.0.1/left-pad, which is not followed'),
+    ])
   })
 
   it('says why a time could not be read, rather than passing over the release', async () => {

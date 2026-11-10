@@ -6,8 +6,6 @@ import {
   drivenViewports,
   failingRanges,
   pageViewports,
-  SWEEP_MAX_WIDTH,
-  SWEEP_MIN_WIDTH,
   sweepWidths,
 } from '@/browser-viewports'
 
@@ -34,6 +32,10 @@ describe('breakpoint edges', () => {
       ]),
     ).toEqual([])
   })
+
+  it('keeps an edge on either bound of the sweep and drops the one just past it', () => {
+    expect(breakpointEdges(['(min-width: 320px)', '(max-width: 1920px)'])).toEqual([320, 1920])
+  })
 })
 
 describe('the viewports a page is loaded at', () => {
@@ -53,7 +55,7 @@ describe('the viewports a page is loaded at', () => {
 describe('the width sweep', () => {
   it('steps from the narrowest to the widest width by 32 px', () => {
     const widths: readonly number[] = sweepWidths()
-    expect([widths[0], widths[1], widths.at(-1), widths.length]).toEqual([SWEEP_MIN_WIDTH, 352, SWEEP_MAX_WIDTH, 51])
+    expect([widths[0], widths[1], widths.at(-1), widths.length]).toEqual([320, 352, 1920, 51])
   })
 
   it('bisects until the passing and failing widths are adjacent', () => {

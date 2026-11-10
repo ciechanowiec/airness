@@ -3,7 +3,6 @@ import {
   applyExemptions,
   type DeclaredExemption,
   declaredExemptions,
-  EXEMPTIBLE_RULES,
   type ExemptionCarrier,
   exemptionRules,
   judgeCarried,
@@ -12,7 +11,7 @@ import {
 } from '@/browser-exemptions'
 import { type BrowserFinding, type FindingPlace, findingAt } from '@/browser-findings'
 import type { LayoutNode, LayoutSnapshot } from '@/layout-snapshot'
-import { BODY, nodeOf, snapshotOf } from './helpers/layout-fixture.js'
+import { BODY, EXEMPTIBLE_RULES, nodeOf, snapshotOf } from './helpers/layout-fixture.js'
 
 const PLACE: FindingPlace = {
   location: '/en/account/verify',

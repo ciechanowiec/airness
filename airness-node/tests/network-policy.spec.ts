@@ -4,9 +4,7 @@ import {
   describeSocketTarget,
   findNetworkEscape,
   hostOfUrl,
-  isMachineLocalHost,
   localAddresses,
-  NETWORK_RULE,
   type NetworkAttempt,
   RESOLVER_METHODS,
 } from '@/network-policy.js'
@@ -30,7 +28,11 @@ const reach = (host: string | undefined): NetworkAttempt => ({
   destination: `${host ?? ''}:5432`,
 })
 
-describe('isMachineLocalHost', () => {
+// Whether a plain connection to a host stays on this machine, read off the verdict a connection gets.
+const isKeptOnMachine = (host: string | undefined, local: ReadonlySet<string>): boolean =>
+  findNetworkEscape(reach(host), local) === undefined
+
+describe('findNetworkEscape, for a connection', () => {
   it.each([
     ['an IPv4 loopback literal', '127.0.0.1'],
     ['the whole loopback range', '127.99.3.7'],
@@ -46,11 +48,11 @@ describe('isMachineLocalHost', () => {
     ['an upper-case spelling', 'LOCALHOST'],
     ['a zone-qualified IPv6 loopback', ZONED_LOOPBACK],
   ])('accepts %s', (_what: string, host: string) => {
-    expect(isMachineLocalHost(host, NOWHERE)).toBe(true)
+    expect(isKeptOnMachine(host, NOWHERE)).toBe(true)
   })
 
   it('accepts an absent host, which is the localhost a socket defaults to', () => {
-    expect(isMachineLocalHost(undefined, NOWHERE)).toBe(true)
+    expect(isKeptOnMachine(undefined, NOWHERE)).toBe(true)
   })
 
   it.each([
@@ -60,7 +62,7 @@ describe('isMachineLocalHost', () => {
     ['a bare service name', 'postgres'],
     ['a name merely ending in the localhost letters', 'notlocalhost'],
   ])('rejects %s', (_what: string, host: string) => {
-    expect(isMachineLocalHost(host, NOWHERE)).toBe(false)
+    expect(isKeptOnMachine(host, NOWHERE)).toBe(false)
   })
 
   it('accepts an address this machine itself carries', () => {
@@ -68,8 +70,8 @@ describe('isMachineLocalHost', () => {
       en0: [{ address: PRIVATE_ADDRESS }, { address: `${LINK_LOCAL.toUpperCase()}%en0` }],
       lo0: undefined,
     })
-    expect(isMachineLocalHost(PRIVATE_ADDRESS, local)).toBe(true)
-    expect(isMachineLocalHost(LINK_LOCAL, local)).toBe(true)
+    expect(isKeptOnMachine(PRIVATE_ADDRESS, local)).toBe(true)
+    expect(isKeptOnMachine(LINK_LOCAL, local)).toBe(true)
   })
 })
 
@@ -154,6 +156,9 @@ describe('findNetworkEscape', () => {
       new URL('../../README-guideline-software-project.adoc', import.meta.url),
       'utf8',
     )
-    expect(standard).toContain(NETWORK_RULE)
+    const refused: string = findNetworkEscape(reach('api.example.com'), NOWHERE) ?? ''
+    const rule: string = `${refused.split('. ', 1)[0] ?? ''}.`
+    expect(rule).toMatch(/^A test /u)
+    expect(standard).toContain(rule)
   })
 })

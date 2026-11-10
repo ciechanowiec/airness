@@ -10,7 +10,7 @@ import { fromRun } from './exec.js'
 import { isBrowserApp } from './facets.js'
 import { matchesGlob } from './file-roles.js'
 import { failed, type GateResult, passed } from './gate-result.js'
-import { isHarnessPackage } from './harness-packages.js'
+import { isHarnessPackage, SHIPPED_SPEC_SOURCES } from './harness-packages.js'
 import { asRecord, asStringRecord, asText } from './json-shapes.js'
 import { harnessDirectory, type Member, readJson } from './project.js'
 import { matchesAnyGlob, memberFiles } from './source-selection.js'
@@ -34,7 +34,7 @@ const memberVitest = (member: Member): string | undefined => {
 // A harness package ships end-to-end specs from its sources, which the e2e gate runs from the built package in
 // every browser application rather than in the package itself.
 const isShippedSpec = (member: Member, file: string): boolean =>
-  isHarnessPackage(asText(asRecord(member.packageJson)['name'])) && matchesGlob('src/**/*.e2e.spec.ts', file)
+  isHarnessPackage(asText(asRecord(member.packageJson)['name'])) && matchesGlob(SHIPPED_SPEC_SOURCES, file)
 
 // The member's own suite under the shipped configuration.
 const suite = (member: Member): GateResult => {

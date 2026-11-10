@@ -97,7 +97,7 @@ const GLOB_SYNTAX: RegExp = /[\\*?[\]{}()!+@]/gu
  * @param ignoredPaths the ignored paths, relative to the member, each directory ending with a slash.
  * @returns the patterns, each path's glob syntax escaped.
  */
-export const ignoredPatterns = (ignoredPaths: readonly string[]): readonly string[] =>
+const ignoredPatterns = (ignoredPaths: readonly string[]): readonly string[] =>
   ignoredPaths.map((ignored: string): string => {
     const literal: string = ignored.replaceAll(GLOB_SYNTAX, String.raw`\$&`)
     return literal.endsWith('/') ? `${literal}**` : literal

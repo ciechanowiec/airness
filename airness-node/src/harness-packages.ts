@@ -8,6 +8,12 @@ export const HARNESS_PACKAGE: string = '@airness/node'
 export const HARNESS_PACKAGES: readonly string[] = [HARNESS_PACKAGE, ...LAYER_NAMES]
 
 /**
+ * The sources of the end-to-end specifications a harness package ships. The e2e gate runs them, built, in every
+ * browser application that installs the package, so they are what the package offers rather than its own tests.
+ */
+export const SHIPPED_SPEC_SOURCES: string = 'src/**/*.e2e.spec.ts'
+
+/**
  * The environment variable `airness:node-gate` names the parents' versions in, as `name=version` pairs
  * separated by commas, such as `@airness/node=2.0.0,@airness/layer=2.0.0`. The versions come from the module's
  * Maven parent chain, which no file of the node project can state.

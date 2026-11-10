@@ -32,7 +32,7 @@ export interface ProcessRow {
 }
 
 /** What stopping a tree does to the machine, replaceable so its decisions can be measured without processes. */
-export interface TreeMachine {
+interface TreeMachine {
   readonly table: () => readonly ProcessRow[]
   /** Send a signal, where a process that is already gone is no failure. */
   readonly signal: (pid: number, signal: NodeJS.Signals) => void
@@ -41,13 +41,13 @@ export interface TreeMachine {
 }
 
 /** How long the processes of a stopped tree may take to finish what they do on a stop signal. */
-export const TREE_GRACE_MS: number = 10_000
+const TREE_GRACE_MS: number = 10_000
 
 /** How often a stopping tree is looked at. */
-export const TREE_POLL_MS: number = 100
+const TREE_POLL_MS: number = 100
 
 /** How often the tree of a running command is looked at, so that what leaves it before a stop is remembered. */
-export const TREE_WATCH_MS: number = 2000
+const TREE_WATCH_MS: number = 2000
 
 const ROW_FIELDS: number = 4
 const MILLISECONDS_PER_SECOND: number = 1000
@@ -57,7 +57,7 @@ const MILLISECONDS_PER_SECOND: number = 1000
  * @param text what it printed.
  * @returns a row for each process.
  */
-export const parseProcessTable = (text: string): readonly ProcessRow[] =>
+const parseProcessTable = (text: string): readonly ProcessRow[] =>
   text.split('\n').flatMap((line: string): readonly ProcessRow[] => {
     const fields: readonly string[] = line.trim().split(/\s+/u)
     const [pid = '', ppid = '', pgid = '', state = '']: readonly (string | undefined)[] = fields
@@ -84,7 +84,7 @@ export const readProcessTable = (
  * @param rows the process table.
  * @returns the processes, the root first.
  */
-export const treeOf = (root: number, rows: readonly ProcessRow[]): readonly number[] => {
+const treeOf = (root: number, rows: readonly ProcessRow[]): readonly number[] => {
   const walk = (parents: readonly number[], found: readonly number[]): readonly number[] => {
     const children: readonly number[] = rows
       .filter((row: ProcessRow): boolean => parents.includes(row.ppid) && !found.includes(row.pid))
@@ -103,25 +103,13 @@ export const treeOf = (root: number, rows: readonly ProcessRow[]): readonly numb
  * @param rows the process table.
  * @returns the processes, the root first, each once.
  */
-export const reachable = (
-  root: number,
-  known: readonly ProcessRow[],
-  rows: readonly ProcessRow[],
-): readonly number[] => {
+const reachable = (root: number, known: readonly ProcessRow[], rows: readonly ProcessRow[]): readonly number[] => {
   const kept: readonly number[] = known
     .filter((seen: ProcessRow): boolean =>
       rows.some((row: ProcessRow): boolean => row.pid === seen.pid && row.pgid === seen.pgid && !row.isZombie),
     )
     .map((seen: ProcessRow): number => seen.pid)
   return [...new Set([root, ...kept].flatMap((start: number): readonly number[] => treeOf(start, rows)))]
-}
-
-/** How a tree is stopped, beyond the signal it is sent. */
-export interface TreeStop {
-  /** How long its processes may take, ten seconds unless said otherwise. */
-  readonly graceMs?: number
-  /** The processes seen under the root before, which the stop also reaches while they still run. */
-  readonly known?: readonly ProcessRow[]
 }
 
 const running = (members: readonly number[], rows: readonly ProcessRow[]): readonly number[] =>
@@ -133,21 +121,20 @@ const running = (members: readonly number[], rows: readonly ProcessRow[]): reado
  * @param machine the machine.
  * @param root the process the tree starts at.
  * @param signal the stop signal.
- * @param stopping how long they may take and what was seen under the root before.
+ * @param known the processes seen under the root before, which the stop also reaches while they still run.
  * @returns the processes that had to be ended outright.
  */
-export const stopTree = async (
+const stopTree = async (
   machine: TreeMachine,
   root: number,
   signal: NodeJS.Signals,
-  stopping: TreeStop = {},
+  known: readonly ProcessRow[],
 ): Promise<readonly number[]> => {
-  const { graceMs = TREE_GRACE_MS, known = [] }: TreeStop = stopping
   const members: readonly number[] = reachable(root, known, machine.table())
   for (const pid of members) {
     machine.signal(pid, signal)
   }
-  const deadline: number = machine.now() + graceMs
+  const deadline: number = machine.now() + TREE_GRACE_MS
   const settle = async (): Promise<readonly number[]> => {
     const left: readonly number[] = running(members, machine.table())
     if (left.length === 0 || machine.now() >= deadline) {
@@ -237,7 +224,7 @@ export const forwardStops = (root: number, wiring: StopWiring): ForwardedStops =
   const unwatch: () => void = wiring.watch(remember, TREE_WATCH_MS)
   const stop = async (signal: NodeJS.Signals): Promise<void> => {
     unwatch()
-    const survivors: readonly number[] = await stopTree(wiring.machine, root, signal, { known: [...known.values()] })
+    const survivors: readonly number[] = await stopTree(wiring.machine, root, signal, [...known.values()])
     if (survivors.length > 0) {
       wiring.report(
         `processes ${survivors.join(', ')} were still running ${String(TREE_GRACE_MS / MILLISECONDS_PER_SECOND)}s after ${signal} and were ended outright`,

@@ -22,7 +22,7 @@ import {
   TYPESCRIPT_SOURCE_EXTENSIONS,
 } from './file-roles.js'
 import { failed, type GateResult, withOutput } from './gate-result.js'
-import { HARNESS_PACKAGE } from './harness-packages.js'
+import { HARNESS_PACKAGE, isHarnessPackage, SHIPPED_SPEC_SOURCES } from './harness-packages.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
 import { LAYER_NAMES } from './layer.js'
@@ -107,6 +107,16 @@ const productionProject = (member: Member): readonly string[] => [
   ...NON_PRODUCTION_ROOTS.map((root: string): string => `!${root}/**`),
 ]
 
+// A harness package ships end-to-end specifications from its sources, which the e2e gate runs in every browser
+// application that installs it. They are production entry points of the package, so what only they reach is used.
+// knip drops a production entry that a test runner's plugin reads as a test, so the production run of a harness
+// package leaves the Playwright and Vitest plugins out, which in production mode contribute nothing but tests. A
+// project cannot reach this: the wiring gate refuses a member that names itself after a harness package.
+const shippedSpecifications = (member: Member, entries: readonly string[]): Readonly<Record<string, unknown>> =>
+  isHarnessPackage(asText(readKey(member.packageJson, 'name')))
+    ? { entry: [...entries, `${SHIPPED_SPEC_SOURCES}!`], playwright: false, vitest: false }
+    : {}
+
 /** The configurations a run renders: the one every member gets, and the production one. */
 interface RenderedConfigs {
   readonly directory: string
@@ -147,7 +157,11 @@ const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs
     production: path.join(directory, 'knip-production.json'),
   }
   writeJson(rendered.config, config)
-  writeJson(rendered.production, { ...config, project: productionProject(member) })
+  writeJson(rendered.production, {
+    ...config,
+    ...shippedSpecifications(member, entries),
+    project: productionProject(member),
+  })
   return rendered
 }
 

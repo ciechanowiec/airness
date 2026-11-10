@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import {
   clockOf,
-  DEFAULT_CLOCK_INSTANT,
   declaredSweepWorkers,
   dockerCapacityOf,
   enginePassParts,
   itemLimitMs,
   type MachineCapacity,
   partBudgetMs,
-  passBudgetMs,
   pinnedBrowserEndpoint,
   pinnedBrowserServerArguments,
   playwrightImageOf,
   REAL_CLOCK,
-  shiftedTime,
   sweepWorkersAcross,
   sweepWorkersFor,
 } from '@/browser-run'
 import { isPinnedBrowserImage } from '@/browser-run.js'
 import type { ContainerOwner } from '@/owned-containers.js'
 import { readSettings } from '@/settings'
+
+// The instant a run starts its clocks at unless the project names another.
+const DEFAULT_CLOCK_INSTANT: string = '2100-01-01T12:00:00.000Z'
 
 describe('the verification clock', () => {
   it('starts at the default instant unless a project names another or the real clock', () => {
@@ -45,10 +45,6 @@ describe('the verification clock', () => {
       REAL_CLOCK,
     ])
   })
-
-  it('advances from its instant at the real rate', () => {
-    expect(shiftedTime(1000, 50, 80)).toBe(1030)
-  })
 })
 
 describe('the pinned browsers and the pass budgets', () => {
@@ -57,9 +53,12 @@ describe('the pinned browsers and the pass budgets', () => {
   })
 
   it('grows a pass budget with the work it discovered', () => {
-    expect([passBudgetMs('resting', 0), passBudgetMs('resting', 10), passBudgetMs('width-sweep', -1)]).toEqual([
-      60_000, 180_000, 60_000,
-    ])
+    const whole: Parameters<typeof partBudgetMs>[2] = { index: 0, count: 1 }
+    expect([
+      partBudgetMs('resting', 0, whole),
+      partBudgetMs('resting', 10, whole),
+      partBudgetMs('width-sweep', -1, whole),
+    ]).toEqual([60_000, 180_000, 60_000])
   })
 })
 
@@ -69,7 +68,7 @@ describe('the budget of one part of a pass', () => {
       partBudgetMs('resting', 8, { index: 0, count: 4 }),
       partBudgetMs('resting', 9, { index: 3, count: 4 }),
       partBudgetMs('resting', 0, { index: 0, count: 4 }),
-    ]).toEqual([passBudgetMs('resting', 2), passBudgetMs('resting', 3), passBudgetMs('resting', 0)])
+    ]).toEqual([84_000, 96_000, 60_000])
   })
 })
 

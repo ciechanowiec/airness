@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Viewport } from '@/browser-findings'
 import { BASELINE_VIEWPORTS } from '@/browser-viewports'
-import { findLayoutDefects, layoutViewportsWith } from '@/layout-defects'
-import { isVisibleColor, keyOf, type LayoutNode, type LayoutSnapshot } from '@/layout-snapshot'
+import { layoutViewportsWith } from '@/layout-defects'
+import { hasBorderOn, keyOf, type LayoutNode, type LayoutSnapshot } from '@/layout-snapshot'
 import { LAYOUT_MINIMUM_GAP } from '@/settings'
 import {
   BODY,
   defectsOf,
   GREEN_BORDER,
+  layoutDefectsOf,
   NO_BORDER,
   nodeOf,
   RED,
@@ -496,9 +497,7 @@ describe('the viewports a scan runs at', () => {
       height: 800,
     })
     expect(
-      findLayoutDefects([phone, desktop], LAYOUT_MINIMUM_GAP).map(
-        (line: string): string => line.split(':', 1)[0] ?? '',
-      ),
+      layoutDefectsOf([phone, desktop], LAYOUT_MINIMUM_GAP).map((line: string): string => line.split(':', 1)[0] ?? ''),
     ).toEqual([
       '[attached] /en/account/verify @390x844 (chromium, resting)',
       '[attached] /en/account/verify @1280x800 (chromium, resting)',
@@ -516,7 +515,13 @@ describe('reading computed colours', () => {
     ['rgb(220, 38, 38)', true],
     ['oklch(0.6 0.2 30 / 50%)', true],
   ])('reads %j as visible: %s', (color: string, isVisible: boolean) => {
-    expect(isVisibleColor(color)).toBe(isVisible)
+    // A drawn border is visible exactly when its colour is.
+    const bordered: LayoutNode = nodeOf({
+      index: 1,
+      parent: 0,
+      borders: { top: { ...GREEN_BORDER, color }, right: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER },
+    })
+    expect(hasBorderOn(bordered, 'top')).toBe(isVisible)
   })
 })
 

@@ -5,7 +5,6 @@ import {
   type FoundRootConfig,
   findMissingMigrations,
   findUnreviewedSchemaPush,
-  isMigrationFile,
   type MigrationEvidence,
   migrationDirectoriesFor,
   rootConfigsIn,
@@ -118,14 +117,18 @@ describe('declaredMigrationDirectoryIn', () => {
   })
 })
 
-describe('isMigrationFile', () => {
-  it.each(['20260101_initial.ts', '20260101_initial.js'])('reads %s as a migration', (name) => {
-    expect(isMigrationFile(name)).toBe(true)
+// Payload's own reader decides what a migration is: a `.ts` or `.js` file that is not the barrel.
+const holding = (name: string): MigrationEvidence =>
+  evidence({ directories: [{ path: 'src/migrations', names: [name] }] })
+
+describe('findMissingMigrations over the files a directory holds', () => {
+  it.each(['20260101_initial.ts', '20260101_initial.js'])('reads %s as a migration', (name: string) => {
+    expect(findMissingMigrations(holding(name))).toEqual([])
   })
 
   // Payload's own reader skips the barrel, so a directory holding only one records no schema.
-  it.each(['index.ts', 'index.js', 'README.md'])('does not read %s as a migration', (name) => {
-    expect(isMigrationFile(name)).toBe(false)
+  it.each(['index.ts', 'index.js', 'README.md'])('does not read %s as a migration', (name: string) => {
+    expect(findMissingMigrations(holding(name))).toHaveLength(1)
   })
 })
 

@@ -2,10 +2,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { GateResult } from '@airness/node/gate-result'
 import { describe, expect, it } from 'vitest'
-import { judgeProbe, payloadDefaults } from '@/gate-payload-defaults.js'
+import { payloadDefaults } from '@/gate-payload-defaults.js'
 import { payloadGenerated } from '@/gate-payload-generated.js'
 import { preflight } from '@/gate-preflight.js'
-import { INHERITED_ACCESS_REPORT_MARKER } from '@/payload-defaults.js'
 import type { PayloadMember } from '@/payload-member.js'
 import { REQUIRED_PINS } from '@/payload-pins.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
@@ -162,16 +161,6 @@ describe('payload-generated', PROCESS_TIME, () => {
   })
 })
 
-const reportLine = (report: unknown): string => `${INHERITED_ACCESS_REPORT_MARKER}${JSON.stringify(report)}\n`
-
-const CLEAN_REPORT: unknown = {
-  collections: [],
-  globals: [],
-  draftReads: [],
-  authentication: [],
-  autoLogin: 'disabled',
-}
-
 describe('payload-defaults', PROCESS_TIME, () => {
   it('fails when the member names no configuration that exists', () => {
     const root: string = projectForTest({ 'tsconfig.json': '{}' })
@@ -193,33 +182,54 @@ describe('payload-defaults', PROCESS_TIME, () => {
   })
 })
 
-describe('judgeProbe', () => {
-  it('fails a probe that could not build the configuration', () => {
-    expect(judgeProbe({ code: 1, output: 'boom', stdout: '' }).summary).toBe(
-      'the Payload configuration could not be built',
-    )
+// A member whose installed Payload carries a stand-in for its default access, so the gate starts the real
+// probe against the configuration module a spec writes.
+const DEFAULT_ACCESS: string = 'export const defaultAccess = ({ req }) => Boolean(req.user)\n'
+
+const memberProbing = (config: string): PayloadMember =>
+  payloadMemberAt(
+    projectForTest({
+      'tsconfig.json': '{}',
+      'node_modules/payload/package.json': JSON.stringify({ name: 'payload', type: 'module' }),
+      'node_modules/payload/dist/auth/defaultAccess.js': DEFAULT_ACCESS,
+      'src/payload.config.ts': config,
+    }),
+    PAYLOAD_MANIFEST,
+  )
+
+describe('payload-defaults against a started probe', PROCESS_TIME, () => {
+  it('fails a probe that could not build the configuration, with its output', () => {
+    const result: GateResult = payloadDefaults(memberProbing("throw new Error('no secret')\n"))
+    expect(result.summary).toBe('the Payload configuration could not be built')
+    expect(result.findings.join('\n')).toContain('Error: no secret')
   })
 
   it('fails a probe that printed no readable evidence', () => {
-    expect(judgeProbe({ code: 0, output: 'nothing', stdout: 'nothing' }).summary).toBe(
+    expect(payloadDefaults(memberProbing('process.exit(0)\n')).summary).toBe(
       'the configuration probe printed incomplete or malformed evidence',
     )
   })
 
   it('passes a configuration that decides every access', () => {
-    const line: string = reportLine(CLEAN_REPORT)
-    const result: GateResult = judgeProbe({ code: 0, output: line, stdout: line })
+    const result: GateResult = payloadDefaults(memberProbing('export default { collections: [], globals: [] }\n'))
     expect(result.findings).toStrictEqual([])
     expect(result.ok).toBe(true)
   })
 
   it('names an entity that inherits the default access', () => {
-    const line: string = reportLine({
-      ...(CLEAN_REPORT as object),
-      collections: [{ slug: 'posts', inherited: ['read'] }],
-    })
-    const result: GateResult = judgeProbe({ code: 0, output: line, stdout: line })
+    const result: GateResult = payloadDefaults(
+      memberProbing("export default { collections: [{ slug: 'posts' }], globals: [] }\n"),
+    )
     expect(result.ok).toBe(false)
     expect(result.summary).toContain("inherit Payload's default access")
+    expect(result.findings.join('\n')).toContain('collection "posts" leaves create, read, update, delete')
+  })
+
+  it('names a security defect of the resolved configuration before its access findings', () => {
+    const result: GateResult = payloadDefaults(
+      memberProbing("export default { collections: [], globals: [], admin: { autoLogin: { email: 'a@b.c' } } }\n"),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.summary).toBe('the resolved Payload security configuration has defects')
   })
 })

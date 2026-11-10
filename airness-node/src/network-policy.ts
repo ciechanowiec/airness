@@ -2,7 +2,7 @@
 import { isRecord } from './json-shapes.js'
 
 /** The sentence of the governing standard this module decides, quoted back in every refusal. */
-export const NETWORK_RULE: string = 'A test reaches no network beyond the machine it runs on.'
+const NETWORK_RULE: string = 'A test reaches no network beyond the machine it runs on.'
 
 /** Which runtime entry point asked. Each reaches its verdict differently, so it is data, not a flag. */
 type NetworkApi = 'connect' | 'lookup' | 'resolve' | 'fetch'
@@ -102,7 +102,7 @@ export const localAddresses = (
  * @param local the addresses this machine carries, from {@link localAddresses}.
  * @returns true when the reach stays on this machine.
  */
-export const isMachineLocalHost = (host: string | undefined, local: ReadonlySet<string>): boolean => {
+const isMachineLocalHost = (host: string | undefined, local: ReadonlySet<string>): boolean => {
   if (host === undefined || host.length === 0) {
     return true
   }

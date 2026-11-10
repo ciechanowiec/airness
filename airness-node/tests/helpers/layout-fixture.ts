@@ -1,7 +1,8 @@
 // The page a layout spec judges, built from the numbers a real page produces: whole CSS pixels and
 // computed style strings. Shared by the specs of the layout rules, so each states only its own cases.
-import type { Viewport } from '@/browser-findings'
-import { findLayoutDefects } from '@/layout-defects'
+import { type DeclaredExemption, staleExemptions, type UsedExemption } from '@/browser-exemptions'
+import { type BrowserFinding, findingLine, type Viewport } from '@/browser-findings'
+import { type JudgedPage, judgeLayout, LAYOUT_RULES } from '@/layout-defects'
 import type { LayoutBorder, LayoutNode, LayoutRect, LayoutSnapshot } from '@/layout-snapshot'
 import { LAYOUT_MINIMUM_GAP } from '@/settings'
 
@@ -83,8 +84,69 @@ export const snapshotOf = (nodes: readonly LayoutNode[], viewport: Viewport = PH
   fontFaces: [],
 })
 
+// The engine and state every layout spec measures a page in.
+const ENGINE: string = 'chromium'
+const STATE: string = 'resting'
+
+// The rules an element can be exempted from, in the order a malformed exemption lists them.
+export const EXEMPTIBLE_RULES: readonly string[] = [
+  'attached',
+  'overflow',
+  'text-overlap',
+  'clipped-text',
+  'obscured',
+  'focus-obscured',
+  'text-spacing',
+  'text-resize',
+  'small-text',
+  'image-load',
+  'image-distorted',
+  'image-upscaled',
+  'media-space',
+  'focus-visible',
+  'focus-contrast',
+  'focus-order',
+  'disclosure-keyboard',
+]
+
+/**
+ * Every layout defect on one page, across the viewports it was measured at, as report lines: each viewport
+ * judged by the geometry rules as the scan judges it, then every exemption that excused nothing at any of them.
+ * @param snapshots the same page measured at each viewport.
+ * @param minimumGap the smallest gap, in CSS pixels, between a boxed element and its sibling.
+ * @returns one line per defect, without duplicates, in the order the viewports were measured.
+ */
+export const layoutDefectsOf = (snapshots: readonly LayoutSnapshot[], minimumGap: number): readonly string[] => {
+  const judged: readonly JudgedPage[] = snapshots.map(
+    (snapshot: LayoutSnapshot): JudgedPage =>
+      judgeLayout(
+        snapshot,
+        {
+          location: snapshot.route,
+          state: STATE,
+          engine: ENGINE,
+          viewport: { width: snapshot.viewportWidth, height: snapshot.viewportHeight },
+        },
+        { minimumGap },
+      ),
+  )
+  const stale: readonly BrowserFinding[] = staleExemptions(
+    judged.flatMap((page: JudgedPage): readonly DeclaredExemption[] => page.declared),
+    judged.flatMap((page: JudgedPage): readonly UsedExemption[] => page.used),
+    LAYOUT_RULES,
+    ENGINE,
+  )
+  return [
+    ...new Set<string>(
+      [...judged.flatMap((page: JudgedPage): readonly BrowserFinding[] => page.findings), ...stale].map(
+        (finding: BrowserFinding): string => findingLine(finding),
+      ),
+    ),
+  ]
+}
+
 export const defectsOf = (nodes: readonly LayoutNode[], minimumGap: number = LAYOUT_MINIMUM_GAP): readonly string[] =>
-  findLayoutDefects([snapshotOf(nodes)], minimumGap)
+  layoutDefectsOf([snapshotOf(nodes)], minimumGap)
 
 // Tall enough for every page the specs build; only its width, the phone's, decides anything.
 const BODY_HEIGHT: number = 300

@@ -89,14 +89,14 @@ export interface InheritedAccessReport {
 export type PayloadSubjectKind = 'collection' | 'global'
 
 /** One entity Payload builds for its own bookkeeping, which keeps the default access by design. */
-export interface ExemptPayloadSubject {
+interface ExemptPayloadSubject {
   readonly kind: PayloadSubjectKind
   readonly slug: string
   readonly reason: string
 }
 
 /** The entities exempt from the rule, each with the reason. Nothing a project declares extends this. */
-export const EXEMPT_PAYLOAD_SUBJECTS: readonly ExemptPayloadSubject[] = [
+const EXEMPT_PAYLOAD_SUBJECTS: readonly ExemptPayloadSubject[] = [
   {
     kind: 'collection',
     slug: 'payload-locked-documents',
@@ -216,7 +216,7 @@ const declaresPublished = (where: Record<string, unknown>): boolean => {
  * @param where the query constraint the read rule returned.
  * @returns whether every document the filter admits is a published one.
  */
-export const requiresPublishedStatus = (where: unknown): boolean => {
+const requiresPublishedStatus = (where: unknown): boolean => {
   if (!isRecord(where)) {
     return false
   }
@@ -370,7 +370,7 @@ export const parseInheritedAccessReport = (text: string): InheritedAccessReport 
 }
 
 /** Where a Payload member keeps its configuration when its tsconfig says nothing else. */
-export const DEFAULT_PAYLOAD_CONFIG_PATH: string = 'src/payload.config.ts'
+const DEFAULT_PAYLOAD_CONFIG_PATH: string = 'src/payload.config.ts'
 
 const CURRENT_DIRECTORY_PREFIX: string = './'
 

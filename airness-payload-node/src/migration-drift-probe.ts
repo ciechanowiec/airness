@@ -58,7 +58,7 @@ const compare = async (adapter: unknown, directory: string, snapshot: string): P
  * @param root the member's directory, which the reported directory is relative to.
  * @returns the report.
  */
-export const migrationDriftOf = async (adapter: unknown, root: string): Promise<MigrationDriftReport> => {
+const migrationDriftOf = async (adapter: unknown, root: string): Promise<MigrationDriftReport> => {
   if (typeof readKey(adapter, 'requireDrizzleKit') !== 'function') {
     return { kind: 'unsupported', adapter: String(readKey(adapter, 'packageName') ?? readKey(adapter, 'name')) }
   }

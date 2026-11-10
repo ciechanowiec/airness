@@ -26,7 +26,7 @@ export const MIGRATIONS_PROBE_COMMAND: readonly string[] = ['probe', 'payload-mi
  * @param result what the probe exited with and printed.
  * @returns the gate result.
  */
-export const judgeMigrationProbe = (result: RunResult): GateResult => {
+const judgeMigrationProbe = (result: RunResult): GateResult => {
   if (result.code !== 0) {
     return failed('the Payload schema could not be compared with the recorded migrations', asFindings(result.output))
   }

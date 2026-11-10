@@ -38,7 +38,7 @@ const STATEMENT_KEYWORDS: ReadonlySet<string> = new Set([
  * @param body the text to read, with comments already stripped.
  * @returns each called name once, statement keywords excluded.
  */
-export const calledNamesIn = (body: string): readonly string[] => [
+const calledNamesIn = (body: string): readonly string[] => [
   ...new Set(
     [...body.matchAll(CALLED_IDENTIFIER)]
       .map((match: RegExpExecArray): string => match[1] ?? '')
@@ -62,7 +62,7 @@ const boundNames = (clause: string): readonly string[] =>
  * @param name the imported binding to find.
  * @returns the specifier, or undefined when the file imports no such name.
  */
-export const moduleOfImport = (code: string, name: string): string | undefined =>
+const moduleOfImport = (code: string, name: string): string | undefined =>
   [...code.matchAll(IMPORT_BINDING)]
     .filter((match: RegExpExecArray): boolean => boundNames(match[1] ?? '').includes(name))
     .map((match: RegExpExecArray): string | undefined => match[2])
@@ -103,7 +103,7 @@ const resolvedBase = (specifier: string, fromPath: string): string | undefined =
  * @param fromPath the member-relative path of the importing file.
  * @returns the candidate paths, empty when the specifier names a package rather than project source.
  */
-export const candidatePathsFor = (specifier: string, fromPath: string): readonly string[] => {
+const candidatePathsFor = (specifier: string, fromPath: string): readonly string[] => {
   const base: string | undefined = resolvedBase(specifier, fromPath)
   return base === undefined
     ? []

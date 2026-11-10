@@ -36,7 +36,7 @@ export const payloadConfigFileOf = (target: PayloadMember): string | GateResult 
  * @param probe the command line after the executable: the probe's words, then its arguments.
  * @returns the arguments after `node --no-deprecation`.
  */
-export const probeArguments = (root: string, probe: readonly string[]): readonly string[] => [
+const probeArguments = (root: string, probe: readonly string[]): readonly string[] => [
   fileURLToPath(import.meta.resolve('tsx/cli')),
   '--tsconfig',
   path.join(root, 'tsconfig.json'),

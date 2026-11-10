@@ -87,6 +87,20 @@ const PLAYWRIGHT_REACH: Readonly<Record<string, string>> = {
   ].join('\n'),
 }
 
+// A module only a specification under the sources reaches, as a harness package ships one.
+const SHIPPED_REACH: Readonly<Record<string, string>> = {
+  'src/boundary.ts': 'export const boundary = (amount: number): boolean => amount > 0\n',
+  'src/boundary.e2e.spec.ts': [
+    "import { expect, test } from '@playwright/test'",
+    "import { boundary } from './boundary.js'",
+    '',
+    "test('admits a positive amount', () => {",
+    '  expect(boundary(1)).toBe(true)',
+    '})',
+    '',
+  ].join('\n'),
+}
+
 const manifestFile = (manifest: Readonly<Record<string, unknown>>): string =>
   `${JSON.stringify(manifest, null, JSON_INDENT)}\n`
 
@@ -183,6 +197,23 @@ describe('knip production run', PROCESS_TIME, () => {
       })
       expect(findingsOf(result)).toMatch(/^src\/sample\.ts/mu)
       expect(findingsOf(result)).not.toContain('tests/helpers/sample.ts')
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'counts the specifications a harness package ships from its sources as production entry points',
+    () => {
+      const harness: Readonly<Record<string, unknown>> = { ...PLAYWRIGHT_MANIFEST, name: '@airness/node' }
+      expect(findingsOf(judged(SHIPPED_REACH, harness))).not.toContain('src/boundary.ts')
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'leaves a specification under the sources of any other member to the tests',
+    () => {
+      expect(findingsOf(judged(SHIPPED_REACH, PLAYWRIGHT_MANIFEST))).toMatch(/^src\/boundary\.ts/mu)
     },
     TOOL_TIMEOUT_MS,
   )

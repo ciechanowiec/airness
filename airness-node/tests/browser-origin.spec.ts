@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE,
-  declaredPort,
   fixedPorts,
   type OriginSettings,
-  onPort,
   originEnvironment,
   portsFor,
-  SERVER_URL_ENVIRONMENT_VARIABLE,
   type ServedOrigins,
   servedOrigins,
   servedSettings,
 } from '@/browser-origin.js'
+
+// The variables the e2e gate hands the served addresses to Playwright in, as its workers read them back.
+const SERVER_URL_VARIABLE: string = 'AIRNESS_SERVER_URL'
+const AUXILIARY_SERVER_URLS_VARIABLE: string = 'AIRNESS_AUXILIARY_SERVER_URLS'
 
 const declared: OriginSettings = {
   serverUrl: 'http://localhost:3000',
@@ -28,9 +28,19 @@ const declared: OriginSettings = {
 
 describe('the addresses a run serves on', () => {
   it('keeps the scheme, host and path of a declared URL and swaps its port', () => {
-    expect(onPort('http://localhost:3000', 41_000)).toBe('http://localhost:41000')
-    expect(onPort('http://localhost', 41_000)).toBe('http://localhost:41000')
-    expect(onPort('https://127.0.0.1:8443/app/', 41_000)).toBe('https://127.0.0.1:41000/app/')
+    const settings: OriginSettings = {
+      serverUrl: 'http://localhost:3000',
+      auxiliaryServers: [
+        { command: 'node bare.js', url: 'http://localhost' },
+        { command: 'node app.js', url: 'https://127.0.0.1:8443/app/' },
+      ],
+      serverUrlVariables: [],
+    }
+    expect(servedOrigins(settings, [41_000, 41_001, 41_002])).toEqual({
+      serverUrl: 'http://localhost:41000',
+      auxiliaryUrls: ['http://localhost:41001', 'https://127.0.0.1:41002/app/'],
+      ports: [41_000, 41_001, 41_002],
+    })
   })
 
   it('gives the application the first port and each auxiliary server the next, in declaration order', () => {
@@ -51,8 +61,8 @@ describe('the addresses a run serves on', () => {
     expect(originEnvironment(declared, origins)).toEqual({
       NEXT_PUBLIC_SERVER_URL: 'http://localhost:41000',
       PUBLIC_ORIGIN: 'http://localhost:41000',
-      [SERVER_URL_ENVIRONMENT_VARIABLE]: 'http://localhost:41000/app',
-      [AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE]: '["http://localhost:41001"]',
+      [SERVER_URL_VARIABLE]: 'http://localhost:41000/app',
+      [AUXILIARY_SERVER_URLS_VARIABLE]: '["http://localhost:41001"]',
     })
   })
 
@@ -98,10 +108,18 @@ describe('the addresses a run serves on', () => {
     expect(fixedPorts(declared)).toEqual([])
   })
 
-  it('reads a declared port, or the default port of its scheme', () => {
-    expect(declaredPort('http://localhost:3000')).toBe(3000)
-    expect(declaredPort('http://localhost')).toBe(80)
-    expect(declaredPort('https://localhost/app')).toBe(443)
+  it('keeps the declared port of a fixed auxiliary server, or the default port of its scheme', () => {
+    const settings: OriginSettings = {
+      serverUrl: 'http://localhost:3000',
+      auxiliaryServers: [
+        { command: 'node named.js', url: 'http://localhost:3000', fixedPort: true },
+        { command: 'node http.js', url: 'http://localhost', fixedPort: true },
+        { command: 'node https.js', url: 'https://localhost/app', fixedPort: true },
+      ],
+      serverUrlVariables: [],
+    }
+    expect(fixedPorts(settings)).toEqual([3000, 80, 443])
+    expect(portsFor(settings, [41_000])).toEqual([41_000, 3000, 80, 443])
   })
 
   it('reads the assigned addresses back in place of the declared ones, and the declared ones without them', () => {
@@ -124,13 +142,13 @@ describe('the addresses a run serves on', () => {
 
   it('refuses an assignment that does not name one URL per declared auxiliary server', () => {
     const environment: Readonly<Record<string, string>> = {
-      [SERVER_URL_ENVIRONMENT_VARIABLE]: 'http://localhost:41000',
-      [AUXILIARY_SERVER_URLS_ENVIRONMENT_VARIABLE]: '["http://127.0.0.1:41001"]',
+      [SERVER_URL_VARIABLE]: 'http://localhost:41000',
+      [AUXILIARY_SERVER_URLS_VARIABLE]: '["http://127.0.0.1:41001"]',
     }
     expect(() => servedSettings(declared, environment)).toThrow('one URL per declared auxiliary server')
     expect(() =>
       servedSettings(declared, {
-        [SERVER_URL_ENVIRONMENT_VARIABLE]: 'http://localhost:1',
+        [SERVER_URL_VARIABLE]: 'http://localhost:1',
       }),
     ).toThrow('one URL per declared auxiliary server')
   })

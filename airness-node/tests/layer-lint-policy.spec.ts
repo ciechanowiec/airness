@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LAYER_NAMES } from '@/layer.js'
-import { composeLayered, LAYER_RELAXATIONS, type LayerRelaxation } from '@/layer-lint-policy.js'
+import { composeLayered, type LayerRelaxation } from '@/layer-lint-policy.js'
 
 // A node configuration in the shapes the real one has: a file-less block, one scoped to some files, and a
 // list rule a layer may extend.
@@ -99,15 +98,5 @@ describe('a stack layer joining the node ESLint configuration', () => {
     expect(() => composeLayered(NODE, [{ name: 'other', config: [...NODE, frameworkConfig] }], RELAXATIONS)).toThrow(
       'stack layer other',
     )
-  })
-})
-
-describe('the relaxations the harness grants', () => {
-  it('grants a relaxation only to a registered layer package, with the files and the reason', () => {
-    const unfounded: readonly LayerRelaxation[] = LAYER_RELAXATIONS.filter(
-      (relaxation: LayerRelaxation): boolean =>
-        !LAYER_NAMES.includes(relaxation.layer) || relaxation.files.length === 0 || relaxation.reason.length === 0,
-    )
-    expect(unfounded).toEqual([])
   })
 })

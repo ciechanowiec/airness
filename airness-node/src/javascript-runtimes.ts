@@ -5,7 +5,7 @@
 // lint rules and the infrastructure check both need the engine. Nothing in the file says which one it is,
 // so the entry has to: there is no default, because a silent Node.js default is how such a file passes
 // every gate and then fails every request.
-import { matchesRole, type RolePattern } from './file-roles.js'
+import type { RolePattern } from './file-roles.js'
 
 /** The engines an allowlisted file may declare, in the order a finding lists them. */
 export const JAVASCRIPT_RUNTIMES: readonly ['node', 'cloudfront-js-2.0'] = ['node', 'cloudfront-js-2.0']
@@ -42,15 +42,3 @@ export const rolesFor = (roles: readonly RuntimeRole[], runtime: JavascriptRunti
   roles
     .filter((entry: RuntimeRole): boolean => entry.runtime === runtime)
     .map((entry: RuntimeRole): RolePattern => entry.role)
-
-/**
- * Every engine the entries matching a file declare for it.
- *
- * More than one means two entries disagree about the same file, which a caller must treat as a defect
- * rather than pick between.
- * @param file the repo-relative path.
- * @param roles every allowlist role with its runtime.
- * @returns each declared runtime once, in catalogue order.
- */
-export const runtimesOf = (file: string, roles: readonly RuntimeRole[]): readonly JavascriptRuntime[] =>
-  JAVASCRIPT_RUNTIMES.filter((runtime: JavascriptRuntime): boolean => matchesRole(file, rolesFor(roles, runtime)))
