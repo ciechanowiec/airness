@@ -107,6 +107,11 @@
     <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[class C { static void info(String m) { } void m(String a) { info("a" + a); } }]]></edge>
     <edge check="AirnessLoggingIsParameterized" findings="1"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { LOG.warn("count %d".formatted(a)); } }]]></edge>
     <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(int a) { LOG.warn("count {}", "%d".formatted(a)); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m() { LOG.debug(MarkerFactory.getMarker("A"), "a"); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m() { LOG.atInfo().log(); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m() { if (LOG.isDebugEnabled()) { LOG.atDebug().log("a {}", e()); } } String e() { return ""; } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="0"><![CDATA[class C { void log(String m) { } void m(String a) { log("a" + a); } }]]></edge>
+    <edge check="AirnessLoggingIsParameterized" findings="1"><![CDATA[import org.slf4j.*; class C { private static final Logger LOG = LoggerFactory.getLogger(C.class); void m(Marker k, String a) { LOG.info(k, ("a " + a)); } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.List; class C { static final List<String> EMPTY_LIST = List.of(); List<String> m() { return EMPTY_LIST; } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="0"><![CDATA[import java.util.*; class C { Comparator<String> m() { return Collections.reverseOrder(); } }]]></edge>
     <edge check="AirnessEmptyCollectionIsTyped" findings="1"><![CDATA[class C { java.util.Map<String, String> m() { return java.util.Collections.EMPTY_MAP; } }]]></edge>

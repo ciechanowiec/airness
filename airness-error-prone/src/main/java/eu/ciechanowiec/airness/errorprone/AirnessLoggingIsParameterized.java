@@ -40,6 +40,9 @@ import javax.lang.model.element.Modifier;
  * as {@code toString()} or as an explicit array, and an expensive one at a fine level is guarded. A guard
  * that matches its statement's level only around cheap arguments says nothing. A logger is a private field
  * named for the class declaring it.
+ *
+ * <p>The message is the first argument after any {@code Marker}, and the fluent API is held to the same
+ * message rules where it is handed one, by {@code log} or {@code setMessage} of its event builder.
  */
 @BugPattern(
     summary = "Pass the logger a constant message with placeholders and leave evaluation to it",
@@ -54,12 +57,17 @@ public final class AirnessLoggingIsParameterized extends BugChecker
 
     private static final String SIMPLE_LOGGING = "org.slf4j.Logger";
 
+    private static final String MARKER = "org.slf4j.Marker";
+
     private static final Set<String> LEVELS = Set.of("trace", "debug", "info", "warn", "error");
 
     private static final Set<String> GUARDED_LEVELS = Set.of("trace", "debug", "info");
 
     private static final Matcher<ExpressionTree> LOG = MethodMatchers.instanceMethod()
         .onDescendantOf(SIMPLE_LOGGING).namedAnyOf(LEVELS);
+
+    private static final Matcher<ExpressionTree> FLUENT_LOG = MethodMatchers.instanceMethod()
+        .onDescendantOf("org.slf4j.spi.LoggingEventBuilder").namedAnyOf("log", "setMessage");
 
     private static final Matcher<ExpressionTree> ENABLED = MethodMatchers.instanceMethod()
         .onDescendantOf(SIMPLE_LOGGING).namedAnyOf("isTraceEnabled", "isDebugEnabled", "isInfoEnabled");
@@ -84,7 +92,8 @@ public final class AirnessLoggingIsParameterized extends BugChecker
     @Override
     public Description matchMethodInvocation(MethodInvocationTree call, VisitorState state) {
         boolean levelArgument = JBOSS_LEVEL_ARGUMENT.matches(call, state) && levelArgument(call);
-        boolean logs = LOG.matches(call, state) && !call.getArguments().isEmpty();
+        boolean logs = (LOG.matches(call, state) || FLUENT_LOG.matches(call, state))
+            && call.getArguments().size() > markers(call);
         Optional<String> problem = levelArgument
             ? Optional.of("Call the logger method named for the level rather than passing the level")
             : Optional.of(call).filter(_ -> logs).flatMap(statement -> statementProblem(statement, state));
@@ -93,8 +102,9 @@ public final class AirnessLoggingIsParameterized extends BugChecker
 
     private static Optional<String> statementProblem(MethodInvocationTree call, VisitorState state) {
         List<? extends ExpressionTree> arguments = call.getArguments();
-        ExpressionTree message = ASTHelpers.stripParentheses(arguments.getFirst());
-        List<? extends ExpressionTree> values = arguments.subList(1, arguments.size());
+        int markers = markers(call);
+        ExpressionTree message = ASTHelpers.stripParentheses(arguments.get(markers));
+        List<? extends ExpressionTree> values = arguments.subList(markers + 1, arguments.size());
         return Finding.first(
             new Finding(
                 concatenated(message), "Pass a constant message with {} placeholders rather than concatenating"
@@ -116,6 +126,18 @@ public final class AirnessLoggingIsParameterized extends BugChecker
                 "Guard the statement with the level check, since an argument is computed"
             )
         );
+    }
+
+    /**
+     * How many leading arguments of a logging call are markers rather than the message.
+     *
+     * @param call the logging call
+     * @return the number of {@code Marker} parameters the called overload declares before its message
+     */
+    private static int markers(MethodInvocationTree call) {
+        return (int) ASTHelpers.getSymbol(call).getParameters().stream()
+            .takeWhile(parameter -> parameter.asType().tsym.getQualifiedName().contentEquals(MARKER))
+            .count();
     }
 
     private static boolean concatenated(ExpressionTree message) {
