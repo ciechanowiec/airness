@@ -296,7 +296,9 @@ Airness governs all of the following domains in a Java module:
   An assertion is recognized by that prefix wherever the helper is declared. A helper named otherwise is followed at
   most within its own file, so a test that reaches its assertion only through such a helper in another type reports
   as unproven. Rename the helper or move the assertion into the test's own source rather than suppressing the
-  finding.
+  finding. The `assert` statement is an assertion too, and so, in a source that names its library, is a BDD
+  `then(...)` of AssertJ, a Mockito `then(mock).should()`, an Awaitility `until` and a RestAssured `then()` that
+  validates the response, such as `.then().statusCode(200)`.
 - Read a resource the JAR carries by resolving `Class.getResource` through `Optional.ofNullable(...)` and
   `orElseThrow(...)` to a `URL`, and only then opening the stream in a plain try-with-resources. A stream opened
   before the missing-resource check, or checked inside the resource specifier, is unclosed on the throwing edge,
