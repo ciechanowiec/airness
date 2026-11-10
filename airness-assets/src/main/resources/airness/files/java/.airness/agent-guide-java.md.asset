@@ -268,7 +268,9 @@ Airness governs all of the following domains in a Java module:
     those suppliers no longer bind, a key they still bind and have deprecated, and a key that no declared group accounts
     for are each refused, because none of them fails at startup and none appears in a log. Write the key the metadata
     names: a replacement is reported with the offence. A key under a namespace no dependency declares is your own and is
-    left alone, so a project binds its own settings freely. Declaring one key twice in one document is refused as well,
+    left alone, so a project binds its own settings freely. An indexed item of a list, set or array the metadata
+    declares is accounted for by it, so write a list of objects item by item, as `routes[0].id`: a YAML block sequence
+    is reported as a line the reader cannot account for. Declaring one key twice in one document is refused as well,
     since only the last of them is bound. A placeholder production code reads without a default is read against the base
     configuration file, because the test profile satisfies it in every test while an environment starting
     from the base file refuses to start. Published metadata recognizes names but supplies no environment

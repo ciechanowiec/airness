@@ -139,6 +139,33 @@
             <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+            Spring Boot's own configuration loaders, which a test reads every configuration fixture with
+            beside SpringConfiguration, so the reader is held to the keys and documents the container binds
+            rather than to what this module believes it binds. Test scope alone: production code still reads
+            configuration by hand. The test names Spring Framework's resource and property-source types, so
+            spring-core is declared at the version that Spring Boot release brings. SnakeYAML is optional in
+            Spring Boot, so it is named here, at the version the spring-boot-dependencies of the same release
+            manages.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>7.0.10</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.6</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

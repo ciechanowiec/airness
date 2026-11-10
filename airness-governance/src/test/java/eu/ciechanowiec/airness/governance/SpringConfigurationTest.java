@@ -1,7 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -117,8 +116,8 @@ class SpringConfigurationTest {
 
         SpringConfiguration read = yaml(content);
 
-        assertTrue(read.configures("spring.jpa"), "the prefix is configured");
-        assertFalse(read.configures("management"), "this one is not");
+        assertEquals(1, read.beneath("spring.jpa").size(), "the prefix is configured");
+        assertEquals(List.of(), read.beneath("management"), "this one is not");
     }
 
     @Test

@@ -1,12 +1,13 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -24,18 +25,28 @@ import lombok.experimental.UtilityClass;
  * <p>The gate reads the configuration rather than the classpath. A file that configures nothing under a
  * prefix has not taken on the obligations of that prefix, and an application that configures nothing at
  * all is left to the defaults the analyzer rules already argue about elsewhere.
+ *
+ * <p>Every document of a file is read, not only the first. A value is judged wherever it is written, so a
+ * profile document turning a setting back on is reported like the default it overrides. A key that has to
+ * be present is asked of each document configuring its subsystem, and a document is answered by its own
+ * declaration or by one in a document that applies unconditionally, which is what a profile inherits.
  */
 @UtilityClass
 final class SpringConfigurationRules {
 
     private static final String NEVER = "never";
-    private static final Pattern PLACEHOLDER = Pattern.compile("^\"?\\$\\{.*}\"?$");
     private static final Pattern SENSITIVE = Pattern.compile(
         "(?:password|secret|token|credential|privatekey|apikey|accesskey)$"
     );
     private static final Pattern KEBAB = Pattern.compile("[A-Z_]");
     private static final String ALWAYS = "always";
     private static final String LIST = ",";
+    private static final String OPENING = "${";
+    private static final char OPENS = '{';
+    private static final char CLOSES = '}';
+    private static final char FALLBACK = ':';
+    private static final Pattern FLOW = Pattern.compile("^\\[|]$");
+    private static final Pattern QUOTES = Pattern.compile("^([\"'])(.*)\\1$");
 
     /*
      * The actuator endpoints that hand out a secret or change the application. Naming one of them over
@@ -195,26 +206,41 @@ final class SpringConfigurationRules {
     }
 
     private static Stream<String> wrongValue(String path, SpringConfiguration read, Rule rule) {
-        return read.declared(rule.key()).stream()
+        return read.declarations(rule.key()).stream()
             .filter(setting -> rule.wrong().test(unquoted(setting.value())))
             .map(setting -> offence(path, setting.line(), rule.key() + ": " + rule.consequence()));
     }
 
     private static Stream<String> missing(String path, SpringConfiguration read, Required rule) {
-        if (!read.configures(rule.subsystem())) {
-            return Stream.empty();
-        }
-        Optional<SpringConfiguration.Setting> declared = read.declared(rule.key());
-        boolean satisfied = declared.isPresent()
-            && rule.right().test(unquoted(declared.get().value()));
-        return satisfied
-            ? Stream.empty()
-            : Stream.of(
-                offence(
-                    path, declared.map(SpringConfiguration.Setting::line).orElse(1),
-                    rule.key() + " is not set as it has to be: " + rule.consequence()
+        List<SpringConfiguration.Setting> declared = read.declarations(rule.key());
+        Stream<SpringConfiguration.Setting> wrong = declared.stream()
+            .filter(setting -> !rule.right().test(unquoted(setting.value())));
+        Stream<SpringConfiguration.Setting> absent = openings(read, rule.subsystem()).stream()
+            .filter(opening -> declared.stream().noneMatch(setting -> reaches(read, setting, opening)));
+        return Stream.concat(wrong, absent)
+            .map(
+                setting -> offence(
+                    path, setting.line(), rule.key() + " is not set as it has to be: " + rule.consequence()
                 )
             );
+    }
+
+    // The first setting of the subsystem in each document that configures it, which is where its absence
+    // is reported.
+    private static Collection<SpringConfiguration.Setting> openings(SpringConfiguration read, String subsystem) {
+        return read.beneath(subsystem).stream()
+            .collect(
+                Collectors.toMap(
+                    SpringConfiguration.Setting::document, Function.identity(), (first, _) -> first,
+                    LinkedHashMap::new
+                )
+            ).values();
+    }
+
+    private static boolean reaches(
+        SpringConfiguration read, SpringConfiguration.Setting declaration, SpringConfiguration.Setting opening
+    ) {
+        return declaration.document() == opening.document() || !read.conditional(declaration.document());
     }
 
     private static Stream<String> hygiene(String path, SpringConfiguration.Setting setting) {
@@ -223,14 +249,13 @@ final class SpringConfigurationRules {
 
     private static Stream<String> secret(String path, SpringConfiguration.Setting setting) {
         boolean literal = SENSITIVE.matcher(setting.key()).find()
-            && !setting.value().isEmpty()
-            && !PLACEHOLDER.matcher(setting.value()).matches();
+            && !placeholders(QUOTES.matcher(setting.value().strip()).replaceFirst("$2"));
         return literal
             ? Stream.of(
                 offence(
                     path, setting.line(), setting.raw()
                         + " carries a literal secret, which ships inside the artifact; read it from the"
-                        + " environment through a placeholder"
+                        + " environment through a placeholder, with no literal written as its default"
                 )
             )
             : Stream.empty();
@@ -281,14 +306,56 @@ final class SpringConfigurationRules {
         );
     }
 
+    /*
+     * Whether a value is nothing but placeholders, none of which falls back to a literal. A default
+     * written after the colon is what the application runs with wherever the variable is unset, so it
+     * ships inside the artifact as surely as a value written outright. An empty default carries
+     * nothing, and a default that is itself such a placeholder reads the environment again.
+     */
+    private static boolean placeholders(String text) {
+        if (text.isEmpty()) {
+            return true;
+        }
+        String inside = text.substring(Math.min(OPENING.length(), text.length()));
+        int closes = depthless(inside, CLOSES);
+        return text.startsWith(OPENING) && closes >= 0
+            && defaultless(inside.substring(0, closes))
+            && placeholders(inside.substring(closes + 1));
+    }
+
+    private static boolean defaultless(String inner) {
+        int fallback = depthless(inner, FALLBACK);
+        return fallback < 0 || placeholders(inner.substring(fallback + 1));
+    }
+
+    // The first occurrence of a character outside every brace the text opens, or -1 when there is none.
+    private static int depthless(String text, char wanted) {
+        int depth = 0;
+        for (int at = 0; at < text.length(); at++) {
+            char current = text.charAt(at);
+            if (current == wanted && depth == 0) {
+                return at;
+            }
+            depth += step(current);
+        }
+        return -1;
+    }
+
+    private static int step(char current) {
+        return (current == OPENS ? 1 : 0) - (current == CLOSES ? 1 : 0);
+    }
+
     private static String unquoted(String value) {
         String stripped = value.replace("\"", "").replace("'", "").strip();
         return stripped.toLowerCase(Locale.ROOT);
     }
 
     // Whether the endpoints published here include one that hands out a secret or stops the application.
+    // A YAML flow sequence is the same list in brackets, and its quotation marks are already gone.
     private static boolean dangerous(String value) {
-        return Arrays.stream(value.split(LIST)).map(String::strip).anyMatch(DANGEROUS::contains);
+        return Arrays.stream(FLOW.matcher(value).replaceAll("").split(LIST))
+            .map(String::strip)
+            .anyMatch(DANGEROUS::contains);
     }
 
     private static boolean wildcard(String value) {
