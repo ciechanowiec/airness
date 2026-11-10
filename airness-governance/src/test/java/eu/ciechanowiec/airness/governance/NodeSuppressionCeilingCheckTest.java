@@ -23,7 +23,7 @@ class NodeSuppressionCeilingCheckTest {
         return new NodeSuppressionCeilingCheck(
             root, List.of(
                 root.resolve("web/src/long.ts"), root.resolve("web/src/quiet.ts"), root.resolve("web/README.md")
-            )
+            ), List.of()
         );
     }
 
@@ -37,12 +37,29 @@ class NodeSuppressionCeilingCheckTest {
     }
 
     @Test
+    void countsEachCoverageExclusionBesideTheDirectives() {
+        Path root = new GitFixture("node-ceiling-exclusions").write(
+            "web/src/quiet.ts", "// eslint-disable-next-line no-console\nconsole.log(1)\n"
+        ).root();
+        NodeSuppressionCeilingCheck check = new NodeSuppressionCeilingCheck(
+            root, List.of(root.resolve("web/src/quiet.ts")),
+            List.of("web/package.json: coverageExclude src/cli.ts", "web/package.json: coverageExclude src/main.ts")
+        );
+        List<String> offences = check.findings().getFirst().offences();
+        assertEquals(3, check.count(), "one directive and two excluded files are three exceptions");
+        assertTrue(
+            offences.contains("web/package.json: coverageExclude src/main.ts"),
+            () -> "an exclusion is named among the offences once the ceiling is passed, but named " + offences
+        );
+    }
+
+    @Test
     void namesEveryOffenderOnceTheCeilingIsPassed() {
         Path root = new GitFixture("node-ceiling-over").write(
             "web/src/loud.ts", "// @ts-ignore\n// @ts-ignore\n/* v8 ignore next */\nexport const a = 1\n"
         ).root();
         NodeSuppressionCeilingCheck check = new NodeSuppressionCeilingCheck(
-            root, List.of(root.resolve("web/src/loud.ts"))
+            root, List.of(root.resolve("web/src/loud.ts")), List.of()
         );
         List<String> offences = check.findings().getFirst().offences();
         assertEquals(3, offences.size());

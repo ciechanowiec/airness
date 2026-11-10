@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.CoverageExclusions;
 import eu.ciechanowiec.airness.governance.CoverageReport;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.io.IOException;
@@ -36,7 +37,7 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
     /**
      * The exclusions this project declared, read here to check that each one still names a class.
      */
-    @Parameter(property = "airness.coverage.excluded.classes")
+    @Parameter(property = CoverageExclusions.PROPERTY)
     private @Nullable String excluded;
 
     @Override
@@ -68,7 +69,7 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
      * A floor with no class under it is not a floor a green build can be read against.
      */
     private void requireAFloorToStandOn() {
-        List<String> declared = CommaList.entries(this.excluded);
+        List<String> declared = this.patterns();
         Path report = Path.of(this.reportFile());
         if (declared.isEmpty() || !Files.isRegularFile(report)) {
             return;
@@ -89,13 +90,17 @@ public final class CoverageEvidenceMojo extends AbstractGovernanceMojo {
      * @return one entry per declared pattern that names no class the report measured
      */
     private List<String> unreached() {
-        List<String> declared = CommaList.entries(this.excluded);
+        List<String> declared = this.patterns();
         Path report = Path.of(this.reportFile());
         return declared.isEmpty() || !Files.isRegularFile(report)
             ? List.of()
             : new CoverageReport(report).unreached(declared).stream()
                 .map(pattern -> pattern + " excludes nothing, so it names a class that moved or went")
                 .toList();
+    }
+
+    private List<String> patterns() {
+        return CoverageExclusions.patterns(Objects.toString(this.excluded, ""));
     }
 
     private static long modified(Path file) {

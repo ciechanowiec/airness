@@ -32,6 +32,16 @@
 
     <properties>
         <!--
+            Classes left out of the per-class coverage floor, separated by semicolons, each a class
+            pattern, then two hyphens, then the reason the role the class plays gives, rather than that
+            covering it was inconvenient. Each counts against the suppression ceiling. Empty by default: a
+            harness that arrived with exclusions would be teaching a project that the list is where
+            difficulty goes. JaCoCo reads the patterns alone, which coverage-exclusions derives into
+            airness.coverage.excluded.patterns. That setting is deliberately declared nowhere, so Maven
+            reads it when the check runs rather than when it builds the project.
+        -->
+        <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
+        <!--
             The phase at which each source-shaping tool applies its changes. Only the applying half is a
             property. The checking half is bound to a literal phase and cannot be moved by anyone.
 
@@ -62,12 +72,6 @@
         -->
         <airness.test.timeout>30 s</airness.test.timeout>
         <airness.coverage.skip>${skipTests}</airness.coverage.skip>
-        <!--
-            Classes left out of the per-class coverage floor, comma-separated, each because of the role
-            it plays rather than because covering it was inconvenient. Empty by default: a harness that
-            arrived with exclusions would be teaching a project that the list is where difficulty goes.
-        -->
-        <airness.coverage.excluded.classes></airness.coverage.excluded.classes>
         <airness.prettier.goal>check</airness.prettier.goal>
         <!--
             The two file patterns that decide which Checkstyle rules a project answers to. The shipped
@@ -129,6 +133,17 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+            Keeps every test on the machine it runs on: the host name resolver the Java runtime loads in
+            place of its own refuses every name beyond the machine, so a test that reaches for a remote
+            service fails on the rule rather than passing while the network happens to be up. Test scope,
+            so it reaches Surefire's and Failsafe's runs and never the archive that ships.
+        -->
+        <dependency>
+            <groupId>eu.ciechanowiec</groupId>
+            <artifactId>airness-network-guard</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -343,7 +358,7 @@
                             <rules>
                                 <rule>
                                     <element>CLASS</element>
-                                    <excludes>${airness.coverage.excluded.classes}</excludes>
+                                    <excludes>${airness.coverage.excluded.patterns}</excludes>
                                     <limits>
                                         <limit>
                                             <counter>LINE</counter>
@@ -449,6 +464,17 @@
                         <phase>initialize</phase>
                         <goals>
                             <goal>prepare-test-evidence</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        Refuses a coverage exclusion that gives no reason, and hands the coverage check the
+                        patterns alone, before anything is measured.
+                    -->
+                    <execution>
+                        <id>airness-coverage-exclusions</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>coverage-exclusions</goal>
                         </goals>
                     </execution>
                     <!--
@@ -641,6 +667,7 @@
                                 <sourceDirectory>${project.basedir}/../airness-maven-plugin/src/main/java</sourceDirectory>
                                 <sourceDirectory>${project.basedir}/../airness-spring-evidence/src/main/java</sourceDirectory>
                                 <sourceDirectory>${project.basedir}/../airness-web-evidence/src/main/java</sourceDirectory>
+                                <sourceDirectory>${project.basedir}/../airness-network-guard/src/main/java</sourceDirectory>
                             </sourceDirectories>
                             <testSourceDirectories>
                                 <testSourceDirectory>${project.basedir}/../airness-annotations/src/test/java</testSourceDirectory>
@@ -649,6 +676,7 @@
                                 <testSourceDirectory>${project.basedir}/../airness-maven-plugin/src/test/java</testSourceDirectory>
                                 <testSourceDirectory>${project.basedir}/../airness-spring-evidence/src/test/java</testSourceDirectory>
                                 <testSourceDirectory>${project.basedir}/../airness-web-evidence/src/test/java</testSourceDirectory>
+                                <testSourceDirectory>${project.basedir}/../airness-network-guard/src/test/java</testSourceDirectory>
                             </testSourceDirectories>
                         </configuration>
                     </execution>

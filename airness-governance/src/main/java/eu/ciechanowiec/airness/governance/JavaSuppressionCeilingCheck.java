@@ -20,6 +20,10 @@ import java.util.stream.Stream;
  * two. A smallest ceiling holds underneath the rate so that an early project is not left with a ceiling
  * of one.
  *
+ * <p>A coverage exclusion counts beside the annotations. It switches the coverage rule off for a whole class, and
+ * a ceiling that counted annotations alone would move the next exception from the source, where it costs, into
+ * the project file, where it would not.
+ *
  * <p>The offences are listed only once the ceiling is passed. Below it the count is a number the build
  * reports rather than a finding, and printing every suppression on every clean build would bury the run
  * that matters under the ones that do not.
@@ -49,13 +53,14 @@ public final class JavaSuppressionCeilingCheck {
      *
      * @param root        the working tree root
      * @param sourceRoots the directories whose Java sources are read
+     * @param exclusions  one entry per coverage exclusion a project file declares, naming where and what
      */
-    public JavaSuppressionCeilingCheck(Path root, Collection<Path> sourceRoots) {
+    public JavaSuppressionCeilingCheck(Path root, Collection<Path> sourceRoots, Collection<String> exclusions) {
         List<Path> found = JavaSources.under(root, sourceRoots);
         this.root = root;
         this.sources = found.size();
         this.lines = found.stream().mapToInt(JavaSuppressionCeilingCheck::lineCount).sum();
-        this.suppressions = found.stream().flatMap(this::located).toList();
+        this.suppressions = Stream.concat(found.stream().flatMap(this::located), exclusions.stream()).toList();
     }
 
     /**

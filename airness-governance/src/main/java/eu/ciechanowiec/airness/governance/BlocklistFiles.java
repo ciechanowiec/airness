@@ -39,22 +39,20 @@ final class BlocklistFiles {
     /**
      * Every Dockerfile the tree carries.
      *
-     * @param root    the working tree root
      * @param tracked the committable files
      * @return the Dockerfiles, in the order git reports them
      */
-    static List<Path> dockerfiles(Path root, Collection<Path> tracked) {
+    static List<Path> dockerfiles(Collection<Path> tracked) {
         return tracked.stream().filter(file -> DOCKERFILE.matcher(name(file)).matches()).toList();
     }
 
     /**
      * Every compose file the tree carries.
      *
-     * @param root    the working tree root
      * @param tracked the committable files
      * @return the compose files, in the order git reports them
      */
-    static List<Path> composeFiles(Path root, Collection<Path> tracked) {
+    static List<Path> composeFiles(Collection<Path> tracked) {
         return tracked.stream().filter(file -> COMPOSE.matcher(name(file)).matches()).toList();
     }
 

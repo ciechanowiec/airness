@@ -55,6 +55,7 @@
         <module>airness-governance</module>
         <module>airness-spring-evidence</module>
         <module>airness-web-evidence</module>
+        <module>airness-network-guard</module>
         <module>airness-maven-plugin</module>
         <module>airness-parent</module>
         <module>airness-parent-java</module>
@@ -558,6 +559,7 @@
                                     <exclude>eu.ciechanowiec:airness-annotations</exclude>
                                     <exclude>eu.ciechanowiec:airness-spring-evidence</exclude>
                                     <exclude>eu.ciechanowiec:airness-web-evidence</exclude>
+                                    <exclude>eu.ciechanowiec:airness-network-guard</exclude>
                                 </excludes>
                                 <message>
                                     A released project resolves a snapshot, which no later build can
@@ -1467,6 +1469,11 @@
             <dependency>
                 <groupId>eu.ciechanowiec</groupId>
                 <artifactId>airness-web-evidence</artifactId>
+                <version>${airness.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-network-guard</artifactId>
                 <version>${airness.version}</version>
             </dependency>
             <!--

@@ -102,6 +102,7 @@ public final class ManagedVersions {
         suppliedDependency(AIRNESS_GROUP, "airness-governance", AIRNESS_VERSION),
         suppliedDependency(AIRNESS_GROUP, "airness-spring-evidence", AIRNESS_VERSION),
         suppliedDependency(AIRNESS_GROUP, "airness-web-evidence", AIRNESS_VERSION),
+        suppliedDependency(AIRNESS_GROUP, "airness-network-guard", AIRNESS_VERSION),
         suppliedDependency("org.webjars.npm", "axe-core", "axe-core.version"),
         suppliedDependency("org.apache.maven", "maven-artifact", "maven-artifact.version"),
         suppliedDependency("org.attoparser", "attoparser", "attoparser.version"),

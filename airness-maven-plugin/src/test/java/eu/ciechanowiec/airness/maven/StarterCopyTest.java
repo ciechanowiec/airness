@@ -20,6 +20,15 @@ import org.junit.jupiter.api.io.TempDir;
 class StarterCopyTest {
 
     private static final String VERSION = "9.8.7";
+    private static final String SNAPSHOT_VERSION = "9.8.8-SNAPSHOT";
+    private static final String REGIONED = """
+        <plugins>
+            <!-- @SNAPSHOT_ONLY_BEGIN@ -->
+            <plugin>registry</plugin>
+            <!-- @SNAPSHOT_ONLY_END@ -->
+            <plugin>build</plugin>
+        </plugins>
+        """;
     private static final StarterRequest REQUEST = StarterRequest.of(
         "org.sample", "task-tracker", Optional.of("org.sample.tracker"), Optional.of("Task Tracker")
     );
@@ -86,6 +95,61 @@ class StarterCopyTest {
     }
 
     @Test
+    void dropsASnapshotRegionForAReleasedHarness() {
+        assertEquals(
+            """
+                <plugins>
+                    <plugin>build</plugin>
+                </plugins>
+                """,
+            StarterCopy.content("pom.xml.fixture", REGIONED, REQUEST, VERSION)
+        );
+    }
+
+    @Test
+    void keepsASnapshotRegionWithoutItsMarkersForASnapshotHarness() {
+        assertEquals(
+            """
+                <plugins>
+                    <plugin>registry</plugin>
+                    <plugin>build</plugin>
+                </plugins>
+                """,
+            StarterCopy.content("pom.xml.fixture", REGIONED, REQUEST, SNAPSHOT_VERSION)
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void installsAReleasedHarnessFromThePublicRegistry() {
+        try (StarterTemplate starter = StarterTemplate.open(StarterCopyTest.class.getClassLoader(), "spring-boot")) {
+            StarterCopy.write(starter.root(), this.directory, REQUEST, VERSION);
+        }
+
+        assertFalse(Files.readString(this.directory.resolve("pom.xml")).contains("npm-registry.py"));
+        assertFalse(Files.readString(this.directory.resolve(".gitignore")).contains(".npmrc"));
+        assertFalse(Files.readString(this.directory.resolve("README.md")).contains("local registry"));
+    }
+
+    @Test
+    @SneakyThrows
+    void servesASnapshotHarnessFromTheLocalRegistry() {
+        try (StarterTemplate starter = StarterTemplate.open(StarterCopyTest.class.getClassLoader(), "spring-boot")) {
+            StarterCopy.write(starter.root(), this.directory, REQUEST, SNAPSHOT_VERSION);
+        }
+
+        assertTrue(Files.readString(this.directory.resolve("pom.xml")).contains("npm-registry.py"));
+        assertTrue(Files.readString(this.directory.resolve(".gitignore")).contains(".npmrc"));
+        assertTrue(Files.readString(this.directory.resolve("README.md")).contains("local registry"));
+        try (Stream<Path> files = Files.walk(this.directory)) {
+            assertEquals(
+                0L, files.filter(Files::isRegularFile).filter(StarterCopyTest::mentionsTheStarter).count(),
+                "no file keeps a region marker"
+            );
+        }
+    }
+
+    @Test
     @SneakyThrows
     void writesEveryFileOfTheStarterUnderTheApplicationsNames() {
         try (StarterTemplate starter = StarterTemplate.open(StarterCopyTest.class.getClassLoader(), "spring-boot")) {
@@ -132,8 +196,7 @@ class StarterCopyTest {
     @SneakyThrows
     private static boolean mentionsTheStarter(Path file) {
         String text = Files.readString(file);
-        return text.contains("com.example.starter") || text.contains("@AIRNESS_VERSION@") || text.contains(
-            "@GROUP_ID@"
-        );
+        return Stream.of("com.example.starter", "@AIRNESS_VERSION@", "@GROUP_ID@", "@SNAPSHOT_ONLY_")
+            .anyMatch(text::contains);
     }
 }

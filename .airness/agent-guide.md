@@ -321,8 +321,9 @@ patched version, the advisory identifiers, its reason and date. The workspace de
 agree, every selected dependency edge must resolve to that version, and an unused override fails. Arbitrary
 replacements, aliases, patches, package extensions and pnpmfile hooks remain forbidden.
 
-Until the harness npm packages are published, the managed `.airness/npm-registry.py` helper can serve their
-installed Maven tarballs from a temporary loopback registry. Bind its startup and readiness checks at validate,
+A released harness installs its npm packages from the public registry. A SNAPSHOT harness's packages are never
+published, so the managed `.airness/npm-registry.py` helper can serve their installed Maven tarballs from a
+temporary loopback registry. Bind its startup and readiness checks at validate,
 write its endpoint only to an ignored `.npmrc`, and keep its lifetime inside the Maven process. Given the
 project's lockfile with `--lockfile`, it refuses to start when a served tarball's integrity differs from the
 one the lockfile records, and names the lockfile-only `pnpm install` that refreshes the lock against it. With
@@ -560,7 +561,7 @@ spends a ceiling the next repair will need.
 | `airness.node.projects` | the module's node project directories, comma-separated, and none unless set |
 | `airness.generated.files` | further generated files, comma-separated |
 | `airness.typography.excludes` | repository path prefixes the typography scan skips, never all of them; generated files are skipped without it |
-| `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip, never all of them |
+| `airness.coverage.excluded.classes` | `pattern -- reason` entries, separated by semicolons, for the classes the coverage floors skip, never all of them; each counts against the suppression ceiling |
 | `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
 | `airness.dependency-check.suppression.file` | a local OWASP suppression file, and the path Vulnerability Exceptions names unless set |
 
@@ -590,7 +591,7 @@ A node project declares what the harness cannot know through these keys under `a
 | `generatedArtefacts` | files a generator writes, which no gate judges |
 | `frameworkGlue` | files a framework writes to a fixed shape, which the lint relaxes |
 | `javascriptAllowlist` | JavaScript files a tool forces on the project, each with the `runtime` of `node` or `cloudfront-js-2.0` that runs it |
-| `coverageExclude` | source files the coverage floor doesn't measure |
+| `coverageExclude` | source files the coverage floor doesn't measure; each entry counts against the node suppression ceiling |
 | `pureLogicRoots` | directories of pure logic, which `arch` forbids to import anything else under a source root |
 | `productionEntries` | files that run in production though no entry point knip reads reaches them, such as a script `start` runs or a site build that renders a story; never a test, and no suppression |
 | `accessibilitySkipRoutes` | route prefixes the sweep doesn't follow |

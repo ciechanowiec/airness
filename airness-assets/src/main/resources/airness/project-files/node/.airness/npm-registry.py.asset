@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Serves npm package tarballs as a registry on a local port, until the harness packages are published.
+"""Serves npm package tarballs as a registry on a local port, for a SNAPSHOT harness whose packages are unpublished.
 
-The harness npm packages are not on npm yet, and a node project must install a harness package by its
-version from a registry rather than from a path, because the wiring and release-age gates refuse a path. This
-answers the package-document and tarball requests for the tarballs it is given. Each tarball is read when it is
-requested, so a tarball packed after the registry started is served as it is now. The harness tarballs are dated
-now, as a fresh release is; the others are dated years back, so the release-age floor admits them.
+A released harness's npm packages install from the public registry, but a SNAPSHOT's are never published, and a
+node project must install a harness package by its version from a registry rather than from a path, because the
+wiring and release-age gates refuse a path. This answers the package-document and tarball requests for the
+tarballs it is given. Each tarball is read when it is requested, so a tarball packed after the registry started is
+served as it is now. The harness tarballs are dated now, as a fresh release is; the others are dated years back, so
+the release-age floor admits them.
 
 A harness package is scoped, such as one under @airness, and is routed here by a scope line alone, so every other
 package keeps the registry it is installed from and every other request is answered as not found.

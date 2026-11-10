@@ -121,14 +121,17 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
     }
 
     private List<Findings> javaSuppressions(List<Path> javaRoots) {
-        JavaSuppressionCeilingCheck check = new JavaSuppressionCeilingCheck(this.repositoryRoot(), javaRoots);
+        JavaSuppressionCeilingCheck check = new JavaSuppressionCeilingCheck(
+            this.repositoryRoot(), javaRoots,
+            DeclaredExclusions.java(this.repositoryRoot(), this.session().getAllProjects())
+        );
         this.getLog().info("Suppressions in force: " + check.count() + " of " + check.ceiling() + " allowed");
         Scope.requireJavaSources(check.scanned(), javaRoots);
         return check.findings();
     }
 
     // The node ceiling reads only code the project wrote: the files the harness pins and the files a layer or the
-    // project declares generated are left out.
+    // project declares generated are left out. The files a manifest takes out of the coverage floor count.
     private List<Findings> nodeSuppressions(List<Path> directories) {
         Path root = this.repositoryRoot();
         List<AssetSite> sites = RepositorySites.read(this.builder, this.session().getProjectBuildingRequest(), root);
@@ -136,7 +139,7 @@ public final class ModuleCompleteMojo extends AbstractGovernanceMojo {
             root, sites, CommaList.entries(this.generated), CommaList.entries(this.unmanaged)
         );
         NodeSuppressionCeilingCheck check = new NodeSuppressionCeilingCheck(
-            root, Closing.nodeSources(root, directories, excluded)
+            root, Closing.nodeSources(root, directories, excluded), DeclaredExclusions.node(root, directories)
         );
         this.getLog().info("Node suppressions in force: " + check.count() + " of " + check.ceiling() + " allowed");
         return check.findings();

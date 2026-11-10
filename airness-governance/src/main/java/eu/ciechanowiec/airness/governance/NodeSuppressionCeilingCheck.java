@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * The node projects hold no more suppressions than the ceiling their own code earns.
@@ -12,6 +13,10 @@ import java.util.List;
  * decides what first-party source is: the source roots of each node project, without tests, generated files
  * or the files the harness pins, so a ceiling is never earned by code the project did not write. It is a
  * verdict of its own beside the Java ceiling, because the two rates differ and neither may loosen the other.
+ *
+ * <p>Each {@code coverageExclude} entry a {@code package.json} declares counts beside the directives, because it
+ * takes a whole file out of the coverage floor, as a coverage directive takes a range, and a ceiling that counted
+ * the directive alone would move the next exception into the manifest, where it would cost nothing.
  */
 public final class NodeSuppressionCeilingCheck {
 
@@ -25,17 +30,21 @@ public final class NodeSuppressionCeilingCheck {
     /**
      * Reads the sources, locating every suppression and measuring the code it is weighed against.
      *
-     * @param root    the working tree root
-     * @param sources the first-party JavaScript, TypeScript and stylesheet sources of the node projects
+     * @param root       the working tree root
+     * @param sources    the first-party JavaScript, TypeScript and stylesheet sources of the node projects
+     * @param exclusions one entry per coverage exclusion a node manifest declares, naming where and what
      */
-    public NodeSuppressionCeilingCheck(Path root, Collection<Path> sources) {
+    public NodeSuppressionCeilingCheck(Path root, Collection<Path> sources, Collection<String> exclusions) {
         List<Path> read = sources.stream().filter(path -> NodeSuppressions.readable(path.toString())).distinct()
             .toList();
         this.sources = read.size();
         this.lines = read.stream().mapToInt(NodeSuppressionCeilingCheck::nonBlankLines).sum();
-        this.suppressions = read.stream().flatMap(
-            source -> Repository.readText(source).stream().flatMap(text -> NodeSuppressions.in(text).stream())
-                .map(entry -> "%s: %s".formatted(root.relativize(source), entry))
+        this.suppressions = Stream.concat(
+            read.stream().flatMap(
+                source -> Repository.readText(source).stream().flatMap(text -> NodeSuppressions.in(text).stream())
+                    .map(entry -> "%s: %s".formatted(root.relativize(source), entry))
+            ),
+            exclusions.stream()
         ).toList();
     }
 

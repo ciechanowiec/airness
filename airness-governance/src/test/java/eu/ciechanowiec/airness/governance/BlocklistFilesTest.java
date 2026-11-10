@@ -34,7 +34,7 @@ class BlocklistFilesTest {
     void findsEveryDockerfileByName() {
         assertEquals(
             List.of("Dockerfile", "docker/Dockerfile.jre", "build.dockerfile"),
-            names(BlocklistFiles.dockerfiles(ROOT, TRACKED))
+            names(BlocklistFiles.dockerfiles(TRACKED))
         );
     }
 
@@ -42,7 +42,7 @@ class BlocklistFilesTest {
     void findsEveryComposeFileByName() {
         assertEquals(
             List.of("compose.yaml", "docker-compose.override.yml", "deploy/compose.prod.yaml"),
-            names(BlocklistFiles.composeFiles(ROOT, TRACKED)),
+            names(BlocklistFiles.composeFiles(TRACKED)),
             "an application file is not a compose file"
         );
     }

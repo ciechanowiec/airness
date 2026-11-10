@@ -17,8 +17,6 @@ import org.jspecify.annotations.Nullable;
 @Mojo(name = "publication-metadata", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public final class PublicationMetadataMojo extends AbstractPublicationMojo {
 
-    private static final String SNAPSHOT = "-SNAPSHOT";
-
     @Override
     List<Findings> findings() {
         return List.of(
@@ -41,13 +39,13 @@ public final class PublicationMetadataMojo extends AbstractPublicationMojo {
      */
     private List<String> snapshotCoordinates() {
         Stream<String> parent = Optional.ofNullable(this.project().getParent())
-            .filter(declared -> snapshot(declared.getVersion()))
+            .filter(declared -> SnapshotVersions.snapshot(declared.getVersion()))
             .map(
                 declared -> "parent " + declared.getGroupId() + ':' + declared.getArtifactId()
                     + ':' + declared.getVersion()
             ).stream();
         Stream<String> project = Stream.of(this.project().getVersion())
-            .filter(PublicationMetadataMojo::snapshot)
+            .filter(SnapshotVersions::snapshot)
             .map(version -> "project " + version);
         return Stream.concat(project, parent).toList();
     }
@@ -97,9 +95,5 @@ public final class PublicationMetadataMojo extends AbstractPublicationMojo {
 
     private static Optional<String> missing(String name, @Nullable String value) {
         return Optional.of(name).filter(_ -> Optional.ofNullable(value).orElse("").isBlank());
-    }
-
-    private static boolean snapshot(@Nullable String version) {
-        return Optional.ofNullable(version).orElse("").endsWith(SNAPSHOT);
     }
 }

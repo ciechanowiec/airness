@@ -26,8 +26,7 @@ import {
 // `<div class="page">` holding a heading, the notice, and `<p class="inline-actions"><a class="button">`.
 // The paragraph paints nothing, so the button is the notice's real neighbour. `actionsTop` is where the
 // paragraph starts: 100 is flush against the notice, 116 is what a 16px gap on the parent produces.
-const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
-  BODY,
+const verifyHeading: readonly LayoutNode[] = [
   nodeOf({
     index: 1,
     parent: 0,
@@ -48,6 +47,9 @@ const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
     rects: [rect(16, 0, 374, 40)],
     textRects: [rect(16, 4, 260, 36)],
   }),
+]
+
+const verifyNotice: readonly LayoutNode[] = [
   nodeOf({
     index: 4,
     parent: 1,
@@ -69,6 +71,9 @@ const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
     rects: [rect(32, 66, 358, 90)],
     textRects: [rect(32, 68, 300, 88)],
   }),
+]
+
+const verifyActions = (actionsTop: number): readonly LayoutNode[] => [
   nodeOf({
     index: 6,
     parent: 1,
@@ -85,6 +90,13 @@ const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
     textRects: [rect(30, actionsTop + 10, 86, actionsTop + 30)],
     backgroundColor: RED,
   }),
+]
+
+const verifyPage = (actionsTop: number): readonly LayoutNode[] => [
+  BODY,
+  ...verifyHeading,
+  ...verifyNotice,
+  ...verifyActions(actionsTop),
 ]
 
 describe('the email confirmation page that escaped every other gate', () => {
@@ -307,66 +319,68 @@ const card = (overflowY: string): readonly LayoutNode[] => [
   }),
 ]
 
+// A table whose cells draw the rule between its rows.
+const ruled: Partial<LayoutNode> = {
+  borders: {
+    top: NO_BORDER,
+    right: NO_BORDER,
+    bottom: GREEN_BORDER,
+    left: NO_BORDER,
+  },
+}
+const ruledTable: readonly LayoutNode[] = [
+  BODY,
+  nodeOf({
+    index: 1,
+    parent: 0,
+    tag: 'table',
+    display: 'table',
+    rects: [rect(0, 0, 200, 80)],
+  }),
+  nodeOf({
+    index: 2,
+    parent: 1,
+    tag: 'tbody',
+    display: 'table-row-group',
+    rects: [rect(0, 0, 200, 80)],
+  }),
+  nodeOf({
+    index: 3,
+    parent: 2,
+    tag: 'tr',
+    display: 'table-row',
+    rects: [rect(0, 0, 200, 40)],
+  }),
+  nodeOf({
+    index: 4,
+    parent: 3,
+    tag: 'td',
+    display: 'table-cell',
+    rects: [rect(0, 0, 200, 40)],
+    ...ruled,
+  }),
+  nodeOf({
+    index: 5,
+    parent: 2,
+    tag: 'tr',
+    display: 'table-row',
+    rects: [rect(0, 40, 200, 80)],
+  }),
+  nodeOf({
+    index: 6,
+    parent: 5,
+    tag: 'td',
+    display: 'table-cell',
+    rects: [rect(0, 40, 200, 80)],
+    ...ruled,
+  }),
+]
+
 describe('what is not compared', () => {
   // Rows paint nothing, so without this every cell would be compared with the cell below it, and each
   // would fail on the rule the table draws between them.
   it('leaves the rows and cells of a table to the table', () => {
-    const ruled: Partial<LayoutNode> = {
-      borders: {
-        top: NO_BORDER,
-        right: NO_BORDER,
-        bottom: GREEN_BORDER,
-        left: NO_BORDER,
-      },
-    }
-    const table: readonly LayoutNode[] = [
-      BODY,
-      nodeOf({
-        index: 1,
-        parent: 0,
-        tag: 'table',
-        display: 'table',
-        rects: [rect(0, 0, 200, 80)],
-      }),
-      nodeOf({
-        index: 2,
-        parent: 1,
-        tag: 'tbody',
-        display: 'table-row-group',
-        rects: [rect(0, 0, 200, 80)],
-      }),
-      nodeOf({
-        index: 3,
-        parent: 2,
-        tag: 'tr',
-        display: 'table-row',
-        rects: [rect(0, 0, 200, 40)],
-      }),
-      nodeOf({
-        index: 4,
-        parent: 3,
-        tag: 'td',
-        display: 'table-cell',
-        rects: [rect(0, 0, 200, 40)],
-        ...ruled,
-      }),
-      nodeOf({
-        index: 5,
-        parent: 2,
-        tag: 'tr',
-        display: 'table-row',
-        rects: [rect(0, 40, 200, 80)],
-      }),
-      nodeOf({
-        index: 6,
-        parent: 5,
-        tag: 'td',
-        display: 'table-cell',
-        rects: [rect(0, 40, 200, 80)],
-        ...ruled,
-      }),
-    ]
-    expect(defectsOf(table)).toEqual([])
+    expect(defectsOf(ruledTable)).toEqual([])
   })
 
   it('still compares the content inside one table cell', () => {

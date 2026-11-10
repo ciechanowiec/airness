@@ -27,10 +27,14 @@ htmx, Tailwind CSS with daisyUI, PostgreSQL, and English and Polish.
 | `docker compose up --build` | Runs the archive and a database, after `cp .env.example .env` |
 
 Verification needs Java 25, Maven 3.10 or later and a running Docker daemon, which the tests start
-their database in. Until the Airness npm packages are published, every build starts a local registry
-with `python3` that serves `@airness/node` from the Airness artifacts installed in the local Maven
-repository, so `python3` must be on the path and the Airness version this project names must be
-installed there.
+their database in.
+<!-- @SNAPSHOT_ONLY_BEGIN@ -->
+
+This project builds against a SNAPSHOT of Airness, whose npm packages are never published, so every
+build starts a local registry with `python3` that serves `@airness/node` from the Airness artifacts
+installed in the local Maven repository. `python3` must be on the path and the Airness version this
+project names must be installed there.
+<!-- @SNAPSHOT_ONLY_END@ -->
 
 ## Where things are
 

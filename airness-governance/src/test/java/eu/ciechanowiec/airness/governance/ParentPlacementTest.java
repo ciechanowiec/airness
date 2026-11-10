@@ -78,7 +78,8 @@ class ParentPlacementTest {
         Set<String> expected = new TreeSet<>(
             Stream.concat(
                 Stream.of(
-                    "assertions", "build-inputs", "comment-prose", "compiler-parameters", "javadoc-links",
+                    "assertions", "build-inputs", "comment-prose", "compiler-parameters", "coverage-exclusions",
+                    "javadoc-links",
                     "message-parity", "package-cycles", "prepare-test-evidence", "qodana", "source-formatting",
                     "stylesheet-selectors", "template-calls", "template-expressions", "template-fragments",
                     "template-inline", "template-links", "template-output", "template-parse", "template-reach",
