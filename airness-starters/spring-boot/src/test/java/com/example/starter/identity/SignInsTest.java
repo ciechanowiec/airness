@@ -85,15 +85,11 @@ class SignInsTest {
         );
     }
 
-    // What happens meanwhile in a test where nothing does.
-    private static void nothing() {
-        // The attempts are let go as they stand.
-    }
-
-    // Holds the account's row until every attempt waits on it, does what the test says happens meanwhile,
-    // and lets them all go when the holding transaction commits. Answers what each attempt answered.
+    // Holds the account's row until every attempt waits on it, does whatever the test says happens
+    // meanwhile, and lets them all go when the holding transaction commits. Answers what each attempt
+    // answered.
     @SneakyThrows
-    private <T> List<T> heldThrough(String email, List<Callable<T>> attempts, Runnable meanwhile) {
+    private <T> List<T> heldThrough(String email, List<Callable<T>> attempts, List<Runnable> meanwhile) {
         List<Future<T>> started = this.holding.execute(_ -> this.whileHeld(email, attempts, meanwhile));
         List<T> answers = new ArrayList<>();
         for (Future<T> attempt : Objects.requireNonNull(started)) {
@@ -104,18 +100,18 @@ class SignInsTest {
 
     // Runs inside the transaction that holds the row, which commits once this answers and so lets every
     // attempt waiting on it go at once.
-    private <T> List<Future<T>> whileHeld(String email, List<Callable<T>> attempts, Runnable meanwhile) {
+    private <T> List<Future<T>> whileHeld(String email, List<Callable<T>> attempts, List<Runnable> meanwhile) {
         this.database.queryForObject("SELECT id FROM app_user WHERE email = ? FOR UPDATE", Long.class, email);
         List<Future<T>> started = attempts.stream().map(this.callers::submit).toList();
         while (this.waiting() < attempts.size()) {
             Thread.onSpinWait();
         }
-        meanwhile.run();
+        meanwhile.forEach(Runnable::run);
         return started;
     }
 
     private void refusedAtOnce(String email, int count) {
-        this.heldThrough(email, Collections.nCopies(count, this.refusal(email)), SignInsTest::nothing);
+        this.heldThrough(email, Collections.nCopies(count, this.refusal(email)), List.of());
     }
 
     private Callable<Boolean> refusal(String email) {
@@ -137,14 +133,14 @@ class SignInsTest {
         };
     }
 
-    // A password change as the reader, answering whether it was made.
-    private Callable<Boolean> change(String email, String current) {
+    // A password change as the reader, proved by their current password, answering whether it was made.
+    private Callable<Boolean> change(String email) {
         return () -> {
             Caller.acting(email, Role.USER.getAuthority());
             try {
-                this.users.changePassword(current, CHOSEN);
+                this.users.changePassword(Accounts.SECRET, CHOSEN);
                 return true;
-            } catch (IllegalStateException refused) {
+            } catch (IllegalStateException _) {
                 return false;
             } finally {
                 SecurityContextHolder.clearContext();
@@ -156,6 +152,11 @@ class SignInsTest {
         return Objects.requireNonNull(
             this.database.queryForObject("SELECT password_hash FROM app_user WHERE email = ?", String.class, email)
         );
+    }
+
+    // Writes another password as a second session would, inside the transaction holding the account.
+    private void replace(String email) {
+        this.database.update("UPDATE app_user SET password_hash = ? WHERE email = ?", REPLACED, email);
     }
 
     // Stops the account as an administrator or a racing refusal would, inside the transaction holding it.
@@ -183,7 +184,7 @@ class SignInsTest {
     @Test
     void countsEveryOneOfWrongCurrentPasswordsTypedAtOnce() {
         String email = Accounts.admitted(this.users, "hurried", Role.USER);
-        this.heldThrough(email, Collections.nCopies(Lockout.LIMIT - 1, this.proof(email, WRONG)), SignInsTest::nothing);
+        this.heldThrough(email, Collections.nCopies(Lockout.LIMIT - 1, this.proof(email, WRONG)), List.of());
         assertEquals(Lockout.LIMIT - 1, this.failedAttempts(email));
     }
 
@@ -191,7 +192,7 @@ class SignInsTest {
     void refusesTheRightCurrentPasswordOfAnAccountStoppedWhileItWasCompared() {
         String email = Accounts.admitted(this.users, "overtaken", Role.USER);
         List<Boolean> proved = this.heldThrough(
-            email, List.of(this.proof(email, Accounts.SECRET)), () -> this.stop(email)
+            email, List.of(this.proof(email, Accounts.SECRET)), List.of(() -> this.stop(email))
         );
         assertEquals(List.of(false), proved);
     }
@@ -215,8 +216,8 @@ class SignInsTest {
     void keepsAPasswordAnotherSessionChangedWhileAChangeProvedTheOldOne() {
         String email = Accounts.admitted(this.users, "outpaced", Role.USER);
         List<Boolean> changed = this.heldThrough(
-            email, List.of(this.change(email, Accounts.SECRET)),
-            () -> this.database.update("UPDATE app_user SET password_hash = ? WHERE email = ?", REPLACED, email)
+            email, List.of(this.change(email)),
+            List.of(() -> this.replace(email))
         );
         assertAll(
             () -> assertEquals(List.of(false), changed),

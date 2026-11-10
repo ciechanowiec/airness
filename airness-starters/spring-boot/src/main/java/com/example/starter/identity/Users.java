@@ -3,14 +3,11 @@ package com.example.starter.identity;
 import com.example.starter.audit.AuditAction;
 import com.example.starter.audit.AuditOutcome;
 import com.example.starter.audit.AuditTrail;
-import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -41,34 +38,20 @@ public class Users {
 
     private final Sessions sessions;
 
-    // The one write that cannot be a method of its own behind the proxy: a password change, which compares
-    // and hashes passwords before it writes and holds no transaction while it does.
-    private final TransactionTemplate writing;
-
-    private final Clock clock;
-
     /**
      * Reads and writes the accounts through the given repository.
      *
-     * @param repository   the accounts as the database holds them
-     * @param admission    what hashes a password and turns a form into the account it admits
-     * @param trail        what records every change to an account
-     * @param sessions     the sessions every account is signed in under
-     * @param transactions what a password change writes its new password under
-     * @param clock        the clock every instant of the application is read from
+     * @param repository the accounts as the database holds them
+     * @param admission  what hashes a password, turns a form into the account it admits and settles a
+     *                   password change
+     * @param trail      what records every change to an account
+     * @param sessions   the sessions every account is signed in under
      */
-    public Users(
-        UserRepository repository, Admission admission, AuditTrail trail, Sessions sessions,
-        PlatformTransactionManager transactions, Clock clock
-    ) {
+    public Users(UserRepository repository, Admission admission, AuditTrail trail, Sessions sessions) {
         this.repository = repository;
         this.admission = admission;
         this.trail = trail;
         this.sessions = sessions;
-        this.writing = new TransactionTemplate(transactions);
-        this.writing.setReadOnly(false);
-        this.writing.setTimeout(TIMEOUT_SECONDS);
-        this.clock = clock;
     }
 
     /**
@@ -183,40 +166,14 @@ public class Users {
         if (!this.admission.proves(current, reader)) {
             throw new IllegalStateException("The current password is not the reader's");
         }
-        String hash = this.admission.hashed(chosen);
-        String email = reader.getProfile().email();
         // A session opened by whoever knew the old password must not outlive it. The one making the
         // change stays, because its reader has just proved the password.
         String kept = Optional.ofNullable(RequestContextHolder.getRequestAttributes())
             .map(RequestAttributes::getSessionId)
             .orElse("");
-        boolean changed = Boolean.TRUE.equals(this.writing.execute(_ -> this.written(email, reader, hash, kept)));
-        if (!changed) {
+        if (!this.admission.changes(reader, chosen, kept)) {
             throw new IllegalStateException("The account changed while its password was being changed");
         }
-    }
-
-    // Writes the new password on the account held for the write, while it is still the one proved, and
-    // answers whether it did. Runs inside the transaction that holds the account.
-    private boolean written(String email, User proved, String hash, String kept) {
-        Optional<User> held = this.repository.heldUnder(email)
-            .filter(account -> this.standsAsProved(account, proved));
-        if (held.isEmpty()) {
-            this.trail.write(actor(), AuditAction.PASSWORD_CHANGED, email, AuditOutcome.REFUSED);
-            return false;
-        }
-        this.repository.save(held.orElseThrow().withPassword(hash));
-        this.sessions.endOthers(email, kept);
-        this.trail.write(actor(), AuditAction.PASSWORD_CHANGED, email, AuditOutcome.SUCCEEDED);
-        return true;
-    }
-
-    // Whether the account held for the write is still the one the current password proved.
-    private boolean standsAsProved(User held, User proved) {
-        return held.getReference().equals(proved.getReference())
-            && held.getPasswordHash().equals(proved.getPasswordHash())
-            && held.getAccess().enabled()
-            && !held.getLockout().locks(this.clock.instant());
     }
 
     /**
