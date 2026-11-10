@@ -42,8 +42,15 @@ import java.util.regex.Pattern;
  * starts further left.
  *
  * <p>Each setting also records which document of the file it sits in. One file may hold several,
- * separated by {@code ---}, and the same key in two of them is the ordinary way a profile overrides a
- * default rather than a key written twice by accident.
+ * separated by {@code ---} in YAML and by a {@code #---} or {@code !---} line in properties, and the same key
+ * in two of them is the ordinary way a profile overrides a default rather than a key written twice by
+ * accident. A properties separator is read as Spring Boot reads it: written from the first column, and
+ * not directly after a comment opened by the same character, which makes it one more line of that comment.
+ * A comment met between a separator and the first setting after it reopens the document before, because
+ * that is where Spring Boot binds what follows.
+ *
+ * <p>An item of a list written by its index, as {@code include[0]}, is read as the list's key followed by
+ * the index, so a rule asking about the list is answered by each item as well as by the list written whole.
  */
 final class SpringConfiguration {
 
@@ -51,14 +58,21 @@ final class SpringConfiguration {
     private static final Pattern REPEATED_DOTS = Pattern.compile("\\.{2,}");
     private static final Pattern EDGE_DOTS = Pattern.compile("^\\.+|\\.+$");
     private static final Pattern COMMENTED = Pattern.compile("(?:^|\\s)#");
+    private static final Pattern PROPERTIES_DOCUMENT = Pattern.compile("[#!]---\\s*");
+    private static final Pattern INDEX = Pattern.compile("\\.\\d+");
+    // The canonical prefix of spring.config.activate.on-profile and of every other activation condition.
+    private static final String CONDITION = "spring.config.activate.";
     private static final String SPACE = " ";
     private static final String COMMENT = "#";
+    private static final String PROPERTIES_COMMENT = "!";
     private static final String DOCUMENT = "---";
     private static final String SEQUENCE = "-";
     private static final String PROPERTIES = ".properties";
     private static final char SEPARATOR = ':';
     private static final char ASSIGNMENT = '=';
     private static final int FIRST = 0;
+    private static final int UNCOMMENTED = -1;
+    private static final int NONE = -1;
 
     private final List<Setting> settings;
     private final List<String> unreadable;
@@ -99,7 +113,20 @@ final class SpringConfiguration {
     }
 
     /**
-     * The setting a key names, if the file declares one.
+     * Every setting of a key in every document, and every item of it written by its index.
+     *
+     * @param key the key, in any spelling Spring accepts
+     * @return the settings, in the order they are written
+     */
+    List<Setting> declarations(String key) {
+        String wanted = canonical(key);
+        return this.settings.stream()
+            .filter(setting -> wanted.equals(setting.key()) || item(wanted, setting.key()))
+            .toList();
+    }
+
+    /**
+     * The first setting of a key, if the file declares one.
      *
      * @param key the key, in any spelling Spring accepts
      * @return the setting, when it is declared
@@ -110,14 +137,26 @@ final class SpringConfiguration {
     }
 
     /**
-     * Whether the file declares any key beneath a prefix, which is how a subsystem announces itself.
+     * Every setting beneath a prefix, which is how a subsystem announces itself.
      *
      * @param prefix the key prefix, in any spelling Spring accepts
-     * @return whether anything under it is configured
+     * @return the settings configuring it, in the order they are written
      */
-    boolean configures(String prefix) {
+    List<Setting> beneath(String prefix) {
         String wanted = canonical(prefix);
-        return this.settings.stream().anyMatch(setting -> setting.key().startsWith(wanted));
+        return this.settings.stream().filter(setting -> setting.key().startsWith(wanted)).toList();
+    }
+
+    /**
+     * Whether a document applies only under a condition it states, such as an active profile, rather than
+     * wherever the file is read.
+     *
+     * @param document the zero-based document of the file
+     * @return whether the document states a condition for applying at all
+     */
+    boolean conditional(int document) {
+        return this.settings.stream()
+            .anyMatch(setting -> setting.document() == document && setting.key().startsWith(CONDITION));
     }
 
     /**
@@ -145,24 +184,39 @@ final class SpringConfiguration {
     }
 
     private void readProperties(List<String> lines) {
+        Cursor cursor = new Cursor(FIRST, NONE, UNCOMMENTED);
         for (int number = 0; number < lines.size(); number++) {
-            String line = lines.get(number).strip();
-            if (hasContent(line)) {
-                this.assignment(line, number + 1);
-            }
+            cursor = this.property(lines.get(number), number + 1, cursor);
         }
     }
 
-    private void assignment(String line, int number) {
+    private Cursor property(String line, int number, Cursor cursor) {
+        String text = line.strip();
+        boolean assigns = !cursor.separates(line) && !commented(text) && !text.isEmpty();
+        if (assigns) {
+            this.assignment(text, number, cursor.document());
+        }
+        return assigns ? cursor.assigned() : cursor.passed(line, text);
+    }
+
+    private static boolean commented(String text) {
+        return text.startsWith(COMMENT) || text.startsWith(PROPERTIES_COMMENT);
+    }
+
+    private void assignment(String line, int number, int document) {
         int at = separator(line);
         if (at < 0) {
             this.unreadable.add("line " + number + ": " + line);
         } else {
             String written = line.substring(0, at).strip();
             this.settings.add(
-                new Setting(canonical(written), written, line.substring(at + 1).strip(), number, FIRST)
+                new Setting(canonical(written), written, line.substring(at + 1).strip(), number, document)
             );
         }
+    }
+
+    private static boolean item(String list, String key) {
+        return key.startsWith(list) && INDEX.matcher(key.substring(list.length())).matches();
     }
 
     private static int separator(String line) {
@@ -237,6 +291,44 @@ final class SpringConfiguration {
 
     // One key of the path to a setting, with the column it starts at.
     private record Level(int column, String key) {
+    }
+
+    /**
+     * Where a properties file is read up to, kept as Spring Boot keeps it. A separator written directly
+     * beneath a comment opened by the same character continues that comment, so the character of the last
+     * comment is remembered until a blank line or an assignment. A comment met before the first setting
+     * of a new document reopens the last document holding one, so the separator above it opens nothing.
+     *
+     * @param document the document a setting read now belongs to
+     * @param filled   the last document holding a setting, or NONE
+     * @param comment  the character that opened the last line, when it was a comment, or UNCOMMENTED
+     */
+    private record Cursor(int document, int filled, int comment) {
+
+        boolean separates(String line) {
+            return PROPERTIES_DOCUMENT.matcher(line).matches() && line.charAt(FIRST) != this.comment;
+        }
+
+        // A line that assigns nothing: a separator, a comment, or a blank line.
+        Cursor passed(String line, String text) {
+            if (this.separates(line)) {
+                return new Cursor(this.document + 1, this.filled, this.comment);
+            }
+            return text.isEmpty() ? this.blank() : this.commented(text.charAt(FIRST));
+        }
+
+        private Cursor commented(int opening) {
+            boolean reopened = this.filled != NONE && this.filled < this.document;
+            return new Cursor(reopened ? this.filled : this.document, this.filled, opening);
+        }
+
+        private Cursor blank() {
+            return new Cursor(this.document, this.filled, UNCOMMENTED);
+        }
+
+        Cursor assigned() {
+            return new Cursor(this.document, this.document, UNCOMMENTED);
+        }
     }
 
     /**

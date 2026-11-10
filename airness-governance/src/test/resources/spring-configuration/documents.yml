@@ -1,0 +1,51 @@
+# The default document, read wherever the file is read.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: [health, "info"] # a flow sequence, which Spring Boot binds item by item
+  endpoint:
+    health:
+      show-details: when-authorized
+server:
+  shutdown: "graceful"
+spring:
+  application:
+    name: 'example'
+  datasource:
+    url: jdbc:postgresql://localhost/example
+    password: ${DB_PASSWORD:}
+    username: "${DB_USERNAME}"
+  mail:
+    properties:
+      "[mail.smtp.timeout]": 3000
+      '[mail.smtp.writetimeout]': 3000
+  cloud:
+    gateway:
+      routes[0]:
+        id: orders
+        uri: http://localhost:8081
+      routes[1]:
+        id: invoices
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+  jpa:
+    show-sql: false
+    open-in-view: false
+server:
+  port: 9090
+---
+spring:
+  config:
+    activate:
+      on-profile: development
+  datasource:
+    password: ${DB_PASSWORD:${FALLBACK_PASSWORD}}
+management:
+  endpoints:
+    web:
+      exposure:
+        include[0]: health

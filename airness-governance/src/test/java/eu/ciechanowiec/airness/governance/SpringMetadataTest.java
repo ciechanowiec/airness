@@ -110,4 +110,60 @@ class SpringMetadataTest {
 
         assertTrue(metadata.known("server.port"), "two suppliers naming one key is not a conflict to refuse");
     }
+
+    @Test
+    void knowsAnIndexedItemOfASet() {
+        SpringMetadata metadata = new SpringMetadata(
+            List.of(key("management.endpoints.web.exposure.include", "java.util.Set<java.lang.String>"))
+        );
+
+        assertTrue(
+            metadata.known("management.endpoints.web.exposure.include[0]"),
+            "a set is bound item by item from its indexed keys"
+        );
+    }
+
+    @Test
+    void knowsTheKeysOfAnObjectHeldInAList() {
+        SpringMetadata metadata = new SpringMetadata(
+            List.of(key("spring.cloud.gateway.routes", "java.util.List<com.example.RouteDefinition>"))
+        );
+
+        assertTrue(
+            metadata.known("spring.cloud.gateway.routes[0].id"),
+            "the keys after the index belong to the item, which metadata does not describe"
+        );
+    }
+
+    @Test
+    void knowsAnIndexedItemOfACollection() {
+        SpringMetadata metadata = new SpringMetadata(
+            List.of(key("acme.hosts", "java.util.Collection<java.lang.String>"))
+        );
+
+        assertTrue(metadata.known("acme.hosts[2]"), "a collection is bound item by item as well");
+    }
+
+    @Test
+    void knowsAnIndexedItemOfAnArray() {
+        SpringMetadata metadata = new SpringMetadata(List.of(key("acme.hosts", "java.lang.String[]")));
+
+        assertTrue(metadata.known("acme.hosts[1]"), "an array is bound item by item as well");
+    }
+
+    @Test
+    void doesNotKnowAnIndexBeneathASingleValue() {
+        SpringMetadata metadata = new SpringMetadata(List.of(key("server.shutdown", "java.lang.String")));
+
+        assertFalse(metadata.known("server.shutdown[0]"), "a single value has no items to index");
+    }
+
+    @Test
+    void doesNotKnowAnIndexedItemOfAListItDoesNotDeclare() {
+        SpringMetadata metadata = new SpringMetadata(
+            List.of(key("acme.hosts", "java.util.List<java.lang.String>"))
+        );
+
+        assertFalse(metadata.known("acme.ports[0]"), "the index makes no key known on its own");
+    }
 }

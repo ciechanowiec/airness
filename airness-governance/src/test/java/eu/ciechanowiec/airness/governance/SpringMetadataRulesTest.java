@@ -139,4 +139,26 @@ class SpringMetadataRulesTest {
         assertEquals(List.of(), SpringMetadataRules.unknown(FILE, read(NAMED), metadata), "it is declared");
         assertEquals(List.of(), SpringMetadataRules.unbound(FILE, read(NAMED), metadata), "and it binds");
     }
+
+    @Test
+    void acceptsAnIndexedItemOfADeclaredListBeneathADeclaredGroup() {
+        String configuration = """
+            spring:
+              cloud:
+                gateway:
+                  routes[0]:
+                    id: orders
+            """;
+        SpringMetadata declared = metadata(
+            new ConfigurationProperty("spring.cloud.gateway", "com.example.Gateway", true, sound()),
+            new ConfigurationProperty(
+                "spring.cloud.gateway.routes", "java.util.List<com.example.RouteDefinition>", false, sound()
+            )
+        );
+
+        assertEquals(
+            List.of(), SpringMetadataRules.unknown(FILE, read(configuration), declared),
+            "the group declares the list, and the list declares its items"
+        );
+    }
 }

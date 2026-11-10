@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -26,14 +28,25 @@ import java.util.stream.Collectors;
  * <p>Open containers end the questioning. A key bound into a map or into properties has whatever names
  * the project puts under it, so {@code logging.level.org.hibernate} is declared by {@code logging.level}
  * being a map and not by anything naming that logger.
+ *
+ * <p>An indexed item ends it the same way. A list, a set, a collection or an array is bound item by item
+ * from {@code include[0]}, {@code include[1]} and onwards, and an item that is an object carries its own
+ * keys after the index, as {@code routes[0].id} does. Metadata names the list and nothing beneath it, so the
+ * item is declared by the list being one, whatever follows its index.
  */
 final class SpringMetadata {
 
     private static final List<String> CONTAINERS = List.of("java.util.Map", "java.util.Properties");
+    private static final List<String> SEQUENCES = List.of(
+        "java.util.List", "java.util.Set", "java.util.Collection"
+    );
+    private static final String ARRAY = "[]";
+    private static final Pattern INDEX = Pattern.compile("\\.\\d+(?:\\.|$)");
     private static final String SEPARATOR = ".";
 
     private final Set<String> names;
     private final List<String> open;
+    private final Set<String> sequences;
     private final List<String> groups;
     private final Map<String, ConfigurationProperty.Deprecation> deprecations;
 
@@ -50,6 +63,10 @@ final class SpringMetadata {
             .filter(SpringMetadata::container)
             .map(entry -> SpringConfiguration.canonical(entry.name()))
             .toList();
+        this.sequences = published.stream()
+            .filter(SpringMetadata::sequence)
+            .map(entry -> SpringConfiguration.canonical(entry.name()))
+            .collect(Collectors.toUnmodifiableSet());
         this.groups = published.stream()
             .filter(ConfigurationProperty::group)
             .map(entry -> SpringConfiguration.canonical(entry.name()))
@@ -85,14 +102,15 @@ final class SpringMetadata {
     }
 
     /**
-     * Whether some dependency declares this key, either by name or by opening a container above it.
+     * Whether some dependency declares this key, by name, by opening a container above it, or by declaring
+     * the list the key is an indexed item of.
      *
      * @param key the key as the project wrote it
      * @return whether anything on the classpath binds it
      */
     boolean known(String key) {
         String wanted = SpringConfiguration.canonical(key);
-        return this.names.contains(wanted) || beneath(this.open, wanted).isPresent();
+        return this.names.contains(wanted) || beneath(this.open, wanted).isPresent() || this.item(wanted);
     }
 
     /**
@@ -110,6 +128,16 @@ final class SpringMetadata {
         return prefixes.stream()
             .filter(prefix -> key.startsWith(prefix + SEPARATOR))
             .max(Comparator.comparingInt(String::length));
+    }
+
+    // The list is what comes before the first index, and whatever follows the index is the item's own.
+    private boolean item(String key) {
+        Matcher index = INDEX.matcher(key);
+        return index.find() && this.sequences.contains(key.substring(0, index.start()));
+    }
+
+    private static boolean sequence(ConfigurationProperty entry) {
+        return entry.type().endsWith(ARRAY) || SEQUENCES.stream().anyMatch(entry.type()::startsWith);
     }
 
     private static boolean container(ConfigurationProperty entry) {
