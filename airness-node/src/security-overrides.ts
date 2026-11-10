@@ -27,7 +27,7 @@ export const SECURITY_OVERRIDES: readonly SecurityOverride[] = [
   },
   ...[
     '@eslint/config-array@0.23.5',
-    '@typescript-eslint/typescript-estree@8.72.1',
+    '@typescript-eslint/typescript-estree@8.72.2',
     'eslint-plugin-sonarjs@4.2.2',
     'eslint@10.14.0',
     'type-coverage-core@2.31.1',
