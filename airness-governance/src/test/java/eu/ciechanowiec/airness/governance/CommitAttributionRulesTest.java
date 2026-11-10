@@ -99,6 +99,54 @@ class CommitAttributionRulesTest {
         );
     }
 
+    @Test
+    void rejectsAnAgentNamedInEveryCreditTrailerKey() {
+        Stream.of(
+            "Signed-off-by: Claude <noreply@anthropic.com>",
+            "Assisted-by: GitHub Copilot",
+            "Reviewed-by: Gemini Code Assist",
+            "Helped-by: Devin",
+            "Co-authored-by: Cursor Agent <cursoragent@cursor.com>"
+        ).forEach(
+            trailer -> assertFalse(
+                CommitMessageRules.validate(attributed(trailer), TRIVIAL).isEmpty(),
+                "a credit trailer naming an agent credits the agent, whatever its key: " + trailer
+            )
+        );
+    }
+
+    @Test
+    void rejectsTheTrailersOpenHandsAmpAndJulesWrite() {
+        Stream.of(
+            "Co-authored-by: openhands <openhands@all-hands.dev>",
+            "Signed-off-by: Release Bot <bot@all-hands.dev>",
+            "Co-authored-by: Amp <amp@ampcode.com>",
+            "Amp-Thread-ID: https://ampcode.com/threads/T-0199f0c1",
+            "Amp-Thread: T-0199f0c1",
+            "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>"
+        ).forEach(
+            trailer -> assertFalse(
+                CommitMessageRules.validate(attributed(trailer), TRIVIAL).isEmpty(),
+                "the trailer an agent writes by default is an attribution: " + trailer
+            )
+        );
+    }
+
+    @Test
+    void acceptsProseAndHumanTrailersThatShareAWordWithAnAgent() {
+        Stream.of(
+            "The amp rating of the charger is read from the device.",
+            "Jules Verne is listed in the catalogue beside the openhands meeting notes.",
+            "Reviewed-by: Jane Doe <jane@example.org>",
+            "Signed-off-by: Ampere Jones <ampere@example.org>"
+        ).forEach(
+            body -> assertEquals(
+                List.of(), CommitMessageRules.validate(attributed(body), TRIVIAL),
+                "a word an agent's name shares names no agent outside a credit trailer: " + body
+            )
+        );
+    }
+
     private static CommitMessage attributed(String trailer) {
         return new CommitMessage("feat(cli): add the reload subcommand to the root", trailer);
     }

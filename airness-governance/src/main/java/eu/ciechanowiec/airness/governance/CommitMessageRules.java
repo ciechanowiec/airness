@@ -63,9 +63,21 @@ final class CommitMessageRules {
      * {@code chatgpt.com/backend-api/codex} must pass, and would not if the host alone were banned.
      */
     private static final String PRODUCT_PAGES = "(claude\\.(ai|com)/claude-code|chatgpt\\.com/codex|openai\\.com/codex"
-        + "|github\\.com/features/copilot|cursor\\.(com|sh)/agent)";
+        + "|github\\.com/features/copilot|cursor\\.(com|sh)/agent|ampcode\\.com/threads)";
+    /**
+     * Any trailer that credits a person with a part in the change: a co-author, a sign-off, an assistant, a
+     * reviewer. An agent named in any of them is credited with the change, whatever the key calls the part.
+     */
+    private static final String CREDIT = "[\\w-]+-by:";
+    /**
+     * Agents whose names are ordinary words or names in prose, such as "amp", and the addresses they sign
+     * with. They are read only inside a credit trailer, which is the one place such a word names an agent.
+     */
+    private static final String TRAILER_AGENTS = "\\b(openhands|all-hands\\.dev|amp|ampcode\\.com|jules)\\b";
     private static final List<Pattern> ATTRIBUTION = List.of(
-        Pattern.compile("(?i)co-authored-by:.*" + AGENTS),
+        Pattern.compile("(?i)\\b" + CREDIT + ".*" + AGENTS),
+        Pattern.compile("(?im)^\\s*" + CREDIT + ".*" + TRAILER_AGENTS),
+        Pattern.compile("(?im)^\\s*amp-thread(-id)?\\s*:"),
         Pattern.compile("(?i)\\bgenerated\\s+(with|by)\\s+" + GENERATOR_QUALIFIERS + NAME_OPENERS + AGENTS),
         Pattern.compile("(?i)\\b" + SESSION_NAMERS + "[- ]?session(-id)?\\s*:"),
         Pattern.compile("(?i)" + PRODUCT_PAGES)
