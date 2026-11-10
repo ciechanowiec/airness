@@ -183,17 +183,7 @@ class RunnerImageCheckTest {
 
     @Test
     void readsACompositeActionAndEveryAzurePipelinesDefinition() {
-        Path root = new GitFixture("runner-files")
-            .write(
-                ".github/actions/setup/action.yml", "runs:\n  using: composite\n# ubuntu-latest\n  os: ubuntu-22.04\n"
-            ).write("azure-pipelines.yml", "pool:\n  vmImage: ubuntu-latest\n")
-            .write("ci/azure-pipelines.yaml", "pool:\n  vmImage: 'ubuntu-24.04'\n")
-            .write(".azure-pipelines/templates/build.yml", "variables:\n  image: \"ubuntu-22.04\"\n")
-            .write(".azure-pipelines/README.md", "ubuntu-latest\n")
-            .write("docs/pipelines.yml", "vmImage: ubuntu-latest\n")
-            .write(".github/workflows/nested/ci.yml", "runs-on: ubuntu-latest\n")
-            .root();
-        RunnerImageCheck check = new RunnerImageCheck(root);
+        RunnerImageCheck check = compositeAndAzureCheck();
         assertEquals(
             List.of(
                 ".azure-pipelines/templates/build.yml:2: ubuntu-22.04",
@@ -216,6 +206,20 @@ class RunnerImageCheckTest {
         RunnerImageCheck check = new RunnerImageCheck(new GitFixture("runner-none").write("README.md", "x\n").root());
         assertTrue(Verdicts.clean(check.findings()), "nothing selects a runner");
         assertEquals(0, check.scanned(), "a check that read nothing says so");
+    }
+
+    private static RunnerImageCheck compositeAndAzureCheck() {
+        Path root = new GitFixture("runner-files")
+            .write(
+                ".github/actions/setup/action.yml", "runs:\n  using: composite\n# ubuntu-latest\n  os: ubuntu-22.04\n"
+            ).write("azure-pipelines.yml", "pool:\n  vmImage: ubuntu-latest\n")
+            .write("ci/azure-pipelines.yaml", "pool:\n  vmImage: 'ubuntu-24.04'\n")
+            .write(".azure-pipelines/templates/build.yml", "variables:\n  image: \"ubuntu-22.04\"\n")
+            .write(".azure-pipelines/README.md", "ubuntu-latest\n")
+            .write("docs/pipelines.yml", "vmImage: ubuntu-latest\n")
+            .write(".github/workflows/nested/ci.yml", "runs-on: ubuntu-latest\n")
+            .root();
+        return new RunnerImageCheck(root);
     }
 
     private static String subject(String offence) {

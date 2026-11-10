@@ -113,7 +113,7 @@ public final class TransientRetry {
      * How a wait between attempts is spent.
      */
     @FunctionalInterface
-    interface Pause {
+    public interface Pause {
 
         /**
          * Waits.
