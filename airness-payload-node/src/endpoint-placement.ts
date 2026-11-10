@@ -1,6 +1,6 @@
 // Keep every handler a Payload configuration serves under `src/endpoints`, where the endpoint access rule reads it.
 //
-// `require-endpoint-access` decides by path, because a route handler is the one layer whose caller is a stranger.
+// `require-endpoint-access` decides by path, because a route handler is a layer whose caller is a stranger.
 // A handler written in `src/lib` or `src/hooks` and wired through an `endpoints:` entry serves the same stranger,
 // but its Local API calls were never judged, so an omitted `overrideAccess: false` ran as an administrator and
 // served every document to an anonymous caller. This rule closes that gap from the wiring side: whatever an

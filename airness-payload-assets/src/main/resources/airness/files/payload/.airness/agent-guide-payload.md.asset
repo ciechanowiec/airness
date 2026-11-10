@@ -52,15 +52,20 @@ and the generic Airness approvals.
 ## Application Code
 
 - Keep environment reads in `src/lib/environment.ts`, validate them there, and document each variable in the
-  example file at the repository root.
+  example file at the repository root. The `payload-environment` gate knows a variable by the name the module
+  reads it by: a bracketed read, `process.env['NAME']` or `source['NAME']` on a parameter that holds the
+  environment, or a name destructured out of either. A schema library handed the whole object, as in
+  `schema.parse(process.env)`, names no variable to the gate, so read each variable by its name.
 - Collection, global, field and block definitions are declarative. Define access rules and pure logic in
   `src/access` or `src/lib`, hooks in `src/hooks`, and import them by reference.
 - A collection decides `create`, `read`, `update` and `delete`; a global decides `read` and `update`.
 - At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through
   `req.payload` or `request.payload` passes `req`; a call carrying `user`, a call composed with a spread, and
-  every call in an endpoint module, a route handler or a server action (a `'use server'` module or function),
-  or in a function of the project one of them calls, states `overrideAccess: false` after any spread. A name
-  bound to `await getPayload(...)` is a Local API receiver like `payload`.
+  every call in an endpoint module, a route handler, a server action (a `'use server'` module or function) or a
+  page, layout, template, default or not-found module of the App Router outside `src/app/(payload)`, its
+  `generateMetadata` and `generateStaticParams` included, or in a function of the project one of them calls,
+  states `overrideAccess: false` after any spread. A name bound to `await getPayload(...)` is a Local API
+  receiver like `payload`.
 - Write every handler a collection, global or root `endpoints:` entry serves in a module under `src/endpoints`,
   and import it there by a relative or `@/` path, so the endpoint rule above judges its calls. A handler written
   in place, or imported from `src/lib`, `src/hooks` or another alias, is refused.
@@ -69,7 +74,8 @@ and the generic Airness approvals.
 - A database adapter that does not push its schema needs a recorded migration for every schema change: after a
   change, run `payload migrate:create <name>` and commit the migration with the `.json` snapshot it writes.
 - ESLint refuses an inline function in a collection, global, field or block configuration, a read of
-  `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` destructured out of `req`
-  or `request` (call `req.payload` and pass `req`). A hook writes request state only on `req.context`. A migration keeps the
-  snake-case name `payload migrate:create` gives it.
+  `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` taken out of `req` or
+  `request`, destructured or bound to a name as in `const cms = req.payload` (call `req.payload` and pass
+  `req`). A hook writes request state only on `req.context`. A migration keeps the snake-case name
+  `payload migrate:create` gives it.
 

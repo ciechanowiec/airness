@@ -1,5 +1,6 @@
-// The access decision of a route handler or server action, where the handler's own file does not show it: an
-// action written inline in a Server Component, and a helper the handler calls in another of the member's files.
+// The access decision of a route handler, server action or rendered page, where the handler's own file does not
+// show it: an action written inline in a Server Component, a page the App Router renders for whoever requests it,
+// and a helper the handler calls in another of the member's files.
 import type { SpecSource } from '@airness/node/axe-coverage'
 import { describe, expect, it } from 'vitest'
 import { findEndpointViolations, findReachedEndpointViolations } from '@/payload-policy.js'
@@ -29,7 +30,8 @@ describe('require-endpoint-access, in a server action', () => {
     expect(endpointRulesOf('src/app/(frontend)/page.tsx', source)).toEqual(['require-endpoint-access'])
   })
 
-  it('judges only the server action of a Server Component, not the render beside it', () => {
+  // A page renders for whoever requested it, so its render answers to the rule as its server action does.
+  it('judges the render of a page as well as the server action beside it', () => {
     const source: string = [
       'export default async function Page() {',
       `  ${SERVER_ACTION_CALL}`,
@@ -38,7 +40,7 @@ describe('require-endpoint-access, in a server action', () => {
       '  }',
       '}',
     ].join('\n')
-    expect(findEndpointViolations('src/app/(frontend)/page.tsx', source).map((found) => found.line)).toEqual([4])
+    expect(findEndpointViolations('src/app/(frontend)/page.tsx', source).map((found) => found.line)).toEqual([2, 4])
   })
 
   it('accepts a server action that states the decision', () => {
@@ -62,6 +64,50 @@ describe('require-endpoint-access, in a server action', () => {
       '\n',
     )
     expect(endpointRulesOf('src/actions/media.ts', source)).toEqual(['require-endpoint-access'])
+  })
+})
+
+const RENDER_CALL: string = "await payload.find({ collection: 'posts', depth: 1, limit: 12 })"
+
+describe('require-endpoint-access, in a module the App Router renders', () => {
+  it.each([
+    'src/app/(frontend)/page.tsx',
+    'src/app/page.tsx',
+    'src/app/(frontend)/posts/[slug]/page.ts',
+    'src/app/(frontend)/page.jsx',
+    'src/app/(frontend)/page.js',
+    'src/app/(frontend)/layout.tsx',
+    'src/app/(frontend)/template.tsx',
+    'src/app/(frontend)/@sidebar/default.tsx',
+    'src/app/(frontend)/not-found.tsx',
+  ])('judges every call of %s', (path: string) => {
+    expect(endpointRulesOf(path, `export default async function View() {\n  ${RENDER_CALL}\n}`)).toEqual([
+      'require-endpoint-access',
+    ])
+  })
+
+  it.each([
+    `export async function generateMetadata() {\n  ${RENDER_CALL}\n}`,
+    `export const generateMetadata = async () => {\n  ${RENDER_CALL}\n}`,
+    `export async function generateStaticParams() {\n  ${RENDER_CALL}\n}`,
+    `export const generateStaticParams = async () => (${RENDER_CALL}).docs`,
+  ])('judges the metadata and parameters a page generates: %s', (source: string) => {
+    expect(endpointRulesOf('src/app/(frontend)/posts/[slug]/page.tsx', source)).toEqual(['require-endpoint-access'])
+  })
+
+  it('accepts a page that states the decision', () => {
+    const source: string = "await payload.find({ collection: 'posts', depth: 1, limit: 12, overrideAccess: false })"
+    expect(endpointRulesOf('src/app/(frontend)/page.tsx', source)).toEqual([])
+  })
+
+  it.each([
+    'src/app/(payload)/admin/[[...segments]]/page.tsx',
+    'src/app/(payload)/layout.tsx',
+    'src/app/(frontend)/components/post-list.tsx',
+    'src/app/(frontend)/loading.tsx',
+    'src/components/page.tsx',
+  ])('leaves %s, which is no rendered App Router module of the project, to the other rules', (path: string) => {
+    expect(endpointRulesOf(path, RENDER_CALL)).toEqual([])
   })
 })
 
@@ -114,6 +160,21 @@ describe('require-endpoint-access, one call into the member source', () => {
     expect(reachedOf(files)).toHaveLength(1)
   })
 
+  it('follows a helper a page calls', () => {
+    const page: string = [
+      "import { listPosts } from '@/lib/posts'",
+      'export default async function Page() {',
+      '  const posts = await listPosts(payload)',
+      '}',
+    ].join('\n')
+    const helper: string = "export const listPosts = (payload) => payload.find({ collection: 'posts', depth: 0 })"
+    const found: readonly LocatedViolation[] = reachedOf([
+      { path: 'src/app/(frontend)/page.tsx', source: page },
+      { path: HELPER, source: helper },
+    ])
+    expect(found.map((located) => [located.path, located.violation.line])).toEqual([['src/app/(frontend)/page.tsx', 3]])
+  })
+
   it('accepts a helper that states the decision', () => {
     const helper: string = 'export const listPosts = (payload) => payload.find({ depth: 0, overrideAccess: false })'
     const files: readonly SpecSource[] = [
@@ -133,10 +194,13 @@ describe('require-endpoint-access, one call into the member source', () => {
   })
 
   // A helper in another endpoint module is judged there, so following it would report one call twice.
-  it('leaves a helper in a module the rule judges whole to that module', () => {
+  it.each([
+    ['./shared', 'src/endpoints/shared.ts'],
+    ['@/app/(frontend)/layout', 'src/app/(frontend)/layout.tsx'],
+  ])('leaves a helper imported as %s, from a module the rule judges whole, to that module', (specifier, shared) => {
     const files: readonly SpecSource[] = [
-      { path: 'src/endpoints/posts.ts', source: "import { listPosts } from './shared'\nlistPosts(payload)" },
-      { path: 'src/endpoints/shared.ts', source: 'export const listPosts = (payload) => payload.count({})' },
+      { path: 'src/endpoints/posts.ts', source: `import { listPosts } from '${specifier}'\nlistPosts(payload)` },
+      { path: shared, source: 'export const listPosts = (payload) => payload.count({})' },
     ]
     expect(reachedOf(files)).toEqual([])
   })

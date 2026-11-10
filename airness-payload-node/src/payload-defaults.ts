@@ -202,9 +202,14 @@ const PUBLISHED_STATUS: string = 'published'
 /** The field Payload adds to an entity that keeps drafts. */
 const STATUS_FIELD: string = '_status'
 
+// `in` admits every status its list names, so only a list that names the published status alone constrains
+// as `equals` does. `not_equals: 'draft'` stays a way in: it admits any status other than a draft.
+const isPublishedAlone = (statuses: unknown): boolean =>
+  isArray(statuses) && statuses.length > 0 && statuses.every((status: unknown): boolean => status === PUBLISHED_STATUS)
+
 const declaresPublished = (where: Record<string, unknown>): boolean => {
   const status: unknown = where[STATUS_FIELD]
-  return isRecord(status) && status['equals'] === PUBLISHED_STATUS
+  return isRecord(status) && (status['equals'] === PUBLISHED_STATUS || isPublishedAlone(status['in']))
 }
 
 /**

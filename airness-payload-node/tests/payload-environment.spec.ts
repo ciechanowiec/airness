@@ -83,7 +83,7 @@ describe('findEnvironmentViolations', () => {
     expect(
       findEnvironmentViolations({
         module,
-        example: undefined,
+        example: 'NEXT_PUBLIC_SERVER_URL=\n',
         dockerfiles: [],
         serverUrlVariables: ['NEXT_PUBLIC_SERVER_URL'],
       }),
@@ -94,6 +94,48 @@ describe('findEnvironmentViolations', () => {
     expect(
       findEnvironmentViolations({ module: undefined, example: undefined, dockerfiles: [], serverUrlVariables: [] }),
     ).toStrictEqual([])
+  })
+})
+
+const undocumentedIn = (module: string): readonly string[] =>
+  findEnvironmentViolations({ module, example: 'OTHER=\n', dockerfiles: [], serverUrlVariables: [] }).map(
+    (finding: string): string => finding.split(':', 1)[0] ?? '',
+  )
+
+// Every spelling that reads a variable by its name owes the example file that name, whatever holds the
+// environment: the recommended parameter, an alias of it, or process.env itself.
+describe('findEnvironmentViolations over the spellings of a read', () => {
+  it.each([
+    "export const parse = (source: NodeJS.ProcessEnv) => source['DATABASE_URL']",
+    'export const parse = (source: NodeJS.ProcessEnv) => source["DATABASE_URL"]',
+    'export const parse = (source: NodeJS.ProcessEnv) => source[`DATABASE_URL`]',
+    "export const parse = (source?: NodeJS.ProcessEnv) => source?.['DATABASE_URL']",
+    "const url = process.env[ 'DATABASE_URL' ]",
+    'const { DATABASE_URL } = process.env',
+    'const { DATABASE_URL: url } = process.env',
+    "const { DATABASE_URL = 'postgres://localhost' } = process.env",
+    "const { 'DATABASE_URL': url } = process.env",
+    'const { DATABASE_URL, ...rest } = process.env',
+    'let url\n({ DATABASE_URL: url } = process.env)',
+    'export const parse = ({ DATABASE_URL }: NodeJS.ProcessEnv) => DATABASE_URL',
+    'export const parse = ({ DATABASE_URL }: ProcessEnv) => DATABASE_URL',
+    'export const parse = (source: NodeJS.ProcessEnv) => {\n  const { DATABASE_URL } = source\n}',
+    'export const parse = (source = process.env) => {\n  const { DATABASE_URL } = source\n}',
+    'export const parse = (source: Readonly<Record<string, string>> = process.env) => {\n' +
+      '  const { DATABASE_URL } = source\n}',
+    'const environment = process.env\nconst { DATABASE_URL } = environment',
+  ])('names the variable read as %s', (module: string) => {
+    expect(undocumentedIn(module)).toStrictEqual(['DATABASE_URL'])
+  })
+
+  it.each([
+    "const names = (): readonly string[] => ['DATABASE_URL']",
+    "for (const name of ['DATABASE_URL']) { check(name) }",
+    'const { DATABASE_URL } = settings',
+    'const { DATABASE_URL } = loadSettings()',
+    "// process.env['DATABASE_URL'] is read below by the schema\nconst parsed = schema.parse(process.env)",
+  ])('names nothing for %s, which reads no variable by its name', (module: string) => {
+    expect(undocumentedIn(module)).toStrictEqual([])
   })
 })
 
