@@ -153,6 +153,15 @@
         "pattern": "src/browser.ts",
         "reason": "the Payload template selectors are consumed by the browser adapter inside Playwright; the real Payload browser fixture proves which content is scanned"
       }
+    ],
+    "vulnerabilityAllowlist": [
+      {
+        "package": "deepmerge",
+        "advisory": "GHSA-gcqx-w48m-w2h4",
+        "reason": "deepmerge reaches this package only through payload, a development dependency that the Local API catalogue specification reads to compare the catalogue with the operations BasePayload declares; nothing here merges an object an outsider supplies, and the published package carries neither payload nor deepmerge.",
+        "mitigation": "No release fixes the advisory: deepmerge 4.3.1 is the last affected and the latest version, and payload 3.93.0 still depends on it. Remove this entry once payload drops deepmerge or a fixed deepmerge is released.",
+        "addedOn": "2026-11-10"
+      }
     ]
   }
 }
