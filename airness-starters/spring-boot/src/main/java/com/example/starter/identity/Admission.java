@@ -76,4 +76,19 @@ public final class Admission {
             && this.encoder.matches(password, account.getPasswordHash());
         return this.signIns.settled(account.getProfile().email(), matched);
     }
+
+    /**
+     * Changes the password of the given account to the chosen one, once its current password has proved it.
+     * The chosen password is hashed first, outside any transaction, and the account is then written as the
+     * database holds it, only while it is still the account proved.
+     *
+     * @param proved the account as it was read when its current password proved it
+     * @param chosen the password the account signs in with from now on
+     * @param kept   the identifier of the one session of the account that stays, or empty for none
+     * @return whether the password was changed, which it is not when the account changed meanwhile
+     * @throws IllegalStateException when the chosen password does not meet the policy
+     */
+    public boolean changes(User proved, String chosen, String kept) {
+        return this.signIns.replaced(proved, this.hashed(chosen), kept);
+    }
 }
