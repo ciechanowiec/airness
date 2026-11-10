@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
@@ -21,7 +22,11 @@ import lombok.experimental.UtilityClass;
  * or loosen its options for the whole file. A TypeScript directive counts in a JSDoc comment as well, which the
  * compiler reads as readily as a line comment. The coverage directives of V8, c8 and Istanbul count too, because they
  * delete the measurement the coverage floor reads, and so do the secret scan's {@code gitleaks:allow} and the
- * layout sweep's exemption attribute, each of which turns a rule off where it stands.
+ * layout sweep's exemption attribute, each of which turns a rule off where it stands. So do the release tags knip
+ * honours, {@code @public}, {@code @beta} and {@code @alias} in every run and {@code @internal} in the production
+ * run, each of which takes the export below it out of the dead-code rule. knip reads a tag anywhere in a block
+ * comment and in a line comment that stands on a line of its own, so the count reads them there, once per comment
+ * whatever else it carries, since one comment sets one export aside however many of the tags it names.
  */
 @UtilityClass
 public final class NodeSuppressions {
@@ -51,6 +56,13 @@ public final class NodeSuppressions {
         "(?://|/\\*)\\s*((?:v8|c8|istanbul) ignore)(?!\\s+stop)(?:\\s+([\\w-]+))?"
     );
     private static final Pattern BARE = Pattern.compile("gitleaks:allow|data-airness-layout(?:=|['\"]\\s*:)");
+    // knip's comment forms: a block comment, of any opening, and a line comment with nothing before it on its line.
+    private static final Pattern COMMENT = Pattern.compile(
+        "/\\*.*?(?:\\*/|\\z)|(?m:^[ \\t]*)//[^\\n]*", Pattern.DOTALL
+    );
+    // knip reads a tag as @ and every letter, digit and underscore after it, so @publicly is a tag of its own.
+    private static final Pattern RELEASE_TAG = Pattern.compile("@(?:public|internal|beta|alias)(?![A-Za-z0-9_])");
+    private static final String RELEASE_TAG_TOOL = "knip ";
     private static final String REASON = "--";
     private static final String COMMENT_END = "*/";
 
@@ -78,8 +90,18 @@ public final class NodeSuppressions {
             BIOME.matcher(source).results().map(match -> entry(source, match, match.group(1) + ' ' + match.group(2))),
             TYPESCRIPT.matcher(source).results().map(match -> entry(source, match, match.group(1))),
             COVERAGE.matcher(source).results().map(match -> entry(source, match, match.group(1))),
-            BARE.matcher(source).results().map(match -> entry(source, match, match.group()))
+            BARE.matcher(source).results().map(match -> entry(source, match, match.group())),
+            COMMENT.matcher(source).results().flatMap(comment -> released(source, comment))
         ).flatMap(stream -> stream).toList();
+    }
+
+    private static Stream<String> released(String source, MatchResult comment) {
+        Matcher tag = RELEASE_TAG.matcher(comment.group());
+        return tag.find() ? Stream.of(
+            "line %d: %s%s".formatted(
+                JavaCode.lineOf(source, comment.start() + tag.start()), RELEASE_TAG_TOOL, tag.group()
+            )
+        ) : Stream.empty();
     }
 
     private static Stream<String> disabled(String source, MatchResult match) {
