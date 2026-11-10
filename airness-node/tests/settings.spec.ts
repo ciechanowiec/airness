@@ -10,6 +10,7 @@ import {
   isHonouredExclusion,
   LAYOUT_MINIMUM_GAP,
   readSettings,
+  retiredSettings,
   type Settings,
 } from '@/settings.js'
 
@@ -37,10 +38,14 @@ describe('reading the airness block of package.json', () => {
     ).toEqual([...DEFAULT_SOURCE_ROOTS, 'lib', 'tools', '.', '../shared'])
   })
 
-  it('judges dead code by production use only where the project declares it with true', () => {
-    expect(readSettings({ airness: { productionDeadCode: true } }).productionDeadCode).toBe(true)
-    expect(readSettings({ airness: { productionDeadCode: 'true' } }).productionDeadCode).toBe(false)
-    expect(readSettings({}).productionDeadCode).toBe(false)
+  it('tells a project to delete a setting the harness no longer reads, whatever value it gives', () => {
+    const repair: string =
+      'package.json airness.productionDeadCode: the production run of the knip gate always happens, so the key ' +
+      'changes nothing; delete it'
+    expect(retiredSettings({ airness: { productionDeadCode: true } })).toEqual([repair])
+    expect(retiredSettings({ airness: { productionDeadCode: false } })).toEqual([repair])
+    expect(retiredSettings({ airness: { sourceRoots: ['lib'] } })).toEqual([])
+    expect(retiredSettings({ name: 'shop' })).toEqual([])
   })
 
   it('counts as production entry points the layer entries, then only the declared ones that give a reason', () => {

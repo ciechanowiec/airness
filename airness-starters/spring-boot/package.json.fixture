@@ -35,6 +35,12 @@
       "with:services",
       "--"
     ],
+    "productionEntries": [
+      {
+        "pattern": "src/main/frontend/entries/*.ts",
+        "reason": "the build script bundles each entry into the static assets the application serves"
+      }
+    ],
     "coverageExclude": [
       {
         "pattern": "scripts/with-services.ts",

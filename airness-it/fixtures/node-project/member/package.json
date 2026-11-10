@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "main": "src/total.ts",
   "devDependencies": {
     "@airness/fixture-member": "1.0.0",
     "@types/node": "26.6.6",

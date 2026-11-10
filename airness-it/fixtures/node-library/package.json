@@ -2,6 +2,7 @@
   "name": "fixture-library",
   "private": true,
   "type": "module",
+  "main": "src/total.ts",
   "devDependencies": {
     "@airness/node": "1.0.11-SNAPSHOT",
     "@vitest/coverage-v8": "5.0.5",

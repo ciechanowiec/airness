@@ -2,8 +2,7 @@ import type { Viewport } from './browser-findings.js'
 import { type AuxiliaryServer, browserSettings } from './browser-settings.js'
 // The facts a node project may declare under the `airness` key of its package.json. Every field is
 // optional and every default is strict, so a project that declares nothing still receives the full
-// contract. The one exception is `productionDeadCode`, a stricter reading of the dead-code rule that a project
-// opts into while the harness's own packages and its consumers cannot yet all meet it.
+// contract.
 //
 // The set is deliberately small: where first-party source lives, which files a generator owns, which
 // files are framework glue, and which hand-written JavaScript a tool forces on the project. There is no
@@ -88,12 +87,6 @@ export interface Settings extends InvocationSettings {
   readonly layoutMinimumGap: number
   /** Viewports the layout scan measures beside the ones the harness requires. */
   readonly layoutViewports: readonly Viewport[]
-  /**
-   * Whether the dead-code gate also judges production code by production use alone, so an export or a production
-   * file that only tests and tooling reach fails. Off unless the project declares `true`: the stricter reading,
-   * which a project opts into and can only tighten the gate.
-   */
-  readonly productionDeadCode: boolean
   /**
    * Files the production run of the dead-code gate counts as production entry points, beyond those knip reads: the
    * ones each layer's framework runs, then the ones the project declares with a reason.
@@ -322,14 +315,12 @@ export const PRODUCTION_ENTRIES_SETTING: string = 'productionEntries'
 const globExclusions = (raw: Readonly<Record<string, unknown>>, setting: string): readonly DeclaredExclusion[] =>
   asDeclaredExclusions(raw[setting], setting, 'glob')
 
-// What the dead-code gate reads: whether the project opts into the production run, the production entry points each
-// layer's framework and the project add to it, and the knip plugins the layers turn off there.
+// What the production run of the dead-code gate reads: the production entry points each layer's framework and the
+// project add to it, and the knip plugins the layers turn off there.
 const deadCodeSettings = (
-  raw: Readonly<Record<string, unknown>>,
   layers: readonly LayerDefaults[],
   entries: readonly DeclaredExclusion[],
-): Pick<Settings, 'productionDeadCode' | 'productionEntries' | 'knipConfigPlugins'> => ({
-  productionDeadCode: raw['productionDeadCode'] === true,
+): Pick<Settings, 'productionEntries' | 'knipConfigPlugins'> => ({
   productionEntries: [
     ...layers.flatMap((layer: LayerDefaults): readonly string[] => layer.productionEntries ?? []),
     ...honoured(entries),
@@ -338,6 +329,26 @@ const deadCodeSettings = (
     ...new Set<string>(layers.flatMap((layer: LayerDefaults): readonly string[] => layer.knipConfigPlugins ?? [])),
   ],
 })
+
+// Settings the harness once read and no longer does, each with why. Any other key the block does not know is passed
+// over, but a project that still declares one of these believes it changes a gate, so it is told to delete it.
+const RETIRED_SETTINGS: ReadonlyMap<string, string> = new Map([
+  ['productionDeadCode', 'the production run of the knip gate always happens, so the key changes nothing'],
+])
+
+/**
+ * Report every retired setting the project still declares.
+ * @param packageJson the parsed package.json of the node project.
+ * @returns one finding per retired key, naming why it is retired and the repair.
+ */
+export const retiredSettings = (packageJson: unknown): readonly string[] => {
+  const declared: Record<string, unknown> = settingsBlock(packageJson)
+  return [...RETIRED_SETTINGS]
+    .filter(([key]: readonly [string, string]): boolean => Object.hasOwn(declared, key))
+    .map(
+      ([key, reason]: readonly [string, string]): string => `package.json ${SETTINGS_KEY}.${key}: ${reason}; delete it`,
+    )
+}
 
 /** The raw `airness` block of a manifest, before any default is applied. */
 export const settingsBlock = (packageJson: unknown): Record<string, unknown> => {
@@ -417,7 +428,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     ],
     javascriptRuntimes: [...DEFAULT_JAVASCRIPT_RUNTIMES, ...layerRuntimes, ...declaredRuntimeRoles(javascript)],
     pureLogicRoots: floorOf(floor, layers),
-    ...deadCodeSettings(raw, layers, entries),
+    ...deadCodeSettings(layers, entries),
     ...appSettings(raw, layers, honouredRoutes(routes)),
     ...browserSettings(raw),
   }

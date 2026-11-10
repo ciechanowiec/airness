@@ -162,7 +162,6 @@ const PAYLOAD_MANIFEST: Readonly<Record<string, unknown>> = {
   type: 'module',
   dependencies: { payload: '3.92.1' },
   devDependencies: { '@airness/node': '2.0.0', vitest: '5.0.5', '@vitest/coverage-v8': '5.0.5' },
-  airness: { productionDeadCode: true },
 }
 
 // A collection that only the Payload configuration reaches, which the admin panel and the API boot from.
