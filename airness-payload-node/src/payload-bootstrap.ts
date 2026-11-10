@@ -29,6 +29,7 @@ import {
 const MUTATION_NAMES: ReadonlySet<string> = new Set([
   'create',
   'delete',
+  'duplicate',
   'restoreGlobalVersion',
   'restoreVersion',
   'update',

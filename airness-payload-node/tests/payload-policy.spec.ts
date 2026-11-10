@@ -138,6 +138,9 @@ describe('what no-unthreaded-req leaves alone', () => {
 
 describe('no-unthreaded-req operation coverage', () => {
   it.each([
+    'countGlobalVersions',
+    'countVersions',
+    'duplicate',
     'findDistinct',
     'findGlobalVersionByID',
     'findGlobalVersions',
@@ -407,6 +410,12 @@ describe('require-endpoint-access', () => {
   // A variable can carry true, so only an explicit false establishes access enforcement.
   it('refuses an access value hidden in shorthand', () => {
     const source: string = "await req.payload.find({ collection: 'media', depth: 0, limit: 10, overrideAccess })"
+    expect(endpointRulesOf(ENDPOINT, source)).toEqual(['require-endpoint-access'])
+  })
+
+  // duplicate() copies a document as an administrator unless told otherwise, like every catalogued operation.
+  it.each(['duplicate', 'countVersions', 'countGlobalVersions'])('flags %s() left to the default', (operation) => {
+    const source: string = `await req.payload.${operation}({ collection: 'orders', id, req })`
     expect(endpointRulesOf(ENDPOINT, source)).toEqual(['require-endpoint-access'])
   })
 

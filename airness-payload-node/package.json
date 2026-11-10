@@ -54,6 +54,8 @@
     "@playwright/test": "1.64.1",
     "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.0.5",
+    "eslint": "10.14.0",
+    "payload": "3.92.1",
     "typescript": "6.0.3",
     "vitest": "5.0.5"
   },
@@ -142,10 +144,6 @@
       {
         "pattern": "src/bin.ts",
         "reason": "the executable's entry point, which runs only as a process of its own; the command line it starts is measured"
-      },
-      {
-        "pattern": "src/eslint.ts",
-        "reason": "the ESLint configuration a Payload project's editor loads in a process of its own; nothing in this package's suite runs ESLint"
       },
       {
         "pattern": "src/access.ts",

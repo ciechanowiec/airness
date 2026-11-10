@@ -19,7 +19,7 @@ const reasonsOf = (files: readonly SpecSource[]): readonly string[] =>
 const SEEDER: string = 'export async function seedEverything(payload) { await payload.create({}) }'
 
 describe('findBootstrapWrites over the operations that change stored state', () => {
-  it.each(['updateGlobal', 'create'])('reports %s as a write', (operation: string) => {
+  it.each(['updateGlobal', 'create', 'duplicate'])('reports %s as a write', (operation: string) => {
     const config: string = configWith(`async (payload) => { await payload.${operation}({}) }`)
     const reasons: readonly string[] = reasonsOf([file(CONFIG_PATH, config)])
     expect(reasons).toHaveLength(1)
@@ -27,7 +27,7 @@ describe('findBootstrapWrites over the operations that change stored state', () 
   })
 
   // A read at boot is legitimate, so the derived subset must not carry one.
-  it.each(['find', 'findGlobal'])('does not report %s, which only reads', (operation: string) => {
+  it.each(['find', 'findGlobal', 'countVersions'])('does not report %s, which only reads', (operation: string) => {
     const config: string = configWith(`async (payload) => { await payload.${operation}({}) }`)
     expect(rulesOf([file(CONFIG_PATH, config)])).toEqual([])
   })

@@ -123,13 +123,17 @@ const findUnboundedCalls = (source: string, receiver: RegExp): readonly PayloadV
   )
 
 // The collection, global, and version operations whose options carry both the caller and the request.
-// One catalogue feeds both rules below: adding a Payload operation to one contract and not the other
-// would leave a call either outside its transaction or running as an administrator with a decorative
-// user value.
+// tests/local-api-catalogue.spec.ts holds it against the BasePayload of the pinned Payload, so an operation a
+// release adds is catalogued here or excluded there with its reason. One catalogue feeds both rules below:
+// adding a Payload operation to one contract and not the other would leave a call either outside its
+// transaction or running as an administrator with a decorative user value.
 export const LOCAL_API_CALLS: readonly string[] = [
   '.count(',
+  '.countGlobalVersions(',
+  '.countVersions(',
   '.create(',
   '.delete(',
+  '.duplicate(',
   '.find(',
   '.findByID(',
   '.findDistinct(',
@@ -261,12 +265,17 @@ const findOverrideAccess = (source: string): readonly PayloadViolation[] =>
     }),
   )
 
-// The one layer whose caller is a stranger. Everywhere else a Local API call runs in a context the
-// project already trusts - a hook inside the write that authored it, a scheduled job, a seed - and
-// privilege there is legitimate rather than a mistake. A route handler serves whoever reached the URL,
-// and a server action whoever posted to the page that holds it, so what either is allowed to read is the
+// The layers whose caller is a stranger. Everywhere else a Local API call runs in a context the project
+// already trusts - a hook inside the write that authored it, a scheduled job, a seed - and privilege there is
+// legitimate rather than a mistake. A route handler serves whoever reached the URL, a server action whoever
+// posted to the page that holds it, and a page whoever requested it, so what each is allowed to read is the
 // one thing it must never inherit by saying nothing.
 const ENDPOINT_PATH: RegExp = /^src\/(?:endpoints\/|app\/(?:.*\/)?route\.[jt]s$)/u
+
+// The App Router modules that render for the visitor who requested the route: a page, a layout, a template, a
+// parallel route's default and a not-found page. Their `generateMetadata` and `generateStaticParams` run in the
+// same module, for the same visitor or for every visitor of a prerendered page, so the whole module is judged.
+const RENDER_MODULE_PATH: RegExp = /^src\/app\/(?:.*\/)?(?:page|layout|template|default|not-found)\.[jt]sx?$/u
 
 // Payload's own admin and API glue, which it generates and regenerates: its server functions hand the
 // request to Payload's handlers, which decide access themselves.
@@ -303,10 +312,10 @@ const serverActionScopes = (code: string): readonly EndpointScope[] =>
     return body === undefined ? [] : [{ start: match.index + 1, end: match.index + 1 + body.length }]
   })
 
-// The whole file for an endpoint module, a route handler or a server-action module; each inline server
-// action's body otherwise.
+// The whole file for an endpoint module, a route handler, a rendered App Router module or a server-action
+// module; each inline server action's body otherwise.
 const isEndpointModule = (filePath: string, code: string): boolean =>
-  ENDPOINT_PATH.test(filePath) || opensWithServerDirective(code)
+  ENDPOINT_PATH.test(filePath) || RENDER_MODULE_PATH.test(filePath) || opensWithServerDirective(code)
 
 const endpointScopesIn = (filePath: string, code: string): readonly EndpointScope[] => {
   if (filePath.startsWith(GENERATED_APP_PATH)) {
@@ -327,7 +336,7 @@ const isAccessLeftToDefault = (source: string, call: string, found: number, rece
 const ENDPOINT_RULE: string = 'require-endpoint-access'
 const ENDPOINT_CONSEQUENCE: string =
   'Payload defaults it to true, so an omission runs as an administrator and serves the document to ' +
-  'whoever called the route or action - set overrideAccess: false'
+  'whoever called the route or action or requested the page - set overrideAccess: false'
 
 // The Local API calls of a text that leave the decision to the default, as offsets.
 const unstatedAccessIn = (code: string, receiver: RegExp): readonly (readonly [string, number])[] =>
@@ -369,14 +378,14 @@ export const findPayloadViolations = (source: string): readonly PayloadViolation
 }
 
 /**
- * The access decision a route handler or server action has to state rather than inherit.
+ * The access decision a route handler, server action or rendered page has to state rather than inherit.
  *
  * The two rules that already read `overrideAccess` judge a value that is written down: one bans `true`,
  * the other requires `false` beside a `user`. Neither can see an absent property, and absent is the
  * dangerous spelling - Payload defaults `overrideAccess` to `true`, so the call that says nothing is
- * the call that runs as an administrator. Under `src/endpoints`, in a route handler and in a server action
- * the omission is therefore the violation, which is why this rule reads the path and the directive and the
- * others do not.
+ * the call that runs as an administrator. Under `src/endpoints`, in a route handler, in a server action and
+ * in a page, layout, template, default or not-found module of the App Router the omission is therefore the
+ * violation, which is why this rule reads the path and the directive and the others do not.
  * @param filePath the repository-relative path of the file, which decides whether the rule applies.
  * @param source the file's text.
  * @returns one violation per Local API call that leaves the decision to the default.
@@ -393,7 +402,7 @@ export const findEndpointViolations = (filePath: string, source: string): readon
         line: lineOf(code, found),
         rule: ENDPOINT_RULE,
         reason:
-          `state overrideAccess: false on ${call.slice(1, -1)}() in a route handler or server action; ` +
+          `state overrideAccess: false on ${call.slice(1, -1)}() in a route handler, server action or page; ` +
           ENDPOINT_CONSEQUENCE,
       }),
     )
@@ -422,13 +431,14 @@ const reachedAccessViolations = (
       line: lineOf(code, callSiteOf(code, scope, reached.name)),
       rule: ENDPOINT_RULE,
       reason:
-        `state overrideAccess: false on ${operation}() in ${reached.name}(), which this route handler or ` +
-        `server action calls from "${reached.specifier}"; ${ENDPOINT_CONSEQUENCE}`,
+        `state overrideAccess: false on ${operation}() in ${reached.name}(), which this route handler, ` +
+        `server action or page calls from "${reached.specifier}"; ${ENDPOINT_CONSEQUENCE}`,
     }),
   )
 
 /**
- * The access decision a route handler or server action leaves to the default in a function it calls.
+ * The access decision a route handler, server action or rendered page leaves to the default in a function
+ * it calls.
  *
  * A handler that hands its read to a helper in `src/lib` runs that read on behalf of the same stranger, so
  * the helper's call answers to the rule exactly as one written in the handler would. The call is followed

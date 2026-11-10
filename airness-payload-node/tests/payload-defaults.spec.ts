@@ -238,6 +238,16 @@ describe('findUnconstrainedDraftReads over the filter a read returns', () => {
     expect(filteredFindings({ or: [] })).toHaveLength(1)
   })
 
+  it('accepts an in list that names the published status alone', () => {
+    expect(filteredFindings({ _status: { in: ['published'] } })).toEqual([])
+    expect(filteredFindings({ and: [AUDIENCE, { _status: { in: ['published', 'published'] } }] })).toEqual([])
+  })
+
+  it('refuses an in list that admits another status, or none', () => {
+    expect(filteredFindings({ _status: { in: ['published', 'draft'] } })).toHaveLength(1)
+    expect(filteredFindings({ _status: { in: [] } })).toHaveLength(1)
+  })
+
   it('refuses a filter that names another field, another status, or nothing at all', () => {
     expect(filteredFindings({ and: [AUDIENCE] })).toHaveLength(1)
     expect(filteredFindings({ _status: { equals: 'draft' } })).toHaveLength(1)

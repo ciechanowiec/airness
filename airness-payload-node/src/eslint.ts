@@ -35,18 +35,33 @@ const INLINE_CONFIG_FUNCTION: Readonly<Record<string, string>> = {
 }
 
 const UNTHREADED_REQUEST_MESSAGE: string =
-  'Do not destructure payload out of the request. Call req.payload.<operation>({ ..., req }) instead, so the ' +
-  'Payload source rules see the request-scoped instance and require req to be passed, which keeps the ' +
-  "call inside the hook's transaction."
+  'Do not destructure payload out of the request or bind req.payload to a name. Call ' +
+  'req.payload.<operation>({ ..., req }) instead, so the Payload source rules see the request-scoped instance ' +
+  "and require req to be passed, which keeps the call inside the hook's transaction."
 
 // The names the Payload source rules read as the request: `req`, as Payload's own examples spell it, and
 // `request`, as a handler that spells its parameter out does. One pattern for both, so the selectors below
 // cannot cover one spelling and miss the other.
 const REQUEST_NAME: string = '/^(?:req|request)$/'
 
-// `payload` taken out of the request loses the receiver the `no-unthreaded-req` source rule recognises, so a
-// write through it ran outside the hook's transaction unjudged. Banning the destructuring keeps that rule's text
-// reading true without scope analysis: the parameter form Payload's own examples use, and the declaration form.
+// `req.payload`, `request.payload` and `<object>.req.payload`, in the dotted and the bracketed spelling.
+const REQUEST_PAYLOAD: string =
+  "MemberExpression:matches([property.name='payload'], [property.value='payload'])" +
+  `:matches([object.name=${REQUEST_NAME}], [object.property.name=${REQUEST_NAME}])`
+
+// What may wrap the value without changing the instance it is: optional chaining and the type-only expressions.
+const TRANSPARENT_WRAPPER: string =
+  ':matches(ChainExpression, TSAsExpression, TSNonNullExpression, TSSatisfiesExpression)'
+
+// The request-scoped instance as the value a declaration or an assignment binds, bare or wrapped.
+const boundRequestPayload = (binding: string, field: string): string =>
+  `${binding} > ${REQUEST_PAYLOAD}.${field}, ${binding} > ${TRANSPARENT_WRAPPER}.${field} > ${REQUEST_PAYLOAD}`
+
+// `payload` taken out of the request loses the receiver the Payload source rules recognise, so a call through it
+// ran unjudged: outside the hook's transaction, and, under any name but `payload`, past every Local API rule.
+// Banning every way of taking it out keeps those rules' text reading true without scope analysis: destructuring,
+// in the parameter form Payload's own examples use and in the declaration form, and binding the instance to a
+// name, `const cms = req.payload` or `cms = req.payload`.
 const UNTHREADED_REQUEST_SYNTAX: readonly Readonly<Record<string, string>>[] = [
   {
     selector: `ObjectPattern > Property[key.name=${REQUEST_NAME}] > ObjectPattern > Property[key.name='payload']`,
@@ -60,6 +75,8 @@ const UNTHREADED_REQUEST_SYNTAX: readonly Readonly<Record<string, string>>[] = [
     selector: `VariableDeclarator[init.property.name=${REQUEST_NAME}] > ObjectPattern > Property[key.name='payload']`,
     message: UNTHREADED_REQUEST_MESSAGE,
   },
+  { selector: boundRequestPayload('VariableDeclarator', 'init'), message: UNTHREADED_REQUEST_MESSAGE },
+  { selector: boundRequestPayload('AssignmentExpression', 'right'), message: UNTHREADED_REQUEST_MESSAGE },
 ]
 
 // The node layer's restricted-syntax setting for every file, which a block naming the rule replaces, so the
