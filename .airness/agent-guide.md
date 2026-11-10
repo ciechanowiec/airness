@@ -81,7 +81,9 @@ Airness governs all of the following domains:
   frontmatter whose kebab-case `name` equals its directory, whose `description` says when to use it, and whose
   keys are all ones the agent runtime knows; every
   variable a compose file interpolates without a default is documented in `.env.example` (or `.env.sample`,
-  `.env.template`) and supplied by every workflow that runs Maven through `verify`; and `.claude/settings.json`
+  `.env.template`) and supplied by every workflow that runs Maven through `verify`; every such example file,
+  wherever it lies, leaves each variable whose name holds `PASSWORD`, `PASSWD`, `SECRET` or `TOKEN`, or ends in
+  `KEY`, empty (`NAME=`), so no copy of it supplies a default credential; and `.claude/settings.json`
   denies `Edit(...)` of every generated file and of every pinned managed file, with no local settings allowing
   one back. `mvn airness:assets-sync` writes those rules beside the project's own.
 - **Frontend resources:** at `validate`, every module inventories the scripts (`.js`, `.mjs`, `.cjs`, `.jsx`,

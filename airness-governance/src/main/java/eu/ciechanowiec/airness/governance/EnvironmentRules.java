@@ -24,6 +24,17 @@ final class EnvironmentRules {
     private static final Pattern ASSIGNMENT = Pattern.compile(
         "^[ \\t]*(?:export[ \\t]+)?(?<name>[A-Za-z_]\\w*)[ \\t]*=", Pattern.MULTILINE
     );
+    // The same assignment with its value: the rest of the line, less a comment a blank separates from it.
+    private static final Pattern VALUED = Pattern.compile(
+        "^[ \\t]*(?:export[ \\t]+)?(?<name>[A-Za-z_]\\w*)[ \\t]*=(?<value>.*)$", Pattern.MULTILINE
+    );
+    private static final Pattern TRAILING_COMMENT = Pattern.compile("[ \\t]#.*$");
+    // Quotation marks around nothing, which a dotenv reader reads as the empty value.
+    private static final Pattern EMPTY_QUOTES = Pattern.compile("^(?:\"\"|'')$");
+    // A name that marks its value as a credential, matched in any case.
+    private static final Pattern CREDENTIAL = Pattern.compile(
+        "PASSWORD|PASSWD|SECRET|TOKEN|KEY$", Pattern.CASE_INSENSITIVE
+    );
     // A compose interpolation with no default. ${NAME:-x} and ${NAME-x} supply themselves and
     // ${NAME:?message} declares its own failure, so only the bare braced form must be supplied. The
     // unbraced $NAME is rare in compose and indistinguishable from a shell fragment, and $${NAME} is an
@@ -65,6 +76,22 @@ final class EnvironmentRules {
      */
     static Set<String> documented(CharSequence example) {
         return names(example, ASSIGNMENT);
+    }
+
+    /**
+     * The credentials an example file gives a value. A developer copies the example file to supply the
+     * environment, so a value written there becomes the credential of every copy that is not edited, a
+     * deployment's among them. An empty assignment documents the name and supplies nothing.
+     *
+     * @param example the example file
+     * @return the name of each credential assigned a non-empty value, sorted
+     */
+    static Set<String> valuedCredentials(CharSequence example) {
+        return VALUED.matcher(example).results()
+            .filter(assignment -> CREDENTIAL.matcher(assignment.group(NAME)).find())
+            .filter(assignment -> !value(assignment.group("value")).isEmpty())
+            .map(assignment -> assignment.group(NAME))
+            .collect(Collectors.toCollection(TreeSet::new));
     }
 
     /**
@@ -127,6 +154,11 @@ final class EnvironmentRules {
             .map(token -> token.split("=", 2)[0])
             .filter(name -> !name.isEmpty())
             .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    private static String value(CharSequence written) {
+        String uncommented = TRAILING_COMMENT.matcher(written).replaceFirst("").strip();
+        return EMPTY_QUOTES.matcher(uncommented).matches() ? "" : uncommented;
     }
 
     private static Set<String> names(CharSequence text, Pattern pattern) {
