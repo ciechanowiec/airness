@@ -83,6 +83,21 @@ public final class Caller {
     }
 
     /**
+     * Answers another caller holding the cookies this one holds now, which is what somebody who copied
+     * them out of a browser would send.
+     *
+     * @return that caller, which keeps the cookies it is sent from then on apart from this one
+     */
+    public Caller copied() {
+        Caller copy = new Caller(this.port);
+        URI application = this.address("/");
+        this.cookies.getCookieStore().getCookies().forEach(
+            cookie -> copy.cookies.getCookieStore().add(application, cookie)
+        );
+        return copy;
+    }
+
+    /**
      * Says who is calling, the way the filter chain says it for a call that arrived over HTTP, for a test
      * that calls an application layer directly.
      *
@@ -202,7 +217,11 @@ public final class Caller {
     }
 
     private HttpRequest.Builder request(String path) {
-        return HttpRequest.newBuilder(URI.create("http://localhost:%d%s".formatted(this.port, path)));
+        return HttpRequest.newBuilder(this.address(path));
+    }
+
+    private URI address(String path) {
+        return URI.create("http://localhost:%d%s".formatted(this.port, path));
     }
 
     @SneakyThrows

@@ -38,11 +38,12 @@ public final class AuditTrail {
     }
 
     /**
-     * Records that somebody did something to an account.
+     * Records that somebody did something to an account or to a task.
      *
      * @param actor   who did it, by the address they sign in with, or {@link #APPLICATION}
      * @param action  what was done
-     * @param target  the account it was done to, by the address that account signs in with
+     * @param target  the account it was done to, by the address that account signs in with, or the task it
+     *                was done to, by the reference that task is known by
      * @param outcome how it turned out
      */
     public void write(String actor, AuditAction action, String target, AuditOutcome outcome) {

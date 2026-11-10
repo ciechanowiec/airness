@@ -9,6 +9,8 @@ import java.time.Instant;
  * The policy on refused sign-ins, as one account stands under it.
  *
  * <p>Five refused sign-ins in a row stop the account signing in for fifteen minutes, whoever typed them.
+ * A current password refused on the page that changes it is counted as a refused sign-in, and while the
+ * account is stopped that page refuses every current password too.
  * The count starts again once the account is stopped, and a sign-in that is let in clears it. A sign-in
  * refused while the account is stopped neither counts nor extends the stop, so somebody guessing cannot
  * keep the owner out for longer than one stop at a time. The stop lifts on its own once the time has

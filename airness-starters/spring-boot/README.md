@@ -11,10 +11,11 @@ htmx, Tailwind CSS with daisyUI, PostgreSQL, and English and Polish.
 - A user keeps tasks of their own, each with a title, a description, a status and a due day. The list
   is searched, narrowed and ordered in place, and a task past its day is marked overdue.
 - An administrator sees every task with who keeps it, and adds, changes, stops and readmits accounts.
-- Five refused sign-ins in a row stop an account for fifteen minutes. Stopping an account, or changing
-  its address or role, ends its sessions at once. A session lapses after thirty idle minutes.
-- Every sign-in and every change to an account is written to an audit trail the database refuses to
-  change.
+- Five refused sign-ins in a row stop an account for fifteen minutes, and a current password refused
+  on the page that changes it counts as one. Stopping an account, or changing its address or role, ends
+  its sessions at once. A session lapses after thirty idle minutes.
+- Every sign-in, every change to an account, and every change an administrator makes to a task somebody
+  else keeps is written to an audit trail the database refuses to change.
 
 ## Build and run
 
@@ -24,7 +25,14 @@ htmx, Tailwind CSS with daisyUI, PostgreSQL, and English and Polish.
 | `mvn clean verify -Pextended` | Extended verification, including the browser sweep |
 | `mvn process-resources -Pformat` | Applies the Java formatting |
 | `pnpm run format` | Applies the TypeScript and stylesheet formatting |
-| `docker compose up --build` | Runs the archive and a database, after `cp .env.example .env` |
+| `docker compose up --build` | Runs the archive and a database on `http://localhost:8080`, once `.env` exists |
+
+Before the first `docker compose up`, run `cp .env.example .env` and choose the two values the copy
+leaves empty: `APP_DATABASE_PASSWORD`, which the database is created with, and
+`APP_ADMINISTRATOR_PASSWORD`, which the first administrator signs in with under
+`APP_ADMINISTRATOR_EMAIL` and which has to be twelve characters or longer and seventy-two bytes or
+shorter. Neither starts with a blank one. The database keeps the password its volume was created with,
+and the administrator's is read only on the start that finds no account.
 
 Verification needs Java 25, Maven 3.10 or later and a running Docker daemon, which the tests start
 their database in.

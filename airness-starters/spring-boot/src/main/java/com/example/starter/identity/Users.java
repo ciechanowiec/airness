@@ -127,13 +127,15 @@ public class Users {
 
     /**
      * Answers whether the given password is the one the signed-in reader signs in with, which the page
-     * that changes it asks before it changes anything.
+     * that changes it asks before it changes anything. A password that is not theirs counts against their
+     * account as a refused sign-in does and is recorded as a refused change, and while the account is
+     * stopped under the policy on refused sign-ins no password is theirs.
      *
      * @param password the password the reader typed as their current one
-     * @return whether it is theirs
+     * @return whether it is theirs, and their account is not stopped
      */
     @PreAuthorize("isAuthenticated()")
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
     public boolean proves(String password) {
         return this.admission.proves(password, this.reader());
     }
@@ -143,7 +145,8 @@ public class Users {
      *
      * @param current the password the reader signs in with today
      * @param chosen  the password the reader signs in with from now on
-     * @throws IllegalStateException when the current password is not theirs, or the chosen one does not
+     * @throws IllegalStateException when the current password is not theirs, when their account is stopped
+     *                               under the policy on refused sign-ins, or when the chosen one does not
      *                               meet the policy
      */
     @PreAuthorize("isAuthenticated()")
@@ -172,13 +175,19 @@ public class Users {
      * @param profile  how the first administrator is named and reached
      * @param password the password that administrator signs in with
      * @return the reference of the administrator written, or nothing when an account already exists
-     * @throws IllegalStateException when the password does not meet the policy
+     * @throws IllegalStateException when the password does not meet the policy, which a blank one does not
      */
     @PreAuthorize("permitAll()")
     @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
     public Optional<UUID> bootstrap(UserProfile profile, String password) {
         if (this.repository.count() > 0) {
             return Optional.empty();
+        }
+        if (!PasswordPolicy.admits(password)) {
+            throw new IllegalStateException(
+                "The first administrator was not written, because the password configured for it is blank or "
+                    + "does not meet the password policy"
+            );
         }
         UUID reference = this.admitted(new UserForm(profile, Role.ADMIN, password));
         this.trail.write(

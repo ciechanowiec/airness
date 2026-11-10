@@ -1,10 +1,13 @@
 package com.example.starter.identity;
 
 import com.example.starter.language.LanguagePages;
+import java.time.Clock;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -23,6 +26,9 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
  * else needs somebody signed in, because a chain whose last word is weaker makes every line above it
  * decorative. Which role may do what is not decided here: it is stated on the application layer, where
  * the same rule covers a hidden button and a request that was made anyway.
+ *
+ * <p>A password is compared by one provider, built around {@link Credentials}, which asks about the
+ * account both before the comparison and after it.
  *
  * <p>Every sign-in is written into a session registry, which is what lets stopping an account end the
  * sessions it is signed in under at once. A session lapses after the idle time the configuration
@@ -94,6 +100,24 @@ public final class WebSecurity {
                     .contentSecurityPolicy(policy -> policy.policyDirectives(CONTENT_POLICY))
                     .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
             ).build();
+    }
+
+    /**
+     * Answers what compares the password somebody signs in with. Being the one provider the application
+     * declares, it is the one the framework signs everybody in through.
+     *
+     * @param repository the accounts as the database holds them
+     * @param clock      the clock every instant of the application is read from
+     * @param encoder    what compares a typed password with a stored hash
+     * @return the provider that reads the account before the comparison and reads it again after
+     */
+    @Bean
+    AuthenticationProvider signIn(UserRepository repository, Clock clock, PasswordEncoder encoder) {
+        Credentials credentials = new Credentials(repository, clock);
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(credentials);
+        provider.setPasswordEncoder(encoder);
+        provider.setPostAuthenticationChecks(credentials);
+        return provider;
     }
 
     /**

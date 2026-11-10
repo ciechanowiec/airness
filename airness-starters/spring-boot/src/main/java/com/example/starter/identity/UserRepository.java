@@ -1,10 +1,12 @@
 package com.example.starter.identity;
 
+import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,6 +22,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return the account under that address, or nothing when nobody signs in with it
      */
     Optional<User> findByProfileEmail(String email);
+
+    /**
+     * Answers the account that signs in under the given address, holding its row until the transaction
+     * that asked ends. Two refused sign-ins counted at once are therefore counted one after the other, the
+     * second reading what the first wrote, rather than both writing a count each read before the other.
+     * It needs a transaction that may write, because the database refuses to hold a row for one that may
+     * not.
+     *
+     * @param email the address in its canonical spelling
+     * @return the account under that address, held, or nothing when nobody signs in with it
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT account FROM User account WHERE account.profile.email = :email")
+    Optional<User> heldUnder(@Param("email") String email);
 
     /**
      * Answers the account the given reference stands for.

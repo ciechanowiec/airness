@@ -1,5 +1,8 @@
 package com.example.starter.task;
 
+import com.example.starter.audit.AuditAction;
+import com.example.starter.audit.AuditOutcome;
+import com.example.starter.audit.AuditTrail;
 import com.example.starter.identity.Owners;
 import com.example.starter.identity.Reader;
 import com.example.starter.identity.Role;
@@ -22,6 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
  * starts from, so a task somebody may not see is answered as one that does not exist, whether it was
  * listed, opened, changed or removed.
  *
+ * <p>A change to a task somebody else keeps, which only an administrator may make, is a privileged one,
+ * so it is written to the audit trail in the transaction that makes it. A change a reader makes to their
+ * own task is not.
+ *
  * <p>Every method needs somebody signed in, which is why the guard sits on the class. The class is not
  * final because the container wraps it in a proxy, which is a subclass, and both the
  * transaction and the authorization are applied by that proxy.
@@ -40,6 +47,8 @@ public class Tasks {
 
     private final Owners owners;
 
+    private final AuditTrail trail;
+
     private final Clock clock;
 
     /**
@@ -47,11 +56,13 @@ public class Tasks {
      *
      * @param repository the tasks as the database holds them
      * @param owners     the accounts as the tasks they keep read them
+     * @param trail      what records every change to a task somebody else keeps
      * @param clock      the clock every instant and every day of the application is read from
      */
-    public Tasks(TaskRepository repository, Owners owners, Clock clock) {
+    public Tasks(TaskRepository repository, Owners owners, AuditTrail trail, Clock clock) {
         this.repository = repository;
         this.owners = owners;
+        this.trail = trail;
         this.clock = clock;
     }
 
@@ -124,6 +135,7 @@ public class Tasks {
     public void revise(UUID reference, TaskContent content, long version) {
         Task task = this.found(reference);
         this.repository.save(task.revised(content, this.clock.instant(), version));
+        this.audited(task, AuditAction.TASK_REVISED);
     }
 
     /**
@@ -138,7 +150,9 @@ public class Tasks {
     public TaskView move(UUID reference, TaskStatus status) {
         Task task = this.found(reference);
         Task moved = task.revised(task.getContent().moved(status), this.clock.instant(), task.getVersion());
-        return this.viewed(this.repository.saveAndFlush(moved));
+        TaskView view = this.viewed(this.repository.saveAndFlush(moved));
+        this.audited(task, AuditAction.TASK_MOVED);
+        return view;
     }
 
     /**
@@ -149,7 +163,9 @@ public class Tasks {
      */
     @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
     public void remove(UUID reference) {
-        this.repository.delete(this.found(reference));
+        Task task = this.found(reference);
+        this.repository.delete(task);
+        this.audited(task, AuditAction.TASK_REMOVED);
     }
 
     /**
@@ -182,6 +198,15 @@ public class Tasks {
         return this.seen(reference).orElseThrow(
             () -> new IllegalStateException("No task the reader may see carries the reference %s".formatted(reference))
         );
+    }
+
+    // Records a change made to a task the reader does not keep, naming the task by its reference, which
+    // stays the same however the task changes and outlives its removal in the trail.
+    private void audited(Task task, AuditAction action) {
+        if (task.getOwnerId() != this.owners.reader()) {
+            String actor = Reader.email().orElse(AuditTrail.APPLICATION);
+            this.trail.write(actor, action, task.getReference().toString(), AuditOutcome.SUCCEEDED);
+        }
     }
 
     private TaskView viewed(Task task) {
