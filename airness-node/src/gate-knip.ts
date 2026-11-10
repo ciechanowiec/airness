@@ -66,19 +66,45 @@ const declaredLayers = (member: Member, layers: readonly string[]): readonly str
   return layers.filter((name: string): boolean => Object.hasOwn(declared, name))
 }
 
+// The stylesheet preprocessors among Vite's peers, each with the extensions of the stylesheets it compiles.
+const STYLESHEET_PREPROCESSORS: Readonly<Record<string, readonly string[]>> = {
+  sass: ['.scss', '.sass'],
+  'sass-embedded': ['.scss', '.sass'],
+  less: ['.less'],
+  stylus: ['.styl', '.stylus'],
+  sugarss: ['.sss'],
+}
+
+// Whether a declared Vite peer is one the test engine uses. A preprocessor is, in whichever block it is
+// declared, while the member holds a stylesheet it compiles: a component spec imports that stylesheet through
+// Vite. Any other peer is excused as a development tool only: in `dependencies` it ships to production, where
+// nothing loads it through Vite, so an unused one there stays unused.
+const isTestEnginePeer = (
+  name: string,
+  development: Readonly<Record<string, unknown>>,
+  files: readonly string[],
+): boolean => {
+  const extensions: readonly string[] | undefined = STYLESHEET_PREPROCESSORS[name]
+  return extensions === undefined
+    ? Object.hasOwn(development, name)
+    : files.some((file: string): boolean => extensions.some((extension: string): boolean => file.endsWith(extension)))
+}
+
 // Vite loads optional transforms through peers. A project supplying one is using it through its
 // test engine, even when no application source imports the transform package directly.
-const testEnginePeers = (member: Member): readonly string[] => {
+const testEnginePeers = (member: Member, files: readonly string[]): readonly string[] => {
   const declared: Readonly<Record<string, string>> = declaredDependencies(member.packageJson)
   if (!Object.hasOwn(declared, 'vitest')) {
     return []
   }
+  const development: Readonly<Record<string, unknown>> = asRecord(readKey(member.packageJson, 'devDependencies'))
+  const own: readonly string[] = memberFiles(files, member.siblingPaths)
   try {
     const project: NodeJS.Require = createRequire(path.join(member.root, 'package.json'))
     const test: NodeJS.Require = createRequire(project.resolve('vitest/package.json'))
     const engine: unknown = readJson(test.resolve('vite/package.json'))
-    return Object.keys(asRecord(readKey(engine, 'peerDependencies'))).filter((name: string): boolean =>
-      Object.hasOwn(declared, name),
+    return Object.keys(asRecord(readKey(engine, 'peerDependencies'))).filter(
+      (name: string): boolean => Object.hasOwn(declared, name) && isTestEnginePeer(name, development, own),
     )
   } catch {
     // Missing test tools are reported by wiring; they cannot excuse a dependency here.
@@ -168,7 +194,7 @@ const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs
       ...texts(shipped['ignoreDependencies']),
       ...ownDependencies(member),
       ...declaredLayers(member, layers),
-      ...testEnginePeers(member),
+      ...testEnginePeers(member, files),
       ...runtimeModules(member, files),
     ],
     ignore: [...texts(shipped['ignore']), ...boundaries, ...member.settings.generatedArtefacts],

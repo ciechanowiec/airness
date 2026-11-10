@@ -108,24 +108,39 @@ export const coverageCandidates = (
     isMeasurable(file, settings, coverageExclusions(settings, isNextApp)),
   )
 
+const reachesEvery = (patterns: readonly string[], measurable: readonly string[]): boolean =>
+  measurable.length > 0 &&
+  measurable.every((file: string): boolean => patterns.some((pattern: string): boolean => matchesGlob(pattern, file)))
+
+const BLANKET_REPAIR: string = 'name the files of one role instead'
+
+// The entries together, when none of them alone is the switch: `src/**/*.ts` beside `src/**/*.tsx` leaves the
+// floor nothing to measure, and so no suite to run, exactly as `src/**` does.
+const unionFindings = (entries: readonly DeclaredExclusion[], measurable: readonly string[]): readonly string[] => {
+  const patterns: readonly string[] = entries.map((entry: DeclaredExclusion): string => entry.pattern)
+  const named: string = patterns.map((pattern: string): string => JSON.stringify(pattern)).join(', ')
+  return reachesEvery(patterns, measurable)
+    ? [`coverageExclude entries ${named} together exclude every file the floor would measure; ${BLANKET_REPAIR}`]
+    : []
+}
+
 /**
  * Every coverage exclusion that reaches every file the floor would measure, which switches the floor off
- * rather than naming a role. One file left out of a member of one file is the same switch.
+ * rather than naming a role. One file left out of a member of one file is the same switch, and so are
+ * entries that reach every file between them.
  * @param entries the member's `coverageExclude` entries.
  * @param measurable the files the floor would measure before them.
- * @returns one finding per such entry.
+ * @returns one finding per such entry, or one naming every entry when only their union is the switch.
  */
 export const blanketExclusionFindings = (
   entries: readonly DeclaredExclusion[],
   measurable: readonly string[],
-): readonly string[] =>
-  entries
-    .filter(
-      (entry: DeclaredExclusion): boolean =>
-        measurable.length > 0 && measurable.every((file: string): boolean => matchesGlob(entry.pattern, file)),
-    )
+): readonly string[] => {
+  const blanket: readonly string[] = entries
+    .filter((entry: DeclaredExclusion): boolean => reachesEvery([entry.pattern], measurable))
     .map(
       (entry: DeclaredExclusion): string =>
-        `coverageExclude entry "${entry.pattern}" excludes every file the floor would measure; ` +
-        'name the files of one role instead',
+        `coverageExclude entry "${entry.pattern}" excludes every file the floor would measure; ${BLANKET_REPAIR}`,
     )
+  return blanket.length > 0 ? blanket : unionFindings(entries, measurable)
+}

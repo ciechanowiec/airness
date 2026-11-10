@@ -15,6 +15,7 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import { immutabilityPlugin as functional } from './eslint-immutability.js'
 import { javaScriptParser } from './eslint-javascript-parser.js'
+import { NO_MOCK_PROPERTIES, NO_MOCK_SYNTAX, NO_MOCKS_MESSAGE } from './eslint-mocks.js'
 import { type RestrictedSyntax, SECURITY_RESTRICTIONS } from './eslint-security.js'
 import { specFunctionLength } from './eslint-spec-length.js'
 import { TIME_ZONE_RESTRICTIONS } from './eslint-time-zone.js'
@@ -55,13 +56,6 @@ export type RuleTable = Partial<Linter.RulesRecord>
  */
 export type RestrictedSyntaxSetting = readonly ['error', ...RestrictedSyntax[]]
 
-/** One `no-restricted-properties` entry: the member access to reject, and what to say instead. */
-export interface RestrictedProperty {
-  readonly object: string
-  readonly property: string
-  readonly message: string
-}
-
 /** Composes flat-config blocks into the array ESLint reads. */
 export type Compose = (...blocks: readonly unknown[]) => readonly FlatConfigBlock[]
 
@@ -78,22 +72,7 @@ const MIN_NAME_LENGTH: number = 2
 // The governing standard's "short structural-value allowlist".
 const STRUCTURAL_NUMBERS: readonly number[] = [-1, 0, 1]
 
-// No mocks. Tests run against real objects and real services (a real framework instance, a real
-// database, real in-process servers) - never test doubles. These are the Vitest entry points that
-// create mocks/stubs/spies, plus the third-party mocking libraries, all banned build-wide.
-const NO_MOCKS_MESSAGE: string =
-  'No mocks/stubs/spies. Test against real objects and real services instead (see AGENTS.md).'
-const MOCKING_VI_METHODS: readonly string[] = [
-  'fn',
-  'mock',
-  'doMock',
-  'unmock',
-  'mocked',
-  'spyOn',
-  'stubGlobal',
-  'stubEnv',
-  'importMock',
-]
+// The third-party mocking libraries, banned build-wide beside Vitest's own entry points.
 const MOCKING_PACKAGES: readonly string[] = [
   'sinon',
   'testdouble',
@@ -128,15 +107,11 @@ const WEB_SIMULATION_PACKAGES: readonly string[] = ['node-mocks-http', 'light-my
 const INHERITANCE_MESSAGE: string =
   'Add behavior by composing objects, not by inheriting. Inherit only from a base the ' +
   'language or a dependency requires.'
-// The mock ban as ENTRIES rather than as a finished rule setting, for the reason the comment above
-// `NO_INHERITANCE` gives: a scoped block that sets `no-restricted-properties` REPLACES this rather than
-// adding to it. `eslint.js` set that key for `src/**` to the process.env rule alone, which switched the
-// build-wide mock ban off across a project's whole source tree without a word anywhere saying so.
-const NO_MOCK_PROPERTIES: readonly RestrictedProperty[] = MOCKING_VI_METHODS.map((property) => ({
-  object: 'vi',
-  property,
-  message: NO_MOCKS_MESSAGE,
-}))
+// The mock ban lives in `eslint-mocks.ts` as ENTRIES rather than as a finished rule setting, for the
+// reason the comment above `NO_INHERITANCE` gives: a scoped block that sets `no-restricted-properties`
+// REPLACES this rather than adding to it. `eslint.js` set that key for `src/**` to the process.env rule
+// alone, which switched the build-wide mock ban off across a project's whole source tree without a word
+// anywhere saying so. Its syntax half rides in every `no-restricted-syntax` setting the same way.
 
 const NO_INHERITANCE: RestrictedSyntaxSetting = [
   'error',
@@ -416,7 +391,7 @@ export const guidelineRules: RuleTable = {
   // Composition over inheritance. A type inherits only from a base the language or a dependency
   // requires, and the error base is the one such base that appears in ordinary code. Beside it, the
   // output-boundary restrictions and date formatting that names its time zone.
-  'no-restricted-syntax': [...NO_INHERITANCE, ...SECURITY_RESTRICTIONS, ...TIME_ZONE_RESTRICTIONS],
+  'no-restricted-syntax': [...NO_INHERITANCE, ...SECURITY_RESTRICTIONS, ...TIME_ZONE_RESTRICTIONS, ...NO_MOCK_SYNTAX],
 
   // Control-flow clarity.
   eqeqeq: ['error', 'always'],
@@ -841,6 +816,7 @@ export const testSuiteSyntaxRules: RuleTable = {
     ...NO_INHERITANCE,
     ...SECURITY_RESTRICTIONS,
     ...TIME_ZONE_RESTRICTIONS,
+    ...NO_MOCK_SYNTAX,
     ...NO_LITERAL_ASSERTIONS,
     ...NO_FAST_CHECK_SEED,
     ...NO_TEST_ORDER_ESCAPE,
@@ -1023,16 +999,10 @@ export const specEnvironmentBlock = (): FlatConfigBlock => ({
   },
 })
 
+export type { RestrictedProperty } from './eslint-mocks.js'
 export type { RestrictedSyntax } from './eslint-security.js'
 /** The shared selectors, re-exported so a scoped block can spread rather than restate them. */
-export {
-  NO_FAST_CHECK_SEED,
-  NO_INHERITANCE,
-  NO_LITERAL_ASSERTIONS,
-  NO_MOCK_PROPERTIES,
-  NO_NETWORK_GUARD_ESCAPE,
-  NO_TEST_ORDER_ESCAPE,
-}
+export { NO_FAST_CHECK_SEED, NO_INHERITANCE, NO_LITERAL_ASSERTIONS, NO_NETWORK_GUARD_ESCAPE, NO_TEST_ORDER_ESCAPE }
 
 /** CommonJS exports initialize the module interface; mutations of exported values remain governed. */
 export const commonJavaScriptBlock = (allowlist: readonly RolePattern[], directory: string): FlatConfigBlock => ({
@@ -1048,3 +1018,5 @@ export const commonTypeScriptBlock = (): FlatConfigBlock => ({
   languageOptions: { sourceType: 'commonjs' },
   rules: { '@typescript-eslint/no-require-imports': ['error', { allowAsImport: true }] },
 })
+
+export { NO_MOCK_PROPERTIES, NO_MOCK_SYNTAX } from './eslint-mocks.js'

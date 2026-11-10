@@ -5,8 +5,17 @@ import { PROCESS_TIME } from './helpers/process-time.js'
 
 const CWD: string = process.cwd()
 
-const script = (source: string, options: { readonly input?: string; readonly timeoutMs?: number } = {}): RunResult =>
+interface ScriptOptions {
+  readonly input?: string
+  readonly timeoutMs?: number
+  readonly maxOutputBytes?: number
+}
+
+const script = (source: string, options: ScriptOptions = {}): RunResult =>
   runNode('-e', [source], { cwd: CWD, ...options })
+
+// A buffer far smaller than what the overflowing tool writes.
+const SMALL_BUFFER_BYTES: number = 16
 
 describe('running a tool', PROCESS_TIME, () => {
   it('keeps standard output apart from the combined output', () => {
@@ -22,6 +31,12 @@ describe('running a tool', PROCESS_TIME, () => {
     const result: RunResult = script('setTimeout(() => {}, 10_000)', { timeoutMs: 200 })
     expect(result.code).toBe(124)
     expect(result.output).toContain('ETIMEDOUT')
+  })
+
+  it('reports a tool that writes more than the buffer holds as out of buffer, not as missing', () => {
+    const result: RunResult = script('process.stdout.write("x".repeat(4096))', { maxOutputBytes: SMALL_BUFFER_BYTES })
+    expect(result.code).toBe(1)
+    expect(result.output).toBe(`ENOBUFS: the tool produced more than ${String(SMALL_BUFFER_BYTES)} bytes of output`)
   })
 
   it('reports a tool that cannot start as not found', () => {

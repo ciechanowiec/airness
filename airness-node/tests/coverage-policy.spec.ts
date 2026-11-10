@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { coverageCandidates, coverageExclusions, coverageIncludes, measurableFiles } from '@/coverage-policy.js'
-import { readSettings, type Settings } from '@/settings.js'
+import {
+  blanketExclusionFindings,
+  coverageCandidates,
+  coverageExclusions,
+  coverageIncludes,
+  measurableFiles,
+} from '@/coverage-policy.js'
+import { type DeclaredExclusion, readSettings, type Settings } from '@/settings.js'
 
 const SETTINGS: Settings = readSettings({
   airness: {
@@ -77,5 +83,32 @@ describe('the coverage floor of a Next.js application', () => {
 
   it('measures the same files in a member that is no Next.js application', () => {
     expect(coverageCandidates(files, readSettings({}), [])).toEqual(files)
+  })
+})
+
+const entriesOf = (...patterns: readonly string[]): readonly DeclaredExclusion[] =>
+  readSettings({
+    airness: { coverageExclude: patterns.map((pattern: string) => ({ pattern, reason: 'a role' })) },
+  }).declaredExclusions
+
+describe('a coverage exclusion that switches the floor off', () => {
+  const measurable: readonly string[] = ['src/total.ts', 'src/view.tsx']
+
+  it('is refused when two entries reach every measured file between them', () => {
+    expect(blanketExclusionFindings(entriesOf('src/**/*.ts', 'src/**/*.tsx'), measurable)).toEqual([
+      'coverageExclude entries "src/**/*.ts", "src/**/*.tsx" together exclude every file the floor would ' +
+        'measure; name the files of one role instead',
+    ])
+  })
+
+  it('names a single blanket entry alone rather than the union', () => {
+    expect(blanketExclusionFindings(entriesOf('src/**', 'src/view.tsx'), measurable)).toEqual([
+      'coverageExclude entry "src/**" excludes every file the floor would measure; name the files of one role instead',
+    ])
+  })
+
+  it('accepts entries that leave a measured file between them', () => {
+    expect(blanketExclusionFindings(entriesOf('src/**/*.tsx', 'src/entry.ts'), measurable)).toEqual([])
+    expect(blanketExclusionFindings(entriesOf('src/**/*.ts'), [])).toEqual([])
   })
 })

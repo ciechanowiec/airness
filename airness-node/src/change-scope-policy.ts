@@ -235,20 +235,40 @@ const memberInputKind = (file: string, appRoot: string | undefined): string | un
   return appRoot !== undefined && isRootLayout(file, appRoot) ? 'the root layout' : undefined
 }
 
-// A file of this application: global, followed through the graph, or outside what pages are built from.
-// A deleted module is in no graph, and it reaches nothing on its own: a module still importing it no
-// longer builds, and one that stopped importing it is itself changed.
+// Member files no page is built from, named one by one: documentation, the hosting service's own
+// configuration, and the tests. Everything else outside the graph is unknown and therefore global, since a
+// page can read a file no import names, as a message catalogue loaded by locale or a content directory a
+// loader walks.
+const NO_EFFECT_INPUTS: readonly RegExp[] = [
+  /^[^/]+\.md$/u,
+  /(?:^|\/)(?:README|LICENSE|LICENCE|CHANGELOG|CONTRIBUTING|AGENTS|CLAUDE|SECURITY|CODE_OF_CONDUCT)(?:\.md)?$/u,
+  /^\.github\//u,
+  /^tests\//u,
+]
+
+const isNoEffectInput = (file: string): boolean =>
+  NO_EFFECT_INPUTS.some((pattern: RegExp): boolean => pattern.test(file))
+
+// A file of this application: global, followed through the graph, or one of the files no page is built from.
+// The graph is asked first, because a module a page imports may lie outside the source roots. A deleted module
+// under a source root is in no graph, and it reaches nothing on its own: a module still importing it no longer
+// builds, and one that stopped importing it is itself changed.
 const ownEffect = (changed: ChangedFile, inputs: ScopeInputs, appRoot: string | undefined): Effect => {
   const file: string = relativeTo(changed.path, inputs.member)
   const kind: string | undefined = memberInputKind(file, appRoot)
   if (kind !== undefined) {
     return globalEffect(`${changed.path} is ${kind}`)
   }
-  if (!isWithinSourceRoots(file, inputs.sourceRoots)) {
-    return NO_EFFECT
-  }
   if (inputs.graph[file] !== undefined) {
     return { kind: 'graph', file }
+  }
+  if (isNoEffectInput(file)) {
+    return NO_EFFECT
+  }
+  if (!isWithinSourceRoots(file, inputs.sourceRoots)) {
+    return globalEffect(
+      `${changed.path} lies outside the source roots and the import graph, so what it reaches is unknown`,
+    )
   }
   return changed.isDeleted
     ? NO_EFFECT

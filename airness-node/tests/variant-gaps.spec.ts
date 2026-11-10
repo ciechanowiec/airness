@@ -125,4 +125,25 @@ describe('a blanket coverage exclusion', PROCESS_TIME, () => {
       removeProject(root)
     }
   })
+  it('is refused when two entries switch it off between them', () => {
+    const manifest: Readonly<Record<string, unknown>> = {
+      airness: {
+        coverageExclude: [
+          { pattern: 'src/**/*.ts', reason: 'the logic' },
+          { pattern: 'src/**/*.tsx', reason: 'the components' },
+        ],
+      },
+    }
+    const root: string = temporaryProject({
+      'src/total.ts': 'export const total = 1\n',
+      'src/view.tsx': 'export const view = 1\n',
+    })
+    try {
+      expect(configReferences(memberAt(root, manifest)).findings.join('\n')).toContain(
+        'coverageExclude entries "src/**/*.ts", "src/**/*.tsx" together exclude every file the floor would measure',
+      )
+    } finally {
+      removeProject(root)
+    }
+  })
 })

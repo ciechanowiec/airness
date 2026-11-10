@@ -293,3 +293,68 @@ describe('what no-absent-secret-acceptance leaves alone', () => {
     expect(acceptancesOf("const example = 'if (!secret) { return true }'")).toEqual([])
   })
 })
+
+// The shipped TypeScript configuration sets `noPropertyAccessFromIndexSignature`, so a compliant project reads
+// its environment as `process.env['CRON_SECRET']`. Every shape of both rules is judged in each quoting the
+// language allows for that key.
+describe('a credential read by a bracketed key', () => {
+  const Keys: readonly string[] = [
+    "process.env['CRON_SECRET']",
+    'process.env["CRON_SECRET"]',
+    'process.env[`CRON_SECRET`]',
+  ]
+
+  const PresenceShapes: readonly ((name: string) => string)[] = [
+    (name: string): string => name,
+    (name: string): string => `!!${name}`,
+    (name: string): string => `Boolean(${name})`,
+    (name: string): string => `${name} !== undefined`,
+    (name: string): string => `${name} != null`,
+    (name: string): string => `undefined !== ${name}`,
+    (name: string): string => `typeof ${name} === 'string'`,
+    (name: string): string => `${name}.length > 0`,
+    (name: string): string => `${name}?.length > 0`,
+    (name: string): string => `0 < ${name}.length`,
+    (name: string): string => `(${name} !== undefined)`,
+  ]
+
+  const AbsenceShapes: readonly ((name: string) => string)[] = [
+    (name: string): string => `!${name}`,
+    (name: string): string => `${name} === undefined`,
+    (name: string): string => `${name} == null`,
+    (name: string): string => `${name}.length === 0`,
+    (name: string): string => `${name} === undefined || ${name}.length === 0`,
+  ]
+
+  const cases = (shapes: readonly ((name: string) => string)[]): readonly string[] =>
+    Keys.flatMap((key: string): readonly string[] =>
+      shapes.map((shape: (name: string) => string): string => shape(key)),
+    )
+
+  it.each(cases(PresenceShapes))('reports a rejection guarded by the presence test %s', (presence: string) => {
+    expect(rulesOf(`if (${presence} && supplied !== secret) { return unauthorized() }`)).toEqual([
+      'no-fail-open-secret-guard',
+    ])
+  })
+
+  it.each(cases(AbsenceShapes))('reports an acceptance guarded by the absence test %s', (absence: string) => {
+    expect(acceptancesOf(`if (${absence}) { return true }`)).toEqual(['no-absent-secret-acceptance'])
+  })
+
+  it('names the credential as the source spells it', () => {
+    const findings: readonly SourceViolation[] = findFailOpenSecretGuards(
+      "if (process.env?.['CRON_SECRET'] !== undefined && supplied !== secret) { return unauthorized() }",
+    )
+    expect(findings[0]?.reason).toContain("process.env['CRON_SECRET']")
+  })
+
+  it('leaves a bracketed key that names no credential alone', () => {
+    expect(rulesOf("if (process.env['CRON_SCHEDULE'] && supplied !== secret) { return unauthorized() }")).toEqual([])
+    expect(acceptancesOf("if (!process.env['TOKEN_COUNT']) { return true }")).toEqual([])
+  })
+
+  it('leaves a key computed from an expression alone, since its name is not in the text', () => {
+    expect(rulesOf('if (process.env[name] && supplied !== secret) { return unauthorized() }')).toEqual([])
+    expect(acceptancesOf("if (!'secret') { return true }")).toEqual([])
+  })
+})
