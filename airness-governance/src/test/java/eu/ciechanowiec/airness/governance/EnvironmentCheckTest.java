@@ -232,4 +232,29 @@ class EnvironmentCheckTest {
             "docker drops a build argument the Dockerfile being built never declared, whatever its siblings declare"
         );
     }
+
+    @Test
+    void namesEveryCredentialAnExampleFileAnywhereGivesAValue() {
+        Path root = new GitFixture("environment-credentials")
+            .write(".env.example", "DB_PASSWORD=value\nDB_USER=value\n")
+            .write("web/.env.sample", "API_KEY=value\nSESSION_SECRET=\n")
+            .write("web/.env.local.example", "ADMIN_TOKEN=value\n")
+            .root();
+        assertEquals(
+            Set.of("DB_PASSWORD in .env.example", "API_KEY in " + Path.of("web", ".env.sample")),
+            Set.copyOf(Verdicts.offences(new EnvironmentCheck(root).findings(), "gives a value")),
+            "every example file is read for credentials, and a file of another name is no example file"
+        );
+    }
+
+    @Test
+    void passesAnExampleFileThatLeavesEveryCredentialEmpty() {
+        Path root = new GitFixture("environment-credentials-empty")
+            .write(".env.example", "DB_PASSWORD=\nDB_USER=app\n")
+            .root();
+        assertEquals(
+            List.of(), Verdicts.offences(new EnvironmentCheck(root).findings(), "gives a value"),
+            "an empty credential documents the name the environment has to supply"
+        );
+    }
 }

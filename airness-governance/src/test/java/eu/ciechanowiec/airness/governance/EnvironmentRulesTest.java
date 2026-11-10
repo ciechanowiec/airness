@@ -47,6 +47,40 @@ class EnvironmentRulesTest {
     }
 
     @Test
+    void readsEveryCredentialAnExampleFileGivesAValue() {
+        String example = """
+            # DB_PASSWORD=value
+            DB_PASSWORD=value
+            DB_PASSWD=value
+            export API_KEY=value
+              private_key = "value"
+            SESSION_SECRET='value'
+            Github_Token=value # issued per developer
+            DB_USER=value
+            KEYCLOAK_URL=value
+            """;
+        assertEquals(
+            Set.of("API_KEY", "DB_PASSWD", "DB_PASSWORD", "Github_Token", "SESSION_SECRET", "private_key"),
+            EnvironmentRules.valuedCredentials(example),
+            "a name holding a password, a secret or a token, or ending in a key, marks a credential in any case"
+        );
+    }
+
+    @Test
+    void leavesAnEmptyCredentialAlone() {
+        String example = """
+            DB_PASSWORD=
+            export API_KEY=""
+            SESSION_SECRET=''
+            GITHUB_TOKEN= # issued per developer
+            """;
+        assertEquals(
+            Set.of(), EnvironmentRules.valuedCredentials(example),
+            "an empty assignment, quoted or followed by a comment, documents the name and supplies nothing"
+        );
+    }
+
+    @Test
     void readsEveryWayAWorkflowSuppliesAName() {
         String workflow = """
             env:

@@ -29,6 +29,10 @@ import java.util.stream.Stream;
  * closely holds it, and the one whose directory it names as a relative path outside a comment, other than as
  * where a copy lands or by the package's manifest alone. The variables application code
  * reads through a validated environment module are a stack layer input, and the generic layer reads none.
+ *
+ * <p>An example file anywhere in the tree also leaves every credential empty. Copying it is how a developer
+ * supplies the environment, so a value it gives a password, a secret, a token or a key becomes the credential of
+ * each copy nobody edits, and production accepts no default privileged credential.
  */
 public final class EnvironmentCheck {
 
@@ -40,6 +44,9 @@ public final class EnvironmentCheck {
         = "Environment variables a compose file needs that a verifying workflow does not supply (add each"
             + " to the workflow's env)";
 
+    private static final String VALUED_CREDENTIALS
+        = "Credentials an example environment file gives a value (leave each empty, as NAME=, so no copy of the"
+            + " file supplies a default credential)";
     private static final String UNDECLARED
         = "Environment variables a Next.js build inlines that a Dockerfile building it does not declare (add ARG"
             + " <NAME> to the stage that runs the build)";
@@ -106,8 +113,18 @@ public final class EnvironmentCheck {
         return List.of(
             new Findings(UNDOCUMENTED, undocumented),
             new Findings(UNSUPPLIED, unsupplied),
-            new Findings(UNDECLARED, this.undeclared())
+            new Findings(UNDECLARED, this.undeclared()),
+            new Findings(VALUED_CREDENTIALS, this.valuedCredentials())
         );
+    }
+
+    private List<String> valuedCredentials() {
+        return Repository.trackedFiles(this.root).stream()
+            .filter(file -> EXAMPLES.contains(String.valueOf(file.getFileName())))
+            .flatMap(
+                file -> EnvironmentRules.valuedCredentials(this.read(file)).stream()
+                    .map(name -> name + " in " + this.relative(file))
+            ).toList();
     }
 
     private List<String> undeclared() {
