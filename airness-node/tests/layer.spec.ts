@@ -27,6 +27,8 @@ const LAYER_MANIFEST: Readonly<Record<string, unknown>> = {
       generatedArtefacts: ['src/generated-types.ts'],
       frameworkGlue: ['src/app/(admin)/**'],
       vitestInlineDependencies: ['@framework/next', '@framework/ui', 'react-image-crop'],
+      productionEntries: ['src/framework.config.ts'],
+      knipConfigPlugins: ['framework', 'framework'],
       javascriptAllowlist: [
         { pattern: String.raw`importMap\.js$`, runtime: 'node' },
         { pattern: String.raw`^nothing\.js$`, runtime: 'deno' },
@@ -43,6 +45,14 @@ describe('the defaults a layer package contributes', PROCESS_TIME, () => {
     expect(settings.javascriptAllowlist).toContain(String.raw`importMap\.js$`)
     expect(settings.javascriptAllowlist).not.toContain(String.raw`^nothing\.js$`)
     expect(settings.declaredExclusions).toEqual([])
+    expect(settings.productionEntries).toEqual(['src/framework.config.ts'])
+    expect(settings.knipConfigPlugins).toEqual(['framework'])
+  })
+
+  it('contributes no production entry and leaves no knip plugin out where no layer names one', () => {
+    const settings: Settings = readSettings({}, [layerDefaultsOf({})])
+    expect(settings.productionEntries).toEqual([])
+    expect(settings.knipConfigPlugins).toEqual([])
   })
 
   it('reads the defaults of a declared layer package from the copy the member resolves, and of no other package', () => {

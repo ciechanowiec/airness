@@ -40,8 +40,11 @@ under `airness`.
 The layer contributes defaults to the node settings of every member that declares `@airness/payload`: the generated
 files (`src/payload-types.ts`, `src/payload-generated-schema.ts`, everything under `src/app/(payload)`, the
 admin and API glue Payload scaffolds as generated, and the `src/migrations/*.json` schema snapshots), the framework
-glue (`src/payload.config.ts`), the pure-logic floor (`src/access`, `src/lib`) and the routes the accessibility
-sweep leaves to Payload (`/admin`, `/api`). Agents may not edit the generated files; regenerate them with the
+glue (`src/payload.config.ts`), the pure-logic floor (`src/access`, `src/lib`), the routes the accessibility
+sweep leaves to Payload (`/admin`, `/api`), and the production entry points of the dead-code gate's production run:
+the configuration, which the admin panel and the API boot from, and the migrations under `src/migrations`, which
+`payload migrate` runs. What only the configuration reaches, such as a collection, a hook or a helper, is therefore
+production code. Agents may not edit the generated files; regenerate them with the
 Payload CLI. The installed layer contributes exact security replacements for
 affected Payload dependency edges through `airness.layer.securityOverrides`; a project may use only those approvals
 and the generic Airness approvals.

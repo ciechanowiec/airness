@@ -273,6 +273,10 @@ run_payload_cases() {
         expect_match payload_site "payload: ${gate} runs through node-gate and passes" "Node gate ${gate} in [.] passed"
     done
     expect_match payload_site 'payload: the node gates run on the Payload application' 'Node gate eslint in [.] passed'
+    # The collections are reached only through the Payload configuration, which the Payload layer makes a
+    # production entry point of knip's production run.
+    expect_match payload_site 'payload: knip counts what only the Payload configuration reaches as production code' \
+        'Node gate knip in [.] passed'
     expect_file_match "${payload_site}/eslint.config.mjs" \
         'payload: the Payload layer overrides the node ESLint configuration with the layered one' \
         '@airness/node/eslint-layered'

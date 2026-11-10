@@ -7,8 +7,9 @@
 //
 // That run counts every test and tool as an entry point, so an export only a test imports reads as used. A member
 // that declares `productionDeadCode` gets a second, production run: knip follows the production entry points
-// alone, the package's declared public interface among them, and judges the exports and files under the production
-// source roots, so an export or a production file that only tests and tooling reach fails too.
+// alone, the package's declared public interface among them, and the files a stack layer's framework runs, and judges
+// the exports and files under the production source roots, so an export or a production file that only tests and
+// tooling reach fails too.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -107,15 +108,34 @@ const productionProject = (member: Member): readonly string[] => [
   ...NON_PRODUCTION_ROOTS.map((root: string): string => `!${root}/**`),
 ]
 
+// The test runners' knip plugins, which in production mode contribute nothing but tests.
+const TEST_RUNNER_PLUGINS: readonly string[] = ['playwright', 'vitest']
+
 // A harness package ships end-to-end specifications from its sources, which the e2e gate runs in every browser
 // application that installs it. They are production entry points of the package, so what only they reach is used.
 // knip drops a production entry that a test runner's plugin reads as a test, so the production run of a harness
-// package leaves the Playwright and Vitest plugins out, which in production mode contribute nothing but tests. A
-// project cannot reach this: the wiring gate refuses a member that names itself after a harness package.
-const shippedSpecifications = (member: Member, entries: readonly string[]): Readonly<Record<string, unknown>> =>
-  isHarnessPackage(asText(readKey(member.packageJson, 'name')))
-    ? { entry: [...entries, `${SHIPPED_SPEC_SOURCES}!`], playwright: false, vitest: false }
-    : {}
+// package leaves those plugins out. A project cannot reach this: the wiring gate refuses a member that names
+// itself after a harness package.
+const isHarness = (member: Member): boolean => isHarnessPackage(asText(readKey(member.packageJson, 'name')))
+
+// What the production run adds to the configuration every member gets: the production entry points knip cannot
+// see, which are a harness package's shipped specifications and the files a stack layer's framework runs, and the
+// plugins it leaves out. knip's production mode passes over a file a plugin reads as a tool's configuration, even
+// one named as an entry, so a layer names the plugin that reads its framework's configuration that way.
+const productionOverrides = (member: Member, entries: readonly string[]): Readonly<Record<string, unknown>> => {
+  const shipped: readonly string[] = isHarness(member) ? [SHIPPED_SPEC_SOURCES] : []
+  const plugins: readonly string[] = [
+    ...(isHarness(member) ? TEST_RUNNER_PLUGINS : []),
+    ...member.settings.knipConfigPlugins,
+  ]
+  return {
+    entry: [
+      ...entries,
+      ...[...shipped, ...member.settings.productionEntries].map((pattern: string): string => `${pattern}!`),
+    ],
+    ...Object.fromEntries(plugins.map((plugin: string): readonly [string, boolean] => [plugin, false])),
+  }
+}
 
 /** The configurations a run renders: the one every member gets, and the production one. */
 interface RenderedConfigs {
@@ -138,7 +158,9 @@ const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs
   const boundaries: readonly string[] = member.siblingPaths.map((sibling: string): string => `${sibling}/**`)
   const config: Readonly<Record<string, unknown>> = {
     ...shipped,
-    entry: entries,
+    // A file a framework runs in production of its own accord is an entry point of every run, not only of the
+    // production one: nothing imports it, so without this the run would report it unused.
+    entry: [...entries, ...member.settings.productionEntries],
     ignoreDependencies: [
       ...texts(shipped['ignoreDependencies']),
       ...ownDependencies(member),
@@ -159,7 +181,7 @@ const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs
   writeJson(rendered.config, config)
   writeJson(rendered.production, {
     ...config,
-    ...shippedSpecifications(member, entries),
+    ...productionOverrides(member, entries),
     project: productionProject(member),
   })
   return rendered

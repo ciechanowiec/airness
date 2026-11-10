@@ -2,14 +2,21 @@
 // ESLint relaxations the harness grants it, and the wiring and release-age rules it is held to. Kept apart from the
 // generic specs, which hold no stack name and inject the layer names they read, so that removing the stack removes
 // this file and leaves their coverage whole.
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { knip } from '@/gate-knip.js'
+import type { GateResult } from '@/gate-result.js'
 import { gateById } from '@/gates.js'
 import { HARNESS_MODULES, HARNESS_PACKAGES, isHarnessPackage } from '@/harness-packages.js'
-import { LAYER_NAMES, LAYER_PACKAGES } from '@/layer.js'
+import { LAYER_NAMES, LAYER_PACKAGES, layerDefaultsOf } from '@/layer.js'
 import { composeLayered } from '@/layer-lint-policy.js'
 import type { DirectDependency, Lockfile, ResolvedPackage } from '@/lockfile.js'
+import { readJson } from '@/project.js'
 import { releaseAgeSettingFindings } from '@/release-age.js'
+import { type LayerDefaults, readSettings } from '@/settings.js'
 import { type WiringInputs, wiringFindings } from '@/wiring-policy.js'
+import { PROCESS_TIME } from './helpers/process-time.js'
+import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
 const LAYER: string = '@airness/payload'
 
@@ -139,4 +146,62 @@ describe('the wiring of the Payload package', () => {
       `package.json names the package ${LAYER}, which only the module eu.ciechanowiec:airness-payload-node builds`,
     )
   })
+})
+
+// The layer defaults the Payload package declares, read from its manifest in this repository.
+const PAYLOAD_LAYER: LayerDefaults = layerDefaultsOf(
+  readJson(path.join(import.meta.dirname, '..', '..', 'airness-payload-node', 'package.json')),
+)
+
+// Each run starts knip twice, and each knip process reads the whole project.
+const TOOL_TIMEOUT_MS: number = 90_000
+
+const PAYLOAD_MANIFEST: Readonly<Record<string, unknown>> = {
+  name: 'site',
+  private: true,
+  type: 'module',
+  dependencies: { payload: '3.92.1' },
+  devDependencies: { '@airness/node': '2.0.0', vitest: '5.0.5', '@vitest/coverage-v8': '5.0.5' },
+  airness: { productionDeadCode: true },
+}
+
+// A collection that only the Payload configuration reaches, which the admin panel and the API boot from.
+const PAYLOAD_SITE: Readonly<Record<string, string>> = {
+  'package.json': `${JSON.stringify(PAYLOAD_MANIFEST)}\n`,
+  'tsconfig.json': `${JSON.stringify({ extends: '@airness/node/tsconfig.json', include: ['**/*.ts'] })}\n`,
+  'src/payload.config.ts':
+    "import { posts } from './collections/posts.js'\n\nexport default { collections: [posts] }\n",
+  'src/collections/posts.ts': "export const posts: { readonly slug: string } = { slug: 'posts' }\n",
+}
+
+const knipFindings = (layer: LayerDefaults): string => {
+  const root: string = temporaryProject(PAYLOAD_SITE)
+  try {
+    const result: GateResult = knip({
+      ...memberAt(root, PAYLOAD_MANIFEST),
+      settings: readSettings(PAYLOAD_MANIFEST, [layer]),
+    })
+    return result.findings.join('\n')
+  } finally {
+    removeProject(root)
+  }
+}
+
+describe('the Payload configuration in the production run of knip', PROCESS_TIME, () => {
+  it(
+    'counts a collection only the configuration reaches as production code',
+    () => {
+      expect(PAYLOAD_LAYER.productionEntries).toContain('src/payload.config.ts')
+      expect(knipFindings(PAYLOAD_LAYER)).not.toContain('src/collections/posts.ts')
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    "passes over the configuration named as an entry while knip's Payload plugin reads it as a tool's",
+    () => {
+      expect(knipFindings({ ...PAYLOAD_LAYER, knipConfigPlugins: [] })).toMatch(/^src\/collections\/posts\.ts/mu)
+    },
+    TOOL_TIMEOUT_MS,
+  )
 })

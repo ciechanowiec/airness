@@ -55,6 +55,8 @@ export const layerDefaultsOf = (manifest: unknown): LayerDefaults => {
     javascriptRuntimes: runtimes(block['javascriptAllowlist']),
     pureLogicRoots: texts(block['pureLogicRoots']),
     accessibilitySkipRoutes: texts(block['accessibilitySkipRoutes']),
+    productionEntries: texts(block['productionEntries']),
+    knipConfigPlugins: texts(block['knipConfigPlugins']),
   }
 }
 

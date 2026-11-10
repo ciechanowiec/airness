@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { knip } from '@/gate-knip.js'
 import type { GateResult } from '@/gate-result.js'
 import { asRecord } from '@/json-shapes.js'
+import { layerDefaultsOf } from '@/layer.js'
+import { type LayerDefaults, readSettings } from '@/settings.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 import { memberAt, removeProject, temporaryProject } from './helpers/temporary-project.js'
 
@@ -101,6 +103,18 @@ const SHIPPED_REACH: Readonly<Record<string, string>> = {
   ].join('\n'),
 }
 
+// A framework application whose record only its configuration reaches: the framework boots from that file, which
+// nothing in the application imports.
+const FRAMEWORK_REACH: Readonly<Record<string, string>> = {
+  'src/app.config.ts': "import { posts } from './records/posts.js'\n\nexport default { records: [posts] }\n",
+  'src/records/posts.ts': "export const posts: { readonly slug: string } = { slug: 'posts' }\n",
+}
+
+// The seam a stack layer declares for the file its framework boots from.
+const FRAMEWORK_LAYER: LayerDefaults = layerDefaultsOf({
+  airness: { layer: { productionEntries: ['src/app.config.ts'] } },
+})
+
 const manifestFile = (manifest: Readonly<Record<string, unknown>>): string =>
   `${JSON.stringify(manifest, null, JSON_INDENT)}\n`
 
@@ -108,10 +122,11 @@ const judged = (
   files: Readonly<Record<string, string>>,
   manifest: Readonly<Record<string, unknown>> = MANIFEST,
   base: Readonly<Record<string, string>> = LEDGER,
+  layers: readonly LayerDefaults[] = [],
 ): GateResult => {
   const root: string = temporaryProject({ ...base, ...files, 'package.json': manifestFile(manifest) })
   try {
-    return knip(memberAt(root, manifest))
+    return knip({ ...memberAt(root, manifest), settings: readSettings(manifest, layers) })
   } finally {
     removeProject(root)
   }
@@ -197,6 +212,24 @@ describe('knip production run', PROCESS_TIME, () => {
       })
       expect(findingsOf(result)).toMatch(/^src\/sample\.ts/mu)
       expect(findingsOf(result)).not.toContain('tests/helpers/sample.ts')
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    "counts a layer's framework configuration as a production entry point, and what only it reaches as used",
+    () => {
+      expect(findingsOf(judged(FRAMEWORK_REACH, MANIFEST, LEDGER, [FRAMEWORK_LAYER]))).not.toContain(
+        'src/records/posts.ts',
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'leaves what only a framework configuration reaches to the tests where no layer names it',
+    () => {
+      expect(findingsOf(judged(FRAMEWORK_REACH))).toMatch(/^src\/records\/posts\.ts/mu)
     },
     TOOL_TIMEOUT_MS,
   )
