@@ -3,6 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   type LayerPackage,
+  layerAnalysisEnvironmentFor,
   layerBrowserConfigOf,
   layerDefaultsFor,
   layerDefaultsOf,
@@ -100,6 +101,84 @@ describe('the defaults a layer package contributes', PROCESS_TIME, () => {
       expect(layerTestDependenciesFor(root, declared, readJson, LAYERS)).toEqual([])
     } finally {
       removeProject(root)
+    }
+  })
+})
+
+// Writes a registered layer and an impostor that both name the given seam, runs the check, and removes them.
+const withLayer = (analysisEnvironment: unknown, check: (root: string) => void): void => {
+  const root: string = temporaryProject({})
+  try {
+    for (const name of ['layer-a', 'impostor']) {
+      mkdirSync(path.join(root, 'node_modules', name), { recursive: true })
+      writeFileSync(
+        path.join(root, 'node_modules', name, 'package.json'),
+        JSON.stringify({ name, airness: { layer: { analysisEnvironment } } }),
+      )
+    }
+    check(root)
+  } finally {
+    removeProject(root)
+  }
+}
+
+describe('the analysis placeholders a layer package contributes', PROCESS_TIME, () => {
+  const Analysis: Readonly<Record<string, unknown>> = {
+    defaults: { FRAMEWORK_SECRET: 'placeholder', FRAMEWORK_URL: 'postgres://127.0.0.1/placeholder' },
+    projectSettings: 'frameworkSettings',
+  }
+
+  it('hands over the defaults of a declared layer, extended by the settings key the layer names', () => {
+    withLayer(Analysis, (root: string): void => {
+      const member: Readonly<Record<string, unknown>> = {
+        devDependencies: { 'layer-a': '1.0.0' },
+        frameworkSettings: { analysisEnv: { FRAMEWORK_URL: 'postgres://127.0.0.1/project', SMTP_HOST: 'x', BAD: 1 } },
+      }
+      expect(layerAnalysisEnvironmentFor(root, member, readJson, LAYERS)).toStrictEqual({
+        FRAMEWORK_SECRET: 'placeholder',
+        FRAMEWORK_URL: 'postgres://127.0.0.1/project',
+        SMTP_HOST: 'x',
+      })
+    })
+  })
+
+  it('reads nothing from a package that is no registered layer, or a layer the member does not declare', () => {
+    withLayer(Analysis, (root: string): void => {
+      expect(layerAnalysisEnvironmentFor(root, { devDependencies: { impostor: '1.0.0' } }, readJson, LAYERS)).toEqual(
+        {},
+      )
+      expect(layerAnalysisEnvironmentFor(root, {}, readJson, LAYERS)).toEqual({})
+    })
+  })
+
+  it('reads only the defaults of a layer that names no project settings, and nothing from one that names no seam', () => {
+    withLayer({ defaults: { FRAMEWORK_SECRET: 'placeholder' } }, (root: string): void => {
+      const member: Readonly<Record<string, unknown>> = {
+        devDependencies: { 'layer-a': '1.0.0' },
+        frameworkSettings: { analysisEnv: { SMTP_HOST: 'x' } },
+      }
+      expect(layerAnalysisEnvironmentFor(root, member, readJson, LAYERS)).toStrictEqual({
+        FRAMEWORK_SECRET: 'placeholder',
+      })
+    })
+    withLayer(undefined, (root: string): void => {
+      expect(layerAnalysisEnvironmentFor(root, { devDependencies: { 'layer-a': '1.0.0' } }, readJson, LAYERS)).toEqual(
+        {},
+      )
+    })
+  })
+
+  it('refuses a seam in a shape it cannot use rather than passing it over', () => {
+    for (const malformed of [
+      { defaults: { FRAMEWORK_SECRET: 1 } },
+      { defaults: [] },
+      { defaults: {}, projectSettings: 7 },
+    ]) {
+      withLayer(malformed, (root: string): void => {
+        expect(() =>
+          layerAnalysisEnvironmentFor(root, { devDependencies: { 'layer-a': '1.0.0' } }, readJson, LAYERS),
+        ).toThrow('airness.layer.analysisEnvironment')
+      })
     }
   })
 })

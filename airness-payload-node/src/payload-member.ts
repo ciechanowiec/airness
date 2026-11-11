@@ -1,6 +1,6 @@
 // One member of the node project a Payload gate runs in, as the node layer reads it, with the facts only the
 // Payload layer asks about: whether the member is a Payload application, and the Payload settings it declared.
-import { localEnvironment } from '@airness/node/environment-files'
+import { analysisEnvironment as placeholdersUnderLocalEnvironment } from '@airness/node/environment-files'
 import { declaredDependencies } from '@airness/node/json-shapes'
 import type { Member } from '@airness/node/project'
 import { type PayloadSettings, readPayloadSettings } from './payload-settings.js'
@@ -36,11 +36,5 @@ export const payloadMemberOf = (member: Member): PayloadMember => ({
  * @param target the member.
  * @returns the variables to add to the gate's environment.
  */
-export const analysisEnvironment = (target: PayloadMember): Readonly<Record<string, string>> => ({
-  ...Object.fromEntries(
-    Object.entries(target.payload.analysisEnv).filter(
-      ([name]: readonly [string, string]): boolean => process.env[name] === undefined,
-    ),
-  ),
-  ...localEnvironment(target.member.root),
-})
+export const analysisEnvironment = (target: PayloadMember): Readonly<Record<string, string>> =>
+  placeholdersUnderLocalEnvironment(target.member.root, target.payload.analysisEnv)

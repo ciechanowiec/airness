@@ -42,7 +42,8 @@ export interface PayloadSettings {
 }
 
 // The two variables Payload itself requires of every project. Inert placeholders: no host is contacted and no
-// token is signed with them.
+// token is signed with them. The package manifest names the same values under airness.layer.analysisEnvironment,
+// for the node gates that import the configuration, such as knip; a test holds the two equal.
 const DEFAULT_ANALYSIS_ENV: Readonly<Record<string, string>> = {
   PAYLOAD_SECRET: 'airness-payload-static-analysis-placeholder',
   DATABASE_URL: 'postgres://127.0.0.1:5432/airness-payload-static-analysis',

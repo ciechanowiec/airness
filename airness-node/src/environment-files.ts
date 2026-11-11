@@ -41,6 +41,26 @@ export const localEnvironment = (
 }
 
 /**
+ * The environment of a tool that imports the application's configuration without running the application: the
+ * caller's own values win over the environment files, which win over the inert placeholders a stack layer names.
+ * Only the names the caller does not already carry are returned, since the caller's environment is inherited.
+ * @param directory the member's directory, which holds its environment files.
+ * @param placeholders the analysis placeholders the declared layers contribute.
+ * @param inherited the caller's environment.
+ * @returns the variables to add to the tool's environment.
+ */
+export const analysisEnvironment = (
+  directory: string,
+  placeholders: Readonly<Record<string, string>>,
+  inherited: Readonly<Record<string, string | undefined>> = process.env,
+): Readonly<Record<string, string>> => ({
+  ...Object.fromEntries(
+    Object.entries(placeholders).filter(([name]: readonly [string, string]): boolean => inherited[name] === undefined),
+  ),
+  ...localEnvironment(directory, inherited),
+})
+
+/**
  * The port an origin names, as a string a child process's environment can carry.
  *
  * A project declares the origin its application serves, and the harness starts that application itself.

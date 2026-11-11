@@ -91,6 +91,13 @@
       "knipConfigPlugins": [
         "payload"
       ],
+      "analysisEnvironment": {
+        "defaults": {
+          "PAYLOAD_SECRET": "airness-payload-static-analysis-placeholder",
+          "DATABASE_URL": "postgres://127.0.0.1:5432/airness-payload-static-analysis"
+        },
+        "projectSettings": "airnessPayload"
+      },
       "e2eSpecs": "dist",
       "eslint": "./eslint",
       "browser": "./browser",
