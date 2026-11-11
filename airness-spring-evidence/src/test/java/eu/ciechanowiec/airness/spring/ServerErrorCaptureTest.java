@@ -80,18 +80,18 @@ class ServerErrorCaptureTest {
      * An application that starts and reports nothing.
      */
     @Configuration(proxyBeanMethods = false)
-    static class Quiet {
+    private static final class Quiet {
     }
 
     /**
-     * An application that fails to start.
+     * An application that fails to start, because a bean it declares needs one nothing declares.
      */
     @Configuration(proxyBeanMethods = false)
-    static class Failing {
+    private static final class Failing {
 
         @Bean
-        String refused() {
-            throw new IllegalStateException("refused to start");
+        String refused(Integer undeclared) {
+            return undeclared.toString();
         }
     }
 }

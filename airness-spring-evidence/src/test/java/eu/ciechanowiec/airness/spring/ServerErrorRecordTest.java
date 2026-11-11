@@ -143,8 +143,8 @@ class ServerErrorRecordTest {
 
     @Test
     void handsAnUncaughtExceptionToTheHandlerItReplaced() {
-        AtomicReference<Throwable> handed = new AtomicReference<>();
-        Thread.setDefaultUncaughtExceptionHandler((_, exception) -> handed.set(exception));
+        AtomicReference<Optional<Throwable>> handed = new AtomicReference<>(Optional.empty());
+        Thread.setDefaultUncaughtExceptionHandler((_, exception) -> handed.set(Optional.of(exception)));
         ServerErrorRecord inner = ServerErrorRecord.open();
         try {
             inner.uncaughtException(Thread.currentThread(), this.fault);
@@ -152,7 +152,7 @@ class ServerErrorRecordTest {
             inner.close();
             Thread.setDefaultUncaughtExceptionHandler(this.errors);
         }
-        assertEquals(this.fault, handed.get());
+        assertEquals(Optional.of(this.fault), handed.get());
     }
 
     @Test

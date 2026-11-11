@@ -44,6 +44,11 @@ class ServerErrorListenerTest {
         this.listener.afterTestClass(context(UNDECLARED));
     }
 
+    // Every error this test logs is logged here, so what tells one apart is the text it is handed.
+    private static void report(String message) {
+        LOG.error("{}", message);
+    }
+
     private static void drain() {
         ServerErrorRecord.current().orElseThrow().drain();
     }
@@ -51,7 +56,7 @@ class ServerErrorListenerTest {
     @SneakyThrows
     private static TestContext context(String method) {
         TestContext context = new TestContextManager(Provocations.class).getTestContext();
-        context.updateState(new Provocations(), Provocations.class.getDeclaredMethod(method), null);
+        context.updateState(null, Provocations.class.getDeclaredMethod(method), null);
         return context;
     }
 
@@ -79,7 +84,7 @@ class ServerErrorListenerTest {
 
     @Test
     void failsATestOnAnErrorItDidNotDeclare() {
-        String failure = this.run(UNDECLARED, () -> LOG.error("refused {}", "order"));
+        String failure = this.run(UNDECLARED, () -> report("refused order"));
         assertAll(
             () -> assertTrue(failure.contains(Provocations.class.getName() + ".undeclared did not declare"), failure),
             () -> assertTrue(failure.contains(SOURCE + ": refused order"), failure),
@@ -89,15 +94,15 @@ class ServerErrorListenerTest {
 
     @Test
     void passesATestWithoutErrors() {
-        this.assertPasses(UNDECLARED, () -> LOG.warn("warned"));
+        this.assertPasses(UNDECLARED, () -> LOG.warn("nothing failed"));
     }
 
     @Test
     void passesATestOnTheErrorsItDeclares() {
         this.assertPasses(
             DECLARED, () -> {
-                LOG.error("first");
-                LOG.error("second");
+                report("first");
+                report("second");
             }
         );
     }
@@ -111,7 +116,7 @@ class ServerErrorListenerTest {
     void failsATestOnAnErrorFromALoggerItDidNotDeclare() {
         String failure = this.run(
             DECLARED, () -> {
-                LOG.error("provoked");
+                report("provoked");
                 LoggerFactory.getLogger(Provocations.class).error("elsewhere");
             }
         );
@@ -120,7 +125,7 @@ class ServerErrorListenerTest {
 
     @Test
     void failsATestThatDeclaresAnErrorItNeverProvoked() {
-        String failure = this.run(DECLARED, () -> LOG.warn("warned"));
+        String failure = this.run(DECLARED, () -> LOG.warn("nothing was provoked"));
         assertAll(
             () -> assertTrue(failure.contains("declares server errors it never provoked"), failure),
             () -> assertTrue(failure.contains("  - " + SOURCE), failure)
@@ -129,7 +134,7 @@ class ServerErrorListenerTest {
 
     @Test
     void failsATestOnTheOneOfTwoDeclarationsItNeverProvoked() {
-        String failure = this.run("declaredTwice", () -> LOG.error("provoked"));
+        String failure = this.run("declaredTwice", () -> report("provoked"));
         assertAll(
             () -> assertTrue(failure.contains("  - " + Provocations.class.getName()), failure),
             () -> assertFalse(failure.contains("  - " + SOURCE), failure)
@@ -138,13 +143,13 @@ class ServerErrorListenerTest {
 
     @Test
     void failsATestThatDeclaresAnErrorWithoutAReason() {
-        String failure = this.run("unreasoned", () -> LOG.error("provoked"));
+        String failure = this.run("unreasoned", () -> report("provoked"));
         assertTrue(failure.contains("declares server errors without a reason"), failure);
     }
 
     @Test
     void failsTheClassOnAnErrorLoggedOutsideItsTestMethods() {
-        LOG.error("set up");
+        report("set up");
         AssertionError failure = assertThrows(
             AssertionError.class, () -> this.listener.afterTestClass(context(UNDECLARED))
         );
