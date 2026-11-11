@@ -8,7 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.example.starter.Caller;
 import com.example.starter.DatabaseTest;
 import com.example.starter.identity.UserRepository;
+import eu.ciechanowiec.airness.spring.ExpectedServerError;
 import java.net.http.HttpResponse;
+import org.apache.catalina.core.ContainerBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
@@ -46,6 +48,14 @@ class FailurePagesTest {
     }
 
     @Test
+    @ExpectedServerError(
+        logger = ContainerBase.class,
+        reason = "the servlet container reports the fault before it hands the request to the fault page"
+    )
+    @ExpectedServerError(
+        logger = FailurePages.class,
+        reason = "the fault page logs the refusal under the reference it hands the reader"
+    )
     void answersAFaultWithTheReferenceItWasReportedUnder(@LocalServerPort int port) {
         // The application layer refuses to stop the last administrator, which the page never offers, so a
         // request made anyway ends in the refusal itself, a fault the reader is given a reference for.

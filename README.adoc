@@ -113,6 +113,8 @@ It moves the code to the package `com.example.tasktracker`, names the applicatio
     <relativePath/>
 </parent>
 ----
++
+Among those rules, a Spring test fails when the application logs an error it did not declare with `@ExpectedServerError`, which `.airness/agent-guide-java.md` describes.
 
 . [[generic-parent]]`airness-parent` is the generic parent. It carries only the repository rules, such as managed files, history, secrets, licenses and the compliance report, and suits a repository or a monorepo root with no Java of its own. A module with Java sources under `src/main/java` or `src/test/java` that inherits it directly fails verification and is told to inherit `airness-parent-java`. The repository rules run in the top-level project of a build, so a build whose top-level project is a plain aggregator inheriting no _airness_ parent is refused at `validate` and told to make it inherit `airness-parent`.
 

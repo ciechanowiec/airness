@@ -129,6 +129,7 @@ fi
 . "${repository}/airness-it/cases/repository-proxies.sh"
 . "${repository}/airness-it/cases/request-maps.sh"
 . "${repository}/airness-it/cases/streaming-timeouts.sh"
+. "${repository}/airness-it/cases/server-errors.sh"
 . "${repository}/airness-it/cases/template-messages.sh"
 . "${repository}/airness-it/cases/web-accessibility.sh"
 . "${repository}/airness-it/cases/qodana-fixture.sh"
@@ -183,6 +184,7 @@ run_domain() {
         spring)
             run_spring_cases
             run_streaming_timeout_cases
+            run_server_error_cases
             run_template_message_cases
             run_web_accessibility_cases
             ;;

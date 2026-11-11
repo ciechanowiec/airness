@@ -4,8 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.spring.ExpectedServerError;
+import java.util.Arrays;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
 import org.springframework.core.NestedExceptionUtils;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
@@ -51,8 +55,16 @@ class ApplicationTest {
     }
 
     @Test
+    @ExpectedServerError(
+        logger = SpringApplication.class,
+        reason = "Spring Boot logs why the application refused to start, which is the refusal under test"
+    )
     void refusesToStartOnAnEmptyDatabaseWhenTheFirstAdministratorsPasswordIsBlank() {
-        String[] arguments = this.arguments(this.empty(), "");
+        // Started without its web server, which the refusal comes before in any case: a server torn down by a
+        // failed start reports its own closed socket, which says nothing about the refusal under test.
+        String[] arguments = Stream.concat(
+            Arrays.stream(this.arguments(this.empty(), "")), Stream.of("--spring.main.web-application-type=none")
+        ).toArray(String[]::new);
         IllegalStateException refused = assertThrows(IllegalStateException.class, () -> Application.main(arguments));
         String cause = String.valueOf(NestedExceptionUtils.getMostSpecificCause(refused).getMessage());
         assertTrue(cause.startsWith("The first administrator was not written"), cause);

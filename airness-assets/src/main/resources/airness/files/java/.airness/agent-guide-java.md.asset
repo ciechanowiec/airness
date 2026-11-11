@@ -283,6 +283,24 @@ Airness governs all of the following domains in a Java module:
     returning its values in full, including whatever a placeholder resolved a credential to; and a session
     cookie the page can read, which turns anything injected into one page from something acting inside the
     session into something holding it.
+  - **Server errors:** a Spring test fails when the application logs at ERROR, or an exception ends a thread with
+    nothing catching it, while the test runs, because a page that renders while the server reports a failure behind
+    it is a defect the response alone does not show. The parent supplies the listener at test scope, and Spring Test
+    loads it into every test context. Errors are recorded only while a Spring test class runs. Each one is charged
+    to the test method that was running, including the start of an application that method was the first to need.
+    An error logged outside every test method of a class, such as in its class-level setup, fails the class. An error
+    is recorded before any level is checked, so switching a logger off in test configuration hides nothing. Repair
+    what reported the error. Where a test provokes it on purpose, declare it on the test method with
+    `@ExpectedServerError(logger = FailurePages.class, reason = "...")` from `eu.ciechanowiec.airness.spring`. The
+    declaration allows the errors of that class's logger and of the loggers named beneath it, during that method
+    alone. A declaration that matches no error fails, and so does one with a blank reason. An uncaught exception
+    cannot be declared: assert it where it is thrown. The record of a test class is the JVM's default handler of
+    uncaught exceptions while the class runs, handing each exception on to the handler it replaced, so a test that
+    sets another default handler fails. Errors are read from Logback, which Spring Boot logs through by default, so
+    a test JVM logging through anything else fails. The tests of a Spring project run one at a time, as
+    JUnit runs them by default, because an error is charged to the test running when it was logged. A
+    `@TestExecutionListeners` declaration merges with the defaults, because replacing them removes this listener.
+    An error logged after the last test, while contexts close at shutdown, is not read.
 
 ## Java Exceptions and Repairs
 
