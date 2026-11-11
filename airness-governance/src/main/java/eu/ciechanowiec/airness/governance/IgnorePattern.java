@@ -50,6 +50,15 @@ record IgnorePattern(String file, int line, String text, String block) {
     }
 
     /**
+     * The directory of the line's file, which an anchored pattern is relative to.
+     *
+     * @return the directory, relative to the working tree root and empty for the root itself
+     */
+    String directory() {
+        return IgnoreFile.directoryOf(this.file);
+    }
+
+    /**
      * Where the line is declared, as a finding names it.
      *
      * @return the file and line, and the managed block that holds the line, if any

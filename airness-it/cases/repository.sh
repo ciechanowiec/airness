@@ -121,7 +121,8 @@ run_indentation_boundary() {
 }
 
 # An ignore line that repeats a declaration git already applies is named, whether it repeats a managed line of its
-# own file or an un-anchored line of the .gitignore above it; a managed line and an anchored one never are.
+# own file or an un-anchored line of the .gitignore above it; a managed line and an anchored one never are. A
+# negation beneath an excluded directory is named too, and one beneath the managed .vscode contents is not.
 run_ignore_pattern_boundary() {
     new_consumer ignore-patterns
     ignore_consumer="${consumer_directory}"
@@ -130,7 +131,7 @@ run_ignore_pattern_boundary() {
     expect_match ignore_conforming 'ignore patterns: the check read the ignore files' \
         'Ignore patterns read [1-9][0-9]* ignore file'
 
-    printf '\n# Build output\ntarget/\n' >> "${ignore_consumer}/.gitignore"
+    printf '\n# Build output\ntarget/\n!target/keep.txt\n!.vscode/settings.json\n' >> "${ignore_consumer}/.gitignore"
     mkdir -p "${ignore_consumer}/module"
     printf '*.log\n/target\n' > "${ignore_consumer}/module/.gitignore"
     run_maven ignore_repeating repository "${ignore_consumer}" airness:ignore-patterns
@@ -141,6 +142,10 @@ run_ignore_pattern_boundary() {
         'module/[.]gitignore:1: [*][.]log - repeats [.]gitignore:[0-9]+ in the Airness managed generic block, an '
     expect_no_match ignore_repeating 'ignore patterns: an anchored nested line is its own pattern' \
         'module/[.]gitignore:2'
+    expect_match ignore_repeating 'ignore patterns: a negation beneath an excluded directory is named' \
+        '[.]gitignore:[0-9]+: !target/keep[.]txt - [.]gitignore:[0-9]+ excludes the directory target, and git never'
+    expect_no_match ignore_repeating 'ignore patterns: the managed .vscode contents leave a negation working' \
+        '!.vscode/settings[.]json - '
 }
 
 # Output a build writes after validate to a path git ignores outside the build directory, as a compiled package

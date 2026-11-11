@@ -68,6 +68,14 @@ class NestedIgnorePatternTest {
     }
 
     @Test
+    void namesAnInheritedRepeatPastANegationThatReachesNothingItExcludes() {
+        assertEquals(
+            List.of("web/.gitignore:1: node_modules/ - repeats .gitignore:1" + INHERITED),
+            nestedOffences("ignore-nested-unreachable", "node_modules/\n!docs/keep.md\n", "node_modules/\n")
+        );
+    }
+
+    @Test
     void keepsARepeatANegationEarlierInItsOwnFileCouldReverse() {
         assertEquals(List.of(), nestedOffences("ignore-nested-own-negation", "*.log\n", "!debug.log\n*.log\n"));
     }

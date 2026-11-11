@@ -5,7 +5,7 @@ import lombok.experimental.UtilityClass;
 
 /**
  * What the tests of the ignore-pattern check share: how they ask the check about a working tree, the endings its
- * offences carry, and a managed block to repeat.
+ * offences carry, and a managed block to repeat or hide a negation behind.
  */
 @UtilityClass
 final class IgnoreFixtures {
@@ -37,6 +37,7 @@ final class IgnoreFixtures {
         """;
 
     private static final String HEADLINE = "Ignore patterns that repeat";
+    private static final String HIDDEN_HEADLINE = "Ignore negations git never applies";
 
     /**
      * The offences the check names in a working tree.
@@ -46,5 +47,15 @@ final class IgnoreFixtures {
      */
     static List<String> offences(GitFixture fixture) {
         return Verdicts.offences(new IgnorePatternCheck(fixture.root()).findings(), HEADLINE);
+    }
+
+    /**
+     * The negations the check names as hidden by an excluded directory in a working tree.
+     *
+     * @param fixture the working tree
+     * @return the offences, in the order of the files and their lines
+     */
+    static List<String> hidden(GitFixture fixture) {
+        return Verdicts.offences(new IgnorePatternCheck(fixture.root()).findings(), HIDDEN_HEADLINE);
     }
 }

@@ -16,7 +16,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Airness repeats no ignore pattern: not in its own ignore files, not across the managed blocks it ships, and not
- * in the ignore files its starter projects keep below those blocks.
+ * in the ignore files its starter projects keep below those blocks. Nor does a negation of a starter project sit
+ * beneath a directory a shipped block excludes.
  *
  * <p>The goal runs over this repository in the build of {@code airness-parent}, which a build narrowed with
  * {@code -pl} never reaches, and it never names a managed line, because a project cannot remove one. Every managed
@@ -54,6 +55,19 @@ class SelfIgnorePatternsTest {
             () -> assertTrue(gitIgnore.size() > 1, "a check that read no block proves nothing about the shipped ones"),
             () -> assertEquals(Map.of(), repeated(gitIgnore)),
             () -> assertEquals(Map.of(), repeated(IgnoreFile.parse(DOCKER_IGNORE, shipped(DOCKER_IGNORE)).patterns()))
+        );
+    }
+
+    @Test
+    void hidesNoNegationOfAStarterProjectBehindAShippedExclusion() {
+        String blocks = shipped(GIT_IGNORE);
+        assertEquals(
+            List.of(),
+            starterFixtures().stream()
+                .map(fixture -> IgnoreFile.parse(GIT_IGNORE, blocks + "\n" + read(fixture)))
+                .flatMap(file -> HiddenNegations.in(List.of(file)).stream())
+                .map(HiddenNegation::offence)
+                .toList()
         );
     }
 

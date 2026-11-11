@@ -2,7 +2,8 @@
 # IDE & editors
 *.iml
 .idea/*
-.vscode/
+# The contents of each .vscode directory rather than the directory, so a negation below can share a file.
+**/.vscode/*
 .fleet/
 
 # OS

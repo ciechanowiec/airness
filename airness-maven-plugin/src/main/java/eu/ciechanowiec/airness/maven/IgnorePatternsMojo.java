@@ -8,7 +8,8 @@ import org.apache.maven.plugins.annotations.Mojo;
 
 /**
  * No {@code .gitignore} or Docker ignore file repeats a pattern that an earlier declaration in it, or in a
- * {@code .gitignore} of a directory above it, already applies.
+ * {@code .gitignore} of a directory above it, already applies, and no {@code .gitignore} negation sits beneath a
+ * directory an exclusion hides.
  */
 @Mojo(name = "ignore-patterns", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public final class IgnorePatternsMojo extends AbstractRepositoryMojo {
