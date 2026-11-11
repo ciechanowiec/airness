@@ -1,23 +1,31 @@
 // The sweep's interaction pass: hover and keyboard focus on every control.
 import { type Locator, type Page, test } from '@playwright/test'
 import { classifyHitTarget, type HitTargetClassification, type HitTargetProbe } from './a11y-hit-target.js'
+import { AXE_CONTRAST_RULES } from './axe-rules.js'
 import { type CarriedJudgement, judgeCarried } from './browser-exemptions.js'
 import { type BrowserFinding, type FindingPlace, findingAt } from './browser-findings.js'
 import {
   FOCUS_CONTRAST_RATIO,
   FOCUS_RING_WIDTH,
+  type FocusArea,
+  type FocusObscuring,
   type FocusPosition,
   type FocusSample,
+  focusSamplePoints,
   isFocusBackwards,
   obscuringContent,
 } from './browser-rules.js'
-import { focusGeometry } from './focus-reach.js'
+import { PERIMETER_THICKNESS, type PerimeterBox, perimeterArea } from './focus-perimeter.js'
+import { type FocusGeometry, focusGeometry } from './focus-reach.js'
 import { type FocusVerdict, judgeFocusIndicator } from './focus-region.js'
 import { type TargetFacts, targetFacts } from './layout.js'
 import { isPerceivableWithin } from './perceivable.js'
 import { axeFindings, settleFindings } from './scanner.js'
 import { settleForScan } from './settle.js'
+import { hitTargetInPage } from './sweep-hit-target.js'
 import { type InteractionPlace, type InteractionPlan, interactionPlan, placeUnits } from './sweep-interaction-plan.js'
+import { pasteVisit } from './sweep-paste.js'
+import { pointerOnlyVisit, trackKeyboardReach } from './sweep-pointer-only.js'
 import {
   armBudget,
   type Budget,
@@ -57,33 +65,9 @@ declare const getComputedStyle: ComputedStyleOf
 const PROBE_SELECTOR: string = `[${PROBE_ATTRIBUTE}]`
 const POINTER_ACTION_TIMEOUT_MS: number = 5000
 
-// Read the box and hit target together, without advancing a scroll-driven scene while measuring it.
 const probeHitTarget = async (control: Locator): Promise<HitTargetProbe> => {
   await control.scrollIntoViewIfNeeded({ timeout: POINTER_ACTION_TIMEOUT_MS })
-  return await control.evaluate((element: DomElement): HitTargetProbe => {
-    const halves: number = 2
-    const box: DomRect = element.getBoundingClientRect()
-    const style: DomStyle = getComputedStyle(element)
-    const atCentre: DomElement | null = element.ownerDocument.elementFromPoint(
-      box.left + box.width / halves,
-      box.top + box.height / halves,
-    )
-    return {
-      width: box.width,
-      height: box.height,
-      clipPath: style.clipPath,
-      clip: style.getPropertyValue('clip'),
-      ownsCentrePoint: atCentre !== null && element.contains(atCentre),
-      pointerEvents: style.getPropertyValue('pointer-events'),
-      visibility: style.getPropertyValue('visibility'),
-      isInert: element.closest('[inert]') !== null,
-      isOutsidePage:
-        box.bottom <= 0 ||
-        box.right <= 0 ||
-        box.top >= element.ownerDocument.documentElement.clientHeight ||
-        box.left >= element.ownerDocument.documentElement.clientWidth,
-    }
-  })
+  return await control.evaluate(hitTargetInPage)
 }
 
 const markProbe = async (control: Locator, isMarked: boolean): Promise<void> => {
@@ -129,7 +113,7 @@ const hoverControl = async (page: Page, control: Locator, place: FindingPlace): 
   await control.hover({ timeout: POINTER_ACTION_TIMEOUT_MS })
   await settleForScan(page)
   const contrast: readonly BrowserFinding[] = await axeFindings(page, { ...place, state: 'hover' }, (builder) =>
-    builder.include(PROBE_SELECTOR).withRules(['color-contrast']),
+    builder.include(PROBE_SELECTOR).withRules([...AXE_CONTRAST_RULES]),
   )
   await markProbe(control, false)
   return { ...EMPTY_VISIT, findings: contrast }
@@ -169,51 +153,63 @@ interface FocusState {
   readonly facts: TargetFacts | undefined
   readonly samples: readonly FocusSample[]
   readonly clip: ScreenClip | undefined
-  /** The longer side of the focused element's visible box, in CSS pixels. */
-  readonly extent: number
+  /** How large the focused element's indicator must be. */
+  readonly area: FocusArea
 }
 
-// Where the focused element is, and whether fixed or sticky content covers it at five points.
+// Where the focused element is, and its shape.
 interface FocusMeasurement {
-  readonly samples: readonly FocusSample[]
   readonly box: readonly [number, number, number, number]
+  /** Its box fragments in the viewport, one per line for an inline element that wraps. */
+  readonly fragments: readonly PerimeterBox[]
+  /** Its computed corner radii, top-left, top-right, bottom-right and bottom-left. */
+  readonly radii: readonly string[]
   readonly width: number
   readonly height: number
 }
 
-const focusStateInPage = (): FocusMeasurement | undefined => {
+const focusShapeInPage = (): FocusMeasurement | undefined => {
   const active: DomElement | null = document.activeElement
   if (active === null || active === document.body) {
     return undefined
   }
   const box: DomRect = active.getBoundingClientRect()
-  const width: number = document.documentElement.clientWidth
-  const height: number = document.documentElement.clientHeight
-  const left: number = Math.max(0, box.left)
-  const top: number = Math.max(0, box.top)
-  const right: number = Math.min(width, box.right)
-  const bottom: number = Math.min(height, box.bottom)
-  if (right - left < 1 || bottom - top < 1) {
-    return undefined
+  const style: DomStyle = getComputedStyle(active)
+  return {
+    box: [box.left, box.top, box.right, box.bottom],
+    fragments: Array.from(
+      active.getClientRects(),
+      (fragment: DomRect): PerimeterBox => ({
+        left: fragment.left,
+        top: fragment.top,
+        right: fragment.right,
+        bottom: fragment.bottom,
+      }),
+    ),
+    radii: [
+      'border-top-left-radius',
+      'border-top-right-radius',
+      'border-bottom-right-radius',
+      'border-bottom-left-radius',
+    ].map((property: string): string => style.getPropertyValue(property)),
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
   }
-  const halves: number = 2
-  const quarters: number = 4
-  const maximumInset: number = 2
-  const inset: number = Math.min(maximumInset, (right - left) / quarters, (bottom - top) / quarters)
-  const points: readonly (readonly [number, number])[] = [
-    [(left + right) / halves, (top + bottom) / halves],
-    [left + inset, top + inset],
-    [right - inset, top + inset],
-    [left + inset, bottom - inset],
-    [right - inset, bottom - inset],
-  ]
+}
+
+// Whether fixed or sticky content covers the focused element at each point.
+const focusSamplesInPage = (points: readonly (readonly [number, number])[]): readonly FocusSample[] => {
+  const active: DomElement | null = document.activeElement
+  if (active === null) {
+    return []
+  }
   const pinned = (element: DomElement | null): DomElement | null =>
     element === null || ['fixed', 'sticky'].includes(getComputedStyle(element).position)
       ? element
       : pinned(element.parentElement)
   const describe = (element: DomElement): string =>
     [element.tagName.toLowerCase(), ...(element.id.length > 0 ? [element.id] : [])].join('#')
-  const samples: readonly FocusSample[] = points.map(([pointX, pointY]: readonly [number, number]): FocusSample => {
+  return points.map(([pointX, pointY]: readonly [number, number]): FocusSample => {
     const hit: DomElement | null = document.elementFromPoint(pointX, pointY)
     const cover: DomElement | null = hit === null || active.contains(hit) || hit.contains(active) ? null : pinned(hit)
     return {
@@ -221,7 +217,6 @@ const focusStateInPage = (): FocusMeasurement | undefined => {
       coveredBy: cover === null ? '' : describe(cover),
     }
   })
-  return { samples, box: [box.left, box.top, box.right, box.bottom], width, height }
 }
 
 declare const scrollX: number
@@ -293,7 +288,8 @@ const indicatorVisit = (place: FindingPlace, facts: TargetFacts, verdict: FocusV
           place,
           'focus-contrast',
           `${facts.label} changes when focused by keyboard, but too little of the change contrasts ` +
-            `${String(FOCUS_CONTRAST_RATIO)}:1 with its unfocused rendering`,
+            `${String(FOCUS_CONTRAST_RATIO)}:1 with its unfocused rendering: the contrasting pixels must cover ` +
+            `at least a ${String(PERIMETER_THICKNESS)}px thick perimeter of it`,
         ),
         facts,
       )
@@ -348,12 +344,42 @@ const focusAppearance = async (
 ): Promise<Visit> => {
   await page.evaluate(markFocusedInPage, PROBE_ATTRIBUTE)
   const contrast: readonly BrowserFinding[] = await axeFindings(page, place, (builder) =>
-    builder.include(PROBE_SELECTOR).withRules(['color-contrast']),
+    builder.include(PROBE_SELECTOR).withRules([...AXE_CONTRAST_RULES]),
   )
   await page.evaluate(unmarkInPage, [PROBE_SELECTOR, PROBE_ATTRIBUTE] as const)
   const indicator: Visit =
-    state.clip === undefined ? EMPTY_VISIT : indicatorVisit(place, facts, await judgeFocusIndicator(page, state.extent))
+    state.clip === undefined ? EMPTY_VISIT : indicatorVisit(place, facts, await judgeFocusIndicator(page, state.area))
   return merged([indicator, { ...EMPTY_VISIT, findings: contrast }])
+}
+
+// Whether fixed or sticky content hides any part of the focused element, as the focus rules report it.
+const obscuredVisit = (place: FindingPlace, facts: TargetFacts, samples: readonly FocusSample[]): Visit => {
+  const covering: FocusObscuring | undefined = obscuringContent(samples)
+  if (covering === undefined) {
+    return EMPTY_VISIT
+  }
+  const share: string = covering.isEntire ? 'entirely' : 'partly'
+  return carried(
+    findingAt(place, 'focus-obscured', `${facts.label} is focused and ${share} hidden by ${covering.coveredBy}`),
+    facts,
+  )
+}
+
+// The focused element's covers, screenshot region and the area its indicator must reach; nothing when none
+// of it is in the viewport.
+const focusState = async (page: Page): Promise<Omit<FocusState, 'facts'>> => {
+  const measured: FocusMeasurement | undefined = await page.evaluate(focusShapeInPage)
+  const points: readonly (readonly [number, number])[] =
+    measured === undefined ? [] : focusSamplePoints(measured.box, measured)
+  if (measured === undefined || points.length === 0) {
+    return { samples: [], clip: undefined, area: { perimeter: 0, extent: 0 } }
+  }
+  const geometry: FocusGeometry = focusGeometry(measured.box, measured, FOCUS_RING_WIDTH)
+  return {
+    samples: await page.evaluate(focusSamplesInPage, points),
+    clip: geometry.clip,
+    area: { perimeter: perimeterArea(measured, measured), extent: geometry.extent },
+  }
 }
 
 const focusStop = async (page: Page, place: FindingPlace, previous: PreviousStop | undefined): Promise<FocusStop> => {
@@ -374,11 +400,7 @@ const focusStop = async (page: Page, place: FindingPlace, previous: PreviousStop
       previous,
     }
   }
-  const measured: FocusMeasurement | undefined = await page.evaluate(focusStateInPage)
-  const state: Omit<FocusState, 'facts'> =
-    measured === undefined
-      ? { samples: [], clip: undefined, extent: 0 }
-      : { samples: measured.samples, ...focusGeometry(measured.box, measured, FOCUS_RING_WIDTH) }
+  const state: Omit<FocusState, 'facts'> = await focusState(page)
   const focusPlace: FindingPlace = {
     ...place,
     state: place.state === 'normal motion' ? 'focus, normal motion' : 'focus',
@@ -386,14 +408,7 @@ const focusStop = async (page: Page, place: FindingPlace, previous: PreviousStop
   const position: FocusPosition | undefined = await page.evaluate(focusPositionInPage, [LANDMARKS, DIALOGS] as const)
   const order: Visit = focusOrder(focusPlace, facts, previous, position)
   const here: PreviousStop | undefined = position === undefined ? undefined : { position, label: facts.label }
-  const covering: string | undefined = obscuringContent(state.samples)
-  const obscured: Visit =
-    covering === undefined
-      ? EMPTY_VISIT
-      : carried(
-          findingAt(focusPlace, 'focus-obscured', `${facts.label} is focused and entirely hidden by ${covering}`),
-          facts,
-        )
+  const obscured: Visit = obscuredVisit(focusPlace, facts, state.samples)
   const appearance: Visit =
     place.state === 'normal motion' ? EMPTY_VISIT : await focusAppearance(page, focusPlace, facts, state)
   return { visit: merged([obscured, appearance]), order, key: facts.key, previous: here }
@@ -463,14 +478,25 @@ const interactionVisit = async (page: Page, item: InteractionPlace, isFirst: boo
     motion: item.motion,
   })
   await settleForScan(page, item.motion === 'reduce')
+  const isStill: boolean = item.motion === 'reduce'
+  if (isStill) {
+    await trackKeyboardReach(page)
+  }
   const focused: readonly Visit[] = await tabThrough(page, place, item.location.controls + EXTRA_TAB_STOPS, {
     seen: new Set<string>(),
     previous: undefined,
   })
+  // What the keyboard reached is known once the walk ends; the paste goes last, since a field may act on it.
+  const pointerOnly: Visit = isStill
+    ? await pointerOnlyVisit(page, { ...place, state: 'keyboard' }, item.location.controls + EXTRA_TAB_STOPS, carried)
+    : EMPTY_VISIT
+  const pasted: Visit = isStill ? await pasteVisit(page, place, carried) : EMPTY_VISIT
   return merged([
     { ...EMPTY_VISIT, findings: [...loaded, ...unsettled, ...reloaded] },
     ...hovered,
     ...focused,
+    pointerOnly,
+    pasted,
     await healthOf(page, place),
   ])
 }
@@ -481,11 +507,13 @@ const INTERACTION_RULES: readonly string[] = [
   'focus-visible',
   'focus-contrast',
   'focus-order',
+  'pointer-only',
+  'paste-blocked',
 ]
 
 /**
  * Drive every control of one shard of the locations into hover and keyboard focus, and judge contrast,
- * reach and focus visibility.
+ * reach and focus visibility, what only a pointer can operate, and whether sign-in fields accept a paste.
  * @param page the test's page.
  * @param shard the part of the pass this test visits.
  */

@@ -37,6 +37,7 @@ import {
   unrevealedMessage,
 } from './scroll-policy.js'
 import { carried } from './sweep-interaction.js'
+import { reducedMotionVisit } from './sweep-reduced-motion.js'
 import {
   armBudget,
   type Budget,
@@ -387,13 +388,15 @@ const scrollVisit = async (page: Page, location: SweepLocation): Promise<Visit> 
     opening,
     ...steps.map((step: StepVisit): Visit => step.visit),
     await healthOf(page, place),
+    await reducedMotionVisit(page, location),
   ])
 }
 
 /**
  * Cross one shard of one route per template and one story per component from top to bottom and back on a
  * touch phone with normal motion, and judge where the document rests after each wheel gesture and whether
- * the text it brings into view becomes visible.
+ * the text it brings into view becomes visible; then load each again with reduced motion and nothing held
+ * still, and judge whether scrolling or opening a disclosure still sets content moving.
  * @param page the test's page, in a context that emulates a touch phone.
  * @param shard the part of the pass this test visits.
  */

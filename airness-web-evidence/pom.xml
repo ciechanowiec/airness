@@ -73,6 +73,21 @@
     </dependencies>
 
     <build>
+        <!--
+            The axe run options the question hands the rules: the one file the browser sweep of the node
+            harness reads, packaged here from where that package ships it rather than copied, so the rule set
+            and the target size a Java test audits by cannot drift from the ones the sweep crawls by. This
+            module has no resources of its own, so the file is its only resource.
+        -->
+        <resources>
+            <resource>
+                <directory>${project.basedir}/../airness-node/configs</directory>
+                <includes>
+                    <include>axe-options.json</include>
+                </includes>
+                <targetPath>eu/ciechanowiec/airness/web</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

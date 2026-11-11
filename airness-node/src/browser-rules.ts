@@ -2,6 +2,7 @@
 // browser. Each threshold is a fixed constant: a false positive is a defect of the rule and is repaired
 // here, never by a project setting.
 import type { CandidateFinding } from './browser-exemptions.js'
+import { findJustifiedText, findLongLines } from './layout-lines.js'
 import {
   type FontFaceFacts,
   hasArea,
@@ -47,7 +48,7 @@ export const DEVICE_SCALE_FACTOR: number = 1
 /** The width of the ring around a focused element whose pixels the focus-visible rule compares. */
 export const FOCUS_RING_WIDTH: number = 4
 
-/** The element rules of the resting scan beyond geometry: T4 and M1 to M5. */
+/** The element rules of the resting scan beyond geometry: T4, M1 to M5, and WCAG 1.4.8's text presentation. */
 export const RESTING_ELEMENT_RULES: readonly string[] = [
   'small-text',
   'image-load',
@@ -55,6 +56,8 @@ export const RESTING_ELEMENT_RULES: readonly string[] = [
   'image-upscaled',
   'image-oversized',
   'media-space',
+  'text-justified',
+  'line-length',
 ]
 
 /** The page rule of the resting scan: T6. */
@@ -347,15 +350,77 @@ export interface FocusSample {
   readonly coveredBy: string
 }
 
+// A lattice no coarser than 12px between points sees any cover a reader would notice: a sticky header over
+// the top of a card, a cookie banner over its foot, a badge over a corner. The outer points sit 2px inside
+// the edges, where rounding cannot carry a neighbour's pixel in. A very large element is sampled more coarsely
+// rather than at thousands of points.
+const SAMPLE_SPACING: number = 12
+const MAXIMUM_SAMPLE_STEPS: number = 32
+const MAXIMUM_SAMPLE_INSET: number = 2
+// A box too small for the inset keeps its points inside its middle half.
+const SAMPLE_INSET_SHARE: number = 0.25
+
+const samplesAlong = (start: number, end: number): readonly number[] => {
+  const steps: number = Math.min(MAXIMUM_SAMPLE_STEPS, Math.max(1, Math.ceil((end - start) / SAMPLE_SPACING)))
+  return Array.from(
+    { length: steps + 1 },
+    (_unused: unknown, step: number): number => start + ((end - start) * step) / steps,
+  )
+}
+
 /**
- * Whether a focused element is entirely hidden by fixed or sticky content (rule `focus-obscured`).
- * @param samples points spread over the part of the element inside the viewport.
- * @returns the label of the covering content, or undefined when any part of the element shows.
+ * The points of a focused element at which to ask what is drawn on top of it (rule `focus-obscured`).
+ * @param box its box in the viewport: left, top, right and bottom, in CSS pixels.
+ * @param viewport the viewport's size.
+ * @param viewport.width its width in CSS pixels.
+ * @param viewport.height its height in CSS pixels.
+ * @returns a lattice over the part inside the viewport, or nothing when less than a pixel of it is there.
  */
-export const obscuringContent = (samples: readonly FocusSample[]): string | undefined =>
-  samples.length > 0 && samples.every((sample: FocusSample): boolean => sample.isCovered)
-    ? [...new Set<string>(samples.map((sample: FocusSample): string => sample.coveredBy))].join(', ')
-    : undefined
+export const focusSamplePoints = (
+  box: readonly [number, number, number, number],
+  viewport: { readonly width: number; readonly height: number },
+): readonly (readonly [number, number])[] => {
+  const [boxLeft, boxTop, boxRight, boxBottom] = box
+  const left: number = Math.max(0, boxLeft)
+  const top: number = Math.max(0, boxTop)
+  const right: number = Math.min(viewport.width, boxRight)
+  const bottom: number = Math.min(viewport.height, boxBottom)
+  if (right - left < 1 || bottom - top < 1) {
+    return []
+  }
+  const inset: number = Math.min(
+    MAXIMUM_SAMPLE_INSET,
+    (right - left) * SAMPLE_INSET_SHARE,
+    (bottom - top) * SAMPLE_INSET_SHARE,
+  )
+  return samplesAlong(top + inset, bottom - inset).flatMap((pointY: number): readonly (readonly [number, number])[] =>
+    samplesAlong(left + inset, right - inset).map((pointX: number): readonly [number, number] => [pointX, pointY]),
+  )
+}
+
+/** What hides part of a focused element. */
+export interface FocusObscuring {
+  /** The labels of the fixed or sticky content covering it. */
+  readonly coveredBy: string
+  /** Whether every sample is covered, so none of the element shows. */
+  readonly isEntire: boolean
+}
+
+/**
+ * Whether any part of a focused element is hidden by fixed or sticky content (rule `focus-obscured`). WCAG
+ * 2.4.12 Focus Not Obscured (Enhanced) allows no part of it hidden, where 2.4.11 allows all but the whole.
+ * @param samples points spread over the part of the element inside the viewport.
+ * @returns what covers it, or undefined when every sample of the element shows.
+ */
+export const obscuringContent = (samples: readonly FocusSample[]): FocusObscuring | undefined => {
+  const covered: readonly FocusSample[] = samples.filter((sample: FocusSample): boolean => sample.isCovered)
+  return covered.length === 0
+    ? undefined
+    : {
+        coveredBy: [...new Set<string>(covered.map((sample: FocusSample): string => sample.coveredBy))].join(', '),
+        isEntire: covered.length === samples.length,
+      }
+}
 
 /**
  * Whether two renderings of the same region differ, which is what a visible focus indicator does.
@@ -367,7 +432,7 @@ export const hasVisibleFocus = (unfocused: ArrayLike<number>, focused: ArrayLike
   unfocused.length !== focused.length ||
   Array.from(unfocused).some((value: number, index: number): boolean => value !== focused[index])
 
-/** The contrast a focus indicator's changed pixels need against what they replaced (WCAG 1.4.11). */
+/** The contrast a focus indicator's changed pixels need against what they replaced (WCAG 2.4.13). */
 export const FOCUS_CONTRAST_RATIO: number = 3
 
 const RGBA_BYTES: number = 4
@@ -382,7 +447,7 @@ const GREEN_WEIGHT: number = 0.7152
 const BLUE_WEIGHT: number = 0.0722
 const FLARE: number = 0.05
 const BLUE_OFFSET: number = 2
-// The share of the element's longer side a contrasting one-pixel line must cover.
+// The share of the element's longer side a contrasting one-pixel line of the browser's own ring must cover.
 const LINE_SHARE: number = 0.5
 
 const linearChannel = (value: number): number => {
@@ -404,33 +469,53 @@ const luminanceAt = (pixels: ArrayLike<number>, offset: number): number =>
 const contrastRatio = (first: number, second: number): number =>
   (Math.max(first, second) + FLARE) / (Math.min(first, second) + FLARE)
 
+/** How large a focused element's indicator must be, measured on the element's visible part in CSS pixels. */
+export interface FocusArea {
+  /** The area of a 2 CSS pixel thick perimeter of the element (`perimeterArea`), less its curves' antialiasing. */
+  readonly perimeter: number
+  /** The longer side of the element's visible box. */
+  readonly extent: number
+}
+
+/**
+ * The area a focus indicator's contrasting pixels must cover. WCAG 2.4.13 Focus Appearance asks for the area of
+ * a 2 CSS pixel thick perimeter of the unfocused element, so a 2px solid outline or a ring of that width
+ * passes and a 1px outline, an underline or a thin ring does not. It exempts an indicator the browser draws
+ * and the author cannot adjust: the browser's own ring, `outline-style: auto`, which is held only to a
+ * contrasting one-pixel line along half the element's longer side, as a visible focus requires.
+ * @param area the element's perimeter area and longer side.
+ * @param outlineStyle the focused element's computed `outline-style`.
+ * @returns the area in CSS pixels.
+ */
+export const requiredFocusArea = (area: FocusArea, outlineStyle: string): number =>
+  outlineStyle === 'auto' ? area.extent * LINE_SHARE : area.perimeter
+
 /** A focused element's region rendered focused and unfocused, decoded to RGBA. */
 export interface FocusRenderings {
   readonly unfocused: ArrayLike<number>
   readonly focused: ArrayLike<number>
   /** Device pixels per CSS pixel along one side. */
   readonly scale: number
-  /** The longer side of the element's visible box, in CSS pixels. */
-  readonly extent: number
+  /** The area, in CSS pixels, the contrasting pixels must cover (`requiredFocusArea`). */
+  readonly required: number
 }
 
 /**
- * Whether a focus indicator contrasts with what it replaced (rule `focus-contrast`). The pixels whose
- * focused colour contrasts at least 3:1 with their unfocused colour must cover as much as a one-pixel line
- * along half the element's longer side, so an outline, a ring, an underline or a strong fill passes and a
- * faint tint or glow does not.
- * @param renderings the two renderings, their scale, and the element's longer side.
+ * Whether a focus indicator contrasts with what it replaced over enough of the page (rule `focus-contrast`):
+ * the pixels whose focused colour contrasts at least 3:1 with their unfocused colour must cover the required
+ * area, so a faint tint or glow never passes, however large.
+ * @param renderings the two renderings, their scale, and the area required.
  * @returns true when enough of the change contrasts.
  */
 export const hasContrastingFocus = (renderings: FocusRenderings): boolean => {
-  const { unfocused, focused, scale, extent }: FocusRenderings = renderings
+  const { unfocused, focused, scale, required }: FocusRenderings = renderings
   const pixels: number = Math.floor(Math.min(unfocused.length, focused.length) / RGBA_BYTES)
   const contrasting: number = Array.from({ length: pixels }, (_unused: unknown, pixel: number): number => pixel).filter(
     (pixel: number): boolean =>
       contrastRatio(luminanceAt(unfocused, pixel * RGBA_BYTES), luminanceAt(focused, pixel * RGBA_BYTES)) >=
       FOCUS_CONTRAST_RATIO,
   ).length
-  return contrasting / (scale * scale) >= extent * LINE_SHARE
+  return contrasting / (scale * scale) >= required
 }
 
 /** Where a keyboard-focused element sits, for the order focus moves in (rule `focus-order`). */
@@ -476,14 +561,10 @@ export interface DisclosureProbe {
   readonly closedOnEscape: boolean
   /** Whether focus was on the control after it closed. */
   readonly focusReturned: boolean
-  /** Whether it opened a modal dialog. */
-  readonly isModal: boolean
-  /** Whether focus stayed inside that dialog while tabbing. */
-  readonly focusTrapped: boolean
 }
 
 const escapeDefects = (probe: DisclosureProbe): readonly string[] => {
-  if (!(probe.isPopup || probe.isModal)) {
+  if (!probe.isPopup) {
     return []
   }
   if (!probe.closedOnEscape) {
@@ -495,18 +576,14 @@ const escapeDefects = (probe: DisclosureProbe): readonly string[] => {
 /**
  * What is wrong with how a disclosure answers the keyboard (rule `disclosure-keyboard`).
  *
- * Only a popup or a modal dialog is required to close on `Escape`: the disclosure pattern for an
- * accordion or a native `<details>` has no such key, and judging one by it would report the platform.
+ * Only a popup is required to close on `Escape`: the disclosure pattern for an accordion or a native
+ * `<details>` has no such key, and judging one by it would report the platform. A dialog the disclosure
+ * opened is judged by the dialog pattern instead (rule `dialog-keyboard`), which closes it on `Escape` too.
  * @param probe what the keyboard showed.
  * @returns one message per defect.
  */
 export const disclosureDefects = (probe: DisclosureProbe): readonly string[] =>
-  probe.wasOpened
-    ? [
-        ...escapeDefects(probe),
-        ...(probe.isModal && !probe.focusTrapped ? ['focus leaves the open modal dialog while tabbing'] : []),
-      ]
-    : ['activation did not open the disclosure']
+  probe.wasOpened ? escapeDefects(probe) : ['activation did not open the disclosure']
 
 const isSameRect = (left: LayoutRect, right: LayoutRect): boolean =>
   Math.abs(left.left - right.left) <= GEOMETRY_TOLERANCE &&
@@ -552,7 +629,7 @@ export const instability = (first: GeometrySnapshot, second: GeometrySnapshot): 
 /**
  * Every element candidate the resting scan's text and media rules find on one page.
  * @param snapshot the measured page.
- * @returns the candidates of T4 and M1 to M5.
+ * @returns the candidates of T4, M1 to M5, `text-justified` and `line-length`.
  */
 export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateFinding[] => [
   ...findSmallText(snapshot),
@@ -561,4 +638,6 @@ export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateF
   ...findUpscaledImages(snapshot),
   ...findOversizedImages(snapshot),
   ...findUnreservedMedia(snapshot),
+  ...findJustifiedText(snapshot),
+  ...findLongLines(snapshot),
 ]

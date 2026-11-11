@@ -1,7 +1,11 @@
 package eu.ciechanowiec.airness.web;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
 
@@ -23,6 +27,25 @@ import org.jspecify.annotations.Nullable;
 @UtilityClass
 public final class AxeAudit {
 
+    // Where the build places the options file of the node harness, axe-options.json, which this
+    // artifact packages rather than copies: the browser sweep reads the same file, so a page this
+    // audits and a page the sweep crawls are asked the same question, and neither can drift.
+    private static final String OPTIONS_RESOURCE = "eu/ciechanowiec/airness/web/axe-options.json";
+
+    /**
+     * What the question hands the rules beside the document, as the text of the one options file the
+     * browser sweep reads too.
+     *
+     * <p>It turns rules on by id rather than by tag, because a list of tags replaces the default rules
+     * where an id adds to them: the AAA rules for enhanced contrast, link purpose and timed refresh,
+     * the rule for target size, and the experimental rules for orientation, a paragraph styled as a
+     * heading, a data cell no header names and a first row spanning a table in place of its caption.
+     * It measures a target at the 44 CSS pixels of enhanced target size and switches off the check
+     * that excuses a smaller target for the room around it, which only the smaller size grants. The
+     * file states each choice in its own words.
+     */
+    public static final String OPTIONS = options(OPTIONS_RESOURCE);
+
     /**
      * The question, as the script to run once the rules are loaded.
      *
@@ -30,17 +53,30 @@ public final class AxeAudit {
      * replaces: naming one asks the rules to compute that one and leaves the rest of the answer
      * empty. Every line it answers with carries the verdict, the rule, the element and the sentence
      * that says what to do, separated by tabs, because a nested report would need a reader of its own
-     * and these four are what a repair is made from.
+     * and these four are what a repair is made from. It hands the rules the rule switches and the
+     * check options of {@link #OPTIONS}, and nothing else the file holds. A target-size failure on an
+     * element the visually-hidden pattern clips to a pixel, such as a skip link waiting for focus, is
+     * left out: no pointer reaches it, so it is no target to size, which is how the browser sweep reads
+     * it too.
      */
     public static final String SCRIPT = """
         const done = arguments[arguments.length - 1];
+        const options = %s;
         const at = node => Array.isArray(node.target) ? node.target.join(' ') : String(node.target);
         const why = (node, rule) => node.any && node.any.length
             ? node.any[0].message
             : (node.none && node.none.length ? node.none[0].message : rule.description);
-        axe.run(document)
+        const clipped = node => {
+            const element = node.target.length === 1 ? document.querySelector(node.target[0]) : null;
+            const box = element === null ? null : element.getBoundingClientRect();
+            return box !== null && (box.width <= 1 || box.height <= 1);
+        };
+        const reported = rule => rule.id === 'target-size'
+            ? rule.nodes.filter(node => !clipped(node))
+            : rule.nodes;
+        axe.run(document, {rules: options.rules, checks: options.checks})
            .then(report => done([].concat(
-               report.violations.flatMap(rule => rule.nodes.map(
+               report.violations.flatMap(rule => reported(rule).map(
                    node => 'failed\\t' + rule.id + '\\t' + at(node) + '\\t' + node.failureSummary
                )),
                report.incomplete.flatMap(rule => rule.nodes.map(
@@ -50,7 +86,7 @@ public final class AxeAudit {
            .catch(failure => done(
                ['failed\\taxe-did-not-run\\tdocument\\t' + failure.message]
            ));
-        """;
+        """.formatted(OPTIONS);
 
     private static final String SEPARATOR = "\t";
 
@@ -96,6 +132,24 @@ public final class AxeAudit {
             "The accessibility rules answered with nothing to read, which says they did not run "
                 + "rather than that the page is clean"
         );
+    }
+
+    // Package-private so that an options file the build did not package is a case a test can reach:
+    // a question asked without it would run the default rules alone and call the page clean by a
+    // lower standard than the sweep holds it to.
+    @SneakyThrows
+    static String options(String resource) {
+        try (
+            InputStream reading = Optional.ofNullable(AxeAudit.class.getClassLoader().getResourceAsStream(resource))
+                .orElseThrow(
+                    () -> new IllegalStateException(
+                        "The accessibility options are not packaged with the audit, so it would ask fewer rules "
+                            + "than the browser sweep: " + resource
+                    )
+                )
+        ) {
+            return new String(reading.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private static List<AxeFinding> failures(Collection<String> lines) {

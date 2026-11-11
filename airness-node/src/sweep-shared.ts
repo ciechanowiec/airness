@@ -370,19 +370,20 @@ const hasStoryFailedInPage = (): boolean => document.querySelector('body.sb-show
  * @param page the test's page.
  * @param location the location.
  * @param viewport the viewport.
- * @param place where findings about the load are made.
+ * @param place where findings about the load are made, the motion preference to emulate, and whether reduced
+ * motion is also held still; only the reduced-motion check, which judges what moves under it, lets it run.
  * @returns findings about the load itself.
  */
 export const loadLocation = async (
   page: Page,
   location: SweepLocation,
   viewport: Viewport,
-  place: FindingPlace & { readonly motion?: 'reduce' | 'no-preference' },
+  place: FindingPlace & { readonly motion?: 'reduce' | 'no-preference'; readonly isStill?: boolean },
 ): Promise<readonly BrowserFinding[]> => {
   await page.emulateMedia({ reducedMotion: place.motion ?? 'reduce' })
   await page.setViewportSize(viewport)
   await page.goto(location.url)
-  if (place.motion !== 'no-preference') {
+  if (place.motion !== 'no-preference' && place.isStill !== false) {
     await adoptStyle(page, STILL_STYLE)
   }
   if (!location.isStory) {

@@ -34,6 +34,7 @@ import { AxeBuilder } from '@axe-core/playwright'
 import { type APIResponse, expect, type Page, type TestInfo, test } from '@playwright/test'
 import { findDefiniteIncomplete } from './a11y-incomplete.js'
 import type { SpecSource } from './axe-coverage.js'
+import { axeRunOptions } from './axe-rules.js'
 import { type BrowserFinding, findingLine } from './browser-findings.js'
 import {
   FRAGMENT_SELECTOR,
@@ -63,11 +64,17 @@ export const MAX_SWEEP_ROUTES: number = projectSettings.accessibilityRouteBudget
 export type AxeResults = Awaited<ReturnType<AxeBuilder['analyze']>>
 
 /**
- * An axe builder covering the complete document, including dialogs and application portals.
+ * An axe builder covering the complete document, including dialogs and application portals, with the
+ * sweep's own rule set: axe's defaults plus the AAA, target-size and experimental rules it turns on, the
+ * target size measured at 44 CSS pixels.
+ *
+ * Narrow it with `include`, `exclude` or `withRules`. Calling its `options` or `disableRules` replaces
+ * the rule set rather than adding to it.
  * @param page the page to scan.
  * @returns a builder without selector restrictions.
  */
-export const scopedAxe = (page: Page): Promise<AxeBuilder> => Promise.resolve(new AxeBuilder({ page }))
+export const scopedAxe = (page: Page): Promise<AxeBuilder> =>
+  Promise.resolve(new AxeBuilder({ page }).options(axeRunOptions([])))
 
 // axe answers in three buckets. `incomplete` means "the check ran and could not decide", and an EXACTLY
 // equal foreground and background is filed there rather than as a violation, because axe reads two

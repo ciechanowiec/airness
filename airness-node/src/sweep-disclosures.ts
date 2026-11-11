@@ -7,6 +7,16 @@ import { type TargetFacts, targetFacts } from './layout.js'
 import { isPerceivableWithin } from './perceivable.js'
 import { axeFindings, judgeRestingPlace, type PlaceScan, settleFindings } from './scanner.js'
 import { settleForScan } from './settle.js'
+import { ARIA_RESTING_RULES, ariaVisit } from './sweep-aria.js'
+import { markPresentComposites, restingCompositeVisit, revealedCompositeVisit } from './sweep-composites.js'
+import {
+  type JudgedDialog,
+  judgeDialog,
+  markPresentDialogs,
+  NEW_DIALOG_SELECTOR,
+  type OpenedDialog,
+  openedDialog,
+} from './sweep-dialogs.js'
 import { carried } from './sweep-interaction.js'
 import { type InteractionPlace, interactionPlan, placeUnits } from './sweep-interaction-plan.js'
 import {
@@ -41,12 +51,23 @@ declare const document: DomDocument
 declare const location: { readonly href: string }
 declare const history: { readonly length: number }
 
-const DISCLOSURES: string =
-  '[aria-expanded="false"], [aria-haspopup]:not([aria-haspopup="false"]), details:not([open]) > summary'
+/**
+ * Every control that discloses something, closed. A control that opens a dialog through an HTML invoker
+ * command declares it as plainly as `aria-haspopup` does; a button that calls `showModal()` from a handler
+ * declares nothing, and no control is activated on a guess.
+ */
+export const DISCLOSURES: string =
+  '[aria-expanded="false"], [aria-haspopup]:not([aria-haspopup="false"]), details:not([open]) > summary, ' +
+  '[commandfor][command="show-modal"]'
 
-// Mark the disclosures it is safe to open: visible, outside forms unless declared `type="button"`, and
-// never a link that navigates. Answers how many were marked.
-const markDisclosuresInPage = ([selector, attribute]: readonly [string, string]): number => {
+/**
+ * Mark the disclosures it is safe to open: visible, outside forms unless declared `type="button"`, and never a
+ * link that navigates. Shared with the reduced-motion check, which opens the first of them.
+ * @param selectorAndAttribute the disclosures' selector, and the attribute each is marked with by its index.
+ * @returns how many were marked.
+ */
+export const markDisclosuresInPage = (selectorAndAttribute: readonly [string, string]): number => {
+  const [selector, attribute]: readonly [string, string] = selectorAndAttribute
   const isAvailable = (element: DomElement): boolean =>
     element.checkVisibility() &&
     element.closest('[inert]') === null &&
@@ -73,17 +94,16 @@ interface DisclosureFacts {
   readonly history: number
   readonly expanded: string | null
   readonly isPopup: boolean
-  readonly isModalOpen: boolean
-  readonly isFocusInModal: boolean
+  /** Whether a dialog that was not rendered before the control was activated is rendered now. */
+  readonly isDialogOpen: boolean
   readonly isFocusOnControl: boolean
 }
 
-const disclosureFactsInPage = (selector: string): DisclosureFacts => {
+const disclosureFactsInPage = ([selector, newDialogs]: readonly [string, string]): DisclosureFacts => {
   const control: DomElement | null = document.querySelector(selector)
-  const modal: DomElement | null = document.querySelector(
-    'dialog:modal, [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]',
+  const isDialogOpen: boolean = Array.from(document.querySelectorAll(newDialogs)).some((dialog: DomElement): boolean =>
+    dialog.checkVisibility(),
   )
-  const isModalOpen: boolean = modal?.checkVisibility() === true
   const active: DomElement | null = document.activeElement
   const attributeOf = (name: string): string | null => control?.getAttribute(name) ?? null
   const expanded: string | null =
@@ -97,13 +117,10 @@ const disclosureFactsInPage = (selector: string): DisclosureFacts => {
     history: history.length,
     expanded,
     isPopup: (attributeOf('aria-haspopup') ?? 'false') !== 'false',
-    isModalOpen,
-    isFocusInModal: isModalOpen && containsFocus(modal),
+    isDialogOpen,
     isFocusOnControl: containsFocus(control),
   }
 }
-
-const MAX_TRAP_STEPS: number = 30
 
 // Whether the control a disclosure opened from holds focus again, and nothing it opened is still open.
 const isClosedToControlInPage = (selector: string): boolean => {
@@ -126,9 +143,12 @@ const isClosedToControlInPage = (selector: string): boolean => {
 const FOCUS_RETURN_MS: number = 1000
 const OPENING_TIMEOUT_MS: number = 5000
 
+const factsOf = async (page: Page, selector: string): Promise<DisclosureFacts> =>
+  await page.evaluate(disclosureFactsInPage, [selector, NEW_DIALOG_SELECTOR] as const)
+
 const closedAfterEscape = async (page: Page, selector: string, isDismissible: boolean): Promise<DisclosureFacts> => {
   if (!isDismissible) {
-    return await page.evaluate(disclosureFactsInPage, selector)
+    return await factsOf(page, selector)
   }
   try {
     await page.waitForFunction(isClosedToControlInPage, selector, {
@@ -140,16 +160,7 @@ const closedAfterEscape = async (page: Page, selector: string, isDismissible: bo
       throw error
     }
   }
-  return await page.evaluate(disclosureFactsInPage, selector)
-}
-
-const isTrapped = async (page: Page, selector: string, remaining: number): Promise<boolean> => {
-  if (remaining <= 0) {
-    return true
-  }
-  await page.keyboard.press('Tab')
-  const facts: DisclosureFacts = await page.evaluate(disclosureFactsInPage, selector)
-  return facts.isFocusInModal && (await isTrapped(page, selector, remaining - 1))
+  return await factsOf(page, selector)
 }
 
 interface OpenedDisclosure {
@@ -184,41 +195,67 @@ const closeRemaining = async (
   }
 }
 
-// Escape for a popup or a modal dialog, then the keyboard judgement, then close anything remaining
-// with the pass's input method, so the next disclosure starts from a closed page.
+// A dialog the disclosure opened is judged by the dialog pattern, which closes it on Escape; anything
+// still open is closed with the pass's input method, so the next disclosure starts from a closed page.
+const dismissDialog = async (disclosure: OpenedDisclosure, dialog: OpenedDialog): Promise<readonly Visit[]> => {
+  const judged: JudgedDialog = await judgeDialog(
+    {
+      page: disclosure.page,
+      opener: disclosure.control,
+      openerSelector: disclosure.selector,
+      place: disclosure.place,
+      facts: disclosure.facts,
+    },
+    dialog,
+  )
+  await closeRemaining(disclosure.control, judged.isOpen, disclosure.motion)
+  await settleForScan(disclosure.page, disclosure.motion === 'reduce')
+  return judged.visits
+}
+
+// The arrow keys of a widget it revealed, then Escape for a popup, then the keyboard judgement, then close
+// anything remaining with the pass's input method, so the next disclosure starts from a closed page.
 const dismissDisclosure = async (disclosure: OpenedDisclosure): Promise<readonly Visit[]> => {
-  const { page, selector, control, before, opened, place, facts }: OpenedDisclosure = disclosure
-  const isFocusTrapped: boolean = opened.isModalOpen && (await isTrapped(page, selector, MAX_TRAP_STEPS))
-  const isDismissible: boolean = disclosure.wasOpened && (before.isPopup || opened.isModalOpen)
+  const { page, selector, control, before, place, facts }: OpenedDisclosure = disclosure
+  const dialog: OpenedDialog | undefined = disclosure.wasOpened ? await openedDialog(page) : undefined
+  if (dialog !== undefined) {
+    return await dismissDialog(disclosure, dialog)
+  }
+  const revealed: Visit = disclosure.wasOpened ? await revealedCompositeVisit(page, place) : EMPTY_VISIT
+  const isDismissible: boolean = disclosure.wasOpened && before.isPopup
   if (isDismissible) {
     await page.keyboard.press('Escape')
   }
   const closed: DisclosureFacts = await closedAfterEscape(page, selector, isDismissible)
-  const isClosedOnEscape: boolean = isDismissible && !closed.isModalOpen && closed.expanded !== 'true'
+  const isClosedOnEscape: boolean = isDismissible && closed.expanded !== 'true'
   await closeRemaining(control, disclosure.wasOpened && !isClosedOnEscape, disclosure.motion)
   await settleForScan(page, disclosure.motion === 'reduce')
-  return disclosureDefects({
-    wasOpened: disclosure.wasOpened,
-    isPopup: before.isPopup,
-    closedOnEscape: isClosedOnEscape,
-    focusReturned: await isReturnedVisibly(control, closed),
-    isModal: opened.isModalOpen,
-    focusTrapped: isFocusTrapped,
-  }).map(
-    (defect: string): Visit =>
-      carried(findingAt(place, 'disclosure-keyboard', `${labelOfDisclosure(facts)}: ${defect}`), facts),
-  )
+  return [
+    revealed,
+    ...disclosureDefects({
+      wasOpened: disclosure.wasOpened,
+      isPopup: before.isPopup,
+      closedOnEscape: isClosedOnEscape,
+      focusReturned: await isReturnedVisibly(control, closed),
+    }).map(
+      (defect: string): Visit =>
+        carried(findingAt(place, 'disclosure-keyboard', `${labelOfDisclosure(facts)}: ${defect}`), facts),
+    ),
+  ]
 }
 
-const judgeOpened = async (page: Page, place: FindingPlace): Promise<Visit> => {
+const judgeOpened = async (page: Page, place: FindingPlace, isStory: boolean): Promise<Visit> => {
   const unsettled: readonly BrowserFinding[] = await settleFindings(page, place)
   const judged: PlaceScan = await judgeRestingPlace(page, place)
   const axe: readonly BrowserFinding[] = await axeFindings(page, place)
-  return {
-    ...judged,
-    findings: [...unsettled, ...judged.findings, ...axe],
-    notes: [],
-  }
+  return merged([
+    {
+      ...judged,
+      findings: [...unsettled, ...judged.findings, ...axe],
+      notes: [],
+    },
+    await ariaVisit(page, place, isStory),
+  ])
 }
 
 interface DrivenDisclosure {
@@ -226,7 +263,7 @@ interface DrivenDisclosure {
   readonly isAborted: boolean
 }
 
-const isOpenedInPage = (selector: string): boolean => {
+const isOpenedInPage = ([selector, newDialogs]: readonly [string, string]): boolean => {
   const control: DomElement | null = document.querySelector(selector)
   if (control === null) {
     return false
@@ -237,10 +274,8 @@ const isOpenedInPage = (selector: string): boolean => {
   if (control.tagName.toLowerCase() === 'summary') {
     return typeof control.parentElement?.getAttribute('open') === 'string'
   }
-  return (
-    document
-      .querySelector('dialog:modal, [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]')
-      ?.checkVisibility() === true
+  return Array.from(document.querySelectorAll(newDialogs)).some((dialog: DomElement): boolean =>
+    dialog.checkVisibility(),
   )
 }
 
@@ -248,7 +283,7 @@ const OPENING_KEYS: Readonly<Record<string, string>> = { combobox: 'ArrowDown', 
 
 const openWithKeyboard = async (page: Page, control: Locator, selector: string): Promise<void> => {
   await control.focus({ timeout: OPENING_TIMEOUT_MS })
-  if (await page.evaluate(isOpenedInPage, selector)) {
+  if (await page.evaluate(isOpenedInPage, [selector, NEW_DIALOG_SELECTOR] as const)) {
     return
   }
   const role: string | null = await control.getAttribute('role', { timeout: OPENING_TIMEOUT_MS })
@@ -257,13 +292,15 @@ const openWithKeyboard = async (page: Page, control: Locator, selector: string):
 
 const openedAfterActivation = async (page: Page, selector: string): Promise<DisclosureFacts> => {
   try {
-    await page.waitForFunction(isOpenedInPage, selector, { timeout: OPENING_TIMEOUT_MS })
+    await page.waitForFunction(isOpenedInPage, [selector, NEW_DIALOG_SELECTOR] as const, {
+      timeout: OPENING_TIMEOUT_MS,
+    })
   } catch (error: unknown) {
     if (!(error instanceof errors.TimeoutError)) {
       throw error
     }
   }
-  return await page.evaluate(disclosureFactsInPage, selector)
+  return await factsOf(page, selector)
 }
 
 const driveDisclosure = async (page: Page, item: InteractionPlace, index: number): Promise<DrivenDisclosure> => {
@@ -272,7 +309,9 @@ const driveDisclosure = async (page: Page, item: InteractionPlace, index: number
   if (!(await control.isVisible())) {
     return { visit: EMPTY_VISIT, isAborted: false }
   }
-  const before: DisclosureFacts = await page.evaluate(disclosureFactsInPage, selector)
+  await markPresentDialogs(page)
+  await markPresentComposites(page)
+  const before: DisclosureFacts = await factsOf(page, selector)
   const facts: TargetFacts | undefined = await targetFacts(page, selector)
   if (item.motion === 'no-preference') {
     await openWithKeyboard(page, control, selector)
@@ -299,9 +338,9 @@ const driveDisclosure = async (page: Page, item: InteractionPlace, index: number
     item.viewport,
     `disclosure ${labelOfDisclosure(facts)}${item.motion === 'no-preference' ? ', normal motion' : ''}`,
   )
-  const revealed: Visit = item.motion === 'reduce' ? await judgeOpened(page, place) : EMPTY_VISIT
+  const revealed: Visit = item.motion === 'reduce' ? await judgeOpened(page, place, item.location.isStory) : EMPTY_VISIT
   const keyboard: readonly Visit[] = await dismissDisclosure({
-    wasOpened: opened.expanded === 'true' || opened.isModalOpen,
+    wasOpened: opened.expanded === 'true' || opened.isDialogOpen,
     page,
     selector,
     control,
@@ -327,6 +366,23 @@ const driveDisclosures = async (
   return driven.isAborted ? [driven.visit] : [driven.visit, ...(await driveDisclosures(page, item, index + 1, count))]
 }
 
+// The composite widgets at rest are driven after the disclosures, on the page as the disclosures left it:
+// closed again. A disclosure that navigated left another page, so the place is loaded afresh first.
+const restingComposites = async (page: Page, item: InteractionPlace, loadedUrl: string): Promise<Visit> => {
+  const place: FindingPlace = placeAt(
+    page,
+    item.location,
+    item.viewport,
+    item.motion === 'reduce' ? 'keyboard' : 'keyboard, normal motion',
+  )
+  const reloaded: readonly BrowserFinding[] =
+    page.url() === loadedUrl
+      ? []
+      : await loadLocation(page, item.location, item.viewport, { ...place, motion: item.motion })
+  await settleForScan(page, item.motion === 'reduce')
+  return merged([{ ...EMPTY_VISIT, findings: reloaded }, await restingCompositeVisit(page, place)])
+}
+
 const disclosureVisit = async (page: Page, item: InteractionPlace): Promise<Visit> => {
   const place: FindingPlace = placeAt(page, item.location, item.viewport, 'resting')
   const loaded: readonly BrowserFinding[] = await loadLocation(page, item.location, item.viewport, {
@@ -334,12 +390,20 @@ const disclosureVisit = async (page: Page, item: InteractionPlace): Promise<Visi
     motion: item.motion,
   })
   await settleForScan(page, item.motion === 'reduce')
+  const loadedUrl: string = page.url()
   const count: number = await page.evaluate(markDisclosuresInPage, [DISCLOSURES, DISCLOSURE_ATTRIBUTE] as const)
   const driven: readonly Visit[] = await driveDisclosures(page, item, 0, count)
-  return merged([{ ...EMPTY_VISIT, findings: loaded }, ...driven, await healthOf(page, place)])
+  const composites: Visit = await restingComposites(page, item, loadedUrl)
+  return merged([{ ...EMPTY_VISIT, findings: loaded }, ...driven, composites, await healthOf(page, place)])
 }
 
-const DISCLOSURE_RULES: readonly string[] = [...RESTING_JUDGED, 'disclosure-keyboard']
+const DISCLOSURE_RULES: readonly string[] = [
+  ...RESTING_JUDGED,
+  ...ARIA_RESTING_RULES,
+  'disclosure-keyboard',
+  'dialog-keyboard',
+  'composite-keyboard',
+]
 
 /**
  * Open every disclosure on one shard of the locations, judge what it reveals, and judge how it answers

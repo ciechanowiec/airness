@@ -102,7 +102,7 @@ h1, h2, p { margin: 0; }
 .page { display: flex; flex-direction: column; }
 .page.spaced { gap: 16px; }
 .notice { background: #ecfdf5; border-left: 4px solid #15803d; padding: 8px 12px; }
-.button { display: inline-block; background: #b91c1c; color: #ffffff; padding: 8px 16px; }
+.button { display: inline-block; background: #991b1b; color: #ffffff; padding: 8px 16px; }
 .wide { width: 600px; }
 .overlap-body { margin-top: -1em; }
 .clipped, .truncated { display: block; width: 80px; overflow: hidden; white-space: nowrap; }
@@ -112,6 +112,15 @@ h1, h2, p { margin: 0; }
 .tablist { background: #dbeafe; padding: 8px; }
 .panel { background: #eff6ff; padding: 16px; }
 `
+
+// The 44px WCAG 2.5.5 target size the sweep's axe scan measures, given to the repaired pages alone: the
+// defect pages measure geometry, which a taller link or summary would move away from the defect planted.
+const TARGET_STYLES: string = `
+a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
+summary { min-height: 44px; }
+`
+
+const stylesOf = (mode: Mode): string => (mode === 'defects' ? STYLES : `${STYLES}${TARGET_STYLES}`)
 
 const pageModule = (heading: string, body: string): string =>
   [
@@ -176,20 +185,20 @@ const writeModule = (file: string, source: string): void => {
   writeFileSync(file, source)
 }
 
-const writePages = (directory: string, pages: Readonly<Record<string, string>>): void => {
+const writePages = (directory: string, pages: Readonly<Record<string, string>>, styles: string): void => {
   const appRoot: string = path.join(directory, 'src', 'app')
   writeModule(path.join(appRoot, 'page.tsx'), homeModule(Object.keys(pages)))
   for (const [route, body] of Object.entries(pages)) {
     writeModule(path.join(appRoot, route, 'page.tsx'), routeModule(route, body))
   }
-  writeModule(path.join(appRoot, 'globals.css'), STYLES)
+  writeModule(path.join(appRoot, 'globals.css'), styles)
 }
 
 const [directory, mode]: readonly (string | undefined)[] = process.argv.slice(ARGUMENT_OFFSET)
 if (directory === undefined || !isMode(mode)) {
   throw new Error(`Expected a fixture directory and one of: ${MODES.join(', ')}`)
 }
-writePages(directory, mode === 'defects' ? DEFECT_PAGES : REPAIRED_PAGES)
+writePages(directory, mode === 'defects' ? DEFECT_PAGES : REPAIRED_PAGES, stylesOf(mode))
 if (mode !== 'defects') {
   writeModule(path.join(directory, 'src', 'app', 'items', '[id]', 'page.tsx'), ITEM_MODULE)
   writeModule(path.join(directory, 'tests', 'e2e', 'items.e2e.spec.ts'), ITEM_SPECS[mode])

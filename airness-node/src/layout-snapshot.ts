@@ -44,6 +44,8 @@ export interface LayoutNode {
   readonly rects: readonly LayoutRect[]
   /** The rects of the element's own non-blank text nodes, not of its descendants'. */
   readonly textRects: readonly LayoutRect[]
+  /** The words of the element's own text, one entry per rect of `textRects`, with the characters each draws. */
+  readonly words: readonly LayoutWord[]
   /** The computed `line-height` in CSS pixels, or 0 for `normal`. */
   readonly lineHeight: number
   /** The element's whole text, trimmed. Reported only where a clip could hide part of it. */
@@ -90,8 +92,26 @@ export interface LayoutNode {
   readonly fontSize: number
   /** The computed `font-family` stack. */
   readonly fontFamily: string
+  /** The computed `text-align`: `start`, `justify` and the rest. */
+  readonly textAlign: string
+  /** The computed `text-align-last`, which aligns the last line, or a block's only one. */
+  readonly textAlignLast: string
+  /** The computed `white-space`, which says whether the author's own spaces and line breaks are kept. */
+  readonly whiteSpace: string
   /** What a replaced element reports about its content, or undefined for any other element. */
   readonly media: MediaFacts | undefined
+}
+
+/**
+ * One rect of a word an element's own text draws: a word wrapped over two lines reports one per line, and its
+ * characters are shared between them by width.
+ */
+export interface LayoutWord {
+  readonly rect: LayoutRect
+  /** How many characters of the word this rect draws. */
+  readonly characters: number
+  /** How many of them are Chinese, Japanese or Korean, whose lines WCAG 1.4.8 measures at half the length. */
+  readonly cjkCharacters: number
 }
 
 /** What an image, video, frame or embed reports about the content it shows. */

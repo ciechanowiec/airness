@@ -5,7 +5,7 @@
 // icon that fills in, is judged where it draws. The page functions are self-contained: Playwright ships
 // them to the page as text.
 import type { Page } from '@playwright/test'
-import { hasContrastingFocus, hasVisibleFocus } from './browser-rules.js'
+import { type FocusArea, hasContrastingFocus, hasVisibleFocus, requiredFocusArea } from './browser-rules.js'
 import {
   type ElementBox,
   type FocusRegion,
@@ -241,14 +241,33 @@ const renderingsIn = async (
     viewportWidth,
   ] as const)
 
+// How the two renderings differ, judged against the area the focused element's indicator must reach. The
+// browser's own ring is read from the focused element as it was shot focused.
+const verdictOf = (renderings: RegionRenderings, capture: FocusCapture, area: FocusArea): FocusVerdict => {
+  const focused: Uint8Array = Buffer.from(renderings.focused, BASE64)
+  const unfocused: Uint8Array = Buffer.from(renderings.unfocused, BASE64)
+  if (!hasVisibleFocus(unfocused, focused)) {
+    return 'unchanged'
+  }
+  const outlineStyle: string = capture.focusedFacts.focused?.style.outlineStyle ?? ''
+  return hasContrastingFocus({
+    focused,
+    unfocused,
+    scale: renderings.scale,
+    required: requiredFocusArea(area, outlineStyle),
+  })
+    ? 'contrasting'
+    : 'faint'
+}
+
 /**
  * Shoot the page with the active element focused and again blurred, and judge its indicator where it shows.
  * The element is left blurred, as the tab walk expects.
  * @param page the page, with the element focused by keyboard.
- * @param extent the longer side of the element's visible box, which a contrasting indicator must cover half of.
+ * @param area the element's perimeter area and longer side, which decide how much must contrast.
  * @returns how the element shows its focus.
  */
-export const judgeFocusIndicator = async (page: Page, extent: number): Promise<FocusVerdict> => {
+export const judgeFocusIndicator = async (page: Page, area: FocusArea): Promise<FocusVerdict> => {
   const viewport: { readonly width: number; readonly height: number } | null = page.viewportSize()
   const capture: FocusCapture = await captureFocus(page)
   const region: FocusRegion | undefined =
@@ -260,17 +279,5 @@ export const judgeFocusIndicator = async (page: Page, extent: number): Promise<F
   if (renderings.scale === 0) {
     throw new Error('the browser could not decode the focus screenshots')
   }
-  const focused: Uint8Array = Buffer.from(renderings.focused, BASE64)
-  const unfocused: Uint8Array = Buffer.from(renderings.unfocused, BASE64)
-  if (!hasVisibleFocus(unfocused, focused)) {
-    return 'unchanged'
-  }
-  return hasContrastingFocus({
-    focused,
-    unfocused,
-    scale: renderings.scale,
-    extent,
-  })
-    ? 'contrasting'
-    : 'faint'
+  return verdictOf(renderings, capture, area)
 }

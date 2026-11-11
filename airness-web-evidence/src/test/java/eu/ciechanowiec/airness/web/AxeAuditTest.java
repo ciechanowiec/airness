@@ -5,7 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.regex.Pattern;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -23,16 +27,131 @@ class AxeAuditTest {
     private static final String UNDECIDED
         = "undecided\tcolor-contrast\t.select\tbackground could not be determined";
 
+    // The rules the options file switches on, read off the file rather than off a second list.
+    private static final Pattern ENABLED_RULE = Pattern.compile("\"([a-z-]+)\": \\{ \"enabled\": true }");
+
+    // The one options file the npm package ships, which the build packages beside this class.
+    private static final Path SHIPPED_OPTIONS = Path.of("..", "airness-node", "configs", "axe-options.json");
+
     @Test
     void asksForEveryVerdictRatherThanForTheFailuresAlone() {
         assertTrue(
-            AxeAudit.SCRIPT.contains("axe.run(document)"),
-            "the rules are asked about the whole document"
+            AxeAudit.SCRIPT.contains("axe.run(document, {rules: options.rules, checks: options.checks})"),
+            "the rules are asked about the whole document, with the rule switches and check options of the file"
         );
         assertFalse(
             AxeAudit.SCRIPT.contains("resultTypes"),
             "and no result type is named, because naming one leaves the rest of the answer empty"
         );
+    }
+
+    @Test
+    void sizesNoTargetThatTheVisuallyHiddenPatternClipsToAPixel() {
+        assertTrue(
+            AxeAudit.SCRIPT.contains("rule.id === 'target-size'")
+                && AxeAudit.SCRIPT.contains("box.width <= 1 || box.height <= 1")
+                && AxeAudit.SCRIPT.contains("report.violations.flatMap(rule => reported(rule).map("),
+            "a target-size failure on a box of a pixel or less, which no pointer reaches, is left out"
+        );
+        assertTrue(
+            AxeAudit.SCRIPT.contains("report.incomplete.flatMap(rule => rule.nodes.map("),
+            "while every verdict the rules could not reach is still read whole"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void appliesTheOptionsFileTheBrowserSweepReads() {
+        assertEquals(
+            Files.readString(SHIPPED_OPTIONS), AxeAudit.OPTIONS,
+            "the audit packages the file the npm package ships, byte for byte, rather than a copy of it"
+        );
+        assertTrue(
+            AxeAudit.SCRIPT.contains("const options = " + AxeAudit.OPTIONS + ";"),
+            "and the question hands the rules that file whole"
+        );
+    }
+
+    @Test
+    void turnsOnTheRulesTheRulesShipSwitchedOff() {
+        assertEquals(
+            List.of(
+                "color-contrast-enhanced", "identical-links-same-purpose", "meta-refresh-no-exceptions",
+                "target-size", "css-orientation-lock", "p-as-heading", "td-has-header", "table-fake-caption"
+            ),
+            enabledRules(), "the AAA, target-size and experimental rules the defaults leave out"
+        );
+    }
+
+    @Test
+    void addsToTheDefaultRulesRatherThanReplacingThem() {
+        assertFalse(
+            AxeAudit.OPTIONS.contains("\"runOnly\":"),
+            "naming the rules to run alone would drop every default rule the list leaves out"
+        );
+        assertFalse(
+            enabledRules().contains("hidden-content") || enabledRules().contains("focus-order-semantics"),
+            "and the experimental rules that report only items to look at by eye stay off"
+        );
+    }
+
+    @Test
+    void namesOnlyRulesThePinnedLibraryDefines() {
+        String library = AxeLibrary.rules();
+        enabledRules().forEach(
+            rule -> assertTrue(
+                library.contains("id:\"%s\"".formatted(rule)),
+                "a rule the library does not define would be switched on silently and run nowhere: " + rule
+            )
+        );
+    }
+
+    @Test
+    void measuresATargetAtTheEnhancedSize() {
+        assertTrue(
+            AxeAudit.OPTIONS.contains("\"target-size\": { \"options\": { \"minSize\": 44 } }"),
+            "the AAA size is handed to the check that measures it"
+        );
+        assertTrue(
+            AxeAudit.OPTIONS.contains("\"target-offset\": { \"enabled\": false }"),
+            "and the room around a target excuses no smaller one, which only the AA size allows"
+        );
+    }
+
+    @Test
+    void measuresTheTargetThroughTheChecksThePinnedLibraryNames() {
+        String library = AxeLibrary.rules();
+        assertTrue(
+            library.contains(
+                "any:[{options:{minSize:24},id:\"target-size\"},{options:{minOffset:24},id:\"target-offset\"}]"
+            ),
+            "the target-size rule is made of the two checks the options name, under the option names they read"
+        );
+        assertTrue(
+            library.contains(
+                "id:\"target-size\",impact:\"serious\",selector:\"*\",enabled:!1,"
+                    + "matches:\"widget-not-inline-matches\""
+            ),
+            "and it selects no target set in a line of text, so the inline exception holds"
+        );
+    }
+
+    @Test
+    void refusesToAskWithoutTheOptionsFile() {
+        IllegalStateException refused = assertThrows(
+            IllegalStateException.class,
+            () -> AxeAudit.options("eu/ciechanowiec/airness/web/absent.json"),
+            "a question without the file would hold a page to the default rules alone"
+        );
+        assertEquals(
+            "The accessibility options are not packaged with the audit, so it would ask fewer rules than the "
+                + "browser sweep: eu/ciechanowiec/airness/web/absent.json",
+            refused.getMessage(), "and the refusal says what is missing"
+        );
+    }
+
+    private static List<String> enabledRules() {
+        return ENABLED_RULE.matcher(AxeAudit.OPTIONS).results().map(found -> found.group(1)).toList();
     }
 
     @Test

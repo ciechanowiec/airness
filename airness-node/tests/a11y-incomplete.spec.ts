@@ -152,3 +152,45 @@ describe('findDefiniteIncomplete on incomplete input', () => {
     ).toEqual(['color-contrast on equalRatio: m'])
   })
 })
+
+// Shaped as axe 4.14 files it: the rule reports no violation at all, only the links sharing one name
+// that lead to different addresses, each with no message key. The message is axe's own.
+const ambiguousLinksResult = (targets: readonly string[]): unknown => ({
+  id: 'identical-links-same-purpose',
+  impact: 'minor',
+  nodes: targets.map((target: string): unknown => ({
+    target: [target],
+    any: [
+      {
+        id: 'identical-links-same-purpose',
+        message: 'Check that links have the same purpose, or are intentionally ambiguous.',
+        data: { name: 'read more', urlProps: { pathname: `/${target}` } },
+      },
+    ],
+  })),
+})
+
+describe('findDefiniteIncomplete on links sharing one name', () => {
+  it('reports every link that shares its name with a link to another address', () => {
+    expect(findDefiniteIncomplete([ambiguousLinksResult(['a.first', 'a.second'])])).toEqual([
+      'identical-links-same-purpose on a.first: Check that links have the same purpose, or are intentionally ambiguous.',
+      'identical-links-same-purpose on a.second: Check that links have the same purpose, or are intentionally ambiguous.',
+    ])
+  })
+
+  it('reports the check whichever key axe filed it under', () => {
+    const underNone: unknown = {
+      id: 'identical-links-same-purpose',
+      nodes: [{ target: ['a'], none: [{ message: 'm', data: { name: 'more' } }] }],
+    }
+    expect(findDefiniteIncomplete([underNone])).toEqual(['identical-links-same-purpose on a: m'])
+  })
+
+  it('leaves another rule without a definite key undecided beside it', () => {
+    expect(
+      findDefiniteIncomplete([resultWithKey('bgImage'), ambiguousLinksResult(['a.only'])]).map(
+        (finding: string): string => finding.split(':', 1)[0] ?? '',
+      ),
+    ).toEqual(['identical-links-same-purpose on a.only'])
+  })
+})

@@ -399,7 +399,19 @@ or a list of accepted origins from its own variable names it in `serverUrlVariab
 served origin, and reads it at runtime. The node harness owns the general browser rules; an installed
 stack layer supplies the content selectors of its framework's views through `airness.layer.browser`.
 
-Resting and reflow measurements keep motion reduced and animations still. Keyboard and disclosure checks
+The accessibility scan runs axe's default rules and adds, by rule id, the rules axe ships switched off or marks
+experimental: enhanced contrast at 7:1 (1.4.6), link purpose (2.4.9), no timed refresh at any delay (2.2.4, 3.2.5),
+target size at the 44 CSS pixels of 2.5.5 with no allowance for spacing, orientation (1.3.4), and the
+paragraph-as-heading, data-cell-header and faked-caption rules of 1.3.1. A target within a line of text stays
+exempt, and so does one the visually-hidden pattern clips to a pixel, such as a skip link before it takes focus,
+because no pointer reaches it. Two links sharing one name that lead to different addresses fail; name each by its
+destination. The hover and focus contrast probes measure 7:1 too. `scopedAxe` from `@airness/node/a11y` and
+`AxeAudit.SCRIPT` from `airness-web-evidence` ask the same rule set, read from one file, `configs/axe-options.json`
+of `@airness/node`, so draw every pointer target at least 44 by 44 CSS pixels and text at 7:1, or 4.5:1 where it is
+large.
+
+Resting and reflow measurements keep motion reduced and animations still; only the reduced-motion check below
+lets reduced motion run unfrozen. Keyboard and disclosure checks
 also run with normal motion, preserving transitions and animations. They verify that activation opens the
 disclosure and that focus becomes perceivable, including ancestor opacity, clipping and inert state. Pointer
 geometry and pixel-contrast comparisons remain in the still passes. Text clipped by a non-scrollable ancestor
@@ -407,13 +419,48 @@ is a finding; inactive subtrees and text deliberately outside a scrollable regio
 An image whose source carries more than three pixels per CSS pixel of its box, decoding at least a mebipixel
 no screen shows, is `image-oversized`; serve a smaller source, or a `srcset` whose `sizes` match the box.
 
+Focus and text presentation are held to WCAG 2.2 AAA. No part of a keyboard-focused control may lie under fixed
+or sticky content (`focus-obscured`). A focus indicator the page draws must change pixels by at least 3:1 over the
+area of a 2 CSS px thick perimeter of the control, following its border radius, as a 2px solid outline or ring does
+(`focus-contrast`); a 1px outline, an underline or a tint does not. The browser's own `outline-style: auto` ring,
+which WCAG exempts, needs only a contrasting line along half the control. No block of text may be justified
+(`text-justified`), and no rendered line may run past 80 characters, or 40 in Chinese, Japanese or Korean, at any
+viewport including the desktop one (`line-length`): give prose a measure, such as a `max-width` of about `60ch`.
+Preformatted text, code and form controls keep their own lines. Each of these is exemptible per element.
+
+The disclosure pass also holds each role to its WAI-ARIA keyboard pattern. A dialog a control opens takes focus,
+closes on Escape and returns focus to its opener, or to a visible element when the opener went with it; a modal
+one keeps Tab and Shift+Tab inside (`dialog-keyboard`). Declare every dialog opener with `aria-haspopup="dialog"`,
+`aria-expanded` or an invoker `command="show-modal"`; an undeclared opener is never activated. A tab list, menu,
+menu bar, list box, radio group, grid, tree or tree grid, native radio groups included, is one Tab stop, by a
+roving tabindex or `aria-activedescendant`, and its arrow keys move among its items along its orientation,
+reversed horizontally in right-to-left text (`composite-keyboard`). At rest and with each disclosure open,
+`aria-expanded="true"` must leave every `aria-controls` element rendered, a single-select tab list must have one
+selected tab whose panel alone is rendered (`aria-state`), and a navigation link to the current page carries
+`aria-current="page"` while no link elsewhere does (`aria-current`). Each of these rules is exemptible per
+element like the other element rules, on the opener, the widget or the link.
+
 The scrolling pass crosses one route per template and one story per component on an emulated touch phone with
 normal motion, by wheel gestures down to the end and back. The document must come to rest where each gesture
 left it (`scroll-hijack`): a page that snaps to sections or runs on past a gesture fails, while sticky pinning
 and scroll-driven animation, which leave the scroll position alone, pass. A heading, paragraph, quotation or
 caption not yet seen visible must not stay fully transparent 1.5 seconds after the document rests with it in
 the upper half of the view (`unrevealed-content`). It reports wheel gestures, not swipes; a project's own specifications cover its touch
-gestures and any reveal timing tighter than that bound.
+gestures and any reveal timing tighter than that bound. On the same sample it loads each page again with reduced
+motion emulated and nothing frozen, scrolls twice and opens the first safe disclosure, and fails content that moves
+(`reduced-motion`): an animation the step started, of a transform, inset, motion path or margin, lasting at least
+100 ms on an element of at least 48 by 48 px, other than on the activated control; a scroll-driven one; an element
+a script moves on every scroll; and `scroll-behavior: smooth` on a page with in-page links. Fades pass.
+
+After its reduced-motion keyboard walk, the interaction pass fails an element that presents as operable - a pointer
+cursor it sets itself, an interactive role or an inline `onclick` - when a pointer reaches it, the walk crossed the
+page without focusing it, and no reached control stands in: an operable ancestor or descendant, an entered
+composite widget or radio group, a reached link to the same address, or a label's focusable control
+(`pointer-only`). It dispatches a paste on every password field and every field whose `autocomplete` names a
+username, password or one-time code, and fails one that cancels it or a password field with `autocomplete="off"`
+(`paste-blocked`). Discovery and the resting pass fail a page that moves to another path or opens a window while
+it loads and settles without input (`unrequested-change`); HTTP redirects and same-path hash, query or history
+changes pass, and an immediate redirect belongs on the server.
 
 Authored Next.js `not-found` boundaries are scanned through their real application layouts, with concrete
 locale and dynamic prefixes taken from discovered routes. The expected top-level document 404 is allowed;
