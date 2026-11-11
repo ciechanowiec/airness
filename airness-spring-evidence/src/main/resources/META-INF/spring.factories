@@ -1,2 +1,5 @@
 org.springframework.boot.SpringApplicationRunListener=\
-eu.ciechanowiec.airness.spring.SpringContextEvidence
+eu.ciechanowiec.airness.spring.SpringContextEvidence,\
+eu.ciechanowiec.airness.spring.ServerErrorCapture
+org.springframework.test.context.TestExecutionListener=\
+eu.ciechanowiec.airness.spring.ServerErrorListener

@@ -16,8 +16,9 @@
     <name>airness-spring-evidence</name>
     <description>
         Test-scope runtime support that records when Spring Boot makes a consuming project's production
-        application ready. Spring Boot loads the listener from spring.factories, so a project receives
-        evidence without declaring an annotation, extension or listener of its own.
+        application ready, and fails a Spring test when the application logs an error the test did not
+        declare. Spring Boot and Spring Test load the listeners from spring.factories, so a project receives
+        both without declaring an extension or listener of its own.
 
         The Spring parent supplies this artifact at test scope. It never belongs in the application
         archive that ships.
@@ -62,6 +63,21 @@
         <dependency>
             <groupId>org.thymeleaf</groupId>
             <artifactId>thymeleaf-spring6</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -123,6 +139,11 @@
             <groupId>eu.ciechanowiec</groupId>
             <artifactId>airness-annotations</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

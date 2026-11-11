@@ -3712,6 +3712,28 @@
         </module>
         <module name="MatchXpath">
             <!--
+                Spring Test runs the listeners its factories name for every test context, and Airness puts one
+                of its own among them: the listener that fails a test on an error the application logged and
+                the test did not declare. A declaration that names its own listeners without merging them with
+                the defaults replaces every default, so that test would pass whatever the application reports,
+                and nothing about it would say the check had been switched off.
+            -->
+            <property name="id" value="AirnessSpringTestListenersMergeWithDefaults"/>
+            <property name="query"
+                      value="//ANNOTATION[(./IDENT[@text='TestExecutionListeners'] or ./DOT/IDENT[@text='TestExecutionListeners']) and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='mergeMode'] and .//IDENT[@text='MERGE_WITH_DEFAULTS']])]"/>
+            <message key="matchxpath.match"
+                     value="This declaration replaces Spring's default test listeners, among them the one that fails a test on an error the application logs without the test declaring it. Add mergeMode = MergeMode.MERGE_WITH_DEFAULTS."/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestListenersMergeWithDefaults"/>
+            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
+        </module>
+        <module name="SuppressionXpathSingleFilter">
+            <property name="id" value="AirnessSpringTestListenersMergeWithDefaults"/>
+            <property name="files" value="^(?!.*[/\\]src[/\\]test[/\\])"/>
+        </module>
+        <module name="MatchXpath">
+            <!--
                 With no script or statement Spring derives a resource name from the test class and method.
                 A Java rename then selects a different fixture without changing the annotation. The phase is
                 equally part of the fixture contract: it decides whether the data prepares or cleans a test.
