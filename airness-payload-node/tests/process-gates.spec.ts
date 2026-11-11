@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { GateResult } from '@airness/node/gate-result'
+import { asRecord } from '@airness/node/json-shapes'
 import { describe, expect, it } from 'vitest'
 import { payloadDefaults } from '@/gate-payload-defaults.js'
 import { payloadGenerated } from '@/gate-payload-generated.js'
@@ -223,6 +224,33 @@ describe('payload-defaults against a started probe', PROCESS_TIME, () => {
     expect(result.ok).toBe(false)
     expect(result.summary).toContain("inherit Payload's default access")
     expect(result.findings.join('\n')).toContain('collection "posts" leaves create, read, update, delete')
+  })
+
+  it('names an upload collection that stores its files on the local disk', () => {
+    const result: GateResult = payloadDefaults(
+      memberProbing(
+        'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false }\n' +
+          "export default { collections: [{ slug: 'media', upload: { staticDir: 'media' }, access: decided }], " +
+          'globals: [] }\n',
+      ),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.summary).toBe('1 upload storage defect(s)')
+    expect(result.findings.join('\n')).toContain(
+      'upload collection "media" stores its files on the server\'s local disk',
+    )
+  })
+
+  it('accepts an upload collection the project declares it keeps on the local disk', () => {
+    const root: string = memberProbing(
+      'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false }\n' +
+        "export default { collections: [{ slug: 'media', upload: true, access: decided }], globals: [] }\n",
+    ).member.root
+    const declared: unknown = {
+      ...asRecord(PAYLOAD_MANIFEST),
+      airnessPayload: { localStorage: [{ collection: 'media', reason: 'one server with a backed-up volume' }] },
+    }
+    expect(payloadDefaults(payloadMemberAt(root, declared)).ok).toBe(true)
   })
 
   it('names a security defect of the resolved configuration before its access findings', () => {

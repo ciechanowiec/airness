@@ -16,7 +16,7 @@ The Payload gates run through `airness:node-gate` like every node gate, bound by
 | `admin-views` | `post-integration-test` | Every custom admin view has an accessibility specification of the project's own. |
 | `payload-environment` | `post-integration-test` | Every variable `src/lib/environment.ts` reads is documented in the repository's example file, and every `NEXT_PUBLIC_` variable it inlines is declared by an `ARG` in each Dockerfile that builds the member. |
 | `payload-generated` | `post-integration-test` | Regenerating the Payload types, the admin import map and, when the member keeps `src/payload-generated-schema.ts`, the database schema with the project's own Payload CLI leaves them unchanged. |
-| `payload-defaults` | `post-integration-test` | Every collection and global of the built configuration, framework-built ones included, decides its access; no drafts read serves an unapproved document to a stranger; production authentication limits are valid; `admin.autoLogin` is off. |
+| `payload-defaults` | `post-integration-test` | Every collection and global of the built configuration, framework-built ones included, decides its access; no drafts read serves an unapproved document to a stranger; production authentication limits are valid; `admin.autoLogin` is off; no upload collection stores its files on the local disk unless `localStorage` declares it. |
 | `payload-migrations` | `post-integration-test` | The schema the configuration builds matches the newest `.json` snapshot the committed migrations record, compared as `payload migrate:create` compares it, without a database and without writing a file. |
 
 Run one gate with `pnpm exec airness-payload gate <id> --verbose` to diagnose it. That is a diagnosis, never a verdict.
@@ -35,7 +35,8 @@ under `airness`.
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `publicAccess` | empty | Entries with `entity`, `operation`, `reason` and optional `fields`, declaring the anonymous permissions the project grants on purpose. An entry missing a field is dropped. |
-| `analysisEnv` | placeholders for `PAYLOAD_SECRET` and `DATABASE_URL` | Variables the gates that import the configuration use when neither the process nor `.env.local`/`.env` supplies them. They let the configuration evaluate; nothing connects to them. |
+| `localStorage` | empty | Entries with `collection` and `reason`, naming the upload collections the project keeps on the server's local disk on purpose, such as a single server whose upload directory is a persistent, backed-up volume. An entry missing a field is dropped, and one naming no upload collection on the local disk is a finding. |
+| `analysisEnv` | placeholders for `PAYLOAD_SECRET` and `DATABASE_URL` | Variables the gates that import the configuration use when neither the process nor `.env.local`/`.env` supplies them, the node layer's `knip` among them. They let the configuration evaluate; nothing connects to them. |
 
 The layer contributes defaults to the node settings of every member that declares `@airness/payload`: the generated
 files (`src/payload-types.ts`, `src/payload-generated-schema.ts`, everything under `src/app/(payload)`, the
@@ -69,6 +70,10 @@ and the generic Airness approvals.
 - Write every handler a collection, global or root `endpoints:` entry serves in a module under `src/endpoints`,
   and import it there by a relative or `@/` path, so the endpoint rule above judges its calls. A handler written
   in place, or imported from `src/lib`, `src/hooks` or another alias, is refused.
+- Store every upload collection's files through a storage adapter, such as `@payloadcms/storage-s3` against an
+  S3-compatible service (RustFS for local development and verification), never on the server's local disk: a
+  replaced container loses those files and a second instance never sees them. Add each new upload collection to
+  the adapter's `collections`.
 - A required relationship or upload, on a collection or a global, needs a `beforeDelete` hook on its target
   collection that removes the dependants first, unless drafts are enabled on the holder.
 - A database adapter that does not push its schema needs a recorded migration for every schema change: after a

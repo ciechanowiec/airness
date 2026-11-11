@@ -39,6 +39,21 @@ describe('readPayloadSettings', () => {
     expect(settings.analysisEnv['PAYLOAD_SECRET']).toBeDefined()
   })
 
+  it('keeps no upload on the local disk by default, and reads the collections a project keeps there', () => {
+    expect(readPayloadSettings({}).localStorage).toStrictEqual([])
+    const settings: PayloadSettings = readPayloadSettings({
+      airnessPayload: {
+        localStorage: [
+          { collection: 'media', reason: 'one server with a backed-up volume' },
+          { collection: 'documents' },
+          { reason: 'no collection' },
+          'media',
+        ],
+      },
+    })
+    expect(settings.localStorage).toStrictEqual([{ collection: 'media', reason: 'one server with a backed-up volume' }])
+  })
+
   // The node gates read the placeholders from the layer's manifest, the Payload gates from these settings, so
   // knip and payload-defaults load the configuration in the same environment.
   it('names the same analysis placeholders the package manifest hands the node gates', () => {

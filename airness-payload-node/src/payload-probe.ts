@@ -26,6 +26,7 @@ import {
   QUERY_PRESETS_SLUG,
 } from './payload-defaults.js'
 import { payloadSecurityOf } from './payload-security.js'
+import { uploadStorageOf } from './payload-storage.js'
 
 // What Payload hands an access rule, cut down to the half a read of a stranger's turns on. A rule that reaches
 // for anything else throws, and a throw is reported rather than read as a denial.
@@ -121,5 +122,5 @@ export const inheritedAccessProbe = async (configFile: string, defaultAccessFile
     draftReads: [...(await draftReadsOf(collections, 'collection')), ...(await draftReadsOf(globals, 'global'))],
     globals: globals.map((global: unknown): InheritedAccessEntry => entryOf(global, 'global')),
   }
-  return `${INHERITED_ACCESS_REPORT_MARKER}${JSON.stringify({ ...report, ...payloadSecurityOf(config) })}`
+  return `${INHERITED_ACCESS_REPORT_MARKER}${JSON.stringify({ ...report, ...payloadSecurityOf(config), ...uploadStorageOf(config) })}`
 }

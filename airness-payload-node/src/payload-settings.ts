@@ -1,7 +1,7 @@
 // The facts a Payload member may declare under the `airnessPayload` key of its package.json. The node layer's
-// settings live under `airness`; these two exist only because Payload does, so they belong to this layer.
-// Every default is strict: a member that declares nothing grants no anonymous permission, and the analysis
-// placeholders are the two variables Payload itself requires.
+// settings live under `airness`; these exist only because Payload does, so they belong to this layer. Every
+// default is strict: a member that declares nothing grants no anonymous permission, keeps no upload on the local
+// disk, and the analysis placeholders are the two variables Payload itself requires.
 import { asRecord, asStringRecord, asText, isArray, readKey } from '@airness/node/json-shapes'
 
 /** The key of package.json a Payload member declares its Payload settings under. */
@@ -29,10 +29,23 @@ export interface PublicAccess {
   readonly fields?: readonly string[]
 }
 
+/**
+ * One upload collection a project keeps on the server's local disk on purpose, with the reason it does, such as
+ * a single server whose upload directory is a persistent, backed-up volume. An entry missing a field is dropped,
+ * which restores the finding rather than excusing a collection nobody chose to keep there.
+ */
+export interface LocalStorage {
+  /** The upload collection's slug. */
+  readonly collection: string
+  readonly reason: string
+}
+
 /** The Payload settings a gate reads, every field populated. */
 export interface PayloadSettings {
   /** The anonymous permissions the project grants on purpose. */
   readonly publicAccess: readonly PublicAccess[]
+  /** The upload collections the project keeps on the local disk on purpose. */
+  readonly localStorage: readonly LocalStorage[]
   /**
    * Placeholder environment for the gates that import the configuration without running the application. A
    * Payload configuration validates `process.env` at module scope, so it cannot load in a bare shell. The
@@ -68,6 +81,16 @@ const asPublicAccess = (raw: unknown): readonly PublicAccess[] =>
       })
     : []
 
+const asLocalStorage = (raw: unknown): readonly LocalStorage[] =>
+  isArray(raw)
+    ? raw.flatMap((entry: unknown): readonly LocalStorage[] => {
+        const record: Record<string, unknown> = asRecord(entry)
+        const collection: string = asText(record['collection']).trim()
+        const reason: string = asText(record['reason']).trim()
+        return collection.length > 0 && reason.length > 0 ? [{ collection, reason }] : []
+      })
+    : []
+
 /**
  * Read the Payload settings a member declared.
  * @param packageJson the member's parsed package.json.
@@ -77,6 +100,7 @@ export const readPayloadSettings = (packageJson: unknown): PayloadSettings => {
   const block: unknown = readKey(packageJson, PAYLOAD_SETTINGS_KEY)
   return {
     publicAccess: asPublicAccess(readKey(block, 'publicAccess')),
+    localStorage: asLocalStorage(readKey(block, 'localStorage')),
     analysisEnv: { ...DEFAULT_ANALYSIS_ENV, ...asStringRecord(readKey(block, 'analysisEnv')) },
   }
 }
