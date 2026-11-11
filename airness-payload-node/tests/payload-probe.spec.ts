@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { type InheritedAccessReport, parseInheritedAccessReport } from '@/payload-defaults.js'
 import { inheritedAccessProbe } from '@/payload-probe.js'
 import { parsePayloadSecurityReport } from '@/payload-security.js'
+import { parseUploadStorageReport } from '@/payload-storage.js'
 import { projectForTest } from './helpers/temporary-project.js'
 
 // A stand-in for Payload's default access and for a built configuration, as plain modules.
@@ -60,6 +61,21 @@ describe('inheritedAccessProbe', () => {
       "export default { collections: [{ slug: 'users', auth: { maxLoginAttempts: 5, lockTime: 600, tokenExpiration: 7200 } }], globals: [] }",
     )
     expect(parsePayloadSecurityReport(output)?.authentication[0]?.slug).toBe('users')
+  })
+
+  it('reports where each upload collection of the built configuration stores its files', async () => {
+    const output: string = await probeOf(
+      [
+        'export default { collections: [',
+        `  { slug: 'local', upload: true, access: ${decided} },`,
+        `  { slug: 'remote', upload: { disableLocalStorage: true }, access: ${decided} },`,
+        '], globals: [] }',
+      ].join('\n'),
+    )
+    expect(parseUploadStorageReport(output)?.uploadStorage).toStrictEqual([
+      { slug: 'local', local: true },
+      { slug: 'remote', local: false },
+    ])
   })
 
   it('refuses a module whose default export is no built configuration', async () => {

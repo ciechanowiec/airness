@@ -82,9 +82,9 @@ class StackConfinementTest {
             "README.adoc",
             Set.of(
                 NPM_PACKAGE, PRODUCT, WORD, PARENT, ASSETS_MODULE, NODE_MODULE, "agent-guide-payload.md",
-                "airnessPayload.publicAccess", "payload-blocklist", "payload-defaults", "payload-environment",
-                "payload-generated", "payload-migrations", "payload-source-rules", "payload-stack", "payload.sh",
-                "payloadcms.com"
+                "airnessPayload.publicAccess", "airnessPayload.localStorage", "payload-blocklist", "payload-defaults",
+                "payload-environment", "payload-generated", "payload-migrations", "payload-source-rules",
+                "payload-stack", "payload.sh", "payloadcms.com"
             ),
             "the Payload stack section: what it adds, how to attach it and how to remove it"
         ),
