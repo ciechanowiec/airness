@@ -78,13 +78,13 @@ final class ServerErrorRecord extends TurboFilter implements Thread.UncaughtExce
      * application it starts initializes logging, which removes every filter, so each run asks for this again.
      */
     void install() {
-        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        LoggerContext logging = (LoggerContext) LoggerFactory.getILoggerFactory();
         this.installing.lock();
         try {
-            if (!context.getTurboFilterList().contains(this)) {
-                this.setContext(context);
+            if (!logging.getTurboFilterList().contains(this)) {
+                this.setContext(logging);
                 this.start();
-                context.getTurboFilterList().addFirst(this);
+                logging.getTurboFilterList().addFirst(this);
             }
         } finally {
             this.installing.unlock();
