@@ -355,6 +355,7 @@ PY
         fail 'node gates: the registry starts against a lockfile not written yet' \
             "npm-registry.py ${lock_registry_outcome}; see ${lock_case}/missing.log"
     fi
+    run_repeated_fresh_case
     run_lock_refresh_cases
 }
 
@@ -501,6 +502,60 @@ start_lock_registry() {
     else
         lock_registry_outcome=refused
     fi
+}
+
+# A second --fresh adds its tarball to the ones before it rather than replacing them, so a build that names each
+# harness package with a flag of its own, as a stack layer's module does, serves every one. The second package is
+# the packed @airness/node renamed, so the registry has two names to answer for.
+run_repeated_fresh_case() {
+    repeated_case="${lock_case}/repeated"
+    mkdir -p "${repeated_case}"
+    python3 - "${packed_tarball}" "${repeated_case}/second.tgz" <<'PY'
+import io
+import json
+import sys
+import tarfile
+
+source, target = sys.argv[1:]
+with tarfile.open(source, 'r:gz') as archive:
+    contents = {member.name: archive.extractfile(member).read() for member in archive.getmembers() if member.isfile()}
+manifest = json.loads(contents['package/package.json'])
+manifest['name'] = '@airness/repeated-fixture'
+contents['package/package.json'] = (json.dumps(manifest, indent=2) + '\n').encode('utf-8')
+with tarfile.open(target, 'w:gz') as archive:
+    for name in sorted(contents):
+        entry = tarfile.TarInfo(name)
+        entry.size = len(contents[name])
+        archive.addfile(entry, io.BytesIO(contents[name]))
+PY
+    python3 "${repository}/airness-node/.airness/npm-registry.py" --port-file "${repeated_case}/registry.port" \
+        --fresh "${packed_tarball}" --fresh "${repeated_case}/second.tgz" > "${repeated_case}/registry.log" 2>&1 &
+    repeated_registry=$!
+    repeated_waited=0
+    while [ ! -s "${repeated_case}/registry.port" ] && kill -0 "${repeated_registry}" 2>/dev/null \
+        && [ "${repeated_waited}" -lt 30 ]; do
+        command sleep 1
+        repeated_waited=$((repeated_waited + 1))
+    done
+    if [ -s "${repeated_case}/registry.port" ] && python3 - "$(cat "${repeated_case}/registry.port")" \
+        '@airness%2fnode' '@airness%2frepeated-fixture' <<'PY'
+import sys
+import urllib.request
+
+port, *names = sys.argv[1:]
+for name in names:
+    with urllib.request.urlopen(f'http://127.0.0.1:{port}/{name}') as response:
+        if response.status != 200:
+            sys.exit(f'{name} answered {response.status}')
+PY
+    then
+        pass 'node gates: the registry serves the tarballs of every --fresh flag'
+    else
+        fail 'node gates: the registry serves the tarballs of every --fresh flag' \
+            "a package named by one of two --fresh flags was not served; see ${repeated_case}/registry.log"
+    fi
+    kill "${repeated_registry}" 2>/dev/null || true
+    wait "${repeated_registry}" 2>/dev/null || true
 }
 
 # Every Default gate airness-parent binds that applies to every node project, in the order the result files are

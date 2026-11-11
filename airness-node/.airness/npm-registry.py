@@ -15,6 +15,9 @@ package keeps the registry it is installed from and every other request is answe
                     [--npmrc <file> --scope <scope>] [--lockfile <pnpm-lock.yaml>]
     npm-registry.py --refresh-with <pnpm> --lockfile <pnpm-lock.yaml> --fresh <tarball> ...
 
+Every --fresh and --old adds the tarballs after it to the ones named before, so `--fresh a b` and
+`--fresh a --fresh b` serve the same two.
+
 With --npmrc it writes the scope line naming the bound port into that file before the port file, so a build that
 waits for the port file finds the configuration already in place. --npmrc needs --scope.
 
@@ -228,8 +231,10 @@ def parse_arguments():
     where.add_argument('--port', type=int)
     where.add_argument('--port-file')
     where.add_argument('--refresh-with', help='the pnpm with which to refresh a stale --lockfile, serving nothing')
-    parser.add_argument('--fresh', nargs='+', default=[], help='tarballs dated now')
-    parser.add_argument('--old', nargs='*', default=[], help='tarballs dated years back')
+    # Each occurrence adds its tarballs to the ones named before it, so one flag per tarball and one flag before
+    # several name the same set.
+    parser.add_argument('--fresh', nargs='+', action='extend', default=[], help='tarballs dated now')
+    parser.add_argument('--old', nargs='*', action='extend', default=[], help='tarballs dated years back')
     parser.add_argument('--npmrc', help='the .npmrc to write the scope line into once the port is bound')
     parser.add_argument('--scope', help='the scope the .npmrc routes here, such as @airness')
     parser.add_argument('--lockfile', help='the pnpm-lock.yaml whose integrity each --fresh tarball must match')
