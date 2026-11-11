@@ -48,11 +48,34 @@ class IgnorePatternCheckTest {
     }
 
     @Test
-    void namesARepeatedNegationOnlyWhenNoExclusionStandsBetween() {
+    void namesARepeatPastANegationThatReachesNothingItExcludes() {
         assertEquals(
-            List.of(".gitignore:4: !keep.log - repeats .gitignore:2" + SAME_FILE),
+            List.of(".gitignore:4: *.iml - repeats .gitignore:1" + SAME_FILE),
+            rootOffences(
+                "ignore-unreachable-negation", "*.iml\n!.vscode/settings.json\n!/.idea/runConfigurations\n*.iml\n"
+            )
+        );
+    }
+
+    @Test
+    void keepsARepeatANegationBetweenThemMightReverse() {
+        assertEquals(List.of(), rootOffences("ignore-glob-negation", "*.log\n!**/keep*\n*.log\n"));
+    }
+
+    @Test
+    void namesARepeatedNegationPastAnExclusionThatCannotReachIt() {
+        assertEquals(
+            List.of(
+                ".gitignore:4: !keep.log - repeats .gitignore:2" + SAME_FILE,
+                ".gitignore:6: !other.log - repeats .gitignore:3" + SAME_FILE
+            ),
             rootOffences("ignore-negations", "*.log\n!keep.log\n!other.log\n!keep.log\n*.tmp\n!other.log\n")
         );
+    }
+
+    @Test
+    void keepsARepeatedNegationAnExclusionBetweenThemCouldReverse() {
+        assertEquals(List.of(), rootOffences("ignore-negation-reversed", "!keep.log\n*.log\n!keep.log\n"));
     }
 
     @Test

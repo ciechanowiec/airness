@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -53,24 +54,44 @@ record IgnoreFile(String path, String directory, List<IgnorePattern> patterns) {
      */
     static IgnoreFile parse(String path, String content) {
         List<String> lines = List.of(content.split("\n", -1));
-        int slash = path.lastIndexOf(SEPARATOR);
-        String directory = slash < 0 ? "" : path.substring(0, slash);
         List<IgnorePattern> patterns = IntStream.range(0, lines.size())
             .mapToObj(index -> new IgnorePattern(path, index + 1, pattern(lines.get(index)), block(lines, index)))
             .filter(pattern -> !pattern.text().isEmpty() && !pattern.text().startsWith(COMMENT))
             .toList();
-        return new IgnoreFile(path, directory, patterns);
+        return new IgnoreFile(path, directoryOf(path), patterns);
     }
 
     /**
-     * Whether this file stands in a directory above another one, where git applies its patterns too.
+     * The directory a file of the working tree stands in.
      *
-     * @param other another ignore file
-     * @return whether this file's directory holds the other's
+     * @param path the file, relative to the working tree root and separated by forward slashes
+     * @return the directory, relative to the root and empty for the root itself
      */
-    boolean above(IgnoreFile other) {
-        return !this.directory.equals(other.directory)
-            && (this.directory.isEmpty() || other.directory.startsWith(this.directory + SEPARATOR));
+    static String directoryOf(String path) {
+        int slash = path.lastIndexOf(SEPARATOR);
+        return slash < 0 ? "" : path.substring(0, slash);
+    }
+
+    /**
+     * The patterns of the {@code .gitignore} files in the directories above a path, in the order git applies them:
+     * the root first, then each deeper directory.
+     *
+     * @param path       a path, relative to the working tree root and separated by forward slashes
+     * @param gitIgnores the {@code .gitignore} files of the working tree
+     * @return the patterns git applies to the path before any file in the path itself
+     */
+    static List<IgnorePattern> above(String path, List<IgnoreFile> gitIgnores) {
+        return gitIgnores.stream()
+            .filter(candidate -> candidate.holds(path))
+            .sorted(Comparator.comparingInt(candidate -> candidate.directory().length()))
+            .flatMap(candidate -> candidate.patterns().stream())
+            .toList();
+    }
+
+    // Whether this file stands in a directory above the path, so that git applies its patterns to that path.
+    private boolean holds(String path) {
+        return !this.directory.equals(path)
+            && (this.directory.isEmpty() || path.startsWith(this.directory + SEPARATOR));
     }
 
     private static String pattern(String line) {

@@ -55,9 +55,13 @@ Airness governs all of the following domains:
   per stack, the lines below the blocks belong to the project, and each declared node project carries the node
   files in its own directory. No ignore file repeats a pattern an earlier declaration already applies: a line
   equal to an earlier line of its own file, or an un-anchored `.gitignore` line (no slash but a trailing one) equal
-  to a line of a `.gitignore` in a directory above, with no negation between them that could reverse it. A
-  managed line counts as declared, so remove the project's copy; a Docker ignore file is compared with itself
-  alone. The editor
+  to a line of a `.gitignore` in a directory above, with no line of the other polarity between them that could
+  reverse it. In a `.gitignore` only a line that may match a path the pattern matches can, so a
+  `!.vscode/settings.json` between two `*.iml` lines keeps neither; in a Docker ignore file any line of the other
+  polarity does. A managed line counts as declared, so remove the project's copy; a Docker ignore file is compared
+  with itself alone. No `.gitignore` negation sits beneath a directory an exclusion hides, because git never looks
+  inside an excluded directory: exclude the directory's contents (`.vscode/*`) rather than the directory when a
+  file in it is to be kept. The editor
   configuration is held against the files a commit would carry, so what git is configured to ignore is passed over
   rather than reported: build output and a tool's scratch are not content this style governs. Neither is a
   generated file, which is a file a stack layer, `airness.generated.files` or a node project's
