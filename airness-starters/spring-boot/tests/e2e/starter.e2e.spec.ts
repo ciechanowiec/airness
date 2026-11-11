@@ -23,13 +23,16 @@ const open = async (page: Page, address: string): Promise<Locator> => {
   return page.locator('main')
 }
 
-// A user of this run's own, admitted by the administrator and signed in with the password chosen here.
+// A user of this run's own, admitted by the administrator and signed in with the password chosen here. The
+// name is the run's own too, because the list of users links each name to its account, and two links of one
+// name that lead to different accounts fail the accessibility scan.
 const admitUser = async (page: Page): Promise<{ readonly email: string; readonly secret: string }> => {
-  const email: string = `reader-${randomUUID()}@starter.test`
+  const reference: string = randomUUID()
+  const email: string = `reader-${reference}@starter.test`
   const secret: string = `Reader-${randomUUID()}`
   await signIn(page, ADMINISTRATOR, CREDENTIAL)
   await page.goto('/users/new')
-  await page.locator('input[name="profile.fullName"]').fill('Sweep reader')
+  await page.locator('input[name="profile.fullName"]').fill(`Sweep reader ${reference}`)
   await page.locator('input[name="profile.email"]').fill(email)
   await page.locator('select[name="role"]').selectOption('USER')
   await page.locator('input[name="password"]').fill(secret)
@@ -78,8 +81,19 @@ test('the pages a user works in pass the scans', async ({ page }) => {
   const edit: string | null = await page.locator('a[href^="/tasks/"][href$="/edit"]').first().getAttribute('href')
   await expect(await open(page, edit ?? '')).toBeVisible()
   await expectSweptPage(page)
-  await page.locator('button[data-opens="delete-task"]').click()
-  await expect(page.locator('#delete-task')).toBeVisible()
+  // The sweep reaches no page behind the sign-in form, so the keyboard pattern of the dialog is held here: the
+  // keyboard opens it with focus inside, and Escape closes it and hands focus back to the button that opened it.
+  const opener: Locator = page.locator('button[data-opens="delete-task"]')
+  const dialog: Locator = page.locator('#delete-task')
+  await opener.focus()
+  await page.keyboard.press('Enter')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator(':focus')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(opener).toBeFocused()
+  await opener.click()
+  await expect(dialog).toBeVisible()
   await expectSweptPage(page)
 })
 

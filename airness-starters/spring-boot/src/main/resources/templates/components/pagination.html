@@ -13,7 +13,7 @@
     <p th:text="#{pagination.page(${page}, ${pages})}">Page 1 of 1</p>
     <div class="flex gap-2">
         <a
-            class="btn btn-sm"
+            class="btn"
             th:classappend="${page <= 1} ? 'btn-disabled' : ''"
             th:href="@{|${target}?page=${page - 1}${query}|}"
             th:attr="aria-disabled=${page <= 1} ? 'true' : null"
@@ -21,7 +21,7 @@
             >Previous</a
         >
         <a
-            class="btn btn-sm"
+            class="btn"
             th:classappend="${page >= pages} ? 'btn-disabled' : ''"
             th:href="@{|${target}?page=${page + 1}${query}|}"
             th:attr="aria-disabled=${page >= pages} ? 'true' : null"

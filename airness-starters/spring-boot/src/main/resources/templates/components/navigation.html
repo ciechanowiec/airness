@@ -1,0 +1,14 @@
+<!--/*
+    One link of the navigation every page carries. The link that leads to the page being drawn says so
+    with aria-current, which is read out and which daisyUI draws as a pressed button, so a reader knows
+    where they are. The page is compared by its path and query, the way the shell hands it over.
+*/-->
+<a
+    th:fragment="link(address, label)"
+    class="btn btn-ghost"
+    th:href="@{${address}}"
+    th:attr="aria-current=${here == address} ? 'page' : null"
+    th:text="${label}"
+    xmlns:th="http://www.thymeleaf.org"
+    >Tasks</a
+>

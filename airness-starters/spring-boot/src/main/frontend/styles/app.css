@@ -14,3 +14,52 @@
 @plugin "daisyui" {
     exclude: svg;
 }
+/*
+ * The light theme, held to WCAG 2.2 AAA. Every coloured surface carries its text at 7:1 at least: white
+ * on the primary and error colours, which are dark enough to carry it, and a darker text on the light
+ * success, information and warning colours. The error colour also draws a focus ring and the border of an
+ * invalid field, which it does at more than 3:1. A field is 0.3rem a step, so a button, an input and
+ * a select of the default size are 48 CSS pixels high, above the 44 every pointer target is held to; the
+ * templates use no smaller size.
+ */
+@plugin "daisyui/theme" {
+    name: "light";
+    default: true;
+    color-scheme: light;
+    --color-primary-content: oklch(1 0 0);
+    --color-success-content: oklch(0.2 0.05 168);
+    --color-info-content: oklch(0.2 0.05 243);
+    --color-warning-content: oklch(0.25 0.08 46);
+    --color-error: oklch(0.45 0.18 27);
+    --color-error-content: oklch(1 0 0);
+    --size-field: 0.3rem;
+}
+
+/*
+ * A paragraph is held to a measure, so no line of it runs past the 80 characters WCAG 2.2 AAA allows,
+ * whatever the width of the card it stands in.
+ */
+@layer base {
+    p {
+        max-width: 60ch;
+    }
+}
+
+/*
+ * daisyUI draws the head of a table and the title of a stat in the text colour mixed down to 60%, which
+ * is below the 7:1 contrast normal-sized text is held to, so both are drawn in the text colour itself.
+ */
+.table :where(thead, tfoot),
+.stat-title {
+    color: var(--color-base-content);
+}
+
+/*
+ * A dialog grows and slides into place as it opens. A reader who asked their system for reduced motion
+ * sees it fade in instead.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .modal-box {
+        transition-property: opacity, box-shadow;
+    }
+}
