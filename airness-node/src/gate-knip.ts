@@ -10,11 +10,15 @@
 // declared public interface among them, the files a stack layer's framework runs and those the project declares,
 // and judges the exports and files under the production source roots, so an export or a production file that only
 // tests and tooling reach fails too.
+//
+// knip's framework plugins import the configuration files they read, and a framework's configuration may validate
+// its environment as it loads. Both runs therefore carry the analysis placeholders the declared layers name, under
+// the member's environment files and the process's own values, so a clean checkout loads without supplying them.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { localEnvironment } from './environment-files.js'
+import { analysisEnvironment } from './environment-files.js'
 import { fromRun, type RunResult, runNode } from './exec.js'
 import {
   JAVASCRIPT_EXTENSIONS,
@@ -27,7 +31,7 @@ import { failed, type GateResult, withOutput } from './gate-result.js'
 import { HARNESS_PACKAGE, isHarnessPackage, SHIPPED_SPEC_SOURCES } from './harness-packages.js'
 import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
-import { LAYER_NAMES } from './layer.js'
+import { LAYER_NAMES, layerAnalysisEnvironmentFor } from './layer.js'
 import { harnessDirectory, type Member, readJson, resolveTool, writeJson } from './project.js'
 import { type DeclaredExclusion, isHonouredExclusion, PRODUCTION_ENTRIES_SETTING, retiredSettings } from './settings.js'
 import { allowedJavaScriptFiles, memberFiles } from './source-selection.js'
@@ -216,19 +220,26 @@ const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs
   return rendered
 }
 
-const runKnip = (member: Member, config: string, options: readonly string[]): RunResult =>
+/** What one knip run is handed: the member, its rendered configurations and the environment its plugins load in. */
+interface KnipRun {
+  readonly member: Member
+  readonly configs: RenderedConfigs
+  readonly environment: Readonly<Record<string, string>>
+}
+
+const runKnip = (run: KnipRun, config: string, options: readonly string[]): RunResult =>
   runNode(resolveTool('knip'), ['--config', config, '--no-progress', ...options], {
-    cwd: member.root,
-    env: localEnvironment(member.root),
+    cwd: run.member.root,
+    env: run.environment,
   })
 
 const PRODUCTION_REPAIR: string =
   'Production run: these exports and production files are reached only from tests or tooling. Test each through ' +
   'the production code that uses it, or remove it.'
 
-const productionResult = (member: Member, configs: RenderedConfigs): GateResult => {
+const productionResult = (run: KnipRun): GateResult => {
   const result: GateResult = fromRun(
-    runKnip(member, configs.production, ['--production', '--include', PRODUCTION_ISSUE_TYPES]),
+    runKnip(run, run.configs.production, ['--production', '--include', PRODUCTION_ISSUE_TYPES]),
     'no export or production file only tests reach',
     'an export or a production file only tests reach was found',
   )
@@ -287,14 +298,14 @@ const retiredVerdict = (member: Member): readonly GateResult[] => {
   return retired.length > 0 ? [failed('the project declares a setting the harness no longer reads', retired)] : []
 }
 
-const verdict = (member: Member, configs: RenderedConfigs): GateResult =>
+const verdict = (run: KnipRun): GateResult =>
   combined(
     fromRun(
-      runKnip(member, configs.config, []),
+      runKnip(run, run.configs.config, []),
       'no dead code or unused dependency',
       'dead code or an unused dependency was found',
     ),
-    [productionResult(member, configs), ...retiredVerdict(member)],
+    [productionResult(run), ...retiredVerdict(run.member)],
   )
 
 /**
@@ -310,8 +321,12 @@ export const knip = (member: Member, layers: readonly string[] = LAYER_NAMES): G
     return failed('a declared production entry point names a test', refused)
   }
   const configs: RenderedConfigs = knipConfigs(member, layers)
+  const environment: Readonly<Record<string, string>> = analysisEnvironment(
+    member.root,
+    layerAnalysisEnvironmentFor(member.root, member.packageJson, readJson, layers),
+  )
   try {
-    return withDeclaredEntries(member, verdict(member, configs))
+    return withDeclaredEntries(member, verdict({ member, configs, environment }))
   } finally {
     rmSync(configs.directory, { recursive: true, force: true })
   }

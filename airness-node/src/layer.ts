@@ -7,7 +7,7 @@ import { existsSync, readdirSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { isJavascriptRuntime, type RuntimeRole } from './javascript-runtimes.js'
-import { asRecord, asText, declaredDependencies, isArray } from './json-shapes.js'
+import { asRecord, asStringRecord, asText, declaredDependencies, isArray, isRecord, readKey } from './json-shapes.js'
 import type { LayerDefaults } from './settings.js'
 
 /**
@@ -147,6 +147,57 @@ export const layerTestDependenciesFor = (
     ),
   ),
 ]
+
+const isStringMap = (value: unknown): value is Readonly<Record<string, string>> =>
+  isRecord(value) &&
+  !isArray(value) &&
+  Object.values(value).every((entry: unknown): boolean => typeof entry === 'string')
+
+// The placeholders one layer contributes: its own defaults, then those the member names under the settings key
+// the layer gives, which belong to the layer's settings rather than the node layer's.
+const analysisEnvironmentOf = (layer: LayerPackage, packageJson: unknown): Readonly<Record<string, string>> => {
+  const value: unknown = layerBlock(layer.manifest)['analysisEnvironment']
+  if (value === undefined) {
+    return {}
+  }
+  const defaults: unknown = readKey(value, 'defaults')
+  const settingsKey: unknown = readKey(value, 'projectSettings')
+  if (!(isStringMap(defaults) && (settingsKey === undefined || typeof settingsKey === 'string'))) {
+    throw new TypeError(
+      `The stack layer ${layer.name} must name airness.layer.analysisEnvironment as defaults, a map of variable ` +
+        'names to values, and optionally projectSettings, the key of the settings that extend them',
+    )
+  }
+  const declared: Record<string, string> =
+    settingsKey === undefined ? {} : asStringRecord(readKey(readKey(packageJson, settingsKey), 'analysisEnv'))
+  return { ...defaults, ...declared }
+}
+
+/**
+ * The placeholder environment the declared layers' frameworks need for a configuration to evaluate when a tool
+ * imports it without running the application, as knip does to read a framework's configuration. A layer names its
+ * defaults under `airness.layer.analysisEnvironment.defaults` and, under `projectSettings`, the key of the
+ * member's package.json whose `analysisEnv` map extends them. The values are inert: nothing connects to them.
+ * @param directory the member's directory.
+ * @param packageJson the member's parsed package.json.
+ * @param readManifest how a manifest file is read.
+ * @param layers the packages read as layers, the registered ones unless a caller names others.
+ * @returns the variables, later layers over earlier ones.
+ * @throws {TypeError} when a layer names the seam in a shape it cannot use.
+ */
+export const layerAnalysisEnvironmentFor = (
+  directory: string,
+  packageJson: unknown,
+  readManifest: (file: string) => unknown,
+  layers: readonly string[] = LAYER_NAMES,
+): Readonly<Record<string, string>> =>
+  layerPackagesFor(directory, packageJson, readManifest, layers).reduce<Readonly<Record<string, string>>>(
+    (environment: Readonly<Record<string, string>>, layer: LayerPackage): Readonly<Record<string, string>> => ({
+      ...environment,
+      ...analysisEnvironmentOf(layer, packageJson),
+    }),
+    {},
+  )
 
 // A seam the layer's manifest names: undefined when it names none, and refused, never passed over, when it
 // names one in a shape the seam cannot use, since a harness seam that falls back silently fails open.

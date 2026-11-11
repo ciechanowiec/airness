@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { asRecord, readKey } from '@airness/node/json-shapes'
 import { describe, expect, it } from 'vitest'
 import { type PayloadSettings, readPayloadSettings } from '@/payload-settings.js'
 
@@ -35,6 +37,15 @@ describe('readPayloadSettings', () => {
     expect(settings.analysisEnv['SMTP_HOST']).toBe('localhost')
     expect(settings.analysisEnv['BROKEN']).toBeUndefined()
     expect(settings.analysisEnv['PAYLOAD_SECRET']).toBeDefined()
+  })
+
+  // The node gates read the placeholders from the layer's manifest, the Payload gates from these settings, so
+  // knip and payload-defaults load the configuration in the same environment.
+  it('names the same analysis placeholders the package manifest hands the node gates', () => {
+    const manifest: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    const seam: unknown = readKey(readKey(readKey(manifest, 'airness'), 'layer'), 'analysisEnvironment')
+    expect(asRecord(readKey(seam, 'defaults'))).toStrictEqual(readPayloadSettings({}).analysisEnv)
+    expect(readKey(seam, 'projectSettings')).toBe('airnessPayload')
   })
 
   it('reads a malformed block as the defaults', () => {

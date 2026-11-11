@@ -393,9 +393,11 @@ describe('knip', PROCESS_TIME, () => {
         ...MANIFEST,
         devDependencies: { ...asRecordOf(MANIFEST['devDependencies']), [LAYER]: '2.0.0' },
       }
+      // Installed, as a declared layer always is by the time a gate runs: the layer seams read it from there.
       const root: string = temporaryProject({
         ...CONFORMING,
         'package.json': `${JSON.stringify(layered, null, JSON_INDENT)}\n`,
+        [`node_modules/${LAYER}/package.json`]: JSON.stringify({ name: LAYER, version: '2.0.0' }),
       })
       try {
         expect(knip(memberAt(root, layered), [LAYER]).findings).toEqual([])

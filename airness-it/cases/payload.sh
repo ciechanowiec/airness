@@ -256,18 +256,26 @@ with open(import_map, 'a', encoding='utf-8') as stream:
 PY
 }
 
-run_payload_cases() {
-    prepare_payload_packages
-    start_airness_node_registry "${payload_package}" "${payload_mismatched_package}"
-    # The variables a Payload configuration validates when it is imported, which a verifying workflow supplies.
-    # The knip gate's Payload plugin imports the configuration with the process environment alone, so the nested
-    # builds carry inert placeholders: nothing connects to them.
+# The variables a Payload configuration validates when it is imported, inert placeholders nothing connects to.
+# The Payload CLI the site preparation runs and the browser check's application read them from the process.
+export_payload_placeholders() {
     PAYLOAD_SECRET=airness-it-placeholder
     DATABASE_URL=postgres://127.0.0.1:5432/airness-it
     export PAYLOAD_SECRET DATABASE_URL
+}
+
+run_payload_cases() {
+    prepare_payload_packages
+    start_airness_node_registry "${payload_package}" "${payload_mismatched_package}"
+    export_payload_placeholders
 
     prepare_payload_site
+    # The conforming build carries none of them: the Payload layer hands its analysis placeholders to the gates
+    # that import the configuration, knip's Payload plugin among them, so a clean checkout verifies without a
+    # workflow supplying them.
+    unset PAYLOAD_SECRET DATABASE_URL
     run_maven payload_site payload "${payload_site}" clean verify
+    export_payload_placeholders
     expect_exit payload_site 'payload: the conforming application passes mvn clean verify' 0
     for gate in ${payload_gates}; do
         expect_match payload_site "payload: ${gate} runs through node-gate and passes" "Node gate ${gate} in [.] passed"

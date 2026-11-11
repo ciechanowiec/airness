@@ -2,7 +2,13 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { localEnvironment, portOf, RUN_ENVIRONMENT_FILES, runEnvironmentFiles } from '@/environment-files.js'
+import {
+  analysisEnvironment,
+  localEnvironment,
+  portOf,
+  RUN_ENVIRONMENT_FILES,
+  runEnvironmentFiles,
+} from '@/environment-files.js'
 
 // A real (not mocked) isExistingFile backed by a set of known paths - the pure core takes it as a value,
 // which is exactly why no test double is needed.
@@ -28,6 +34,25 @@ describe('runEnvironmentFiles', () => {
       rmSync(directory, { recursive: true, force: true })
     }
   })
+  it('puts the process before the environment files, and both before the analysis placeholders', () => {
+    const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-analysis-environment-'))
+    try {
+      writeFileSync(path.join(directory, '.env'), 'FROM_FILE=file\nSHARED=file\n')
+      const placeholders: Readonly<Record<string, string>> = {
+        SHARED: 'placeholder',
+        FROM_PROCESS: 'placeholder',
+        ONLY_PLACEHOLDER: 'placeholder',
+      }
+      expect(analysisEnvironment(directory, placeholders, { FROM_PROCESS: 'process' })).toStrictEqual({
+        SHARED: 'file',
+        ONLY_PLACEHOLDER: 'placeholder',
+        FROM_FILE: 'file',
+      })
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
   it('reads nothing when the project keeps no environment file', () => {
     expect(filesPresent([])).toEqual([])
   })
