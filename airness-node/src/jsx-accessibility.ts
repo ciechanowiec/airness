@@ -14,6 +14,12 @@ export const JSX_ACCESSIBILITY_RULES: readonly JsxAccessibilityRule[] = [
     oxlint: 'jsx-a11y/alt-text',
     biome: 'useAltText',
   },
+  // 2.4.9 Link Purpose (Link Only): "click here", "here", "link", "a link" and "learn more" name no
+  // purpose. Biome's counterpart reads the same default words.
+  {
+    oxlint: 'jsx-a11y/anchor-ambiguous-text',
+    biome: 'noAmbiguousAnchorText',
+  },
   {
     oxlint: 'jsx-a11y/anchor-has-content',
     biome: 'useAnchorContent',

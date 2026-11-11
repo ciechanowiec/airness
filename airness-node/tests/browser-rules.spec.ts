@@ -3,6 +3,7 @@ import type { CandidateFinding } from '@/browser-exemptions'
 import {
   type DisclosureProbe,
   disclosureDefects,
+  type FocusArea,
   type FocusPosition,
   findUnloadedFonts,
   hasContrastingFocus,
@@ -10,6 +11,7 @@ import {
   instability,
   isFocusBackwards,
   obscuringContent,
+  requiredFocusArea,
   restingCandidates,
 } from '@/browser-rules'
 import type { FontFaceFacts, LayoutNode, LayoutSnapshot, MediaFacts } from '@/layout-snapshot'
@@ -254,13 +256,13 @@ const placed = (top: number, left: number, changes: Partial<FocusPosition> = {})
 
 // Whether one pixel changing from `unfocused` to `focused` is a contrasting focus change.
 const isContrastingChange = (unfocused: readonly number[], focused: readonly number[]): boolean =>
-  hasContrastingFocus({ unfocused, focused, scale: 1, extent: 2 })
+  hasContrastingFocus({ unfocused, focused, scale: 1, required: 1 })
 
 const pixels = (count: number, colour: readonly number[]): readonly number[] =>
   Array.from({ length: count }, (): readonly number[] => colour).flat()
 
 describe('focus and disclosures', () => {
-  it('reports a focused element only when every sample of it is covered', () => {
+  it('reports a focused element any part of which is covered, and whether all of it is', () => {
     expect([
       obscuringContent([
         { isCovered: true, coveredBy: 'header.site' },
@@ -269,9 +271,19 @@ describe('focus and disclosures', () => {
       obscuringContent([
         { isCovered: true, coveredBy: 'header.site' },
         { isCovered: false, coveredBy: '' },
+        { isCovered: true, coveredBy: 'div#cookies' },
+      ]),
+      obscuringContent([
+        { isCovered: false, coveredBy: '' },
+        { isCovered: false, coveredBy: '' },
       ]),
       obscuringContent([]),
-    ]).toEqual(['header.site', undefined, undefined])
+    ]).toEqual([
+      { coveredBy: 'header.site', isEntire: true },
+      { coveredBy: 'header.site, div#cookies', isEntire: false },
+      undefined,
+      undefined,
+    ])
   })
 
   it('reads a focus indicator from any differing pixel', () => {
@@ -298,7 +310,7 @@ describe('focus and disclosures', () => {
     ]).toEqual([true, true, false, true, true, false])
   })
 
-  it('accepts a focus change whose contrasting pixels cover a line along half the longer side', () => {
+  it('accepts a focus change whose contrasting pixels cover the required area, counted in CSS pixels', () => {
     const white: readonly number[] = [255, 255, 255, 255]
     const unfocused: readonly number[] = pixels(20, white)
     // Ten of twenty pixels turn dark blue (contrast 8.6:1), the rest stay white.
@@ -306,11 +318,21 @@ describe('focus and disclosures', () => {
     // Every pixel turns a pale grey (contrast 1.1:1).
     const tint: readonly number[] = pixels(20, [243, 244, 246, 255])
     expect([
-      hasContrastingFocus({ unfocused, focused: ring, scale: 1, extent: 20 }),
-      hasContrastingFocus({ unfocused, focused: ring, scale: 1, extent: 21 }),
-      hasContrastingFocus({ unfocused, focused: ring, scale: 2, extent: 20 }),
-      hasContrastingFocus({ unfocused, focused: tint, scale: 1, extent: 2 }),
+      hasContrastingFocus({ unfocused, focused: ring, scale: 1, required: 10 }),
+      hasContrastingFocus({ unfocused, focused: ring, scale: 1, required: 10.5 }),
+      hasContrastingFocus({ unfocused, focused: ring, scale: 2, required: 10 }),
+      hasContrastingFocus({ unfocused, focused: tint, scale: 1, required: 1 }),
     ]).toEqual([true, false, false, false])
+  })
+
+  it("asks an author's indicator for the 2px perimeter, and the browser's own ring for a line along half a side", () => {
+    const area: FocusArea = { perimeter: 624, extent: 120 }
+    expect([
+      requiredFocusArea(area, 'solid'),
+      requiredFocusArea(area, 'none'),
+      requiredFocusArea(area, 'dashed'),
+      requiredFocusArea(area, 'auto'),
+    ]).toEqual([624, 624, 624, 60])
   })
 
   it('reports focus moving entirely above the previous element in the same landmark', () => {
@@ -342,27 +364,23 @@ describe('focus and disclosures', () => {
     ]).toEqual([false, false, false])
   })
 
-  it('holds a popup and a modal dialog to Escape and focus return, and an accordion to neither', () => {
+  it('holds a popup to Escape and focus return, and an accordion to neither', () => {
     const probe: DisclosureProbe = {
       wasOpened: true,
       isPopup: true,
       closedOnEscape: true,
       focusReturned: true,
-      isModal: false,
-      focusTrapped: false,
     }
     expect([
       disclosureDefects(probe),
       disclosureDefects({ ...probe, closedOnEscape: false }),
       disclosureDefects({ ...probe, focusReturned: false }),
-      disclosureDefects({ ...probe, isPopup: false, isModal: true }),
-      disclosureDefects({ ...probe, isPopup: false, closedOnEscape: false }),
+      disclosureDefects({ ...probe, isPopup: false, closedOnEscape: false, focusReturned: false }),
       disclosureDefects({ ...probe, wasOpened: false }),
     ]).toEqual([
       [],
       ['Escape does not close it'],
       ['focus does not return to its control after Escape'],
-      ['focus leaves the open modal dialog while tabbing'],
       [],
       ['activation did not open the disclosure'],
     ])

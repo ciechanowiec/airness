@@ -279,6 +279,9 @@ body {
     position: absolute;
     top: 8px;
     left: 8px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
     padding: 8px 16px;
     background: #fff;
     color: #111827;
@@ -309,7 +312,10 @@ main {
 }
 
 .links a {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    min-width: 44px;
+    min-height: 44px;
     padding: 12px 0;
     transition:
         color 120ms ease-out,
@@ -324,7 +330,7 @@ form {
 
 input,
 button {
-    min-height: 32px;
+    min-height: 44px;
 }
 CSS
     java_web_port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"

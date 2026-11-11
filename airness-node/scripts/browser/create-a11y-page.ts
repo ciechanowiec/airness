@@ -84,12 +84,15 @@ writeFileSync(
     '',
   ].join('\n'),
 )
+// Every pointer target a fixture page draws is at least 44 CSS pixels on each side, the WCAG 2.5.5 size the
+// sweep's axe scan measures, so a page built on this case fails only for the defect it plants.
 writeFileSync(
   path.join(appRoot, 'globals.css'),
   [
     'body { background: white; color: black; font-family: sans-serif; }',
     'main { padding: 2rem; }',
-    'input, button { display: block; min-width: 100px; min-height: 32px; margin: 24px; }',
+    'input, button { display: block; min-width: 100px; min-height: 44px; margin: 24px; }',
+    'a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }',
     '',
   ].join('\n'),
 )

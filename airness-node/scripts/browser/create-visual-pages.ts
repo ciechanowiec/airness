@@ -8,6 +8,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import path from 'node:path'
+import { ARIA_COMPONENTS, ARIA_PAGES, ARIA_STYLES } from '#browser/aria-components'
+import { AXE_PAGES, AXE_STYLES, ORIENTATION_PAGE, ORIENTATION_ROUTE, ORIENTATION_STYLES } from '#browser/axe-pages'
+import { PINNED_PAGES, PINNED_STYLES, pinnedModule } from '#browser/focus-pages'
+import { INTERACTION_COMPONENTS, INTERACTION_PAGES, INTERACTION_STYLES } from '#browser/interaction-components'
 import { SCROLL_COMPONENTS, SCROLL_PAGES, SCROLL_STYLES } from '#browser/scroll-components'
 import { GROW, SETTLE } from '#browser/visual-components'
 import { PHOTO_HEIGHT, PHOTO_WIDTH, POSTER_HEIGHT, POSTER_WIDTH, photo } from '#browser/visual-images'
@@ -49,6 +53,11 @@ interface Variant {
 
 const BLURB_SENTENCES: number = 12
 const BLURB: string = 'A long blurb. '.repeat(BLURB_SENTENCES)
+
+// Prose long enough to wrap at every viewport, and to run past 80 characters a line when its measure is wide.
+const PROSE: string =
+  'The season opens on the first Saturday of the month, when every club in the league plays at home before ' +
+  'the travelling fixtures begin, and tickets for those opening matches go on sale a fortnight before.'
 
 // Each page's body in both modes. The valid body is the same markup repaired, never a different page.
 const PAGES: Readonly<Record<string, Variant>> = {
@@ -138,10 +147,15 @@ const PAGES: Readonly<Record<string, Variant>> = {
     defect: '<div className="reversed"><a href="/">First in source</a><a href="/">Second in source</a></div>',
     valid: '<div className="stacked"><a href="/">First in source</a><a href="/">Second in source</a></div>',
   },
+  // A faint ring, and a contrasting one too thin to cover a 2px perimeter of its button. The repair draws a
+  // contrasting 2px ring beyond a gap, a 2px ring hugging a pill, and a card ringing its stretched link.
   'focus-contrast': {
-    defect: '<button type="button" className="faint-ring">Faint focus</button>',
+    defect:
+      '<div><button type="button" className="faint-ring">Faint focus</button>' +
+      '<button type="button" className="thin-ring">Thin focus</button></div>',
     valid:
       '<div><button type="button" className="strong-ring">Strong focus</button>' +
+      '<button type="button" className="pill-ring">Pill focus</button>' +
       '<div className="stretched-card"><a href="/" className="stretched">Stretched link</a></div></div>',
   },
   obscured: {
@@ -158,6 +172,10 @@ const PAGES: Readonly<Record<string, Variant>> = {
     defect: '<Menu closesOnEscape={false} focusDelayMs={0} />',
     valid: '<Menu closesOnEscape={true} focusDelayMs={120} />',
   },
+  // WCAG 1.4.8: prose justified to both edges, and prose whose measure runs past 80 characters a line on a
+  // desktop. The repairs align the same prose to its start edge and keep it within the page's measure.
+  'text-justified': { defect: `<p className="justified">${PROSE}</p>`, valid: `<p>${PROSE}</p>` },
+  'line-length': { defect: `<p className="wide-measure">${PROSE}</p>`, valid: `<p>${PROSE}</p>` },
   'text-spacing': {
     defect: '<p className="fixed-line">Fixture line</p>',
     valid: '<p className="growing-line">Fixture line</p>',
@@ -178,10 +196,13 @@ const PAGES: Readonly<Record<string, Variant>> = {
     valid: '<p>Note</p>',
   },
   ...SCROLL_PAGES,
+  ...INTERACTION_PAGES,
   locale: {
     defect: '<link rel="alternate" hrefLang="pl" href="/pl-locale" /><p>English</p>',
     valid: '<link rel="alternate" hrefLang="pl" href="/pl-locale" /><p>English</p>',
   },
+  ...AXE_PAGES,
+  ...ARIA_PAGES,
 }
 
 // Pages nothing links to, reached only through the sitemap or an alternate.
@@ -195,7 +216,8 @@ const UNLINKED: Readonly<Record<string, Variant>> = {
 
 const STYLES: string = `
 body { margin: 0; background: #ffffff; color: #111827; font-family: sans-serif; }
-main { display: flex; flex-direction: column; gap: 24px; padding: 16px; }
+/* A measure of 30rem keeps every line of prose well within 80 characters at every viewport (WCAG 1.4.8). */
+main { display: flex; flex-direction: column; gap: 24px; padding: 16px; max-width: 30rem; }
 h1, p { margin: 0; }
 .tiny { font-size: 10px; }
 .legible { font-size: 12px; }
@@ -207,6 +229,12 @@ h1, p { margin: 0; }
 .stacked, .reversed { display: flex; flex-direction: column; gap: 24px; }
 .reversed { flex-direction: column-reverse; }
 .faint-ring:focus-visible { outline: 2px solid #f3f4f6; outline-offset: 2px; }
+.thin-ring:focus-visible { outline: 1px solid #1d4ed8; outline-offset: 2px; }
+/* A 2px ring that follows a pill's round ends covers the 2px perimeter of the pill itself. */
+.pill-ring { margin-left: 16px; border: 0; border-radius: 9999px; padding: 8px 16px; background: #e5e7eb; }
+.pill-ring:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 0; }
+.justified { text-align: justify; }
+.wide-measure { width: min(60rem, calc(100vw - 32px)); }
 /* Drawn beyond a gap, as a ring with an offset is: the focus rules compare the whole indicator. */
 .strong-ring:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 6px; }
 /* The card a stretched link covers draws the link's focus, as a news or product card does. */
@@ -249,7 +277,9 @@ h1, p { margin: 0; }
 .sheet.gradient-sheet { background: linear-gradient(180deg, #ffffff, #f3f4f6); }
 .legend { background: #dbeafe; padding: 4px; }
 .unpointed { pointer-events: none; }
+.settings { display: flex; gap: 8px; padding: 8px; border: 1px solid #111827; }
 .back-face { visibility: hidden; }
+.layered { min-height: 44px; }
 `
 
 const COMPLAINT: string = `'use client'
@@ -390,10 +420,11 @@ const STORY_RENDER_DELAY_MS: number = 600
 // The server listens on the port the harness hands it in PORT, which a verification run chooses for itself.
 const storyServer = (mode: Mode): string => {
   const text: string = mode === 'defects' ? '<p style="font-size:10px">Tiny story text</p>' : '<p>Story text</p>'
+  // The preview loads none of the application's styles, so the button carries its own 44px target size.
   const action: string =
     mode === 'defects'
-      ? '<button type="button" style="outline:none">Story action</button>'
-      : '<button type="button">Story action</button>'
+      ? '<button type="button" style="outline:none;min-width:44px;min-height:44px">Story action</button>'
+      : '<button type="button" style="min-width:44px;min-height:44px">Story action</button>'
   const story: string = JSON.stringify(`<h1>Story</h1>${text}${action}`)
   return `import { createServer } from 'node:http'
 
@@ -435,6 +466,8 @@ const COMPONENTS: readonly string[] = [
   'Menu',
   'Settle',
   ...Object.keys(SCROLL_COMPONENTS),
+  ...Object.keys(INTERACTION_COMPONENTS),
+  ...Object.keys(ARIA_COMPONENTS),
 ]
 
 // Each page imports only the client components it renders, as the compiler requires.
@@ -453,27 +486,13 @@ const pageModule = (heading: string, body: string): string =>
     '',
   ].join('\n')
 
-// The obscured-focus page carries a fixed header over the top of its content in the defect mode.
-const pinnedModule = (mode: Mode): string =>
-  [
-    'export default function Page(): React.JSX.Element {',
-    '  return <>',
-    '    <header className="pinned">Pinned bar</header>',
-    `    <main className="${mode === 'defects' ? 'under' : 'clear'}">`,
-    '      <a href="/">Hidden link</a><h1>Focus obscured</h1></main>',
-    '  </>',
-    '}',
-    '',
-  ].join('\n')
-
-const PINNED_STYLES: string = `
-.pinned { position: fixed; top: 0; left: 0; right: 0; height: 120px; background: #ffffff; color: #111827; }
-.under { padding-top: 16px; }
-.clear { padding-top: 140px; }
-`
-
 const appRoot: string = path.join(directory, 'src', 'app')
-const linked: readonly string[] = [...Object.keys(PAGES), 'focus-obscured', ...(mode === 'defects' ? ['nowhere'] : [])]
+const linked: readonly string[] = [
+  ...Object.keys(PAGES),
+  ...Object.keys(PINNED_PAGES),
+  ORIENTATION_ROUTE,
+  ...(mode === 'defects' ? ['nowhere'] : []),
+]
 const linkItem = (route: string): string => `<li><a href="/${route}">${route}</a></li>`
 writeModule(
   path.join(appRoot, 'page.tsx'),
@@ -486,13 +505,22 @@ for (const [route, variant] of everyPage) {
     pageModule(route, mode === 'defects' ? variant.defect : variant.valid),
   )
 }
-writeModule(path.join(appRoot, 'focus-obscured', 'page.tsx'), pinnedModule(mode))
+for (const [route, link] of Object.entries(PINNED_PAGES)) {
+  writeModule(path.join(appRoot, route, 'page.tsx'), pinnedModule(mode, link))
+}
+writeModule(path.join(appRoot, ORIENTATION_ROUTE, 'page.tsx'), ORIENTATION_PAGE)
+writeModule(path.join(appRoot, ORIENTATION_ROUTE, 'orientation.css'), ORIENTATION_STYLES[mode])
 writeModule(path.join(appRoot, 'sitemap.xml', 'route.ts'), SITEMAP_ROUTE)
 writeModule(path.join(directory, 'src', 'complaint.tsx'), COMPLAINT)
 writeModule(path.join(directory, 'src', 'glide.tsx'), GLIDE)
 writeModule(path.join(directory, 'src', 'grow.tsx'), GROW)
 writeModule(path.join(directory, 'src', 'settle.tsx'), SETTLE)
-for (const [name, source] of Object.entries(SCROLL_COMPONENTS)) {
+const drivenComponents: readonly (readonly [string, string])[] = Object.entries({
+  ...SCROLL_COMPONENTS,
+  ...INTERACTION_COMPONENTS,
+  ...ARIA_COMPONENTS,
+})
+for (const [name, source] of drivenComponents) {
   writeModule(path.join(directory, 'src', `${name.toLowerCase()}.tsx`), source)
 }
 writeModule(path.join(directory, 'src', 'guard.tsx'), GUARD)
@@ -500,7 +528,7 @@ writeModule(path.join(directory, 'src', 'menu.tsx'), MENU)
 writeModule(path.join(directory, 'src', 'axeecho.tsx'), AXE_ECHO)
 writeModule(
   path.join(appRoot, 'globals.css'),
-  `${readFileSync(path.join(appRoot, 'globals.css'), 'utf8')}${STYLES}${PINNED_STYLES}${SCROLL_STYLES}`,
+  `${readFileSync(path.join(appRoot, 'globals.css'), 'utf8')}${STYLES}${PINNED_STYLES}${SCROLL_STYLES}${AXE_STYLES}${INTERACTION_STYLES}${ARIA_STYLES}`,
 )
 writeModule(path.join(directory, 'public', 'photo.png'), photo(PHOTO_WIDTH, PHOTO_HEIGHT))
 writeModule(path.join(directory, 'public', 'poster.png'), photo(POSTER_WIDTH, POSTER_HEIGHT))

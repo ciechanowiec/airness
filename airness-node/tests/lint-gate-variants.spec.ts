@@ -63,6 +63,43 @@ describe('oxlint', PROCESS_TIME, () => {
     TOOL_TIMEOUT_MS,
   )
 
+  // 2.4.9: the link text alone names the purpose. Each spelling of an ambiguous name is its own file, so
+  // a finding names which one the rule read: the text itself, the same words in another case with
+  // punctuation, the words inside a nested element, and a name given by aria-label over the text.
+  it(
+    'refuses a link named by ambiguous words in every spelling JSX allows',
+    () => {
+      const spellings: Readonly<Record<string, string>> = {
+        'src/Plain.tsx': '<a href="/rules">click here</a>',
+        'src/Shouted.tsx': '<a href="/rules">Here.</a>',
+        'src/Nested.tsx': '<a href="/rules"><span>learn more</span></a>',
+        'src/Labelled.tsx': '<a href="/rules" aria-label="a link">The rules</a>',
+      }
+      withProject(
+        {
+          'src/total.ts': 'export const total = 1\n',
+          'src/Named.tsx': 'export const Named = (): unknown => <a href="/rules">Read the rules</a>\n',
+          ...Object.fromEntries(
+            Object.entries(spellings).map(([file, link]: readonly [string, string]): readonly [string, string] => [
+              file,
+              `export const Link = (): unknown => ${link}\n`,
+            ]),
+          ),
+        },
+        (root: string): void => {
+          const findings: readonly string[] = oxlint({ ...memberAt(root), hasOwnRuntime: true }).findings.filter(
+            (finding: string): boolean => finding.includes('anchor-ambiguous-text'),
+          )
+          for (const file of Object.keys(spellings)) {
+            expect(findings.join('\n'), file).toContain(file)
+          }
+          expect(findings.join('\n')).not.toContain('src/Named.tsx')
+        },
+      )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
   it('passes a suppression ESLint owns, which it leaves to ESLint', () => {
     withProject(
       { 'src/total.ts': '// eslint-disable-next-line no-console -- the command prints\nconsole.info(1)\n' },

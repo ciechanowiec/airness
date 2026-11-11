@@ -35,11 +35,20 @@ const EXEMPTIBLE_RULES: readonly string[] = [
   'image-upscaled',
   'image-oversized',
   'media-space',
+  'text-justified',
+  'line-length',
   'unrevealed-content',
   'focus-visible',
   'focus-contrast',
   'focus-order',
   'disclosure-keyboard',
+  'pointer-only',
+  'paste-blocked',
+  'reduced-motion',
+  'dialog-keyboard',
+  'composite-keyboard',
+  'aria-state',
+  'aria-current',
 ]
 
 const WHITESPACE: RegExp = /\s+/u

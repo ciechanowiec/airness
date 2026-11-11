@@ -4,6 +4,13 @@ import { asRecord, asText, isArray } from './json-shapes.js'
 // The axe `incomplete` message keys that describe a defect rather than a question.
 const DEFINITE_INCOMPLETE_KEYS: ReadonlySet<string> = new Set<string>(['equalRatio'])
 
+// The rules whose every `incomplete` entry is a defect, whatever its message key. axe files
+// `identical-links-same-purpose` nowhere else: it never reports a violation, only links that share one
+// accessible name and lead to different addresses, leaving a human to judge whether the purposes match.
+// 2.4.9 asks that the link text alone tell them apart, and a different name for each destination is the
+// repair whatever a human would have judged, so the question has one answer an automated verdict can give.
+const DEFINITE_INCOMPLETE_RULES: ReadonlySet<string> = new Set<string>(['identical-links-same-purpose'])
+
 // A node's checks live under three keys, and which one carries the result depends on how the rule was
 // composed rather than on anything the reader chose. Reading only `any` would miss a rule expressed as
 // `all`, which is a silence of exactly the kind this module exists to remove.
@@ -44,9 +51,12 @@ const messageKeyOf = (check: unknown): string => {
   return asText(data['messageKey'])
 }
 
+const isDefinite = (ruleId: string, check: unknown): boolean =>
+  DEFINITE_INCOMPLETE_RULES.has(ruleId) || DEFINITE_INCOMPLETE_KEYS.has(messageKeyOf(check))
+
 const definiteChecks = (ruleId: string, node: unknown): readonly string[] =>
   checksOf(node)
-    .filter((check: unknown): boolean => DEFINITE_INCOMPLETE_KEYS.has(messageKeyOf(check)))
+    .filter((check: unknown): boolean => isDefinite(ruleId, check))
     .map((check: unknown): string => describeCheck(ruleId, node, check))
 
 const definiteNodes = (result: unknown): readonly string[] => {

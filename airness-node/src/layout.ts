@@ -21,6 +21,7 @@ import type {
   LayoutNode,
   LayoutRect,
   LayoutSnapshot,
+  LayoutWord,
   MediaFacts,
 } from './layout-snapshot.js'
 import { adoptStyle } from './page-style.js'
@@ -118,6 +119,9 @@ interface NodeContext {
   readonly sources: SourceSizes
 }
 
+/** An element's own text, and how the block it is set in lays out its lines. */
+type OwnText = Pick<LayoutNode, 'textAlign' | 'textAlignLast' | 'textRects' | 'whiteSpace' | 'words'>
+
 /** The steps of the page code, each handed the others. */
 interface LayoutTools {
   readonly isClosedDetails: (element: PageElement) => boolean
@@ -125,7 +129,7 @@ interface LayoutTools {
   readonly isOutsideView: (element: PageElement) => boolean
   readonly roundRects: (rects: ArrayLike<PageRect>) => readonly LayoutRect[]
   readonly ownText: (element: PageElement, tools: LayoutTools) => readonly PageText[]
-  readonly ownTextRects: (element: PageElement, tools: LayoutTools) => readonly LayoutRect[]
+  readonly textOf: (element: PageElement, style: PageStyle, tools: LayoutTools) => OwnText
   readonly bordersOf: (style: PageStyle) => LayoutBorders
   readonly lineHeightOf: (style: PageStyle) => number
   readonly labelOf: (element: PageElement, tools: LayoutTools) => string
@@ -210,19 +214,37 @@ const ownText = (element: PageElement, tools: LayoutTools): readonly PageText[] 
   )
 }
 
-const ownTextRects = (element: PageElement, tools: LayoutTools): readonly LayoutRect[] =>
-  tools.ownText(element, tools).flatMap((text: PageText): readonly LayoutRect[] => {
-    const range: PageRange = document.createRange()
-    // Preserved spaces can hang outside a wrapped line without hiding a glyph. Measure words so a
-    // clipped blank space is not reported as lost text, including whitespace at soft line breaks.
-    return Array.from((text.textContent ?? '').matchAll(/\S+/gu)).flatMap(
-      (match: RegExpExecArray): readonly LayoutRect[] => {
-        range.setStart(text, match.index)
-        range.setEnd(text, match.index + match[0].length)
-        return tools.roundRects(range.getClientRects())
-      },
-    )
-  })
+// Each word's rects, and the characters each draws: a word wrapped over two lines shares its characters
+// between its rects by width, which is exact for a monospaced script such as Chinese and close for others.
+// Beside them, the block's alignment and whether it keeps the author's own spaces and line breaks.
+const textOf = (element: PageElement, style: PageStyle, tools: LayoutTools): OwnText => {
+  const cjk: RegExp = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu
+  const range: PageRange = document.createRange()
+  // Preserved spaces can hang outside a wrapped line without hiding a glyph. Measure words so a
+  // clipped blank space is not reported as lost text, including whitespace at soft line breaks.
+  const words: readonly LayoutWord[] = tools.ownText(element, tools).flatMap((text: PageText): readonly LayoutWord[] =>
+    Array.from((text.textContent ?? '').matchAll(/\S+/gu)).flatMap((match: RegExpExecArray): readonly LayoutWord[] => {
+      range.setStart(text, match.index)
+      range.setEnd(text, match.index + match[0].length)
+      const rects: readonly LayoutRect[] = tools.roundRects(range.getClientRects())
+      const widths: readonly number[] = rects.map((rect: LayoutRect): number => Math.max(0, rect.right - rect.left))
+      const total: number = widths.reduce((sum: number, width: number): number => sum + width, 0)
+      const characters: number = Array.from(match[0]).length
+      const cjkCharacters: number = match[0].match(cjk)?.length ?? 0
+      return rects.map((rect: LayoutRect, index: number): LayoutWord => {
+        const share: number = total > 0 ? (widths[index] ?? 0) / total : 0
+        return { rect, characters: characters * share, cjkCharacters: cjkCharacters * share }
+      })
+    }),
+  )
+  return {
+    textRects: words.map((word: LayoutWord): LayoutRect => word.rect),
+    words,
+    textAlign: style.getPropertyValue('text-align'),
+    textAlignLast: style.getPropertyValue('text-align-last'),
+    whiteSpace: style.getPropertyValue('white-space'),
+  }
+}
 
 const bordersOf = (style: PageStyle): LayoutBorders => {
   const side = (name: string): LayoutBorder => ({
@@ -286,7 +308,7 @@ const describe = (element: PageElement, context: NodeContext, tools: LayoutTools
     label: tools.labelOf(element, tools),
     tag: element.tagName.toLowerCase(),
     rects: tools.roundRects(element.getClientRects()),
-    textRects: tools.ownTextRects(element, tools),
+    ...tools.textOf(element, style, tools),
     lineHeight: tools.lineHeightOf(style),
     text: isClipping ? (element.textContent ?? '').trim() : '',
     display: read('display'),
@@ -530,7 +552,7 @@ const STEPS: Readonly<Record<keyof LayoutTools, Step>> = {
   isOutsideView,
   roundRects,
   ownText,
-  ownTextRects,
+  textOf,
   bordersOf,
   lineHeightOf,
   labelOf,

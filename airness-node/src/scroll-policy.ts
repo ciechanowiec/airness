@@ -13,8 +13,11 @@
 // positioning or a scroll-driven animation, and neither moves the document: the scroll position still
 // advances exactly as far as the gesture asked. Only a page that rewrites the scroll position is judged.
 
-/** The rules the scrolling pass judges, on one route per template rather than on every route. */
-export const SCROLLING_RULES: readonly string[] = ['scroll-hijack', 'unrevealed-content']
+/**
+ * The rules the scrolling pass judges, on one route per template rather than on every route: its own, and the
+ * reduced-motion check that rides on its sample (`reduced-motion-policy`).
+ */
+export const SCROLLING_RULES: readonly string[] = ['scroll-hijack', 'unrevealed-content', 'reduced-motion']
 
 /** How far from where a gesture left it the document may come to rest, in CSS pixels. */
 const REST_TOLERANCE_PX: number = 2

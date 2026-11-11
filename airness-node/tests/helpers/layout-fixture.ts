@@ -34,6 +34,7 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   tag: 'div',
   rects: [],
   textRects: [],
+  words: [],
   lineHeight: 0,
   text: '',
   display: 'block',
@@ -68,6 +69,9 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   exemptionReason: '',
   fontSize: 16,
   fontFamily: 'sans-serif',
+  textAlign: 'start',
+  textAlignLast: 'auto',
+  whiteSpace: 'normal',
   media: undefined,
   ...fields,
 })
@@ -104,11 +108,20 @@ export const EXEMPTIBLE_RULES: readonly string[] = [
   'image-upscaled',
   'image-oversized',
   'media-space',
+  'text-justified',
+  'line-length',
   'unrevealed-content',
   'focus-visible',
   'focus-contrast',
   'focus-order',
   'disclosure-keyboard',
+  'pointer-only',
+  'paste-blocked',
+  'reduced-motion',
+  'dialog-keyboard',
+  'composite-keyboard',
+  'aria-state',
+  'aria-current',
 ]
 
 /**

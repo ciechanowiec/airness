@@ -5,9 +5,11 @@
 // Every verdict is a governance function over measured values. This module measures, and collects what
 // the browser reports, and nothing else.
 import { AxeBuilder } from '@axe-core/playwright'
-import { type ConsoleMessage, expect, type Page, type Request } from '@playwright/test'
+import { type ConsoleMessage, expect, type Locator, type Page, type Request } from '@playwright/test'
 import { FOCUS_GUARD_RULE, type FocusArrival, isFocusGuard } from './a11y-focus-guard.js'
+import { classifyHitTarget } from './a11y-hit-target.js'
 import { findDefiniteIncomplete } from './a11y-incomplete.js'
+import { type AxeRunOptions, axeRunOptions, TARGET_SIZE_RULE, targetSizeHelp } from './axe-rules.js'
 import { axeRulesExcludedAt } from './browser-discovery.js'
 import { type DeclaredExemption, staleExemptions, type UsedExemption } from './browser-exemptions.js'
 import {
@@ -47,6 +49,7 @@ import { heldFontFaces, type LayoutSnapshot } from './layout-snapshot.js'
 import { NOT_FOUND_LOCATION_PREFIX } from './not-found-routes.js'
 import { projectSettings } from './project-settings.js'
 import { type SettleOutcome, settleForScan } from './settle.js'
+import { hitTargetInPage } from './sweep-hit-target.js'
 
 // The browser names the page functions below call, declared for the reason `settle.ts` records.
 declare const requestAnimationFrame: (callback: () => void) => number
@@ -239,15 +242,39 @@ const isFocusGuardAt = async (page: Page, target: unknown): Promise<boolean> =>
 type AxeViolation = AxeRun['violations'][number]
 type AxeNode = AxeViolation['nodes'][number]
 
+// A pointer cannot reach what the visually-hidden pattern clips to a pixel, such as a skip link waiting for
+// focus, so it is no target to size. axe measures its box all the same, and with the spacing allowance off
+// nothing excuses it; the hit-target classification the hover pass trusts decides instead.
+const isVisuallyHiddenAt = async (page: Page, target: unknown): Promise<boolean> => {
+  if (!(isArray(target) && target.length === 1 && typeof target[0] === 'string')) {
+    return false
+  }
+  const element: Locator = page.locator(target[0]).first()
+  return (
+    (await element.count()) > 0 &&
+    classifyHitTarget(await element.evaluate(hitTargetInPage)).verdict === 'visually-hidden'
+  )
+}
+
+const isExcusedAt = async (page: Page, rule: string, target: unknown): Promise<boolean> => {
+  if (rule === FOCUS_GUARD_RULE) {
+    return await isFocusGuardAt(page, target)
+  }
+  return rule === TARGET_SIZE_RULE && (await isVisuallyHiddenAt(page, target))
+}
+
 const reportedNodes = async (page: Page, violation: AxeViolation): Promise<readonly AxeNode[]> => {
-  if (violation.id !== FOCUS_GUARD_RULE) {
+  if (violation.id !== FOCUS_GUARD_RULE && violation.id !== TARGET_SIZE_RULE) {
     return violation.nodes
   }
-  const guards: readonly boolean[] = await Promise.all(
-    violation.nodes.map(async (node: AxeNode): Promise<boolean> => await isFocusGuardAt(page, node.target)),
+  const excused: readonly boolean[] = await Promise.all(
+    violation.nodes.map(async (node: AxeNode): Promise<boolean> => await isExcusedAt(page, violation.id, node.target)),
   )
-  return violation.nodes.filter((_node: AxeNode, index: number): boolean => guards[index] !== true)
+  return violation.nodes.filter((_node: AxeNode, index: number): boolean => excused[index] !== true)
 }
+
+const helpOf = (violation: AxeViolation): string =>
+  violation.id === TARGET_SIZE_RULE ? targetSizeHelp() : violation.help
 
 /**
  * The axe scan of a page as findings, one per violating element.
@@ -261,13 +288,12 @@ export const axeFindings = async (
   place: FindingPlace,
   build: (builder: AxeBuilder) => AxeBuilder = (builder: AxeBuilder): AxeBuilder => builder,
 ): Promise<readonly BrowserFinding[]> => {
-  const excluded: readonly string[] = axeRulesExcludedAt(place.location)
-  const builder: AxeBuilder = build(new AxeBuilder({ page }))
-  const results: AxeRun = await analyzed(
-    page,
-    excluded.length === 0 ? builder : builder.disableRules([...excluded]),
-    AXE_BUSY_RETRIES,
-  )
+  // The options go in first and whole: the builder's `options` replaces what it held, and its
+  // `disableRules` empties the rule switches before writing its own, so either applied after the other
+  // would drop the rules this harness turns on. The narrowing a caller adds keeps them.
+  const options: AxeRunOptions = axeRunOptions(axeRulesExcludedAt(place.location))
+  const builder: AxeBuilder = build(new AxeBuilder({ page }).options(options))
+  const results: AxeRun = await analyzed(page, builder, AXE_BUSY_RETRIES)
   const reported: readonly (readonly AxeNode[])[] = await Promise.all(
     results.violations.map(
       async (violation: AxeViolation): Promise<readonly AxeNode[]> => await reportedNodes(page, violation),
@@ -280,7 +306,7 @@ export const axeFindings = async (
           findingAt(
             place,
             `axe:${violation.id}`,
-            `${violation.help}: ${axeTarget(node.target)} - ${reportedText(node.failureSummary ?? '')}`,
+            `${helpOf(violation)}: ${axeTarget(node.target)} - ${reportedText(node.failureSummary ?? '')}`,
           ),
       ),
     ),

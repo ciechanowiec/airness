@@ -36,11 +36,11 @@ describe('native source coverage', () => {
     ])
   })
 
-  it('partitions application source into disjoint three-rule and 34-rule groups', () => {
+  it('partitions application source into disjoint three-rule and 35-rule groups', () => {
     const files: readonly string[] = ['src/main.ts', 'src/Card.tsx', '.storybook/preview.tsx']
     const groups: readonly OxlintGroup[] = oxlintGroups(files, true)
     expect(groups.map((group) => group.files)).toEqual([['src/main.ts', '.storybook/preview.tsx'], ['src/Card.tsx']])
-    expect(groups.map((group) => group.rules.length)).toEqual([3, 34])
+    expect(groups.map((group) => group.rules.length)).toEqual([3, 35])
     expect(groups.flatMap((group) => group.files).toSorted((left, right) => left.localeCompare(right))).toEqual(
       files.toSorted((left, right) => left.localeCompare(right)),
     )
@@ -54,7 +54,7 @@ describe('native source coverage', () => {
 
   it('omits empty invocations', () => {
     expect(oxlintGroups([], true)).toEqual([])
-    expect(oxlintGroups(['src/Card.tsx'], true).map((group) => group.rules.length)).toEqual([34])
+    expect(oxlintGroups(['src/Card.tsx'], true).map((group) => group.rules.length)).toEqual([35])
   })
 
   it.each([true, false])('holds a framework scaffold to the filename rule with runtime %s', (runtime) => {
@@ -92,6 +92,6 @@ describe('explicit native ownership', () => {
   it('preserves the existing JSX semantic options beside the core rules', () => {
     const config: Readonly<Record<string, unknown>> = oxlintConfig(oxlintRules(true))
     expect(config['rules']).toHaveProperty('jsx-a11y/no-redundant-roles', ['error', { td: ['gridcell'] }])
-    expect(Object.keys(config['rules'] as Record<string, unknown>)).toHaveLength(34)
+    expect(Object.keys(config['rules'] as Record<string, unknown>)).toHaveLength(35)
   })
 })

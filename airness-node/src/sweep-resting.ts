@@ -14,10 +14,12 @@ import {
   type PlaceScan,
   settleFindings,
 } from './scanner.js'
+import { ARIA_RESTING_RULES, ariaVisit } from './sweep-aria.js'
 import {
   armBudget,
   type Budget,
   type Discovery,
+  EMPTY_VISIT,
   finishPass,
   healthOf,
   isChromium,
@@ -39,6 +41,7 @@ import {
   type Visit,
   visitAll,
 } from './sweep-shared.js'
+import { type ChangeWatch, unrequestedChangeFindings, watchUnrequestedChange } from './sweep-unrequested.js'
 
 const restingVisit = async (page: Page, item: PlaceItem, index: number): Promise<Visit> => {
   const place: FindingPlace = placeAt(page, item.location, item.viewport, 'resting')
@@ -52,6 +55,32 @@ const restingVisit = async (page: Page, item: PlaceItem, index: number): Promise
   }
   await screenshotOf(page, scan, place, index)
   return merged([{ ...scan, notes: [] }, await healthOf(page, place)])
+}
+
+// The resting pass alone adds the ARIA rules, at the two axe widths: they read the DOM rather than its
+// rendering, which another engine or colour scheme does not change, and the widths are where a page's
+// navigation and disclosures change between a phone's layout and a desktop's.
+const restingAriaVisit = async (page: Page, item: PlaceItem, index: number): Promise<Visit> => {
+  const visit: Visit = await restingVisit(page, item, index)
+  return isStressViewport(item.viewport)
+    ? merged([
+        visit,
+        await ariaVisit(page, placeAt(page, item.location, item.viewport, 'resting'), item.location.isStory),
+      ])
+    : visit
+}
+
+// The resting visit loads, settles and judges a page with no input at all, which is what a change of context
+// the reader did not ask for is measured against. Only the Chromium resting pass watches: it visits every
+// location, and the finding holds for the page whatever the engine.
+const watchedRestingVisit = async (page: Page, item: PlaceItem, index: number): Promise<Visit> => {
+  const watch: ChangeWatch = watchUnrequestedChange(page)
+  const visit: Visit = await restingAriaVisit(page, item, index)
+  const changed: readonly BrowserFinding[] = unrequestedChangeFindings(
+    await watch.stop(item.location.url),
+    placeAt(page, item.location, item.viewport, 'resting'),
+  )
+  return merged([visit, { ...EMPTY_VISIT, findings: changed }])
 }
 
 const placeItems = (
@@ -73,6 +102,7 @@ interface RestingPass {
   readonly pass: 'resting' | 'engine' | 'dark-scheme'
   readonly items: readonly PlaceItem[]
   readonly visit: (page: Page, item: PlaceItem, index: number) => Promise<Visit>
+  readonly judgedRules: readonly string[]
 }
 
 // The engine pass visits each place in a page of its own. A WebKit page that has drawn a hundred stories in
@@ -115,7 +145,7 @@ const runRestingPass = async (page: Page, shard: Shard, restingPass: RestingPass
     budget,
     pass: restingPass.pass,
     visits,
-    judgedRules: RESTING_JUDGED,
+    judgedRules: restingPass.judgedRules,
     locations: shardLocations(taken, locationOfItem),
   })
 }
@@ -131,7 +161,8 @@ export const expectRestingRules = async (page: Page, shard: Shard): Promise<void
   await runRestingPass(page, shard, {
     pass: 'resting',
     items: placeItems(discovery.locations, edgeViewports),
-    visit: restingVisit,
+    visit: watchedRestingVisit,
+    judgedRules: [...RESTING_JUDGED, ...ARIA_RESTING_RULES],
   })
 }
 
@@ -153,6 +184,7 @@ export const expectEngineRules = async (page: Page, shard: Shard): Promise<void>
       pass: 'engine',
       items: placeItems(sampledLocations(discovery), (): readonly Viewport[] => BASELINE_VIEWPORTS),
       visit: freshPageVisit,
+      judgedRules: RESTING_JUDGED,
     },
   )
 }
@@ -191,5 +223,6 @@ export const expectDarkScheme = async (page: Page, shard: Shard): Promise<void> 
     pass: 'dark-scheme',
     items: placeItems(locations, (): readonly Viewport[] => STRESS_VIEWPORTS),
     visit: darkVisit,
+    judgedRules: RESTING_JUDGED,
   })
 }

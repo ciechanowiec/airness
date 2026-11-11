@@ -96,14 +96,20 @@ JAVA
     expect_match audit_own_question 'spring: the refusal names the file and the line' 'PageAccessibilityTest[.]java: line'
 
     # The same test asking through the harness: the question and the version both come from one place.
+    # The second test reads the rules the Spring parent puts on the consumer's test classpath: every rule
+    # the options file packaged with the shipped question turns on beyond the defaults, the AAA ones among
+    # them, is one those rules define, so none is switched on and then run nowhere, and the question
+    # measures a target at 44px.
     cat > "${audit_app}/src/test/java/com/example/PageAccessibilityTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.airness.web.AxeAudit;
 import eu.ciechanowiec.airness.web.AxeLibrary;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 class PageAccessibilityTest {
@@ -111,6 +117,16 @@ class PageAccessibilityTest {
     @Test
     void readsEveryVerdictTheRulesReport() {
         assertEquals(List.of(), AxeAudit.of(List.of()).problems(), AxeLibrary.version());
+    }
+
+    @Test
+    void asksOnlyRulesTheClasspathDefines() {
+        String library = AxeLibrary.rules();
+        List<String> rules = Pattern.compile("\"([a-z-]+)\": \\{ \"enabled\": true }")
+            .matcher(AxeAudit.OPTIONS).results().map(found -> found.group(1)).toList();
+        assertTrue(rules.contains("color-contrast-enhanced"), AxeAudit.OPTIONS);
+        rules.forEach(rule -> assertTrue(library.contains("id:\"" + rule + "\""), rule));
+        assertTrue(AxeAudit.SCRIPT.contains("\"minSize\": 44"), AxeAudit.SCRIPT);
     }
 }
 JAVA

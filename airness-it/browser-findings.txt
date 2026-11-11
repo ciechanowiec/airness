@@ -11,6 +11,8 @@
 [media-space] /media-space @390x844 (chromium, resting): img reserves 160x0px before loading
 [image-upscaled] /srcset-image @390x844 (chromium, resting): image source 160x120px displayed at 150%
 [media-space] /flex-media @390x844 (chromium, resting): img reserves
+[text-justified] /text-justified @390x844 (chromium, resting): text justified to both edges over
+[line-length] /line-length @1280x800 (chromium, resting): a line of
 [text-overlap] /turned-card @390x844 (chromium, resting): overlapping text: h2.pulled
 [text-overlap] /scrolled-blurb @390x844 (chromium, resting): overlapping text: p
 [attached] /scrolled-blurb @390x844 (chromium, resting): overlapping boxes: p
@@ -25,11 +27,41 @@
 [focus-visible] /focus-visible @390x844 (chromium, focus): button.no-ring \"Silent focus\" shows no visible change
 [focus-order] /focus-order @390x844 (chromium, focus): a \"Second in source\" takes focus after a \"First in source\"
 [focus-contrast] /focus-contrast @390x844 (chromium, focus): button.faint-ring \"Faint focus\" changes when focused by keyboard, but too little
+[focus-contrast] /focus-contrast @390x844 (chromium, focus): button.thin-ring \"Thin focus\" changes when focused by keyboard, but too little
 [focus-obscured] /focus-obscured @390x844 (chromium, focus): a \"Hidden link\" is focused and entirely hidden
+[focus-obscured] /focus-partly-obscured @390x844 (chromium, focus): a.tall-link \"Half-hidden link\" is focused and partly hidden by header
 [disclosure-keyboard] /disclosure-keyboard @390x844 (chromium, disclosure button \"Options\"): button \"Options\": Escape does not close it
+[dialog-keyboard] /dialog-keyboard @390x844 (chromium, disclosure button \"Open settings\"): button \"Open settings\": Tab moves focus out of the open modal dialog
+[dialog-keyboard] /dialog-keyboard @390x844 (chromium, disclosure button \"Open settings\"): button \"Open settings\": Shift+Tab moves focus out of the open modal dialog
+[dialog-keyboard] /dialog-keyboard @390x844 (chromium, disclosure button \"Open settings\"): button \"Open settings\": Escape does not close it
+[composite-keyboard] /composite-keyboard @390x844 (chromium, keyboard): div.tabs (tablist): 3 of its items are in the Tab sequence
+[composite-keyboard] /composite-keyboard @390x844 (chromium, keyboard): div.tabs (tablist): ArrowRight, ArrowLeft do not move focus among its items
+[aria-state] /aria-state @390x844 (chromium, resting): button \"Details\": aria-expanded is \"true\", but #details-panel, which its aria-controls names, is not rendered
+[aria-current] /aria-current @390x844 (chromium, resting): a \"This page\": it links to the current page without aria-current=\"page\"
 [text-spacing] /text-spacing @390x844 (chromium, text-spacing): clipped text
 [text-resize] /text-resize @1280x800 (chromium, text-resize): clipped text
 [overflow] /sweep (chromium, width-sweep): from 481 to
 [axe:color-contrast] /night @390x844 (chromium, dark):
 [exemption] /stale-exemption (chromium, every): stale layout exemption \"small-text\" on p
 [focus-visible] story:fixture-story--default @1280x800 (chromium, focus): button "Story action" shows no visible change
+[axe:color-contrast-enhanced] /contrast-enhanced @390x844 (chromium, resting):
+[axe:target-size] /target-size @390x844 (chromium, resting):
+[axe:meta-refresh-no-exceptions] /meta-refresh @390x844 (chromium, resting):
+[axe:incomplete] /link-purpose @390x844 (chromium, resting): identical-links-same-purpose on
+[axe:css-orientation-lock] /orientation-lock @390x844 (chromium, resting):
+[axe:p-as-heading] /heading-paragraph @390x844 (chromium, resting):
+[axe:td-has-header] /table-headers @390x844 (chromium, resting):
+[axe:table-fake-caption] /table-caption @390x844 (chromium, resting):
+[pointer-only] /pointer-only @390x844 (chromium, keyboard): div.clickable-card "Open details" presents as operable (a pointer cursor of its own)
+[pointer-only] /pointer-only @390x844 (chromium, keyboard): div.role-action "Role action" presents as operable (role "button")
+[pointer-only] /pointer-only @390x844 (chromium, keyboard): span.inline-action "Inline action" presents as operable (an inline onclick handler)
+[unrequested-change] /unrequested-navigation (chromium,
+[unrequested-change] /unrequested-popup (chromium,
+[paste-blocked] /paste-blocked @390x844 (chromium, resting): input#username cancels a paste
+[paste-blocked] /paste-blocked @390x844 (chromium, resting): input#password cancels a paste
+[paste-blocked] /paste-blocked @390x844 (chromium, resting): input#password turns autocomplete off
+[paste-blocked] /paste-blocked @390x844 (chromium, resting): input#code cancels a paste
+[reduced-motion] /reduced-motion @390x844 (chromium, reduced motion): div#motion-panel moves (transform, 800ms) after opening button
+[reduced-motion] /reduced-motion @390x844 (chromium, reduced motion): div.reveal-slide
+[reduced-motion] /reduced-motion @390x844 (chromium, reduced motion): div.reveal-glide moves (transform, 700ms) after a scroll
+[reduced-motion] /reduced-motion @390x844 (chromium, reduced motion): div.drifting moves with the scroll

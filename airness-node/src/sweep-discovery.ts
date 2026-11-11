@@ -56,6 +56,7 @@ import {
   type SweepLocation,
   WHOLE_PASS,
 } from './sweep-shared.js'
+import { settledUnrequested } from './sweep-unrequested.js'
 
 // The browser surface the page functions below touch, declared for the reason `settle.ts` records.
 declare const document: DomDocument
@@ -262,18 +263,18 @@ const crawl = async (page: Page, state: CrawlState): Promise<CrawlState> => {
   if (toRoute(page.url()) === undefined) {
     return await crawl(page, answered)
   }
-  await settleForScan(page)
+  const settled: CrawlState = await settledUnrequested(page, answered, queued.route, response.url())
   const facts: PageFacts = await page.evaluate(pageFactsInPage, CONTROLS)
   const location: SweepLocation = routeLocation(page.url(), facts)
-  const fragments: CrawledFragments = await crawledFragments(page, answered, facts.fragments, queued.route)
+  const fragments: CrawledFragments = await crawledFragments(page, settled, facts.fragments, queued.route)
   return await crawl(
     page,
     enqueue(
       {
-        ...answered,
+        ...settled,
         ...fragments,
-        reachable: [...answered.reachable, location],
-        findings: [...answered.findings, ...fragments.findings, ...htmlHeaderFindings(response, queued.route, page)],
+        reachable: [...settled.reachable, location],
+        findings: [...settled.findings, ...fragments.findings, ...htmlHeaderFindings(response, queued.route, page)],
       },
       [...facts.hrefs, ...alternateHrefs(facts.alternates)].flatMap((href: string): readonly string[] => {
         const address: string | undefined = localAddress(href, page.url(), facts.canonical, origin)
