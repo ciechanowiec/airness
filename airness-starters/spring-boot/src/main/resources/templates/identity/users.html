@@ -31,7 +31,7 @@
                         <tr th:each="person : ${people.people()}" th:with="access=${person.access()}">
                             <td>
                                 <a
-                                    class="link link-primary font-medium"
+                                    class="link link-primary inline-flex min-h-11 min-w-11 items-center font-medium"
                                     th:href="@{/users/{reference}/edit(reference=${person.reference()})}"
                                     th:text="${person.profile().fullName()}"
                                     >Administrator</a
@@ -54,7 +54,7 @@
                                     th:action="@{/users/{reference}/access(reference=${person.reference()})}"
                                 >
                                     <input type="hidden" name="allowed" th:value="${not access.enabled()}" />
-                                    <button class="btn btn-outline btn-sm" type="submit">
+                                    <button class="btn btn-outline" type="submit">
                                         <span th:text="${access.enabled()} ? #{users.stop} : #{users.letIn}">Stop</span>
                                         <span class="sr-only" th:text="| ${person.profile().fullName()}|"></span>
                                     </button>

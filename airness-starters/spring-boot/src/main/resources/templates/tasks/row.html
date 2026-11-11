@@ -8,7 +8,7 @@
 <tr th:fragment="row(task)" th:id="|task-${task.reference()}|" xmlns:th="http://www.thymeleaf.org">
     <td>
         <a
-            class="link link-primary font-medium"
+            class="link link-primary inline-flex min-h-11 min-w-11 items-center font-medium"
             th:href="@{/tasks/{reference}/edit(reference=${task.reference()})}"
             th:text="${task.content().title()}"
             >Title</a
@@ -29,7 +29,7 @@
             hx-trigger="change"
         >
             <label class="sr-only" th:for="|status-${task.reference()}|" th:text="#{tasks.column.status}">Status</label>
-            <select class="select select-sm" name="status" th:id="|status-${task.reference()}|">
+            <select class="select" name="status" th:id="|status-${task.reference()}|">
                 <option
                     th:each="status : ${statuses}"
                     th:value="${status.name()}"
@@ -39,7 +39,7 @@
                     Open
                 </option>
             </select>
-            <button class="btn btn-ghost btn-sm" type="submit" th:text="#{tasks.status.submit}">Change</button>
+            <button class="btn btn-ghost" type="submit" th:text="#{tasks.status.submit}">Change</button>
         </form>
     </td>
     <td th:if="${administrator}" th:text="${task.owner()}">Owner</td>
