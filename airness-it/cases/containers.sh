@@ -81,6 +81,109 @@ run_container_cases() {
     run_secret_scanner_control
     run_qodana_profile
     run_linked_worktree_checks
+    run_image_cases
+}
+
+# The image gate against a real daemon and a real application: a node server whose image migrates the empty database
+# it is given and then serves. Its own wrapper migrates the database before every other gate, as a governed project's
+# does, so only the image gate's empty services can tell an image that migrates at startup from one that does not.
+# The rule variants are proven by the Vitest suite of airness-node; this proves the gate is bound in the installed
+# parent, builds with the daemon, starts the wrapper's services empty and reaches them from the container on the
+# run's network, and leaves no image behind.
+prepare_image_fixture() {
+    image_fixture="${scratch}/node-image"
+    mkdir -p "${image_fixture}"
+    cp -R "${repository}/airness-it/fixtures/node-image/." "${image_fixture}/"
+    install_airness_node "${image_fixture}"
+    cat > "${image_fixture}/pom.xml" <<POM
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>eu.ciechanowiec</groupId><artifactId>airness-parent-node</artifactId>
+        <version>${harness_version}</version>
+    </parent>
+    <groupId>com.example</groupId><artifactId>image-contract</artifactId><version>1.0.0</version>
+    <packaging>pom</packaging>
+    <properties><airness.package.root>com.example</airness.package.root></properties>
+</project>
+POM
+    git -C "${image_fixture}" init --quiet --initial-branch=main
+    git -C "${image_fixture}" config user.name Fixture
+    git -C "${image_fixture}" config user.email fixture@example.invalid
+    # The managed ignore files keep the installed dependencies and the registry's .npmrc out of the commit and the
+    # build context, as in a governed project.
+    prepare_maven image-assets containers "${image_fixture}" --quiet airness:assets-sync
+    commit_image_fixture 'an image that migrates at startup'
+}
+
+commit_image_fixture() {
+    git -C "${image_fixture}" add --all
+    git -C "${image_fixture}" commit --quiet --message "test(image): record $1" \
+        --message 'The real application proves the image gate against the installed harness and a real daemon.'
+}
+
+# The images the gate tags are its own, so none may remain once a run of it is over, whatever its verdict.
+expect_no_gate_images() {
+    left="$(docker images --quiet --filter 'reference=airness-image-*' 2>/dev/null)"
+    if [ -z "${left}" ]; then
+        pass "$1"
+    else
+        fail "$1" "images left behind: ${left}"
+    fi
+}
+
+run_image_cases() {
+    prepare_image_fixture
+    run_maven image_boots containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_boots 'image: an image that migrates the empty database it is given passes' 0
+    expect_match image_boots 'image: the gate builds and boots the image' 'Node gate image in [.] passed'
+    # A gate that passes leaves its output in its own log rather than replaying it into the build's.
+    image_log="$(find "${image_fixture}/target/airness/node-logs" -name gate-image.log 2>/dev/null | head -n 1)"
+    expect_file_match "${image_log:-${image_fixture}/target/airness/node-logs/gate-image.log}" \
+        'image: the wrapper starts the services empty, with no preparation run' \
+        'answer empty, as the image gate asks, with no preparation run'
+    expect_no_gate_images 'image: the gate removes the image it built once the image passes'
+
+    python3 - "${image_fixture}/src/server.ts" <<'PY_UNMIGRATED'
+import sys
+from pathlib import Path
+server = Path(sys.argv[1])
+source = server.read_text()
+for line in ("import { migrate } from './migrate.ts'\n", 'await migrate(databaseUrl)\n'):
+    if line not in source:
+        sys.exit(f'the fixture server no longer holds {line!r}')
+    source = source.replace(line, '')
+server.write_text(source)
+PY_UNMIGRATED
+    commit_image_fixture 'an image that never migrates'
+    run_maven image_unmigrated containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_unmigrated 'image: an image that leaves an empty database without its schema fails' 1
+    expect_match image_unmigrated 'image: the gate names the path that answered 500' 'GET / answered 500'
+    expect_match image_unmigrated "image: the failure shows the container's log" 'relation "greeting" does not exist'
+    expect_no_gate_images 'image: the gate removes the image it built once the image fails'
+
+    git -C "${image_fixture}" checkout --quiet HEAD~1 -- src/server.ts
+    python3 - "${image_fixture}/Dockerfile" <<'PY_PUBLIC'
+import sys
+from pathlib import Path
+dockerfile = Path(sys.argv[1])
+source = dockerfile.read_text()
+if 'COPY src ./src\n' not in source:
+    sys.exit('the fixture Dockerfile no longer copies src')
+dockerfile.write_text(source.replace('COPY src ./src\n', 'COPY src ./src\nCOPY public ./public\n'))
+PY_PUBLIC
+    commit_image_fixture 'a Dockerfile that copies a directory the build never made'
+    run_maven image_unbuilt containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_unbuilt 'image: a Dockerfile that cannot build fails' 1
+    expect_match image_unbuilt 'image: the gate says the image does not build' \
+        'Dockerfile: the image does not build from the member.s directory'
+
+    git -C "${image_fixture}" rm --quiet Dockerfile
+    commit_image_fixture 'a project without a Dockerfile'
+    run_maven image_absent containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_absent 'image: a node project without a Dockerfile completes the gate' 0
+    expect_match image_absent 'image: the gate does not apply without a Dockerfile' \
+        'Node gate image in [.] not applicable'
 }
 
 # A worktree made by git worktree add keeps its history in the main clone. Mounted alone, it handed gitleaks

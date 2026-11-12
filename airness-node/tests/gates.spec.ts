@@ -128,6 +128,7 @@ describe('the gate registry', PROCESS_TIME, () => {
       'build',
       'bundle',
       'e2e',
+      'image',
     ])
   })
 })

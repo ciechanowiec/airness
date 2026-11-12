@@ -116,6 +116,10 @@
     "./services": {
       "types": "./dist/services.d.ts",
       "default": "./dist/services.js"
+    },
+    "./dockerfiles": {
+      "types": "./dist/dockerfiles.d.ts",
+      "default": "./dist/dockerfiles.js"
     }
   },
   "files": [
@@ -263,6 +267,10 @@
       {
         "pattern": "src/services-guard-main.ts",
         "reason": "the services guard's entry point, which runs only as a detached process of its own; the decisions it makes are measured in services-guard.ts and the integration suite proves a killed wrapper's containers removed"
+      },
+      {
+        "pattern": "src/image-{machine,boot-main,services-main}.ts",
+        "reason": "the image gate's bindings to Docker, the member's wrapper and the stop signals, and the entry points the wrapper runs as processes of their own; the decisions they carry out are measured in gate-image.ts and image-boot.ts, and the integration suite builds and boots real images"
       },
       {
         "pattern": "src/app-child.ts",

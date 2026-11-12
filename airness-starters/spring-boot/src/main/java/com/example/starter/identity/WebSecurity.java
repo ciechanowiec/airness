@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 
 /**
  * Who may reach the application, and what a caller may reach without saying who they are.
@@ -33,6 +34,10 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
  * <p>Every sign-in is written into a session registry, which is what lets stopping an account end the
  * sessions it is signed in under at once. A session lapses after the idle time the configuration
  * declares, and signing out ends it.
+ *
+ * <p>The application is reached over HTTPS alone. Every response tells the browser so for two years, and the
+ * configuration marks the session cookie Secure, so neither a first request typed without a scheme nor a link
+ * to plain HTTP carries the session in the clear.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -63,6 +68,12 @@ public final class WebSecurity {
     private static final int WORK_FACTOR = 12;
 
     private static final int UNLIMITED = -1;
+
+    // Two years, in seconds. The header is written on every response, where the framework's default writes it
+    // on a secure request alone: behind the proxy that terminates TLS for a deployment the application sees
+    // plain HTTP and would never send it, and a browser ignores the header on a plain HTTP response, so a
+    // developer's machine is held to nothing by it.
+    private static final long TRANSPORT_SECURITY = 63_072_000L;
 
     /**
      * Answers the chain every request passes through.
@@ -99,6 +110,10 @@ public final class WebSecurity {
                 headers -> headers
                     .contentSecurityPolicy(policy -> policy.policyDirectives(CONTENT_POLICY))
                     .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    .httpStrictTransportSecurity(
+                        transport -> transport.requestMatcher(AnyRequestMatcher.INSTANCE)
+                            .maxAgeInSeconds(TRANSPORT_SECURITY)
+                    )
             ).build();
     }
 

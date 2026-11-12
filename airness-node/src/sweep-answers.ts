@@ -1,13 +1,15 @@
 // What one crawled navigation answered beyond the page it showed: the redirects it followed, which decide
-// whether it covers the address the crawl asked for, and the htmx fragments the page names, which are routes no
-// link reaches.
+// whether it covers the address the crawl asked for, the security headers it carried, and the htmx fragments the
+// page names, which are routes no link reaches.
 import type { Page, Request, Response } from '@playwright/test'
 import { requestedFragments } from './a11y.js'
 import { type BrowserFinding, findingAt } from './browser-findings.js'
 import { BROKEN_LINK_RULE } from './browser-health.js'
+import { servedByOf } from './browser-server-policy.js'
 import type { FragmentVerdict } from './htmx-fragments.js'
 import { coversRequestedRoute } from './route-coverage.js'
 import { engineOf } from './scanner.js'
+import { securityHeaderProblems } from './security-headers.js'
 
 // The status of every redirect a navigation followed before its final answer.
 const redirectStatuses = async (request: Request | null): Promise<readonly number[]> => {
@@ -27,6 +29,33 @@ const redirectStatuses = async (request: Request | null): Promise<readonly numbe
  */
 export const coversItsRoute = async (response: Response, route: string, page: Page): Promise<boolean> =>
   coversRequestedRoute(await redirectStatuses(response.request().redirectedFrom()), route, new URL(page.url()).pathname)
+
+/**
+ * The security-header findings of an answered HTML page, judged as the server the run started answers: in a
+ * verification run, the production server, which owes transport security and Secure cookies too. Read through
+ * `allHeaders()` rather than `headers()`, which withholds the Set-Cookie lines.
+ * @param response the navigation's final answer.
+ * @param route the address the crawl asked for, which each finding names.
+ * @param page the page, whose engine each finding names.
+ * @returns one finding per problem, or nothing for a response that is not HTML.
+ */
+export const headerFindings = async (
+  response: Response,
+  route: string,
+  page: Page,
+): Promise<readonly BrowserFinding[]> => {
+  const headers: Record<string, string> = await response.allHeaders()
+  return headers['content-type']?.includes('text/html') === true
+    ? securityHeaderProblems(headers, servedByOf(process.env)).map(
+        (problem: string): BrowserFinding =>
+          findingAt(
+            { location: route, state: 'discovery', engine: engineOf(page), viewport: undefined },
+            'security-headers',
+            problem,
+          ),
+      )
+    : []
+}
 
 /** The fragments of the crawl so far. */
 export interface FragmentsSoFar {

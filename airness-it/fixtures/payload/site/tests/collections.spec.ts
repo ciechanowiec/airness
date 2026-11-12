@@ -7,6 +7,10 @@ describe('the collections', () => {
     expect(Users.auth).toMatchObject({ maxLoginAttempts: 5 })
   })
 
+  it('mark the session cookie Secure in production alone, which the test run is not', () => {
+    expect(Users.auth).toMatchObject({ cookies: { secure: false, sameSite: 'Lax' } })
+  })
+
   it('keep the versions of a post', () => {
     expect(Posts.versions).toBe(true)
   })

@@ -147,8 +147,10 @@ Airness governs all of the following domains:
   project without that evidence fails. The pinned Node answers to the bound in long-term-support lines, and
   pnpm to the ordinary bound. Extended verification adds `npm-sbom` (a CycloneDX
   document beside `dependencies.json`), and for a member that declares `next` `build` and `bundle` (gzipped
-  client JavaScript within 1100 KiB), and for a browser application `e2e`: the harness's accessibility, layout and
-  security-header specs and the member's own end-to-end specs under the shipped Playwright configuration. A
+  client JavaScript within 1100 KiB), for a browser application `e2e`: the harness's accessibility, layout and
+  security-header specs and the member's own end-to-end specs under the shipped Playwright configuration, and for a
+  member holding a Dockerfile `image`, which builds every Dockerfile of the member, as Node Application Preparation
+  and Security Corrections describes, and boots the image of a browser application against empty services. A
   browser application that is not a Next.js application declares the script that serves it as `serve`. A
   Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top and
   refuses a routes directory (`app` or `pages`) at the member root rather than under `src`, the pages the crawl
@@ -272,9 +274,11 @@ repair one: once it is published, only a fresh history satisfies the rule.
 ### Assertions
 
 The harness checks that every test reaches an assertion and that no assertion compares one written-out value with
-another. Neither check decides the question those two stand in for, which is whether the assertion would notice if
-the behaviour went missing. That half binds in prose: a test fails when the behaviour its name states is removed
-from the code under test. Write each test so that it would, and read it back that way before finishing.
+another. In a node project's Vitest and Playwright specs it also fails a test whose every assertion asks only
+whether a value exists or is truthy, such as `toBeDefined()`, `toBeTruthy()`, `not.toBeNull()` or
+`expect(Boolean(value)).toBe(true)`; such checks stay allowed beside one that judges the value. None of these checks
+decides the question they stand in for, which is whether the assertion would notice if the behaviour went missing.
+That half binds in prose: a test fails when the behaviour its name states is removed from the code under test. Write each test so that it would, and read it back that way before finishing.
 
 ### Node Application Preparation and Security Corrections
 
@@ -314,6 +318,23 @@ on which `prepare` can run a one-off container with `services.once`; `prepare` a
 migrations against the services before the command. Never start fixed-name containers on fixed ports, or reuse a
 developer's database, for verification.
 
+The Extended `image` gate holds every Dockerfile of a node project to the image a deployment runs. It builds
+each one from the member's directory as the build left it, with no build argument and no service, so the image
+cannot depend on a secret or a database at build time, and may copy what `package` made, such as a Spring Boot
+archive. For a browser application it then publishes the one TCP port the image exposes on a loopback port of
+the run, starts the image under the wrapper with `AIRNESS_IMAGE_VERIFICATION=1`, and asks the path of
+`serverUrl` and each path a stack layer names until every one answers below 500, for at most two minutes; a
+container that stops, or a path still answering 500 or nothing, fails with the container's log. In that mode
+`withServices` runs no `prepare`, so the services start as a fresh deployment's do and the image has to bring an
+empty database to its schema itself, as its migrations at startup; anything a deployment provisions before the
+application first starts, such as a bucket, belongs in a container's `ready` command. It also puts the containers
+on a network of the run's own and hands the command their description, from which the gate passes the image the
+variables the plan names, each loopback address of a published port rewritten to the service container behind
+it, and sets each `serverUrlVariables` variable to the origin it serves the image on. A wrapper that does not
+describe its services fails the gate; a member without a wrapper boots its image with no services. Every
+container and image the gate starts is removed afterwards, also when the build is stopped. There is no setting
+that exempts a Dockerfile: one that cannot produce a working image is removed or repaired.
+
 Vitest collects TypeScript and TSX specifications. Server integration specs run in Node, component specs in
 Happy DOM with native dialog and fetch support, and browser-application unit specs retain their jsdom environment. Application suites and wrapped suites
 run files serially. The harness network guard loads before an optional project `vitest.setup.ts`, whose imports
@@ -339,7 +360,10 @@ one the lockfile records, and names the lockfile-only `pnpm install` that refres
 serves nothing and runs that refresh itself on a stale lock or one with merge conflict markers, then fails the
 build, which has rewritten a tracked file, so the next build runs on the refreshed lock. With the `CI` variable
 set it refreshes nothing and fails. Other packages retain their public registry metadata and release-age
-checks. Only the unpublished harness packages may be excluded from the age floor.
+checks. Only the unpublished harness packages may be excluded from the age floor. A Docker build reaches no
+loopback registry of the host, so an image that installs the development dependencies, as a Next.js build does,
+builds only against a released harness. The `image` gate therefore does not apply to a member that declares a harness
+package at a SNAPSHOT version, and judges its images once the member depends on a released harness.
 
 ## Command Workflow
 
@@ -471,6 +495,15 @@ locale and dynamic prefixes taken from discovered routes. The expected top-level
 failed subresources remain findings. A boundary with no resolvable public prefix fails discovery.
 An application with several root layouts answers an address none of them claims with `global-not-found`,
 which is scanned at the root; without it Next.js serves its bare built-in page, and that page is judged.
+
+The security-header specification and discovery hold every HTML response to a baseline: `nosniff`, a declared
+referrer policy, a framing decision and a content security policy that constrains script without
+`'unsafe-inline'`. The production server a verification run starts also declares Strict-Transport-Security with a
+`max-age` of at least 31536000 seconds, one year, and marks every cookie it sets `Secure`. A development server owes
+neither, so send HSTS from production alone: a browser that receives it over HTTPS keeps it for every port of the
+host, `localhost` included.
+`expectSecurityHeaders` from `@airness/node/security` applies the same baseline to a response a project's own
+specification receives.
 
 `expectPerceivable(control)` from `@airness/node/a11y` checks painted visibility within 1.5 seconds, without
 moving focus or scrolling on the test's behalf. Use it for time-sensitive keyboard regressions.

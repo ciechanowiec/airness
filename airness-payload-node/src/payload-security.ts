@@ -9,6 +9,10 @@ export interface ResolvedAuth {
   readonly maxLoginAttempts: unknown
   readonly lockTime: unknown
   readonly tokenExpiration: unknown
+  /** `auth.cookies.secure`, which Payload resolves to false unless the project decides it. */
+  readonly cookieSecure: unknown
+  /** `auth.cookies.sameSite`, which forces the cookie Secure when it is `None`. */
+  readonly cookieSameSite: unknown
 }
 
 /** Only the state is reported: an auto-login object can contain credentials. */
@@ -24,7 +28,8 @@ const autoLoginState = (value: unknown): PayloadSecurityReport['autoLogin'] => {
   return isRecord(value) ? 'enabled' : 'invalid'
 }
 
-const observedLimit = (auth: unknown, key: string): unknown => readKey(auth, key) ?? null
+// Null rather than undefined for an absent value, so the report keeps the key and a missing setting is judged.
+const observed = (owner: unknown, key: string): unknown => readKey(owner, key) ?? null
 
 const hasLocalStrategy = (auth: unknown): boolean => {
   const disabled: unknown = readKey(auth, 'disableLocalStrategy')
@@ -54,13 +59,16 @@ export const payloadSecurityOf = (config: unknown): PayloadSecurityReport => {
       if (typeof slug !== 'string' || !isRecord(auth)) {
         throw new TypeError('an authentication collection has no resolved slug or auth object')
       }
+      const cookies: unknown = readKey(auth, 'cookies')
       return [
         {
           slug,
           local: hasLocalStrategy(auth),
-          maxLoginAttempts: observedLimit(auth, 'maxLoginAttempts'),
-          lockTime: observedLimit(auth, 'lockTime'),
-          tokenExpiration: observedLimit(auth, 'tokenExpiration'),
+          maxLoginAttempts: observed(auth, 'maxLoginAttempts'),
+          lockTime: observed(auth, 'lockTime'),
+          tokenExpiration: observed(auth, 'tokenExpiration'),
+          cookieSecure: observed(cookies, 'secure'),
+          cookieSameSite: observed(cookies, 'sameSite'),
         },
       ]
     }),
@@ -71,7 +79,9 @@ const isResolvedAuth = (value: unknown): value is ResolvedAuth =>
   isRecord(value) &&
   typeof value['slug'] === 'string' &&
   typeof value['local'] === 'boolean' &&
-  ['maxLoginAttempts', 'lockTime', 'tokenExpiration'].every((key: string): boolean => Object.hasOwn(value, key))
+  ['maxLoginAttempts', 'lockTime', 'tokenExpiration', 'cookieSecure', 'cookieSameSite'].every((key: string): boolean =>
+    Object.hasOwn(value, key),
+  )
 
 /** Missing security evidence is a probe failure, even if the access portion was readable. */
 export const parsePayloadSecurityReport = (text: string): PayloadSecurityReport | undefined => {
@@ -106,9 +116,31 @@ const authFindings = (auth: ResolvedAuth): readonly string[] => {
   })
 }
 
-/** Enforce native authentication limits and disable the development login feature in production. */
+// The session cookie of an auth collection, which Payload sets on login and on every refresh, whatever strategy
+// signed the user in. Payload resolves `auth.cookies.secure` to false unless the project decides it, so a
+// browser sends the session token over plain HTTP too: on a link to `http://`, on a first request typed without
+// a scheme, before any redirect to HTTPS can answer. Payload marks the cookie Secure either when `secure` is
+// true or when `sameSite` is `None`, which browsers accept only on a Secure cookie, and this reads the two as
+// Payload does. The probe evaluates the configuration where NODE_ENV is production, so a project that decides
+// `secure` from it, through its validated environment module, is judged by what it deploys.
+const cookieFindings = (auth: ResolvedAuth): readonly string[] =>
+  auth.cookieSecure === true || auth.cookieSameSite === 'None'
+    ? []
+    : [
+        `collection "${auth.slug}" resolves auth.cookies.secure to ${JSON.stringify(auth.cookieSecure)} in ` +
+          'production, so its session cookie is sent over plain HTTP too; set auth.cookies.secure to true when ' +
+          'NODE_ENV is production',
+      ]
+
+/**
+ * Enforce native authentication limits and Secure session cookies, and disable the development login feature,
+ * in production.
+ */
 export const findPayloadSecurityViolations = (report: PayloadSecurityReport): readonly string[] => [
-  ...report.authentication.flatMap((auth: ResolvedAuth): readonly string[] => authFindings(auth)),
+  ...report.authentication.flatMap((auth: ResolvedAuth): readonly string[] => [
+    ...authFindings(auth),
+    ...cookieFindings(auth),
+  ]),
   ...(report.autoLogin === 'disabled'
     ? []
     : ['production admin.autoLogin must be absent or false; disable auto-login and credential prefill in production']),

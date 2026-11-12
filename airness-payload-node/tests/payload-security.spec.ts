@@ -11,7 +11,14 @@ const configWith = (auth: unknown, autoLogin: unknown = false): unknown => ({
   collections: [{ slug: 'users', auth }],
   admin: { autoLogin },
 })
-const validAuth: Readonly<Record<string, unknown>> = { maxLoginAttempts: 5, lockTime: 600_000, tokenExpiration: 7200 }
+// Resolved as Payload resolves a collection that decides its cookie: Secure in production, `Lax` either way.
+const secureCookies: Readonly<Record<string, unknown>> = { secure: true, sameSite: 'Lax' }
+const validAuth: Readonly<Record<string, unknown>> = {
+  maxLoginAttempts: 5,
+  lockTime: 600_000,
+  tokenExpiration: 7200,
+  cookies: secureCookies,
+}
 const findingsFor = (auth: unknown): readonly string[] =>
   findPayloadSecurityViolations(payloadSecurityOf(configWith(auth)))
 
@@ -29,17 +36,38 @@ describe('resolved authentication policy', () => {
     expect(findingsFor({ ...validAuth, [key]: Number.POSITIVE_INFINITY })).toHaveLength(1)
   })
   it('does not apply native limits to disabled local authentication or non-auth collections', () => {
-    expect(findingsFor({ disableLocalStrategy: true })).toEqual([])
-    expect(findingsFor({ disableLocalStrategy: { enableFields: true } })).toEqual([])
+    expect(findingsFor({ disableLocalStrategy: true, cookies: secureCookies })).toEqual([])
+    expect(findingsFor({ disableLocalStrategy: { enableFields: true }, cookies: secureCookies })).toEqual([])
     expect(findingsFor(false)).toEqual([])
     expect(findingsFor(undefined)).toEqual([])
   })
   it('fails incomplete native settings and malformed resolved collections', () => {
-    expect(findingsFor({})).toHaveLength(3)
+    expect(findingsFor({})).toHaveLength(4)
     expect(() => payloadSecurityOf({})).toThrow('collections')
     expect(() => payloadSecurityOf(configWith(true))).toThrow('resolved')
     expect(() => payloadSecurityOf({ collections: [{ auth: {} }] })).toThrow('slug')
     expect(() => payloadSecurityOf(configWith({ disableLocalStrategy: 0 }))).toThrow('disableLocalStrategy')
+  })
+})
+
+describe('production session cookies', () => {
+  it('accepts a cookie Payload marks Secure, through secure or through SameSite=None', () => {
+    expect(findingsFor({ ...validAuth, cookies: { secure: true, sameSite: 'Strict' } })).toEqual([])
+    expect(findingsFor({ ...validAuth, cookies: { secure: false, sameSite: 'None' } })).toEqual([])
+  })
+  it.each([
+    { secure: false, sameSite: 'Lax' },
+    { sameSite: 'Lax' },
+    { secure: 'true', sameSite: 'Lax' },
+    { secure: 1, sameSite: true },
+    {},
+  ])('rejects the resolved cookie %j, whatever the strategy', (cookies) => {
+    expect(findingsFor({ ...validAuth, cookies })).toEqual([expect.stringContaining('auth.cookies.secure')])
+    expect(findingsFor({ disableLocalStrategy: true, cookies })).toEqual([expect.stringContaining('session cookie')])
+  })
+  it('rejects a collection Payload resolved no cookie settings for', () => {
+    const { cookies: _decided, ...undecided } = validAuth
+    expect(findingsFor(undecided)).toEqual([expect.stringContaining('auth.cookies.secure to null')])
   })
 })
 
@@ -68,6 +96,10 @@ describe('security probe evidence', () => {
     { authentication: [] },
     { authentication: [], autoLogin: true },
     { authentication: [{ slug: 'users', local: true }], autoLogin: 'disabled' },
+    {
+      authentication: [{ slug: 'users', local: true, maxLoginAttempts: 5, lockTime: 600_000, tokenExpiration: 7200 }],
+      autoLogin: 'disabled',
+    },
     { authentication: [null], autoLogin: 'disabled' },
   ])('rejects incomplete evidence %j', (report) => {
     expect(parsePayloadSecurityReport(`${INHERITED_ACCESS_REPORT_MARKER}${JSON.stringify(report)}`)).toBeUndefined()

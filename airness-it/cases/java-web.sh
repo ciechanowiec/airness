@@ -168,6 +168,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 
 /**
  * What this application asks of a caller.
@@ -176,6 +177,10 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 public final class Security {
 
     private static final String POLICY = "default-src 'self'; frame-ancestors 'none'";
+
+    // Two years, in seconds, sent on every response: the default writer answers a secure request alone, which
+    // behind a proxy that terminates TLS is never one, and a browser ignores the header over plain HTTP.
+    private static final long TRANSPORT_SECURITY = 63_072_000L;
 
     /**
      * Builds the chain every request is decided by.
@@ -202,10 +207,20 @@ public final class Security {
                 headers -> headers
                     .contentSecurityPolicy(policy -> policy.policyDirectives(POLICY))
                     .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    .httpStrictTransportSecurity(
+                        transport -> transport.requestMatcher(AnyRequestMatcher.INSTANCE)
+                            .maxAgeInSeconds(TRANSPORT_SECURITY)
+                    )
             ).build();
     }
 }
 JAVA
+    # The session cookie the sign-in form's token opens is marked Secure, which the sweep asks of every cookie
+    # the production server sets.
+    cat > "${java_web}/src/main/resources/application.properties" <<'PROPERTIES'
+server.servlet.session.cookie.secure=true
+server.shutdown=graceful
+PROPERTIES
     for page in home about hidden account; do
         case "${page}" in
             home) heading='Home'; body='<img class="mark" src="/img/mark.svg" alt="The mark of the application" width="48" height="48">

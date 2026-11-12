@@ -30,6 +30,7 @@ const LAYER_MANIFEST: Readonly<Record<string, unknown>> = {
       vitestInlineDependencies: ['@framework/next', '@framework/ui', 'react-image-crop'],
       productionEntries: ['src/framework.config.ts'],
       knipConfigPlugins: ['framework', 'framework'],
+      imageProbes: ['/admin', 'http://elsewhere.test/', '//elsewhere.test/', '/admin'],
       javascriptAllowlist: [
         { pattern: String.raw`importMap\.js$`, runtime: 'node' },
         { pattern: String.raw`^nothing\.js$`, runtime: 'deno' },
@@ -48,6 +49,11 @@ describe('the defaults a layer package contributes', PROCESS_TIME, () => {
     expect(settings.declaredExclusions).toEqual([])
     expect(settings.productionEntries).toEqual(['src/framework.config.ts'])
     expect(settings.knipConfigPlugins).toEqual(['framework'])
+  })
+
+  it('asks a booted image for each path a layer names once, and for no address of another origin', () => {
+    expect(readSettings({}, [layerDefaultsOf(LAYER_MANIFEST)]).imageProbes).toEqual(['/admin'])
+    expect(readSettings({ airness: { imageProbes: ['/health'] } }, [layerDefaultsOf({})]).imageProbes).toEqual([])
   })
 
   it('contributes no production entry and leaves no knip plugin out where no layer names one', () => {

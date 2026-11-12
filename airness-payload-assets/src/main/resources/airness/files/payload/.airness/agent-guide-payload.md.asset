@@ -16,7 +16,7 @@ The Payload gates run through `airness:node-gate` like every node gate, bound by
 | `admin-views` | `post-integration-test` | Every custom admin view has an accessibility specification of the project's own. |
 | `payload-environment` | `post-integration-test` | Every variable `src/lib/environment.ts` reads is documented in the repository's example file, and every `NEXT_PUBLIC_` variable it inlines is declared by an `ARG` in each Dockerfile that builds the member. |
 | `payload-generated` | `post-integration-test` | Regenerating the Payload types, the admin import map and, when the member keeps `src/payload-generated-schema.ts`, the database schema with the project's own Payload CLI leaves them unchanged. |
-| `payload-defaults` | `post-integration-test` | Every collection and global of the built configuration, framework-built ones included, decides its access; no drafts read serves an unapproved document to a stranger; production authentication limits are valid; `admin.autoLogin` is off; no upload collection stores its files on the local disk unless `localStorage` declares it. |
+| `payload-defaults` | `post-integration-test` | Every collection and global of the built configuration, framework-built ones included, decides its access; no drafts read serves an unapproved document to a stranger; production authentication limits are valid; every auth collection's session cookie is Secure in production, through `auth.cookies.secure` (Payload's default is `false`); `admin.autoLogin` is off; no upload collection stores its files on the local disk unless `localStorage` declares it. |
 | `payload-migrations` | `post-integration-test` | The schema the configuration builds matches the newest `.json` snapshot the committed migrations record, compared as `payload migrate:create` compares it, without a database and without writing a file. |
 
 Run one gate with `pnpm exec airness-payload gate <id> --verbose` to diagnose it. That is a diagnosis, never a verdict.
@@ -26,6 +26,22 @@ blocks below, and the Extended `e2e` gate runs the layer's `access-boundary` spe
 `/api/access` what an anonymous caller may do and fails on every grant `publicAccess` does not declare. The
 browser sweep scans a custom admin view within Payload's template: the layer supplies the template's content
 selectors through `airness.layer.browser`, so Payload's own navigation and header are not judged as the view's.
+The Extended `image` gate asks a booted image for `/api/users/init` beside the origin's own path, through the
+layer's `imageProbes`: the admin panel asks it whether a first user must be created, and Payload answers it by
+reading the users collection, its default auth collection, so an image whose empty database never received its
+schema answers 500 and fails. An admin page is no such probe, since Next.js has already sent its 200 when the
+query behind it fails.
+
+An image of a Payload application passes that gate when:
+
+- its Dockerfile builds with no build argument: the stage that runs `next build` installs the dependencies from the
+  lockfile and gives the variables the configuration validates as it is imported inert placeholders on that `RUN`
+  line alone, as `analysisEnv` gives them to the gates, never a real value;
+- every directory it copies exists in the build, so a `public` directory is copied only where the project has one;
+- the configuration applies the committed migrations as the server starts, with `prodMigrations` set to the
+  `migrations` export of `src/migrations`, because the runtime stage holds the built server alone;
+- the origin is read at runtime from a variable `serverUrlVariables` names, which the gate sets in the running
+  container, rather than set only in the stage that builds.
 
 ## Settings
 
@@ -60,6 +76,9 @@ and the generic Airness approvals.
 - Collection, global, field and block definitions are declarative. Define access rules and pure logic in
   `src/access` or `src/lib`, hooks in `src/hooks`, and import them by reference.
 - A collection decides `create`, `read`, `update` and `delete`; a global decides `read` and `update`.
+- An auth collection sets `auth.cookies.secure` to true in production, for example from a value
+  `src/lib/environment.ts` derives from `NODE_ENV`, because Payload's default sends the session cookie over plain
+  HTTP. `payload-defaults` evaluates the configuration with `NODE_ENV` set to `production`.
 - At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through
   `req.payload` or `request.payload` passes `req`; a call carrying `user`, a call composed with a spread, and
   every call in an endpoint module, a route handler, a server action (a `'use server'` module or function) or a
@@ -77,7 +96,8 @@ and the generic Airness approvals.
 - A required relationship or upload, on a collection or a global, needs a `beforeDelete` hook on its target
   collection that removes the dependants first, unless drafts are enabled on the holder.
 - A database adapter that does not push its schema needs a recorded migration for every schema change: after a
-  change, run `payload migrate:create <name>` and commit the migration with the `.json` snapshot it writes.
+  change, run `payload migrate:create <name>` and commit the migration with the `.json` snapshot it writes. A
+  deployed server applies them as it starts through `prodMigrations`, as the `image` gate requires.
 - ESLint refuses an inline function in a collection, global, field or block configuration, a read of
   `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` taken out of `req` or
   `request`, destructured or bound to a name as in `const cms = req.payload` (call `req.payload` and pass

@@ -55,6 +55,8 @@ run_starter_cases() {
         'Analysis results: 0 problem detected'
     expect_match starter_verify 'starters: the browser sweep and the end-to-end suite pass on the application' \
         'Node gate e2e in [.] passed'
+    expect_match starter_verify 'starters: the image of the application boots against an empty database' \
+        'Node gate image in [.] passed'
 
     run_maven starter_occupied starters "${starter_home}" "${starter_goal}" \
         -Dairness.groupId=org.sample -Dairness.artifactId=task-tracker

@@ -18,6 +18,7 @@ import {
   testIdiomPlugins,
   testIdiomRules,
   testIntegrityRules,
+  testOutcomeRules,
   testSuiteSyntaxRules,
   typeAwareParsing,
   vitestPlugin,
@@ -102,6 +103,7 @@ const config: ReturnType<typeof compose> = compose(
     rules: {
       ...testIdiomRules,
       ...testIntegrityRules,
+      ...testOutcomeRules,
       ...testSuiteSyntaxRules,
     },
   } satisfies FlatConfigBlock,

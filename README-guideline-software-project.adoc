@@ -271,7 +271,7 @@ These rules govern access, authentication, audit events, and data handling where
 . Interactive authenticated sessions have a declared lifetime. The component that validates access enforces expiry and logout, so a saved session credential can't restore a terminated session.
 . Account disablement, permission removal, and credential revocation take effect within declared time limits. Existing sessions and credentials obey those limits.
 . A declared policy limits repeated authentication failures and specifies recovery conditions. The software enforces that policy.
-. Login and account-recovery failures reveal neither the existence of a private account nor which credential component was correct.
+. Login and account-recovery failures reveal neither the existence of a private account nor which credential component was correct. Neither the response content, the status code, nor the response time distinguishes these failures from each other.
 
 [[audit-events]]
 === Audit Events

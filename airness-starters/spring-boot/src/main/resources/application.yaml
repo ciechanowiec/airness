@@ -14,6 +14,8 @@ server:
       cookie:
         http-only: true
         same-site: lax
+        # The application is reached over HTTPS alone, so the session never travels in the clear.
+        secure: true
 spring:
   application:
     name: starter

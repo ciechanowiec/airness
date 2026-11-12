@@ -75,6 +75,11 @@ export interface Settings extends InvocationSettings {
   readonly serverUrl: string
   /** Environment variables the application reads its own origin from, which verification sets to the served one. */
   readonly serverUrlVariables: readonly string[]
+  /**
+   * The paths, beside the origin's own, that the image gate asks a booted image for, each of which must answer below
+   * 500: those the layers' frameworks name, which make the framework reach its database. A project adds none.
+   */
+  readonly imageProbes: readonly string[]
   /** The gzipped client JavaScript ceiling of a Next.js application, which a project may only lower. */
   readonly bundleBudgetBytes: number
   /** Route prefixes the accessibility crawl does not follow. */
@@ -134,6 +139,8 @@ export interface LayerDefaults {
   readonly productionEntries?: readonly string[]
   /** The knip plugins that read one of {@link LayerDefaults.productionEntries} as a tool's configuration. */
   readonly knipConfigPlugins?: readonly string[]
+  /** Paths the image gate asks a booted image for, such as a page the framework renders from its database. */
+  readonly imageProbes?: readonly string[]
 }
 
 /** The directories a project holds first-party source in, whatever else it declares. */
@@ -330,6 +337,16 @@ const deadCodeSettings = (
   ],
 })
 
+// The paths the layers name for the image gate, each once. A path, never a URL: the gate asks it of the origin it
+// serves the image on.
+const imageProbesOf = (layers: readonly LayerDefaults[]): readonly string[] => [
+  ...new Set<string>(
+    layers
+      .flatMap((layer: LayerDefaults): readonly string[] => layer.imageProbes ?? [])
+      .filter((probe: string): boolean => probe.startsWith('/') && !probe.startsWith('//')),
+  ),
+]
+
 // Settings the harness once read and no longer does, each with why. Any other key the block does not know is passed
 // over, but a project that still declares one of these believes it changes a gate, so it is told to delete it.
 const RETIRED_SETTINGS: ReadonlyMap<string, string> = new Map([
@@ -429,6 +446,7 @@ export const readSettings = (packageJson: unknown, layers: readonly LayerDefault
     javascriptRuntimes: [...DEFAULT_JAVASCRIPT_RUNTIMES, ...layerRuntimes, ...declaredRuntimeRoles(javascript)],
     pureLogicRoots: floorOf(floor, layers),
     ...deadCodeSettings(layers, entries),
+    imageProbes: imageProbesOf(layers),
     ...appSettings(raw, layers, honouredRoutes(routes)),
     ...browserSettings(raw),
   }

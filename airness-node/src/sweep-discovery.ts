@@ -31,9 +31,8 @@ import { projectSettings } from './project-settings.js'
 import type { DeclaredRoute } from './route-map.js'
 import { clearCompletedScans } from './scan-evidence.js'
 import { engineOf } from './scanner.js'
-import { securityHeaderProblems } from './security-headers.js'
 import { settleForScan } from './settle.js'
-import { type CrawledFragments, coversItsRoute, crawledFragments } from './sweep-answers.js'
+import { type CrawledFragments, coversItsRoute, crawledFragments, headerFindings } from './sweep-answers.js'
 import { discoverNotFound, type NotFoundDiscovery } from './sweep-not-found.js'
 import {
   armBudget,
@@ -198,23 +197,6 @@ const linkFinding = (queued: Queued, page: Page, reason: string): BrowserFinding
     `link to ${queued.route} ${reason}`,
   )
 
-const htmlHeaderFindings = (response: Response, route: string, page: Page): readonly BrowserFinding[] =>
-  response.headers()['content-type']?.includes('text/html') === true
-    ? securityHeaderProblems(response.headers()).map(
-        (problem: string): BrowserFinding =>
-          findingAt(
-            {
-              location: route,
-              state: 'discovery',
-              engine: engineOf(page),
-              viewport: undefined,
-            },
-            'security-headers',
-            problem,
-          ),
-      )
-    : []
-
 const visited = async (page: Page, url: string): Promise<Response | null> => {
   try {
     return await page.goto(url)
@@ -274,7 +256,7 @@ const crawl = async (page: Page, state: CrawlState): Promise<CrawlState> => {
         ...settled,
         ...fragments,
         reachable: [...settled.reachable, location],
-        findings: [...settled.findings, ...fragments.findings, ...htmlHeaderFindings(response, queued.route, page)],
+        findings: [...settled.findings, ...fragments.findings, ...(await headerFindings(response, queued.route, page))],
       },
       [...facts.hrefs, ...alternateHrefs(facts.alternates)].flatMap((href: string): readonly string[] => {
         const address: string | undefined = localAddress(href, page.url(), facts.canonical, origin)

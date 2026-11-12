@@ -4,7 +4,9 @@
 // boots, so the collections the framework builds for the project (the folder tree, the job queue, a plugin's
 // own) are judged too. Each of those arrives with Payload's default, which admits every signed-in user, and the
 // anonymous sweep cannot see that because a signed-in user is not anonymous. The same import shows where every
-// upload collection stores its files once every storage adapter has run, which no source rule can read.
+// upload collection stores its files once every storage adapter has run, which no source rule can read, and
+// what each auth collection resolves its session cookie to in production, which a login the anonymous sweep
+// never makes is the only other way to observe.
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { RunResult } from '@airness/node/exec'
@@ -87,7 +89,8 @@ const judgeProbe = (result: RunResult, localStorage: readonly LocalStorage[]): G
     ? failed(summary, findings)
     : passed(
         'every collection and global decides its access, framework-built ones included, no drafts read serves ' +
-          'an unapproved document to a stranger, the production authentication settings are valid, and no ' +
+          'an unapproved document to a stranger, the production authentication settings are valid and mark ' +
+          'every session cookie Secure, and no ' +
           'upload collection stores its files on the local disk unless the project declares it',
       )
 }
