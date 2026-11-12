@@ -362,8 +362,10 @@ build, which has rewritten a tracked file, so the next build runs on the refresh
 set it refreshes nothing and fails. Other packages retain their public registry metadata and release-age
 checks. Only the unpublished harness packages may be excluded from the age floor. A Docker build reaches no
 loopback registry of the host, so an image that installs the development dependencies, as a Next.js build does,
-builds only against a released harness. The `image` gate therefore does not apply to a member that declares a harness
-package at a SNAPSHOT version, and judges its images once the member depends on a released harness.
+builds only against a released harness. While a member declares a harness package at a SNAPSHOT version, the `image`
+gate therefore leaves out each Dockerfile whose `RUN` installs packages with npm, pnpm, yarn or bun, and judges it once
+the member depends on a released harness. A Dockerfile that installs nothing, such as one that copies the JAR or the
+sources it runs, is built and booted all the same.
 
 ## Command Workflow
 

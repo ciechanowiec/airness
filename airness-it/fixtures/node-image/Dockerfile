@@ -4,7 +4,8 @@ FROM node:26.8.2-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046b
 WORKDIR /app
 COPY package.json ./
 COPY src ./src
-USER node
+# The image's unprivileged node user, by the numeric identity a host can resolve.
+USER 1000:1000
 ENV PORT=3000
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD ["wget", "--quiet", "--spider", "http://127.0.0.1:3000/"]
