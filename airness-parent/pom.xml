@@ -799,12 +799,14 @@
                                 The npm software bill of materials of every declared node project, at prepare-
                                 package beside the Default inventory, so the package-phase policies and the closing
                                 step can read it. Then the Next.js facet's production build and client bundle
-                                budget, and the browser-application facet's end-to-end suite, in that order, since
-                                the suite serves the build, at post-integration-test: a profile's verify executions
-                                merge after module-complete, which closes the build. They therefore run before the
-                                Default gates, and before any teardown a project binds to the same phase, so a
-                                failing one skips that teardown. Each reads as not applicable in a node project
-                                without its facet.
+                                budget, the browser-application facet's end-to-end suite, in that order, since the
+                                suite serves the build, and last the deployable image, which builds every Dockerfile
+                                of a node project and boots the image of one that serves against empty services, at
+                                post-integration-test, after package, since an image may copy what package made: a
+                                profile's verify executions merge after module-complete, which closes the build.
+                                They therefore run before the Default gates, and before any teardown a project binds
+                                to the same phase, so a failing one skips that teardown. Each reads as not
+                                applicable in a node project without its facet.
                             -->
                             <execution>
                                 <id>node-gate-npm-sbom</id>
@@ -848,6 +850,17 @@
                                 <configuration>
                                     <gate>e2e</gate>
                                     <command>airness-node gate e2e</command>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>node-gate-image</id>
+                                <phase>post-integration-test</phase>
+                                <goals>
+                                    <goal>node-gate</goal>
+                                </goals>
+                                <configuration>
+                                    <gate>image</gate>
+                                    <command>airness-node gate image</command>
                                 </configuration>
                             </execution>
                         </executions>

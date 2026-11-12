@@ -1,0 +1,8 @@
+{
+  "extends": "@airness/node/tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["**/*.ts", "**/*.mts", "**/*.cts"],
+  "exclude": ["node_modules", "target"]
+}

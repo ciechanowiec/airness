@@ -1,0 +1,29 @@
+{
+  "name": "fixture-image",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node src/server.ts",
+    "with:services": "node scripts/with-services.ts"
+  },
+  "devDependencies": {
+    "@airness/node": "1.0.11-SNAPSHOT",
+    "@types/node": "26.6.6",
+    "@vitest/coverage-v8": "5.0.5",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  },
+  "airness": {
+    "serve": "serve",
+    "serverUrl": "http://127.0.0.1:3000",
+    "serverUrlVariables": [
+      "APP_ORIGIN"
+    ],
+    "testWrapper": [
+      "pnpm",
+      "run",
+      "with:services",
+      "--"
+    ]
+  }
+}

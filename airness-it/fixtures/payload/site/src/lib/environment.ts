@@ -40,3 +40,10 @@ const processEnvironment = (): EnvironmentSource => ({
  */
 export const loadEnvironment = (source: EnvironmentSource = processEnvironment()): Environment =>
   parseEnvironment(source)
+
+/**
+ * Whether the process runs as the deployed application, which is reached over HTTPS alone. `NODE_ENV` is the
+ * runtime's own variable, read with a dot, so no example file claims to document it.
+ * @returns true in production.
+ */
+export const isProduction = (): boolean => process.env.NODE_ENV === 'production'

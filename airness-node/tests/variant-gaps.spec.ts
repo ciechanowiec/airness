@@ -45,6 +45,7 @@ describe('a layer block', PROCESS_TIME, () => {
             javascriptAllowlist: 'all',
             productionEntries: 'src/app.config.ts',
             knipConfigPlugins: { app: false },
+            imageProbes: '/admin',
           },
         },
       }),
@@ -56,6 +57,7 @@ describe('a layer block', PROCESS_TIME, () => {
       accessibilitySkipRoutes: [],
       productionEntries: [],
       knipConfigPlugins: [],
+      imageProbes: [],
     })
   })
 })

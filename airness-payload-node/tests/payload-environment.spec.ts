@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findEnvironmentViolations, isDockerfile } from '@/payload-environment.js'
+import { findEnvironmentViolations } from '@/payload-environment.js'
 
 const MODULE: string = [
   "const secret = process.env['PAYLOAD_SECRET']",
@@ -136,12 +136,5 @@ describe('findEnvironmentViolations over the spellings of a read', () => {
     "// process.env['DATABASE_URL'] is read below by the schema\nconst parsed = schema.parse(process.env)",
   ])('names nothing for %s, which reads no variable by its name', (module: string) => {
     expect(undocumentedIn(module)).toStrictEqual([])
-  })
-})
-
-describe('isDockerfile', () => {
-  it('recognises the three spellings of a Dockerfile', () => {
-    expect(['Dockerfile', 'docker/Dockerfile.web', 'web.Dockerfile'].every(isDockerfile)).toBe(true)
-    expect(isDockerfile('docker/compose.yaml')).toBe(false)
   })
 })

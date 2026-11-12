@@ -99,7 +99,9 @@ writeFileSync(
 
 // Fixture cases share their installed packages with a sibling template. Turbopack must see both.
 // The seeded proxy sends a per-request nonce policy. A second, static policy beside it would forbid the
-// nonce-loaded chunks and leave every page unhydrated, so the static one applies only without a proxy.
+// nonce-loaded chunks and leave every page unhydrated, so the static one applies only without a proxy. The
+// proxy also sends the transport security the e2e gate asks of the production server, so the static header
+// stands in for it only without a proxy as well. A browser ignores it over plain HTTP, the fixture's only scheme.
 const SECURITY_POLICY: string = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-eval'",
@@ -118,7 +120,10 @@ writeFileSync(
     '    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },',
     ...(existsSync(path.join(directory, 'src', 'proxy.ts'))
       ? []
-      : [`    { key: "Content-Security-Policy", value: ${JSON.stringify(SECURITY_POLICY)} },`]),
+      : [
+          `    { key: "Content-Security-Policy", value: ${JSON.stringify(SECURITY_POLICY)} },`,
+          '    { key: "Strict-Transport-Security", value: "max-age=63072000" },',
+        ]),
     '  ] }] } }',
     '',
   ].join('\n'),

@@ -132,7 +132,7 @@ class ParentPlacementTest {
                 "node-gate-tests@verify", "node-gate-install-scripts@verify",
                 "node-gate-release-age@verify", "extended:node-gate-npm-sbom@prepare-package",
                 "extended:node-gate-build@post-integration-test", "extended:node-gate-bundle@post-integration-test",
-                "extended:node-gate-e2e@post-integration-test"
+                "extended:node-gate-e2e@post-integration-test", "extended:node-gate-image@post-integration-test"
             ),
             gates,
             "wiring judges the harness before npm-inventory writes evidence the package-phase policies read, the "

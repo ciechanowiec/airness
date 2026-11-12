@@ -1,6 +1,12 @@
 # Settings that only a test run wants. The datasource is absent because the container the suite starts
 # supplies it as a service connection.
 server:
+  servlet:
+    session:
+      cookie:
+        # A test reaches the server it started over plain HTTP, and the JDK's cookie store sends a Secure
+        # cookie over HTTPS alone, so a test caller would never send its session back.
+        secure: false
   shutdown: immediate
 # The first administrator of a test run, which every test that reaches the application over HTTP signs
 # in as. This is a fixture rather than a credential: it reaches only a server a test started on an

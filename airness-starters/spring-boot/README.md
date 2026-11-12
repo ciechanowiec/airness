@@ -22,7 +22,7 @@ htmx, Tailwind CSS with daisyUI, PostgreSQL, and English and Polish.
 | Command | What it does |
 | --- | --- |
 | `mvn clean verify` | Default verification, which also builds the archive |
-| `mvn clean verify -Pextended` | Extended verification, including the browser sweep |
+| `mvn clean verify -Pextended` | Extended verification, including the browser sweep and a start of the Docker image against an empty database |
 | `mvn process-resources -Pformat` | Applies the Java formatting |
 | `pnpm run format` | Applies the TypeScript and stylesheet formatting |
 | `docker compose up --build` | Runs the archive and a database on `http://localhost:8080`, once `.env` exists |

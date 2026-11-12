@@ -3,14 +3,12 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { memberDockerfiles } from '@airness/node/dockerfiles'
 import { failed, type GateResult, notApplicable, passed } from '@airness/node/gate-result'
-import { memberFiles } from '@airness/node/source-selection'
-import { workingTreeFiles } from '@airness/node/working-tree'
 import {
   type DockerfileSource,
   ENVIRONMENT_EXAMPLE_FILES,
   findEnvironmentViolations,
-  isDockerfile,
   VALIDATED_ENVIRONMENT_MODULE,
 } from './payload-environment.js'
 import type { PayloadMember } from './payload-member.js'
@@ -31,16 +29,14 @@ const exampleOf = (repository: string): string | undefined =>
     (content: string | undefined): content is string => content !== undefined,
   )
 
-// The Dockerfiles inside the member's own directory, without those of a member nested in it.
+// The Dockerfiles that build the member, the ones the node layer's image gate builds and boots.
 const dockerfilesOf = (target: PayloadMember): readonly DockerfileSource[] =>
-  memberFiles(workingTreeFiles(target.member.root), target.member.siblingPaths)
-    .filter((file: string): boolean => isDockerfile(file) && existsSync(path.join(target.member.root, file)))
-    .map(
-      (file: string): DockerfileSource => ({
-        file,
-        content: readFileSync(path.join(target.member.root, file), 'utf8'),
-      }),
-    )
+  memberDockerfiles(target.member).map(
+    (file: string): DockerfileSource => ({
+      file,
+      content: readFileSync(path.join(target.member.root, file), 'utf8'),
+    }),
+  )
 
 /**
  * Hold the validated environment module's reads to the example file and the member's Dockerfiles.

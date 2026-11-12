@@ -10,6 +10,13 @@
 // also records the run that owns it, as the pinned browser server does, so a machine that went down with
 // both leaves containers the next run removes. Everything a run creates carries the run's own random prefix,
 // and every removal finds it by that prefix, so a step that failed halfway leaves nothing a removal misses.
+//
+// The image gate asks for the services as a fresh deployment finds them, through a variable of the harness's own
+// in the environment it starts the wrapper with. A run asked that way runs no `prepare`, which is where the
+// application's own data steps, such as migrations, run, so an image that cannot bring an empty database to its
+// schema itself fails rather than passing on a schema the wrapper laid down. It also gives the containers a
+// network of the run's own and hands the command a description of what it started, so the image, run as a
+// container on that network, reaches each service by its container rather than by a port on the host's loopback.
 import { type ChildProcess, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +29,13 @@ import {
   ownerLabelArguments,
 } from './owned-containers.js'
 import { pause, subscribeToStops } from './process-tree.js'
+import {
+  IMAGE_VERIFICATION_ON,
+  IMAGE_VERIFICATION_VARIABLE,
+  type PublishedPort,
+  SERVICES_DESCRIPTION_VARIABLE,
+  type ServicesDescription,
+} from './services-description.js'
 import { guardArguments, removeByPrefix } from './services-guard.js'
 
 /** One container a run needs. */
@@ -73,7 +87,11 @@ export interface ServicesPlan {
   readonly network?: boolean
   /** The variables the command reads its services from. */
   readonly environment: (services: Services) => Readonly<Record<string, string>>
-  /** A step run once every service answers and before the command, such as applying migrations. */
+  /**
+   * A step run once every service answers and before the command, such as applying migrations. The image gate's
+   * run skips it, so provisioning that a deployment's services have before the application first starts, such as
+   * a bucket, belongs in a container's `ready` command instead.
+   */
   readonly prepare?: (services: Services, environment: Readonly<Record<string, string>>) => void
   /** How long every service together may take to answer. */
   readonly readyTimeoutMs?: number
@@ -95,6 +113,8 @@ export interface CommandLaunch {
 
 /** What the helper does to the machine, replaceable so its decisions can be measured without Docker. */
 export interface ServicesRuntime {
+  /** The environment the run inherits and hands on to the command. */
+  readonly environment: NodeJS.ProcessEnv
   readonly docker: (commandArguments: readonly string[]) => RunResult
   /** Start the command; the promise is its exit code, or 128 plus the signal number when a signal ended it. */
   readonly start: (launch: CommandLaunch) => Promise<number>
@@ -195,6 +215,7 @@ export const startGuard = (prefix: string, start: GuardStart = {}): void => {
 
 /** The machine itself. */
 export const SYSTEM_RUNTIME: ServicesRuntime = {
+  environment: process.env,
   docker: (commandArguments: readonly string[]): RunResult => run('docker', commandArguments, { cwd: process.cwd() }),
   start: startCommand,
   claim: (): ContainerOwner | OwnershipFailure => claimOwnership(process.cwd()),
@@ -384,6 +405,56 @@ interface Started {
   readonly command: readonly [string, readonly string[]]
   readonly placement: RunPlacement
   readonly stopping: AbortController
+  /** Whether the image gate asked for the services as a fresh deployment finds them. */
+  readonly isForImage: boolean
+}
+
+const containerPortOf = (port: string): number => Number(port.split('/', 1)[0])
+
+/**
+ * What a run started and handed over, for the image gate's container on the run's network.
+ * @param plan the plan.
+ * @param services the running services.
+ * @param environment the variables the plan handed over.
+ * @returns the description, naming the run's network, which a run for the image gate always has.
+ */
+const describeRun = (
+  plan: ServicesPlan,
+  services: Services,
+  environment: Readonly<Record<string, string>>,
+): ServicesDescription => {
+  const prefix: string = services.network ?? ''
+  return {
+    prefix,
+    network: prefix,
+    variables: Object.keys(environment),
+    published: plan.containers.flatMap((container: ServiceContainer): readonly PublishedPort[] =>
+      container.ports.map(
+        (port: string): PublishedPort => ({
+          port: services.port(container.key, port),
+          host: `${prefix}-${container.key}`,
+          containerPort: containerPortOf(port),
+        }),
+      ),
+    ),
+  }
+}
+
+// The variables the command is handed: the plan's own, and for the image gate the description of the run beside
+// them, once no preparation has run, since the image's services start as a deployment's do.
+const handedOver = (
+  started: Started,
+  services: Services,
+  environment: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> => {
+  if (!started.isForImage) {
+    started.plan.prepare?.(services, environment)
+    return environment
+  }
+  return {
+    ...environment,
+    [SERVICES_DESCRIPTION_VARIABLE]: JSON.stringify(describeRun(started.plan, services, environment)),
+  }
 }
 
 const runAgainst = async (runtime: ServicesRuntime, started: Started): Promise<number> => {
@@ -391,16 +462,16 @@ const runAgainst = async (runtime: ServicesRuntime, started: Started): Promise<n
   const stop: StopSignal = stopping.signal
   try {
     const services: Services = await startAll(runtime, plan, placement, stop)
-    const environment: Readonly<Record<string, string>> = plan.environment(services)
-    plan.prepare?.(services, environment)
     if (stop.reason !== undefined) {
       return signalled(stop.reason)
     }
-    runtime.report(`${PREFIX} the services of ${placement.prefix} answer; running ${command[0]}.`)
+    const environment: Readonly<Record<string, string>> = handedOver(started, services, plan.environment(services))
+    const state: string = started.isForImage ? ' empty, as the image gate asks, with no preparation run' : ''
+    runtime.report(`${PREFIX} the services of ${placement.prefix} answer${state}; running ${command[0]}.`)
     return await runtime.start({
       command: command[0],
       commandArguments: command[1],
-      environment: { ...process.env, ...environment },
+      environment: { ...runtime.environment, ...environment },
       stop,
     })
   } catch (error: unknown) {
@@ -432,10 +503,11 @@ export const withServices = async (
     return 1
   }
   const prefix: string = `${plan.project}-${randomBytes(RUN_ID_BYTES).toString('hex')}`
+  const isForImage: boolean = runtime.environment[IMAGE_VERIFICATION_VARIABLE] === IMAGE_VERIFICATION_ON
   const placement: RunPlacement = {
     prefix,
     owner: claim,
-    network: plan.network === true ? prefix : undefined,
+    network: isForImage || plan.network === true ? prefix : undefined,
   }
   runtime.guard(prefix)
   const stopping: AbortController = new AbortController()
@@ -443,7 +515,7 @@ export const withServices = async (
     stopping.abort(signal)
   })
   try {
-    return await runAgainst(runtime, { plan, command, placement, stopping })
+    return await runAgainst(runtime, { plan, command, placement, stopping, isForImage })
   } finally {
     unsubscribe()
     removeRun(runtime, prefix)

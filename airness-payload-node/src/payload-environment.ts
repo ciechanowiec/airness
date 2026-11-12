@@ -110,16 +110,6 @@ export interface EnvironmentInputs {
   readonly serverUrlVariables: readonly string[]
 }
 
-/**
- * Whether a path names a Dockerfile.
- * @param file a path.
- * @returns true for `Dockerfile`, `Dockerfile.<name>` and `<name>.Dockerfile`.
- */
-export const isDockerfile = (file: string): boolean => {
-  const name: string = file.slice(file.lastIndexOf('/') + 1)
-  return name === 'Dockerfile' || name.endsWith('.Dockerfile') || name.startsWith('Dockerfile.')
-}
-
 const declaredBuildArguments = (dockerfile: string): readonly string[] =>
   dockerfile
     .replaceAll(CONTINUATION, ' ')

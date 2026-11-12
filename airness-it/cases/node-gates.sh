@@ -608,6 +608,9 @@ POM
 
     expect_file_match "${node_next}/src/proxy.ts" 'node next: the assets goal seeds the proxy of a Next.js application' \
         "response[.]headers[.]set[(]'x-content-type-options', 'nosniff'[)]"
+    expect_file_match "${node_next}/src/proxy.ts" \
+        'node next: the seeded proxy sends transport security, which the e2e gate asks of the production server' \
+        "response[.]headers[.]set[(]'strict-transport-security', 'max-age=63072000; includeSubDomains'[)]"
     run_maven node_next node "${node_next}" clean verify
     expect_exit node_next 'node next: a conforming Next.js application passes Default verification' 0
     expect_match node_next 'node next: the stylesheet facet applies and passes' 'Node gate css in [.] passed'

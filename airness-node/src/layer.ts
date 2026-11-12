@@ -57,6 +57,7 @@ export const layerDefaultsOf = (manifest: unknown): LayerDefaults => {
     accessibilitySkipRoutes: texts(block['accessibilitySkipRoutes']),
     productionEntries: texts(block['productionEntries']),
     knipConfigPlugins: texts(block['knipConfigPlugins']),
+    imageProbes: texts(block['imageProbes']),
   }
 }
 

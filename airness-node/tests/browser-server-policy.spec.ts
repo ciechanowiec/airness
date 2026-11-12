@@ -6,6 +6,7 @@ import {
   browserServerProblem,
   canReuseBrowserServer,
   combineBrowserServerProbes,
+  servedByOf,
   VERIFICATION_ENVIRONMENT_VARIABLE,
 } from '@/browser-server-policy.js'
 
@@ -22,6 +23,16 @@ describe('browser server reuse', () => {
   it.each(['true', '1', 'false'])('preserves the CI prohibition for CI=%s', (value: string) => {
     expect(canReuseBrowserServer({ CI: value })).toBe(false)
     expect(canReuseBrowserServer({ CI: value, [VERIFICATION_ENVIRONMENT_VARIABLE]: '1' })).toBe(false)
+  })
+})
+
+describe('the server a browser run judges', () => {
+  it.each(['1', '0', ''])('is the production server in a verification run, marked %j', (marker: string) => {
+    expect(servedByOf({ [VERIFICATION_ENVIRONMENT_VARIABLE]: marker })).toBe('production')
+  })
+
+  it('may be a development server in a run the end-to-end gate did not start', () => {
+    expect(servedByOf({ NODE_ENV: 'production' })).toBe('development')
   })
 })
 

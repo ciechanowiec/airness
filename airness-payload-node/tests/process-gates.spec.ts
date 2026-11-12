@@ -198,6 +198,15 @@ const memberProbing = (config: string): PayloadMember =>
     PAYLOAD_MANIFEST,
   )
 
+// A configuration whose one auth collection decides every access and resolves its cookie's Secure from the given
+// expression, as the probe evaluates it.
+const usersWith = (secure: string): string =>
+  'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false, ' +
+  'unlock: () => false }\n' +
+  "export default { collections: [{ slug: 'users', access: decided, auth: { maxLoginAttempts: 5, " +
+  `lockTime: 600000, tokenExpiration: 7200, cookies: { secure: ${secure}, sameSite: 'Lax' } } }], ` +
+  'globals: [] }\n'
+
 describe('payload-defaults against a started probe', PROCESS_TIME, () => {
   it('fails a probe that could not build the configuration, with its output', () => {
     const result: GateResult = payloadDefaults(memberProbing("throw new Error('no secret')\n"))
@@ -251,6 +260,16 @@ describe('payload-defaults against a started probe', PROCESS_TIME, () => {
       airnessPayload: { localStorage: [{ collection: 'media', reason: 'one server with a backed-up volume' }] },
     }
     expect(payloadDefaults(payloadMemberAt(root, declared)).ok).toBe(true)
+  })
+
+  it('judges the session cookie as production resolves it, so a cookie decided from NODE_ENV passes', () => {
+    const production: GateResult = payloadDefaults(memberProbing(usersWith("process.env.NODE_ENV === 'production'")))
+    expect(production.findings).toStrictEqual([])
+    const insecure: GateResult = payloadDefaults(memberProbing(usersWith('false')))
+    expect(insecure.summary).toBe('the resolved Payload security configuration has defects')
+    expect(insecure.findings).toStrictEqual([
+      expect.stringContaining('collection "users" resolves auth.cookies.secure'),
+    ])
   })
 
   it('names a security defect of the resolved configuration before its access findings', () => {

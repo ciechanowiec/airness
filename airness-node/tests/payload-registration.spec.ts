@@ -204,3 +204,9 @@ describe('the Payload configuration in the production run of knip', PROCESS_TIME
     TOOL_TIMEOUT_MS,
   )
 })
+
+describe('the image probe of the Payload layer', () => {
+  it('asks a booted image for the endpoint Payload answers by reading its default auth collection', () => {
+    expect(readSettings({}, [PAYLOAD_LAYER]).imageProbes).toEqual(['/api/users/init'])
+  })
+})

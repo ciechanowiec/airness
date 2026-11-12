@@ -8,6 +8,7 @@ import {
   type FlatConfigBlock,
   testIdiomPlugins,
   testIdiomRules,
+  testOutcomeRules,
   testSuiteSyntaxRules,
   withoutWarnings,
 } from './eslint-core.js'
@@ -75,7 +76,8 @@ export const componentTestBlocks: readonly FlatConfigBlock[] = [
 /**
  * The browser-application facet: Playwright's own runner forbids a focused test, and every test must still
  * assert, which Playwright's rule decides by name: the helpers the harness ships, and a project's own helper
- * named `expect` and a capital, the convention those follow.
+ * named `expect` and a capital, the convention those follow. An assertion that asks only whether a value exists
+ * does not count as the judgement, as in a Vitest spec.
  *
  * Its specs are held to the whole shared spec table. This block once restated four of its tables by hand,
  * and the one it left out was the ban on an assertion over a literal, so `expect(true).toBe(true)` passed
@@ -87,6 +89,7 @@ export const endToEndBlocks: readonly FlatConfigBlock[] = [
     plugins: { playwright, ...testIdiomPlugins },
     rules: {
       ...testIdiomRules,
+      ...testOutcomeRules,
       ...testSuiteSyntaxRules,
       'sonarjs/assertions-in-tests': 'off',
       'playwright/no-focused-test': 'error',

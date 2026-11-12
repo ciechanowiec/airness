@@ -91,6 +91,9 @@
       "knipConfigPlugins": [
         "payload"
       ],
+      "imageProbes": [
+        "/api/users/init"
+      ],
       "analysisEnvironment": {
         "defaults": {
           "PAYLOAD_SECRET": "airness-payload-static-analysis-placeholder",

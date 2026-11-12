@@ -13,6 +13,7 @@ import sonarjs from 'eslint-plugin-sonarjs'
 import unicorn from 'eslint-plugin-unicorn'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
+import { existenceOnlyTest } from './eslint-existence-assertions.js'
 import { immutabilityPlugin as functional } from './eslint-immutability.js'
 import { javaScriptParser } from './eslint-javascript-parser.js'
 import { NO_MOCK_PROPERTIES, NO_MOCK_SYNTAX, NO_MOCKS_MESSAGE } from './eslint-mocks.js'
@@ -685,9 +686,30 @@ export const testIdiomRules: RuleTable = {
   'airness-specs/function-length': 'error',
 }
 
-/** The plugin {@link testIdiomRules} names, which every block mounting those rules mounts beside them. */
+/**
+ * The judgement a test's assertions owe, which a Vitest spec and a Playwright spec owe alike.
+ *
+ * The presence rules, `vitest/expect-expect` and `playwright/expect-expect`, ask only that a test reach an
+ * assertion. One that asks no more than whether a value exists passes that, and passes whatever the code under
+ * test produced, so a test whose every assertion is `toBeDefined()`, `toBeTruthy()` or another spelling of
+ * either fails here. A table of its own rather than an entry of the Vitest-only {@link testIntegrityRules},
+ * because the end-to-end block mounts Playwright's presence rule in place of Vitest's and needs this one too.
+ */
+export const testOutcomeRules: RuleTable = {
+  'airness-specs/no-existence-only-test': 'error',
+}
+
+/**
+ * The plugin {@link testIdiomRules} and {@link testOutcomeRules} name, which every block mounting those rules
+ * mounts beside them.
+ */
 export const testIdiomPlugins: Readonly<Record<string, unknown>> = {
-  'airness-specs': { rules: { 'function-length': specFunctionLength(MAX_LINES_PER_FUNCTION) } },
+  'airness-specs': {
+    rules: {
+      'function-length': specFunctionLength(MAX_LINES_PER_FUNCTION),
+      'no-existence-only-test': existenceOnlyTest,
+    },
+  },
 }
 
 // Property tests must stay deterministic: one seed decides the whole suite, and a per-call override

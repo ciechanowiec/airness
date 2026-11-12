@@ -62,7 +62,8 @@ const contentSecurityPolicy = (nonce: string): string => {
 /**
  * Send the security headers with every response this application serves.
  * @param request the incoming request, whose headers carry the nonce onward to the renderer.
- * @returns the response, carrying the policy and the two headers that need no policy.
+ * @returns the response, carrying the policy, the two headers that need no policy and, in production, the
+ *   transport security.
  */
 export default function proxy(request: NextRequest): NextResponse {
   const nonce: string = btoa(crypto.randomUUID())
@@ -78,6 +79,13 @@ export default function proxy(request: NextRequest): NextResponse {
   response.headers.set('x-content-type-options', 'nosniff')
   // A referrer is sent to same-origin destinations in full and to others as the origin alone.
   response.headers.set('referrer-policy', 'strict-origin-when-cross-origin')
+  // Two years of HTTPS for this host and its subdomains, from the production server alone: a browser keeps the
+  // rule for every port of the host, so sent by `next dev` over HTTPS it would hold every application on a
+  // developer's localhost to HTTPS. The e2e gate asks the production server for at least a year. A project whose
+  // subdomains are not all served over HTTPS drops `includeSubDomains`.
+  if (!isDevelopment()) {
+    response.headers.set('strict-transport-security', 'max-age=63072000; includeSubDomains')
+  }
   return response
 }
 

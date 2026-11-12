@@ -10,6 +10,7 @@ import { configReferences } from './gate-config-references.js'
 import { css } from './gate-css.js'
 import { endToEnd } from './gate-e2e.js'
 import { eslint } from './gate-eslint.js'
+import { image } from './gate-image.js'
 import { installScripts } from './gate-install-scripts.js'
 import { javascriptAllowlist } from './gate-javascript-allowlist.js'
 import { knip } from './gate-knip.js'
@@ -72,6 +73,7 @@ export const GATES: readonly Gate[] = [
   { id: 'build', title: 'production build', run: build },
   { id: 'bundle', title: 'client bundle budget', run: bundle },
   { id: 'e2e', title: 'end-to-end suite', run: endToEnd },
+  { id: 'image', title: 'deployable image', run: image },
 ]
 
 /**

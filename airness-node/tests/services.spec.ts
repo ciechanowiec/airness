@@ -13,6 +13,7 @@ import {
   serviceRunArguments,
   withServices,
 } from '@/services.js'
+import { parseServicesDescription, type ServicesDescription } from '@/services-description.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
 
 const OWNER: ContainerOwner = {
@@ -46,6 +47,7 @@ interface FakeOptions {
   readonly answer?: (commandArguments: readonly string[], recorded: Recorded) => RunResult | undefined
   readonly exit?: Promise<number>
   readonly claim?: ContainerOwner | OwnershipFailure
+  readonly environment?: NodeJS.ProcessEnv
 }
 
 /* eslint-disable functional/immutable-data -- the stand-in machine records the docker calls, the command it starts and the signal subscription the helper makes, which is what the tests read */
@@ -84,6 +86,7 @@ const fake = (options: FakeOptions = {}): Fake => {
     guards: [],
   }
   const runtime: ServicesRuntime = {
+    environment: options.environment ?? { INHERITED: 'kept' },
     docker: (commandArguments: readonly string[]): RunResult => {
       recorded.docker.push(commandArguments)
       const override: RunResult | undefined = options.answer?.(commandArguments, recorded)
@@ -345,6 +348,55 @@ describe('a run against disposable services', () => {
     expect(recorded.docker.at(-1)).toEqual(['network', 'rm', network])
   })
 
+  it('runs the preparation and hands over only the plan and the inherited environment outside the image gate', async () => {
+    const prepared: { readonly seen: readonly string[]; readonly record: (value: string) => void } = recorder<string>()
+    const { runtime, recorded }: Fake = fake()
+    const preparing: ServicesPlan = {
+      ...PLAN,
+      prepare: (_services, environment) => {
+        prepared.record(environment['DATABASE_PORT'] ?? '')
+      },
+    }
+    expect(await withServices(preparing, ARGV, runtime)).toBe(0)
+    expect(prepared.seen).toEqual(['49153'])
+    expect(recorded.launches[0]?.environment['INHERITED']).toBe('kept')
+    expect(recorded.launches[0]?.environment['AIRNESS_SERVICES']).toBeUndefined()
+    expect(recorded.docker.some((call: readonly string[]): boolean => call[1] === 'create')).toBe(false)
+  })
+
+  it('starts the services empty for the image gate, on a network of its own, and describes them', async () => {
+    const prepared: { readonly seen: readonly string[]; readonly record: (value: string) => void } = recorder<string>()
+    const { runtime, recorded }: Fake = fake({ environment: { AIRNESS_IMAGE_VERIFICATION: '1' } })
+    const preparing: ServicesPlan = {
+      ...PLAN,
+      prepare: () => {
+        prepared.record('migrated')
+      },
+    }
+    expect(await withServices(preparing, ARGV, runtime)).toBe(0)
+    expect(prepared.seen).toEqual([])
+    const network: string = recorded.docker.find((call) => call[1] === 'create')?.at(-1) ?? ''
+    expect(network).toMatch(/^teron-[0-9a-f]{12}$/u)
+    expect(
+      recorded.docker
+        .filter((call: readonly string[]): boolean => call[0] === 'run')
+        .every((call: readonly string[]): boolean => call.includes(`--network=${network}`)),
+    ).toBe(true)
+    const description: ServicesDescription | undefined = parseServicesDescription(
+      recorded.launches[0]?.environment['AIRNESS_SERVICES'],
+    )
+    expect(description).toEqual({
+      prefix: network,
+      network,
+      variables: ['DATABASE_PORT'],
+      published: [
+        { port: 49_153, host: `${network}-db`, containerPort: 5432 },
+        { port: 49_153, host: `${network}-mail`, containerPort: 1025 },
+      ],
+    })
+    expect(recorded.docker.at(-1)).toEqual(['network', 'rm', network])
+  })
+
   it('refuses a port of a service the plan does not declare', async () => {
     const { runtime, recorded }: Fake = fake()
     const misnamed: ServicesPlan = {
@@ -361,6 +413,24 @@ describe('a run against disposable services', () => {
     })
     expect(await withServices(PLAN, ARGV, runtime)).toBe(1)
     expect(recorded.docker).toEqual([])
+  })
+
+  it('reads no description that is absent, malformed or incomplete', () => {
+    const complete: ServicesDescription = {
+      prefix: 'run-1',
+      network: 'run-1',
+      variables: ['DATABASE_URL'],
+      published: [{ port: 50_000, host: 'run-1-db', containerPort: 5432 }],
+    }
+    expect(parseServicesDescription(JSON.stringify(complete))).toEqual(complete)
+    expect(parseServicesDescription(undefined)).toBeUndefined()
+    expect(parseServicesDescription('{not json')).toBeUndefined()
+    expect(parseServicesDescription(JSON.stringify({ ...complete, network: '' }))).toBeUndefined()
+    expect(parseServicesDescription(JSON.stringify({ ...complete, variables: [1] }))).toBeUndefined()
+    expect(parseServicesDescription(JSON.stringify({ ...complete, published: 'none' }))).toBeUndefined()
+    expect(
+      parseServicesDescription(JSON.stringify({ ...complete, published: [{ port: 0, host: 'x', containerPort: 1 }] })),
+    ).toBeUndefined()
   })
 
   it('makes credentials that need no quoting', () => {

@@ -8,6 +8,18 @@
  */
 export const VERIFICATION_ENVIRONMENT_VARIABLE: string = 'AIRNESS_VERIFICATION'
 
+/**
+ * Which server a browser run judges. A verification run starts the production server: the production build of a
+ * Next.js application, or the declared `serve` script with NODE_ENV=production, which for a Java web interface
+ * launches the packaged artifact. A run started any other way, such as a developer's own `playwright test`, may
+ * be judging a development server, and is held only to what a development server can also meet.
+ */
+export type ServedBy = 'production' | 'development'
+
+/** The server a browser run with the given environment judges, read from the mark the end-to-end gate sets. */
+export const servedByOf = (environment: Readonly<Record<string, string | undefined>>): ServedBy =>
+  environment[VERIFICATION_ENVIRONMENT_VARIABLE] === undefined ? 'development' : 'production'
+
 /** The TCP endpoint behind a browser server's readiness URL. */
 export interface BrowserServerEndpoint {
   readonly url: string

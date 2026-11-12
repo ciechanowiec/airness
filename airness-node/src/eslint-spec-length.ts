@@ -8,54 +8,12 @@
 // over a group body alone.
 
 import type { AST, Rule, SourceCode } from 'eslint'
+import { calleeNames, isList, isSyntaxNode } from './eslint-spec-syntax.js'
 
 // The calls whose callback is a group of tests rather than a test: Vitest's `describe` and its `suite` alias,
 // with every modifier and table form, such as `describe.each(rows)(title, body)`, and Playwright's
 // `test.describe` with its own modifiers, such as `test.describe.serial(title, body)`.
 const GROUPS: ReadonlySet<string> = new Set<string>(['describe', 'suite'])
-
-// The parts of a syntax node this rule reads, each as it arrives: unknown until a guard narrows it.
-interface SyntaxNode {
-  readonly type: string
-  readonly name?: unknown
-  readonly object?: unknown
-  readonly property?: unknown
-  readonly callee?: unknown
-  readonly arguments?: unknown
-}
-
-// A guard rather than an assertion: the callee's parts arrive typed by ESTree without the parent link a rule's
-// own node carries, and the type coverage this package holds counts an assertion as uncovered.
-const isSyntaxNode = (value: unknown): value is SyntaxNode =>
-  typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string'
-
-const isList = (value: unknown): value is readonly unknown[] => Array.isArray(value)
-
-const identifierName = (value: unknown): readonly string[] =>
-  isSyntaxNode(value) && value.type === 'Identifier' && typeof value.name === 'string' ? [value.name] : []
-
-/**
- * The names a call's callee is built from: its identifier, each property it reads and each call a table form
- * makes first, so `test.describe.serial` gives `test`, `describe` and `serial`.
- * @param callee the callee of a call, or any node it is built from.
- * @returns the names, outermost last.
- */
-const calleeNames = (callee: unknown): readonly string[] => {
-  if (!isSyntaxNode(callee)) {
-    return []
-  }
-  switch (callee.type) {
-    case 'MemberExpression': {
-      return [...calleeNames(callee.object), ...identifierName(callee.property)]
-    }
-    case 'CallExpression': {
-      return calleeNames(callee.callee)
-    }
-    default: {
-      return identifierName(callee)
-    }
-  }
-}
 
 const isGroupBody = (node: Rule.Node): boolean => {
   const parent: unknown = node.parent
