@@ -102,7 +102,7 @@ export interface DockerfileSource {
 export interface EnvironmentInputs {
   /** The validated environment module, or undefined when the member has none. */
   readonly module: string | undefined
-  /** The repository's example file, or undefined when it has none. */
+  /** The member's and the repository's example files, joined, or undefined when neither has one. */
   readonly example: string | undefined
   /** The Dockerfiles that build the member. */
   readonly dockerfiles: readonly DockerfileSource[]
@@ -133,7 +133,7 @@ const undocumented = (module: string, example: string | undefined): readonly str
     .map(
       (name: string): string =>
         `${name}: read by ${VALIDATED_ENVIRONMENT_MODULE} but documented in no example file ` +
-        `(${ENVIRONMENT_EXAMPLE_FILES.join(', ')} at the repository root); add "${name}=" with a comment saying what it holds`,
+        `(${ENVIRONMENT_EXAMPLE_FILES.join(', ')} in the member's directory or at the repository root); add "${name}=" with a comment saying what it holds`,
     )
 }
 

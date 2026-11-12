@@ -1,5 +1,5 @@
-// The validated environment module's reads reach the places they have to: documented in the repository's
-// example file, and declared as build arguments in every Dockerfile that builds the member.
+// The validated environment module's reads reach the places they have to: documented in the member's or the
+// repository's example file, and declared as build arguments in every Dockerfile that builds the member.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -24,10 +24,21 @@ const repositoryRootOf = (root: string): string => {
   return shown.status === 0 ? String(shown.stdout).trim() : root
 }
 
-const exampleOf = (repository: string): string | undefined =>
-  ENVIRONMENT_EXAMPLE_FILES.map((file: string): string | undefined => readIfPresent(path.join(repository, file))).find(
+const exampleOf = (directory: string): string | undefined =>
+  ENVIRONMENT_EXAMPLE_FILES.map((file: string): string | undefined => readIfPresent(path.join(directory, file))).find(
     (content: string | undefined): content is string => content !== undefined,
   )
+
+// The example files the member's variables may be documented in: the member's own, beside the `.env` Next.js and
+// Payload load from the member's directory, which is where each application of a repository with several keeps
+// its own, and the repository's, which a repository that is the member, or keeps one example for all, holds. A
+// name either one documents counts.
+const examplesOf = (member: string, repository: string): string | undefined => {
+  const examples: readonly string[] = [...new Set([path.resolve(member), path.resolve(repository)])]
+    .map((directory: string): string | undefined => exampleOf(directory))
+    .filter((content: string | undefined): content is string => content !== undefined)
+  return examples.length === 0 ? undefined : examples.join('\n')
+}
 
 // The Dockerfiles that build the member, the ones the node layer's image gate builds and boots.
 const dockerfilesOf = (target: PayloadMember): readonly DockerfileSource[] =>
@@ -39,7 +50,7 @@ const dockerfilesOf = (target: PayloadMember): readonly DockerfileSource[] =>
   )
 
 /**
- * Hold the validated environment module's reads to the example file and the member's Dockerfiles.
+ * Hold the validated environment module's reads to the example files and the member's Dockerfiles.
  * @param target the member being judged.
  * @returns the gate result.
  */
@@ -53,7 +64,7 @@ export const payloadEnvironment = (target: PayloadMember): GateResult => {
   }
   const findings: readonly string[] = findEnvironmentViolations({
     module,
-    example: exampleOf(repositoryRootOf(target.member.root)),
+    example: examplesOf(target.member.root, repositoryRootOf(target.member.root)),
     dockerfiles: dockerfilesOf(target),
     serverUrlVariables: target.member.settings.serverUrlVariables,
   })
