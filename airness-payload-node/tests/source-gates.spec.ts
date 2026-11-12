@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { run } from '@airness/node/exec'
 import type { GateResult } from '@airness/node/gate-result'
 import { describe, expect, it } from 'vitest'
 import { adminViews } from '@/gate-admin-views.js'
@@ -5,7 +7,7 @@ import { payloadBlocklist } from '@/gate-payload-blocklist.js'
 import { payloadEnvironment } from '@/gate-payload-environment.js'
 import { payloadSourceRules } from '@/gate-payload-source-rules.js'
 import { PROCESS_TIME } from './helpers/process-time.js'
-import { payloadMemberAt, projectForTest } from './helpers/temporary-project.js'
+import { detachedProjectForTest, payloadMemberAt, projectForTest } from './helpers/temporary-project.js'
 
 const PAYLOAD_MANIFEST: unknown = { name: 'site', dependencies: { payload: '3.91.0' } }
 const LIBRARY_MANIFEST: unknown = { name: 'library' }
@@ -157,6 +159,27 @@ describe('payload-environment', PROCESS_TIME, () => {
     expect(result.findings[0]).toContain(
       'DATABASE_URL: read by src/lib/environment.ts but documented in no example file',
     )
+  })
+
+  it("counts a variable the member's own example file documents, below a repository root that has none", () => {
+    const root: string = projectForTest({
+      'src/lib/environment.ts': "export const url = process.env['DATABASE_URL']",
+      '.env.example': '# The database the application connects to.\nDATABASE_URL=\n',
+    })
+    const result: GateResult = payloadEnvironment(payloadMemberAt(root, PAYLOAD_MANIFEST))
+    expect(result.findings).toEqual([])
+  })
+
+  it("counts a variable the repository root's example file documents for a member nested in it", () => {
+    const repository: string = detachedProjectForTest({
+      'site/src/lib/environment.ts': "export const url = process.env['DATABASE_URL']",
+      '.env.example': '# The database the application connects to.\nDATABASE_URL=\n',
+    })
+    expect(run('git', ['init', '--quiet'], { cwd: repository }).code).toBe(0)
+    const result: GateResult = payloadEnvironment(
+      payloadMemberAt(path.join(repository, 'site'), PAYLOAD_MANIFEST, 'site'),
+    )
+    expect(result.findings).toEqual([])
   })
 
   it('names an inlined variable the member Dockerfile does not declare', () => {
