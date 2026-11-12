@@ -383,6 +383,7 @@ export const healthFindings = async (
           ),
       )
       .map((message: ConsoleMessage): ConsoleEntry => ({ type: message.type(), text: message.text() })),
+    place.engine,
   )
   const requests: readonly Request[] = await page.requests()
   const lastNavigation: number = requests.findLastIndex(

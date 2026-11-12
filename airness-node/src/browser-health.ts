@@ -5,6 +5,7 @@
 // rules turn each event into a finding. The guard rule is the reason the suite needs no internet: any
 // request outside the application and its declared auxiliary servers is blocked and reported, so a page
 // cannot pass on one machine and fail on another for a reason outside the repository.
+import { WEBKIT } from './browser-run.js'
 
 /** No uncaught error, `console.error` or hydration warning while the page loads or is driven. */
 export const PAGE_ERROR_RULE: string = 'page-error'
@@ -91,6 +92,12 @@ const MARKER_TYPE: string = 'info'
 // the policy names a style-src directive and another when it falls back to default-src.
 const STYLE_REFUSAL: string = "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline'"
 
+// WebKit also applies such a policy to the stylesheet it draws every native <select> with, and logs and reports
+// that refusal exactly as it does a style attribute of the page, at the same location and as the same violation.
+// Nothing in WebKit tells the two apart, so its refusals are left to Chromium, which renders the same markup on
+// every page the sweep visits, refuses a style the page added in words of its own, and logs nothing for a select.
+const STYLE_REFUSING_ENGINE: string = WEBKIT
+
 interface ScreenshotWindow {
   readonly isOpen: boolean
   readonly kept: readonly ConsoleEntry[]
@@ -101,18 +108,21 @@ const isMarker = (entry: ConsoleEntry, text: string): boolean => entry.type === 
 /**
  * The console messages of the page itself, in the order it logged them: every message but the sweep's own
  * screenshot markers and the stylesheet refusals logged between a pair of them, which the screenshot itself
- * caused. A refusal the page caused at any other moment, and every other message, is kept.
+ * caused. A refusal the page caused at any other moment, and every other message, is kept, except in WebKit,
+ * whose refusals of its own select stylesheet read exactly as the page's own.
  * @param entries the console messages, in the order they were logged.
+ * @param engine the engine that logged them.
  * @returns the messages the page answers for.
  */
-export const pageOwnEntries = (entries: readonly ConsoleEntry[]): readonly ConsoleEntry[] =>
+export const pageOwnEntries = (entries: readonly ConsoleEntry[], engine: string): readonly ConsoleEntry[] =>
   entries.reduce(
     (window: ScreenshotWindow, entry: ConsoleEntry): ScreenshotWindow => {
       if (isMarker(entry, SCREENSHOT_BEGINS) || isMarker(entry, SCREENSHOT_ENDS)) {
         return { isOpen: isMarker(entry, SCREENSHOT_BEGINS), kept: window.kept }
       }
-      const isScreenshotStyle: boolean = window.isOpen && entry.type === 'error' && entry.text.startsWith(STYLE_REFUSAL)
-      return { isOpen: window.isOpen, kept: isScreenshotStyle ? window.kept : [...window.kept, entry] }
+      const isRefusal: boolean = entry.type === 'error' && entry.text.startsWith(STYLE_REFUSAL)
+      const isEngineStyle: boolean = isRefusal && (window.isOpen || engine === STYLE_REFUSING_ENGINE)
+      return { isOpen: window.isOpen, kept: isEngineStyle ? window.kept : [...window.kept, entry] }
     },
     { isOpen: false, kept: [] },
   ).kept

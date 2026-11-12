@@ -414,22 +414,38 @@ const focusStop = async (page: Page, place: FindingPlace, previous: PreviousStop
   return { visit: merged([obscured, appearance]), order, key: facts.key, previous: here }
 }
 
+/** Where the keyboard walk is: the elements it has visited, the stop before, and the presses it spent inside it. */
+interface Walked {
+  readonly seen: ReadonlySet<string>
+  readonly previous: PreviousStop | undefined
+  readonly last: string | undefined
+  readonly inside: number
+}
+
+const WALK_START: Walked = { seen: new Set<string>(), previous: undefined, last: undefined, inside: 0 }
+
+// A date, time or similar field takes a Tab press for each of its parts while focus stays on the one element, so
+// a press that leaves focus where the stop before left it moves within that control rather than coming back to
+// it. The walk presses on without judging the control again, up to this many presses, beyond which the control
+// is taken to hold focus.
+const MAX_PRESSES_INSIDE: number = 8
+
 // Tab through the page once from its start: each stop is judged, and the walk ends when focus leaves
 // the document or comes back to an element already visited.
 const tabThrough = async (
   page: Page,
   place: FindingPlace,
   remaining: number,
-  walked: {
-    readonly seen: ReadonlySet<string>
-    readonly previous: PreviousStop | undefined
-  },
+  walked: Walked,
 ): Promise<readonly Visit[]> => {
   if (remaining <= 0) {
     return []
   }
   await page.keyboard.press('Tab')
   const stop: FocusStop = await focusStop(page, place, walked.previous)
+  if (stop.key !== undefined && stop.key === walked.last && walked.inside < MAX_PRESSES_INSIDE) {
+    return await tabThrough(page, place, remaining, { ...walked, inside: walked.inside + 1 })
+  }
   if (stop.key === undefined || walked.seen.has(stop.key)) {
     return [stop.visit]
   }
@@ -439,6 +455,8 @@ const tabThrough = async (
     ...(await tabThrough(page, place, remaining - 1, {
       seen: new Set<string>([...walked.seen, stop.key]),
       previous: stop.previous,
+      last: stop.key,
+      inside: 0,
     })),
   ]
 }
@@ -482,10 +500,7 @@ const interactionVisit = async (page: Page, item: InteractionPlace, isFirst: boo
   if (isStill) {
     await trackKeyboardReach(page)
   }
-  const focused: readonly Visit[] = await tabThrough(page, place, item.location.controls + EXTRA_TAB_STOPS, {
-    seen: new Set<string>(),
-    previous: undefined,
-  })
+  const focused: readonly Visit[] = await tabThrough(page, place, item.location.controls + EXTRA_TAB_STOPS, WALK_START)
   // What the keyboard reached is known once the walk ends; the paste goes last, since a field may act on it.
   const pointerOnly: Visit = isStill
     ? await pointerOnlyVisit(page, { ...place, state: 'keyboard' }, item.location.controls + EXTRA_TAB_STOPS, carried)
