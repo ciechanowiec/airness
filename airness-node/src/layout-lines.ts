@@ -255,7 +255,7 @@ export const findJustifiedText = (snapshot: LayoutSnapshot): readonly CandidateF
       block.textAlign === 'justify-all' ||
       JUSTIFIED.has(block.textAlignLast) ||
       (block.textAlign === 'justify' && lines >= HALVES)
-    const extent: string = lines === 1 ? 'its only line' : String(lines) + ' lines'
+    const extent: string = lines === 1 ? 'its only line' : `${String(lines)} lines`
     return isJustified
       ? [
           {
