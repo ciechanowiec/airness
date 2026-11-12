@@ -36,7 +36,7 @@ class AxeAuditTest {
     @Test
     void asksForEveryVerdictRatherThanForTheFailuresAlone() {
         assertTrue(
-            AxeAudit.SCRIPT.contains("axe.run(document, {rules: options.rules, checks: options.checks})"),
+            AxeAudit.SCRIPT.contains("axe.run(document, {rules: rules, checks: checks})"),
             "the rules are asked about the whole document, with the rule switches and check options of the file"
         );
         assertFalse(
@@ -76,10 +76,12 @@ class AxeAuditTest {
     void turnsOnTheRulesTheRulesShipSwitchedOff() {
         assertEquals(
             List.of(
-                "color-contrast-enhanced", "identical-links-same-purpose", "meta-refresh-no-exceptions",
-                "target-size", "css-orientation-lock", "p-as-heading", "td-has-header", "table-fake-caption"
+                "identical-links-same-purpose", "meta-refresh-no-exceptions", "target-size", "css-orientation-lock",
+                "p-as-heading", "td-has-header", "table-fake-caption", "color-contrast-enhanced"
             ),
-            enabledRules(), "the AAA, target-size and experimental rules the defaults leave out"
+            enabledRules(),
+            "the AAA, target-size and experimental rules the defaults leave out, and the enhanced contrast a "
+                + "project that raises the contrast of text is held to besides"
         );
     }
 
@@ -103,18 +105,6 @@ class AxeAuditTest {
                 library.contains("id:\"%s\"".formatted(rule)),
                 "a rule the library does not define would be switched on silently and run nowhere: " + rule
             )
-        );
-    }
-
-    @Test
-    void measuresATargetAtTheEnhancedSize() {
-        assertTrue(
-            AxeAudit.OPTIONS.contains("\"target-size\": { \"options\": { \"minSize\": 44 } }"),
-            "the AAA size is handed to the check that measures it"
-        );
-        assertTrue(
-            AxeAudit.OPTIONS.contains("\"target-offset\": { \"enabled\": false }"),
-            "and the room around a target excuses no smaller one, which only the AA size allows"
         );
     }
 

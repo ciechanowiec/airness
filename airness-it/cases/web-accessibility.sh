@@ -98,14 +98,15 @@ JAVA
     # The same test asking through the harness: the question and the version both come from one place.
     # The second test reads the rules the Spring parent puts on the consumer's test classpath: every rule
     # the options file packaged with the shipped question turns on beyond the defaults, the AAA ones among
-    # them, is one those rules define, so none is switched on and then run nowhere, and the question
-    # measures a target at 44px.
+    # them, is one those rules define, so none is switched on and then run nowhere, and the question a
+    # project that raised both costly rules asks holds each to its AAA level.
     cat > "${audit_app}/src/test/java/com/example/PageAccessibilityTest.java" <<'JAVA'
 package com.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.web.AccessibilityLevel;
 import eu.ciechanowiec.airness.web.AxeAudit;
 import eu.ciechanowiec.airness.web.AxeLibrary;
 import java.util.List;
@@ -126,7 +127,9 @@ class PageAccessibilityTest {
             .matcher(AxeAudit.OPTIONS).results().map(found -> found.group(1)).toList();
         assertTrue(rules.contains("color-contrast-enhanced"), AxeAudit.OPTIONS);
         rules.forEach(rule -> assertTrue(library.contains("id:\"" + rule + "\""), rule));
-        assertTrue(AxeAudit.SCRIPT.contains("\"minSize\": 44"), AxeAudit.SCRIPT);
+        String raised = AxeAudit.script(AccessibilityLevel.AAA, AccessibilityLevel.AAA);
+        assertTrue(raised.contains("const levels = {\"targetSize\": \"AAA\", \"contrast\": \"AAA\"};"), raised);
+        assertTrue(raised.contains("\"minSize\": 44"), raised);
     }
 }
 JAVA

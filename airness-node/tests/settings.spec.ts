@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   ACCESSIBILITY_ROUTE_BUDGET,
+  accessibilityLevelFindings,
+  accessibilityLevels,
   BUNDLE_BUDGET_BYTES,
   DEFAULT_SOURCE_ROOTS,
   type DeclaredExclusion,
@@ -134,6 +136,31 @@ describe('the application settings', () => {
       layoutViewports: [],
       pureLogicRoots: [],
     })
+  })
+
+  it('holds the size of a pointer target and the contrast of text to AA unless the project raises one', () => {
+    expect(accessibilityLevels(readSettings({}))).toEqual({ targetSize: 'AA', contrast: 'AA' })
+    expect(accessibilityLevels(readSettings({ airness: { accessibilityTargetSize: 'AAA' } }))).toEqual({
+      targetSize: 'AAA',
+      contrast: 'AA',
+    })
+    expect(accessibilityLevels(readSettings({ airness: { accessibilityContrast: 'AAA' } }))).toEqual({
+      targetSize: 'AA',
+      contrast: 'AAA',
+    })
+  })
+
+  it('reports a level that names neither AA nor AAA, which would otherwise read as AA', () => {
+    expect(
+      accessibilityLevelFindings({ airness: { accessibilityTargetSize: 'aaa', accessibilityContrast: 7 } }),
+    ).toEqual([
+      'airness.accessibilityTargetSize is "aaa"; name "AA", the default, or "AAA"',
+      'airness.accessibilityContrast is 7; name "AA", the default, or "AAA"',
+    ])
+    expect(
+      accessibilityLevelFindings({ airness: { accessibilityTargetSize: 'AA', accessibilityContrast: 'AAA' } }),
+    ).toEqual([])
+    expect(accessibilityLevelFindings({})).toEqual([])
   })
 
   it('lets a project lower a ceiling and raise a floor, never the reverse', () => {

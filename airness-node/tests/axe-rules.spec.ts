@@ -1,13 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { describe, expect, it } from 'vitest'
-import { AXE_CONTRAST_RULES, type AxeRunOptions, axeRunOptions, TARGET_SIZE_RULE, targetSizeHelp } from '@/axe-rules.js'
+import { type AxeRunOptions, axeRunOptions, contrastRules, TARGET_SIZE_RULE, targetSizeHelp } from '@/axe-rules.js'
 import { asRecord, asText, isArray } from '@/json-shapes.js'
+import type { AccessibilityLevels } from '@/settings.js'
+
+// Both costly rules at AA, as every project is held to them, and both raised to AAA, as a project opts in.
+const AA_LEVELS: AccessibilityLevels = { targetSize: 'AA', contrast: 'AA' }
+const AAA_LEVELS: AccessibilityLevels = { targetSize: 'AAA', contrast: 'AAA' }
 
 // The rules a scan turns on, read off the options it hands axe rather than off a second list.
-const AXE_ENABLED_RULES: readonly string[] = Object.entries(axeRunOptions([]).rules)
-  .filter(([, setting]: readonly [string, { readonly enabled: boolean }]): boolean => setting.enabled)
-  .map(([rule]: readonly [string, unknown]): string => rule)
+const enabledRules = (options: AxeRunOptions): readonly string[] =>
+  Object.entries(options.rules)
+    .filter(([, setting]: readonly [string, { readonly enabled: boolean }]): boolean => setting.enabled)
+    .map(([rule]: readonly [string, unknown]): string => rule)
+const AXE_ENABLED_RULES: readonly string[] = enabledRules(axeRunOptions([]))
+const AAA_ENABLED_RULES: readonly string[] = enabledRules(axeRunOptions([], AAA_LEVELS))
 const TARGET_SIZE_CHECK: string = 'target-size'
 const TARGET_OFFSET_CHECK: string = 'target-offset'
 
@@ -53,9 +61,16 @@ describe('the shipped axe options file', () => {
     expect(axeRunOptions([])).toEqual({ rules: shippedFile['rules'], checks: shippedFile['checks'] })
   })
 
-  it('names only rules and checks the pinned axe-core defines', () => {
-    const shippedRules: readonly string[] = Object.keys(asRecord(shippedFile['rules']))
-    const shippedChecks: readonly string[] = Object.keys(asRecord(shippedFile['checks']))
+  it('names only rules and checks the pinned axe-core defines, the raised levels included', () => {
+    const raised: readonly Record<string, unknown>[] = Object.values(asRecord(shippedFile['levels'])).map(
+      (rule: unknown): Record<string, unknown> => asRecord(asRecord(rule)['AAA']),
+    )
+    const shippedRules: readonly string[] = [shippedFile, ...raised].flatMap((part: unknown): readonly string[] =>
+      Object.keys(asRecord(asRecord(part)['rules'])),
+    )
+    const shippedChecks: readonly string[] = [shippedFile, ...raised].flatMap((part: unknown): readonly string[] =>
+      Object.keys(asRecord(asRecord(part)['checks'])),
+    )
     const checks: Record<string, unknown> = asRecord(audit['checks'])
     for (const id of shippedRules) {
       expect(ruleOf(id)['id'], id).toBe(id)
@@ -66,21 +81,21 @@ describe('the shipped axe options file', () => {
   })
 
   it('refuses a rule switched without a boolean, rather than running axe without it', () => {
-    expect(() => axeRunOptions([], { rules: { 'target-size': { enabled: 'yes' } } })).toThrow(
+    expect(() => axeRunOptions([], AA_LEVELS, { rules: { 'target-size': { enabled: 'yes' } } })).toThrow(
       'configs/axe-options.json switches the rule target-size with no boolean enabled',
     )
   })
 
   it('refuses a check whose switch or options are of the wrong shape', () => {
     for (const setting of [{ enabled: 1 }, { options: 44 }]) {
-      expect(() => axeRunOptions([], { checks: { 'target-size': setting } })).toThrow(
+      expect(() => axeRunOptions([], AA_LEVELS, { checks: { 'target-size': setting } })).toThrow(
         'configs/axe-options.json sets the check target-size',
       )
     }
   })
 
   it('carries only the keys a check names, since axe reads a present enabled as a switch', () => {
-    const options: AxeRunOptions = axeRunOptions([], {
+    const options: AxeRunOptions = axeRunOptions([], AA_LEVELS, {
       checks: { 'target-size': { options: { minSize: 44 } }, 'target-offset': { enabled: false } },
     })
     expect(Object.keys(options.checks['target-size'] ?? {})).toEqual(['options'])
@@ -88,20 +103,30 @@ describe('the shipped axe options file', () => {
   })
 
   it('reads a file that names no rule or check as adding nothing', () => {
-    expect(axeRunOptions(['region'], {})).toEqual({ rules: { region: { enabled: false } }, checks: {} })
+    expect(axeRunOptions(['region'], AA_LEVELS, {})).toEqual({ rules: { region: { enabled: false } }, checks: {} })
   })
 
-  it('names the contrast probes rules axe runs by default or the file turns on', () => {
-    for (const id of AXE_CONTRAST_RULES) {
-      expect(doesRun(id, {}) || AXE_ENABLED_RULES.includes(id), id).toBe(true)
+  it('refuses a raised level the file does not name, rather than measuring it at AA', () => {
+    expect(() => axeRunOptions([], { targetSize: 'AAA', contrast: 'AA' }, {})).toThrow(
+      'configs/axe-options.json names no AAA level for targetSize',
+    )
+  })
+
+  it('names the contrast probes rules axe runs by default or the file turns on at their level', () => {
+    for (const id of contrastRules('AAA')) {
+      expect(doesRun(id, {}) || AAA_ENABLED_RULES.includes(id), id).toBe(true)
     }
+  })
+
+  it('probes the AA ratio alone at AA, and the AAA ratio too once a project raises it', () => {
+    expect(contrastRules('AA')).toEqual(['color-contrast'])
+    expect(contrastRules('AAA')).toEqual(['color-contrast', 'color-contrast-enhanced'])
   })
 })
 
 describe('the axe rule set', () => {
-  it('turns on the AAA, target-size and wanted experimental rules', () => {
+  it('turns on the cheap AAA, target-size and wanted experimental rules for every project', () => {
     expect(AXE_ENABLED_RULES).toEqual([
-      'color-contrast-enhanced',
       'identical-links-same-purpose',
       'meta-refresh-no-exceptions',
       'target-size',
@@ -112,14 +137,20 @@ describe('the axe rule set', () => {
     ])
   })
 
+  it('adds the enhanced contrast for a project that raises the contrast of text', () => {
+    expect(AAA_ENABLED_RULES).toEqual([...AXE_ENABLED_RULES, 'color-contrast-enhanced'])
+    expect(doesRun('color-contrast-enhanced', axeRunOptions([]))).toBe(false)
+    expect(doesRun('color-contrast-enhanced', axeRunOptions([], { targetSize: 'AA', contrast: 'AAA' }))).toBe(true)
+  })
+
   it('names only rules the pinned axe-core defines', () => {
-    for (const id of [...AXE_ENABLED_RULES, ...AXE_CONTRAST_RULES]) {
+    for (const id of [...AAA_ENABLED_RULES, ...contrastRules('AAA')]) {
       expect(ruleOf(id)['id'], id).toBe(id)
     }
   })
 
   it('names only rules axe would not run by default, so each entry widens the set', () => {
-    for (const id of AXE_ENABLED_RULES) {
+    for (const id of AAA_ENABLED_RULES) {
       expect(doesRun(id, {}), id).toBe(false)
     }
   })
@@ -146,7 +177,7 @@ describe('the axe rule set', () => {
   })
 
   it('lets a location exclude a rule, even one the set turns on', () => {
-    const options: AxeRunOptions = axeRunOptions(['region', 'target-size'])
+    const options: AxeRunOptions = axeRunOptions(['region', 'target-size'], AAA_LEVELS)
     expect(doesRun('region', options)).toBe(false)
     expect(doesRun('target-size', options)).toBe(false)
     expect(doesRun('color-contrast-enhanced', options)).toBe(true)
@@ -154,8 +185,8 @@ describe('the axe rule set', () => {
 
   it('runs exactly the named rules of a scan narrowed with withRules', () => {
     const narrowed: unknown = {
-      ...axeRunOptions([]),
-      runOnly: { type: 'rule', values: [...AXE_CONTRAST_RULES] },
+      ...axeRunOptions([], AAA_LEVELS),
+      runOnly: { type: 'rule', values: [...contrastRules('AAA')] },
     }
     expect(doesRun('color-contrast', narrowed)).toBe(true)
     expect(doesRun('color-contrast-enhanced', narrowed)).toBe(true)
@@ -168,12 +199,18 @@ describe('the target size', () => {
     expect(checkIdsOf('target-size')).toEqual([TARGET_SIZE_CHECK, TARGET_OFFSET_CHECK])
   })
 
-  it('names exactly the checks of the target-size rule', () => {
-    expect(Object.keys(axeRunOptions([]).checks)).toEqual([TARGET_SIZE_CHECK, TARGET_OFFSET_CHECK])
+  it('names exactly the checks of the target-size rule once a project raises it, and none at AA', () => {
+    expect(Object.keys(axeRunOptions([], AAA_LEVELS).checks)).toEqual([TARGET_SIZE_CHECK, TARGET_OFFSET_CHECK])
+    expect(axeRunOptions([]).checks).toEqual({})
   })
 
-  it('measures a target against 44 CSS pixels', () => {
-    expect(checkOption(TARGET_SIZE_CHECK, axeRunOptions([]))).toMatchObject({
+  it('measures a target against the 24 CSS pixels of AA, with the room around it, by default', () => {
+    expect(checkOption(TARGET_SIZE_CHECK, axeRunOptions([]))).toMatchObject({ options: { minSize: 24 } })
+    expect(checkOption(TARGET_OFFSET_CHECK, axeRunOptions([]))).toMatchObject({ enabled: true })
+  })
+
+  it('measures a raised target against 44 CSS pixels', () => {
+    expect(checkOption(TARGET_SIZE_CHECK, axeRunOptions([], { targetSize: 'AAA', contrast: 'AA' }))).toMatchObject({
       enabled: true,
       options: { minSize: 44 },
     })
@@ -183,9 +220,9 @@ describe('the target size', () => {
     expect(checkOption(TARGET_SIZE_CHECK, {})).toMatchObject({ options: { minSize: 24 } })
   })
 
-  it('gives an undersized target no pass for the room around it', () => {
+  it('gives an undersized target no pass for the room around it once a project raises the size', () => {
     expect(checkOption(TARGET_OFFSET_CHECK, {})).toMatchObject({ enabled: true })
-    expect(checkOption(TARGET_OFFSET_CHECK, axeRunOptions([]))).toMatchObject({ enabled: false })
+    expect(checkOption(TARGET_OFFSET_CHECK, axeRunOptions([], AAA_LEVELS))).toMatchObject({ enabled: false })
   })
 
   // axe selects no target that sits in a line of text, so the 2.5.5 inline exception holds before any
@@ -198,18 +235,25 @@ describe('the target size', () => {
 })
 
 describe('the title of a target-size finding', () => {
-  it('names the 44 pixels the shipped check measures, not the 24 of the title axe writes', () => {
-    expect(targetSizeHelp()).toBe('Every pointer target must be at least 44 by 44 CSS pixels')
+  it('keeps the title axe writes at AA, which names the size the check measures', () => {
+    expect(targetSizeHelp()).toBeUndefined()
+  })
+
+  it('names the 44 pixels a raised check measures, not the 24 of the title axe writes', () => {
+    expect(targetSizeHelp(AAA_LEVELS)).toBe('Every pointer target must be at least 44 by 44 CSS pixels')
   })
 
   it('follows the size the file sets', () => {
     const file: unknown = { checks: { [TARGET_SIZE_RULE]: { options: { minSize: 48 } } } }
-    expect(targetSizeHelp(file)).toBe('Every pointer target must be at least 48 by 48 CSS pixels')
+    expect(targetSizeHelp(AA_LEVELS, file)).toBe('Every pointer target must be at least 48 by 48 CSS pixels')
   })
 
-  it('refuses a file that sets no numeric size, rather than printing a title without one', () => {
-    for (const checks of [{}, { [TARGET_SIZE_RULE]: {} }, { [TARGET_SIZE_RULE]: { options: { minSize: '44' } } }]) {
-      expect(() => targetSizeHelp({ checks })).toThrow(
+  it('refuses a file that sets options without a numeric size, rather than printing a title without one', () => {
+    for (const checks of [
+      { [TARGET_SIZE_RULE]: { options: {} } },
+      { [TARGET_SIZE_RULE]: { options: { minSize: '44' } } },
+    ]) {
+      expect(() => targetSizeHelp(AA_LEVELS, { checks })).toThrow(
         'configs/axe-options.json sets no numeric minSize for the check target-size',
       )
     }

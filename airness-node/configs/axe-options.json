@@ -1,7 +1,6 @@
 {
-  "$comment": "The axe run options every Airness accessibility scan adds to axe's defaults: the browser sweep and scopedAxe of @airness/node, and AxeAudit of airness-web-evidence, which packages this file as a classpath resource. It is the one definition of the rule set, so a crawled page and a page a Java test audits cannot be asked different questions. Rules are turned on by id under rules, which adds to axe's default set; a runOnly tag list would replace that set and drop every best-practice rule. The rules: color-contrast-enhanced (1.4.6, 7:1), identical-links-same-purpose (2.4.9), meta-refresh-no-exceptions (2.2.4 and 3.2.5, no timed refresh at any delay), target-size (2.5.8, measured at the 44 CSS pixels of 2.5.5), and the experimental css-orientation-lock (1.3.4), p-as-heading, td-has-header and table-fake-caption (1.3.1). The experimental hidden-content and focus-order-semantics stay off, because they report only items to look at by eye. Under checks, the target-size check measures at 44 pixels and the target-offset check is off: it passes an undersized target for the room around it, the spacing exception of 2.5.8, which 2.5.5 does not grant. A target within a line of text stays exempt, because the rule never selects one.",
+  "$comment": "The axe run options every Airness accessibility scan adds to axe's defaults: the browser sweep and scopedAxe of @airness/node, and AxeAudit of airness-web-evidence, which packages this file as a classpath resource. It is the one definition of the rule set, so a crawled page and a page a Java test audits cannot be asked different questions. Rules are turned on by id under rules, which adds to axe's default set; a runOnly tag list would replace that set and drop every best-practice rule. The rules every project is held to: identical-links-same-purpose (2.4.9), meta-refresh-no-exceptions (2.2.4 and 3.2.5, no timed refresh at any delay), target-size (2.5.8: 24 CSS pixels, or the room of a 24 pixel circle around a smaller target), and the experimental css-orientation-lock (1.3.4), p-as-heading, td-has-header and table-fake-caption (1.3.1); axe's default color-contrast (1.4.3, 4.5:1) runs beside them. The experimental hidden-content and focus-order-semantics stay off, because they report only items to look at by eye. Under levels, each of the two rules whose AAA level costs a design the most adds what a project that raises it to AAA is held to: contrast turns on color-contrast-enhanced (1.4.6, 7:1), and targetSize measures a target at the 44 CSS pixels of 2.5.5 with the target-offset check off, because it passes an undersized target for the room around it, the spacing exception of 2.5.8, which 2.5.5 does not grant. A target within a line of text stays exempt at either level, because the rule never selects one.",
   "rules": {
-    "color-contrast-enhanced": { "enabled": true },
     "identical-links-same-purpose": { "enabled": true },
     "meta-refresh-no-exceptions": { "enabled": true },
     "target-size": { "enabled": true },
@@ -10,8 +9,22 @@
     "td-has-header": { "enabled": true },
     "table-fake-caption": { "enabled": true }
   },
-  "checks": {
-    "target-size": { "options": { "minSize": 44 } },
-    "target-offset": { "enabled": false }
+  "checks": {},
+  "levels": {
+    "contrast": {
+      "AAA": {
+        "rules": { "color-contrast-enhanced": { "enabled": true } },
+        "checks": {}
+      }
+    },
+    "targetSize": {
+      "AAA": {
+        "rules": {},
+        "checks": {
+          "target-size": { "options": { "minSize": 44 } },
+          "target-offset": { "enabled": false }
+        }
+      }
+    }
   }
 }
