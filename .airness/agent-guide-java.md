@@ -308,8 +308,9 @@ Airness governs all of the following domains in a Java module:
 - Connect a Java web interface to the browser sweep without rewriting it, keeping its Java runtime: list a frontend
   tooling directory in `airness.node.projects` (the module itself works, with `sourceRoots` naming
   `src/main/resources/static`), then meet the Web interface domain above and the generic guide's Frontend
-  resources, Node Application Preparation and Security Corrections, and Browser Verification. Keep the existing
-  Selenium tests; they remain project tests beside the automatic sweep.
+  resources, Node Application Preparation and Security Corrections, and Browser Verification. A web interface with
+  a sign-in adds the sign-in setup Browser Verification names, so the sweep reaches its protected pages. Keep the
+  existing Selenium tests; they remain project tests beside the automatic sweep.
 - A test helper that asserts carries a name starting with `assert` or `verify`, such as `check.assertSingleAt(...)`.
   An assertion is recognized by that prefix wherever the helper is declared. A helper named otherwise is followed at
   most within its own file, so a test that reaches its assertion only through such a helper in another type reports

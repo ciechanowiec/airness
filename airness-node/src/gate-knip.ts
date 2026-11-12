@@ -33,9 +33,16 @@ import { CLOUDFRONT_RUNTIME, rolesFor } from './javascript-runtimes.js'
 import { asRecord, asText, declaredDependencies, readKey } from './json-shapes.js'
 import { LAYER_NAMES, layerAnalysisEnvironmentFor } from './layer.js'
 import { harnessDirectory, type Member, readJson, resolveTool, writeJson } from './project.js'
-import { type DeclaredExclusion, isHonouredExclusion, PRODUCTION_ENTRIES_SETTING, retiredSettings } from './settings.js'
+import {
+  type DeclaredExclusion,
+  isHonouredExclusion,
+  PRODUCTION_ENTRIES_SETTING,
+  retiredSettings,
+  VITEST_CONFIG_FILE,
+} from './settings.js'
 import { allowedJavaScriptFiles, memberFiles } from './source-selection.js'
 import { isTestFile } from './spec-roles.js'
+import { SIGN_IN_SETUP } from './sweep-visitors.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
 // The harness itself reaches these by name, through the manifest resolution the gates share, which knip
@@ -177,6 +184,12 @@ interface RenderedConfigs {
   readonly production: string
 }
 
+// The harness writes its Vitest configuration into every node project. A member that declares no Vitest has no
+// runner to read it, as a Java application's tooling project whose only script is its sign-in setup has none, and
+// the file is the harness's, not the member's to remove.
+const unreadConfigurations = (member: Member): readonly string[] =>
+  'vitest' in declaredDependencies(member.packageJson) ? [] : [VITEST_CONFIG_FILE]
+
 // Written outside the working tree, so the run leaves nothing the tree check would notice.
 const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs => {
   const shippedPath: string = path.join(harnessDirectory(), 'configs', 'knip.json')
@@ -192,8 +205,9 @@ const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs
   const config: Readonly<Record<string, unknown>> = {
     ...shipped,
     // A file a framework runs in production of its own accord is an entry point of every run, not only of the
-    // production one: nothing imports it, so without this the run would report it unused.
-    entry: [...entries, ...member.settings.productionEntries],
+    // production one: nothing imports it, so without this the run would report it unused. The sign-in setup is a
+    // test the e2e gate runs by its name, which no test runner's plugin matches, so it is an entry of this run.
+    entry: [...entries, SIGN_IN_SETUP, ...member.settings.productionEntries],
     ignoreDependencies: [
       ...texts(shipped['ignoreDependencies']),
       ...ownDependencies(member),
@@ -201,7 +215,12 @@ const knipConfigs = (member: Member, layers: readonly string[]): RenderedConfigs
       ...testEnginePeers(member, files),
       ...runtimeModules(member, files),
     ],
-    ignore: [...texts(shipped['ignore']), ...boundaries, ...member.settings.generatedArtefacts],
+    ignore: [
+      ...texts(shipped['ignore']),
+      ...boundaries,
+      ...member.settings.generatedArtefacts,
+      ...unreadConfigurations(member),
+    ],
     // A workspace root's run would otherwise analyse every member as a workspace of its own, loading each
     // member's tool configurations without that member's environment. Each member is judged by its own run.
     ignoreWorkspaces: [...texts(shipped['ignoreWorkspaces']), ...member.siblingPaths],

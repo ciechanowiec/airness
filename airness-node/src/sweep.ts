@@ -13,9 +13,9 @@
 // Nothing here decides what a defect is. Each verdict is a the pure policy modules function over what the
 // browser measured; the `sweep-*` modules drive the browser into each state and hand over the
 // measurements. This module is the entry point: it holds the summary and re-exports every pass.
-import { readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { expect, type TestInfo, test } from '@playwright/test'
+import { type APIRequestContext, type APIResponse, expect, request, type TestInfo, test } from '@playwright/test'
 import { unsweptRoutes } from './a11y.js'
 import type { TemplateSample } from './browser-discovery.js'
 import { type DeclaredExemption, staleExemptions, type UsedExemption } from './browser-exemptions.js'
@@ -23,7 +23,7 @@ import { type BrowserFinding, distinctFindings, findingLine } from './browser-fi
 import { BROWSER_ENGINES, enginePassParts, type Shard, type SweepPass } from './browser-run.js'
 import { coversEveryEngine } from './change-scope-policy.js'
 import { writeJson } from './project.js'
-import { projectSettings } from './project-settings.js'
+import { projectDirectory, projectSettings } from './project-settings.js'
 import { completedScanRoutes } from './scan-evidence.js'
 import { SCROLLING_RULES } from './scroll-policy.js'
 import {
@@ -40,6 +40,7 @@ import {
   reportName,
   sweepRoot,
 } from './sweep-shared.js'
+import { endedSessionProblems, hasSignedInVisitor, sessionFile, type Visitor } from './sweep-visitors.js'
 import { SWEEP_WORKERS as SWEEP_SHARDS } from './sweep-workers.js'
 
 export { expectDisclosureStates } from './sweep-disclosures.js'
@@ -109,9 +110,11 @@ const expectedReports = (engines: readonly string[]): readonly ExpectedReport[] 
     ),
   )
 
-const missingLine = (expected: ExpectedReport): string =>
-  `${expected.engine} ${expected.pass} part ${String(expected.shard.index + 1)} of ${String(expected.shard.count)}: ` +
-  `did not record ${reportName(expected.pass, expected.shard)}`
+const visitorText = (visitor: Visitor): string => (visitor === 'signed-in' ? ' signed in' : '')
+
+const missingLine = (expected: ExpectedReport, visitor: Visitor): string =>
+  `${expected.engine} ${expected.pass}${visitorText(visitor)} part ${String(expected.shard.index + 1)} of ` +
+  `${String(expected.shard.count)}: did not record ${reportName(expected.pass, expected.shard)}`
 
 const MS_PER_SECOND: number = 1000
 
@@ -162,8 +165,9 @@ const passLine = (engine: string, pass: SweepPass, reports: readonly PassReport[
   )
 }
 
-/** Everything the summary read. */
+/** Everything the summary read of one visitor's sweep. */
 interface SweepRecord {
+  readonly visitor: Visitor
   readonly discovery: Discovery | undefined
   readonly discoveryReport: DiscoveryReport | undefined
   readonly engines: readonly string[]
@@ -171,7 +175,7 @@ interface SweepRecord {
   readonly missing: readonly string[]
 }
 
-const coverageText = (record: SweepRecord): string =>
+const visitorCoverage = (record: SweepRecord): readonly string[] =>
   [
     ...(record.discoveryReport ?? NO_DISCOVERY_REPORT).scope.lines.map((line: string): string => `scope: ${line}`),
     discoveryText(record.discovery ?? NOTHING_DISCOVERED, record.discoveryReport ?? NO_DISCOVERY_REPORT),
@@ -188,7 +192,10 @@ const coverageText = (record: SweepRecord): string =>
       (note: string): string => `  note: ${note}`,
     ),
     ...record.missing,
-  ].join('\n')
+  ].map((line: string): string => (record.visitor === 'signed-in' ? `signed in: ${line}` : line))
+
+const coverageText = (records: readonly SweepRecord[]): string =>
+  records.flatMap((record: SweepRecord): readonly string[] => visitorCoverage(record)).join('\n')
 
 // An exemption is stale in an engine when no part of any pass in that engine used it. The scrolling pass's
 // rules are judged on one route per template, so at a route it did not cross they were never applied, and an
@@ -216,37 +223,110 @@ const staleIn = (engine: string, reports: readonly PassReport[]): readonly Brows
       )
 }
 
-const readRecord = (info: TestInfo): SweepRecord => {
+const readRecord = (info: TestInfo, visitor: Visitor): SweepRecord => {
   const engines: readonly string[] = expectedEngines(info)
   const expected: readonly ExpectedReport[] = expectedReports(engines)
   const read: readonly (PassReport | undefined)[] = expected.map((part: ExpectedReport): PassReport | undefined =>
-    readJson(reportFile(info, part.engine, part.pass, part.shard), isPassReport),
+    readJson(reportFile(info, { ...part, visitor }), isPassReport),
   )
   return {
-    discovery: readJson(discoveryFile(info), isDiscovery),
-    discoveryReport: readJson(discoveryReportFile(info), isDiscoveryReport),
+    visitor,
+    discovery: readJson(discoveryFile(info, visitor), isDiscovery),
+    discoveryReport: readJson(discoveryReportFile(info, visitor), isDiscoveryReport),
     engines,
     reports: read.flatMap((report: PassReport | undefined): readonly PassReport[] =>
       report === undefined ? [] : [report],
     ),
     missing: expected.flatMap((part: ExpectedReport, index: number): readonly string[] =>
-      read[index] === undefined ? [missingLine(part)] : [],
+      read[index] === undefined ? [missingLine(part, visitor)] : [],
     ),
   }
 }
 
-const summaryProblems = (record: SweepRecord, info: TestInfo): readonly string[] =>
-  record.discovery === undefined || record.discoveryReport === undefined
-    ? ['discovery did not record what to scan; its own test names the reason']
-    : [
-        ...record.discoveryReport.problems,
-        ...unsweptRoutes(
-          record.discoveryReport.visitedRoutes,
-          record.discoveryReport.answeredRoutes,
-          completedScanRoutes(info.project.outputDir, new URL(projectSettings.serverUrl).origin),
-          record.discoveryReport.fragmentRoutes,
-        ),
-      ]
+const recordProblems = (record: SweepRecord): readonly string[] => {
+  const problems: readonly string[] =
+    record.discovery === undefined || record.discoveryReport === undefined
+      ? ['discovery did not record what to scan; its own test names the reason']
+      : record.discoveryReport.problems
+  return problems.map((problem: string): string => (record.visitor === 'signed-in' ? `signed in: ${problem}` : problem))
+}
+
+const everyRecordProblem = (records: readonly SweepRecord[]): readonly string[] =>
+  records.flatMap((record: SweepRecord): readonly string[] => recordProblems(record))
+
+const routesOf = (
+  records: readonly SweepRecord[],
+  routes: (report: DiscoveryReport) => readonly string[],
+): readonly string[] =>
+  records.flatMap((record: SweepRecord): readonly string[] =>
+    record.discoveryReport === undefined ? [] : routes(record.discoveryReport),
+  )
+
+// A route either visitor reached is covered: the signed-in visit judged it with every pass as the anonymous
+// one judges a public page.
+const coverageProblems = (records: readonly SweepRecord[], info: TestInfo): readonly string[] =>
+  unsweptRoutes(
+    routesOf(records, (report: DiscoveryReport): readonly string[] => report.visitedRoutes),
+    routesOf(records, (report: DiscoveryReport): readonly string[] => report.answeredRoutes),
+    completedScanRoutes(info.project.outputDir, new URL(projectSettings.serverUrl).origin),
+    routesOf(records, (report: DiscoveryReport): readonly string[] => report.fragmentRoutes),
+  )
+
+const probeStatus = async (context: APIRequestContext, probe: string): Promise<number | undefined> => {
+  try {
+    const response: APIResponse<unknown> = await context.get(new URL(probe, projectSettings.serverUrl).href, {
+      maxRedirects: 0,
+    })
+    return response.status()
+  } catch {
+    return undefined
+  }
+}
+
+// The signed-in passes share one session, so one that ended it left every later signed-in visit without it.
+// The route that proved the session at discovery is asked again in the stored session once every pass ran.
+const endedSession = async (records: readonly SweepRecord[], info: TestInfo): Promise<readonly string[]> => {
+  const probe: string | undefined = records.find((record: SweepRecord): boolean => record.visitor === 'signed-in')
+    ?.discoveryReport?.probeRoute
+  if (probe === undefined) {
+    return []
+  }
+  const context: APIRequestContext = await request.newContext({ storageState: sessionFile(info.project.outputDir) })
+  try {
+    return endedSessionProblems(probe, await probeStatus(context, probe)).map(
+      (problem: string): string => `signed in: ${problem}`,
+    )
+  } finally {
+    await context.dispose()
+  }
+}
+
+// Without the anonymous discovery there is nothing to judge coverage against, so its absence is the verdict.
+const summaryProblems = async (records: readonly SweepRecord[], info: TestInfo): Promise<readonly string[]> =>
+  records.some((record: SweepRecord): boolean => record.visitor === 'anonymous' && record.discoveryReport === undefined)
+    ? everyRecordProblem(records)
+    : [...everyRecordProblem(records), ...(await endedSession(records, info)), ...coverageProblems(records, info)]
+
+const VISITORS: readonly Visitor[] = hasSignedInVisitor(projectDirectory, existsSync)
+  ? ['anonymous', 'signed-in']
+  : ['anonymous']
+
+// What report.json says of each part of a pass, with the visitor it visited as.
+const passEntries = (records: readonly SweepRecord[]): readonly Readonly<Record<string, unknown>>[] =>
+  records.flatMap((record: SweepRecord): readonly Readonly<Record<string, unknown>>[] =>
+    record.reports.map(
+      (report: PassReport): Readonly<Record<string, unknown>> => ({
+        visitor: record.visitor,
+        pass: report.pass,
+        engine: report.engine,
+        shard: report.shard,
+        places: report.places,
+        locations: report.locations,
+        notes: report.notes,
+        elapsedMs: report.elapsedMs,
+      }),
+    ),
+  )
 
 /**
  * Judge discovery's problems and findings and the exemptions no part of a pass used, write the report
@@ -255,33 +335,30 @@ const summaryProblems = (record: SweepRecord, info: TestInfo): readonly string[]
  */
 export const expectSweepSummary = async (): Promise<void> => {
   const info: TestInfo = test.info()
-  const record: SweepRecord = readRecord(info)
-  const problems: readonly string[] = summaryProblems(record, info)
-  const discoveryFindings: readonly BrowserFinding[] = distinctFindings(record.discoveryReport?.findings ?? [])
-  const stale: readonly BrowserFinding[] = record.engines.flatMap((engine: string): readonly BrowserFinding[] =>
-    staleIn(engine, record.reports),
+  const records: readonly SweepRecord[] = VISITORS.map((visitor: Visitor): SweepRecord => readRecord(info, visitor))
+  const problems: readonly string[] = await summaryProblems(records, info)
+  const discoveryFindings: readonly BrowserFinding[] = distinctFindings(
+    records.flatMap((record: SweepRecord): readonly BrowserFinding[] => record.discoveryReport?.findings ?? []),
   )
-  const coverage: string = coverageText(record)
-  writeJson(path.join(sweepRoot(info), 'report.json'), {
+  const reports: readonly PassReport[] = records.flatMap((record: SweepRecord): readonly PassReport[] => record.reports)
+  const missing: readonly string[] = records.flatMap((record: SweepRecord): readonly string[] => record.missing)
+  // An exemption proves itself when either visitor's passes used it, because both judge the same pages.
+  const stale: readonly BrowserFinding[] = distinctFindings(
+    (records[0]?.engines ?? []).flatMap((engine: string): readonly BrowserFinding[] => staleIn(engine, reports)),
+  )
+  const coverage: string = coverageText(records)
+  writeJson(path.join(sweepRoot(info, 'anonymous'), 'report.json'), {
     findings: distinctFindings([
       ...discoveryFindings,
-      ...record.reports.flatMap((report: PassReport): readonly BrowserFinding[] => report.findings),
+      ...reports.flatMap((report: PassReport): readonly BrowserFinding[] => report.findings),
       ...stale,
     ]),
     problems,
-    scope: record.discoveryReport?.scope,
-    passes: record.reports.map((report: PassReport) => ({
-      pass: report.pass,
-      engine: report.engine,
-      shard: report.shard,
-      places: report.places,
-      locations: report.locations,
-      notes: report.notes,
-      elapsedMs: report.elapsedMs,
-    })),
-    missing: record.missing,
+    scope: records[0]?.discoveryReport?.scope,
+    passes: passEntries(records),
+    missing,
   })
-  writeFileSync(path.join(sweepRoot(info), 'coverage.txt'), `${coverage}\n`)
+  writeFileSync(path.join(sweepRoot(info, 'anonymous'), 'coverage.txt'), `${coverage}\n`)
   await info.attach('coverage', { body: coverage, contentType: 'text/plain' })
   process.stdout.write(`\nAirness sweep coverage:\n${coverage}\n`)
   expect.soft(problems, 'discovery is incomplete').toEqual([])
@@ -291,7 +368,7 @@ export const expectSweepSummary = async (): Promise<void> => {
       'discovery findings',
     )
     .toEqual([])
-  expect.soft(record.missing, 'sweep parts that did not finish; their own tests name the reason').toEqual([])
+  expect.soft(missing, 'sweep parts that did not finish; their own tests name the reason').toEqual([])
   expect(
     stale.map((finding: BrowserFinding): string => findingLine(finding)),
     'exemptions no pass used',

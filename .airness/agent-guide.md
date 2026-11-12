@@ -404,14 +404,24 @@ fail. No pass or scope is cached.
 
 The sweep applies to every module that serves user-facing HTML, whatever its backend language. The Java layer's
 guide states when a Java module is such a web interface, how it is served and where its route inventory comes
-from. An inventory route the crawl does not reach needs a completed `expectSweptPage(page)` scan from
-`@airness/node/a11y` in a project specification of the current run, which is how authenticated roles and prepared
-states are covered, or an `accessibilitySkipRoutes` entry with its reason. The helper records evidence only after
+from. A module with pages behind a sign-in adds `tests/e2e/sign-in.setup.ts`: a Playwright test that signs in, by
+the project's own means, as the account that reaches the most pages, and then calls `saveSweepSession(page)` from
+`@airness/node/a11y`. The sweep then visits the application a second time in that session, with the same passes in
+the same engines. It hands those passes only the pages new to the signed-in visitor: pages only it reaches, and
+pages whose element structure signing in changed. Each sampling pass still takes one page per template, and the
+route ceiling counts both visitors' routes together. Signed-in findings and problems say `signed in`. The crawl
+proves its session on the first route that opens only with it, rechecks that route after every visit and again
+after the last pass, and fails at the address whose visit ended the session; an address a link reaches must not
+change state. A sign-in that changes nothing the crawl can see also fails. An inventory route neither visitor
+reaches needs a completed `expectSweptPage(page)` scan from `@airness/node/a11y` in a project specification of the
+current run, which is how other roles, data a specification creates and prepared states are covered, or an
+`accessibilitySkipRoutes` entry with its reason. The helper records evidence only after
 every required viewport passes and the URL remains unchanged. Discovery clears earlier evidence before dependent
 specifications start; teardown checks it after they finish. A source-level call that never executes fails as
 `route-unexecuted`. Project and layer specifications depend on discovery. Playwright's `--no-deps` is available
 for a focused diagnostic, which establishes no complete sweep verdict. A temporary redirect (302, 303, 307)
-credits only the page it lands on, so a protected page answered by the sign-in page stays uncovered; a permanent
+credits only the page it lands on, so a protected page answered by the sign-in page stays uncovered for the
+anonymous visitor; a permanent
 redirect still credits its source. Same-origin `hx-get`
 fragments found on swept and scanned pages are requested with the page's session, must answer HTML, and are
 reported as fragment coverage apart from swept pages.

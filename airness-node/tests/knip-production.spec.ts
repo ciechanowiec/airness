@@ -88,6 +88,29 @@ const PLAYWRIGHT_REACH: Readonly<Record<string, string>> = {
   ].join('\n'),
 }
 
+// The tooling project beside a Java application: no unit suite, and no script but the sign-in setup the sweep runs.
+const SIGN_IN_ONLY: Readonly<Record<string, string>> = {
+  'tsconfig.json': TSCONFIG,
+  'vitest.config.mts': "import config from '@airness/node/vitest'\n\nexport default config\n",
+  'tests/e2e/sign-in.setup.ts': [
+    "import { saveSweepSession } from '@airness/node/a11y'",
+    "import { test } from '@playwright/test'",
+    '',
+    "test('signs in', async ({ page }) => {",
+    "  await page.goto('/login')",
+    '  await saveSweepSession(page)',
+    '})',
+    '',
+  ].join('\n'),
+}
+
+const SIGN_IN_ONLY_MANIFEST: Readonly<Record<string, unknown>> = {
+  name: 'tooling',
+  private: true,
+  type: 'module',
+  devDependencies: { '@airness/node': '2.0.0', '@playwright/test': '1.64.1' },
+}
+
 // A module only a specification under the sources reaches, as a harness package ships one.
 const SHIPPED_REACH: Readonly<Record<string, string>> = {
   'src/boundary.ts': 'export const boundary = (amount: number): boolean => amount > 0\n',
@@ -183,6 +206,14 @@ describe('knip production run', PROCESS_TIME, () => {
       const result: GateResult = judged(VITEST_REACH)
       expect(findingsOf(result)).not.toMatch(/negated\s/u)
       expect(findingsOf(result)).not.toMatch(/refund\s/u)
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'passes a member whose only script is the sign-in setup, without a unit suite to read the Vitest configuration',
+    () => {
+      expect(judged({}, SIGN_IN_ONLY_MANIFEST, SIGN_IN_ONLY).findings).toEqual([])
     },
     TOOL_TIMEOUT_MS,
   )

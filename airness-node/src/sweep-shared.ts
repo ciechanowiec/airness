@@ -43,6 +43,7 @@ import { engineOf, type HealthReading, healthFindings, type PlaceScan, sweepScre
 import { passStartLine } from './sweep-progress.js'
 import { recordProgress, reportPartFindings, reportPass } from './sweep-progress-log.js'
 import { firstUntaken, takeNext, untakenCount } from './sweep-queue.js'
+import { SWEEP_DIRECTORY, type Visitor, visitorDirectory, visitorOfTags } from './sweep-visitors.js'
 
 export type { Shard } from './browser-run.js'
 
@@ -76,6 +77,8 @@ export interface SweepLocation {
   readonly edges: readonly number[]
   readonly hasDarkMedia: boolean
   readonly controls: number
+  /** The digest of the page's elements, roles and input types, which tells two visitors' renders apart. */
+  readonly structure?: string
 }
 
 /** What discovery hands every later pass. */
@@ -126,6 +129,8 @@ export interface DiscoveryReport {
   readonly answeredRoutes: readonly string[]
   /** The htmx fragments the crawled pages requested that rendered, kept apart from the pages swept whole. */
   readonly fragmentRoutes: readonly string[]
+  /** The route the signed-in crawl proved its session with, which the summary checks again at the end. */
+  readonly probeRoute?: string
 }
 
 /** What visiting one item of a pass yields. */
@@ -139,8 +144,6 @@ export const EMPTY_VISIT: Visit = {
   declared: [],
   notes: [],
 }
-
-const SWEEP_DIRECTORY: string = 'airness-sweep'
 
 // Every element a person can operate, wherever it sits on the page.
 export const CONTROLS: string = [
@@ -191,20 +194,24 @@ export const DESKTOP: Viewport = { width: 1280, height: 800 }
 // Files
 
 /**
- * The directory every engine's passes hand their files through. Every project shares the config's
- * output directory, so discovery, run once, is read from here by every engine.
+ * The directory every engine's passes of one visitor hand their files through. Every project shares the
+ * config's output directory, so discovery, run once per visitor, is read from here by every engine.
  * @param info the running test.
+ * @param visitor the visitor, by default the one the running test visits as.
  * @returns the directory.
  */
-export const sweepRoot = (info: TestInfo): string => path.join(info.project.outputDir, SWEEP_DIRECTORY)
+export const sweepRoot = (info: TestInfo, visitor: Visitor = visitorOfTags(info.tags)): string =>
+  visitorDirectory(path.join(info.project.outputDir, SWEEP_DIRECTORY), visitor)
 
 /**
  * The directory the passes of one engine write their reports and progress to.
  * @param info the running test.
  * @param engine the engine.
+ * @param visitor the visitor, by default the one the running test visits as.
  * @returns the directory.
  */
-const engineDirectory = (info: TestInfo, engine: string): string => path.join(sweepRoot(info), engine)
+const engineDirectory = (info: TestInfo, engine: string, visitor?: Visitor): string =>
+  path.join(sweepRoot(info, visitor), engine)
 
 const parsedJson = (file: string): unknown => {
   try {
@@ -268,16 +275,20 @@ export const isPassReport = (value: unknown): value is PassReport =>
 /**
  * The file discovery writes for every later pass, in every engine.
  * @param info the running test.
+ * @param visitor the visitor, by default the one the running test visits as.
  * @returns the file.
  */
-export const discoveryFile = (info: TestInfo): string => path.join(sweepRoot(info), 'discovered.json')
+export const discoveryFile = (info: TestInfo, visitor?: Visitor): string =>
+  path.join(sweepRoot(info, visitor), 'discovered.json')
 
 /**
  * The file discovery writes its findings and problems to, for the summary.
  * @param info the running test.
+ * @param visitor the visitor, by default the one the running test visits as.
  * @returns the file.
  */
-export const discoveryReportFile = (info: TestInfo): string => path.join(sweepRoot(info), 'discovery.json')
+export const discoveryReportFile = (info: TestInfo, visitor?: Visitor): string =>
+  path.join(sweepRoot(info, visitor), 'discovery.json')
 
 /**
  * How a report file names one shard of a pass.
@@ -288,16 +299,36 @@ export const discoveryReportFile = (info: TestInfo): string => path.join(sweepRo
 export const reportName = (pass: SweepPass, shard: Shard): string =>
   `${pass}-${String(shard.index + 1)}-of-${String(shard.count)}.json`
 
+/** One part of a pass: the engine it ran in, the pass, the shard, and the visitor it visited as. */
+export interface ReportPart {
+  readonly engine: string
+  readonly pass: SweepPass
+  readonly shard: Shard
+  readonly visitor?: Visitor
+}
+
 /**
  * The file one shard of a pass writes its report to.
  * @param info the running test.
- * @param engine the engine it ran in.
- * @param pass the pass.
- * @param shard the shard.
+ * @param part the engine, pass, shard and visitor; the visitor is by default the running test's.
  * @returns the file.
  */
-export const reportFile = (info: TestInfo, engine: string, pass: SweepPass, shard: Shard): string =>
-  path.join(engineDirectory(info, engine), reportName(pass, shard))
+export const reportFile = (info: TestInfo, part: ReportPart): string =>
+  path.join(engineDirectory(info, part.engine, part.visitor), reportName(part.pass, part.shard))
+
+const signedInFinding = (finding: BrowserFinding): BrowserFinding => ({ ...finding, isSignedIn: true })
+
+/**
+ * The findings as the visitor that made them: a signed-in visit's findings say so, so a reader reproduces
+ * them signed in.
+ * @param findings the findings.
+ * @param visitor the visitor that made them.
+ * @returns the findings, marked when signed in.
+ */
+export const visitedAs = (findings: readonly BrowserFinding[], visitor: Visitor): readonly BrowserFinding[] =>
+  visitor === 'anonymous'
+    ? findings
+    : findings.map((finding: BrowserFinding): BrowserFinding => signedInFinding(finding))
 
 /**
  * What discovery recorded, failing the test when it recorded nothing.
@@ -652,7 +683,8 @@ interface FinishedPass {
 export const finishPass = (page: Page, finished: FinishedPass): void => {
   const { budget, pass, visits, judgedRules, locations }: FinishedPass = finished
   const all: Visit = merged(visits)
-  const findings: readonly BrowserFinding[] = distinctFindings(all.findings)
+  const visitor: Visitor = visitorOfTags(test.info().tags)
+  const findings: readonly BrowserFinding[] = distinctFindings(visitedAs(all.findings, visitor))
   const engine: string = engineOf(page)
   const report: PassReport = {
     pass,
@@ -667,7 +699,7 @@ export const finishPass = (page: Page, finished: FinishedPass): void => {
     notes: [...new Set<string>(all.notes)],
     elapsedMs: Math.round(performance.now() - budget.startedAt),
   }
-  writeJson(reportFile(test.info(), engine, pass, budget.shard), report)
+  writeJson(reportFile(test.info(), { engine, pass, shard: budget.shard }), report)
   const lines: readonly string[] = findings.map((finding: BrowserFinding): string => findingLine(finding))
   reportPartFindings(budget, lines)
   expect(lines, `${pass} pass findings`).toEqual([])
