@@ -537,7 +537,8 @@ PY
         command sleep 1
         repeated_waited=$((repeated_waited + 1))
     done
-    if [ -s "${repeated_case}/registry.port" ] && python3 - "$(cat "${repeated_case}/registry.port")" \
+    repeated_port="$(cat "${repeated_case}/registry.port" 2> /dev/null || true)"
+    if [ -s "${repeated_case}/registry.port" ] && python3 - "${repeated_port}" \
         '@airness%2fnode' '@airness%2frepeated-fixture' <<'PY'
 import sys
 import urllib.request
