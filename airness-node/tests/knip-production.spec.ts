@@ -181,6 +181,30 @@ const judged = (
 
 const findingsOf = (result: GateResult): string => result.findings.join('\n')
 
+// What the production run reports, which follows the line that opens it.
+const productionFindingsOf = (result: GateResult): string => findingsOf(result).split('Production run:', 2)[1] ?? ''
+
+const EXPORT_REASON: string = 'the static export renders this story into the deployed site'
+
+// A member with Storybook, whose static site build renders the home story: the page that story renders runs in
+// production, while the sketch only the other story renders does not.
+const storybookManifest = (entries: readonly unknown[]): Readonly<Record<string, unknown>> => ({
+  ...MANIFEST,
+  devDependencies: { ...asRecord(MANIFEST['devDependencies']), '@storybook/react-vite': '10.6.3' },
+  airness: { productionEntries: entries },
+})
+
+const STORYBOOK_REACH: Readonly<Record<string, string>> = {
+  '.storybook/main.ts': "export default { stories: ['../src/**/*.stories.ts'] }\n",
+  'src/site/page.ts': "export const page = (): string => 'home'\n",
+  'src/site/home.stories.ts':
+    "import { page } from './page.js'\n\nexport default { title: 'Home' }\n\nexport const Home = { render: page }\n",
+  'src/site/sketch.ts': "export const sketch = (): string => 'sketch'\n",
+  'src/site/sketch.stories.ts':
+    "import { sketch } from './sketch.js'\n\nexport default { title: 'Sketch' }\n\n" +
+    'export const Sketch = { render: sketch }\n',
+}
+
 describe('knip production run', PROCESS_TIME, () => {
   it(
     'fails an export only a Vitest spec imports, and names the repair',
@@ -347,6 +371,30 @@ describe('knip production run', PROCESS_TIME, () => {
       expect(findingsOf(result)).toContain(
         'productionEntries entry "src/lib/*.test.ts" names the test src/lib/migrate.test.ts',
       )
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'counts what a story the project declares as a production entry point renders as production code',
+    () => {
+      const result: GateResult = judged(
+        STORYBOOK_REACH,
+        storybookManifest([{ pattern: 'src/site/home.stories.ts', reason: EXPORT_REASON }]),
+      )
+      expect(productionFindingsOf(result)).not.toContain('src/site/page.ts')
+      expect(productionFindingsOf(result)).toMatch(/^src\/site\/sketch\.ts/mu)
+      expect(productionFindingsOf(result)).not.toContain('.stories.ts')
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    'leaves what only a story renders to the tests when the project declares no story an entry point',
+    () => {
+      const result: GateResult = judged(STORYBOOK_REACH, storybookManifest([]))
+      expect(productionFindingsOf(result)).toMatch(/^src\/site\/page\.ts/mu)
+      expect(productionFindingsOf(result)).not.toContain('.stories.ts')
     },
     TOOL_TIMEOUT_MS,
   )
