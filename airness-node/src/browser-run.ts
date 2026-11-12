@@ -55,7 +55,10 @@ export const isPinnedBrowserImage = (version: string, image: string): boolean =>
   image.startsWith(`${playwrightImageOf(version)}@sha256:`) && /@sha256:[a-f\d]{64}$/u.test(image)
 
 /** The engines a verification run measures in. Outside verification only the first runs. */
-export const BROWSER_ENGINES: readonly string[] = ['chromium', 'firefox', 'webkit']
+/** WebKit's name as Playwright gives it. */
+export const WEBKIT: string = 'webkit'
+
+export const BROWSER_ENGINES: readonly string[] = ['chromium', 'firefox', WEBKIT]
 
 /** The passes the sweep runs, in order. */
 export type SweepPass =
@@ -224,7 +227,7 @@ export const partBudgetMs = (pass: SweepPass, units: number, shard: Shard): numb
 // The pinned WebKit draws every page in software, so a heavy page holds a processor for seconds per frame,
 // and as many such pages at once as the sweep has workers starve one another until one stops answering.
 // Its engine pass runs in half as many parts, each with the budget of its larger share.
-const SOFTWARE_DRAWN_ENGINE: string = 'webkit'
+const SOFTWARE_DRAWN_ENGINE: string = WEBKIT
 const SOFTWARE_DRAWN_SHARE: number = 2
 
 /**

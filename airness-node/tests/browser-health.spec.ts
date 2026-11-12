@@ -97,25 +97,33 @@ const STYLE_SRC_REFUSAL: ConsoleEntry = {
 
 describe('the console messages a page answers for', () => {
   it("drops the refusal of the style each of the sweep's own screenshots adds, in either wording", () => {
-    expect(pageOwnEntries([BEGINS, DEFAULT_REFUSAL, ENDS, BEGINS, STYLE_SRC_REFUSAL, ENDS])).toEqual([])
+    expect(pageOwnEntries([BEGINS, DEFAULT_REFUSAL, ENDS, BEGINS, STYLE_SRC_REFUSAL, ENDS], 'chromium')).toEqual([])
   })
 
   it('keeps a refusal the page caused before, after or between screenshots', () => {
-    expect(pageOwnEntries([DEFAULT_REFUSAL, BEGINS, ENDS, STYLE_SRC_REFUSAL, BEGINS, ENDS, DEFAULT_REFUSAL])).toEqual([
-      DEFAULT_REFUSAL,
-      STYLE_SRC_REFUSAL,
-      DEFAULT_REFUSAL,
-    ])
+    expect(
+      pageOwnEntries([DEFAULT_REFUSAL, BEGINS, ENDS, STYLE_SRC_REFUSAL, BEGINS, ENDS, DEFAULT_REFUSAL], 'chromium'),
+    ).toEqual([DEFAULT_REFUSAL, STYLE_SRC_REFUSAL, DEFAULT_REFUSAL])
   })
 
   it('keeps every other message logged while a screenshot is taken', () => {
     const thrown: ConsoleEntry = { type: 'error', text: 'TypeError: x is undefined' }
     const warned: ConsoleEntry = { type: 'warning', text: DEFAULT_REFUSAL.text }
-    expect(pageOwnEntries([BEGINS, thrown, warned, ENDS])).toEqual([thrown, warned])
+    expect(pageOwnEntries([BEGINS, thrown, warned, ENDS], 'chromium')).toEqual([thrown, warned])
+  })
+
+  it('leaves every stylesheet refusal in WebKit to Chromium, because WebKit refuses its own select stylesheet alike', () => {
+    expect(pageOwnEntries([DEFAULT_REFUSAL, STYLE_SRC_REFUSAL], 'webkit')).toEqual([])
+  })
+
+  it('keeps every other message WebKit logs', () => {
+    const thrown: ConsoleEntry = { type: 'error', text: 'TypeError: x is undefined' }
+    const warned: ConsoleEntry = { type: 'warning', text: DEFAULT_REFUSAL.text }
+    expect(pageOwnEntries([thrown, DEFAULT_REFUSAL, warned], 'webkit')).toEqual([thrown, warned])
   })
 
   it('takes a marker only as the info message the sweep logs, so a page logging its text otherwise opens no window', () => {
     const logged: ConsoleEntry = { type: 'log', text: SCREENSHOT_BEGINS }
-    expect(pageOwnEntries([logged, DEFAULT_REFUSAL])).toEqual([logged, DEFAULT_REFUSAL])
+    expect(pageOwnEntries([logged, DEFAULT_REFUSAL], 'chromium')).toEqual([logged, DEFAULT_REFUSAL])
   })
 })
