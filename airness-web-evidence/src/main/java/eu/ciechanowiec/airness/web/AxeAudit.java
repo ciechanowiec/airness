@@ -27,27 +27,27 @@ import org.jspecify.annotations.Nullable;
 @UtilityClass
 public final class AxeAudit {
 
-    // Where the build places the options file of the node harness, axe-options.json, which this
-    // artifact packages rather than copies: the browser sweep reads the same file, so a page this
-    // audits and a page the sweep crawls are asked the same question, and neither can drift.
-    private static final String OPTIONS_RESOURCE = "eu/ciechanowiec/airness/web/axe-options.json";
-
     /**
      * What the question hands the rules beside the document, as the text of the one options file the
      * browser sweep reads too.
      *
      * <p>It turns rules on by id rather than by tag, because a list of tags replaces the default rules
-     * where an id adds to them: the AAA rules for enhanced contrast, link purpose and timed refresh,
-     * the rule for target size, and the experimental rules for orientation, a paragraph styled as a
-     * heading, a data cell no header names and a first row spanning a table in place of its caption.
-     * It measures a target at the 44 CSS pixels of enhanced target size and switches off the check
-     * that excuses a smaller target for the room around it, which only the smaller size grants. The
-     * file states each choice in its own words.
+     * where an id adds to them: the AAA rules for link purpose and timed refresh, the rule for target
+     * size, and the experimental rules for orientation, a paragraph styled as a heading, a data cell no
+     * header names and a first row spanning a table in place of its caption. Its levels hold what a
+     * project that raises the size of a target or the contrast of text to AAA is held to besides: a
+     * target measured at 44 CSS pixels with no allowance for the room around it, and the enhanced
+     * contrast of 7:1. The file states each choice in its own words.
+     *
+     * <p>It is read from where the build places the options file of the node harness, which this artifact
+     * packages rather than copies: the browser sweep reads the same file, so a page this audits and a page
+     * the sweep crawls are asked the same question, and neither can drift.
      */
-    public static final String OPTIONS = options(OPTIONS_RESOURCE);
+    public static final String OPTIONS = options("eu/ciechanowiec/airness/web/axe-options.json");
 
     /**
-     * The question, as the script to run once the rules are loaded.
+     * The question at the AA level of the size of a pointer target and of the contrast of text, which every
+     * project is held to, as the script to run once the rules are loaded.
      *
      * <p>It names no result type, which is the whole of the difference between this and what it
      * replaces: naming one asks the rules to compute that one and leaves the rest of the answer
@@ -59,34 +59,7 @@ public final class AxeAudit {
      * left out: no pointer reaches it, so it is no target to size, which is how the browser sweep reads
      * it too.
      */
-    public static final String SCRIPT = """
-        const done = arguments[arguments.length - 1];
-        const options = %s;
-        const at = node => Array.isArray(node.target) ? node.target.join(' ') : String(node.target);
-        const why = (node, rule) => node.any && node.any.length
-            ? node.any[0].message
-            : (node.none && node.none.length ? node.none[0].message : rule.description);
-        const clipped = node => {
-            const element = node.target.length === 1 ? document.querySelector(node.target[0]) : null;
-            const box = element === null ? null : element.getBoundingClientRect();
-            return box !== null && (box.width <= 1 || box.height <= 1);
-        };
-        const reported = rule => rule.id === 'target-size'
-            ? rule.nodes.filter(node => !clipped(node))
-            : rule.nodes;
-        axe.run(document, {rules: options.rules, checks: options.checks})
-           .then(report => done([].concat(
-               report.violations.flatMap(rule => reported(rule).map(
-                   node => 'failed\\t' + rule.id + '\\t' + at(node) + '\\t' + node.failureSummary
-               )),
-               report.incomplete.flatMap(rule => rule.nodes.map(
-                   node => 'undecided\\t' + rule.id + '\\t' + at(node) + '\\t' + why(node, rule)
-               ))
-           )))
-           .catch(failure => done(
-               ['failed\\taxe-did-not-run\\tdocument\\t' + failure.message]
-           ));
-        """.formatted(OPTIONS);
+    public static final String SCRIPT = script(AccessibilityLevel.AA, AccessibilityLevel.AA);
 
     private static final String SEPARATOR = "\t";
 
@@ -132,6 +105,52 @@ public final class AxeAudit {
             "The accessibility rules answered with nothing to read, which says they did not run "
                 + "rather than that the page is clean"
         );
+    }
+
+    /**
+     * The question at the levels a project holds the size of a pointer target and the contrast of text to, the
+     * levels its {@code airness.accessibilityTargetSize} and {@code airness.accessibilityContrast} settings name
+     * for the browser sweep, so a page a Java test audits is asked what the sweep asks of a crawled one.
+     *
+     * @param targetSize the level a pointer target is measured at
+     * @param contrast   the level the contrast of text is measured at
+     * @return the script to run once the rules are loaded, which adds what each raised level holds to the rule
+     *         switches and the check options of {@link #OPTIONS}
+     */
+    public static String script(AccessibilityLevel targetSize, AccessibilityLevel contrast) {
+        return """
+            const done = arguments[arguments.length - 1];
+            const options = %s;
+            const levels = %s;
+            const raised = Object.keys(levels).filter(rule => levels[rule] !== 'AA')
+                .map(rule => options.levels[rule][levels[rule]]);
+            const rules = Object.assign({}, options.rules, ...raised.map(added => added.rules));
+            const checks = Object.assign({}, options.checks, ...raised.map(added => added.checks));
+            const at = node => Array.isArray(node.target) ? node.target.join(' ') : String(node.target);
+            const why = (node, rule) => node.any && node.any.length
+                ? node.any[0].message
+                : (node.none && node.none.length ? node.none[0].message : rule.description);
+            const clipped = node => {
+                const element = node.target.length === 1 ? document.querySelector(node.target[0]) : null;
+                const box = element === null ? null : element.getBoundingClientRect();
+                return box !== null && (box.width <= 1 || box.height <= 1);
+            };
+            const reported = rule => rule.id === 'target-size'
+                ? rule.nodes.filter(node => !clipped(node))
+                : rule.nodes;
+            axe.run(document, {rules: rules, checks: checks})
+               .then(report => done([].concat(
+                   report.violations.flatMap(rule => reported(rule).map(
+                       node => 'failed\\t' + rule.id + '\\t' + at(node) + '\\t' + node.failureSummary
+                   )),
+                   report.incomplete.flatMap(rule => rule.nodes.map(
+                       node => 'undecided\\t' + rule.id + '\\t' + at(node) + '\\t' + why(node, rule)
+                   ))
+               )))
+               .catch(failure => done(
+                   ['failed\\taxe-did-not-run\\tdocument\\t' + failure.message]
+               ));
+            """.formatted(OPTIONS, "{\"targetSize\": \"%s\", \"contrast\": \"%s\"}".formatted(targetSize, contrast));
     }
 
     // Package-private so that an options file the build did not package is a case a test can reach:

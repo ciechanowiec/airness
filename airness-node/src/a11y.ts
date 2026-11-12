@@ -36,7 +36,7 @@ import { AxeBuilder } from '@axe-core/playwright'
 import { type APIResponse, expect, type Page, type TestInfo, test } from '@playwright/test'
 import { findDefiniteIncomplete } from './a11y-incomplete.js'
 import type { SpecSource } from './axe-coverage.js'
-import { axeRunOptions } from './axe-rules.js'
+import { type AxeRunOptions, axeRunOptions } from './axe-rules.js'
 import { type BrowserFinding, findingLine } from './browser-findings.js'
 import {
   FRAGMENT_SELECTOR,
@@ -53,6 +53,7 @@ import { inventoryRoutes } from './route-inventory.js'
 import { appRootOf, type DeclaredRoute, declaredRoutesOf } from './route-map.js'
 import { recordCompletedScan } from './scan-evidence.js'
 import { locationOf, scanPageInPlace } from './scanner.js'
+import { accessibilityLevels } from './settings.js'
 import { SIGN_IN_SETUP, sessionFile } from './sweep-visitors.js'
 
 export const SKIPPED_ROUTE_PREFIXES: readonly string[] = projectSettings.accessibilitySkipRoutes
@@ -68,16 +69,18 @@ export type AxeResults = Awaited<ReturnType<AxeBuilder['analyze']>>
 
 /**
  * An axe builder covering the complete document, including dialogs and application portals, with the
- * sweep's own rule set: axe's defaults plus the AAA, target-size and experimental rules it turns on, the
- * target size measured at 44 CSS pixels.
+ * sweep's own rule set: axe's defaults plus the AAA, target-size and experimental rules it turns on, the target
+ * size and the contrast of text measured at the levels the project holds them to, AA unless it raised one.
  *
  * Narrow it with `include`, `exclude` or `withRules`. Calling its `options` or `disableRules` replaces
  * the rule set rather than adding to it.
  * @param page the page to scan.
  * @returns a builder without selector restrictions.
  */
-export const scopedAxe = (page: Page): Promise<AxeBuilder> =>
-  Promise.resolve(new AxeBuilder({ page }).options(axeRunOptions([])))
+export const scopedAxe = (page: Page): Promise<AxeBuilder> => {
+  const options: AxeRunOptions = axeRunOptions([], accessibilityLevels(projectSettings))
+  return Promise.resolve(new AxeBuilder({ page }).options(options))
+}
 
 // axe answers in three buckets. `incomplete` means "the check ran and could not decide", and an EXACTLY
 // equal foreground and background is filed there rather than as a violation, because axe reads two

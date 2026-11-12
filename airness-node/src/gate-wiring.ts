@@ -18,6 +18,7 @@ import { isFromItsRegistry, type NpmConfig, npmConfigOf } from './npmrc.js'
 import { harnessDirectory, type Member, readJson, readText } from './project.js'
 import { securityOverrideCatalog } from './security-override-catalog.js'
 import { type SecurityOverride, securityOverrideLockFindings } from './security-overrides.js'
+import { accessibilityLevelFindings } from './settings.js'
 import { wiringFindings } from './wiring-policy.js'
 import { presentWorkingTreeFiles } from './working-tree.js'
 
@@ -50,6 +51,7 @@ export const wiring = (member: Member): GateResult => {
         ? []
         : ['airness.vulnerabilityAllowlist belongs in the root package.json of the declared Node project']),
       ...(lockfile?.rewrites ?? []),
+      ...accessibilityLevelFindings(member.packageJson),
       ...securityOverrideLockFindings(asRecord(installation.workspace)['overrides'], lockfile, approved),
     ],
     expected: readHarnessVersions(process.env[HARNESS_VERSIONS_VARIABLE]),

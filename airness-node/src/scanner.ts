@@ -48,6 +48,7 @@ import { type JudgedPage, judgeLayout, LAYOUT_RULES } from './layout-defects.js'
 import { heldFontFaces, type LayoutSnapshot } from './layout-snapshot.js'
 import { NOT_FOUND_LOCATION_PREFIX } from './not-found-routes.js'
 import { projectSettings } from './project-settings.js'
+import { type AccessibilityLevels, accessibilityLevels } from './settings.js'
 import { type SettleOutcome, settleForScan } from './settle.js'
 import { hitTargetInPage } from './sweep-hit-target.js'
 
@@ -273,8 +274,11 @@ const reportedNodes = async (page: Page, violation: AxeViolation): Promise<reado
   return violation.nodes.filter((_node: AxeNode, index: number): boolean => excused[index] !== true)
 }
 
+// The levels the project holds the two costly rules to, which every scan of the sweep measures at.
+const LEVELS: AccessibilityLevels = accessibilityLevels(projectSettings)
+
 const helpOf = (violation: AxeViolation): string =>
-  violation.id === TARGET_SIZE_RULE ? targetSizeHelp() : violation.help
+  (violation.id === TARGET_SIZE_RULE ? targetSizeHelp(LEVELS) : undefined) ?? violation.help
 
 /**
  * The axe scan of a page as findings, one per violating element.
@@ -291,7 +295,7 @@ export const axeFindings = async (
   // The options go in first and whole: the builder's `options` replaces what it held, and its
   // `disableRules` empties the rule switches before writing its own, so either applied after the other
   // would drop the rules this harness turns on. The narrowing a caller adds keeps them.
-  const options: AxeRunOptions = axeRunOptions(axeRulesExcludedAt(place.location))
+  const options: AxeRunOptions = axeRunOptions(axeRulesExcludedAt(place.location), LEVELS)
   const builder: AxeBuilder = build(new AxeBuilder({ page }).options(options))
   const results: AxeRun = await analyzed(page, builder, AXE_BUSY_RETRIES)
   const reported: readonly (readonly AxeNode[])[] = await Promise.all(

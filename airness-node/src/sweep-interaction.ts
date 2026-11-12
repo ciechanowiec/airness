@@ -1,7 +1,7 @@
 // The sweep's interaction pass: hover and keyboard focus on every control.
 import { type Locator, type Page, test } from '@playwright/test'
 import { classifyHitTarget, type HitTargetClassification, type HitTargetProbe } from './a11y-hit-target.js'
-import { AXE_CONTRAST_RULES } from './axe-rules.js'
+import { contrastRules } from './axe-rules.js'
 import { type CarriedJudgement, judgeCarried } from './browser-exemptions.js'
 import { type BrowserFinding, type FindingPlace, findingAt } from './browser-findings.js'
 import {
@@ -20,6 +20,7 @@ import { type FocusGeometry, focusGeometry } from './focus-reach.js'
 import { type FocusVerdict, judgeFocusIndicator } from './focus-region.js'
 import { type TargetFacts, targetFacts } from './layout.js'
 import { isPerceivableWithin } from './perceivable.js'
+import { projectSettings } from './project-settings.js'
 import { axeFindings, settleFindings } from './scanner.js'
 import { settleForScan } from './settle.js'
 import { hitTargetInPage } from './sweep-hit-target.js'
@@ -57,6 +58,9 @@ import {
   type Visit,
   visitAll,
 } from './sweep-shared.js'
+
+// The contrast rules a hovered or focused control is probed with, at the level the project holds text to.
+const CONTRAST_RULES: readonly string[] = contrastRules(projectSettings.accessibilityContrast)
 
 // The browser surface the page functions below touch, declared for the reason `settle.ts` records.
 declare const document: DomDocument
@@ -113,7 +117,7 @@ const hoverControl = async (page: Page, control: Locator, place: FindingPlace): 
   await control.hover({ timeout: POINTER_ACTION_TIMEOUT_MS })
   await settleForScan(page)
   const contrast: readonly BrowserFinding[] = await axeFindings(page, { ...place, state: 'hover' }, (builder) =>
-    builder.include(PROBE_SELECTOR).withRules([...AXE_CONTRAST_RULES]),
+    builder.include(PROBE_SELECTOR).withRules([...CONTRAST_RULES]),
   )
   await markProbe(control, false)
   return { ...EMPTY_VISIT, findings: contrast }
@@ -344,7 +348,7 @@ const focusAppearance = async (
 ): Promise<Visit> => {
   await page.evaluate(markFocusedInPage, PROBE_ATTRIBUTE)
   const contrast: readonly BrowserFinding[] = await axeFindings(page, place, (builder) =>
-    builder.include(PROBE_SELECTOR).withRules([...AXE_CONTRAST_RULES]),
+    builder.include(PROBE_SELECTOR).withRules([...CONTRAST_RULES]),
   )
   await page.evaluate(unmarkInPage, [PROBE_SELECTOR, PROBE_ATTRIBUTE] as const)
   const indicator: Visit =

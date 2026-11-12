@@ -18,7 +18,7 @@ import {
 } from './file-roles.js'
 import { type InvocationSettings, invocationSettings } from './invocation-settings.js'
 import { isJavascriptRuntime, JAVASCRIPT_RUNTIMES, type RuntimeRole } from './javascript-runtimes.js'
-import { asRecord, asText, isArray, isRecord } from './json-shapes.js'
+import { asRecord, asText, isArray, isRecord, readKey } from './json-shapes.js'
 import { isSubtreePrefix } from './route-exclusions.js'
 
 /** The key of package.json a node project declares its settings under. */
@@ -88,6 +88,10 @@ export interface Settings extends InvocationSettings {
   readonly accessibilityCustomSkipRoutes: readonly string[]
   /** How many routes the accessibility crawl may discover before it fails; a project may only lower it. */
   readonly accessibilityRouteBudget: number
+  /** The level a pointer target is measured at: AA's 24 CSS pixels, or AAA's 44 when the project raises it. */
+  readonly accessibilityTargetSize: AccessibilityLevel
+  /** The level the contrast of text is measured at: AA's 4.5:1, or AAA's 7:1 when the project raises it. */
+  readonly accessibilityContrast: AccessibilityLevel
   /** The smallest gap, in CSS pixels, between a boxed element and its sibling; a project may only raise it. */
   readonly layoutMinimumGap: number
   /** Viewports the layout scan measures beside the ones the harness requires. */
@@ -293,6 +297,8 @@ const appSettings = (
   | 'accessibilitySkipRoutes'
   | 'accessibilityCustomSkipRoutes'
   | 'accessibilityRouteBudget'
+  | 'accessibilityTargetSize'
+  | 'accessibilityContrast'
   | 'layoutMinimumGap'
   | 'layoutViewports'
 > => {
@@ -310,10 +316,59 @@ const appSettings = (
     ],
     accessibilityCustomSkipRoutes: customRoutes,
     accessibilityRouteBudget: clampedCeiling(raw['accessibilityRouteBudget'], ACCESSIBILITY_ROUTE_BUDGET),
+    accessibilityTargetSize: accessibilityLevelOf(raw[TARGET_SIZE_SETTING]),
+    accessibilityContrast: accessibilityLevelOf(raw[CONTRAST_SETTING]),
     layoutMinimumGap: Math.max(LAYOUT_MINIMUM_GAP, asPositiveInteger(raw['layoutMinimumGap'], LAYOUT_MINIMUM_GAP)),
     layoutViewports: asLayoutViewports(raw['layoutViewports']),
   }
 }
+
+/** The level a project holds one of the two costly accessibility rules to: WCAG's AA, or its enhanced AAA. */
+export type AccessibilityLevel = 'AA' | 'AAA'
+
+/** The levels a project holds the size of a pointer target and the contrast of text to. */
+export interface AccessibilityLevels {
+  readonly targetSize: AccessibilityLevel
+  readonly contrast: AccessibilityLevel
+}
+
+const LEVELS: ReadonlySet<unknown> = new Set(['AA', 'AAA'])
+
+/** The setting a project raises the size of a pointer target to AAA's 44 CSS pixels with. */
+export const TARGET_SIZE_SETTING: string = 'accessibilityTargetSize'
+
+/** The setting a project raises the contrast of text to AAA's 7:1 with. */
+export const CONTRAST_SETTING: string = 'accessibilityContrast'
+
+const LEVEL_SETTINGS: readonly string[] = [TARGET_SIZE_SETTING, CONTRAST_SETTING]
+
+const RAISED_LEVEL: AccessibilityLevel = 'AAA'
+
+// AA unless the project raised the rule. Any other value is reported by `accessibilityLevelFindings`, so it never
+// reads as the level the project meant.
+const accessibilityLevelOf = (value: unknown): AccessibilityLevel => (value === RAISED_LEVEL ? RAISED_LEVEL : 'AA')
+
+/**
+ * The levels the project holds the two costly accessibility rules to.
+ * @param settings the project's settings.
+ * @returns the levels of the size of a pointer target and of the contrast of text.
+ */
+export const accessibilityLevels = (
+  settings: Pick<Settings, 'accessibilityTargetSize' | 'accessibilityContrast'>,
+): AccessibilityLevels => ({ targetSize: settings.accessibilityTargetSize, contrast: settings.accessibilityContrast })
+
+/**
+ * Why a level setting reads as nothing it can mean, so a mistyped "AAA" is not taken for the AA it falls back to.
+ * @param manifest the member's package.json.
+ * @returns one sentence per setting that names neither level.
+ */
+export const accessibilityLevelFindings = (manifest: unknown): readonly string[] =>
+  LEVEL_SETTINGS.flatMap((setting: string): readonly string[] => {
+    const value: unknown = readKey(readKey(manifest, SETTINGS_KEY), setting)
+    return value === undefined || LEVELS.has(value)
+      ? []
+      : [`airness.${setting} is ${JSON.stringify(value)}; name "AA", the default, or "AAA"`]
+  })
 
 /** The setting a project names the production entry points knip cannot see under. */
 export const PRODUCTION_ENTRIES_SETTING: string = 'productionEntries'

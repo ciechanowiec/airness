@@ -545,6 +545,10 @@ writeFileSync(
       airness: {
         ...settings,
         auxiliaryServers: [{ command: 'node story-server.mjs', url: `http://127.0.0.1:${String(storyPort)}` }],
+        // The fixture raises both costly rules to AAA, so its pages prove the 44 pixel target and the 7:1 text a
+        // project that opts into them is held to.
+        accessibilityTargetSize: 'AAA',
+        accessibilityContrast: 'AAA',
       },
     },
     null,

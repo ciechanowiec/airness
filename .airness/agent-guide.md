@@ -440,15 +440,17 @@ served origin, and reads it at runtime. The node harness owns the general browse
 stack layer supplies the content selectors of its framework's views through `airness.layer.browser`.
 
 The accessibility scan runs axe's default rules and adds, by rule id, the rules axe ships switched off or marks
-experimental: enhanced contrast at 7:1 (1.4.6), link purpose (2.4.9), no timed refresh at any delay (2.2.4, 3.2.5),
-target size at the 44 CSS pixels of 2.5.5 with no allowance for spacing, orientation (1.3.4), and the
-paragraph-as-heading, data-cell-header and faked-caption rules of 1.3.1. A target within a line of text stays
-exempt, and so does one the visually-hidden pattern clips to a pixel, such as a skip link before it takes focus,
-because no pointer reaches it. Two links sharing one name that lead to different addresses fail; name each by its
-destination. The hover and focus contrast probes measure 7:1 too. `scopedAxe` from `@airness/node/a11y` and
-`AxeAudit.SCRIPT` from `airness-web-evidence` ask the same rule set, read from one file, `configs/axe-options.json`
-of `@airness/node`, so draw every pointer target at least 44 by 44 CSS pixels and text at 7:1, or 4.5:1 where it is
-large.
+experimental: link purpose (2.4.9), no timed refresh at any delay (2.2.4, 3.2.5), target size (2.5.8), orientation
+(1.3.4), and the paragraph-as-heading, data-cell-header and faked-caption rules of 1.3.1. A target within a line of
+text stays exempt, and so does one the visually-hidden pattern clips to a pixel, such as a skip link before it takes
+focus, because no pointer reaches it. Two links sharing one name that lead to different addresses fail; name each
+by its destination. Two rules are held to AA unless the project raises them: a pointer target is at least 24 by 24
+CSS pixels, or smaller with the room of a 24 pixel circle around it, and `accessibilityTargetSize: "AAA"` raises it
+to 44 by 44 with no allowance for that room; text stands at 4.5:1, or 3:1 where it is large, and
+`accessibilityContrast: "AAA"` raises it to 7:1, or 4.5:1. The hover and focus contrast probes measure at the
+project's contrast level. `scopedAxe` from `@airness/node/a11y` asks the same rule set at the project's levels, read
+from one file, `configs/axe-options.json` of `@airness/node`; a Java test asks it through `AxeAudit.SCRIPT` from
+`airness-web-evidence` at AA, or through `AxeAudit.script(targetSize, contrast)` at the levels the project raised.
 
 Resting and reflow measurements keep motion reduced and animations still; only the reduced-motion check below
 lets reduced motion run unfrozen. Keyboard and disclosure checks
@@ -703,6 +705,7 @@ A node project declares what the harness cannot know through these keys under `a
 | `coverageExclude` | source files the coverage floor doesn't measure; each entry counts against the node suppression ceiling |
 | `pureLogicRoots` | directories of pure logic, which `arch` forbids to import anything else under a source root |
 | `productionEntries` | files that run in production though no entry point knip reads reaches them, such as a script `start` runs or a site build that renders a story; never a test, and no suppression |
+| `accessibilityTargetSize`, `accessibilityContrast` | `"AAA"` raises the size of a pointer target to 44 CSS pixels and the contrast of text to 7:1; `"AA"`, the default, keeps 24 pixels or the room around a smaller target, and 4.5:1 |
 | `accessibilitySkipRoutes` | route prefixes the sweep doesn't follow |
 | `serve`, `serverUrl`, `serverUrlVariables`, `auxiliaryServers`, `clock` | how a browser application is served and the clock it starts at, as Browser Verification describes |
 | `bundleBudgetBytes`, `accessibilityRouteBudget` | lower ceilings for the client bundle and for the routes the sweep discovers |
