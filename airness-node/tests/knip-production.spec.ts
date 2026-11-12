@@ -400,6 +400,44 @@ describe('knip production run', PROCESS_TIME, () => {
   )
 
   it(
+    "counts what a Next.js member's configuration imports as production code",
+    () => {
+      const next: Readonly<Record<string, unknown>> = {
+        ...MANIFEST,
+        dependencies: { next: '16.2.6' },
+      }
+      const result: GateResult = judged(
+        {
+          'next.config.ts':
+            "import { origin } from './src/network.js'\n\nexport default { images: { path: origin } }\n",
+          'src/network.ts': "export const origin: string = 'https://media.example.org'\n",
+        },
+        next,
+      )
+      expect(productionFindingsOf(result)).not.toContain('src/network.ts')
+      expect(productionFindingsOf(result)).not.toMatch(/origin\s/u)
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
+    "keeps a Next.js member's aliased module, which the plugin reads from the configuration, as production code",
+    () => {
+      const next: Readonly<Record<string, unknown>> = { ...MANIFEST, dependencies: { next: '16.2.6' } }
+      const result: GateResult = judged(
+        {
+          'next.config.ts':
+            "export default { turbopack: { resolveAlias: { merge: { browser: './src/safe-merge.ts' } } } }\n",
+          'src/safe-merge.ts': 'export default (left: number, right: number): number => left + right\n',
+        },
+        next,
+      )
+      expect(productionFindingsOf(result)).not.toContain('src/safe-merge.ts')
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
+  it(
     'counts the specifications a harness package ships from its sources as production entry points',
     () => {
       const harness: Readonly<Record<string, unknown>> = { ...PLAYWRIGHT_MANIFEST, name: '@airness/node' }

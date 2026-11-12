@@ -14,7 +14,7 @@
 // knip's framework plugins import the configuration files they read, and a framework's configuration may validate
 // its environment as it loads. Both runs therefore carry the analysis placeholders the declared layers name, under
 // the member's environment files and the process's own values, so a clean checkout loads without supplying them.
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -189,6 +189,52 @@ const TEST_RUNNER_PLUGINS: readonly string[] = ['playwright', 'vitest']
 // itself after a harness package.
 const isHarness = (member: Member): boolean => isHarnessPackage(asText(readKey(member.packageJson, 'name')))
 
+// Next.js loads its configuration in production of its own accord, as it builds and as the server starts, so the
+// modules that file imports run in production. knip's Next.js plugin reads the file as a tool's configuration: it
+// counts the aliases and loaders the file names as production inputs, but the production mode passes over the
+// file's own imports, even with the file named as an entry, and handing the plugin no configuration would lose
+// those aliases and loaders. A Next.js member's production run therefore names each module the configuration
+// imports by a relative path a production entry point, and leaves the rest to the plugin.
+const NEXT_CONFIG_FILES: readonly string[] = [
+  'next.config.ts',
+  'next.config.mts',
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.cjs',
+]
+
+// A static import of a relative module, with bindings or for its side effects.
+const RELATIVE_IMPORT: RegExp = /(?:\bfrom|\bimport)\s+['"](\.{1,2}\/[^'"]+)['"]/gu
+
+// The forms a relative specifier takes on disk: as written, its TypeScript source behind an emitted extension, or
+// a directory's index.
+const MODULE_SUFFIXES: readonly string[] = ['', '.ts', '.tsx', '.mts', '.js', '.mjs', '/index.ts', '/index.tsx']
+
+const isNextMember = (member: Member): boolean => 'next' in declaredDependencies(member.packageJson)
+
+const isFile = (file: string): boolean => existsSync(file) && statSync(file).isFile()
+
+const resolvedModule = (root: string, specifier: string): string | undefined => {
+  const target: string = path.join(root, specifier)
+  const stem: string = target.replace(/\.m?js$/u, '')
+  const found: string | undefined = [
+    target,
+    ...MODULE_SUFFIXES.map((suffix: string): string => `${stem}${suffix}`),
+  ].find((candidate: string): boolean => isFile(candidate))
+  return found === undefined ? undefined : path.relative(root, found).split(path.sep).join('/')
+}
+
+// The modules a Next.js member's configuration imports by a relative path.
+const nextConfigImports = (member: Member): readonly string[] =>
+  isNextMember(member)
+    ? NEXT_CONFIG_FILES.filter((file: string): boolean => isFile(path.join(member.root, file))).flatMap(
+        (file: string): readonly string[] =>
+          [...readFileSync(path.join(member.root, file), 'utf8').matchAll(RELATIVE_IMPORT)]
+            .map((match: RegExpExecArray): string | undefined => resolvedModule(member.root, match[1] ?? ''))
+            .filter((module: string | undefined): module is string => module !== undefined),
+      )
+    : []
+
 // What the production run adds to the configuration every member gets: the production entry points knip cannot
 // see, which are a harness package's shipped specifications and the files a stack layer's framework runs, and the
 // plugins it leaves out. knip's production mode passes over a file a plugin reads as a tool's configuration, even
@@ -204,7 +250,9 @@ const productionOverrides = (member: Member, entries: readonly string[]): Readon
   return {
     entry: [
       ...entries,
-      ...[...shipped, ...member.settings.productionEntries].map((pattern: string): string => `${pattern}!`),
+      ...[...shipped, ...nextConfigImports(member), ...member.settings.productionEntries].map(
+        (pattern: string): string => `${pattern}!`,
+      ),
     ],
     ...Object.fromEntries(plugins.map((plugin: string): readonly [string, boolean] => [plugin, false])),
   }
