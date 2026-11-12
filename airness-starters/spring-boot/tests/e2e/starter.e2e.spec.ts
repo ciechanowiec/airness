@@ -1,22 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { expectSweptPage } from '@airness/node/a11y'
 import { type APIResponse, expect, type Locator, type Page, test } from '@playwright/test'
+import { ADMINISTRATOR, CREDENTIAL, signIn } from './helpers/sign-in'
 
-// Every page but the introduction and the sign-in page sits behind the sign-in form, so the anonymous
-// sweep reaches those two and nothing else. Each other page is scanned here, with the same accessibility
-// and layout checks the sweep applies, as the reader it is drawn for: the administrator the wrapper
-// writes, and a user and a task this run admits through the pages themselves, on a database of its own.
-
-const ADMINISTRATOR: string = process.env['APP_ADMINISTRATOR_EMAIL'] ?? ''
-const CREDENTIAL: string = process.env['APP_ADMINISTRATOR_PASSWORD'] ?? ''
-
-const signIn = async (page: Page, email: string, secret: string): Promise<void> => {
-  await page.goto('/login')
-  await page.locator('input[name="username"]').fill(email)
-  await page.locator('input[name="password"]').fill(secret)
-  await page.locator('#sign-in').click()
-  await expect(page.locator('form[action="/logout"]')).toBeVisible()
-}
+// The sweep visits every page the administrator reaches, signed in through `sign-in.setup.ts`. What it cannot
+// reach is scanned here, with the same accessibility and layout checks: the pages as a user sees them, a task
+// that only exists once this run writes it, the delete dialog in its open state, and the sign-in page in
+// Polish. The user and the task are admitted through the pages themselves, on a database of the run's own.
 
 const open = async (page: Page, address: string): Promise<Locator> => {
   await page.goto(address)
@@ -49,26 +39,6 @@ const writeTask = async (page: Page, title: string): Promise<void> => {
   await expect(page).toHaveURL(/\/tasks\?notice=CREATED$/u)
 }
 
-test.describe('the pages the administrator reaches', () => {
-  test.beforeEach(async ({ page }) => {
-    await signIn(page, ADMINISTRATOR, CREDENTIAL)
-  })
-
-  for (const address of ['/', '/tasks', '/tasks/new', '/users', '/users/new', '/account']) {
-    test(`${address} passes the accessibility and layout scans`, async ({ page }) => {
-      await expect(await open(page, address)).toBeVisible()
-      await expectSweptPage(page)
-    })
-  }
-
-  test('an account, being edited, passes the scans', async ({ page }) => {
-    await page.goto('/users')
-    const edit: string | null = await page.locator('a[href^="/users/"][href$="/edit"]').first().getAttribute('href')
-    await expect(await open(page, edit ?? '')).toBeVisible()
-    await expectSweptPage(page)
-  })
-})
-
 test('the pages a user works in pass the scans', async ({ page }) => {
   const { email, secret } = await admitUser(page)
   await signIn(page, email, secret)
@@ -81,8 +51,8 @@ test('the pages a user works in pass the scans', async ({ page }) => {
   const edit: string | null = await page.locator('a[href^="/tasks/"][href$="/edit"]').first().getAttribute('href')
   await expect(await open(page, edit ?? '')).toBeVisible()
   await expectSweptPage(page)
-  // The sweep reaches no page behind the sign-in form, so the keyboard pattern of the dialog is held here: the
-  // keyboard opens it with focus inside, and Escape closes it and hands focus back to the button that opened it.
+  // The sweep opens no dialog that needs a task of the run's own, so the keyboard pattern of the dialog is held
+  // here: the keyboard opens it with focus inside, and Escape closes it and hands focus back to its button.
   const opener: Locator = page.locator('button[data-opens="delete-task"]')
   const dialog: Locator = page.locator('#delete-task')
   await opener.focus()

@@ -53,4 +53,4 @@ project names must be installed there.
 | `src/main/resources/templates/components` | The component fragments every page is drawn with |
 | `src/main/frontend` | The stylesheet and the page script the frontend build bundles |
 | `src/main/resources/db/migration` | The Flyway migrations, which own the schema |
-| `tests/e2e` | The browser specifications Extended verification runs |
+| `tests/e2e` | The browser specifications Extended verification runs, and `sign-in.setup.ts`, which signs the sweep in as the administrator so it judges every page behind the sign-in form |

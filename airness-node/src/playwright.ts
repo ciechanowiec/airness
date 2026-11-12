@@ -34,6 +34,7 @@ import { loadProductionEnvironment } from './production-environment.js'
 import { shellArgument } from './production-output.js'
 import { readJson } from './project.js'
 import { projectDirectory, projectSettings } from './project-settings.js'
+import { e2eOutputDirectory, hasSignedInVisitor, SIGN_IN_SETUP } from './sweep-visitors.js'
 import { SWEEP_WORKERS } from './sweep-workers.js'
 import { hasOwnRuntime } from './workspace.js'
 
@@ -43,7 +44,7 @@ const here: string = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_SPECS: string = path.join(projectDirectory, 'tests', 'e2e')
 
 // Below node_modules, so a run leaves the working tree exactly as it found it.
-const OUTPUT_DIRECTORY: string = path.join(projectDirectory, 'node_modules', '.airness', 'e2e', 'test-results')
+const OUTPUT_DIRECTORY: string = e2eOutputDirectory(projectDirectory)
 
 const manifest: unknown = readJson(path.join(projectDirectory, 'package.json'))
 const isNext: boolean = hasOwnRuntime(manifest)
@@ -138,15 +139,30 @@ const browser: Readonly<Record<string, unknown>> = {
   ...(endpoint === undefined && { channel: 'chromium' }),
 }
 const SWEEP_SPEC: RegExp = /a11y\.e2e\.spec\.js$/u
+const SWEEP_SIGN_IN: string = 'sweep-sign-in'
 const SWEEP_DISCOVERY: string = 'sweep-discovery'
 const SWEEP_SUMMARY: string = 'sweep-summary'
+// The member's sign-in setup runs before discovery, so the signed-in visit finds the session it left. It is
+// the member's own file, run as its specifications run, and the only one of them every pass waits for.
+const isSignedInVisit: boolean = hasSignedInVisitor(projectDirectory, existsSync)
 const sweepProjects: NonNullable<ReturnType<typeof defineConfig>['projects']> = [
+  ...(isSignedInVisit
+    ? [
+        {
+          name: SWEEP_SIGN_IN,
+          testDir: PROJECT_SPECS,
+          testMatch: path.join(projectDirectory, SIGN_IN_SETUP),
+          use: browser,
+        },
+      ]
+    : []),
   {
     name: SWEEP_DISCOVERY,
     testDir: here,
     testMatch: SWEEP_SPEC,
     grep: /@airness-discovery/u,
     teardown: SWEEP_SUMMARY,
+    ...(isSignedInVisit && { dependencies: [SWEEP_SIGN_IN] }),
     use: browser,
   },
   {

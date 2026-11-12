@@ -26,6 +26,8 @@ export interface BrowserFinding {
   readonly message: string
   /** The elements to outline in the failure screenshot, as measured-node indices. */
   readonly elements: readonly number[]
+  /** True when the sweep's signed-in visit made the finding, so it is reproduced signed in. */
+  readonly isSignedIn?: boolean
 }
 
 /** Where a finding was measured, without its rule and message. */
@@ -37,11 +39,12 @@ const viewportText = (viewport: Viewport | undefined): string =>
 /**
  * The text line a finding is reported as.
  * @param finding the finding.
- * @returns `[rule] location @WxH (engine, state): message`.
+ * @returns `[rule] location @WxH (engine, state): message`, with `, signed in` after the state for a finding
+ * the signed-in visit made.
  */
 export const findingLine = (finding: BrowserFinding): string =>
   `[${finding.rule}] ${finding.location}${viewportText(finding.viewport)} ` +
-  `(${finding.engine}, ${finding.state}): ${finding.message}`
+  `(${finding.engine}, ${finding.state}${finding.isSignedIn === true ? ', signed in' : ''}): ${finding.message}`
 
 /**
  * A finding at a place.

@@ -1,5 +1,5 @@
 // The sweep's discovery pass: what the later passes scan, read from the running application.
-import { type APIResponse, expect, type Page, type Response, test } from '@playwright/test'
+import { type APIResponse, expect, type Page, type Response, type TestInfo, test } from '@playwright/test'
 import { declaredRoutes, isSkippedSweepRoute, MAX_SWEEP_ROUTES } from './a11y.js'
 import {
   type AlternateLink,
@@ -17,15 +17,7 @@ import {
 import { type BrowserFinding, findingAt } from './browser-findings.js'
 import { BROKEN_LINK_RULE } from './browser-health.js'
 import { breakpointEdges } from './browser-viewports.js'
-import {
-  isSweepScope,
-  routeReason,
-  SWEEP_SCOPE_ENVIRONMENT_VARIABLE,
-  type SweepScope,
-  scopeHeadline,
-  storyFileOf,
-  storyReason,
-} from './change-scope-policy.js'
+import { routeReason, storyReason } from './change-scope-policy.js'
 import { writeJson } from './project.js'
 import { projectSettings } from './project-settings.js'
 import type { DeclaredRoute } from './route-map.js'
@@ -34,6 +26,24 @@ import { engineOf } from './scanner.js'
 import { settleForScan } from './settle.js'
 import { type CrawledFragments, coversItsRoute, crawledFragments, headerFindings } from './sweep-answers.js'
 import { discoverNotFound, type NotFoundDiscovery } from './sweep-not-found.js'
+import {
+  type Chosen,
+  chosen,
+  type NamedScope,
+  namedScope,
+  type ScopedFinds,
+  scopeRecordOf,
+  storyFile,
+} from './sweep-scope.js'
+import {
+  type EarlierVisit,
+  earlierVisit,
+  guardedSession,
+  NO_EARLIER_VISIT,
+  pageStructure,
+  type SessionWatch,
+  withSessionWatch,
+} from './sweep-session.js'
 import {
   armBudget,
   type Budget,
@@ -50,12 +60,20 @@ import {
   origin,
   placeAt,
   preparePage,
-  readJson,
-  type ScopeRecord,
   type SweepLocation,
+  visitedAs,
   WHOLE_PASS,
 } from './sweep-shared.js'
 import { settledUnrequested } from './sweep-unrequested.js'
+import {
+  distinctLocations,
+  isAtRouteCeiling,
+  locationsToRevisit,
+  sessionProblems,
+  structureOf,
+  type Visitor,
+  visitorOfTags,
+} from './sweep-visitors.js'
 
 // The browser surface the page functions below touch, declared for the reason `settle.ts` records.
 declare const document: DomDocument
@@ -168,6 +186,12 @@ interface CrawlState {
   readonly fragments: ReadonlySet<string>
   readonly reachable: readonly SweepLocation[]
   readonly findings: readonly BrowserFinding[]
+  /** The routes an earlier visit reached, which count towards the route ceiling with this crawl's own. */
+  readonly earlier: readonly string[]
+  /** The route that proves the signed-in session, once the signed-in crawl found one. */
+  readonly probe: string | undefined
+  /** The route whose visit ended the signed-in session, when one did. */
+  readonly endedAt: string | undefined
 }
 
 const enqueue = (state: CrawlState, hrefs: readonly string[], from: string): CrawlState =>
@@ -176,7 +200,7 @@ const enqueue = (state: CrawlState, hrefs: readonly string[], from: string): Cra
     if (route === undefined || current.seen.has(route) || current.dropped.has(route)) {
       return current
     }
-    return current.seen.size >= MAX_SWEEP_ROUTES
+    return isAtRouteCeiling(current.seen, current.earlier, MAX_SWEEP_ROUTES)
       ? { ...current, dropped: new Set<string>([...current.dropped, route]) }
       : {
           ...current,
@@ -205,7 +229,7 @@ const visited = async (page: Page, url: string): Promise<Response | null> => {
   }
 }
 
-const routeLocation = (url: string, facts: PageFacts): SweepLocation => {
+const routeLocation = (url: string, facts: PageFacts, structure: string): SweepLocation => {
   return {
     location: new URL(url).pathname,
     url,
@@ -213,27 +237,21 @@ const routeLocation = (url: string, facts: PageFacts): SweepLocation => {
     edges: breakpointEdges(facts.mediaTexts),
     hasDarkMedia: facts.hasDarkMedia,
     controls: facts.controls,
+    structure: structureOf(structure),
   }
 }
 
-const crawl = async (page: Page, state: CrawlState): Promise<CrawlState> => {
-  const [queued, ...rest] = state.queue
-  if (queued === undefined) {
-    return state
-  }
-  const next: CrawlState = { ...state, queue: rest }
+// One route of the crawl: visited, judged, and its links queued.
+const crawlRoute = async (page: Page, next: CrawlState, queued: Queued): Promise<CrawlState> => {
   const response: Response | null = await visited(page, `${origin}${queued.route}`)
   if (response?.ok() !== true) {
     const reason: string = response === null ? 'did not answer' : `answered ${String(response.status())}`
-    return await crawl(
-      page,
-      queued.route === SEED_ROUTE
-        ? next
-        : {
-            ...next,
-            findings: [...next.findings, linkFinding(queued, page, reason)],
-          },
-    )
+    return queued.route === SEED_ROUTE
+      ? next
+      : {
+          ...next,
+          findings: [...next.findings, linkFinding(queued, page, reason)],
+        }
   }
   const answered: CrawlState = {
     ...next,
@@ -243,29 +261,44 @@ const crawl = async (page: Page, state: CrawlState): Promise<CrawlState> => {
       : next.credited,
   }
   if (toRoute(page.url()) === undefined) {
-    return await crawl(page, answered)
+    return answered
   }
   const settled: CrawlState = await settledUnrequested(page, answered, queued.route, response.url())
   const facts: PageFacts = await page.evaluate(pageFactsInPage, CONTROLS)
-  const location: SweepLocation = routeLocation(page.url(), facts)
+  const location: SweepLocation = routeLocation(page.url(), facts, await pageStructure(page))
   const fragments: CrawledFragments = await crawledFragments(page, settled, facts.fragments, queued.route)
-  return await crawl(
-    page,
-    enqueue(
-      {
-        ...settled,
-        ...fragments,
-        reachable: [...settled.reachable, location],
-        findings: [...settled.findings, ...fragments.findings, ...(await headerFindings(response, queued.route, page))],
-      },
-      [...facts.hrefs, ...alternateHrefs(facts.alternates)].flatMap((href: string): readonly string[] => {
-        const address: string | undefined = localAddress(href, page.url(), facts.canonical, origin)
-        return address === undefined ? [] : [address]
-      }),
-      queued.route,
-    ),
+  return enqueue(
+    {
+      ...settled,
+      ...fragments,
+      reachable: [...settled.reachable, location],
+      findings: [...settled.findings, ...fragments.findings, ...(await headerFindings(response, queued.route, page))],
+    },
+    [...facts.hrefs, ...alternateHrefs(facts.alternates)].flatMap((href: string): readonly string[] => {
+      const address: string | undefined = localAddress(href, page.url(), facts.canonical, origin)
+      return address === undefined ? [] : [address]
+    }),
+    queued.route,
   )
 }
+
+const crawl = async (page: Page, state: CrawlState, watch: SessionWatch | undefined): Promise<CrawlState> => {
+  const [queued, ...rest] = state.queue
+  if (queued === undefined) {
+    return state
+  }
+  const crawled: CrawlState = await crawlRoute(page, { ...state, queue: rest }, queued)
+  return await crawl(
+    page,
+    watch === undefined ? crawled : await guardedSession(page, crawled, queued.route, watch),
+    watch,
+  )
+}
+
+const crawlAs = async (page: Page, visitor: Visitor, start: CrawlState): Promise<CrawlState> =>
+  visitor === 'anonymous'
+    ? await crawl(page, start, undefined)
+    : await withSessionWatch(async (watch: SessionWatch): Promise<CrawlState> => await crawl(page, start, watch))
 
 const MAX_SITEMAPS: number = 50
 
@@ -367,7 +400,7 @@ const storyLocations = async (page: Page, stories: readonly DiscoveredStory[]): 
 }
 
 // The seed route first, then every page the sitemaps list.
-const crawlStart = (fromSitemap: readonly string[]): CrawlState =>
+const crawlStart = (fromSitemap: readonly string[], earlier: readonly string[]): CrawlState =>
   enqueue(
     {
       queue: [{ route: SEED_ROUTE, from: SEED_ROUTE }],
@@ -379,6 +412,9 @@ const crawlStart = (fromSitemap: readonly string[]): CrawlState =>
       fragments: new Set<string>(),
       reachable: [],
       findings: [],
+      earlier,
+      probe: undefined,
+      endedAt: undefined,
     },
     fromSitemap,
     'sitemap.xml',
@@ -403,86 +439,6 @@ const problemsOf = (crawled: CrawlState): readonly string[] => [
       ]),
 ]
 
-/** The scope a `delta` run named, or why it could not be read. */
-interface NamedScope {
-  readonly scope: SweepScope | undefined
-  readonly problem: string | undefined
-}
-
-// A scope that cannot be read is a problem the summary fails on, and the sweep covers everything.
-const namedScope = (): NamedScope => {
-  const file: string | undefined = process.env[SWEEP_SCOPE_ENVIRONMENT_VARIABLE]
-  if (file === undefined) {
-    return { scope: undefined, problem: undefined }
-  }
-  const scope: SweepScope | undefined = readJson(file, isSweepScope)
-  return {
-    scope,
-    problem:
-      scope === undefined ? `the change scope ${file} could not be read, so the sweep covered everything` : undefined,
-  }
-}
-
-/** Something discovery found, and why the scope sweeps it. */
-interface Chosen<Item> {
-  readonly item: Item
-  readonly reason: string
-}
-
-const chosen = <Item>(items: readonly Item[], reasonOf: (item: Item) => string | undefined): readonly Chosen<Item>[] =>
-  items.flatMap((item: Item): readonly Chosen<Item>[] => {
-    const reason: string | undefined = reasonOf(item)
-    return reason === undefined ? [] : [{ item, reason }]
-  })
-
-// The directory a story's Storybook runs in, relative to this application, which its import path is
-// relative to.
-const storyDirectory = (story: DiscoveredStory): string =>
-  projectSettings.auxiliaryServers.find((server): boolean => new URL(server.url).origin === story.server)?.cwd ?? '.'
-
-const storyFile = (story: DiscoveredStory): string =>
-  story.importPath === '' ? '' : storyFileOf(story.importPath, storyDirectory(story))
-
-/** What discovery found, and what of it the scope sweeps. */
-interface ScopedFinds {
-  readonly routes: readonly Chosen<SweepLocation>[]
-  readonly stories: readonly Chosen<DiscoveredStory>[]
-  readonly everyRoute: number
-  readonly everyStory: number
-}
-
-const scopeRecordOf = (scope: SweepScope | undefined, finds: ScopedFinds): ScopeRecord => {
-  if (scope === undefined) {
-    return {
-      isScoped: false,
-      lines: ['complete: no change scope was given, so every route and story is swept'],
-    }
-  }
-  const changed: readonly string[] = scope.changed.map((file: string): string => `  changed ${file}`)
-  if (scope.isComplete) {
-    return {
-      isScoped: false,
-      lines: [scopeHeadline(scope), ...changed, '  swept every route and story'],
-    }
-  }
-  const unreached: string =
-    `  not swept: ${String(finds.everyRoute - finds.routes.length)} of ${String(finds.everyRoute)} routes and ` +
-    `${String(finds.everyStory - finds.stories.length)} of ${String(finds.everyStory)} stories, which the change ` +
-    'does not reach'
-  return {
-    isScoped: true,
-    lines: [
-      scopeHeadline(scope),
-      ...changed,
-      ...finds.routes.map((route: Chosen<SweepLocation>): string => `  swept ${route.item.location}: ${route.reason}`),
-      ...finds.stories.map(
-        (story: Chosen<DiscoveredStory>): string => `  swept ${storyLocation(story.item)}: ${story.reason}`,
-      ),
-      unreached,
-    ],
-  }
-}
-
 const discoveryOf = async (page: Page, finds: ScopedFinds, declared: readonly DeclaredRoute[]): Promise<Discovery> => {
   const routes: readonly string[] = finds.routes.map((route: Chosen<SweepLocation>): string => route.item.location)
   const stories: readonly DiscoveredStory[] = finds.stories.map(
@@ -499,6 +455,39 @@ const discoveryOf = async (page: Page, finds: ScopedFinds, declared: readonly De
   }
 }
 
+const NO_NOT_FOUND: NotFoundDiscovery = { locations: [], problems: [] }
+
+/** What one visitor's crawl found, before the scope narrows it. */
+interface VisitFinds {
+  readonly crawled: CrawlState
+  /** Every location the crawl reached, each once. */
+  readonly reachable: readonly SweepLocation[]
+  /** The locations the passes visit: every one for the anonymous visitor, what is new signed in otherwise. */
+  readonly revisited: readonly SweepLocation[]
+  readonly missing: NotFoundDiscovery
+  readonly stories: readonly DiscoveredStory[]
+}
+
+// Stories and not-found states look the same to every visitor, so only the anonymous visit reads them.
+const visitFinds = async (page: Page, visitor: Visitor, info: TestInfo): Promise<VisitFinds> => {
+  const earlier: EarlierVisit = visitor === 'anonymous' ? NO_EARLIER_VISIT : earlierVisit(info)
+  const fromSitemap: readonly string[] = await sitemapPages(page, [`${origin}/sitemap.xml`])
+  const crawled: CrawlState = await crawlAs(page, visitor, crawlStart(fromSitemap, earlier.routes))
+  const reachable: readonly SweepLocation[] = distinctLocations(crawled.reachable)
+  if (visitor === 'signed-in') {
+    const revisited: readonly SweepLocation[] = locationsToRevisit(reachable, earlier.locations)
+    return { crawled, reachable, revisited, missing: NO_NOT_FOUND, stories: [] }
+  }
+  const missing: NotFoundDiscovery = await discoverNotFound(
+    page,
+    reachable.map((location: SweepLocation): string => location.location),
+  )
+  return { crawled, reachable, revisited: reachable, missing, stories: await storiesOf(page) }
+}
+
+const visitProblems = (visitor: Visitor, { crawled, revisited }: VisitFinds): readonly string[] =>
+  visitor === 'anonymous' ? [] : sessionProblems({ ...crawled, revisited: revisited.length })
+
 /**
  * Discover every page the sweep scans, and record it with whatever made the discovery incomplete.
  *
@@ -509,45 +498,53 @@ const discoveryOf = async (page: Page, finds: ScopedFinds, declared: readonly De
  * only the routes and stories the change reaches, each with the reason it is swept. Every pass depends
  * on this test, so it fails only when it could not write its record; the summary judges the findings
  * and problems it recorded.
+ *
+ * The signed-in visit crawls again in the session the sign-in setup left, after the anonymous visit, and
+ * hands its passes only the pages that are new to it: those the anonymous visit did not reach and those
+ * whose structure signing in changed. It watches its session as it goes, and stops at a visit that ends it.
  * @param page the test's page.
  */
 export const expectDiscoveredSite = async (page: Page): Promise<void> => {
-  clearCompletedScans(test.info().project.outputDir)
+  const info: TestInfo = test.info()
+  const visitor: Visitor = visitorOfTags(info.tags)
+  if (visitor === 'anonymous') {
+    clearCompletedScans(info.project.outputDir)
+  }
   const budget: Budget = armBudget(page, 'discovery', WHOLE_PASS, MAX_SWEEP_ROUTES)
   await preparePage(page)
   const { scope, problem }: NamedScope = namedScope()
   const declared: readonly DeclaredRoute[] = declaredRoutes()
-  const fromSitemap: readonly string[] = await sitemapPages(page, [`${origin}/sitemap.xml`])
-  const crawled: CrawlState = await crawl(page, crawlStart(fromSitemap))
-  const missing: NotFoundDiscovery = await discoverNotFound(
-    page,
-    crawled.reachable.map((location: SweepLocation): string => location.location),
-  )
-  const everyStory: readonly DiscoveredStory[] = await storiesOf(page)
+  const found: VisitFinds = await visitFinds(page, visitor, info)
+  const { crawled, missing }: VisitFinds = found
   const finds: ScopedFinds = {
-    routes: chosen([...crawled.reachable, ...missing.locations], (location: SweepLocation): string | undefined =>
+    routes: chosen([...found.revisited, ...missing.locations], (location: SweepLocation): string | undefined =>
       scope === undefined ? '' : routeReason(scope, declared, location.location),
     ),
-    stories: chosen(everyStory, (story: DiscoveredStory): string | undefined =>
+    stories: chosen(found.stories, (story: DiscoveredStory): string | undefined =>
       scope === undefined ? '' : storyReason(scope, storyFile(story)),
     ),
-    everyRoute: crawled.reachable.length + missing.locations.length,
-    everyStory: everyStory.length,
+    everyRoute: found.revisited.length + missing.locations.length,
+    everyStory: found.stories.length,
   }
   const discovery: Discovery = await discoveryOf(page, finds, declared)
-  const stories: readonly DiscoveredStory[] = discovery.stories
   const report: DiscoveryReport = {
-    visitedRoutes: crawled.reachable.map((location: SweepLocation): string => location.location),
+    visitedRoutes: found.reachable.map((location: SweepLocation): string => location.location),
     answeredRoutes: [...crawled.credited],
     fragmentRoutes: [...crawled.fragments],
-    findings: crawled.findings,
-    problems: [...missing.problems, ...problemsOf(crawled), ...(problem === undefined ? [] : [problem])],
-    places: crawled.answered.size + stories.length,
+    findings: visitedAs(crawled.findings, visitor),
+    problems: [
+      ...missing.problems,
+      ...problemsOf(crawled),
+      ...(problem === undefined ? [] : [problem]),
+      ...visitProblems(visitor, found),
+    ],
+    places: crawled.answered.size + discovery.stories.length,
     locations: discovery.locations.map((location: SweepLocation): string => location.location),
     elapsedMs: Math.round(performance.now() - budget.startedAt),
     scope: scopeRecordOf(scope, finds),
+    ...(crawled.probe !== undefined && crawled.endedAt === undefined && { probeRoute: crawled.probe }),
   }
   const isRecorded: boolean =
-    wasRecorded(discoveryReportFile(test.info()), report) && wasRecorded(discoveryFile(test.info()), discovery)
+    wasRecorded(discoveryReportFile(info), report) && wasRecorded(discoveryFile(info), discovery)
   expect(isRecorded, 'discovery could not write its record to the test output directory').toBe(true)
 }

@@ -4,7 +4,9 @@
 # Its frontend tooling project is the module itself: a package.json beside the pom, holding only the stylesheet
 # the application serves, whose serve script launches the artifact this invocation packaged. The route
 # inventory comes from the startup test's Spring evidence, so a page nothing links to, and a protected page
-# answered by the sign-in page, are both reported rather than passed over.
+# answered by the sign-in page, are both reported rather than passed over. Once the module holds a sign-in
+# setup, the sweep visits it signed in as well, and reaches the protected page itself; the account page links to
+# an address that signs out on a GET, which the signed-in crawl stops at and names.
 #
 # Extended binds Qodana and the vulnerability scan to package, which this case does not need, so it stops at
 # prepare-package and packs the artifact with the two goals package would have run. Both are in the same
@@ -165,10 +167,17 @@ package com.example;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * What this application asks of a caller.
@@ -182,6 +191,24 @@ public final class Security {
     // behind a proxy that terminates TLS is never one, and a browser ignores the header over plain HTTP.
     private static final long TRANSPORT_SECURITY = 63_072_000L;
 
+    private static final String VISITOR = "visitor";
+
+    /**
+     * Finds the one visitor the sign-in setup signs in as, whose password is encoded when the application starts.
+     *
+     * @return the visitors
+     */
+    @Bean
+    UserDetailsService visitors() {
+        String encoded = PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("fixture-visitor-password");
+        return name -> {
+            if (!VISITOR.equals(name)) {
+                throw new UsernameNotFoundException(name);
+            }
+            return User.withUsername(name).password(encoded).roles("USER").build();
+        };
+    }
+
     /**
      * Builds the chain every request is decided by.
      *
@@ -191,6 +218,7 @@ public final class Security {
     @Bean
     @SneakyThrows
     SecurityFilterChain chain(HttpSecurity http) {
+        RequestMatcher exit = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/bye");
         return http
             .authorizeHttpRequests(
                 registry -> registry
@@ -203,7 +231,9 @@ public final class Security {
                     .requestMatchers("/img/mark.svg").permitAll()
                     .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
-            ).formLogin(form -> form.loginPage("/login")).headers(
+            ).formLogin(form -> form.loginPage("/login")).logout(
+                out -> out.logoutRequestMatcher(exit).logoutSuccessUrl("/")
+            ).headers(
                 headers -> headers
                     .contentSecurityPolicy(policy -> policy.policyDirectives(POLICY))
                     .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
@@ -231,7 +261,10 @@ PROPERTIES
         <div hx-get="/fragment/row" hx-trigger="load">Loading the row</div>' ;;
             about) heading='About'; body='<p>An application rendered on the server.</p>' ;;
             hidden) heading='Hidden'; body='<p>A page no other page links to.</p>' ;;
-            account) heading='Account'; body='<p>The account of the signed-in visitor.</p>' ;;
+            account) heading='Account'; body='<p>The account of the signed-in visitor.</p>
+        <ul class="links">
+            <li><a th:href="@{/bye}">Sign out</a></li>
+        </ul>' ;;
             *) printf 'No template is written for the page %s\n' "${page}" >&2; return 1 ;;
         esac
         cat > "${java_web}/src/main/resources/templates/${page}.html" <<HTML
@@ -358,7 +391,8 @@ CSS
   },
   "devDependencies": {
     "@airness/node": "1.0.11-SNAPSHOT",
-    "@playwright/test": "1.64.1"
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.6"
   },
   "airness": {
     "serve": "serve",
@@ -406,16 +440,16 @@ run_java_web_cases() {
     expect_no_match java_web_uncovered 'java web: a JSON endpoint is not an HTML route' 'route-unswept.*/api/status'
     expect_no_match java_web_uncovered 'java web: an htmx fragment the home page requests is covered' \
         'route-unswept.*/fragment/row'
+    expect_match java_web_uncovered 'java web: the script gates do not apply to a project with no script' \
+        'types.*not applicable|not applicable.*types'
 
     python3 - "${java_web}" <<'PY'
-import json
 import re
 import sys
 from pathlib import Path
 root = Path(sys.argv[1])
 home = root / 'src/main/resources/templates/home.html'
-# The links are added at the indentation the markup formatter gave their sibling. The sign-in page loses
-# its only crawled path once the protected page is out of scope, so it gains a link of its own.
+# The links are added at the indentation the markup formatter gave their sibling.
 home.write_text(re.sub(
     r'^( *)(<li><a th:href="@\{/about\}">About</a></li>)$',
     lambda line: line[0] + ''.join(
@@ -426,17 +460,52 @@ home.write_text(re.sub(
     count=1,
     flags=re.MULTILINE,
 ))
-manifest_file = root / 'package.json'
+setup = root / 'tests/e2e/sign-in.setup.ts'
+setup.parent.mkdir(parents=True, exist_ok=True)
+setup.write_text("""import { saveSweepSession } from '@airness/node/a11y'
+import { expect, test } from '@playwright/test'
+
+test('signs in as the visitor the sweep visits the application as', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('User name').fill('visitor')
+  await page.getByLabel('Password').fill('fixture-visitor-password')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible()
+  await saveSweepSession(page)
+})
+""")
+# A TypeScript setup makes the module a script project, which compiles under the harness compiler options.
+(root / 'tsconfig.json').write_text('''{
+  "extends": "@airness/node/tsconfig.json",
+  "include": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+  "exclude": ["node_modules", "dist", "target"]
+}
+''')
+PY
+    git -C "${java_web}" add --all
+    git -C "${java_web}" commit --quiet \
+        --message 'test(it): visit the Thymeleaf application signed in' \
+        --message 'The unlinked pages gain links, and a sign-in setup hands the sweep a session.'
+    sweep_java_web java_web_session_ended
+    expect_exit java_web_session_ended 'java web: a page that ends the session on a GET fails the sweep' 1
+    expect_match java_web_session_ended 'java web: the signed-in crawl names the page that ended its session' \
+        'signed in: visiting /bye ended the signed-in session'
+
+    python3 - "${java_web}" <<'PY'
+import json
+import sys
+from pathlib import Path
+manifest_file = Path(sys.argv[1]) / 'package.json'
 manifest = json.loads(manifest_file.read_text())
 manifest['airness']['accessibilitySkipRoutes'] = [
-    {'pattern': '/account', 'reason': 'signing in needs credentials this fixture does not provision'}
+    {'pattern': '/bye', 'reason': 'the fixture ends the session on a GET to prove the sweep stops there'}
 ]
 manifest_file.write_text(json.dumps(manifest, indent=2) + '\n')
 PY
     git -C "${java_web}" add --all
     git -C "${java_web}" commit --quiet \
         --message 'test(it): cover every route of the Thymeleaf application' \
-        --message 'The unlinked pages gain links and the protected page is declared out of scope with its reason.'
+        --message 'The page that ends the session is declared out of scope with its reason.'
     # The declared port is held by another listener for the whole run, as a developer's server or another
     # verification would hold it: the sweep serves the application on a port of its own run instead.
     python3 -c 'import socket, sys, time; s = socket.socket(); s.bind(("127.0.0.1", int(sys.argv[1]))); s.listen(); time.sleep(3600)' \
@@ -451,15 +520,31 @@ PY
         'browser endpoint is not free|in use; stop the existing server'
     expect_no_match java_web_covered 'java web: Biome leaves the Thymeleaf templates to the template checks' \
         'useValidAnchor|noLabelWithoutControl'
-    expect_match java_web_covered 'java web: the script gates do not apply to a project with no script' \
-        'types.*not applicable|not applicable.*types'
-    java_web_discovery="${java_web}/node_modules/.airness/e2e/test-results/airness-sweep/discovery.json"
+    java_web_sweep="${java_web}/node_modules/.airness/e2e/test-results/airness-sweep"
     if python3 -c 'import json, sys; sys.exit("/fragment/row" not in json.load(open(sys.argv[1]))["fragmentRoutes"])' \
-        "${java_web_discovery}" 2> /dev/null; then
+        "${java_web_sweep}/discovery.json" 2> /dev/null; then
         pass 'java web: the htmx fragment is recorded as fragment coverage, apart from swept pages'
     else
         fail 'java web: the htmx fragment is recorded as fragment coverage, apart from swept pages' \
-            "${java_web_discovery} lists no /fragment/row among its fragment routes"
+            "${java_web_sweep}/discovery.json lists no /fragment/row among its fragment routes"
+    fi
+    # The signed-in visit reached the protected page, proved its session with it, and handed its passes the
+    # protected page without the public pages, which look the same signed in.
+    if python3 - "${java_web_sweep}/signed-in/discovery.json" 2> /dev/null <<'PY'
+import json
+import sys
+report = json.load(open(sys.argv[1]))
+assert '/account' in report['visitedRoutes'] and '/about' in report['visitedRoutes']
+assert report['probeRoute'] == '/account'
+assert '/about' not in report['locations']
+PY
+    then
+        pass 'java web: the signed-in visit judges the protected page and leaves the unchanged public pages'
+    else
+        java_web_signed_in="$(cat "${java_web_sweep}/signed-in/discovery.json" 2> /dev/null \
+            || printf 'no signed-in discovery')"
+        fail 'java web: the signed-in visit judges the protected page and leaves the unchanged public pages' \
+            "${java_web_signed_in}"
     fi
     run_service_wrapper_cases
 }

@@ -28,6 +28,18 @@ describe('a browser finding', () => {
     )
   })
 
+  it('says a finding the signed-in visit made was made signed in', () => {
+    expect(findingLine({ ...findingAt(PHONE, 'small-text', 'text rendered at 10px'), isSignedIn: true })).toBe(
+      '[small-text] /teams @390x844 (chromium, resting, signed in): text rendered at 10px',
+    )
+  })
+
+  it('keeps the same defect apart when the two visitors both found it', () => {
+    const anonymous: BrowserFinding = findingAt(PHONE, 'overflow', 'page too wide')
+    const signedIn: BrowserFinding = { ...anonymous, isSignedIn: true }
+    expect(distinctFindings([anonymous, signedIn])).toEqual([anonymous, signedIn])
+  })
+
   it('reports a finding repeated across measurements once', () => {
     const finding: BrowserFinding = findingAt(PHONE, 'overflow', 'page too wide', [3])
     expect(distinctFindings([finding, { ...finding, elements: [4] }])).toEqual([finding])

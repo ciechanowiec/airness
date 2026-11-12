@@ -13,8 +13,10 @@
 // The scans are a third kind again: I/O the sweep cannot do without and cannot keep to itself. They are
 // here rather than in the pure policy modules because that package forbids I/O, and here rather than
 // inside the sweep because a project has to write its own scans for the pages the crawl cannot discover
-// - an unlinked page, a page behind a sign-in, a custom admin view - and two definitions of a scan would
-// drift. `expectSweptPage` runs both of the sweep's scans, so one call covers such a page.
+// - an unlinked page, a state a specification drives, a second role, a custom admin view - and two
+// definitions of a scan would drift. `expectSweptPage` runs both of the sweep's scans, so one call covers
+// such a page. The pages behind a sign-in need no scan of their own: `saveSweepSession` hands the sweep the
+// session a project's sign-in setup made, and the sweep visits the application in it as well.
 
 export type {
   HitTargetClassification,
@@ -51,6 +53,7 @@ import { inventoryRoutes } from './route-inventory.js'
 import { appRootOf, type DeclaredRoute, declaredRoutesOf } from './route-map.js'
 import { recordCompletedScan } from './scan-evidence.js'
 import { locationOf, scanPageInPlace } from './scanner.js'
+import { SIGN_IN_SETUP, sessionFile } from './sweep-visitors.js'
 
 export const SKIPPED_ROUTE_PREFIXES: readonly string[] = projectSettings.accessibilitySkipRoutes
 
@@ -112,6 +115,24 @@ export const expectSweptPage = async (page: Page): Promise<void> => {
   for (const fragment of fragments.credited) {
     recordCompletedScan(info.project.outputDir, info.testId, new URL(fragment, url).href, 'fragment')
   }
+}
+
+/**
+ * Hand the sweep the session the page is signed in with, so it visits the application signed in as well.
+ *
+ * The one call the project's sign-in setup, `tests/e2e/sign-in.setup.ts`, makes after it signed in as the
+ * account that may open the most pages. Every pass then judges, in every engine, the pages that account
+ * reaches and a visitor without it does not, and the pages whose structure signing in changes.
+ * @param page the page, signed in.
+ * @returns nothing; the session is written where the sweep's signed-in tests open it.
+ */
+export const saveSweepSession = async (page: Page): Promise<void> => {
+  const info: TestInfo = test.info()
+  expect(
+    path.relative(process.cwd(), info.file).split(path.sep).join('/'),
+    `saveSweepSession is called from ${SIGN_IN_SETUP}, which the sweep runs before it visits signed in`,
+  ).toBe(SIGN_IN_SETUP)
+  await page.context().storageState({ path: sessionFile(info.project.outputDir) })
 }
 
 /**
