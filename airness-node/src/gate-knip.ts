@@ -139,13 +139,44 @@ const SOURCE_EXTENSIONS: string = [...TYPESCRIPT_SOURCE_EXTENSIONS, ...JAVASCRIP
   .map((extension: string): string => extension.slice(1))
   .join(',')
 
+/** A knip plugin that reads files of the project's own as a tool's configuration, such as Storybook its stories. */
+interface ConfigReadingPlugin {
+  readonly plugin: string
+  /** The files the plugin reads that way, as a knip project glob. */
+  readonly files: string
+  /** Whether a production entry point the project declares names such a file. */
+  readonly names: (entry: string) => boolean
+}
+
+const STORY_FILE: RegExp = /\.stories\.[^/]*$/u
+
+// knip's production mode passes over a file a plugin reads as a tool's configuration, even one named as an entry. A
+// site build that renders a story, as a static export does, makes that story a production entry point, so a project
+// that declares one needs the plugin off in the production run, and the plugin's other files kept out of the files
+// that run judges, as the plugin itself keeps them out.
+const CONFIG_READING_PLUGINS: readonly ConfigReadingPlugin[] = [
+  {
+    plugin: 'storybook',
+    files: `**/*.stories.{${SOURCE_EXTENSIONS}}`,
+    names: (entry: string): boolean => STORY_FILE.test(entry),
+  },
+]
+
+// The plugins a production entry point the project declares is read by as a tool's configuration.
+const entryReadingPlugins = (member: Member): readonly ConfigReadingPlugin[] =>
+  CONFIG_READING_PLUGINS.filter((reading: ConfigReadingPlugin): boolean =>
+    member.settings.productionEntries.some((entry: string): boolean => reading.names(entry)),
+  )
+
 // The files the production run judges: those under a production source root, with knip's production suffix. A
-// member that declares itself whole as a root keeps its top-level files out, which are its tooling.
+// member that declares itself whole as a root keeps its top-level files out, which are its tooling, and the files a
+// plugin the run turns off reads as configuration stay out, as the plugin keeps them out.
 const productionProject = (member: Member): readonly string[] => [
   ...productionSourceRoots(member.settings.sourceRoots).map(
     (root: string): string => `${root === '.' ? '*' : root}/**/*.{${SOURCE_EXTENSIONS}}!`,
   ),
   ...NON_PRODUCTION_ROOTS.map((root: string): string => `!${root}/**`),
+  ...entryReadingPlugins(member).map((reading: ConfigReadingPlugin): string => `!${reading.files}`),
 ]
 
 // The test runners' knip plugins, which in production mode contribute nothing but tests.
@@ -161,12 +192,14 @@ const isHarness = (member: Member): boolean => isHarnessPackage(asText(readKey(m
 // What the production run adds to the configuration every member gets: the production entry points knip cannot
 // see, which are a harness package's shipped specifications and the files a stack layer's framework runs, and the
 // plugins it leaves out. knip's production mode passes over a file a plugin reads as a tool's configuration, even
-// one named as an entry, so a layer names the plugin that reads its framework's configuration that way.
+// one named as an entry, so a layer names the plugin that reads its framework's configuration that way, and a
+// project entry point such a plugin reads turns that plugin off too.
 const productionOverrides = (member: Member, entries: readonly string[]): Readonly<Record<string, unknown>> => {
   const shipped: readonly string[] = isHarness(member) ? [SHIPPED_SPEC_SOURCES] : []
   const plugins: readonly string[] = [
     ...(isHarness(member) ? TEST_RUNNER_PLUGINS : []),
     ...member.settings.knipConfigPlugins,
+    ...entryReadingPlugins(member).map((reading: ConfigReadingPlugin): string => reading.plugin),
   ]
   return {
     entry: [
