@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDockerfile, memberDockerfiles } from '@/dockerfiles.js'
+import { doesInstallPackages, isDockerfile, memberDockerfiles } from '@/dockerfiles.js'
 import type { RunResult } from '@/exec.js'
 import { image } from '@/gate-image.js'
 import type { GateResult } from '@/gate-result.js'
@@ -91,7 +91,46 @@ const withProject = async (
 
 const DOCKERFILE: string = 'FROM node:26-alpine\nEXPOSE 3000\n'
 
+// An image whose build installs the member's packages from a registry.
+const INSTALLING: string =
+  'FROM node:26-alpine\nCOPY package.json pnpm-lock.yaml ./\nRUN corepack enable && pnpm install --frozen-lockfile\n' +
+  'EXPOSE 3000\n'
+
 describe('the Dockerfiles that build a member', PROCESS_TIME, () => {
+  it.each([
+    'RUN npm ci',
+    'RUN npm install',
+    'RUN npm i --omit=dev',
+    'RUN pnpm install --frozen-lockfile',
+    'RUN pnpm i',
+    'RUN pnpm add left-pad',
+    'RUN pnpm fetch',
+    'RUN pnpm deploy --filter=web /out',
+    'RUN yarn',
+    'RUN yarn install --immutable',
+    'RUN yarn add left-pad',
+    'RUN bun install',
+    'RUN bun i',
+    'RUN bun add left-pad',
+    'RUN corepack enable && pnpm install',
+    'run npm ci',
+    'RUN apk add --no-cache git \\\n    && npm ci',
+  ])('reads %j as a build that installs packages', (instruction: string) => {
+    expect(doesInstallPackages(`FROM node:26-alpine\n${instruction}\n`)).toBe(true)
+  })
+
+  it.each([
+    'COPY package.json ./',
+    'RUN node --version',
+    'RUN apk add --no-cache git',
+    '# RUN npm ci',
+    'CMD ["npm", "start"]',
+    'RUN npm run build',
+    'RUN yarnpkg-checker --version',
+  ])('reads %j as a build that installs no package', (instruction: string) => {
+    expect(doesInstallPackages(`FROM node:26-alpine\n${instruction}\n`)).toBe(false)
+  })
+
   it('recognises the three spellings of a Dockerfile', () => {
     expect(['Dockerfile', 'docker/Dockerfile.web', 'web.Dockerfile'].every(isDockerfile)).toBe(true)
     expect(isDockerfile('docker/compose.yaml')).toBe(false)
@@ -130,7 +169,7 @@ describe('the image gate', PROCESS_TIME, () => {
     { block: 'devDependencies', name: '@airness/node' },
     { block: 'dependencies', name: '@airness/node' },
   ])('waits for a released harness while $block names $name at a SNAPSHOT version', async ({ block, name }) => {
-    await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+    await withProject({ Dockerfile: INSTALLING }, async (root: string): Promise<void> => {
       const { machine, recorded }: Machine = stand()
       const result: GateResult = await image(
         memberAt(root, {
@@ -143,6 +182,34 @@ describe('the image gate', PROCESS_TIME, () => {
       expect(result.isApplicable).toBe(false)
       expect(result.summary).toContain(`${name}@1.0.11-SNAPSHOT`)
       expect(recorded.built).toEqual([])
+    })
+  })
+
+  // An image that installs nothing reaches no registry, so a SNAPSHOT harness keeps nothing from building it.
+  it('builds and boots an image that installs no package while the harness is a SNAPSHOT', async () => {
+    await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+      const { machine, recorded }: Machine = stand()
+      const result: GateResult = await image(
+        memberAt(root, { ...SERVED, devDependencies: { '@airness/node': '1.0.11-SNAPSHOT' } }),
+        undefined,
+        machine,
+      )
+      expect(result.ok).toBe(true)
+      expect(recorded.built).toEqual(['Dockerfile=airness-image-0:verification'])
+    })
+  })
+
+  it('builds only the Dockerfiles that install no package while the harness is a SNAPSHOT, and names the rest', async () => {
+    await withProject({ Dockerfile: INSTALLING, 'web.Dockerfile': DOCKERFILE }, async (root: string): Promise<void> => {
+      const { machine, recorded }: Machine = stand()
+      const result: GateResult = await image(
+        memberAt(root, { ...SERVED, devDependencies: { '@airness/node': '1.0.11-SNAPSHOT' } }),
+        undefined,
+        machine,
+      )
+      expect(result.ok).toBe(true)
+      expect(recorded.built).toEqual(['web.Dockerfile=airness-image-0:verification'])
+      expect(result.summary).toContain('Dockerfile installs packages, and is built once the harness is released')
     })
   })
 

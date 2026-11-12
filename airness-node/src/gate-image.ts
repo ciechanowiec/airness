@@ -9,7 +9,9 @@
 // through a variable of the harness's own to start them empty and to describe them, so the container reaches them
 // on the run's network; a member without a wrapper gets a run with no services of the harness's own, which still
 // names and removes the container. Every image is removed afterwards, also when the gate is stopped.
-import { memberDockerfiles } from './dockerfiles.js'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { doesInstallPackages, memberDockerfiles } from './dockerfiles.js'
 import type { RunResult } from './exec.js'
 import { isBrowserApp } from './facets.js'
 import { failed, type GateContext, type GateResult, notApplicable, passed } from './gate-result.js'
@@ -148,9 +150,10 @@ const EMPTY_CONTEXT: GateContext = { evidenceDirectory: undefined }
 const SNAPSHOT_SUFFIX: string = '-SNAPSHOT'
 
 // A SNAPSHOT harness package is never published: the build installs it from a registry on this machine's loopback,
-// which a Docker build cannot reach, and the public registry does not hold it. An image that installs the member's
-// development dependencies therefore cannot be built until the harness is released, whatever the Dockerfile says.
-// The gate waits for that release on its own, because the version the member installs is the harness's, not a
+// which a Docker build cannot reach, and the public registry does not hold it. An image whose build installs the
+// member's packages therefore cannot be built until the harness is released. An image that installs nothing, one
+// that copies the sources it runs or an artifact the build made, reaches no registry, so it is built and booted
+// all the same. The gate decides this on its own, because the version the member installs is the harness's, not a
 // setting the member could use to switch the gate off.
 const snapshotHarnessPackages = (member: Member): readonly string[] =>
   Object.entries(declaredDependencies(member.packageJson))
@@ -160,12 +163,26 @@ const snapshotHarnessPackages = (member: Member): readonly string[] =>
     )
     .map(([name, version]: readonly [string, string]): string => `${name}@${version}`)
 
+// The Dockerfiles that wait for a released harness: those whose build installs packages, while the member installs a
+// harness that is not yet published.
+const waitingDockerfiles = (
+  member: Member,
+  dockerfiles: readonly string[],
+  snapshots: readonly string[],
+): readonly string[] =>
+  snapshots.length === 0
+    ? []
+    : dockerfiles.filter((dockerfile: string): boolean =>
+        doesInstallPackages(readFileSync(path.join(member.root, dockerfile), 'utf8')),
+      )
+
 /**
  * Build every Dockerfile of a member and boot the image of one that serves an application.
  * @param member the member.
  * @param _context the gate's context, which this gate writes no evidence to.
  * @param machine the machine, replaced only by tests.
- * @returns not applicable for a member without a Dockerfile; otherwise the verdict over every image.
+ * @returns not applicable for a member without a Dockerfile, or whose every Dockerfile installs a harness not yet
+ * released; otherwise the verdict over every image it can build.
  */
 export const image = async (
   member: Member,
@@ -177,18 +194,24 @@ export const image = async (
     return notApplicable(`${member.path} holds no Dockerfile`)
   }
   const snapshots: readonly string[] = snapshotHarnessPackages(member)
-  if (snapshots.length > 0) {
+  const waiting: readonly string[] = waitingDockerfiles(member, dockerfiles, snapshots)
+  const unpublished: string = `${member.path} installs the unpublished harness ${snapshots.join(', ')}, which a Docker build cannot reach`
+  const ready: readonly string[] = dockerfiles.filter((dockerfile: string): boolean => !waiting.includes(dockerfile))
+  if (ready.length === 0) {
     return notApplicable(
-      `${member.path} installs the unpublished harness ${snapshots.join(', ')}, which a Docker build cannot reach; ` +
-        'its images are built and booted once it depends on a released harness',
+      `${unpublished}, and every Dockerfile of it installs packages; its images are built and booted once it ` +
+        'depends on a released harness',
     )
   }
   const findings: readonly string[] = await machine.holdStops(
-    async (isStopped: () => boolean): Promise<readonly string[]> =>
-      await judged(machine, member, dockerfiles, isStopped),
+    async (isStopped: () => boolean): Promise<readonly string[]> => await judged(machine, member, ready, isStopped),
   )
   const what: string = isBrowserApp(member) ? 'builds an image that boots against empty services' : 'builds'
+  const left: string =
+    waiting.length === 0
+      ? ''
+      : `; ${waiting.join(', ')} installs packages, and is built once the harness is released: ${unpublished}`
   return findings.length === 0
-    ? passed(`every Dockerfile (${dockerfiles.join(', ')}) ${what}`)
+    ? passed(`every Dockerfile (${ready.join(', ')}) ${what}${left}`)
     : failed(`an image of ${member.path} does not build or does not boot`, findings)
 }

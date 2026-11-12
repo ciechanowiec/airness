@@ -26,3 +26,32 @@ export const memberDockerfiles = (member: Member): readonly string[] =>
   memberFiles(workingTreeFiles(member.root), member.siblingPaths).filter(
     (file: string): boolean => isDockerfile(file) && existsSync(path.join(member.root, file)),
   )
+
+// A command that installs packages from a registry, as each package manager spells it: `npm ci`, `npm install` and
+// `npm i`, `pnpm install`, `pnpm i`, `pnpm add`, `pnpm fetch` and `pnpm deploy`, `yarn` alone, `yarn install` and
+// `yarn add`, and `bun install`, `bun i` and `bun add`.
+const PACKAGE_INSTALLS: readonly RegExp[] = [
+  /\bnpm\s+(?:ci|install|i)\b/u,
+  /\bpnpm\s+(?:install|i|add|fetch|deploy)\b/u,
+  /\byarn\s+(?:install|add)\b/u,
+  /\byarn\s*(?:$|&&|;|\|)/u,
+  /\bbun\s+(?:install|i|add)\b/u,
+]
+
+// A `RUN` instruction, with the lines a trailing backslash continues joined to it and every comment line left out.
+const runInstructions = (dockerfile: string): readonly string[] =>
+  dockerfile
+    .replaceAll(/\\\r?\n/gu, ' ')
+    .split(/\r?\n/u)
+    .map((line: string): string => line.trim())
+    .filter((line: string): boolean => /^RUN\s/iu.test(line))
+
+/**
+ * Whether a Dockerfile installs packages from a registry while it builds.
+ * @param dockerfile the Dockerfile's text.
+ * @returns true when one of its `RUN` instructions runs a package manager's install.
+ */
+export const doesInstallPackages = (dockerfile: string): boolean =>
+  runInstructions(dockerfile).some((instruction: string): boolean =>
+    PACKAGE_INSTALLS.some((install: RegExp): boolean => install.test(instruction)),
+  )
