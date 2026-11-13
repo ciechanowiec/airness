@@ -1,6 +1,7 @@
-// The deployable image of a node project: every Dockerfile of the member builds, from the member's directory as it
-// stands after the build, with no build argument and no service, and, for a member that serves an application, the
-// image starts against services as a fresh deployment finds them and answers every probed path below 500.
+// The deployable image of a node project: every Dockerfile of the member builds, with the node project's directory as
+// it stands after the build as the context, so a member of a pnpm workspace reaches the lockfile it installs by, with
+// no build argument and no service, and, for a member that serves an application, the image starts against services
+// as a fresh deployment finds them and answers every probed path below 500.
 //
 // Linting a Dockerfile proves nothing about the image it makes. A `COPY` of a directory that does not exist, a
 // build that reads a secret it is never given, a configuration that leaves an empty production database without a
@@ -116,7 +117,7 @@ const imageFindings = async (machine: ImageMachine, member: Member, dockerfile: 
   // Docker tags an image only once its build succeeded, so a failed build leaves nothing to remove.
   if (built.code !== 0) {
     return [
-      `${dockerfile}: the image does not build from the member's directory with no build argument and no ` +
+      `${dockerfile}: the image does not build from the node project's directory with no build argument and no ` +
         `service (docker build exited ${String(built.code)}):`,
       ...tailOf(built.output),
     ]

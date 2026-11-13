@@ -176,7 +176,7 @@ PY_PUBLIC
     run_maven image_unbuilt containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
     expect_exit image_unbuilt 'image: a Dockerfile that cannot build fails' 1
     expect_match image_unbuilt 'image: the gate says the image does not build' \
-        'Dockerfile: the image does not build from the member.s directory'
+        'Dockerfile: the image does not build from the node project.s directory'
 
     git -C "${image_fixture}" rm --quiet Dockerfile
     commit_image_fixture 'a project without a Dockerfile'
@@ -184,6 +184,27 @@ PY_PUBLIC
     expect_exit image_absent 'image: a node project without a Dockerfile completes the gate' 0
     expect_match image_absent 'image: the gate does not apply without a Dockerfile' \
         'Node gate image in [.] not applicable'
+
+    # A member of a pnpm workspace installs by the lockfile and workspace file at the project's root, so its image
+    # builds with the node project's directory as the context and names its own files from there.
+    mkdir -p "${image_fixture}/web"
+    printf '{\n  "name": "fixture-web",\n  "private": true,\n  "type": "module"\n}\n' > "${image_fixture}/web/package.json"
+    cat > "${image_fixture}/web/Dockerfile" <<'DOCKERFILE'
+FROM node:26.8.2-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868
+WORKDIR /app
+COPY pnpm-workspace.yaml ./
+COPY web/package.json ./web/
+USER 1000:1000
+CMD ["node", "--version"]
+DOCKERFILE
+    printf '\npackages:\n  - web\n' >> "${image_fixture}/pnpm-workspace.yaml"
+    commit_image_fixture 'a workspace member whose image reads the workspace file'
+    run_maven image_member containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_member "image: a workspace member's image builds from the node project's directory" 0
+    member_log="$(find "${image_fixture}/target/airness/node-logs" -name gate-image.log 2>/dev/null | head -n 1)"
+    expect_file_match "${member_log:-${image_fixture}/target/airness/node-logs/gate-image.log}" \
+        "image: the member's Dockerfile copies the workspace file from the project's root" 'COPY pnpm-workspace.yaml'
+    expect_no_gate_images "image: the gate removes the member's image once it passes"
 }
 
 # A worktree made by git worktree add keeps its history in the main clone. Mounted alone, it handed gitleaks

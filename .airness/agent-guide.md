@@ -319,9 +319,10 @@ migrations against the services before the command. Never start fixed-name conta
 developer's database, for verification.
 
 The Extended `image` gate holds every Dockerfile of a node project to the image a deployment runs. It builds
-each one from the member's directory as the build left it, with no build argument and no service, so the image
-cannot depend on a secret or a database at build time, and may copy what `package` made, such as a Spring Boot
-archive. For a browser application it then publishes the one TCP port the image exposes on a loopback port of
+each one with the node project's directory as the build left it as its context, which holds the lockfile and
+workspace file a member of a pnpm workspace installs by, so a member's Dockerfile names its files from there, as in
+`COPY web/src web/src`. It passes no build argument and starts no service, so the image cannot depend on a secret
+or a database at build time, and may copy what `package` made, such as a Spring Boot archive. For a browser application it then publishes the one TCP port the image exposes on a loopback port of
 the run, starts the image under the wrapper with `AIRNESS_IMAGE_VERIFICATION=1`, and asks the path of
 `serverUrl` and each path a stack layer names until every one answers below 500, for at most two minutes; a
 container that stops, or a path still answering 500 or nothing, fails with the container's log. In that mode
