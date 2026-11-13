@@ -23,8 +23,11 @@ waits for the port file finds the configuration already in place. --npmrc needs 
 
 With --lockfile it first compares the sha512 integrity of each --fresh tarball, byte for byte, with the one the
 lockfile records for that exact name@version, and exits with an error before binding when they differ, rather
-than leave a frozen install to refuse the tarball later. A package the lockfile does not resolve, or a lockfile
-that does not exist yet, is no mismatch. The error names the command that refreshes the lock: start this
+than leave a frozen install to refuse the tarball later. It also exits so when an importer whose package.json asks
+for a --fresh tarball's exact version records another specifier for that package in the lockfile, or none, as a
+lock written before a harness version bump does. A package the lockfile resolves at another version that no
+package.json asks for, or a lockfile that does not exist yet, is no mismatch. The error names the command that
+refreshes the lock: start this
 registry again without --lockfile and, once it serves and the .npmrc routes the package to it, run in the
 lockfile's directory, with the pnpm the harness pins under <local Maven repository>/.airness/toolchain:
 
@@ -103,25 +106,85 @@ def locked_integrities(lockfile):
     return {entry.group(1): entry.group(2) for entry in entries}
 
 
+def unquoted(value):
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+        return value[1:-1]
+    return value
+
+
+# The specifier pnpm-lock.yaml records for each dependency of each importer, keyed by the importer's path relative
+# to the lockfile and then by the dependency's name, read from its importers section, as in:
+#   importers:\n\n  .:\n    devDependencies:\n      '@airness/node':\n        specifier: 1.0.9
+def locked_specifiers(lockfile):
+    if not os.path.isfile(lockfile):
+        return {}
+    with open(lockfile, encoding='utf-8') as stream:
+        text = stream.read()
+    section = re.search(r'^importers:\n(.*?)(?=^\S|\Z)', text, re.MULTILINE | re.DOTALL)
+    if section is None:
+        return {}
+    specifiers = {}
+    importer = dependency = None
+    for line in section.group(1).splitlines():
+        content = line.strip()
+        if not content:
+            continue
+        indent = len(line) - len(line.lstrip(' '))
+        if indent == 2:
+            importer = unquoted(content.removesuffix(':'))
+            dependency = None
+            specifiers.setdefault(importer, {})
+        elif indent == 4:
+            dependency = None
+        elif indent == 6 and importer is not None:
+            dependency = unquoted(content.removesuffix(':'))
+        elif indent == 8 and dependency is not None and content.startswith('specifier: '):
+            specifiers[importer][dependency] = unquoted(content.removeprefix('specifier: '))
+    return specifiers
+
+
+# Whether the package.json of the importer at the path given, relative to the lockfile's directory, asks for the
+# exact version given of the named package, as a dependency of any kind pnpm locks.
+def asks_for(lockfile, importer, name, version):
+    path = os.path.join(os.path.dirname(os.path.abspath(lockfile)), importer, 'package.json')
+    if not os.path.isfile(path):
+        return False
+    with open(path, encoding='utf-8') as stream:
+        manifest = json.load(stream)
+    kinds = ('dependencies', 'devDependencies', 'optionalDependencies')
+    return any(isinstance(manifest.get(kind), dict) and manifest[kind].get(name) == version for kind in kinds)
+
+
+# Each reason a frozen install would refuse what this registry serves: a served name@version the lockfile records
+# another integrity for, and an importer that asks for a served version the lockfile records no specifier of.
 def stale_entries(arguments):
     locked = locked_integrities(arguments.lockfile)
+    specifiers = locked_specifiers(arguments.lockfile)
     stale = []
     for path in arguments.fresh:
         if not os.path.isfile(path):
             continue
         content = read(path)
         manifest = manifest_of(content)
-        key = f'{manifest["name"]}@{manifest["version"]}'
+        name, version = manifest['name'], manifest['version']
+        key = f'{name}@{version}'
         served = integrity_of(content)
         if key in locked and locked[key] != served:
-            stale.append((key, locked[key], served, path))
+            stale.append(f'{key}: the lockfile records {locked[key]}, but {path} has {served}')
+        for importer, dependencies in specifiers.items():
+            recorded = dependencies.get(name)
+            if recorded != version and asks_for(arguments.lockfile, importer, name, version):
+                held = f'specifier {recorded}' if recorded is not None else 'no specifier'
+                stale.append(
+                    f'{name} in importer {importer}: its package.json asks for {version}, which {path} serves, but'
+                    f' the lockfile records {held}'
+                )
     return stale
 
 
 def stale_lines(arguments, stale):
     lines = [f'the lockfile {arguments.lockfile} is stale, so a frozen install would refuse what this registry serves:']
-    for key, recorded, served, path in stale:
-        lines.append(f'  {key}: the lockfile records {recorded}, but {path} has {served}')
+    lines.extend(f'  {entry}' for entry in stale)
     return lines
 
 
@@ -191,7 +254,7 @@ def lock_problems(arguments):
 def refresh_stale_lock(arguments):
     problems = lock_problems(arguments)
     if not problems:
-        print(f'The lockfile {arguments.lockfile} records the integrity of each served tarball')
+        print(f'The lockfile {arguments.lockfile} records the version and integrity of each served tarball')
         return
     if in_ci():
         sys.exit('\n'.join(problems + [
