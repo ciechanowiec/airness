@@ -5,15 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.example.starter.Caller;
 import com.example.starter.DatabaseTest;
-import com.example.starter.audit.AuditAction;
-import com.example.starter.audit.AuditOutcome;
-import com.example.starter.audit.Entries;
 import com.example.starter.identity.Accounts;
 import com.example.starter.identity.Role;
 import com.example.starter.identity.Users;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -32,16 +30,33 @@ class TasksTest {
 
     private final Tasks tasks;
 
+    private final JdbcTemplate database;
+
     // The day by the clock the application reads, which is what decides whether a task is overdue.
     private final LocalDate today;
-
-    private final Entries entries;
 
     TasksTest(Users users, Tasks tasks, Clock clock, JdbcTemplate database) {
         this.users = users;
         this.tasks = tasks;
+        this.database = database;
         this.today = LocalDate.now(clock);
-        this.entries = new Entries(database);
+    }
+
+    // The entries of the trail naming the given task, made by the account under the given address.
+    private long recorded(String actor, UUID task, String action) {
+        return Objects.requireNonNull(
+            this.database.queryForObject(
+                """
+                    SELECT COUNT(*) FROM audit_event
+                    JOIN app_user ON audit_event.actor = CAST(app_user.reference AS VARCHAR)
+                    WHERE app_user.email = ? AND audit_event.target = ? AND audit_event.action = ?""",
+                Long.class, actor, task.toString(), action
+            )
+        );
+    }
+
+    private UUID someoneElses() {
+        return Notes.written(this.tasks, this.reader(), Notes.open(Notes.title("Overseen"), this.today));
     }
 
     @AfterEach
@@ -51,13 +66,6 @@ class TasksTest {
 
     private String reader() {
         return Accounts.admitted(this.users, "rules", Role.USER);
-    }
-
-    // A task somebody else keeps, which the test then acts on as the first administrator.
-    private UUID othersTask() {
-        UUID task = Notes.written(this.tasks, this.reader(), Notes.open(Notes.title("Kept"), this.today));
-        Caller.acting(Caller.ADMINISTRATOR, Role.ADMIN.getAuthority());
-        return task;
     }
 
     @Test
@@ -98,45 +106,48 @@ class TasksTest {
         Notes.written(this.tasks, email, Notes.open("%s 100%% done".formatted(marker), this.today));
         Notes.written(this.tasks, email, Notes.open("%s 100 times over".formatted(marker), this.today));
         Caller.acting(email, Role.USER.getAuthority());
-        List<TaskView> found = this.tasks.listing(new TaskFilter("%s 100%%".formatted(marker), "", ""), 1).tasks();
+        List<TaskView> found = this.tasks.listing(new TaskFilter("%s 100%%".formatted(marker), "", ""), 1).items();
         assertEquals(
             List.of("%s 100%% done".formatted(marker)), found.stream().map(task -> task.content().title()).toList()
         );
     }
 
     @Test
-    void refusesTheTasksToSomebodyWhoHasNotSignedIn() {
-        TaskFilter filter = new TaskFilter("", "", "");
-        assertThrows(AuthenticationCredentialsNotFoundException.class, () -> this.tasks.listing(filter, 1));
+    void recordsAnAdministratorRevisingATaskSomebodyElseKeeps() {
+        UUID task = this.someoneElses();
+        Caller.acting(Caller.ADMINISTRATOR, Role.ADMIN.getAuthority());
+        this.tasks.revise(task, Notes.open("Revised by the administrator", this.today), 0);
+        assertEquals(1, this.recorded(Caller.ADMINISTRATOR, task, "TASK_REVISED"));
     }
 
     @Test
-    void recordsATaskAnAdministratorRevisedForSomebodyElse() {
-        UUID task = this.othersTask();
-        this.tasks.revise(task, Notes.open("Revised", this.today), 0);
-        assertEquals(1, this.entries.written(AuditAction.TASK_REVISED, task.toString(), AuditOutcome.SUCCEEDED));
-    }
-
-    @Test
-    void recordsATaskAnAdministratorMovedForSomebodyElse() {
-        UUID task = this.othersTask();
+    void recordsAnAdministratorMovingATaskSomebodyElseKeeps() {
+        UUID task = this.someoneElses();
+        Caller.acting(Caller.ADMINISTRATOR, Role.ADMIN.getAuthority());
         this.tasks.move(task, TaskStatus.DONE);
-        assertEquals(1, this.entries.written(AuditAction.TASK_MOVED, task.toString(), AuditOutcome.SUCCEEDED));
+        assertEquals(1, this.recorded(Caller.ADMINISTRATOR, task, "TASK_MOVED"));
     }
 
     @Test
-    void recordsATaskAnAdministratorRemovedForSomebodyElse() {
-        UUID task = this.othersTask();
+    void recordsAnAdministratorRemovingATaskSomebodyElseKeeps() {
+        UUID task = this.someoneElses();
+        Caller.acting(Caller.ADMINISTRATOR, Role.ADMIN.getAuthority());
         this.tasks.remove(task);
-        assertEquals(1, this.entries.written(AuditAction.TASK_REMOVED, task.toString(), AuditOutcome.SUCCEEDED));
+        assertEquals(1, this.recorded(Caller.ADMINISTRATOR, task, "TASK_REMOVED"));
     }
 
     @Test
-    void recordsNothingWhenAReaderChangesATaskOfTheirOwn() {
+    void recordsNothingWhenAReaderMovesTheirOwnTask() {
         String email = this.reader();
         UUID task = Notes.written(this.tasks, email, Notes.open(Notes.title("Own"), this.today));
         Caller.acting(email, Role.USER.getAuthority());
         this.tasks.move(task, TaskStatus.DONE);
-        assertEquals(0, this.entries.written(AuditAction.TASK_MOVED, task.toString(), AuditOutcome.SUCCEEDED));
+        assertEquals(0, this.recorded(email, task, "TASK_MOVED"));
+    }
+
+    @Test
+    void refusesTheTasksToSomebodyWhoHasNotSignedIn() {
+        TaskFilter filter = new TaskFilter("", "", "");
+        assertThrows(AuthenticationCredentialsNotFoundException.class, () -> this.tasks.listing(filter, 1));
     }
 }

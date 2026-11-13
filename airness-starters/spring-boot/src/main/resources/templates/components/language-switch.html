@@ -1,0 +1,34 @@
+<!--/*
+    The switch between the languages the application speaks, a form per language, because a choice of
+    language changes what the browser keeps. It loads the whole page rather than the body htmx swaps, because
+    the language the page declares on its root element, which a screen reader pronounces it in, lies outside
+    the body. Each language is named in its own words, so a reader who landed in a language they cannot read
+    still finds their own. A stretched switch fills the width it is given, each language taking an equal share.
+*/-->
+<div
+    th:fragment="languageSwitch(stretched)"
+    th:class="${stretched} ? 'segmented w-full' : 'segmented'"
+    role="group"
+    th:aria-label="#{shell.language}"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <form
+        th:each="language : ${languages}"
+        th:action="@{/language}"
+        method="post"
+        hx-boost="false"
+        th:class="${stretched} ? 'flex flex-1' : null"
+    >
+        <input type="hidden" name="language" th:value="${language.name()}" />
+        <input type="hidden" name="back" th:value="${here}" />
+        <button
+            type="submit"
+            th:class="${stretched} ? 'flex-1 justify-center' : null"
+            th:lang="${language.locale().language}"
+            th:attr="aria-pressed=${#locale.language == language.locale().language} ? 'true' : 'false'"
+            th:text="${language.endonym()}"
+        >
+            English
+        </button>
+    </form>
+</div>

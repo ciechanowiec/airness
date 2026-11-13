@@ -5,11 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.starter.web.Wording;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validation;
-import jakarta.validation.ValidatorFactory;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -42,18 +38,6 @@ class TaskFormTest {
     }
 
     @Test
-    void refusesADescriptionWiderThanItsColumn() {
-        String description = "x".repeat(TaskContent.DESCRIPTION_LIMIT + 1);
-        TaskForm form = new TaskForm("Write", description, TaskStatus.OPEN, TODAY, 0);
-        try (ValidatorFactory validation = Validation.buildDefaultValidatorFactory()) {
-            List<String> refusals = validation.getValidator().validate(form).stream()
-                .map(ConstraintViolation::getMessageTemplate)
-                .toList();
-            assertEquals(List.of("task.description.long"), refusals);
-        }
-    }
-
-    @Test
     void refusesToStateATaskWithoutADueDay() {
         TaskForm form = new TaskForm("Write", "", TaskStatus.OPEN, null, 0);
         assertThrows(NullPointerException.class, form::content);
@@ -62,7 +46,7 @@ class TaskFormTest {
     @Test
     void opensOnWhatATaskSaysAndTheVersionItIsAt() {
         TaskContent content = new TaskContent("Write", "it", TaskStatus.DONE, TODAY);
-        TaskForm form = TaskForm.of(new TaskView("reference", content, false, "", 3));
+        TaskForm form = TaskForm.of(new TaskView("reference", content, false, "", 3, 0));
         assertEquals(new TaskForm("Write", "it", TaskStatus.DONE, TODAY, 3), form);
     }
 }

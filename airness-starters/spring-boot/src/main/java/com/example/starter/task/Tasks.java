@@ -1,18 +1,13 @@
 package com.example.starter.task;
 
+import com.example.starter.TransactionTimeout;
 import com.example.starter.audit.AuditAction;
-import com.example.starter.audit.AuditOutcome;
-import com.example.starter.audit.AuditTrail;
 import com.example.starter.identity.Owners;
-import com.example.starter.identity.Reader;
-import com.example.starter.identity.Role;
+import com.example.starter.web.Listing;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,10 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
  * starts from, so a task somebody may not see is answered as one that does not exist, whether it was
  * listed, opened, changed or removed.
  *
- * <p>A change to a task somebody else keeps, which only an administrator may make, is a privileged one,
- * so it is written to the audit trail in the transaction that makes it. A change a reader makes to their
- * own task is not.
- *
  * <p>Every method needs somebody signed in, which is why the guard sits on the class. The class is not
  * final because the container wraps it in a proxy, which is a subclass, and both the
  * transaction and the authorization are applied by that proxy.
@@ -37,17 +28,13 @@ import org.springframework.transaction.annotation.Transactional;
 @PreAuthorize("isAuthenticated()")
 public class Tasks {
 
-    private static final int TIMEOUT_SECONDS = 10;
-
     private static final int PAGE_SIZE = 20;
-
-    private static final int FIRST_PAGE = 1;
 
     private final TaskRepository repository;
 
     private final Owners owners;
 
-    private final AuditTrail trail;
+    private final TaskReach reach;
 
     private final Clock clock;
 
@@ -56,13 +43,13 @@ public class Tasks {
      *
      * @param repository the tasks as the database holds them
      * @param owners     the accounts as the tasks they keep read them
-     * @param trail      what records every change to a task somebody else keeps
+     * @param reach      which tasks the reader may see, and how a task is shown to them
      * @param clock      the clock every instant and every day of the application is read from
      */
-    public Tasks(TaskRepository repository, Owners owners, AuditTrail trail, Clock clock) {
+    public Tasks(TaskRepository repository, Owners owners, TaskReach reach, Clock clock) {
         this.repository = repository;
         this.owners = owners;
-        this.trail = trail;
+        this.reach = reach;
         this.clock = clock;
     }
 
@@ -73,16 +60,12 @@ public class Tasks {
      * @param page   which page of the list is shown, counted from one
      * @return that page of the tasks
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
-    public TaskListing listing(TaskFilter filter, int page) {
-        Page<Task> found = this.repository.findAll(filter.narrowing(this.visible()), filter.pageable(page, PAGE_SIZE));
-        Map<Long, String> names = this.names(found.stream().map(Task::getOwnerId).collect(Collectors.toSet()));
-        LocalDate today = LocalDate.now(this.clock);
-        return new TaskListing(
-            found.stream().map(task -> TaskView.of(task, today, names.getOrDefault(task.getOwnerId(), ""))).toList(),
-            found.getNumber() + FIRST_PAGE,
-            Math.max(found.getTotalPages(), FIRST_PAGE)
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
+    public Listing<TaskView> listing(TaskFilter filter, int page) {
+        Page<Task> found = this.repository.findAll(
+            filter.narrowing(this.reach.visible()), filter.pageable(page, PAGE_SIZE)
         );
+        return Listing.of(found, this.reach.views(found.getContent()));
     }
 
     /**
@@ -91,9 +74,9 @@ public class Tasks {
      * @param reference the reference the task is known by outside the database
      * @return that task, or nothing where the reader may not see a task under that reference
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
     public Optional<TaskView> task(UUID reference) {
-        return this.seen(reference).map(this::viewed);
+        return this.seen(reference).map(this.reach::view);
     }
 
     /**
@@ -102,7 +85,7 @@ public class Tasks {
      * @param content what the task says
      * @return the reference the task is known by
      */
-    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = false, timeout = TransactionTimeout.SECONDS)
     public UUID create(TaskContent content) {
         return this.repository.save(new Task(this.owners.reader(), content, this.clock.instant())).getReference();
     }
@@ -115,7 +98,7 @@ public class Tasks {
      * @param version   the version the reader's form was opened on
      * @return whether nobody changed the task since
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
     public boolean current(UUID reference, long version) {
         return this.seen(reference).filter(task -> task.getVersion() == version).isPresent();
     }
@@ -131,11 +114,11 @@ public class Tasks {
      * @throws org.springframework.orm.ObjectOptimisticLockingFailureException when somebody changed the
      *                                                                         task since that version
      */
-    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = false, timeout = TransactionTimeout.SECONDS)
     public void revise(UUID reference, TaskContent content, long version) {
         Task task = this.found(reference);
         this.repository.save(task.revised(content, this.clock.instant(), version));
-        this.audited(task, AuditAction.TASK_REVISED);
+        this.reach.recorded(task, AuditAction.TASK_REVISED);
     }
 
     /**
@@ -146,12 +129,12 @@ public class Tasks {
      * @return the task as it now stands
      * @throws IllegalStateException when the reader may not see a task under that reference
      */
-    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = false, timeout = TransactionTimeout.SECONDS)
     public TaskView move(UUID reference, TaskStatus status) {
         Task task = this.found(reference);
         Task moved = task.revised(task.getContent().moved(status), this.clock.instant(), task.getVersion());
-        TaskView view = this.viewed(this.repository.saveAndFlush(moved));
-        this.audited(task, AuditAction.TASK_MOVED);
+        TaskView view = this.reach.view(this.repository.saveAndFlush(moved));
+        this.reach.recorded(task, AuditAction.TASK_MOVED);
         return view;
     }
 
@@ -161,11 +144,11 @@ public class Tasks {
      * @param reference the reference the task is known by outside the database
      * @throws IllegalStateException when the reader may not see a task under that reference
      */
-    @Transactional(readOnly = false, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = false, timeout = TransactionTimeout.SECONDS)
     public void remove(UUID reference) {
         Task task = this.found(reference);
         this.repository.delete(task);
-        this.audited(task, AuditAction.TASK_REMOVED);
+        this.reach.recorded(task, AuditAction.TASK_REMOVED);
     }
 
     /**
@@ -173,9 +156,9 @@ public class Tasks {
      *
      * @return the counts of those tasks by status, and of those overdue
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
     public Overview overview() {
-        Specification<Task> visible = this.visible();
+        Specification<Task> visible = this.reach.visible();
         return new Overview(
             this.repository.count(visible.and(TaskCriteria.standing(TaskStatus.OPEN))),
             this.repository.count(visible.and(TaskCriteria.standing(TaskStatus.IN_PROGRESS))),
@@ -184,39 +167,13 @@ public class Tasks {
         );
     }
 
-    // The tasks the reader may see: every task for an administrator, and their own for anybody else.
-    private Specification<Task> visible() {
-        return Reader.holds(Role.ADMIN) ? Specification.unrestricted() : TaskCriteria.ownedBy(this.owners.reader());
-    }
-
     private Optional<Task> seen(UUID reference) {
-        return this.repository.findByReference(reference)
-            .filter(task -> Reader.holds(Role.ADMIN) || task.getOwnerId() == this.owners.reader());
+        return this.repository.findOne(this.reach.visible().and(TaskCriteria.referenced(reference)));
     }
 
     private Task found(UUID reference) {
         return this.seen(reference).orElseThrow(
             () -> new IllegalStateException("No task the reader may see carries the reference %s".formatted(reference))
         );
-    }
-
-    // Records a change made to a task the reader does not keep, naming the task by its reference, which
-    // stays the same however the task changes and outlives its removal in the trail.
-    private void audited(Task task, AuditAction action) {
-        if (task.getOwnerId() != this.owners.reader()) {
-            String actor = Reader.email().orElse(AuditTrail.APPLICATION);
-            this.trail.write(actor, action, task.getReference().toString(), AuditOutcome.SUCCEEDED);
-        }
-    }
-
-    private TaskView viewed(Task task) {
-        String owner = this.names(Set.of(task.getOwnerId())).getOrDefault(task.getOwnerId(), "");
-        return TaskView.of(task, LocalDate.now(this.clock), owner);
-    }
-
-    // An administrator sees whose every task is, and anybody else sees only their own, whose name they
-    // know, so the names are read for administrators alone.
-    private Map<Long, String> names(Set<Long> owners) {
-        return Reader.holds(Role.ADMIN) ? this.owners.names(owners) : Map.of();
     }
 }

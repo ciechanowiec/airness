@@ -1,0 +1,14 @@
+<!--/*
+    The switch between the two views of the tasks, the list and the board. The view being drawn says so with
+    aria-current, which is read out and drawn as the pressed segment.
+*/-->
+<nav th:fragment="views(current)" class="segmented" th:aria-label="#{view.label}" xmlns:th="http://www.thymeleaf.org">
+    <a th:href="@{/tasks}" th:attr="aria-current=${current == 'list'} ? 'page' : null">
+        <svg th:replace="~{components/icon :: icon('list', 'size-4')}"></svg>
+        <span th:text="#{view.list}">List</span>
+    </a>
+    <a th:href="@{/tasks/board}" th:attr="aria-current=${current == 'board'} ? 'page' : null">
+        <svg th:replace="~{components/icon :: icon('square-kanban', 'size-4')}"></svg>
+        <span th:text="#{view.board}">Board</span>
+    </a>
+</nav>

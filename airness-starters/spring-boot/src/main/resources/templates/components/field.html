@@ -15,10 +15,12 @@
     class="fieldset"
     xmlns:th="http://www.thymeleaf.org"
 >
-    <label class="fieldset-legend" th:for="${control.name()}" th:text="${words.of(control.key())}">Label</label>
+    <label class="fieldset-legend text-sm font-semibold" th:for="${control.name()}" th:text="${words.of(control.key())}"
+        >Label</label
+    >
     <input
         th:unless="${prose}"
-        class="input w-full"
+        class="input ink-border w-full"
         th:classappend="${invalid} ? 'input-error' : ''"
         th:type="${control.type()}"
         th:id="${control.name()}"
@@ -30,7 +32,7 @@
     />
     <textarea
         th:if="${prose}"
-        class="textarea w-full"
+        class="textarea ink-border w-full"
         th:classappend="${invalid} ? 'textarea-error' : ''"
         rows="4"
         th:id="${control.name()}"
@@ -40,7 +42,12 @@
         th:attr="aria-invalid=${invalid} ? 'true' : null,
                     aria-describedby=${invalid} ? |${control.name()}-error| : null"
     ></textarea>
-    <p class="text-sm text-red-800" th:if="${invalid}" th:id="|${control.name()}-error|" th:text="${error}">
+    <p
+        class="flex items-center gap-1.5 text-sm font-medium text-error"
+        th:if="${invalid}"
+        th:id="|${control.name()}-error|"
+        th:text="${error}"
+    >
         What is wrong
     </p>
 </div>

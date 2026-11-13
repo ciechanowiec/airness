@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @DatabaseTest
 class TaskFormPagesTest {
@@ -42,7 +43,6 @@ class TaskFormPagesTest {
         return response.headers().firstValue(HttpHeaders.LOCATION).orElse("");
     }
 
-    // Each form is opened on the first version of its task, which is the version a stale change is made against too.
     private static String form(String title, String status, String dueOn) {
         return "title=%s&description=&status=%s&dueOn=%s&version=0".formatted(Caller.encoded(title), status, dueOn);
     }
@@ -142,6 +142,27 @@ class TaskFormPagesTest {
             () -> assertTrue(landing(answer).endsWith("/tasks?notice=DELETED")),
             () -> assertEquals(HttpStatus.NOT_FOUND.value(), reader.get("/tasks/%s/edit".formatted(task)).statusCode())
         );
+    }
+
+    private TaskContent asTheOwnerSeesIt(String owner, UUID task) {
+        Caller.acting(owner, Role.USER.getAuthority());
+        try {
+            return this.tasks.task(task).orElseThrow().content();
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void leavesAnotherReadersTaskAsItWasAfterEveryRefusedChange(@LocalServerPort int port) {
+        String owner = this.reader();
+        TaskContent written = Notes.open(Notes.title("Untouched"), this.soon);
+        UUID task = Notes.written(this.tasks, owner, written);
+        Caller stranger = Caller.signedIn(port, this.reader(), Accounts.SECRET);
+        stranger.post("/tasks/%s/status".formatted(task), "status=DONE");
+        stranger.post("/tasks/%s".formatted(task), form("Taken", "DONE", this.soon.toString()));
+        stranger.post("/tasks/%s/delete".formatted(task), "");
+        assertEquals(written, this.asTheOwnerSeesIt(owner, task));
     }
 
     @Test

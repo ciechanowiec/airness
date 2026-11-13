@@ -20,4 +20,15 @@ public record UserAccess(
 
     @Column(name = "enabled", nullable = false) boolean enabled
 ) {
+
+    /**
+     * Answers whether this is the access of the only administrator left who may sign in. An account
+     * disabled already, or holding another role, is nobody's last administrator whatever the count says.
+     *
+     * @param enabledAdministrators how many administrators may sign in
+     * @return whether this account is the last of them
+     */
+    public boolean soleAdministrator(long enabledAdministrators) {
+        return this.enabled && this.role == Role.ADMIN && enabledAdministrators == 1;
+    }
 }

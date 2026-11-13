@@ -16,12 +16,18 @@
     <body>
         <div id="page-body" class="space-y-6">
             <div th:replace="~{components/header :: header(${words.of(heading)}, #{task.lead}, ~{})}"></div>
-            <p class="alert alert-warning" role="alert" th:if="${refusals['version']}" th:text="${refusals['version']}">
+            <p
+                class="alert alert-warning max-w-2xl"
+                role="alert"
+                th:if="${refusals['version']}"
+                th:text="${refusals['version']}"
+            >
                 Somebody changed this task after you opened it.
             </p>
-            <form class="card bg-base-100 shadow" th:action="@{${target}}" method="post">
-                <div class="card-body space-y-2">
+            <form class="panel max-w-2xl" th:action="@{${target}}" method="post">
+                <div class="space-y-3 p-6">
                     <input type="hidden" name="version" th:value="${taskForm.version()}" />
+                    <input th:unless="${from.isEmpty()}" type="hidden" name="from" th:value="${from}" />
                     <div
                         th:replace="~{components/field :: field(${controls.title}, ${taskForm.title()},
                  ${refusals['title']})}"
@@ -40,16 +46,17 @@
                      ${refusals['dueOn']})}"
                         ></div>
                     </div>
-                    <div class="card-actions justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
                         <div class="flex gap-2">
-                            <button class="btn btn-primary" type="submit" th:text="${words.of(submit)}">Save</button>
-                            <a class="btn btn-ghost" th:href="@{/tasks}" th:text="#{task.cancel}">Cancel</a>
+                            <button class="btn btn-primary press" type="submit" th:text="${words.of(submit)}">
+                                Save
+                            </button>
+                            <a class="btn btn-ghost" th:href="@{${back}}" th:text="#{task.cancel}">Cancel</a>
                         </div>
                         <button
                             th:if="${existing}"
-                            class="btn btn-error"
+                            class="btn btn-ghost text-error"
                             type="button"
-                            aria-haspopup="dialog"
                             data-opens="delete-task"
                             th:text="#{task.delete}"
                         >
@@ -59,17 +66,18 @@
                 </div>
             </form>
             <dialog th:if="${existing}" id="delete-task" class="modal" aria-labelledby="delete-task-title">
-                <div class="modal-box space-y-4">
+                <div class="modal-box press space-y-4 rounded-box">
                     <h2 id="delete-task-title" class="text-lg font-bold" th:text="#{task.delete.title}">
                         Delete this task?
                     </h2>
                     <p th:text="#{task.delete.lead}">A deleted task cannot be brought back.</p>
                     <div class="modal-action">
-                        <form method="dialog">
-                            <button class="btn" type="submit" th:text="#{task.delete.keep}">Keep it</button>
+                        <form method="dialog" hx-boost="false">
+                            <button class="btn btn-ghost" type="submit" th:text="#{task.delete.keep}">Keep it</button>
                         </form>
                         <form method="post" th:action="@{/tasks/{reference}/delete(reference=${task.reference()})}">
-                            <button class="btn btn-error" type="submit" th:text="#{task.delete.confirm}">
+                            <input th:unless="${from.isEmpty()}" type="hidden" name="from" th:value="${from}" />
+                            <button class="btn btn-error press" type="submit" th:text="#{task.delete.confirm}">
                                 Delete the task
                             </button>
                         </form>

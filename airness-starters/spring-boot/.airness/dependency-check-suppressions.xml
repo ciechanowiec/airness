@@ -1,63 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Advisories against this project's dependencies that no upgrade answers yet. Every entry names its
+    advisory, says why it cannot be exploited here, states its mitigation plan, and records the date it was
+    added. A rule that stops matching fails the build, so each one is removed as soon as an upgrade answers it.
+-->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
     <suppress>
         <notes><![CDATA[
-            Added 2026-11-09. httpclient5 5.5.1 is reached only as the copy shaded into
-            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
-            tests run against. It never runs in the deployed application, which neither packages nor loads it.
-            The client talks only to the local Docker daemon through its socket, and the responses of that
-            daemon are not attacker input, so nothing an attacker controls reaches the defect.
+            Added 2026-11-08. Apache HttpClient 5.5.1 reaches this project only shaded inside
+            docker-java-transport-zerodep 3.7.1, which Testcontainers uses in the tests alone to talk to the
+            local Docker daemon that starts the test database. CVE-2026-71290 affects the asynchronous client
+            over TLS, while this transport uses the classic client over the daemon's local Unix socket with no
+            TLS at all. CVE-2026-64607 needs a server answering with a malformed Content-Encoding, and the only
+            server is the local Docker daemon the tests themselves run. The artifact is test-scoped and never
+            enters the application archive.
 
-            Mitigation: The client exists only while the tests run on a machine that already trusts its own
-            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
-            shaded httpclient5 and httpcore5 carry the fix.
+            Mitigation: the transport runs only during the build and talks only to the local daemon. The entry is
+            removed once docker-java releases a transport with HttpClient 5.6.4 or later, or Testcontainers
+            depends on one; docker-java-transport-zerodep 3.7.1 and Testcontainers 2.0.5 are the latest releases
+            as of the date above.
         ]]></notes>
         <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.client5/httpclient5@5\.5\.1$</packageUrl>
         <cve>CVE-2026-71290</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-            Added 2026-11-09. httpclient5 5.5.1 is reached only as the copy shaded into
-            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
-            tests run against. It never runs in the deployed application, which neither packages nor loads it.
-            The client talks only to the local Docker daemon through its socket, and the responses of that
-            daemon are not attacker input, so nothing an attacker controls reaches the defect.
-
-            Mitigation: The client exists only while the tests run on a machine that already trusts its own
-            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
-            shaded httpclient5 and httpcore5 carry the fix.
-        ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.client5/httpclient5@5\.5\.1$</packageUrl>
         <cve>CVE-2026-64607</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-            Added 2026-11-09. httpcore5 and httpcore5-h2 5.3.6 are reached only as the copies shaded into
-            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
-            tests run against. They never run in the deployed application, which neither packages nor loads them.
-            The client talks only to the local Docker daemon through its socket, and the responses of that
-            daemon are not attacker input, so nothing an attacker controls reaches the defect.
+            Added 2026-11-08. Apache HttpComponents Core 5.3.6 and its HTTP/2 module reach this project only shaded inside
+            docker-java-transport-zerodep 3.7.1, which Testcontainers uses in the tests alone to talk to the
+            local Docker daemon that starts the test database. CVE-2026-54399 and CVE-2026-54428 need a remote
+            server that sends oversized headers or oversized HTTP/2 header blocks, and the only server this
+            transport ever reads is the local Docker daemon, over HTTP/1.1 on its local Unix socket, so the HTTP/2
+            module is never used. The artifact is test-scoped and never enters the application archive.
 
-            Mitigation: The client exists only while the tests run on a machine that already trusts its own
-            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
-            shaded httpclient5 and httpcore5 carry the fix.
+            Mitigation: the transport runs only during the build and talks only to the local daemon. The entry is
+            removed once docker-java releases a transport with a fixed HttpComponents Core, or Testcontainers
+            depends on one; docker-java-transport-zerodep 3.7.1 and Testcontainers 2.0.5 are the latest releases
+            as of the date above.
         ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.core5/httpcore5(?:-h2)?@5\.3\.6$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.core5/httpcore5(-h2)?@5\.3\.6$</packageUrl>
         <cve>CVE-2026-54399</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-            Added 2026-11-09. httpcore5 and httpcore5-h2 5.3.6 are reached only as the copies shaded into
-            docker-java-transport-zerodep, which Testcontainers uses at test scope to start the PostgreSQL the
-            tests run against. They never run in the deployed application, which neither packages nor loads them.
-            The client talks only to the local Docker daemon through its socket, and the responses of that
-            daemon are not attacker input, so nothing an attacker controls reaches the defect.
-
-            Mitigation: The client exists only while the tests run on a machine that already trusts its own
-            Docker daemon. The entry is removed once Testcontainers or docker-java releases a transport whose
-            shaded httpclient5 and httpcore5 carry the fix.
-        ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.core5/httpcore5(?:-h2)?@5\.3\.6$</packageUrl>
         <cve>CVE-2026-54428</cve>
     </suppress>
 </suppressions>

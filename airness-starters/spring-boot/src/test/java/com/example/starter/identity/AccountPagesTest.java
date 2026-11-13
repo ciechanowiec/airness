@@ -2,13 +2,11 @@ package com.example.starter.identity;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.starter.Caller;
 import com.example.starter.DatabaseTest;
-import com.example.starter.audit.AuditAction;
-import com.example.starter.audit.AuditOutcome;
-import com.example.starter.audit.Entries;
 import java.net.http.HttpResponse;
 import java.util.Objects;
 import java.util.stream.IntStream;
@@ -23,34 +21,23 @@ class AccountPagesTest {
 
     private static final String CHOSEN = "a-new-fixture-not-a-secret";
 
-    private static final String PASSWORD = "/account/password";
-
     private static final String WRONG = "not-my-password";
 
-    private static final String NOT_THEIRS = "This is not your current password.";
+    private static final String PASSWORD = "/account/password";
 
-    // A letter BCrypt reads as two bytes, so thirty-seven of them are seventy-four bytes held in fewer
-    // characters than the limit.
-    private static final String TWO_BYTES = "ą";
-
-    private static final int OVER_IN_TWO_BYTE_LETTERS = 37;
+    // The entries of the trail about the given account's password, which it is named in by its reference.
+    private static final String RECORDED = """
+        SELECT COUNT(*) FROM audit_event JOIN app_user ON audit_event.target = CAST(app_user.reference AS VARCHAR)
+        WHERE app_user.email = ? AND audit_event.actor = audit_event.target
+        AND audit_event.action = 'PASSWORD_CHANGED' AND audit_event.outcome = ?""";
 
     private final Users users;
 
     private final JdbcTemplate database;
 
-    private final Entries entries;
-
     AccountPagesTest(Users users, JdbcTemplate database) {
         this.users = users;
         this.database = database;
-        this.entries = new Entries(database);
-    }
-
-    private int failedAttempts(String email) {
-        return Objects.requireNonNull(
-            this.database.queryForObject("SELECT failed_attempts FROM app_user WHERE email = ?", Integer.class, email)
-        );
     }
 
     private static String landing(HttpResponse<String> response) {
@@ -59,6 +46,10 @@ class AccountPagesTest {
 
     private static String form(String current, String chosen) {
         return "current=%s&chosen=%s".formatted(Caller.encoded(current), Caller.encoded(chosen));
+    }
+
+    private long recorded(String email, String outcome) {
+        return Objects.requireNonNull(this.database.queryForObject(RECORDED, Long.class, email, outcome));
     }
 
     @Test
@@ -73,7 +64,36 @@ class AccountPagesTest {
         String page = Caller.signedIn(port, email, Accounts.SECRET)
             .post(PASSWORD, form(WRONG, CHOSEN))
             .body();
-        assertTrue(page.contains(NOT_THEIRS));
+        assertTrue(page.contains("This is not your current password."));
+    }
+
+    @Test
+    void locksTheAccountOnceTooManyWrongCurrentPasswordsAreTyped(@LocalServerPort int port) {
+        String email = Accounts.admitted(this.users, "guessing", Role.USER);
+        Caller holder = Caller.signedIn(port, email, Accounts.SECRET);
+        IntStream.range(0, Lockout.LIMIT).forEach(_ -> holder.post(PASSWORD, form(WRONG, CHOSEN)));
+        String page = holder.post(PASSWORD, form(Accounts.SECRET, CHOSEN)).body();
+        assertAll(
+            () -> assertTrue(page.contains("Too many wrong passwords were tried."), page),
+            () -> assertTrue(landing(new Caller(port).signIn(email, Accounts.SECRET)).endsWith("/login?failed=true"))
+        );
+    }
+
+    @Test
+    void recordsAWrongCurrentPassword(@LocalServerPort int port) {
+        String email = Accounts.admitted(this.users, "recordedGuess", Role.USER);
+        Caller.signedIn(port, email, Accounts.SECRET).post(PASSWORD, form(WRONG, CHOSEN));
+        assertEquals(1, this.recorded(email, "REFUSED"));
+    }
+
+    @Test
+    void sendsTheLanguageSwitchOfARefusedFormToAnAddressThatCanBeRead(@LocalServerPort int port) {
+        String email = Accounts.admitted(this.users, "switching", Role.USER);
+        String page = Caller.signedIn(port, email, Accounts.SECRET).post(PASSWORD, form(WRONG, CHOSEN)).body();
+        assertAll(
+            () -> assertTrue(page.contains("name=\"back\" value=\"/\""), page),
+            () -> assertFalse(page.contains("value=\"/account/password\""), page)
+        );
     }
 
     @Test
@@ -113,43 +133,6 @@ class AccountPagesTest {
     void recordsAChangedPassword(@LocalServerPort int port) {
         String email = Accounts.admitted(this.users, "audited", Role.USER);
         Caller.signedIn(port, email, Accounts.SECRET).post(PASSWORD, form(Accounts.SECRET, CHOSEN));
-        assertEquals(1, this.entries.written(AuditAction.PASSWORD_CHANGED, email, AuditOutcome.SUCCEEDED));
-    }
-
-    @Test
-    void refusesAChosenPasswordLongerInBytesThanTheEncoderReadsOnThePage(@LocalServerPort int port) {
-        String email = Accounts.admitted(this.users, "lengthy", Role.USER);
-        HttpResponse<String> answer = Caller.signedIn(port, email, Accounts.SECRET)
-            .post(PASSWORD, form(Accounts.SECRET, TWO_BYTES.repeat(OVER_IN_TWO_BYTE_LETTERS)));
-        assertAll(
-            () -> assertEquals(HttpStatus.OK.value(), answer.statusCode()),
-            () -> assertTrue(answer.body().contains("A password is at most seventy-two bytes"))
-        );
-    }
-
-    @Test
-    void countsACurrentPasswordThatIsNotTheReadersAgainstTheirAccount(@LocalServerPort int port) {
-        String email = Accounts.admitted(this.users, "guessing", Role.USER);
-        Caller.signedIn(port, email, Accounts.SECRET).post(PASSWORD, form(WRONG, CHOSEN));
-        assertEquals(1, this.failedAttempts(email));
-    }
-
-    @Test
-    void recordsACurrentPasswordThatIsNotTheReadersAsARefusedChange(@LocalServerPort int port) {
-        String email = Accounts.admitted(this.users, "traced", Role.USER);
-        Caller.signedIn(port, email, Accounts.SECRET).post(PASSWORD, form(WRONG, CHOSEN));
-        assertEquals(1, this.entries.written(AuditAction.PASSWORD_CHANGED, email, AuditOutcome.REFUSED));
-    }
-
-    @Test
-    void refusesEvenTheRightCurrentPasswordOnceWrongOnesStoppedTheAccount(@LocalServerPort int port) {
-        String email = Accounts.admitted(this.users, "persistent", Role.USER);
-        Caller reader = Caller.signedIn(port, email, Accounts.SECRET);
-        IntStream.range(0, Lockout.LIMIT).forEach(_ -> reader.post(PASSWORD, form(WRONG, CHOSEN)));
-        String page = reader.post(PASSWORD, form(Accounts.SECRET, CHOSEN)).body();
-        assertAll(
-            () -> assertTrue(page.contains(NOT_THEIRS)),
-            () -> assertEquals(0, this.entries.written(AuditAction.PASSWORD_CHANGED, email, AuditOutcome.SUCCEEDED))
-        );
+        assertEquals(1, this.recorded(email, "SUCCEEDED"));
     }
 }

@@ -81,14 +81,14 @@ public class User {
         this.createdAt = source.createdAt;
     }
 
-    // The one way an account is changed. The identity and the day it was admitted are taken from the
-    // account being changed, and everything else from the values given.
-    private User(User source, UserProfile profile, UserAccess access, Lockout lockout) {
+    // The one way an account is restated. The identity, the lockout and the day it was admitted are taken
+    // from the account being changed, and everything else from the values given.
+    private User(User source, UserProfile profile, UserAccess access) {
         this.id = source.id;
         this.reference = source.reference;
         this.profile = profile;
         this.access = access;
-        this.lockout = lockout;
+        this.lockout = source.lockout;
         this.passwordHash = source.passwordHash;
         this.createdAt = source.createdAt;
     }
@@ -118,7 +118,7 @@ public class User {
      * @return the restated account, which the application layer saves over this one
      */
     public User describedBy(UserProfile profile, Role role) {
-        return new User(this, profile, new UserAccess(role, this.access.enabled()), this.lockout);
+        return new User(this, profile, new UserAccess(role, this.access.enabled()));
     }
 
     /**
@@ -128,17 +128,7 @@ public class User {
      * @return the account under that standing
      */
     public User enabled(boolean allowed) {
-        return new User(this, this.profile, new UserAccess(this.access.role(), allowed), this.lockout);
-    }
-
-    /**
-     * Answers this account under the given standing on refused sign-ins.
-     *
-     * @param standing the standing the account now has under the policy on refused sign-ins
-     * @return the account under that standing
-     */
-    public User standing(Lockout standing) {
-        return new User(this, this.profile, this.access, standing);
+        return new User(this, this.profile, new UserAccess(this.access.role(), allowed));
     }
 
     /**

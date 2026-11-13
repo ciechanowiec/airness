@@ -11,14 +11,14 @@
     <body>
         <div id="page-body" class="space-y-6">
             <div th:replace="~{components/header :: header(#{account.title}, #{account.lead}, ~{})}"></div>
-            <form class="card bg-base-100 shadow" th:action="@{/account/password}" method="post">
-                <div class="card-body space-y-2">
+            <form class="panel max-w-2xl" th:action="@{/account/password}" method="post">
+                <div class="space-y-3 p-6">
                     <div
                         th:replace="~{components/field :: field(${controls.current}, '', ${refusals['current']})}"
                     ></div>
                     <div th:replace="~{components/field :: field(${controls.chosen}, '', ${refusals['chosen']})}"></div>
-                    <div class="card-actions">
-                        <button class="btn btn-primary" type="submit" th:text="#{account.submit}">
+                    <div class="flex flex-wrap items-center gap-3 border-t border-line pt-5">
+                        <button class="btn btn-primary press" type="submit" th:text="#{account.submit}">
                             Change the password
                         </button>
                     </div>

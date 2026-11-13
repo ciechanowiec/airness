@@ -1,6 +1,7 @@
 package com.example.starter.web;
 
 import jakarta.validation.Validator;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,10 +47,11 @@ public final class Refusals {
      *
      * @param form   the form as the binder built it, which is held to its own rules here
      * @param errors what the binder could not read
-     * @param also   what the caller already knows is wrong, under the same control names
+     * @param known  what the caller already knows is wrong, under the same control names, where a control
+     *               refused more than once carries the first of its refusals
      * @return one message per refused control, and nothing at all where the form is well formed
      */
-    public Map<String, String> of(Object form, BindingResult errors, Map<String, Wording> also) {
+    public Map<String, String> of(Object form, BindingResult errors, List<Map<String, Wording>> known) {
         Stream<Map.Entry<String, String>> unread = errors.getFieldErrors()
             .stream()
             .filter(FieldError::isBindingFailure)
@@ -57,10 +59,10 @@ public final class Refusals {
         Stream<Map.Entry<String, String>> broken = this.rules.validate(form)
             .stream()
             .map(violation -> Map.entry(violation.getPropertyPath().toString(), this.worded(violation.getMessage())));
-        Stream<Map.Entry<String, String>> known = also.entrySet()
-            .stream()
+        Stream<Map.Entry<String, String>> stated = known.stream()
+            .flatMap(refusal -> refusal.entrySet().stream())
             .map(refusal -> Map.entry(refusal.getKey(), this.worded(refusal.getValue())));
-        return Stream.of(unread, broken, known)
+        return Stream.of(unread, broken, stated)
             .flatMap(refusals -> refusals)
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (first, _) -> first));
     }

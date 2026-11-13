@@ -1,0 +1,16 @@
+<!--/*
+    One Lucide icon, drawn from the sprite the frontend build writes. The build reads the names the
+    templates hand to this fragment, so naming an icon here is all it takes to ship it. An icon is
+    decoration beside words that say the same, so assistive technology is told to pass over it; a
+    control drawn with an icon alone carries its own label.
+*/-->
+<svg
+    th:fragment="icon(name, size)"
+    th:class="${size}"
+    aria-hidden="true"
+    focusable="false"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <use th:href="@{/icons/sprite.svg} + '#' + ${name}"></use>
+</svg>

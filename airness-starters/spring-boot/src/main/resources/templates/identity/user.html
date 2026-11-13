@@ -14,8 +14,8 @@
     <body>
         <div id="page-body" class="space-y-6">
             <div th:replace="~{components/header :: header(${words.of(heading)}, #{user.lead}, ~{})}"></div>
-            <form class="card bg-base-100 shadow" th:action="@{${target}}" method="post">
-                <div class="card-body space-y-2">
+            <form class="panel max-w-2xl" th:action="@{${target}}" method="post">
+                <div class="space-y-3 p-6">
                     <div
                         th:replace="~{components/field :: field(${controls.fullName},
                  ${userForm.profile().fullName()}, ${refusals['profile.fullName']})}"
@@ -32,15 +32,15 @@
                         <div
                             th:replace="~{components/field :: field(${controls.password}, '', ${refusals['password']})}"
                         ></div>
-                        <p th:text="#{user.hint.password}">
+                        <p class="text-sm text-muted" th:text="#{user.hint.password}">
                             The password is typed once here and handed to the account's owner.
                         </p>
                     </th:block>
-                    <p th:if="${sole}" th:text="#{user.hint.sole}">
+                    <p class="text-sm text-muted" th:if="${sole}" th:text="#{user.hint.sole}">
                         This is the last administrator who may sign in, so the only role offered is the one they hold.
                     </p>
-                    <div class="card-actions">
-                        <button class="btn btn-primary" type="submit" th:text="${words.of(submit)}">Save</button>
+                    <div class="flex flex-wrap items-center gap-3 border-t border-line pt-5">
+                        <button class="btn btn-primary press" type="submit" th:text="${words.of(submit)}">Save</button>
                         <a class="btn btn-ghost" th:href="@{/users}" th:text="#{user.cancel}">Cancel</a>
                     </div>
                 </div>

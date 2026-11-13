@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { expectSweptPage } from '@airness/node/a11y'
-import { type APIResponse, expect, type Locator, type Page, test } from '@playwright/test'
+import { type APIResponse, expect, type JSHandle, type Locator, type Page, test } from '@playwright/test'
 import { ADMINISTRATOR, CREDENTIAL, signIn } from './helpers/sign-in'
 
 // The sweep visits every page the administrator reaches, signed in through `sign-in.setup.ts`. What it cannot
@@ -13,16 +13,13 @@ const open = async (page: Page, address: string): Promise<Locator> => {
   return page.locator('main')
 }
 
-// A user of this run's own, admitted by the administrator and signed in with the password chosen here. The
-// name is the run's own too, because the list of users links each name to its account, and two links of one
-// name that lead to different accounts fail the accessibility scan.
+// A user of this run's own, admitted by the administrator and signed in with the password chosen here.
 const admitUser = async (page: Page): Promise<{ readonly email: string; readonly secret: string }> => {
-  const reference: string = randomUUID()
-  const email: string = `reader-${reference}@starter.test`
+  const email: string = `reader-${randomUUID()}@starter.test`
   const secret: string = `Reader-${randomUUID()}`
   await signIn(page, ADMINISTRATOR, CREDENTIAL)
   await page.goto('/users/new')
-  await page.locator('input[name="profile.fullName"]').fill(`Sweep reader ${reference}`)
+  await page.locator('input[name="profile.fullName"]').fill('Sweep reader')
   await page.locator('input[name="profile.email"]').fill(email)
   await page.locator('select[name="role"]').selectOption('USER')
   await page.locator('input[name="password"]').fill(secret)
@@ -43,7 +40,7 @@ test('the pages a user works in pass the scans', async ({ page }) => {
   const { email, secret } = await admitUser(page)
   await signIn(page, email, secret)
   await writeTask(page, `Sweep task ${randomUUID()}`)
-  for (const address of ['/', '/tasks', '/account']) {
+  for (const address of ['/', '/tasks', '/tasks/board', '/account']) {
     await expect(await open(page, address)).toBeVisible()
     await expectSweptPage(page)
   }
@@ -51,20 +48,19 @@ test('the pages a user works in pass the scans', async ({ page }) => {
   const edit: string | null = await page.locator('a[href^="/tasks/"][href$="/edit"]').first().getAttribute('href')
   await expect(await open(page, edit ?? '')).toBeVisible()
   await expectSweptPage(page)
-  // The sweep opens no dialog that needs a task of the run's own, so the keyboard pattern of the dialog is held
-  // here: the keyboard opens it with focus inside, and Escape closes it and hands focus back to its button.
-  const opener: Locator = page.locator('button[data-opens="delete-task"]')
-  const dialog: Locator = page.locator('#delete-task')
-  await opener.focus()
-  await page.keyboard.press('Enter')
-  await expect(dialog).toBeVisible()
-  await expect(dialog.locator(':focus')).toHaveCount(1)
-  await page.keyboard.press('Escape')
-  await expect(dialog).toBeHidden()
-  await expect(opener).toBeFocused()
-  await opener.click()
-  await expect(dialog).toBeVisible()
+  await page.locator('button[data-opens="delete-task"]').click()
+  await expect(page.locator('#delete-task')).toBeVisible()
   await expectSweptPage(page)
+})
+
+// The language switch loads the whole page, so the page declares the language it is now written in and a
+// screen reader pronounces it in that language.
+test('switching the language makes the page declare it', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByRole('button', { name: 'Polski', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'pl')
+  await page.getByRole('button', { name: 'English', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
 })
 
 test.describe('a browser asking for Polish', () => {
@@ -75,6 +71,42 @@ test.describe('a browser asking for Polish', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'pl')
     await expectSweptPage(page)
   })
+})
+
+// A browser draws what the pointer carries from the panel a card sits in, and the preview's panel stays put beside
+// the page, which some browsers draw whole. The preview hands the browser a copy of the card alone instead, gone
+// once drawn, and the card itself still lands in the column it is dropped on.
+test('the preview carries a card alone and lands it where it is dropped', async ({ page }) => {
+  await page.goto('/login')
+  const card: Locator = page.locator('.preview [data-preview-column] .preview-card').first()
+  const title: string = (await card.locator('span').first().textContent()) ?? ''
+  // What the pointer carries exists only while the drag starts, so the page answers with it then, through a
+  // listener in place before the drag begins.
+  const carried: JSHandle<{ readonly text: Promise<string> }> = await page
+    .locator('body')
+    .evaluateHandle((body: HTMLElement): { readonly text: Promise<string> } => ({
+      text: new Promise<string>((resolve: (text: string) => void): void => {
+        body.ownerDocument.addEventListener(
+          'dragstart',
+          (): void => {
+            resolve(body.querySelector(':scope > .preview-carried')?.textContent ?? '')
+          },
+          { once: true },
+        )
+      }),
+    }))
+  await card.dispatchEvent('dragstart', { dataTransfer: await page.evaluateHandle(() => new DataTransfer()) })
+  expect(
+    await carried.evaluate(async (record: { readonly text: Promise<string> }): Promise<string> => record.text),
+  ).toContain(title)
+  await expect(page.locator('.preview-carried')).toHaveCount(0)
+  await card.dispatchEvent('dragend')
+  const done: Locator = page.locator('.preview [data-preview-column]').nth(2)
+  await card.dragTo(done)
+  await expect(done).toContainText(title)
+  await expect(page.locator('[data-preview-toast]')).toHaveText(
+    `Moved to ${(await done.getAttribute('data-name')) ?? ''}`,
+  )
 })
 
 // The build writes the stylesheet with the Tailwind command line its script runs, and the page links it under

@@ -4,12 +4,12 @@
 */-->
 <header
     th:fragment="header(title, lead, actions)"
-    class="flex flex-wrap items-end justify-between gap-4"
+    class="flex flex-wrap items-center justify-between gap-4"
     xmlns:th="http://www.thymeleaf.org"
 >
     <div class="space-y-1">
-        <h1 class="text-2xl font-bold" th:text="${title}">Page</h1>
-        <p th:text="${lead}">What this page holds.</p>
+        <h1 class="text-3xl font-bold tracking-tight" th:text="${title}">Page</h1>
+        <p class="text-muted" th:text="${lead}">What this page holds.</p>
     </div>
-    <div th:replace="${actions}"></div>
+    <div class="flex flex-wrap items-center gap-3" th:replace="${actions}"></div>
 </header>

@@ -14,6 +14,8 @@
   },
   "devDependencies": {
     "@airness/node": "@AIRNESS_VERSION@",
+    "@fontsource-variable/schibsted-grotesk": "5.3.0",
+    "@fontsource/geist-mono": "5.3.0",
     "@playwright/test": "1.64.1",
     "@tailwindcss/cli": "4.3.5",
     "@types/node": "26.6.6",
@@ -21,6 +23,7 @@
     "daisyui": "5.7.50",
     "esbuild": "0.28.2",
     "happy-dom": "21.0.4",
+    "lucide-static": "1.70.0",
     "tailwindcss": "4.3.5",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
@@ -35,16 +38,16 @@
       "with:services",
       "--"
     ],
-    "productionEntries": [
-      {
-        "pattern": "src/main/frontend/entries/*.ts",
-        "reason": "the build script bundles each entry into the static assets the application serves"
-      }
-    ],
     "coverageExclude": [
       {
         "pattern": "scripts/with-services.ts",
         "reason": "the wrapper every test, build and browser gate runs inside: it starts and removes a disposable PostgreSQL, so each gate run exercises it and a unit run would need a Docker round trip of its own"
+      }
+    ],
+    "productionEntries": [
+      {
+        "pattern": "src/main/frontend/entries/*.ts",
+        "reason": "the build script bundles each entry into the static assets the application serves"
       }
     ]
   }

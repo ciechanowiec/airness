@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <!--/*
-    How the reader's tasks stand. Each count is a number on its own rather than inside a sentence, so no
-    language has to agree a noun with it, and each leads to the list of the tasks it counts.
+    How the reader's tasks stand today. The counts come first, each a number on its own rather than inside
+    a sentence, so no language has to agree a noun with it, and each leads to the tasks it counts. Below
+    them is what needs attention now, what falls due this week and, for an administrator, how the open
+    tasks are spread across the people who keep them.
+
+    The page's content security policy refuses inline styles, so a load is drawn as one segment per task
+    rather than as a bar of a computed width.
 */-->
 <html
     lang="en"
@@ -9,33 +14,227 @@
     th:replace="~{layout/page :: page(#{home.dashboard.title}, ~{:: #page-body})}"
 >
     <body>
-        <div id="page-body" class="space-y-6">
+        <div
+            id="page-body"
+            class="space-y-6"
+            th:with="firstName=${#strings.contains(readerName, ' ')} ? ${#strings.substringBefore(readerName, ' ')} : ${readerName}"
+        >
             <div
-                th:replace="~{components/header :: header(#{home.dashboard.title}, #{home.dashboard.lead},
-         ~{:: actions})}"
+                th:replace="~{components/header :: header(#{home.dashboard.greeting(${firstName})},
+         ${#temporals.format(#temporals.createToday(), 'EEEE, d MMMM')}, ~{:: actions})}"
             ></div>
-            <div class="stats stats-vertical w-full bg-base-100 shadow sm:stats-horizontal">
-                <a class="stat" th:href="@{/tasks(status='OPEN')}">
-                    <span class="stat-title" th:text="#{task.status.open}">Open</span>
-                    <span class="stat-value" th:text="${overview.open()}">0</span>
+
+            <section class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" th:aria-label="#{home.counts}">
+                <a
+                    class="panel flex flex-col gap-1.5 p-4 hover:border-line-strong hover:shadow-raise sm:p-5"
+                    th:href="@{/tasks(status='OPEN')}"
+                >
+                    <span class="flex items-center gap-2 font-medium text-open-ink">
+                        <span class="size-2 rounded-full bg-open-dot" aria-hidden="true"></span>
+                        <span th:text="#{task.status.open}">Open</span>
+                    </span>
+                    <span class="text-4xl font-bold tabular-nums tracking-tight" th:text="${overview.open()}">18</span>
+                    <span class="text-sm text-muted" th:text="#{home.count.open}">Waiting for someone to start</span>
                 </a>
-                <a class="stat" th:href="@{/tasks(status='IN_PROGRESS')}">
-                    <span class="stat-title" th:text="#{task.status.inProgress}">In progress</span>
-                    <span class="stat-value" th:text="${overview.inProgress()}">0</span>
+                <a
+                    class="panel flex flex-col gap-1.5 p-4 hover:border-line-strong hover:shadow-raise sm:p-5"
+                    th:href="@{/tasks/board}"
+                >
+                    <span class="flex items-center gap-2 font-medium text-open-ink">
+                        <span class="size-2 rounded-full bg-progress-dot" aria-hidden="true"></span>
+                        <span th:text="#{task.status.inProgress}">In progress</span>
+                    </span>
+                    <span class="text-4xl font-bold tabular-nums tracking-tight" th:text="${overview.inProgress()}"
+                        >6</span
+                    >
+                    <span class="text-sm text-muted" th:text="#{home.count.inProgress}">Somebody is on them</span>
                 </a>
-                <a class="stat" th:href="@{/tasks(status='DONE')}">
-                    <span class="stat-title" th:text="#{task.status.done}">Done</span>
-                    <span class="stat-value" th:text="${overview.done()}">0</span>
+                <a
+                    class="panel flex flex-col gap-1.5 p-4 hover:border-line-strong hover:shadow-raise sm:p-5"
+                    th:href="@{/tasks(status='DONE')}"
+                >
+                    <span class="flex items-center gap-2 font-medium text-open-ink">
+                        <span class="size-2 rounded-full bg-done-dot" aria-hidden="true"></span>
+                        <span th:text="#{task.status.done}">Done</span>
+                    </span>
+                    <span class="text-4xl font-bold tabular-nums tracking-tight" th:text="${overview.done()}">9</span>
+                    <span class="text-sm text-muted" th:text="#{home.count.done}">Finished</span>
                 </a>
-                <div class="stat">
-                    <span class="stat-title" th:text="#{home.dashboard.overdue}">Overdue</span>
-                    <span class="stat-value text-red-800" th:text="${overview.overdue()}">0</span>
+                <a
+                    class="panel flex flex-col gap-1.5 p-4 hover:border-line-strong hover:shadow-raise sm:p-5"
+                    href="#attention"
+                >
+                    <span class="flex items-center gap-2 font-medium text-late-ink">
+                        <span class="size-2 rounded-full bg-late-dot" aria-hidden="true"></span>
+                        <span th:text="#{home.dashboard.overdue}">Late</span>
+                    </span>
+                    <span
+                        class="text-4xl font-bold tabular-nums tracking-tight"
+                        th:classappend="${overview.overdue() > 0} ? 'text-error' : ''"
+                        th:text="${overview.overdue()}"
+                        >6</span
+                    >
+                    <span class="text-sm text-muted" th:text="#{home.count.late}">Past their due day</span>
+                </a>
+            </section>
+
+            <div class="grid items-start gap-5 xl:grid-cols-5">
+                <section id="attention" class="panel xl:col-span-3" aria-labelledby="attention-heading">
+                    <div class="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+                        <div>
+                            <h2 id="attention-heading" class="text-lg font-bold" th:text="#{home.attention.title}">
+                                Needs attention
+                            </h2>
+                            <p class="text-sm text-muted" th:text="#{home.attention.lead}">
+                                Late or due today, oldest first
+                            </p>
+                        </div>
+                    </div>
+                    <p th:if="${attention.isEmpty()}" class="flex items-center gap-3 px-5 py-8 text-muted">
+                        <svg th:replace="~{components/icon :: icon('party-popper', 'size-5 text-done-dot')}"></svg>
+                        <span th:text="#{home.attention.empty}">Nothing is late and nothing is due today.</span>
+                    </p>
+                    <ul th:unless="${attention.isEmpty()}">
+                        <li
+                            th:each="task : ${attention}"
+                            class="flex flex-wrap items-center gap-3 border-b border-line-soft px-5 py-3 last:border-b-0"
+                        >
+                            <th:block th:if="${administrator}">
+                                <span
+                                    th:replace="~{components/avatar :: avatar(${task.owner()}, 'size-8 text-xs')}"
+                                ></span>
+                            </th:block>
+                            <div class="flex min-w-0 flex-1 basis-60 flex-col">
+                                <span class="font-semibold" th:text="${task.content().title()}"
+                                    >Approve the holiday rota</span
+                                >
+                                <span th:if="${administrator}" class="text-sm text-muted" th:text="${task.owner()}"
+                                    >Maja</span
+                                >
+                            </div>
+                            <span th:replace="~{components/chips :: due(${task})}"></span>
+                            <a
+                                class="btn btn-sm press bg-base-100"
+                                th:href="@{/tasks/{reference}/edit(reference=${task.reference()},from=dashboard)}"
+                            >
+                                <span th:text="#{task.action.open}">Open</span>
+                                <span class="sr-only" th:text="| ${task.content().title()}|"></span>
+                            </a>
+                        </li>
+                    </ul>
+                </section>
+
+                <div class="flex flex-col gap-5 xl:col-span-2">
+                    <section class="panel" aria-labelledby="week-heading">
+                        <h2
+                            id="week-heading"
+                            class="border-b border-line px-5 py-4 text-lg font-bold"
+                            th:text="#{home.week.title}"
+                        >
+                            This week
+                        </h2>
+                        <p th:if="${week.isEmpty()}" class="px-5 py-6 text-muted" th:text="#{home.week.empty}">
+                            Nothing is due in the next seven days.
+                        </p>
+                        <ul th:unless="${week.isEmpty()}" class="py-2">
+                            <li th:each="task : ${week}" class="flex items-center gap-3 px-5 py-2">
+                                <span
+                                    class="flex w-11 flex-none flex-col items-center rounded-field border border-line py-1"
+                                >
+                                    <span
+                                        class="font-mono text-xs uppercase text-muted"
+                                        th:text="#{|home.week.day.${task.content().dueOn().dayOfWeek}|}"
+                                        >Mon</span
+                                    >
+                                    <span class="font-bold" th:text="${#temporals.format(task.content().dueOn(), 'd')}"
+                                        >9</span
+                                    >
+                                </span>
+                                <div class="flex min-w-0 flex-col">
+                                    <a
+                                        class="text-sm font-medium leading-snug hover:underline"
+                                        th:href="@{/tasks/{reference}/edit(reference=${task.reference()},from=dashboard)}"
+                                        th:text="${task.content().title()}"
+                                        >Clear the backlog</a
+                                    >
+                                    <span class="text-xs text-muted">
+                                        <span th:if="${administrator}" th:text="|${task.owner()} · |">Piotr · </span>
+                                        <span th:text="${words.of(task.content().status())}">In progress</span>
+                                    </span>
+                                </div>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section th:if="${administrator}" class="panel space-y-4 p-5" aria-labelledby="load-heading">
+                        <h2 id="load-heading" class="text-lg font-bold" th:text="#{home.load.title}">
+                            Open tasks per person
+                        </h2>
+                        <div th:each="person : ${load}" class="space-y-1.5">
+                            <div class="flex items-center justify-between gap-3 text-sm">
+                                <span class="flex items-center gap-2 font-medium">
+                                    <span
+                                        th:replace="~{components/avatar :: avatar(${person.name()}, 'size-6 text-xs')}"
+                                    ></span>
+                                    <span th:text="${person.name()}">Maja Kowalska</span>
+                                </span>
+                                <span class="text-muted">
+                                    <span th:text="${person.total()}">5</span>
+                                    <th:block th:if="${person.late() > 0}">
+                                        ·
+                                        <span
+                                            class="font-semibold text-late-ink"
+                                            th:text="#{task.due.lateCount(${person.late()})}"
+                                            >1 late</span
+                                        >
+                                    </th:block>
+                                </span>
+                            </div>
+                            <div class="flex h-2 gap-0.5" aria-hidden="true">
+                                <th:block th:if="${person.inProgress() > 0}">
+                                    <span
+                                        th:each="step : ${#numbers.sequence(1, person.inProgress())}"
+                                        class="flex-1 rounded-sm bg-progress-dot"
+                                    ></span>
+                                </th:block>
+                                <th:block th:if="${person.open() > 0}">
+                                    <span
+                                        th:each="step : ${#numbers.sequence(1, person.open())}"
+                                        class="flex-1 rounded-sm bg-open-dot"
+                                    ></span>
+                                </th:block>
+                                <th:block th:if="${person.late() > 0}">
+                                    <span
+                                        th:each="step : ${#numbers.sequence(1, person.late())}"
+                                        class="flex-1 rounded-sm bg-late-dot"
+                                    ></span>
+                                </th:block>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-4 pt-1 text-xs text-muted" aria-hidden="true">
+                            <span class="flex items-center gap-1.5"
+                                ><span class="size-2.5 rounded-sm bg-progress-dot"></span
+                                ><span th:text="#{task.status.inProgress}">In progress</span></span
+                            >
+                            <span class="flex items-center gap-1.5"
+                                ><span class="size-2.5 rounded-sm bg-open-dot"></span
+                                ><span th:text="#{task.status.open}">Open</span></span
+                            >
+                            <span class="flex items-center gap-1.5"
+                                ><span class="size-2.5 rounded-sm bg-late-dot"></span
+                                ><span th:text="#{home.dashboard.overdue}">Late</span></span
+                            >
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>
 
-        <div th:fragment="actions">
-            <a class="btn btn-primary" th:href="@{/tasks/new}" th:text="#{tasks.write}">Write a task</a>
+        <div th:fragment="actions" class="flex flex-wrap items-center gap-3">
+            <a class="btn btn-primary press" th:href="@{/tasks/new(from=dashboard)}">
+                <svg th:replace="~{components/icon :: icon('plus', 'size-4')}"></svg>
+                <span th:text="#{tasks.write}">New task</span>
+            </a>
         </div>
     </body>
 </html>

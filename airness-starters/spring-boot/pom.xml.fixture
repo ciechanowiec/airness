@@ -176,7 +176,8 @@
         <!--
             The stylesheet and the script the frontend build writes under target/frontend are served
             beside the authored resources, so nothing generated is ever written into a tracked
-            directory.
+            directory. The licenses of the shipped packages travel in the JAR under META-INF, which
+            the application never serves.
         -->
         <resources>
             <resource>
@@ -185,6 +186,16 @@
             <resource>
                 <directory>${project.build.directory}/frontend</directory>
                 <targetPath>static</targetPath>
+                <excludes>
+                    <exclude>licenses/**</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>${project.build.directory}/frontend</directory>
+                <targetPath>META-INF</targetPath>
+                <includes>
+                    <include>licenses/**</include>
+                </includes>
             </resource>
         </resources>
         <plugins>

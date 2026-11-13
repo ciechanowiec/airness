@@ -1,23 +1,59 @@
 <!DOCTYPE html>
-<!--/* The page somebody who has not signed in opens the application on: what it is and where to sign in. */-->
+<!--/*
+    The page somebody who has not signed in opens the application on: what it is, what it does for them in
+    three lines, and where to sign in. The shell draws it beside the illustration.
+*/-->
 <html
     lang="en"
     xmlns:th="http://www.thymeleaf.org"
     th:replace="~{layout/page :: page(#{home.title}, ~{:: #page-body})}"
 >
     <body>
-        <div id="page-body">
-            <section class="hero rounded-box bg-base-100 py-12 shadow">
-                <div class="hero-content text-center">
-                    <div class="max-w-md space-y-4">
-                        <h1 class="text-3xl font-bold" th:text="#{home.introduction.title}">
-                            Keep your tasks in one place
-                        </h1>
-                        <p th:text="#{home.introduction.lead}">Write down what is to be done, and see how it stands.</p>
-                        <a class="btn btn-primary" th:href="@{/login}" th:text="#{nav.signIn}">Sign in</a>
-                    </div>
-                </div>
-            </section>
+        <div id="page-body" class="space-y-8">
+            <div class="space-y-4">
+                <h1 class="text-5xl font-bold leading-none tracking-tight" th:text="#{home.introduction.title}">
+                    Keep your tasks in one place
+                </h1>
+                <p class="text-lg text-muted" th:text="#{home.introduction.lead}">
+                    Write down what is to be done, by when, and see how it stands.
+                </p>
+            </div>
+            <ul class="space-y-4">
+                <li class="flex items-start gap-3">
+                    <span
+                        class="press inline-flex size-9 flex-none items-center justify-center rounded-field bg-progress-soft"
+                    >
+                        <svg th:replace="~{components/icon :: icon('square-kanban', 'size-4.5')}"></svg>
+                    </span>
+                    <span class="pt-1.5" th:text="#{home.feature.board}"
+                        >Move every task across a board as it progresses.</span
+                    >
+                </li>
+                <li class="flex items-start gap-3">
+                    <span
+                        class="press inline-flex size-9 flex-none items-center justify-center rounded-field bg-today-soft"
+                    >
+                        <svg th:replace="~{components/icon :: icon('calendar-clock', 'size-4.5')}"></svg>
+                    </span>
+                    <span class="pt-1.5" th:text="#{home.feature.due}"
+                        >See at a glance what is late and what is due today.</span
+                    >
+                </li>
+                <li class="flex items-start gap-3">
+                    <span
+                        class="press inline-flex size-9 flex-none items-center justify-center rounded-field bg-done-soft"
+                    >
+                        <svg th:replace="~{components/icon :: icon('users', 'size-4.5')}"></svg>
+                    </span>
+                    <span class="pt-1.5" th:text="#{home.feature.team}"
+                        >Share the work with your team, in English or Polish.</span
+                    >
+                </li>
+            </ul>
+            <a class="btn btn-primary btn-lg press" th:href="@{/login}">
+                <span th:text="#{nav.signIn}">Sign in</span>
+                <svg th:replace="~{components/icon :: icon('arrow-right', 'size-5')}"></svg>
+            </a>
         </div>
     </body>
 </html>

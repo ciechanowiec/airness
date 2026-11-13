@@ -69,5 +69,8 @@ app:
   administrator:
     email: ${APP_ADMINISTRATOR_EMAIL}
     password: ${APP_ADMINISTRATOR_PASSWORD}
+  # Whether a start writes the people and tasks of the demonstration, once, for a local run to open on
+  # a team at work. Off unless the environment asks, so a deployment never writes them.
+  demo-data: ${APP_DEMO_DATA:false}
   # The zone the application keeps, in which a task's due day is a day. Instants are stored in UTC.
   zone: UTC

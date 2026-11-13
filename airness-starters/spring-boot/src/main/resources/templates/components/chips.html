@@ -1,0 +1,35 @@
+<!--/*
+    How a task stands, as a chip whose words say what its colour does. The status chip names the status,
+    and the status dot is its colour alone, for a place that names the status beside it. The due chip says
+    how the due day stands from today: done, late by some days, due today, or due in some days. The due
+    words are those of a task not yet done, which the list writes under the due day too.
+*/-->
+<th:block xmlns:th="http://www.thymeleaf.org">
+    <span
+        th:fragment="status(status)"
+        class="chip"
+        th:classappend="${status.name() == 'DONE'} ? 'chip-done' : (${status.name() == 'IN_PROGRESS'} ? 'chip-progress' : 'chip-open')"
+        th:text="${words.of(status)}"
+        >Open</span
+    >
+    <span
+        th:fragment="dot(status)"
+        class="size-2 rounded-full"
+        th:classappend="${status.name() == 'DONE'} ? 'bg-done-dot' : (${status.name() == 'IN_PROGRESS'} ? 'bg-progress-dot' : 'bg-open-dot')"
+        aria-hidden="true"
+    ></span>
+    <span
+        th:fragment="due(task)"
+        class="chip"
+        th:classappend="${task.content().status().name() == 'DONE'} ? 'chip-done' : (${task.days() < 0} ? 'chip-late' : (${task.days() == 0} ? 'chip-today' : 'chip-open'))"
+        ><th:block th:if="${task.content().status().name() == 'DONE'}" th:text="#{task.status.done}">Done</th:block
+        ><th:block th:unless="${task.content().status().name() == 'DONE'}"
+            ><th:block th:replace="~{components/chips :: dueWords(${task})}">In 3 days</th:block></th:block
+        ></span
+    >
+    <th:block
+        th:fragment="dueWords(task)"
+        th:text="${task.days() < 0} ? #{task.due.late(${-task.days()})} : (${task.days() == 0} ? #{task.due.today} : #{task.due.in(${task.days()})})"
+        >In 3 days</th:block
+    >
+</th:block>

@@ -1,11 +1,12 @@
 package com.example.starter.identity;
 
+import com.example.starter.TransactionTimeout;
+import com.example.starter.web.Listing;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,14 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 @PreAuthorize("hasRole('ADMIN')")
 public class Roster {
 
-    private static final int TIMEOUT_SECONDS = 10;
-
-    private static final int FIRST_PAGE = 1;
-
     // Twenty rows fit on a screen without scrolling past the head of the table.
     private static final int PAGE_SIZE = 20;
-
-    private static final long LAST_ONE = 1;
 
     private final UserRepository repository;
 
@@ -50,16 +45,15 @@ public class Roster {
      * @param page which page of the list to read, counted from one
      * @return that page of the accounts
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
-    public UserListing people(int page) {
-        Pageable wanted = PageRequest.of(Math.max(page, FIRST_PAGE) - FIRST_PAGE, PAGE_SIZE);
-        Page<User> found = this.repository.admitted(wanted);
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
+    public Listing<UserView> people(int page) {
+        Page<User> found = this.repository.admitted(Listing.request(page, PAGE_SIZE, Sort.unsorted()));
         long administrators = this.repository.enabledUnder(Role.ADMIN);
         List<UserView> views = found.getContent()
             .stream()
-            .map(user -> UserView.of(user, sole(user, administrators)))
+            .map(user -> UserView.of(user, user.getAccess().soleAdministrator(administrators)))
             .toList();
-        return new UserListing(views, found.getNumber() + FIRST_PAGE, Math.max(found.getTotalPages(), FIRST_PAGE));
+        return Listing.of(found, views);
     }
 
     /**
@@ -68,10 +62,11 @@ public class Roster {
      * @param reference the reference the account is known by outside the database
      * @return that account, or nothing when nobody carries the reference
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
     public Optional<UserView> person(UUID reference) {
         long administrators = this.repository.enabledUnder(Role.ADMIN);
-        return this.repository.findByReference(reference).map(user -> UserView.of(user, sole(user, administrators)));
+        return this.repository.findByReference(reference)
+            .map(user -> UserView.of(user, user.getAccess().soleAdministrator(administrators)));
     }
 
     /**
@@ -89,7 +84,7 @@ public class Roster {
      * @param email the address in its canonical spelling
      * @return whether an account under that address exists
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
     public boolean taken(String email) {
         return this.repository.existsByProfileEmail(email);
     }
@@ -102,13 +97,8 @@ public class Roster {
      * @param reference the reference of the account that is allowed to carry it
      * @return whether another account under that address exists
      */
-    @Transactional(readOnly = true, timeout = TIMEOUT_SECONDS)
+    @Transactional(readOnly = true, timeout = TransactionTimeout.SECONDS)
     public boolean takenByAnother(String email, UUID reference) {
         return this.repository.existsByProfileEmailAndReferenceNot(email, reference);
-    }
-
-    private static boolean sole(User user, long administrators) {
-        UserAccess access = user.getAccess();
-        return access.enabled() && access.role() == Role.ADMIN && administrators == LAST_ONE;
     }
 }

@@ -29,10 +29,10 @@ import org.springframework.format.annotation.DateTimeFormat;
  */
 public record TaskForm(
     @NotBlank(message = "task.title.blank")
-    @Size(max = TaskContent.TITLE_LIMIT, message = "task.title.long")
+    @Size(max = TaskLimits.TITLE, message = "task.title.long")
     String title,
 
-    @Size(max = TaskContent.DESCRIPTION_LIMIT, message = "task.description.long") String description,
+    @Size(max = TaskLimits.DESCRIPTION, message = "task.description.long") String description,
 
     @Nullable TaskStatus status,
 
@@ -44,22 +44,12 @@ public record TaskForm(
 ) {
 
     /**
-     * Stands the empty string in the place of a text the binder could not read, and trims what was typed.
+     * Stands the empty string in the place of a text the binder could not read, which it hands over as
+     * nothing, and trims what was typed.
      */
     public TaskForm {
         title = typed(title);
         description = typed(description);
-    }
-
-    /**
-     * Answers a text as it was typed, without the space around it. The binder hands a text it could not
-     * read over as nothing, whatever the component it binds declares, so nothing reads as the empty string.
-     *
-     * @param text the text the binder handed over, or nothing
-     * @return the text without surrounding space
-     */
-    private static String typed(@Nullable String text) {
-        return Objects.requireNonNullElse(text, "").strip();
     }
 
     /**
@@ -113,5 +103,11 @@ public record TaskForm(
             Objects.requireNonNull(this.status, "A task stands somewhere"),
             Objects.requireNonNull(this.dueOn, "A task is due on some day")
         );
+    }
+
+    // The binder hands a text it could not read over as nothing whatever the component declares, so the text
+    // is taken here as one that may be nothing.
+    private static String typed(@Nullable String text) {
+        return Objects.requireNonNullElse(text, "").strip();
     }
 }

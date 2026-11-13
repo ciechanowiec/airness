@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!--/*
+    The tasks the reader may see, one column for each status, the earliest due first. A column draws at
+    most a page of cards and says how many more the list holds.
+
+    A card is moved by the forms in its menu, one for each other status, so moving works by keyboard and
+    without script: the button posts the move and the page answers with the board again. With script, a
+    card can also be dragged onto another column, which submits the same form, and htmx swaps the board in
+    place with a view transition.
+*/-->
+<html
+    lang="en"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/page :: page(#{board.title}, ~{:: #page-body})}"
+>
+    <body>
+        <div id="page-body" class="space-y-6">
+            <div th:replace="~{components/header :: header(#{board.title}, #{board.lead}, ~{:: actions})}"></div>
+
+            <div th:fragment="columns" id="board" class="grid items-start gap-4 lg:grid-cols-3">
+                <section
+                    th:each="column : ${board.columns()}"
+                    class="board-column rounded-box bg-sunken"
+                    th:attr="data-status=${column.status().name()}"
+                    th:aria-labelledby="|column-${column.status().name()}|"
+                >
+                    <div class="flex items-center justify-between gap-3 px-4 py-3">
+                        <h2 class="flex items-center gap-2 font-bold" th:id="|column-${column.status().name()}|">
+                            <span th:replace="~{components/chips :: dot(${column.status()})}"></span>
+                            <span th:text="${words.of(column.status())}">Open</span>
+                        </h2>
+                        <span
+                            class="rounded-full bg-base-100 px-2.5 py-0.5 font-mono text-xs"
+                            th:text="${column.total()}"
+                            >18</span
+                        >
+                    </div>
+                    <ul class="flex min-h-24 flex-col gap-2.5 px-3 pb-3">
+                        <li
+                            th:each="task : ${column.tasks()}"
+                            class="board-card press flex flex-col gap-2.5 rounded-field bg-base-100 p-3"
+                            draggable="true"
+                            th:attr="data-reference=${task.reference()}"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <a
+                                    class="font-semibold leading-snug hover:underline"
+                                    th:href="@{/tasks/{reference}/edit(reference=${task.reference()},from=board)}"
+                                    th:text="${task.content().title()}"
+                                    draggable="false"
+                                    >Approve the holiday rota</a
+                                >
+                                <details class="dropdown dropdown-end -mr-1 -mt-1">
+                                    <summary
+                                        class="btn btn-square btn-ghost btn-xs"
+                                        th:aria-label="#{board.move(${task.content().title()})}"
+                                    >
+                                        <svg th:replace="~{components/icon :: icon('ellipsis', 'size-4')}"></svg>
+                                    </summary>
+                                    <ul
+                                        class="menu dropdown-content z-10 mt-1 w-52 rounded-box border border-line bg-base-100 p-1.5 shadow-lg"
+                                    >
+                                        <li
+                                            th:each="status : ${statuses}"
+                                            th:unless="${status == task.content().status()}"
+                                        >
+                                            <form
+                                                class="p-0"
+                                                method="post"
+                                                th:action="@{/tasks/board/{reference}/status(reference=${task.reference()})}"
+                                                th:hx-post="@{/tasks/board/{reference}/status(reference=${task.reference()})}"
+                                                hx-target="#board"
+                                                hx-swap="outerHTML transition:true"
+                                                th:attr="data-move-to=${status.name()}"
+                                            >
+                                                <input type="hidden" name="status" th:value="${status.name()}" />
+                                                <button
+                                                    type="submit"
+                                                    class="flex w-full items-center gap-2 px-3 py-1.5"
+                                                >
+                                                    <svg
+                                                        th:replace="~{components/icon :: icon('arrow-right', 'size-4')}"
+                                                    ></svg>
+                                                    <span th:text="#{task.action.moveTo(${words.of(status)})}"
+                                                        >Move to Done</span
+                                                    >
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </details>
+                            </div>
+                            <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                <span th:if="${administrator}" class="flex min-w-0 items-center gap-2 text-open-ink">
+                                    <span
+                                        th:replace="~{components/avatar :: avatar(${task.owner()}, 'size-6 text-xs')}"
+                                    ></span>
+                                    <span
+                                        class="truncate"
+                                        th:title="${task.owner()}"
+                                        th:text="${#strings.contains(task.owner(), ' ')} ? ${#strings.substringBefore(task.owner(), ' ')} : ${task.owner()}"
+                                        >Maja</span
+                                    >
+                                </span>
+                                <span th:replace="~{components/chips :: due(${task})}"></span>
+                            </div>
+                        </li>
+                        <li
+                            th:if="${column.tasks().isEmpty()}"
+                            class="rounded-field border border-dashed border-line px-3 py-6 text-center text-sm text-muted"
+                            th:text="#{board.empty}"
+                        >
+                            No tasks here
+                        </li>
+                        <li th:if="${column.hidden() > 0}">
+                            <a
+                                class="btn btn-ghost btn-sm w-full border border-dashed border-line"
+                                th:href="@{/tasks(status=${column.status().name()})}"
+                                th:text="#{board.more(${column.hidden()})}"
+                                >12 more in the list</a
+                            >
+                        </li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+
+        <div th:fragment="actions" class="flex flex-wrap items-center gap-3">
+            <nav th:replace="~{components/views :: views('board')}"></nav>
+            <a class="btn btn-primary press" th:href="@{/tasks/new(from=board)}">
+                <svg th:replace="~{components/icon :: icon('plus', 'size-4')}"></svg>
+                <span th:text="#{tasks.write}">New task</span>
+            </a>
+        </div>
+    </body>
+</html>
