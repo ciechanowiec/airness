@@ -221,8 +221,9 @@ class StarterCopyTest {
 
     @SneakyThrows
     private static boolean mentionsTheStarter(Path file) {
-        // Read leniently, because an image is no UTF-8 text and names nothing.
-        String text = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+        // Read as ISO-8859-1, which decodes every byte, so an image that is no UTF-8 text reads too. The
+        // searched names are ASCII and match alike in both charsets.
+        String text = Files.readString(file, StandardCharsets.ISO_8859_1);
         return Stream.of("com.example.starter", "@AIRNESS_VERSION@", "@GROUP_ID@", "@SNAPSHOT_ONLY_")
             .anyMatch(text::contains);
     }
