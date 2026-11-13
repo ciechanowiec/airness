@@ -11,7 +11,7 @@
   "devDependencies": {
     "@airness/fixture-approved": "1.0.0",
     "@airness/fixture-denied": "1.0.0",
-    "@airness/node": "1.0.11",
+    "@airness/node": "1.0.12-SNAPSHOT",
     "@vitest/coverage-v8": "5.0.5",
     "vitest": "5.0.5"
   },
