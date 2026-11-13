@@ -6,7 +6,7 @@ on:
       release_version:
         description: 'Version declared by a version-only commit over a SNAPSHOT that verify-self passed'
         required: true
-        default: '1.0.11'
+        default: '1.0.12'
         type: string
       publish:
         description: 'Publish permanently after Extended verification'

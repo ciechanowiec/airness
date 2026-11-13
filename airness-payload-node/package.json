@@ -1,6 +1,6 @@
 {
   "name": "@airness/payload",
-  "version": "1.0.11",
+  "version": "1.0.12-SNAPSHOT",
   "description": "The Payload gates of the Airness Payload stack, the stack defaults the node gates read, and the Payload ESLint configuration.",
   "keywords": [
     "payload",
@@ -43,7 +43,7 @@
     "node": ">=26"
   },
   "dependencies": {
-    "@airness/node": "1.0.11",
+    "@airness/node": "1.0.12-SNAPSHOT",
     "tsx": "4.23.15",
     "yaml": "2.9.1"
   },
