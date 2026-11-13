@@ -174,13 +174,13 @@ describe('the image gate', PROCESS_TIME, () => {
       const result: GateResult = await image(
         memberAt(root, {
           ...SERVED,
-          [block]: { [name]: '1.0.11-SNAPSHOT' },
+          [block]: { [name]: '9.8.8-SNAPSHOT' },
         }),
         undefined,
         machine,
       )
       expect(result.isApplicable).toBe(false)
-      expect(result.summary).toContain(`${name}@1.0.11-SNAPSHOT`)
+      expect(result.summary).toContain(`${name}@9.8.8-SNAPSHOT`)
       expect(recorded.built).toEqual([])
     })
   })
@@ -190,7 +190,7 @@ describe('the image gate', PROCESS_TIME, () => {
     await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
       const { machine, recorded }: Machine = stand()
       const result: GateResult = await image(
-        memberAt(root, { ...SERVED, devDependencies: { '@airness/node': '1.0.11-SNAPSHOT' } }),
+        memberAt(root, { ...SERVED, devDependencies: { '@airness/node': '9.8.8-SNAPSHOT' } }),
         undefined,
         machine,
       )
@@ -203,7 +203,7 @@ describe('the image gate', PROCESS_TIME, () => {
     await withProject({ Dockerfile: INSTALLING, 'web.Dockerfile': DOCKERFILE }, async (root: string): Promise<void> => {
       const { machine, recorded }: Machine = stand()
       const result: GateResult = await image(
-        memberAt(root, { ...SERVED, devDependencies: { '@airness/node': '1.0.11-SNAPSHOT' } }),
+        memberAt(root, { ...SERVED, devDependencies: { '@airness/node': '9.8.8-SNAPSHOT' } }),
         undefined,
         machine,
       )

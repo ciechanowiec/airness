@@ -9,7 +9,7 @@ class SnapshotVersionsTest {
 
     @Test
     void recognizesASnapshot() {
-        assertTrue(SnapshotVersions.snapshot("1.0.11-SNAPSHOT"));
+        assertTrue(SnapshotVersions.snapshot("9.8.8-SNAPSHOT"));
     }
 
     @Test
