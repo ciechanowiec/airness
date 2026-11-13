@@ -14,11 +14,10 @@ on:
         default: false
         type: boolean
 
-# Each job raises only what it needs. The release job runs the whole build, and with it every analyzer,
-# plugin and npm package the build resolves, so it is the one job that must not be able to publish to npm:
-# id-token, which npm trusted publishing exchanges for a publish credential, belongs to the npm job alone,
-# which runs no build. Pushing the tag and creating the GitHub Release need contents: write, and only the
-# finalize job holds it.
+# Each job raises only what it needs. The release and consumers jobs run the build, and with it every
+# analyzer, plugin and npm package the build resolves, so neither may publish to npm: id-token, which npm
+# trusted publishing exchanges for a publish credential, belongs to the npm job alone, which runs no build.
+# Pushing the tag and creating the GitHub Release need contents: write, and only the finalize job holds it.
 permissions:
   contents: read
 
@@ -42,6 +41,7 @@ jobs:
       contents: read
     outputs:
       central_done: ${{ steps.release_state.outputs.central_published == 'true' || steps.publish.outcome == 'success' }}
+      central_published_now: ${{ steps.publish.outcome == 'success' }}
       npm_published: ${{ steps.npm_state.outputs.npm_published }}
       npm_ready: ${{ steps.npm_upload.outcome == 'success' }}
     steps:
@@ -271,8 +271,8 @@ jobs:
       # The npm job publishes exactly these files, never a repack: the node-repack execution proves the pack
       # reproducible, and a consumer lockfile records the integrity of these bytes. They are uploaded once the
       # Extended verification and the publication inspection have passed, and before Maven Central is
-      # touched, so a failure of the Central deploy or of the consumer suite after it does not hold back the
-      # npm packages the Central parents name.
+      # touched, so a failure of the Central deploy after it does not hold back the npm packages the Central
+      # parents name.
       - name: 'Collect the verified npm tarballs'
         id: npm_tarballs
         if: steps.npm_state.outputs.npm_published != 'true'
@@ -333,15 +333,11 @@ jobs:
           echo 'Maven Central did not become readable within 30 minutes.' >&2
           exit 1
 
-      - name: 'Verify isolated consumers'
-        if: steps.publish.outcome == 'success'
-        run: sh airness-it/verify.sh
-
   # Holds id-token and runs no build: it installs the pinned Node from its official archive, checked against
   # the SHA-256 the toolchain pins, and publishes the tarballs the release job verified. npm authenticates it
   # by trusted publishing, bound on npmjs.com to this workflow and the npm environment, and signs provenance.
-  # It runs whenever the release job handed tarballs over, even if the Central deploy or the consumer suite
-  # failed after that, because the Central parents may already name these packages.
+  # It runs whenever the release job handed tarballs over, even if the Central deploy failed after that,
+  # because the Central parents may already name these packages.
   npm:
     needs: release
     if: always() && needs.release.outputs.npm_ready == 'true'
@@ -451,6 +447,70 @@ jobs:
             fi
             echo "$name@$RELEASE_VERSION is readable with the verified integrity."
           done
+
+  # The consumer suite installs what a consumer installs: an application made from a starter of a released
+  # harness takes @airness/node from npm, as a user's does. It therefore runs once both channels hold the
+  # version this run published to Maven Central, against the artifacts it installs from this commit, in the
+  # groups verify-self runs side by side. Its result marks the run, but it holds back neither the tag nor the
+  # GitHub Release, which record what both channels hold, since a published version can't be withdrawn. A
+  # recovery run that published nothing to Maven Central may build a later main, so it skips the suite.
+  consumers:
+    name: 'consumers (${{ matrix.group }})'
+    needs: [release, npm]
+    if: >-
+      always() &&
+      needs.release.outputs.central_published_now == 'true' &&
+      (needs.release.outputs.npm_published == 'true' || needs.npm.result == 'success')
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [group-1, group-2, group-3, group-4, group-5]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      # The check images, the consumer fixtures and their node packages outgrow what the runner image leaves
+      # free, so the toolchains this suite never uses are removed first.
+      - name: 'Free disk space for the consumer suite'
+        run: |
+          set -eu
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/share/swift
+          df -h /
+
+      - name: 'Checkout complete history'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: 'Set up Temurin from .java-version'
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: 'temurin'
+          java-version-file: '.java-version'
+          cache: 'maven'
+
+      - name: 'Install Maven 3.10.0'
+        uses: ./.github/actions/install-maven
+
+      - name: 'Pull the pinned check images while the build runs'
+        uses: ./.github/actions/pull-check-images
+
+      - name: 'Install the pinned report browser and its system libraries'
+        uses: ./.github/actions/install-report-browser
+
+      - name: 'Pull the pinned sweep browsers'
+        uses: ./.github/actions/pull-sweep-browsers
+
+      - name: 'Install Airness artifacts for the consumers'
+        run: mvn --batch-mode --no-transfer-progress install -DskipTests
+
+      - name: 'Verify isolated consumers'
+        env:
+          GROUP: ${{ matrix.group }}
+        run: sh airness-it/verify.sh "$GROUP"
 
   # The tag and the GitHub Release mark a release both channels hold, whichever run published each.
   finalize:
