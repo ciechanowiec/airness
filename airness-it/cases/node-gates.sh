@@ -247,7 +247,8 @@ sys.exit(0 if match and match.group(1) == packed else 1)
 # build cache is packed, and that the files allowlist rather than an emptied dist keeps such by-products out.
 # The registry helper then refuses a lock that records another integrity and names the refresh, starts once
 # that refresh has run as printed, with the pinned pnpm, and starts against a lockfile that resolves no
-# @airness/node at the served version or does not exist yet.
+# @airness/node at the served version or does not exist yet. It refuses a lockfile that records an earlier
+# @airness/node version than the one the package.json beside it asks for.
 run_reproducible_pack_cases() {
     packed_tarball="${repository}/airness-node/target/airness-node-${harness_version}.tgz"
     installed_tarball="${local_repository}/eu/ciechanowiec/airness-node/${harness_version}"
@@ -355,14 +356,39 @@ PY
         fail 'node gates: the registry starts against a lockfile not written yet' \
             "npm-registry.py ${lock_registry_outcome}; see ${lock_case}/missing.log"
     fi
+    # A lock written before a harness version bump: the package.json beside it asks for the served version, but
+    # the lock still records the earlier one, so a frozen install would refuse the package.json.
+    mkdir -p "${lock_case}/bumped"
+    cp "${lock_case}/package.json" "${lock_case}/bumped/package.json"
+    python3 - "${lock_case}/pnpm-lock.yaml" "${lock_case}/bumped/pnpm-lock.yaml" "${harness_version}" <<'PY'
+import sys
+
+source, target, version = sys.argv[1:]
+with open(source, encoding='utf-8') as stream:
+    lockfile = stream.read()
+if f'specifier: {version}' not in lockfile:
+    sys.exit('the fixture lockfile records no specifier of the served version')
+with open(target, 'w', encoding='utf-8') as stream:
+    stream.write(lockfile.replace(version, '0.0.1-earlier'))
+PY
+    start_lock_registry bumped "${lock_case}/bumped/pnpm-lock.yaml"
+    if [ "${lock_registry_outcome}" = refused ]; then
+        pass 'node gates: the registry refuses a lockfile that records an earlier @airness/node version'
+    else
+        fail 'node gates: the registry refuses a lockfile that records an earlier @airness/node version' \
+            "npm-registry.py ${lock_registry_outcome} although package.json asks for the served version"
+    fi
+    expect_file_match "${lock_case}/bumped.log" \
+        'node gates: the version refusal names the importer and the specifier the lockfile records' \
+        "@airness/node in importer [.]: its package[.]json asks for ${lock_version}, .* specifier 0[.]0[.]1-earlier"
     run_repeated_fresh_case
     run_lock_refresh_cases
 }
 
 # The refresh a build binds before its frozen install, against the registry the fixtures install from. With the
 # CI variable set it refuses the stale lock and leaves it as it is. Without it, it refreshes a stale lock, and one
-# a merge left with conflict markers, with the pinned pnpm, then exits with an error, so the build stops on the
-# tracked file it rewrote. Against the lock it wrote, it exits 0.
+# a merge left with conflict markers, or one written before a harness version bump, with the pinned pnpm, then
+# exits with an error, so the build stops on the tracked file it rewrote. Against the lock it wrote, it exits 0.
 run_lock_refresh_cases() {
     auto_case="${lock_case}/auto"
     mkdir -p "${auto_case}"
@@ -427,6 +453,21 @@ PY
         pass 'node gates: the lock refresh resolves a merge conflict in the lock'
     else
         fail 'node gates: the lock refresh resolves a merge conflict in the lock' "see ${auto_case}/conflict.log"
+    fi
+
+    # A lock written before a harness version bump, which records an earlier @airness/node version than the one
+    # package.json asks for and the registry serves.
+    cp "${lock_case}/bumped/pnpm-lock.yaml" "${auto_case}/pnpm-lock.yaml"
+    run_lock_refresh bumped ''
+    if [ "${lock_refresh_status}" -eq 0 ]; then
+        fail 'node gates: the lock refresh moves a lock onto the served @airness/node version' \
+            'npm-registry.py --refresh-with exited 0 after refreshing'
+    elif ! grep -q '0[.]0[.]1-earlier' "${auto_case}/pnpm-lock.yaml" \
+        && python3 -c "${locks_packed_integrity}" "${packed_tarball}" "${auto_case}/pnpm-lock.yaml"; then
+        pass 'node gates: the lock refresh moves a lock onto the served @airness/node version'
+    else
+        fail 'node gates: the lock refresh moves a lock onto the served @airness/node version' \
+            "see ${auto_case}/bumped.log"
     fi
 }
 
