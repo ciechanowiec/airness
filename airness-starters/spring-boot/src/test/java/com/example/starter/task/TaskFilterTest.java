@@ -13,8 +13,8 @@ class TaskFilterTest {
 
     @Test
     void holdsASearchToTheLengthATitleCanHave() {
-        String searched = "x".repeat(TaskContent.TITLE_LIMIT + 10);
-        assertEquals(TaskContent.TITLE_LIMIT, new TaskFilter(searched, "", "").search().length());
+        String searched = "x".repeat(TaskLimits.TITLE + 10);
+        assertEquals(TaskLimits.TITLE, new TaskFilter(searched, "", "").search().length());
     }
 
     @Test

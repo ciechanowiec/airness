@@ -1,5 +1,6 @@
 package com.example.starter.identity;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,7 +40,6 @@ class UsersTest {
         return this.repository.findByProfileEmail(Caller.ADMINISTRATOR).orElseThrow().getReference();
     }
 
-    // Every account these rules are asked about is an ordinary one, because none of them turns on the role.
     private static UserForm form(String email, String password) {
         return new UserForm(new UserProfile(email, "Somebody"), Role.USER, password);
     }
@@ -127,9 +127,13 @@ class UsersTest {
 
     @Test
     void refusesToStopAnAccountForAUser() {
+        String email = Accounts.admitted(this.users, "kept", Role.USER);
+        UUID reference = this.repository.findByProfileEmail(email).orElseThrow().getReference();
         actAsUser();
-        UUID reference = UUID.randomUUID();
-        assertThrows(AccessDeniedException.class, () -> this.users.enabling(reference, false));
+        assertAll(
+            () -> assertThrows(AccessDeniedException.class, () -> this.users.enabling(reference, false)),
+            () -> assertTrue(this.repository.findByProfileEmail(email).orElseThrow().getAccess().enabled())
+        );
     }
 
     @Test

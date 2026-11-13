@@ -5,11 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.starter.Caller;
 import com.example.starter.DatabaseTest;
-import com.example.starter.audit.AuditAction;
-import com.example.starter.audit.AuditOutcome;
-import com.example.starter.audit.Entries;
 import java.net.http.HttpResponse;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -25,18 +23,34 @@ class SignInTest {
 
     private final Users users;
 
+    private final SignIns signIns;
+
+    private final UserRepository repository;
+
     private final JdbcTemplate database;
 
-    private final Entries entries;
-
-    SignInTest(Users users, JdbcTemplate database) {
+    SignInTest(Users users, SignIns signIns, UserRepository repository, JdbcTemplate database) {
         this.users = users;
+        this.signIns = signIns;
+        this.repository = repository;
         this.database = database;
-        this.entries = new Entries(database);
+    }
+
+    private String reference(String email) {
+        return this.repository.findByProfileEmail(email).orElseThrow().getReference().toString();
     }
 
     private static String landing(HttpResponse<String> response) {
         return response.headers().firstValue(HttpHeaders.LOCATION).orElse("");
+    }
+
+    private long recorded(String target, String action, String outcome) {
+        return Objects.requireNonNull(
+            this.database.queryForObject(
+                "SELECT COUNT(*) FROM audit_event WHERE target = ? AND action = ? AND outcome = ?",
+                Long.class, target, action, outcome
+            )
+        );
     }
 
     @Test
@@ -64,7 +78,7 @@ class SignInTest {
     }
 
     @Test
-    void stopsAnAccountAfterTooManyRefusedSignIns(@LocalServerPort int port) {
+    void locksAnAccountAfterTooManyRefusedSignIns(@LocalServerPort int port) {
         String email = Accounts.admitted(this.users, "guessed", Role.USER);
         Caller guesser = new Caller(port);
         IntStream.range(0, Lockout.LIMIT).forEach(_ -> guesser.signIn(email, WRONG));
@@ -72,11 +86,27 @@ class SignInTest {
     }
 
     @Test
-    void recordsThatAnAccountWasStopped(@LocalServerPort int port) {
-        String email = Accounts.admitted(this.users, "stopped", Role.USER);
+    void refusesTheRightPasswordWhileEveryAttemptIsTakenByOthersStillBeingCompared(@LocalServerPort int port) {
+        String email = Accounts.admitted(this.users, "raced", Role.USER);
+        IntStream.range(0, Lockout.LIMIT).forEach(_ -> this.signIns.reserved(email));
+        assertTrue(landing(new Caller(port).signIn(email, Accounts.SECRET)).endsWith(REFUSED));
+    }
+
+    @Test
+    void recordsThatAnAccountWasLocked(@LocalServerPort int port) {
+        String email = Accounts.admitted(this.users, "locked", Role.USER);
         Caller guesser = new Caller(port);
         IntStream.range(0, Lockout.LIMIT).forEach(_ -> guesser.signIn(email, WRONG));
-        assertEquals(1, this.entries.written(AuditAction.ACCOUNT_LOCKED, email, AuditOutcome.SUCCEEDED));
+        assertEquals(1, this.recorded(this.reference(email), "ACCOUNT_LOCKED", "SUCCEEDED"));
+    }
+
+    @Test
+    void refusesASessionReplayedAfterSigningOut(@LocalServerPort int port) {
+        String email = Accounts.admitted(this.users, "departed", Role.USER);
+        Caller reader = Caller.signedIn(port, email, Accounts.SECRET);
+        Caller replayer = reader.copied();
+        reader.post("/logout", "");
+        assertTrue(landing(replayer.get("/tasks")).endsWith("/login"));
     }
 
     @Test
@@ -95,13 +125,13 @@ class SignInTest {
     void recordsASignInThatWasLetIn(@LocalServerPort int port) {
         String email = Accounts.admitted(this.users, "recorded", Role.USER);
         new Caller(port).signIn(email, Accounts.SECRET);
-        assertEquals(1, this.entries.written(AuditAction.SIGN_IN, email, AuditOutcome.SUCCEEDED));
+        assertEquals(1, this.recorded(email, "SIGN_IN", "SUCCEEDED"));
     }
 
     @Test
     void recordsASignInThatWasRefused(@LocalServerPort int port) {
         String email = Accounts.admitted(this.users, "refused", Role.USER);
         new Caller(port).signIn(email, WRONG);
-        assertEquals(1, this.entries.written(AuditAction.SIGN_IN, email, AuditOutcome.REFUSED));
+        assertEquals(1, this.recorded(email, "SIGN_IN", "REFUSED"));
     }
 }

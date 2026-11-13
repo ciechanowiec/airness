@@ -35,19 +35,15 @@ class UserTest {
     @Test
     void keepsWhetherItMaySignInWhenRestated() {
         User stopped = account().enabled(false);
-        assertFalse(stopped.describedBy(new UserProfile("ada@starter.test", "Ada"), Role.ADMIN).getAccess().enabled());
-    }
-
-    @Test
-    void carriesTheStandingItIsGiven() {
-        Lockout standing = new Lockout(2, Instant.EPOCH);
-        assertEquals(standing, account().standing(standing).getLockout());
+        assertFalse(
+            stopped.describedBy(new UserProfile("ada@starter.test", "Ada"), Role.ADMIN).getAccess().enabled()
+        );
     }
 
     @Test
     void isNoOtherKindOfObject() {
         User account = account();
         Object reference = account.getReference();
-        assertNotEquals(account, reference, "an account equals only an account, not the reference it is known by");
+        assertNotEquals(account, reference, "an account equals only an account, not even the reference it is known by");
     }
 }

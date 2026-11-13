@@ -1,0 +1,13 @@
+<!--/*
+    The mark of the application: its initial on a tile, and its name. The compact mark is the smaller one
+    the header of a narrow screen carries. The tile repeats the name beside it, so it is hidden from
+    assistive technology.
+*/-->
+<th:block th:fragment="brand(compact)" xmlns:th="http://www.thymeleaf.org">
+    <span
+        th:class="${compact} ? 'press inline-flex size-7 items-center justify-center rounded-field bg-primary text-sm text-primary-content' : 'press inline-flex size-8 items-center justify-center rounded-field bg-primary font-bold text-primary-content'"
+        aria-hidden="true"
+        >S</span
+    >
+    <span th:class="${compact} ? null : 'text-lg font-bold tracking-tight'" th:text="#{app.name}">Starter</span>
+</th:block>

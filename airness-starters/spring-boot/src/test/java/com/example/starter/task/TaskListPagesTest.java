@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @DatabaseTest
 class TaskListPagesTest {
@@ -27,7 +28,7 @@ class TaskListPagesTest {
 
     private static final String TASKS = "/tasks";
 
-    private static final Pattern CHOSEN_DONE = Pattern.compile("value=\"DONE\"\\s+selected");
+    private static final Pattern CHOSEN_DONE = Pattern.compile("class=\"chip chip-done\"");
 
     private final Users users;
 
@@ -134,5 +135,69 @@ class TaskListPagesTest {
         Notes.written(this.tasks, this.reader(), Notes.open(title, this.soon));
         String page = Caller.administrator(port).get("/tasks?search=%s".formatted(Caller.encoded(title))).body();
         assertAll(() -> assertTrue(page.contains(title)), () -> assertTrue(page.contains("Test tasks")));
+    }
+
+    @Test
+    void drawsTheTasksOfTheReaderInColumnsOnTheBoard(@LocalServerPort int port) {
+        String email = this.reader();
+        String title = Notes.title("Boarded");
+        Notes.written(this.tasks, email, Notes.open(title, this.soon));
+        String page = Caller.signedIn(port, email, Accounts.SECRET).get(TASKS + "/board").body();
+        assertAll(() -> assertTrue(page.contains(title)), () -> assertTrue(page.contains("board-column")));
+    }
+
+    @Test
+    void answersHtmxMovingATaskOnTheBoardWithTheBoardAlone(@LocalServerPort int port) {
+        String email = this.reader();
+        UUID task = Notes.written(this.tasks, email, Notes.open(Notes.title("Dragged"), this.soon));
+        String board = Caller.signedIn(port, email, Accounts.SECRET)
+            .partialPost("/tasks/board/%s/status".formatted(task), "status=IN_PROGRESS")
+            .body();
+        assertAll(
+            () -> assertTrue(board.contains("id=\"board\""), board),
+            () -> assertFalse(board.contains("<html"), board)
+        );
+    }
+
+    @Test
+    void sendsAReaderWithoutScriptBackToTheBoardAfterMovingATaskThere(@LocalServerPort int port) {
+        String email = this.reader();
+        UUID task = Notes.written(this.tasks, email, Notes.open(Notes.title("Carried"), this.soon));
+        HttpResponse<String> answer = Caller.signedIn(port, email, Accounts.SECRET)
+            .post("/tasks/board/%s/status".formatted(task), "status=DONE");
+        assertTrue(landing(answer).endsWith("/tasks/board?notice=SAVED"));
+    }
+
+    @Test
+    void answersABoostedNavigationWithTheWholePage(@LocalServerPort int port) {
+        String page = Caller.signedIn(port, this.reader(), Accounts.SECRET).boosted(TASKS).body();
+        assertAll(() -> assertTrue(page.contains("<html"), page), () -> assertTrue(page.contains("id=\"results\"")));
+    }
+
+    @Test
+    void refusesToMoveAnotherReadersTaskOnTheBoard(@LocalServerPort int port) {
+        String owner = this.reader();
+        UUID task = Notes.written(this.tasks, owner, Notes.open(Notes.title("Elsewhere"), this.soon));
+        HttpResponse<String> answer = Caller.signedIn(port, this.reader(), Accounts.SECRET)
+            .post("/tasks/board/%s/status".formatted(task), "status=DONE");
+        Caller.acting(owner, Role.USER.getAuthority());
+        try {
+            TaskStatus standing = this.tasks.task(task).orElseThrow().content().status();
+            assertAll(
+                () -> assertEquals(HttpStatus.NOT_FOUND.value(), answer.statusCode()),
+                () -> assertEquals(TaskStatus.OPEN, standing)
+            );
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void refusesAStatusNobodyKnowsOnTheBoard(@LocalServerPort int port) {
+        String email = this.reader();
+        UUID task = Notes.written(this.tasks, email, Notes.open(Notes.title("Misplaced"), this.soon));
+        HttpResponse<String> answer = Caller.signedIn(port, email, Accounts.SECRET)
+            .post("/tasks/board/%s/status".formatted(task), "status=LOST");
+        assertEquals(HttpStatus.BAD_REQUEST.value(), answer.statusCode());
     }
 }

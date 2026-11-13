@@ -3,6 +3,7 @@ package com.example.starter.task;
 import com.example.starter.web.Control;
 import com.example.starter.web.Htmx;
 import com.example.starter.web.Notice;
+import com.example.starter.web.PageModel;
 import com.example.starter.web.Refusals;
 import com.example.starter.web.Wording;
 import jakarta.validation.Valid;
@@ -10,9 +11,8 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.ModelAndView;
 
 /**
  * The pages that show and change the tasks. The controller holds the application layer and never a
@@ -49,11 +50,17 @@ public final class TaskPages {
 
     private static final String BOUND_FORM = "taskForm";
 
-    private static final String REFUSALS = "refusals";
-
     private static final String REFERENCE = "reference";
 
     private static final String NOTHING = "";
+
+    private static final String FROM = "from";
+
+    private static final String BACK = "back";
+
+    // The pages a task form can be opened from and leads back to, each under the word an address names it
+    // by. The list is where every other form leads.
+    private static final Map<String, String> ORIGINS = Map.of("dashboard", "/", "board", BoardPages.BOARD);
 
     private static final String NO_AUTOFILL = "off";
 
@@ -99,13 +106,28 @@ public final class TaskPages {
     }
 
     /**
-     * Answers no refusal against any control.
+     * Answers the page the reader opened the task form from, when it is one the form leads back to rather
+     * than to the list: the dashboard or the board. Any other word in the address is no origin at all, so
+     * the address can never send a reader anywhere the application did not name.
      *
-     * @return no refusal at all
+     * @param from the origin the address or the submitted form names
+     * @return the word of that page, or nothing
      */
-    @ModelAttribute(REFUSALS)
-    public Map<String, String> nothingRefused() {
-        return Map.of();
+    @ModelAttribute(FROM)
+    public String from(@RequestParam(name = FROM, defaultValue = NOTHING) String from) {
+        return ORIGINS.containsKey(from) ? from : NOTHING;
+    }
+
+    /**
+     * Answers where the task form leads once the reader leaves it, by saving or not: back to the page it was
+     * opened from, and to the list otherwise.
+     *
+     * @param from the origin the address or the submitted form names
+     * @return the address the form leads back to
+     */
+    @ModelAttribute(BACK)
+    public String back(@RequestParam(name = FROM, defaultValue = NOTHING) String from) {
+        return ORIGINS.getOrDefault(from, TASKS);
     }
 
     /**
@@ -120,26 +142,28 @@ public final class TaskPages {
 
     /**
      * Answers the tasks the reader may see, narrowed as the address says, as a whole page or, for htmx,
-     * as the results alone.
+     * as the results alone. A link or form the page shell boosts navigates, so it is answered with the page.
      *
-     * @param filter what the reader narrowed the list to
-     * @param page   which page of the list to show, counted from one
-     * @param header what htmx said about this request, which is empty when the caller is not htmx
-     * @param model  what the template is given
-     * @return the name of the view that renders the tasks
+     * @param filter  what the reader narrowed the list to
+     * @param page    which page of the list to show, counted from one
+     * @param header  what htmx said about this request, which is empty when the caller is not htmx
+     * @param boosted what htmx said about a boosted link or form, which is empty otherwise
+     * @return the view that renders the tasks, with what it is given
      */
     @GetMapping
-    public String list(
+    public ModelAndView list(
         @ModelAttribute(name = "filter", binding = true)
         @Valid
         TaskFilter filter,
         @RequestParam(name = "page", defaultValue = "1") int page,
         @RequestHeader(name = Htmx.HEADER, defaultValue = NOTHING) String header,
-        Model model
+        @RequestHeader(name = Htmx.BOOSTED, defaultValue = NOTHING) String boosted
     ) {
-        model.addAttribute("listing", this.tasks.listing(filter, page));
-        model.addAttribute("sorts", List.of(TaskSort.values()));
-        return new Htmx(header).view(LIST, "results");
+        ModelAndView answer = new ModelAndView(new Htmx(header, boosted).view(LIST, "results"));
+        answer.addObject("listing", this.tasks.listing(filter, page));
+        answer.addObject("overview", this.tasks.overview());
+        answer.addObject("sorts", List.of(TaskSort.values()));
+        return answer;
     }
 
     /**
@@ -161,7 +185,7 @@ public final class TaskPages {
      * @param taskForm what the reader stated about the task
      * @param errors   what the binder could not read
      * @param model    what the template is given
-     * @return the tasks, or the form again
+     * @return the page the form was opened from, the list otherwise, or the form again
      */
     @PostMapping
     public String create(
@@ -171,10 +195,10 @@ public final class TaskPages {
         BindingResult errors,
         Model model
     ) {
-        Map<String, String> wrong = this.refusals.of(taskForm, errors, taskForm.missing());
+        Map<String, String> wrong = this.refusals.of(taskForm, errors, List.of(taskForm.missing()));
         if (wrong.isEmpty()) {
             this.tasks.create(taskForm.content());
-            return Notice.CREATED.redirect(TASKS);
+            return Notice.CREATED.redirect(destination(model));
         }
         refused(model, taskForm, wrong);
         writing(model);
@@ -205,7 +229,7 @@ public final class TaskPages {
      * @param taskForm  what the reader stated about the task
      * @param errors    what the binder could not read
      * @param model     what the template is given
-     * @return the tasks, or the form again
+     * @return the page the form was opened from, the list otherwise, or the form again
      */
     @PostMapping("/{reference}")
     public String update(
@@ -220,13 +244,10 @@ public final class TaskPages {
         Map<String, Wording> stale = this.tasks.current(reference, taskForm.version())
             ? Map.of()
             : Map.of("version", CHANGED_MEANWHILE);
-        Map<String, Wording> known = Stream.of(taskForm.missing(), stale)
-            .flatMap(refusal -> refusal.entrySet().stream())
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        Map<String, String> wrong = this.refusals.of(taskForm, errors, known);
+        Map<String, String> wrong = this.refusals.of(taskForm, errors, List.of(taskForm.missing(), stale));
         if (wrong.isEmpty()) {
             this.tasks.revise(reference, taskForm.content(), taskForm.version());
-            return Notice.SAVED.redirect(TASKS);
+            return Notice.SAVED.redirect(destination(model));
         }
         refused(model, taskForm, wrong);
         changing(model, task);
@@ -234,43 +255,49 @@ public final class TaskPages {
     }
 
     /**
-     * Moves a task to another status from the list, answering htmx with the changed row alone and
-     * anybody else with the list again.
+     * Moves a task to another status from the list, answering htmx with the changed row and the counts of
+     * the status filter, and anybody else with the list again.
      *
      * @param reference the reference the task is known by outside the database
-     * @param status    the name of the status the task now stands at
+     * @param status    the name of the status the task moves to
      * @param header    what htmx said about this request, which is empty when the caller is not htmx
-     * @param model     what the template is given
-     * @return the changed row, or the list
+     * @param boosted   what htmx said about a boosted link or form, which is empty otherwise
+     * @return the changed row with the counts, or a redirect to the list
      * @throws ResponseStatusException when the reader may not see a task under that reference, or the
      *                                 status names none
      */
     @PostMapping("/{reference}/status")
-    public String move(
+    public ModelAndView move(
         @PathVariable(name = REFERENCE, required = true) UUID reference,
         @RequestParam(name = "status", required = true) String status,
         @RequestHeader(name = Htmx.HEADER, defaultValue = NOTHING) String header,
-        Model model
+        @RequestHeader(name = Htmx.BOOSTED, defaultValue = NOTHING) String boosted
     ) {
         this.seen(reference);
         TaskStatus moved = TaskStatus.named(status)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
-        model.addAttribute("task", this.tasks.move(reference, moved));
-        return new Htmx(header).partial() ? ROW : Notice.SAVED.redirect(TASKS);
+        TaskView task = this.tasks.move(reference, moved);
+        ModelAndView answer = new ModelAndView(
+            new Htmx(header, boosted).partial() ? ROW : Notice.SAVED.redirect(TASKS)
+        );
+        answer.addObject("task", task);
+        answer.addObject("overview", this.tasks.overview());
+        return answer;
     }
 
     /**
      * Removes a task.
      *
      * @param reference the reference the task is known by outside the database
-     * @return the tasks
+     * @param model     what the request said, including the page the form was opened from
+     * @return the page the form was opened from, or the list otherwise
      * @throws ResponseStatusException when the reader may not see a task under that reference
      */
     @PostMapping("/{reference}/delete")
-    public String delete(@PathVariable(name = REFERENCE, required = true) UUID reference) {
+    public String delete(@PathVariable(name = REFERENCE, required = true) UUID reference, Model model) {
         this.seen(reference);
         this.tasks.remove(reference);
-        return Notice.DELETED.redirect(TASKS);
+        return Notice.DELETED.redirect(destination(model));
     }
 
     // A task the reader may not see is answered as one that does not exist, before anything is changed.
@@ -284,7 +311,7 @@ public final class TaskPages {
     // model whenever it could not read one of the values, and what is wrong with it.
     private static void refused(Model model, TaskForm taskForm, Map<String, String> wrong) {
         model.addAttribute(BOUND_FORM, taskForm);
-        model.addAttribute(REFUSALS, wrong);
+        model.addAttribute(PageModel.REFUSALS, wrong);
     }
 
     private static void writing(Model model) {
@@ -300,6 +327,11 @@ public final class TaskPages {
         model.addAttribute("submit", "task.submit.save");
         model.addAttribute("existing", true);
         model.addAttribute("task", task);
+    }
+
+    // The page the form leads back to, which the model holds from the reader's request.
+    private static String destination(Model model) {
+        return Objects.toString(model.getAttribute(BACK), TASKS);
     }
 
     private static ResponseStatusException unknown() {

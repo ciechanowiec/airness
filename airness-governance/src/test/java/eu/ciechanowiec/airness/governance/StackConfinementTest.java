@@ -56,6 +56,9 @@ class StackConfinementTest {
 
     private static final String SPRING_REQUEST = "a Spring request parameter or response body in a fixture";
     private static final String PNG_CHUNK = "the data a PNG chunk carries";
+    private static final String WRITING_GUIDELINE = "README-guideline-writing.adoc";
+    private static final String GUIDELINE_EXAMPLES
+        = "the HTTP and JSON bodies the examples of the writing guideline send";
 
     /**
      * The paths the stack owns whole, which removing it deletes: its modules, its integration domain and the one
@@ -143,9 +146,10 @@ class StackConfinementTest {
     );
 
     private static final List<Entry> GENERIC_USES = List.of(
+        new Entry(WRITING_GUIDELINE, Set.of(WORD, PLURAL), GUIDELINE_EXAMPLES),
         new Entry(
-            "README-guideline-writing.adoc", Set.of(WORD, PLURAL),
-            "the HTTP and JSON bodies the examples of the writing guideline send"
+            "airness-starters/spring-boot/" + WRITING_GUIDELINE, Set.of(WORD, PLURAL),
+            GUIDELINE_EXAMPLES + ", in the copy the starter's own README follows"
         ),
         new Entry(
             "airness-config/src/main/resources/eu/ciechanowiec/airness/static_code_analysis/checkstyle.xml",

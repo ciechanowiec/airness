@@ -1,0 +1,13 @@
+Airness
+BCrypt
+daisyUI
+esbuild
+Grotesk
+htmx
+Lucide
+npm
+Qodana
+Schibsted
+Testcontainers
+PMD
+tsx

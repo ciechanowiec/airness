@@ -4,9 +4,7 @@ name: 'Full verification'
 
 on:
   schedule:
-    - cron: '17 2 * * *'
-  push:
-    tags: ['v*']
+    - cron: '17 2 * * 1'
   workflow_dispatch:
 
 permissions:

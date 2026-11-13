@@ -2,13 +2,13 @@ package com.example.starter.identity;
 
 import com.example.starter.web.Control;
 import com.example.starter.web.Notice;
+import com.example.starter.web.PageModel;
 import com.example.starter.web.Refusals;
 import com.example.starter.web.Wording;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -41,8 +41,6 @@ public final class UserPages {
     private static final String FORM = "identity/user";
 
     private static final String BOUND_FORM = "userForm";
-
-    private static final String REFUSALS = "refusals";
 
     private static final String REFERENCE = "reference";
 
@@ -92,16 +90,6 @@ public final class UserPages {
     }
 
     /**
-     * Answers no refusal against any control, so a template never asks whether the reader was refused.
-     *
-     * @return no refusal at all
-     */
-    @ModelAttribute(REFUSALS)
-    public Map<String, String> nothingRefused() {
-        return Map.of();
-    }
-
-    /**
      * Answers one page of every account.
      *
      * @param page  which page of the list to show, counted from one
@@ -143,8 +131,8 @@ public final class UserPages {
         BindingResult errors,
         Model model
     ) {
-        Map<String, Wording> known = merged(
-            List.of(userForm.missing(), userForm.unchosen(), taken(this.roster.taken(userForm.profile().email())))
+        List<Map<String, Wording>> known = List.of(
+            userForm.missing(), userForm.unchosen(), taken(this.roster.taken(userForm.profile().email()))
         );
         Map<String, String> wrong = this.refusals.of(userForm, errors, known);
         if (wrong.isEmpty()) {
@@ -192,12 +180,10 @@ public final class UserPages {
         Model model
     ) {
         boolean sole = this.roster.person(reference).orElseThrow(UserPages::unknown).sole();
-        Map<String, Wording> known = merged(
-            List.of(
-                userForm.missing(),
-                taken(this.roster.takenByAnother(userForm.profile().email(), reference)),
-                stranded(sole && userForm.role() != Role.ADMIN)
-            )
+        List<Map<String, Wording>> known = List.of(
+            userForm.missing(),
+            taken(this.roster.takenByAnother(userForm.profile().email(), reference)),
+            stranded(sole && userForm.role() != Role.ADMIN)
         );
         Map<String, String> wrong = this.refusals.of(userForm, errors, known);
         if (wrong.isEmpty()) {
@@ -225,12 +211,6 @@ public final class UserPages {
         return (allowed ? Notice.ENABLED : Notice.DISABLED).redirect(USERS);
     }
 
-    private static Map<String, Wording> merged(List<Map<String, Wording>> known) {
-        return known.stream()
-            .flatMap(refusals -> refusals.entrySet().stream())
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (first, _) -> first));
-    }
-
     private static Map<String, Wording> taken(boolean already) {
         return already ? Map.of(EMAIL, Wording.of("user.email.taken")) : Map.of();
     }
@@ -241,7 +221,7 @@ public final class UserPages {
 
     private static void refused(Model model, UserForm userForm, Map<String, String> wrong) {
         model.addAttribute(BOUND_FORM, userForm);
-        model.addAttribute(REFUSALS, wrong);
+        model.addAttribute(PageModel.REFUSALS, wrong);
     }
 
     private void admitting(Model model) {

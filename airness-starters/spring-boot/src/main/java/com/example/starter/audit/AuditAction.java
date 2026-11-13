@@ -1,9 +1,9 @@
 package com.example.starter.audit;
 
 /**
- * What was done that the audit trail records: every outcome of a sign-in, every change to an account
- * and to what it may do, the writing of the first administrator, and every change somebody makes to a
- * task another account keeps, which only an administrator may.
+ * What was done that the audit trail records: every outcome of a sign-in and of a current password typed
+ * to change it, every change to an account and to what it may do, the writing of the first administrator,
+ * and every change an administrator makes to a task somebody else keeps.
  */
 public enum AuditAction {
 
@@ -13,7 +13,7 @@ public enum AuditAction {
     SIGN_IN,
 
     /**
-     * Too many refused sign-ins in a row stopped an account signing in for a while.
+     * Too many refused sign-ins in a row locked an account for a while.
      */
     ACCOUNT_LOCKED,
 
@@ -33,6 +33,12 @@ public enum AuditAction {
     ACCOUNT_RESTATED,
 
     /**
+     * An administrator changed what an account may do, which is recorded beside the restatement that did
+     * it, so a change of what an account may do is never read as a change of its name.
+     */
+    ROLE_CHANGED,
+
+    /**
      * An administrator let an account sign in again.
      */
     ACCOUNT_ENABLED,
@@ -44,22 +50,22 @@ public enum AuditAction {
 
     /**
      * Somebody changed the password they sign in with, or was refused because the current password they
-     * typed was not theirs.
+     * typed was wrong or the account was locked.
      */
     PASSWORD_CHANGED,
 
     /**
-     * Somebody changed what a task another account keeps says.
+     * An administrator changed what a task somebody else keeps says.
      */
     TASK_REVISED,
 
     /**
-     * Somebody moved a task another account keeps to another status.
+     * An administrator moved a task somebody else keeps to another status.
      */
     TASK_MOVED,
 
     /**
-     * Somebody removed a task another account keeps.
+     * An administrator removed a task somebody else keeps.
      */
     TASK_REMOVED
 }

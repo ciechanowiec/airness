@@ -1,46 +1,93 @@
 <!--/*
     One task as a row of the list. The list draws every row through this fragment, and a change of status
-    made from the row is answered with this template alone, which htmx swaps in for the row it replaces.
+    made from the row is answered with this template alone, which htmx swaps in for the row it replaces,
+    together with the counts of the status filter, which htmx swaps in where they stand by their names.
 
-    The status is changed by a form of its own, so it works without script: the button posts it, and the
-    page answers with the list again. With htmx, choosing a status posts it at once.
+    The row's menu holds what can be done to the task: open it to change it, or move it to another status.
+    Each move is a form of its own, so it works without script: the button posts it, and the page answers
+    with the list again. With htmx the row alone is replaced.
 */-->
-<tr th:fragment="row(task)" th:id="|task-${task.reference()}|" xmlns:th="http://www.thymeleaf.org">
-    <td>
+<tr
+    th:fragment="row(task)"
+    th:id="|task-${task.reference()}|"
+    class="border-b border-line-soft last:border-b-0 hover:bg-base-200/50"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <td class="max-w-md py-3 pl-5 pr-3 align-top">
         <a
-            class="link link-primary inline-flex min-h-11 min-w-11 items-center font-medium"
+            class="font-semibold hover:underline"
             th:href="@{/tasks/{reference}/edit(reference=${task.reference()})}"
             th:text="${task.content().title()}"
             >Title</a
         >
-    </td>
-    <td>
-        <span th:text="${#temporals.format(task.content().dueOn(), 'd MMM yyyy')}">8 Nov 2026</span>
-        <span th:if="${task.overdue()}" class="badge badge-error badge-sm" th:text="#{task.overdue}">Overdue</span>
-    </td>
-    <td>
-        <form
-            class="flex items-center gap-2"
-            method="post"
-            th:action="@{/tasks/{reference}/status(reference=${task.reference()})}"
-            th:hx-post="@{/tasks/{reference}/status(reference=${task.reference()})}"
-            hx-target="closest tr"
-            hx-swap="outerHTML"
-            hx-trigger="change"
+        <p
+            class="truncate text-muted"
+            th:text="${task.content().description()}"
+            th:title="${task.content().description()}"
         >
-            <label class="sr-only" th:for="|status-${task.reference()}|" th:text="#{tasks.column.status}">Status</label>
-            <select class="select" name="status" th:id="|status-${task.reference()}|">
-                <option
-                    th:each="status : ${statuses}"
-                    th:value="${status.name()}"
-                    th:text="${words.of(status)}"
-                    th:selected="${status == task.content().status()}"
-                >
-                    Open
-                </option>
-            </select>
-            <button class="btn btn-ghost" type="submit" th:text="#{tasks.status.submit}">Change</button>
-        </form>
+            What the task asks for.
+        </p>
     </td>
-    <td th:if="${administrator}" th:text="${task.owner()}">Owner</td>
+    <td th:if="${administrator}" class="whitespace-nowrap px-3 py-3 align-top">
+        <span class="flex items-center gap-2">
+            <span th:replace="~{components/avatar :: avatar(${task.owner()}, 'size-7 text-xs')}"></span>
+            <span th:text="${task.owner()}">Owner</span>
+        </span>
+    </td>
+    <td class="whitespace-nowrap px-3 py-3 align-top">
+        <span th:replace="~{components/chips :: status(${task.content().status()})}"></span>
+    </td>
+    <td class="whitespace-nowrap px-3 py-3 align-top">
+        <span class="block tabular-nums" th:text="${#temporals.format(task.content().dueOn(), 'd MMM yyyy')}"
+            >8 Nov 2026</span
+        >
+        <span
+            th:unless="${task.content().status().name() == 'DONE'}"
+            class="text-xs"
+            th:classappend="${task.days() < 0} ? 'font-semibold text-late-ink' : (${task.days() == 0} ? 'font-semibold text-today-ink' : 'text-muted')"
+            ><th:block th:replace="~{components/chips :: dueWords(${task})}">in 3 days</th:block></span
+        >
+    </td>
+    <td class="py-2 pl-3 pr-5 text-right align-top">
+        <details class="dropdown dropdown-end">
+            <summary
+                class="btn btn-square btn-ghost btn-sm"
+                th:aria-label="#{tasks.actions(${task.content().title()})}"
+            >
+                <svg th:replace="~{components/icon :: icon('ellipsis', 'size-4.5')}"></svg>
+            </summary>
+            <ul
+                class="menu dropdown-content z-10 mt-1 w-56 rounded-box border border-line bg-base-100 p-1.5 text-left shadow-lg"
+            >
+                <li>
+                    <a th:href="@{/tasks/{reference}/edit(reference=${task.reference()})}">
+                        <svg th:replace="~{components/icon :: icon('pencil', 'size-4')}"></svg>
+                        <span th:text="#{task.action.edit}">Edit</span>
+                    </a>
+                </li>
+                <li th:each="status : ${statuses}" th:unless="${status == task.content().status()}">
+                    <form
+                        class="p-0"
+                        method="post"
+                        th:action="@{/tasks/{reference}/status(reference=${task.reference()})}"
+                        th:hx-post="@{/tasks/{reference}/status(reference=${task.reference()})}"
+                        hx-target="closest tr"
+                        hx-swap="outerHTML"
+                    >
+                        <input type="hidden" name="status" th:value="${status.name()}" />
+                        <button type="submit" class="flex w-full items-center gap-2 px-3 py-1.5">
+                            <svg th:replace="~{components/icon :: icon('arrow-right', 'size-4')}"></svg>
+                            <span th:text="#{task.action.moveTo(${words.of(status)})}">Move to Done</span>
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </details>
+    </td>
 </tr>
+<template th:if="${overview != null}" xmlns:th="http://www.thymeleaf.org">
+    <span th:replace="~{tasks/list :: count(null, true)}">33</span>
+    <th:block th:each="status : ${statuses}">
+        <span th:replace="~{tasks/list :: count(${status}, true)}">18</span>
+    </th:block>
+</template>

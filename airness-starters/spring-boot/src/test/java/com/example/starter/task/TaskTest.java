@@ -41,6 +41,6 @@ class TaskTest {
     void isNoOtherKindOfObject() {
         Task task = task();
         Object reference = task.getReference();
-        assertNotEquals(task, reference, "a task equals only a task, not the reference it is known by");
+        assertNotEquals(task, reference, "a task equals only a task, not even the reference it is known by");
     }
 }

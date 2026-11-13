@@ -1,13 +1,11 @@
 package com.example.starter.identity;
 
 import com.example.starter.language.LanguagePages;
-import java.time.Clock;
+import com.example.starter.web.PageModel;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -28,9 +26,6 @@ import org.springframework.security.web.util.matcher.AnyRequestMatcher;
  * decorative. Which role may do what is not decided here: it is stated on the application layer, where
  * the same rule covers a hidden button and a request that was made anyway.
  *
- * <p>A password is compared by one provider, built around {@link Credentials}, which asks about the
- * account both before the comparison and after it.
- *
  * <p>Every sign-in is written into a session registry, which is what lets stopping an account end the
  * sessions it is signed in under at once. A session lapses after the idle time the configuration
  * declares, and signing out ends it.
@@ -49,8 +44,6 @@ public final class WebSecurity {
     // Forms post only here, and nothing may frame a page.
     static final String CONTENT_POLICY
         = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'";
-
-    private static final String HOME = "/";
 
     private static final String REFUSED = LoginPages.LOGIN + "?failed=true";
 
@@ -88,8 +81,11 @@ public final class WebSecurity {
         return http
             .authorizeHttpRequests(
                 requests -> requests
-                    .requestMatchers("/css/**", "/js/**", "/favicon.svg").permitAll()
-                    .requestMatchers(HttpMethod.GET, HOME).permitAll()
+                    // The icon is linked under a name that carries the hash of its content, and a browser asks for
+                    // it before anybody signs in. Left closed, that request would be the page a sign-in returns to.
+                    .requestMatchers("/css/**", "/js/**", "/icons/**", "/images/**", "/favicon.svg", "/favicon-*.svg")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, PageModel.HOME).permitAll()
                     .requestMatchers(HttpMethod.GET, LoginPages.LOGIN).permitAll()
                     .requestMatchers(HttpMethod.POST, LanguagePages.LANGUAGE).permitAll()
                     .requestMatchers(HttpMethod.GET, FAILURE).permitAll()
@@ -100,8 +96,8 @@ public final class WebSecurity {
                 form -> form
                     .loginPage(LoginPages.LOGIN)
                     .failureUrl(REFUSED)
-                    .defaultSuccessUrl(HOME)
-            ).logout(exit -> exit.logoutSuccessUrl(HOME))
+                    .defaultSuccessUrl(PageModel.HOME)
+            ).logout(exit -> exit.logoutSuccessUrl(PageModel.HOME))
             .sessionManagement(
                 session -> session.sessionConcurrency(
                     concurrency -> concurrency.maximumSessions(UNLIMITED).sessionRegistry(registry).expiredUrl(ENDED)
@@ -115,24 +111,6 @@ public final class WebSecurity {
                             .maxAgeInSeconds(TRANSPORT_SECURITY)
                     )
             ).build();
-    }
-
-    /**
-     * Answers what compares the password somebody signs in with. Being the one provider the application
-     * declares, it is the one the framework signs everybody in through.
-     *
-     * @param repository the accounts as the database holds them
-     * @param clock      the clock every instant of the application is read from
-     * @param encoder    what compares a typed password with a stored hash
-     * @return the provider that reads the account before the comparison and reads it again after
-     */
-    @Bean
-    AuthenticationProvider signIn(UserRepository repository, Clock clock, PasswordEncoder encoder) {
-        Credentials credentials = new Credentials(repository, clock);
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(credentials);
-        provider.setPasswordEncoder(encoder);
-        provider.setPostAuthenticationChecks(credentials);
-        return provider;
     }
 
     /**

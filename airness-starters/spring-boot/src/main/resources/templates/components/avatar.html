@@ -1,0 +1,33 @@
+<!--/*
+    A person drawn as their portrait where the application ships one, and as their initials on one of six
+    tones otherwise. The tone is read from the name, so the same person is the same colour on every page.
+    Either repeats the name beside it, so both are hidden from assistive technology.
+*/-->
+<th:block
+    th:fragment="avatar(name, size)"
+    th:with="portrait=${@portraits.of(name)}"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <img
+        th:if="${portrait.isPresent()}"
+        class="avatar-photo"
+        th:classappend="${size}"
+        th:src="@{${portrait.get()}}"
+        alt=""
+        aria-hidden="true"
+        draggable="false"
+        width="96"
+        height="96"
+        loading="lazy"
+        decoding="async"
+    />
+    <span
+        th:unless="${portrait.isPresent()}"
+        th:with="parts=${#strings.arraySplit(name, ' ')}"
+        class="avatar-initials"
+        th:classappend="|avatar-tone-${#strings.length(name) % 6} ${size}|"
+        aria-hidden="true"
+        th:text="${#arrays.isEmpty(parts)} ? '?' : ${#strings.substring(parts[0], 0, 1)} + (${#arrays.length(parts) > 1} ? ${#strings.substring(parts[#arrays.length(parts) - 1], 0, 1)} : '')"
+        >AB</span
+    >
+</th:block>

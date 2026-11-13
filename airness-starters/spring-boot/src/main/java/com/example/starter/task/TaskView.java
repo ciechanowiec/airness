@@ -1,6 +1,7 @@
 package com.example.starter.task;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 /**
  * What a page shows about one task.
@@ -11,8 +12,9 @@ import java.time.LocalDate;
  * @param owner     the name of the account that keeps the task, which is shown to administrators alone
  *                  and is empty for everybody else
  * @param version   the version the task is at, which a change is made against
+ * @param days      the days from today to the due day, negative for a day already past
  */
-public record TaskView(String reference, TaskContent content, boolean overdue, String owner, long version) {
+public record TaskView(String reference, TaskContent content, boolean overdue, String owner, long version, long days) {
 
     /**
      * Answers what a page shows about the given task on the given day.
@@ -25,7 +27,8 @@ public record TaskView(String reference, TaskContent content, boolean overdue, S
     public static TaskView of(Task task, LocalDate today, String owner) {
         TaskContent content = task.getContent();
         return new TaskView(
-            task.getReference().toString(), content, content.overdueOn(today), owner, task.getVersion()
+            task.getReference().toString(), content, content.overdueOn(today), owner, task.getVersion(),
+            ChronoUnit.DAYS.between(today, content.dueOn())
         );
     }
 }

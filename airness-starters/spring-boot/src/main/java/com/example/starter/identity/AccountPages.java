@@ -2,12 +2,12 @@ package com.example.starter.identity;
 
 import com.example.starter.web.Control;
 import com.example.starter.web.Notice;
+import com.example.starter.web.PageModel;
 import com.example.starter.web.Refusals;
 import com.example.starter.web.Wording;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -29,8 +29,6 @@ public final class AccountPages {
     private static final String PAGE = "identity/account";
 
     private static final String BOUND_FORM = "passwordForm";
-
-    private static final String REFUSALS = "refusals";
 
     private static final Control CURRENT = new Control(
         "account.control.current", PasswordForm.CURRENT, "password", "current-password"
@@ -66,16 +64,6 @@ public final class AccountPages {
     }
 
     /**
-     * Answers no refusal against any control.
-     *
-     * @return no refusal at all
-     */
-    @ModelAttribute(REFUSALS)
-    public Map<String, String> nothingRefused() {
-        return Map.of();
-    }
-
-    /**
      * Answers the page the reader changes their password on.
      *
      * @return the name of the view that renders the page
@@ -103,18 +91,13 @@ public final class AccountPages {
         BindingResult errors,
         Model model
     ) {
-        Map<String, Wording> proof = this.users.proves(passwordForm.current())
-            ? Map.of()
-            : Map.of(PasswordForm.CURRENT, Wording.of("account.current.wrong"));
-        Map<String, Wording> known = Stream.of(passwordForm.unchosen(), proof)
-            .flatMap(refusal -> refusal.entrySet().stream())
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        Map<String, String> wrong = this.refusals.of(passwordForm, errors, known);
+        Map<String, Wording> proof = this.users.proves(passwordForm.current()).refusal(PasswordForm.CURRENT);
+        Map<String, String> wrong = this.refusals.of(passwordForm, errors, List.of(passwordForm.unchosen(), proof));
         if (wrong.isEmpty()) {
             this.users.changePassword(passwordForm.current(), passwordForm.chosen());
             return Notice.PASSWORD_CHANGED.redirect(ACCOUNT);
         }
-        model.addAttribute(REFUSALS, wrong);
+        model.addAttribute(PageModel.REFUSALS, wrong);
         return PAGE;
     }
 }

@@ -7,32 +7,31 @@ import org.springframework.stereotype.Component;
 /**
  * What turns a password into the hash stored in its place and a form into the account it admits, and
  * what compares a typed password with a stored hash. Every password the application stores passes the
- * policy here first, so no path writes one the policy refuses.
- *
- * <p>A comparison a signed-in reader makes is held to the policy on refused sign-ins as a sign-in is:
- * an account stopped under it proves nothing until the stop lifts, and a comparison that fails counts
- * against the account, because a session left open is otherwise a place to guess its password freely.
+ * policy here first, so no path writes one the policy refuses, and every comparison made here counts
+ * under the policy on refused sign-ins, so no page lets somebody guess a password more often than the
+ * sign-in page does.
  */
 @Component
 public final class Admission {
 
     private final PasswordEncoder encoder;
 
-    private final Clock clock;
-
     private final SignIns signIns;
 
+    private final Clock clock;
+
     /**
-     * Hashes every password with the given encoder and stamps every account from the given clock.
+     * Hashes every password with the given encoder, counts every comparison through the given sign-ins and
+     * stamps every account from the given clock.
      *
      * @param encoder what turns a password into its hash and compares the two
+     * @param signIns every attempt to prove a password, as the policy counts it
      * @param clock   the clock every instant of the application is read from
-     * @param signIns what counts a comparison that fails against the policy on refused sign-ins
      */
-    public Admission(PasswordEncoder encoder, Clock clock, SignIns signIns) {
+    public Admission(PasswordEncoder encoder, SignIns signIns, Clock clock) {
         this.encoder = encoder;
-        this.clock = clock;
         this.signIns = signIns;
+        this.clock = clock;
     }
 
     /**
@@ -61,34 +60,29 @@ public final class Admission {
     }
 
     /**
-     * Answers whether the given password is the one the given account signs in with, and the account may
-     * sign in now. The account is read before the comparison, which takes a quarter of a second, so the
-     * outcome is settled afterwards on the account as the database then holds it: a password that matched
-     * proves nothing once the account was stopped meanwhile, and one that does not prove it is counted and
-     * recorded as refused in a transaction of its own, which stands whatever becomes of the caller's.
+     * Answers whether the given password is the one the given account signs in with, counting the attempt
+     * under the policy on refused sign-ins. A locked account is answered as one without comparing.
      *
      * @param password the password typed
-     * @param account  the account it is meant to prove, as it was read before the comparison
-     * @return whether it is that account's password and the account is not stopped
+     * @param account  the account it is meant to prove
+     * @return how the attempt turned out
      */
-    public boolean proves(String password, User account) {
-        boolean matched = !account.getLockout().locks(this.clock.instant())
-            && this.encoder.matches(password, account.getPasswordHash());
-        return this.signIns.settled(account.getProfile().email(), matched);
+    public Proof proves(String password, User account) {
+        if (!this.signIns.reserved(account.getProfile().email())) {
+            return Proof.LOCKED;
+        }
+        return this.compared(password, account);
     }
 
-    /**
-     * Changes the password of the given account to the chosen one, once its current password has proved it.
-     * The chosen password is hashed first, outside any transaction, and the account is then written as the
-     * database holds it, only while it is still the account proved.
-     *
-     * @param proved the account as it was read when its current password proved it
-     * @param chosen the password the account signs in with from now on
-     * @param kept   the identifier of the one session of the account that stays, or empty for none
-     * @return whether the password was changed, which it is not when the account changed meanwhile
-     * @throws IllegalStateException when the chosen password does not meet the policy
-     */
-    public boolean changes(User proved, String chosen, String kept) {
-        return this.signIns.replaced(proved, this.hashed(chosen), kept);
+    // Compares the password once an attempt was taken for it, and gives the attempt back or keeps it.
+    private Proof compared(String password, User account) {
+        String email = account.getProfile().email();
+        boolean matches = this.encoder.matches(password, account.getPasswordHash());
+        if (matches) {
+            this.signIns.proved(email);
+        } else {
+            this.signIns.disproved(email);
+        }
+        return matches ? Proof.PROVEN : Proof.WRONG;
     }
 }

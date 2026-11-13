@@ -13,65 +13,120 @@
     <body>
         <div id="page-body" class="space-y-6">
             <div th:replace="~{components/header :: header(#{users.title}, #{users.lead}, ~{:: actions})}"></div>
-            <div class="overflow-x-auto rounded-box bg-base-100 shadow">
-                <table class="table">
-                    <caption class="sr-only" th:text="#{users.title}">
-                        Users
-                    </caption>
-                    <thead>
-                        <tr>
-                            <th scope="col" th:text="#{users.column.name}">Name</th>
-                            <th scope="col" th:text="#{users.column.email}">Signs in as</th>
-                            <th scope="col" th:text="#{users.column.role}">Role</th>
-                            <th scope="col" th:text="#{users.column.standing}">Standing</th>
-                            <th scope="col" th:text="#{users.column.access}">Access</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr th:each="person : ${people.people()}" th:with="access=${person.access()}">
-                            <td>
-                                <a
-                                    class="link link-primary inline-flex min-h-11 min-w-11 items-center font-medium"
-                                    th:href="@{/users/{reference}/edit(reference=${person.reference()})}"
-                                    th:text="${person.profile().fullName()}"
-                                    >Administrator</a
+            <section class="panel overflow-hidden">
+                <div class="relative overflow-x-auto">
+                    <table class="w-full min-w-3xl table-fixed text-sm">
+                        <caption class="sr-only" th:text="#{users.title}">
+                            Users
+                        </caption>
+                        <thead class="bg-base-200/60 text-left text-muted">
+                            <tr>
+                                <th scope="col" class="py-2.5 pl-5 pr-3 font-semibold" th:text="#{users.column.name}">
+                                    Name
+                                </th>
+                                <th scope="col" class="w-44 px-3 py-2.5 font-semibold" th:text="#{users.column.role}">
+                                    Role
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="w-48 px-3 py-2.5 font-semibold"
+                                    th:text="#{users.column.standing}"
                                 >
-                            </td>
-                            <td th:text="${person.profile().email()}">administrator@starter.test</td>
-                            <td th:text="${words.of(access.role())}">Administrator</td>
-                            <td>
-                                <span
-                                    class="badge"
-                                    th:classappend="${access.enabled()} ? 'badge-success' : 'badge-neutral'"
-                                    th:text="${access.enabled()} ? #{users.maySignIn} : #{users.stopped}"
-                                    >May sign in</span
+                                    Standing
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="w-52 py-2.5 pl-3 pr-5 text-right font-semibold"
+                                    th:text="#{users.column.access}"
                                 >
-                            </td>
-                            <td>
-                                <form
-                                    th:unless="${person.sole()}"
-                                    method="post"
-                                    th:action="@{/users/{reference}/access(reference=${person.reference()})}"
-                                >
-                                    <input type="hidden" name="allowed" th:value="${not access.enabled()}" />
-                                    <button class="btn btn-outline" type="submit">
-                                        <span th:text="${access.enabled()} ? #{users.stop} : #{users.letIn}">Stop</span>
-                                        <span class="sr-only" th:text="| ${person.profile().fullName()}|"></span>
-                                    </button>
-                                </form>
-                                <span th:if="${person.sole()}" th:text="#{users.last}">The last administrator</span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div
-                th:replace="~{components/pagination :: pagination(${people.page()}, ${people.pages()}, '/users', '')}"
-            ></div>
+                                    Access
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                th:each="person : ${people.items()}"
+                                th:with="access=${person.access()}"
+                                class="border-b border-line-soft last:border-b-0 hover:bg-base-200/50"
+                            >
+                                <td class="py-3 pl-5 pr-3">
+                                    <span class="flex items-center gap-3">
+                                        <span
+                                            th:replace="~{components/avatar :: avatar(${person.profile().fullName()}, 'size-9 text-sm')}"
+                                        ></span>
+                                        <span class="flex min-w-0 flex-col">
+                                            <a
+                                                class="font-semibold hover:underline"
+                                                th:href="@{/users/{reference}/edit(reference=${person.reference()})}"
+                                                th:text="${person.profile().fullName()}"
+                                                >Administrator</a
+                                            >
+                                            <span
+                                                class="truncate text-muted"
+                                                th:text="${person.profile().email()}"
+                                                th:title="${person.profile().email()}"
+                                                >administrator@starter.test</span
+                                            >
+                                        </span>
+                                    </span>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-3">
+                                    <span
+                                        class="chip"
+                                        th:classappend="${access.role().name() == 'ADMIN'} ? 'chip-progress' : 'chip-open'"
+                                        th:text="${words.of(access.role())}"
+                                        >Administrator</span
+                                    >
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-3">
+                                    <span
+                                        class="chip"
+                                        th:classappend="${access.enabled()} ? 'chip-done' : 'chip-late'"
+                                        th:text="${access.enabled()} ? #{users.maySignIn} : #{users.stopped}"
+                                        >May sign in</span
+                                    >
+                                </td>
+                                <td class="whitespace-nowrap py-3 pl-3 pr-5 text-right">
+                                    <form
+                                        th:unless="${person.sole() or person.profile().email() == readerEmail}"
+                                        method="post"
+                                        th:action="@{/users/{reference}/access(reference=${person.reference()})}"
+                                    >
+                                        <input type="hidden" name="allowed" th:value="${not access.enabled()}" />
+                                        <button class="btn btn-sm press bg-base-100" type="submit">
+                                            <th:block th:if="${access.enabled()}">
+                                                <svg th:replace="~{components/icon :: icon('user-x', 'size-4')}"></svg>
+                                            </th:block>
+                                            <th:block th:unless="${access.enabled()}">
+                                                <svg
+                                                    th:replace="~{components/icon :: icon('user-check', 'size-4')}"
+                                                ></svg>
+                                            </th:block>
+                                            <span th:text="${access.enabled()} ? #{users.stop} : #{users.letIn}"
+                                                >Stop</span
+                                            >
+                                            <span class="sr-only" th:text="| ${person.profile().fullName()}|"></span>
+                                        </button>
+                                    </form>
+                                    <span th:if="${person.sole()}" class="text-muted" th:text="#{users.last}"
+                                        >The last administrator</span
+                                    >
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div
+                    th:replace="~{components/pagination :: pagination(${people.page()}, ${people.pages()}, '/users', '')}"
+                ></div>
+            </section>
         </div>
 
-        <div th:fragment="actions">
-            <a class="btn btn-primary" th:href="@{/users/new}" th:text="#{users.admit}">Add an account</a>
+        <div th:fragment="actions" class="flex flex-wrap items-center gap-3">
+            <a class="btn btn-primary press" th:href="@{/users/new}">
+                <svg th:replace="~{components/icon :: icon('user-plus', 'size-4')}"></svg>
+                <span th:text="#{users.admit}">Add an account</span>
+            </a>
         </div>
     </body>
 </html>

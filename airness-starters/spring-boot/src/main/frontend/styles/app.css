@@ -1,65 +1,534 @@
 /*
  * The stylesheet every page loads. Tailwind writes only the utilities the templates name, so it reads
- * the templates and nothing else, and daisyUI adds the components those utilities compose into: buttons,
- * fields, cards, tables and the rest. The pages pin the light theme on their root element, so a reader
- * whose system prefers a dark one is still shown the light one the application is designed in.
+ * the templates and nothing else, and daisyUI adds the components those utilities compose into.
+ *
+ * The look is one theme, studio: a warm neutral ground, white panels drawn with hairlines, one accent,
+ * and a soft, low shadow under the things a reader can press, which lifts a little under the pointer. An
+ * application made from this template changes its look by changing the theme below: the accent, the radii
+ * and the shadows, and every page follows.
+ *
+ * The theme is held to the AA level of WCAG 2.2 for the size of a pointer target and the contrast of text,
+ * which the harness measures unless a project raises them: text stands at 4.5:1 against every surface it is
+ * drawn on, and every control is at least 24 CSS pixels in each direction.
  */
 @import "tailwindcss" source(none);
+@import "@fontsource-variable/schibsted-grotesk";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
 @source "../../resources/templates";
-/*
- * The noise texture daisyUI lays over buttons, badges, alerts and menus is left out. It is an inline SVG
- * image, which the content security policy of the pages refuses, because it allows images from the
- * application only.
- */
 @plugin "daisyui" {
-    exclude: svg;
+    themes: false;
 }
-/*
- * The light theme, held to WCAG 2.2 AAA. Every coloured surface carries its text at 7:1 at least: white
- * on the primary and error colours, which are dark enough to carry it, and a darker text on the light
- * success, information and warning colours. The error colour also draws a focus ring and the border of an
- * invalid field, which it does at more than 3:1. A field is 0.3rem a step, so a button, an input and
- * a select of the default size are 48 CSS pixels high, above the 44 every pointer target is held to; the
- * templates use no smaller size.
- */
 @plugin "daisyui/theme" {
-    name: "light";
+    name: "studio";
     default: true;
     color-scheme: light;
-    --color-primary-content: oklch(1 0 0);
-    --color-success-content: oklch(0.2 0.05 168);
-    --color-info-content: oklch(0.2 0.05 243);
-    --color-warning-content: oklch(0.25 0.08 46);
-    --color-error: oklch(0.45 0.18 27);
-    --color-error-content: oklch(1 0 0);
-    --size-field: 0.3rem;
+    --color-base-100: #fff;
+    --color-base-200: #f4f3ef;
+    --color-base-300: #e3e1db;
+    --color-base-content: #17171a;
+    --color-primary: #4338ca;
+    --color-primary-content: #fff;
+    --color-secondary: #0f766e;
+    --color-secondary-content: #fff;
+    --color-accent: #c2410c;
+    --color-accent-content: #fff;
+    --color-neutral: #17171a;
+    --color-neutral-content: #fff;
+    --color-info: #2563eb;
+    --color-info-content: #fff;
+    --color-success: #15803d;
+    --color-success-content: #fff;
+    --color-warning: #b45309;
+    --color-warning-content: #fff;
+    --color-error: #b42318;
+    --color-error-content: #fff;
+    --radius-selector: 0.5rem;
+    --radius-field: 0.5rem;
+    --radius-box: 0.75rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
+@theme {
+    --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+    --color-ink: #17171a;
+    --color-muted: #55555e;
+    --color-line: #e3e1db;
+    --color-line-soft: #efede8;
+    --color-line-strong: #d3d0c7;
+    --color-sunken: #eceae4;
+    --color-open-soft: #f1f0ec;
+    --color-open-ink: #3f3f46;
+    --color-open-dot: #8a8a93;
+    --color-progress-soft: #e3ecff;
+    --color-progress-ink: #1e3a8a;
+    --color-progress-dot: #2563eb;
+    --color-done-soft: #ddf5e6;
+    --color-done-ink: #14532d;
+    --color-done-dot: #16a34a;
+    --color-late-soft: #fde4e1;
+    --color-late-ink: #8f1d14;
+    --color-late-dot: #dc2626;
+    --color-today-soft: #fdf0d2;
+    --color-today-ink: #7a4a00;
+    --color-today-dot: #d97706;
+    --shadow-press: 0 1px 2px rgb(23 23 26 / 6%), 0 1px 1px rgb(23 23 26 / 4%);
+    --shadow-raise: 0 4px 12px -2px rgb(23 23 26 / 10%), 0 2px 4px -2px rgb(23 23 26 / 6%);
+    --shadow-lift: 0 18px 36px -12px rgb(23 23 26 / 28%), 0 6px 12px -6px rgb(23 23 26 / 12%);
 }
 
 /*
- * A paragraph is held to a measure, so no line of it runs past the 80 characters WCAG 2.2 AAA allows,
- * whatever the width of the card it stands in.
+ * daisyUI paints a texture under some components from an inline image the content security policy refuses.
+ * The theme draws no texture, so the image is never named and the browser never asks for it.
+ */
+:root {
+    --fx-noise: none;
+}
+
+/*
+ * The ground every page stands on. It keeps the room of a scrollbar whether the page scrolls or not, so a
+ * page that grows or shrinks past the window, as a list does under a search, never moves sideways.
+ */
+html {
+    font-feature-settings: "ss01", "cv11";
+    scrollbar-gutter: stable;
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/*
+ * A raised surface: a hairline edge and a soft, low shadow. A filled control takes its edge from its own
+ * colour. Only a surface a reader can act on, a link, a button, a label or a card they can drag, lifts a
+ * little under the pointer and settles when pressed, so a panel or a badge never moves under a click.
+ */
+.press {
+    border: 1px solid var(--color-line-strong);
+    box-shadow: var(--shadow-press);
+}
+
+.press.btn-primary,
+.press.bg-primary {
+    border-color: color-mix(in oklab, var(--color-primary) 82%, black);
+    box-shadow:
+        0 1px 2px rgb(67 56 202 / 25%),
+        inset 0 1px 0 rgb(255 255 255 / 14%);
+}
+
+.press.btn-error {
+    border-color: color-mix(in oklab, var(--color-error) 82%, black);
+}
+
+.press:where(a[href], button, label, summary, [draggable="true"]):active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+/* A control a reader types into: the same hairline edge, resting flat, and the accent once it has focus. */
+.ink-border {
+    border: 1px solid var(--color-line-strong);
+    box-shadow: inset 0 1px 1px rgb(23 23 26 / 3%);
+}
+
+/* The focus ring is solid, so the field it surrounds changes by more than 3:1 around its whole edge. */
+.ink-border:focus,
+.ink-border:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary);
+    outline: none;
+}
+
+/* A field that wraps its input already shows the focus around itself, so the input inside draws no second ring. */
+.ink-border:focus-within :focus-visible {
+    outline: none;
+}
+
+/*
+ * A paragraph is held to a measure, so no line of it runs past the 80 characters WCAG 2.2 AAA allows, whatever
+ * the width of the panel it stands in. A ch is the width of a zero, wider than the average letter of a
+ * proportional face, so 50 of them hold a line of about 70 characters.
  */
 @layer base {
     p {
-        max-width: 60ch;
+        max-width: 50ch;
     }
 }
 
-/*
- * daisyUI draws the head of a table and the title of a stat in the text colour mixed down to 60%, which
- * is below the 7:1 contrast normal-sized text is held to, so both are drawn in the text colour itself.
- */
-.table :where(thead, tfoot),
-.stat-title {
-    color: var(--color-base-content);
+/* A surface that holds content and does nothing itself. */
+.panel {
+    background: var(--color-base-100);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+}
+
+/* An entry of the sidebar. The page the reader is on sits on a white tile with a hairline edge. */
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.5rem;
+    padding: 0 0.625rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-field);
+    color: var(--color-open-ink);
+    font-weight: 500;
+}
+
+.nav-link:hover {
+    background: var(--color-base-200);
+}
+
+/* A page below an entry, such as a task being written, marks the entry too, without claiming to be its page. */
+.nav-link[aria-current="page"],
+.nav-link.nav-link-within {
+    background: var(--color-base-100);
+    border-color: var(--color-line);
+    box-shadow: var(--shadow-press);
+    color: var(--color-ink);
+    font-weight: 600;
+}
+
+/* A choice of a few, side by side. The chosen one is lifted onto white. */
+.segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    background: var(--color-sunken);
+    border-radius: var(--radius-field);
+}
+
+.segmented > a,
+.segmented > label,
+.segmented > button,
+.segmented > form > button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    border-radius: calc(var(--radius-field) - 2px);
+    color: var(--color-open-ink);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* The ring is drawn inside the edge of a choice, so a choice beside it or the edge of the group never covers it. */
+.segmented > a:focus-visible,
+.segmented > button:focus-visible,
+.segmented > form > button:focus-visible {
+    outline-offset: -2px;
+}
+
+.segmented > [aria-current="page"],
+.segmented > [aria-pressed="true"],
+.segmented > form > [aria-pressed="true"],
+.segmented > label:has(input:checked) {
+    background: var(--color-base-100);
+    box-shadow: 0 0 0 1px #d6d3cb;
+    color: var(--color-ink);
+    font-weight: 600;
 }
 
 /*
- * A dialog grows and slides into place as it opens. A reader who asked their system for reduced motion
- * sees it fade in instead.
+ * A choice made with a radio button or a checkbox: the input lies over the whole of its label, unpainted, so
+ * it is as large a target as the label, and it draws the focus ring itself, around the label's edge.
  */
+.choice-input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    appearance: none;
+    border-radius: inherit;
+    cursor: pointer;
+}
+
+.choice-input:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+}
+
+.segmented > label,
+.shell-menu {
+    position: relative;
+}
+
+/*
+ * The application frame. On a wide screen the sidebar stands beside the page. On a narrow one it waits off the
+ * screen, hidden from focus and from assistive technology, until the menu checkbox in the header is ticked, and
+ * a shade behind it closes it again on a click.
+ */
+.shell-side {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 30;
+    width: 16rem;
+    overflow-y: auto;
+    visibility: hidden;
+    translate: -100% 0;
+}
+
+.shell-overlay {
+    display: none;
+}
+
+.shell:has(#shell-menu:checked) .shell-side {
+    visibility: visible;
+    translate: 0 0;
+}
+
+.shell:has(#shell-menu:checked) .shell-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: block;
+    background: color-mix(in oklab, var(--color-ink) 35%, transparent);
+}
+
+@media (width >= 64rem) {
+    .shell {
+        display: grid;
+        grid-template-columns: 16rem minmax(0, 1fr);
+    }
+
+    .shell-side,
+    .shell:has(#shell-menu:checked) .shell-side {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        visibility: visible;
+        translate: none;
+    }
+
+    .shell:has(#shell-menu:checked) .shell-overlay {
+        display: none;
+    }
+}
+
+/* How a task stands, always in words beside its colour. In the components layer, so a utility can resize it. */
+@layer components {
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.125rem 0.625rem;
+        border-radius: 999px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        line-height: 1.5;
+        white-space: nowrap;
+    }
+
+    .chip::before {
+        content: "";
+        width: 0.375rem;
+        height: 0.375rem;
+        border-radius: 50%;
+        background: currentcolor;
+    }
+
+    .chip-open {
+        background: var(--color-open-soft);
+        color: var(--color-open-ink);
+    }
+
+    .chip-progress {
+        background: var(--color-progress-soft);
+        color: var(--color-progress-ink);
+    }
+
+    .chip-done {
+        background: var(--color-done-soft);
+        color: var(--color-done-ink);
+    }
+
+    .chip-late {
+        background: var(--color-late-soft);
+        color: var(--color-late-ink);
+    }
+
+    .chip-today {
+        background: var(--color-today-soft);
+        color: var(--color-today-ink);
+    }
+}
+
+/* A person's portrait, cropped to a circle with a hairline ring that keeps a light backdrop off the page. */
+.avatar-photo {
+    flex: none;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 0 1px rgb(23 23 26 / 8%);
+}
+
+/* The initials a person is drawn with, in one of six tones that stays the same for the same name. */
+.avatar-initials {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--color-ink);
+    font-weight: 600;
+}
+
+.avatar-tone-0 {
+    background: #dcd3ff;
+}
+
+.avatar-tone-1 {
+    background: #d3e5ff;
+}
+
+.avatar-tone-2 {
+    background: #ffe0c2;
+}
+
+.avatar-tone-3 {
+    background: #cff3e2;
+}
+
+.avatar-tone-4 {
+    background: #ffd6e3;
+}
+
+.avatar-tone-5 {
+    background: #f1e6b8;
+}
+
+/*
+ * The preview beside the signed-out pages: a ground of fine dots under a small working board whose cards a
+ * visitor can drag. Its words are never selected by a drag, so a drag always takes a card.
+ */
+.preview {
+    background-image: radial-gradient(circle, #d6d3cb 1px, transparent 1px);
+    background-size: 18px 18px;
+    user-select: none;
+}
+
+.preview-card {
+    cursor: grab;
+}
+
+/* The copy of a card the pointer carries, laid over the card itself for the moment the browser draws it. */
+.preview-carried {
+    position: fixed;
+    margin: 0;
+    pointer-events: none;
+}
+
+.preview-card[data-dragging] {
+    cursor: grabbing;
+    opacity: 0.5;
+}
+
+.preview [data-preview-column][data-target] {
+    outline: 2px dashed var(--color-primary);
+    outline-offset: -4px;
+}
+
+/* The board: a card a reader moves between the columns, and the column it is about to land in. */
+.board-card {
+    cursor: grab;
+}
+
+.board-card[data-dragging] {
+    cursor: grabbing;
+    opacity: 0.55;
+}
+
+.board-column[data-target] {
+    outline: 2px dashed var(--color-primary);
+    outline-offset: -4px;
+    background: #e8ecff;
+}
+
+/* A full page load, such as the first one or one without script, crossfades too where the browser can. */
+@view-transition {
+    navigation: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .shell-side {
+        transition:
+            translate 200ms ease,
+            visibility 200ms;
+    }
+
+    .press,
+    .nav-link,
+    .board-card {
+        transition:
+            transform 120ms ease,
+            box-shadow 120ms ease,
+            background-color 120ms ease;
+    }
+
+    .press:where(a[href], button, label, summary, [draggable="true"]):hover {
+        box-shadow: var(--shadow-raise);
+    }
+
+    .press.btn-primary:hover {
+        box-shadow:
+            0 4px 12px -2px rgb(67 56 202 / 35%),
+            inset 0 1px 0 rgb(255 255 255 / 14%);
+    }
+
+    /* The lifted card of the preview drifts toward the slot it is about to land in, and back. */
+    .preview-lifted {
+        animation: preview-carry 5s ease-in-out infinite;
+    }
+
+    .preview-slot {
+        animation: preview-wait 5s ease-in-out infinite;
+    }
+
+    /* The drifting card holds still under the pointer, so it can be picked up. */
+    .preview-lifted:hover {
+        animation-play-state: paused;
+    }
+
+    @keyframes preview-carry {
+        0%,
+        100% {
+            transform: translate(0, 0);
+        }
+
+        50% {
+            transform: translate(2.5rem, -0.75rem);
+        }
+    }
+
+    @keyframes preview-wait {
+        0%,
+        100% {
+            opacity: 0.55;
+        }
+
+        50% {
+            opacity: 1;
+        }
+    }
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: 160ms;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .modal-box {
-        transition-property: opacity, box-shadow;
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none;
     }
 }

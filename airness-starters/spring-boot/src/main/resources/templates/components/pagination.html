@@ -1,32 +1,35 @@
 <!--/*
-    Where the reader is in a list and how to step through it. The steps are ordinary links, so a page of a
-    list can be shared and reopened. A narrowed list hands over its narrowing as written query, each
-    parameter led by its ampersand, so the second page of a search is the second page of that search. The two
-    steps stand apart rather than joined, so neither control's edge touches the other's.
+    Where the reader is in a list and how to step through it, drawn as the foot of the panel the list sits
+    in, and left out where the list fits on one page. The steps are ordinary links, so a page of a list can be shared and reopened. A narrowed list hands
+    over its narrowing as written query, each parameter led by its ampersand, so the second page of a search
+    is the second page of that search.
 */-->
 <nav
     th:fragment="pagination(page, pages, target, query)"
-    class="flex flex-wrap items-center justify-between gap-4"
+    th:if="${pages > 1}"
+    class="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-sm text-muted"
     th:attr="aria-label=#{pagination.label}"
     xmlns:th="http://www.thymeleaf.org"
 >
     <p th:text="#{pagination.page(${page}, ${pages})}">Page 1 of 1</p>
     <div class="flex gap-2">
         <a
-            class="btn"
-            th:classappend="${page <= 1} ? 'btn-disabled' : ''"
+            class="btn btn-sm"
+            th:classappend="${page <= 1} ? 'btn-disabled' : 'press bg-base-100'"
             th:href="@{|${target}?page=${page - 1}${query}|}"
             th:attr="aria-disabled=${page <= 1} ? 'true' : null"
-            th:text="#{pagination.previous}"
-            >Previous</a
         >
+            <svg th:replace="~{components/icon :: icon('chevron-left', 'size-4')}"></svg>
+            <span th:text="#{pagination.previous}">Previous</span>
+        </a>
         <a
-            class="btn"
-            th:classappend="${page >= pages} ? 'btn-disabled' : ''"
+            class="btn btn-sm"
+            th:classappend="${page >= pages} ? 'btn-disabled' : 'press bg-base-100'"
             th:href="@{|${target}?page=${page + 1}${query}|}"
             th:attr="aria-disabled=${page >= pages} ? 'true' : null"
-            th:text="#{pagination.next}"
-            >Next</a
         >
+            <span th:text="#{pagination.next}">Next</span>
+            <svg th:replace="~{components/icon :: icon('chevron-right', 'size-4')}"></svg>
+        </a>
     </div>
 </nav>

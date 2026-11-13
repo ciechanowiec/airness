@@ -2,12 +2,14 @@ package com.example.starter.task;
 
 import java.time.LocalDate;
 import java.util.Locale;
+import java.util.UUID;
 import lombok.experimental.UtilityClass;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
  * The ways the tasks are narrowed. Each is written once here and combined wherever tasks are read, so
- * the list a reader sees and the counts on their home page can never disagree about what is theirs.
+ * the list a reader sees, the counts on their home page and the task they open can never disagree about
+ * what is theirs.
  */
 @UtilityClass
 public final class TaskCriteria {
@@ -24,6 +26,16 @@ public final class TaskCriteria {
      */
     public static Specification<Task> ownedBy(long ownerId) {
         return (root, _, builder) -> builder.equal(root.get("ownerId"), ownerId);
+    }
+
+    /**
+     * Answers the task the given reference stands for.
+     *
+     * @param reference the reference the task is known by outside the database
+     * @return the criterion
+     */
+    public static Specification<Task> referenced(UUID reference) {
+        return (root, _, builder) -> builder.equal(root.get("reference"), reference);
     }
 
     /**
@@ -64,6 +76,40 @@ public final class TaskCriteria {
         return (root, _, builder) -> builder.and(
             builder.notEqual(root.get(CONTENT).get("status"), TaskStatus.DONE),
             builder.lessThan(root.get(CONTENT).get("dueOn"), today)
+        );
+    }
+
+    /**
+     * Narrows to the tasks not yet done.
+     *
+     * @return the narrowing
+     */
+    public static Specification<Task> unfinished() {
+        return (root, _, builder) -> builder.notEqual(root.get(CONTENT).get("status"), TaskStatus.DONE);
+    }
+
+    /**
+     * Narrows to the tasks not yet done whose due day falls between two days, both included.
+     *
+     * @param from the first day
+     * @param to   the last day
+     * @return the narrowing
+     */
+    public static Specification<Task> unfinishedDueBetween(LocalDate from, LocalDate to) {
+        return unfinished().and(
+            (root, _, builder) -> builder.between(root.get(CONTENT).get("dueOn"), from, to)
+        );
+    }
+
+    /**
+     * Narrows to the tasks not yet done that are due on the given day or before it.
+     *
+     * @param day the last due day included
+     * @return the narrowing
+     */
+    public static Specification<Task> unfinishedDueBy(LocalDate day) {
+        return unfinished().and(
+            (root, _, builder) -> builder.lessThanOrEqualTo(root.get(CONTENT).get("dueOn"), day)
         );
     }
 }

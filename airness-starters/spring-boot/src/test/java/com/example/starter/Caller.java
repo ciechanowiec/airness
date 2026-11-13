@@ -2,6 +2,7 @@ package com.example.starter;
 
 import com.example.starter.web.Htmx;
 import java.net.CookieManager;
+import java.net.CookieStore;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -83,17 +84,16 @@ public final class Caller {
     }
 
     /**
-     * Answers another caller holding the cookies this one holds now, which is what somebody who copied
-     * them out of a browser would send.
+     * Answers a second caller holding the cookies this one holds now, as whoever copied them would, and
+     * keeping them whatever this caller does afterwards.
      *
-     * @return that caller, which keeps the cookies it is sent from then on apart from this one
+     * @return that caller
      */
     public Caller copied() {
         Caller copy = new Caller(this.port);
-        URI application = this.address("/");
-        this.cookies.getCookieStore().getCookies().forEach(
-            cookie -> copy.cookies.getCookieStore().add(application, cookie)
-        );
+        URI application = URI.create("http://localhost:%d/".formatted(this.port));
+        CookieStore kept = copy.cookies.getCookieStore();
+        this.cookies.getCookieStore().getCookies().forEach(cookie -> kept.add(application, cookie));
         return copy;
     }
 
@@ -187,6 +187,16 @@ public final class Caller {
     }
 
     /**
+     * Reads the page at the given address the way a link the page shell boosts navigates to it.
+     *
+     * @param path the address to read
+     * @return what the application answered
+     */
+    public HttpResponse<String> boosted(String path) {
+        return this.read(this.request(path).header(Htmx.HEADER, "true").header(Htmx.BOOSTED, "true").GET().build());
+    }
+
+    /**
      * Reads the page at the given address the way a browser set to the given language asks for it.
      *
      * @param path     the address to read
@@ -217,11 +227,7 @@ public final class Caller {
     }
 
     private HttpRequest.Builder request(String path) {
-        return HttpRequest.newBuilder(this.address(path));
-    }
-
-    private URI address(String path) {
-        return URI.create("http://localhost:%d%s".formatted(this.port, path));
+        return HttpRequest.newBuilder(URI.create("http://localhost:%d%s".formatted(this.port, path)));
     }
 
     @SneakyThrows

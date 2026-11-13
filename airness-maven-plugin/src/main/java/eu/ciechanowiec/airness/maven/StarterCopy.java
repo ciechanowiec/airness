@@ -1,10 +1,15 @@
 package eu.ciechanowiec.airness.maven;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -20,7 +25,8 @@ import lombok.experimental.UtilityClass;
  * what precedes it, as in spring-boot-starter-web, names a Spring Boot module rather than the application, and
  * is kept. The pom marks each value with a placeholder instead, because its comments speak of Spring Boot
  * starters too. Every file is read for the harness version placeholder, and a file stored under an added
- * fixture suffix loses it.
+ * fixture suffix loses it. A file that is not UTF-8 text, such as an image, names nothing and is copied byte
+ * for byte.
  *
  * <p>A region between a line naming {@value #SNAPSHOT_BEGIN} and a line naming {@value #SNAPSHOT_END} serves a
  * SNAPSHOT harness alone, whose npm packages are never published: for one the two marker lines are dropped and
@@ -74,7 +80,39 @@ final class StarterCopy {
             );
             Path target = destination.resolve(target(relative, request));
             Files.createDirectories(Objects.requireNonNull(target.getParent(), "a starter file lives in a directory"));
-            Files.writeString(target, content(relative, Files.readString(file), request, version));
+            Files.write(target, copied(relative, Files.readAllBytes(file), request, version));
+        }
+    }
+
+    /**
+     * Answers what a starter file holds once it is written inside the application: a UTF-8 text under the
+     * application's names, and any other file, such as an image, byte for byte.
+     *
+     * @param relative the path of the file inside the starter, with forward slashes
+     * @param bytes    what the file holds in the starter
+     * @param request  the names of the application
+     * @param version  the harness version the application builds against
+     * @return what the file holds in the application
+     */
+    static byte[] copied(String relative, byte[] bytes, StarterRequest request, String version) {
+        return text(bytes)
+            .map(text -> content(relative, text, request, version).getBytes(StandardCharsets.UTF_8))
+            .orElse(bytes);
+    }
+
+    // A strict decoder, which refuses a byte sequence UTF-8 does not allow rather than replacing it, so an
+    // image is never mistaken for text and rewritten.
+    private static Optional<String> text(byte[] bytes) {
+        try {
+            return Optional.of(
+                StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes))
+                    .toString()
+            );
+        } catch (CharacterCodingException _) {
+            return Optional.empty();
         }
     }
 

@@ -17,9 +17,9 @@ import java.time.LocalDate;
  */
 @Embeddable
 public record TaskContent(
-    @Column(name = "title", nullable = false, length = TITLE_LIMIT) String title,
+    @Column(name = "title", nullable = false, length = TaskLimits.TITLE) String title,
 
-    @Column(name = "description", nullable = false, length = DESCRIPTION_LIMIT) String description,
+    @Column(name = "description", nullable = false, length = TaskLimits.DESCRIPTION) String description,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -27,10 +27,6 @@ public record TaskContent(
 
     @Column(name = "due_on", nullable = false) LocalDate dueOn
 ) {
-
-    static final int TITLE_LIMIT = 120;
-
-    static final int DESCRIPTION_LIMIT = 2000;
 
     /**
      * Answers whether the task is past its due day on the given day and not done.

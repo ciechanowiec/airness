@@ -1,5 +1,6 @@
 package com.example.starter.task;
 
+import com.example.starter.web.Listing;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -7,7 +8,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -23,9 +23,7 @@ import org.springframework.data.jpa.domain.Specification;
 public record TaskFilter(String search, String status, String sort) {
 
     // A search longer than any title can hold finds nothing a shorter one would not.
-    private static final int LONGEST_SEARCH = TaskContent.TITLE_LIMIT;
-
-    private static final int FIRST_PAGE = 1;
+    private static final int LONGEST_SEARCH = TaskLimits.TITLE;
 
     /**
      * Stands the empty string in the place of anything the address left out, and holds a search to the
@@ -40,6 +38,15 @@ public record TaskFilter(String search, String status, String sort) {
         this.search = searched.length() > LONGEST_SEARCH ? searched.substring(0, LONGEST_SEARCH) : searched;
         this.status = Objects.requireNonNullElse(status, "");
         this.sort = Objects.requireNonNullElse(sort, "");
+    }
+
+    /**
+     * Answers the longest search the list reads, which is the longest title a task can have.
+     *
+     * @return that length, in characters
+     */
+    public int longestSearch() {
+        return LONGEST_SEARCH;
     }
 
     /**
@@ -94,7 +101,7 @@ public record TaskFilter(String search, String status, String sort) {
      * @return the page request
      */
     public Pageable pageable(int page, int size) {
-        return PageRequest.of(Math.max(page, FIRST_PAGE) - FIRST_PAGE, size, this.order().order());
+        return Listing.request(page, size, this.order().order());
     }
 
     /**

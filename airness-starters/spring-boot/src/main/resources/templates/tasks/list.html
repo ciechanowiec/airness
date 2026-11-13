@@ -2,9 +2,11 @@
 <!--/*
     The tasks the reader may see. The filters are an ordinary form, so a narrowed list can be shared as an
     address and reopened. htmx replaces the results alone as the reader types or chooses, and the same
-    request answers the whole page where htmx is not running.
+    request answers the whole page where htmx is not running. The status is chosen from tabs that carry
+    how many tasks stand in each, which are radio buttons of that form.
 
-    Each row is drawn by the row fragment, which also answers a change of status made from the list.
+    The page header holds the one switch between the list and the board, beside the action that writes a
+    task. Each row is drawn by the row fragment, which also answers a change of status made from the list.
 */-->
 <html
     lang="en"
@@ -15,46 +17,66 @@
         <div id="page-body" class="space-y-6">
             <div th:replace="~{components/header :: header(#{tasks.title}, #{tasks.lead}, ~{:: actions})}"></div>
 
-            <form
-                class="card bg-base-100 shadow"
-                th:action="@{/tasks}"
-                method="get"
-                hx-get="/tasks"
-                hx-target="#results"
-                hx-swap="outerHTML"
-                hx-push-url="true"
-                hx-trigger="submit, input delay:300ms from:#search, change from:select"
-            >
-                <div class="card-body grid items-end gap-4 sm:grid-cols-4">
-                    <div class="fieldset sm:col-span-2">
-                        <label class="fieldset-legend" for="search" th:text="#{tasks.search}">Search the titles</label>
+            <section class="panel overflow-hidden">
+                <form
+                    class="flex flex-wrap items-center gap-3 border-b border-line px-5 py-4"
+                    role="search"
+                    th:action="@{/tasks}"
+                    method="get"
+                    hx-get="/tasks"
+                    hx-target="#results"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                    hx-trigger="submit, input delay:300ms from:#search, change"
+                >
+                    <label class="input ink-border min-w-60 flex-1">
+                        <svg th:replace="~{components/icon :: icon('search', 'size-4 text-muted')}"></svg>
+                        <span class="sr-only" th:text="#{tasks.search}">Search the titles</span>
                         <input
-                            class="input w-full"
                             id="search"
                             name="search"
                             type="search"
                             autocomplete="off"
-                            maxlength="120"
+                            th:maxlength="${filter.longestSearch()}"
+                            th:placeholder="#{tasks.search}"
                             th:value="${filter.search()}"
                         />
-                    </div>
-                    <div class="fieldset">
-                        <label class="fieldset-legend" for="status" th:text="#{tasks.filter.status}">Status</label>
-                        <select class="select w-full" id="status" name="status">
-                            <option value="" th:text="#{tasks.filter.everyStatus}">Every status</option>
-                            <option
-                                th:each="status : ${statuses}"
-                                th:value="${status.name()}"
-                                th:text="${words.of(status)}"
-                                th:selected="${#strings.equals(status.name(), filter.status())}"
+                    </label>
+                    <fieldset class="segmented">
+                        <legend class="sr-only" th:text="#{tasks.filter.status}">Status</legend>
+                        <label>
+                            <input
+                                class="choice-input"
+                                type="radio"
+                                name="status"
+                                value=""
+                                th:checked="${filter.status() == ''}"
+                            />
+                            <span th:text="#{tasks.filter.everyStatus}">All</span>
+                            <span
+                                th:fragment="count(status, oob)"
+                                th:id="${status == null} ? 'count-all' : |count-${status.name()}|"
+                                th:hx-swap-oob="${oob} ? 'true'"
+                                class="font-mono text-xs text-muted"
+                                th:text="${status == null} ? ${overview.open() + overview.inProgress() + overview.done()} : (${status.name() == 'OPEN'} ? ${overview.open()} : (${status.name() == 'IN_PROGRESS'} ? ${overview.inProgress()} : ${overview.done()}))"
+                                >33</span
                             >
-                                Open
-                            </option>
-                        </select>
-                    </div>
-                    <div class="fieldset">
-                        <label class="fieldset-legend" for="sort" th:text="#{tasks.filter.sort}">Order</label>
-                        <select class="select w-full" id="sort" name="sort">
+                        </label>
+                        <label th:each="status : ${statuses}">
+                            <input
+                                class="choice-input"
+                                type="radio"
+                                name="status"
+                                th:value="${status.name()}"
+                                th:checked="${#strings.equals(status.name(), filter.status())}"
+                            />
+                            <span th:text="${words.of(status)}">Open</span>
+                            <span th:replace="~{tasks/list :: count(${status}, false)}">18</span>
+                        </label>
+                    </fieldset>
+                    <label class="flex items-center gap-2 text-sm text-muted">
+                        <span th:text="#{tasks.filter.sort}">Order</span>
+                        <select class="select select-sm ink-border w-auto" id="sort" name="sort">
                             <option
                                 th:each="sort : ${sorts}"
                                 th:value="${sort.name()}"
@@ -64,51 +86,91 @@
                                 Due soonest
                             </option>
                         </select>
-                    </div>
-                    <button class="btn btn-primary sm:col-start-4" type="submit" th:text="#{tasks.search.submit}">
-                        Search
-                    </button>
-                </div>
-            </form>
+                    </label>
+                    <noscript>
+                        <button class="btn btn-sm press" type="submit" th:text="#{tasks.search.submit}">Search</button>
+                    </noscript>
+                </form>
 
-            <div th:fragment="results" id="results" class="space-y-4">
-                <div class="card bg-base-100 shadow" th:if="${listing.tasks().isEmpty()}">
-                    <div class="card-body">
-                        <h2 class="card-title" th:text="#{tasks.empty.title}">No tasks here</h2>
-                        <p th:text="${filter.narrowed()} ? #{tasks.empty.searched} : #{tasks.empty.lead}">
+                <div th:fragment="results" id="results">
+                    <div
+                        th:if="${listing.items().isEmpty()}"
+                        class="flex flex-col items-center gap-3 px-5 py-14 text-center"
+                    >
+                        <img
+                            class="size-40 object-contain"
+                            th:src="@{/images/empty.webp}"
+                            alt=""
+                            width="160"
+                            height="160"
+                        />
+                        <h2 class="text-lg font-bold" th:text="#{tasks.empty.title}">No tasks here</h2>
+                        <p
+                            class="max-w-sm text-muted"
+                            th:text="${filter.narrowed()} ? #{tasks.empty.searched} : #{tasks.empty.lead}"
+                        >
                             Write the first one.
                         </p>
                     </div>
-                </div>
-                <th:block th:unless="${listing.tasks().isEmpty()}">
-                    <div class="overflow-x-auto rounded-box bg-base-100 shadow">
-                        <table class="table">
-                            <caption class="sr-only" th:text="#{tasks.title}">Tasks</caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col" th:text="#{tasks.column.title}">Title</th>
-                                    <th scope="col" th:text="#{tasks.column.dueOn}">Due</th>
-                                    <th scope="col" th:text="#{tasks.column.status}">Status</th>
-                                    <th scope="col" th:if="${administrator}" th:text="#{tasks.column.owner}">Owner</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <th:block th:each="task : ${listing.tasks()}">
-                                    <tr th:replace="~{tasks/row :: row(${task})}"></tr>
-                                </th:block>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div
-                        th:replace="~{components/pagination :: pagination(${listing.page()}, ${listing.pages()}, '/tasks',
+                    <th:block th:unless="${listing.items().isEmpty()}">
+                        <div class="relative overflow-x-auto">
+                            <table class="w-full min-w-3xl table-fixed text-sm">
+                                <caption class="sr-only" th:text="#{tasks.title}">Tasks</caption>
+                                <thead class="bg-base-200/60 text-left text-muted">
+                                    <tr>
+                                        <th
+                                            scope="col"
+                                            class="py-2.5 pl-5 pr-3 font-semibold"
+                                            th:text="#{tasks.column.title}"
+                                            >Task</th
+                                        >
+                                        <th
+                                            scope="col"
+                                            class="w-56 px-3 py-2.5 font-semibold"
+                                            th:if="${administrator}"
+                                            th:text="#{tasks.column.owner}"
+                                        >
+                                            Kept by
+                                        </th>
+                                        <th
+                                            scope="col"
+                                            class="w-40 px-3 py-2.5 font-semibold"
+                                            th:text="#{tasks.column.status}"
+                                            >Status</th
+                                        >
+                                        <th
+                                            scope="col"
+                                            class="w-40 px-3 py-2.5 font-semibold"
+                                            th:text="#{tasks.column.dueOn}"
+                                            >Due</th
+                                        >
+                                        <th scope="col" class="w-20 py-2.5 pl-3 pr-5">
+                                            <span class="sr-only" th:text="#{tasks.column.actions}">Actions</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <th:block th:each="task : ${listing.items()}">
+                                        <tr th:replace="~{tasks/row :: row(${task})}"></tr>
+                                    </th:block>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div
+                            th:replace="~{components/pagination :: pagination(${listing.page()}, ${listing.pages()}, '/tasks',
                  ${filter.query()})}"
-                    ></div>
-                </th:block>
-            </div>
+                        ></div>
+                    </th:block>
+                </div>
+            </section>
         </div>
 
-        <div th:fragment="actions">
-            <a class="btn btn-primary" th:href="@{/tasks/new}" th:text="#{tasks.write}">Write a task</a>
+        <div th:fragment="actions" class="flex flex-wrap items-center gap-3">
+            <nav th:replace="~{components/views :: views('list')}"></nav>
+            <a class="btn btn-primary press" th:href="@{/tasks/new}">
+                <svg th:replace="~{components/icon :: icon('plus', 'size-4')}"></svg>
+                <span th:text="#{tasks.write}">New task</span>
+            </a>
         </div>
     </body>
 </html>

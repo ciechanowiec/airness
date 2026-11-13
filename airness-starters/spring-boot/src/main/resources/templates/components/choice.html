@@ -9,9 +9,11 @@
     class="fieldset"
     xmlns:th="http://www.thymeleaf.org"
 >
-    <label class="fieldset-legend" th:for="${control.name()}" th:text="${words.of(control.key())}">Label</label>
+    <label class="fieldset-legend text-sm font-semibold" th:for="${control.name()}" th:text="${words.of(control.key())}"
+        >Label</label
+    >
     <select
-        class="select w-full"
+        class="select ink-border w-full"
         th:classappend="${invalid} ? 'select-error' : ''"
         th:id="${control.name()}"
         th:name="${control.name()}"
@@ -28,7 +30,12 @@
             Something
         </option>
     </select>
-    <p class="text-sm text-red-800" th:if="${invalid}" th:id="|${control.name()}-error|" th:text="${error}">
+    <p
+        class="flex items-center gap-1.5 text-sm font-medium text-error"
+        th:if="${invalid}"
+        th:id="|${control.name()}-error|"
+        th:text="${error}"
+    >
         What is wrong
     </p>
 </div>

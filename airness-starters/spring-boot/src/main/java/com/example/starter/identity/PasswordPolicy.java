@@ -21,10 +21,8 @@ public final class PasswordPolicy {
     static final int SHORTEST = 12;
 
     /**
-     * How long a password is refused, in the bytes of its UTF-8 encoding rather than in characters. BCrypt
-     * reads at most seventy-two bytes, and the encoder refuses a longer password outright, so a password of
-     * seventy-two characters holding a letter with a diacritic or an emoji would otherwise pass the policy
-     * and then fail where it is hashed.
+     * How many bytes of UTF-8 a password may take. BCrypt refuses to hash anything longer, and a letter
+     * outside ASCII takes two bytes or more, so a password of fewer characters can still be too long.
      */
     static final int LONGEST = 72;
 

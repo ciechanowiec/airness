@@ -1,12 +1,12 @@
 package com.example.starter.identity;
 
-import jakarta.persistence.LockModeType;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,20 +22,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return the account under that address, or nothing when nobody signs in with it
      */
     Optional<User> findByProfileEmail(String email);
-
-    /**
-     * Answers the account that signs in under the given address, holding its row until the transaction
-     * that asked ends. Two refused sign-ins counted at once are therefore counted one after the other, the
-     * second reading what the first wrote, rather than both writing a count each read before the other.
-     * It needs a transaction that may write, because the database refuses to hold a row for one that may
-     * not.
-     *
-     * @param email the address in its canonical spelling
-     * @return the account under that address, held, or nothing when nobody signs in with it
-     */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT account FROM User account WHERE account.profile.email = :email")
-    Optional<User> heldUnder(@Param("email") String email);
 
     /**
      * Answers the account the given reference stands for.
@@ -92,4 +78,61 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """
     )
     long enabledUnder(@Param("role") Role role);
+
+    /**
+     * Takes one of the attempts the policy on refused sign-ins leaves the account under the given address
+     * before it is locked. The count is raised and checked in one statement, so attempts made at once
+     * each take an attempt of their own, and no more of them are let through than the policy allows.
+     *
+     * @param email the address in its canonical spelling
+     * @param limit how many attempts in a row the policy allows
+     * @param now   the instant of the attempt, before which a lock still holds
+     * @return one where an attempt was taken, and zero where the account is locked, has none left, or
+     *         nobody signs in under that address
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+            UPDATE User account
+            SET account.lockout.failedAttempts = account.lockout.failedAttempts + 1
+            WHERE account.profile.email = :email
+            AND account.lockout.failedAttempts < :limit
+            AND account.lockout.lockedUntil <= :now
+            """
+    )
+    int reserved(@Param("email") String email, @Param("limit") int limit, @Param("now") Instant now);
+
+    /**
+     * Locks the account under the given address where every attempt the policy allows was taken, and
+     * starts its count again.
+     *
+     * @param email the address in its canonical spelling
+     * @param limit how many attempts in a row the policy allows
+     * @param until the instant the lock lifts
+     * @return one where the account was locked, and zero where it still had attempts left
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+            UPDATE User account
+            SET account.lockout.failedAttempts = 0, account.lockout.lockedUntil = :until
+            WHERE account.profile.email = :email AND account.lockout.failedAttempts >= :limit
+            """
+    )
+    int locked(@Param("email") String email, @Param("limit") int limit, @Param("until") Instant until);
+
+    /**
+     * Starts the count of attempts of the account under the given address again.
+     *
+     * @param email the address in its canonical spelling
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+            UPDATE User account
+            SET account.lockout.failedAttempts = 0
+            WHERE account.profile.email = :email AND account.lockout.failedAttempts > 0
+            """
+    )
+    void cleared(@Param("email") String email);
 }

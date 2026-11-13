@@ -3,25 +3,21 @@
     The shell every page is drawn in. A page hands over two things: the title its tab carries and a
     fragment expression naming its own body. Nothing else about the shell is a page's business.
 
-    The theme is pinned to light on the root element, so a reader whose system prefers a dark one is
-    still shown the theme the application is designed in. The script is one module the frontend build
-    bundles from npm, served by this application as a file, because the content security policy refuses
-    inline code.
+    A signed-in reader works inside the application frame: a sidebar naming every place they may go, which
+    a narrow screen folds behind a menu button, and the page beside it. The menu button is a checkbox inside
+    the header, so it opens the sidebar without script and stays among the page's landmarks; the shade behind
+    an open sidebar closes it on a click and is hidden from assistive technology, which closes it with the
+    button. A reader who has not signed in is
+    shown the page alone, on the whole screen, because the pages they reach lay themselves out.
 
-    The language switch is a form per language, because a choice of language changes what the browser
-    keeps. Each language is named in its own words, so a reader who landed in a language they cannot read
-    still finds their own.
-
-    The link that skips to the content waits above the top of the page, at its full size, and comes down
-    into view when it is focused. It is not shrunk to a pixel the way visually hidden text is, because a
-    link drawn back from that loses the padding that makes it a target large enough to press.
-
-    A link of the navigation that leads to the page being drawn says so with aria-current, as the
-    navigation fragment does for the links of a signed-in reader.
+    The script is one module the frontend build bundles from npm, served by this application as a file,
+    because the content security policy refuses inline code. It boosts every link and form of the body, so
+    moving between pages swaps the body alone, with a crossfade, while the stylesheet, the fonts and the
+    script stay loaded. Without script, every link and form works as an ordinary one.
 */-->
 <html
     th:lang="${#locale.language}"
-    data-theme="light"
+    data-theme="studio"
     xmlns:th="http://www.thymeleaf.org"
     th:fragment="page(title, content)"
 >
@@ -33,66 +29,130 @@
         <link rel="stylesheet" th:href="@{/css/app.css}" />
         <script type="module" th:src="@{/js/app.js}"></script>
     </head>
-    <body class="min-h-screen bg-base-200 text-base-content">
-        <a class="btn btn-primary absolute -top-full left-4 focus:top-4" href="#content" th:text="#{shell.skip}"
+    <body class="min-h-screen bg-base-200 font-sans text-base-content antialiased" hx-boost="true">
+        <a
+            class="btn btn-sm press absolute -top-full left-4 z-50 focus:top-4 lg:left-68"
+            href="#content"
+            th:text="#{shell.skip}"
             >Skip to the content</a
         >
-        <header class="bg-base-100 shadow-sm">
-            <nav class="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-2">
-                <a
-                    class="btn btn-ghost text-lg font-semibold"
-                    th:href="@{/}"
-                    th:attr="aria-current=${here == '/'} ? 'page' : null"
-                    th:text="#{app.name}"
-                    >Starter</a
-                >
-                <ul class="flex flex-1 flex-wrap gap-1">
-                    <th:block th:if="${signedIn}">
-                        <li><a th:replace="~{components/navigation :: link('/tasks', #{nav.tasks})}"></a></li>
-                        <li th:if="${administrator}">
-                            <a th:replace="~{components/navigation :: link('/users', #{nav.users})}"></a>
-                        </li>
-                        <li><a th:replace="~{components/navigation :: link('/account', #{nav.account})}"></a></li>
-                    </th:block>
-                </ul>
-                <div class="flex flex-wrap items-center gap-2">
-                    <form th:each="language : ${languages}" th:action="@{/language}" method="post">
-                        <input type="hidden" name="language" th:value="${language.name()}" />
-                        <input type="hidden" name="back" th:value="${here}" />
-                        <button
-                            type="submit"
-                            class="btn btn-ghost"
-                            th:lang="${language.locale().language}"
-                            th:attr="aria-pressed=${#locale.language == language.locale().language} ? 'true' : 'false'"
-                            th:text="${language.endonym()}"
-                        >
-                            English
-                        </button>
-                    </form>
-                    <form th:if="${signedIn}" th:action="@{/logout}" method="post">
-                        <button type="submit" class="btn btn-outline" th:text="#{nav.signOut}">Sign out</button>
-                    </form>
+
+        <div th:if="${signedIn}" class="shell">
+            <aside class="shell-side flex flex-col gap-6 border-r border-line bg-base-100 px-4 py-5">
+                <a class="flex items-center gap-2.5 px-2" th:href="@{/}">
+                    <th:block th:replace="~{components/brand :: brand(false)}"></th:block>
+                </a>
+
+                <nav class="flex flex-col gap-1" th:aria-label="#{shell.navigation}">
                     <a
-                        th:unless="${signedIn}"
-                        class="btn btn-primary"
-                        th:href="@{/login}"
-                        th:attr="aria-current=${here == '/login'} ? 'page' : null"
-                        th:text="#{nav.signIn}"
-                        >Sign in</a
+                        class="nav-link"
+                        th:href="@{/}"
+                        th:attr="aria-current=${here == '/'} ? 'page' : null"
+                        th:classappend="${#strings.startsWith(here, '/?')} ? 'nav-link-within' : ''"
                     >
+                        <svg th:replace="~{components/icon :: icon('house', 'size-4.5')}"></svg>
+                        <span th:text="#{nav.today}">Today</span>
+                    </a>
+                    <a
+                        class="nav-link"
+                        th:href="@{/tasks}"
+                        th:attr="aria-current=${here == '/tasks'} ? 'page' : null"
+                        th:classappend="${here != '/tasks' and #strings.startsWith(here, '/tasks')} ? 'nav-link-within' : ''"
+                    >
+                        <svg th:replace="~{components/icon :: icon('list-checks', 'size-4.5')}"></svg>
+                        <span th:text="#{nav.tasks}">Tasks</span>
+                    </a>
+                    <th:block th:if="${administrator}">
+                        <span
+                            class="px-2.5 pb-1 pt-4 font-mono text-xs uppercase tracking-wider text-muted"
+                            th:text="#{nav.administration}"
+                            >Administration</span
+                        >
+                        <a
+                            class="nav-link"
+                            th:href="@{/users}"
+                            th:attr="aria-current=${here == '/users'} ? 'page' : null"
+                            th:classappend="${here != '/users' and #strings.startsWith(here, '/users')} ? 'nav-link-within' : ''"
+                        >
+                            <svg th:replace="~{components/icon :: icon('users', 'size-4.5')}"></svg>
+                            <span th:text="#{nav.users}">People</span>
+                        </a>
+                    </th:block>
+                </nav>
+
+                <div class="mt-auto flex flex-col gap-3">
+                    <div th:replace="~{components/language-switch :: languageSwitch(true)}"></div>
+                    <div class="flex items-center gap-2.5 rounded-box border border-line p-2.5">
+                        <span th:replace="~{components/avatar :: avatar(${readerName}, 'size-9 text-sm')}"></span>
+                        <a class="flex min-w-0 flex-col" th:href="@{/account}">
+                            <span
+                                class="truncate text-sm font-semibold"
+                                th:text="${readerName}"
+                                th:title="${readerName}"
+                                >Maja Kowalska</span
+                            >
+                            <span
+                                class="text-xs text-muted"
+                                th:text="${administrator} ? #{identity.role.admin} : #{identity.role.user}"
+                                >Administrator</span
+                            >
+                        </a>
+                        <form class="ml-auto" th:action="@{/logout}" method="post">
+                            <button
+                                type="submit"
+                                class="btn btn-square btn-ghost btn-sm text-muted"
+                                th:aria-label="#{nav.signOut}"
+                                th:title="#{nav.signOut}"
+                            >
+                                <svg th:replace="~{components/icon :: icon('log-out', 'size-4.5')}"></svg>
+                            </button>
+                        </form>
+                    </div>
                 </div>
-            </nav>
-        </header>
-        <main id="content" class="mx-auto max-w-5xl space-y-6 p-4">
-            <p
-                th:if="${notice.isPresent()}"
-                role="status"
-                class="alert alert-success"
-                th:text="${words.of(notice.get())}"
-            >
-                Saved
-            </p>
-            <div th:replace="${content}"></div>
-        </main>
+            </aside>
+            <label for="shell-menu" class="shell-overlay" aria-hidden="true"></label>
+            <div class="flex min-h-screen min-w-0 flex-col">
+                <header class="flex items-center gap-3 border-b border-line bg-base-100 px-4 py-3 lg:hidden">
+                    <label class="shell-menu btn btn-square btn-ghost btn-sm">
+                        <input id="shell-menu" type="checkbox" class="choice-input" />
+                        <svg th:replace="~{components/icon :: icon('menu', 'size-5')}"></svg>
+                        <span class="sr-only" th:text="#{shell.menu}">Open the menu</span>
+                    </label>
+                    <a class="flex items-center gap-2 font-bold" th:href="@{/}">
+                        <th:block th:replace="~{components/brand :: brand(true)}"></th:block>
+                    </a>
+                </header>
+                <main id="content" class="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-8 lg:py-8">
+                    <p
+                        th:if="${notice.isPresent()}"
+                        role="status"
+                        class="flex w-fit items-center gap-3 rounded-box bg-ink px-4 py-2.5 text-sm text-white"
+                    >
+                        <svg th:replace="~{components/icon :: icon('circle-check', 'size-4 text-done-soft')}"></svg>
+                        <span th:text="${words.of(notice.get())}">Saved</span>
+                    </p>
+                    <div th:replace="${content}"></div>
+                </main>
+            </div>
+        </div>
+
+        <div th:unless="${signedIn}" class="grid min-h-screen lg:grid-cols-2">
+            <div class="flex flex-col px-6 py-6 sm:px-12">
+                <header class="flex items-center justify-between gap-4">
+                    <a class="flex items-center gap-2.5" th:href="@{/}">
+                        <th:block th:replace="~{components/brand :: brand(false)}"></th:block>
+                    </a>
+                    <div th:replace="~{components/language-switch :: languageSwitch(false)}"></div>
+                </header>
+                <main th:id="'content'" class="flex flex-1 items-center py-12">
+                    <div class="mx-auto w-full max-w-md">
+                        <div th:replace="${content}"></div>
+                    </div>
+                </main>
+            </div>
+            <div class="sticky top-0 hidden h-screen p-6 lg:block">
+                <div th:replace="~{components/preview :: preview}"></div>
+            </div>
+        </div>
     </body>
 </html>

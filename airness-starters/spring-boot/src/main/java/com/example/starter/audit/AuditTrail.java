@@ -13,12 +13,13 @@ public final class AuditTrail {
 
     /**
      * Who is recorded as the actor of what the application does on its own, such as writing the first
-     * administrator at startup or stopping an account under the policy on refused sign-ins.
+     * administrator at startup or locking an account under the policy on refused sign-ins.
      */
     public static final String APPLICATION = "application";
 
     /**
-     * How wide an actor and a target may be, which is the width of the address an account signs in with.
+     * How wide an actor and a target may be, which is the width of the address a sign-in is attempted
+     * under, the widest of the values either holds.
      */
     static final int WIDTH = 180;
 
@@ -38,12 +39,18 @@ public final class AuditTrail {
     }
 
     /**
-     * Records that somebody did something to an account or to a task.
+     * Records that somebody did something to an account or a task.
      *
-     * @param actor   who did it, by the address they sign in with, or {@link #APPLICATION}
+     * <p>An account and a task are named by their reference, which never changes, so an entry still names
+     * the same account after its address has changed and the same task after it was removed. An attempt to
+     * sign in is named by the address it was attempted under instead, because that address may belong to no
+     * account at all, and the caller is not yet anybody.
+     *
+     * @param actor   who did it: their account's reference, the address a sign-in was attempted under, or
+     *                {@link #APPLICATION}
      * @param action  what was done
-     * @param target  the account it was done to, by the address that account signs in with, or the task it
-     *                was done to, by the reference that task is known by
+     * @param target  the account or the task it was done to by its reference, or the address a sign-in was
+     *                attempted under
      * @param outcome how it turned out
      */
     public void write(String actor, AuditAction action, String target, AuditOutcome outcome) {

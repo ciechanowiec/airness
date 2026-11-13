@@ -10,22 +10,23 @@
     th:replace="~{layout/page :: page(${words.of(failure.key())}, ~{:: #page-body})}"
 >
     <body>
-        <div id="page-body" class="mx-auto max-w-md">
-            <div class="card bg-base-100 shadow">
-                <div class="card-body items-center space-y-3 text-center">
-                    <p class="text-5xl font-bold" th:text="${failure.status()}">404</p>
-                    <h1 class="text-xl font-semibold" th:text="${words.of(failure.key())}">
-                        Nothing is to be found at this address.
-                    </h1>
-                    <p
-                        th:if="${failure.reference().isPresent()}"
-                        th:text="#{failure.reference(${failure.reference().get()})}"
-                    >
-                        Reference
-                    </p>
-                    <a class="btn btn-primary" th:href="@{/}" th:text="#{failure.back}">Back to the home page</a>
-                </div>
-            </div>
+        <div id="page-body" class="panel mx-auto flex max-w-lg flex-col items-center gap-3 px-8 py-10 text-center">
+            <img class="size-36" th:src="@{/images/missing.webp}" alt="" width="144" height="144" />
+            <p class="font-mono text-sm font-medium text-muted" th:text="${failure.status()}">404</p>
+            <h1 class="text-2xl font-bold tracking-tight" th:text="${words.of(failure.key())}">
+                Nothing is to be found at this address.
+            </h1>
+            <p
+                class="text-sm text-muted"
+                th:if="${failure.reference().isPresent()}"
+                th:text="#{failure.reference(${failure.reference().get()})}"
+            >
+                Reference
+            </p>
+            <a class="btn btn-primary press mt-3" th:href="@{/}">
+                <svg th:replace="~{components/icon :: icon('arrow-left', 'size-4')}"></svg>
+                <span th:text="#{failure.back}">Back to the home page</span>
+            </a>
         </div>
     </body>
 </html>

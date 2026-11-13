@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
  * the header of every page offers.
  */
 @ControllerAdvice
-public final class LanguageSwitch {
+public final class LanguageModel {
 
     /**
      * Answers the languages the application speaks, in the order the switch offers them.

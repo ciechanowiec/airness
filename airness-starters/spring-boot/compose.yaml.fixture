@@ -1,8 +1,6 @@
 # Starts the database and the application together on one machine. Build the archive first with
 # `mvn clean verify`, because the image unpacks what that produced rather than compiling the project.
-# Copy .env.example to .env and choose the values before the first `docker compose up`: the two passwords
-# are empty there, and the database refuses to start without one, as the application refuses to write its
-# first administrator without the other.
+# Copy .env.example to .env and choose the values before the first `docker compose up`.
 services:
   db:
     image: postgres:18-alpine
@@ -32,6 +30,8 @@ services:
       APP_DATABASE_URL: jdbc:postgresql://db:5432/${APP_DATABASE_NAME}
       APP_DATABASE_USERNAME: ${APP_DATABASE_USERNAME}
       APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD}
+      # Whether the first start writes the people and tasks of the demonstration. Off unless .env asks.
+      APP_DEMO_DATA: ${APP_DEMO_DATA:-false}
     # Published on the loopback interface alone, because this file runs the application for the machine it
     # is on. A deployment that serves others puts its own proxy in front of it.
     ports:

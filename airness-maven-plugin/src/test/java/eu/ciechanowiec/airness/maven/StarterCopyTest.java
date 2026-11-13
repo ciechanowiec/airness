@@ -1,11 +1,14 @@
 package eu.ciechanowiec.airness.maven;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -29,6 +32,7 @@ class StarterCopyTest {
             <plugin>build</plugin>
         </plugins>
         """;
+    private static final String IMAGE = "src/main/resources/static/images/empty.webp";
     private static final StarterRequest REQUEST = StarterRequest.of(
         "org.sample", "task-tracker", Optional.of("org.sample.tracker"), Optional.of("Task Tracker")
     );
@@ -69,6 +73,24 @@ class StarterCopyTest {
                 starters and Starters
                 """,
             StarterCopy.content("src/Main.java", text, REQUEST, VERSION)
+        );
+    }
+
+    @Test
+    void copiesAFileThatIsNotTextByteForByte() {
+        // A PNG signature, a byte UTF-8 never uses, and the word starter, which a text would have renamed.
+        byte[] image = HexFormat.of().parseHex("89504e47ff73746172746572");
+
+        assertArrayEquals(image, StarterCopy.copied("images/logo.png", image, REQUEST, VERSION));
+    }
+
+    @Test
+    void renamesTheApplicationInAFileThatIsText() {
+        byte[] text = "name: starter\n".getBytes(StandardCharsets.UTF_8);
+
+        assertEquals(
+            "name: task-tracker\n",
+            new String(StarterCopy.copied("application.yaml", text, REQUEST, VERSION), StandardCharsets.UTF_8)
         );
     }
 
@@ -128,7 +150,7 @@ class StarterCopyTest {
 
         assertFalse(Files.readString(this.directory.resolve("pom.xml")).contains("npm-registry.py"));
         assertFalse(Files.readString(this.directory.resolve(".gitignore")).contains(".npmrc"));
-        assertFalse(Files.readString(this.directory.resolve("README.md")).contains("local registry"));
+        assertFalse(Files.readString(this.directory.resolve("AGENTS.md")).contains("local npm registry"));
     }
 
     @Test
@@ -140,7 +162,7 @@ class StarterCopyTest {
 
         assertTrue(Files.readString(this.directory.resolve("pom.xml")).contains("npm-registry.py"));
         assertTrue(Files.readString(this.directory.resolve(".gitignore")).contains(".npmrc"));
-        assertTrue(Files.readString(this.directory.resolve("README.md")).contains("local registry"));
+        assertTrue(Files.readString(this.directory.resolve("AGENTS.md")).contains("local npm registry"));
         try (Stream<Path> files = Files.walk(this.directory)) {
             assertEquals(
                 0L, files.filter(Files::isRegularFile).filter(StarterCopyTest::mentionsTheStarter).count(),
@@ -154,6 +176,10 @@ class StarterCopyTest {
     void writesEveryFileOfTheStarterUnderTheApplicationsNames() {
         try (StarterTemplate starter = StarterTemplate.open(StarterCopyTest.class.getClassLoader(), "spring-boot")) {
             StarterCopy.write(starter.root(), this.directory, REQUEST, VERSION);
+            assertArrayEquals(
+                Files.readAllBytes(starter.root().resolve(IMAGE)), Files.readAllBytes(this.directory.resolve(IMAGE)),
+                "an image is copied byte for byte"
+            );
         }
 
         assertTrue(
@@ -195,7 +221,8 @@ class StarterCopyTest {
 
     @SneakyThrows
     private static boolean mentionsTheStarter(Path file) {
-        String text = Files.readString(file);
+        // Read leniently, because an image is no UTF-8 text and names nothing.
+        String text = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
         return Stream.of("com.example.starter", "@AIRNESS_VERSION@", "@GROUP_ID@", "@SNAPSHOT_ONLY_")
             .anyMatch(text::contains);
     }
