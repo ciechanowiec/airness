@@ -10,7 +10,7 @@ run_template_message_cases() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-spring-boot</artifactId>
-        <version>1.0.11-SNAPSHOT</version>
+        <version>1.0.11</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>template-message-app</artifactId>
