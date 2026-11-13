@@ -11,7 +11,8 @@ export interface HitTargetProbe {
   /** The computed `clip`, verbatim, or `auto`. */
   readonly clip: string
   /**
-   * Whether `elementFromPoint` at the box centre returned this element or a descendant of it.
+   * Whether `elementFromPoint` at the box centre returned this element or a descendant of it, or, for an element
+   * laid out in several fragments such as a link that wraps, at the centre of any one of them.
    *
    * This is the same question Playwright's actionability check asks, and asking it here is what lets
    * a clipped element and an obscured one be told apart rather than both reported as a timeout.
