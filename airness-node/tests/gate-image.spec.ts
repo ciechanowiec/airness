@@ -296,8 +296,8 @@ describe('the image gate', PROCESS_TIME, () => {
       const result: GateResult = await image(memberAt(root, SERVED), undefined, machine)
       expect(result.ok).toBe(false)
       expect(result.findings).toEqual([
-        "Dockerfile: the image does not build from the member's directory with no build argument and no service " +
-          '(docker build exited 1):',
+        "Dockerfile: the image does not build from the node project's directory with no build argument and no " +
+          'service (docker build exited 1):',
         '| #7 [runner 3/6] COPY --from=builder /app/public ./public',
         '| not found',
       ])

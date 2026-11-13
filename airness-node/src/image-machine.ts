@@ -27,7 +27,7 @@ export interface BootOutcome {
 export interface ImageMachine {
   /** A tag of this run's own for the image of one Dockerfile. */
   readonly tag: () => string
-  /** Build the image of one Dockerfile from the member's directory. */
+  /** Build the image of one Dockerfile of the member, with the node project's directory as the build context. */
   readonly build: (member: Member, dockerfile: string, tag: string) => Promise<RunResult>
   /** What `docker image inspect` prints for the image's exposed ports, as JSON. */
   readonly exposedPorts: (tag: string) => RunResult
@@ -81,11 +81,14 @@ const report = (line: string): void => {
 /** The machine itself. */
 export const SYSTEM_IMAGE_MACHINE: ImageMachine = {
   tag: (): string => `airness-image-${randomBytes(TAG_BYTES).toString('hex')}:verification`,
+  // The context is the node project's directory, which holds the lockfile and the workspace file a member of a pnpm
+  // workspace installs by; for the project itself it is the member's own directory.
   build: async (member: Member, dockerfile: string, tag: string): Promise<RunResult> =>
-    await runStreaming('docker', ['build', '--progress=plain', '--file', dockerfile, '--tag', tag, '.'], {
-      cwd: member.root,
-      onLine: report,
-    }),
+    await runStreaming(
+      'docker',
+      ['build', '--progress=plain', '--file', path.join(member.path, dockerfile), '--tag', tag, '.'],
+      { cwd: member.projectRoot, onLine: report },
+    ),
   exposedPorts: (tag: string): RunResult =>
     run('docker', ['image', 'inspect', '--format', '{{json .Config.ExposedPorts}}', tag], { cwd: process.cwd() }),
   remove: (tag: string): void => {
