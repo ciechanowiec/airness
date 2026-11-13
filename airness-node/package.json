@@ -1,6 +1,6 @@
 {
   "name": "@airness/node",
-  "version": "1.0.11-SNAPSHOT",
+  "version": "1.0.11",
   "description": "The JS/TS gates of the Airness node layer, the analyzer configurations they read, and the pinned analyzers.",
   "license": "MIT-0",
   "author": "Herman Ciechanowiec <herman@ciechanowiec.eu>",

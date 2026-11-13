@@ -390,7 +390,7 @@ CSS
     "serve": "\"\$JAVA_HOME/bin/java\" -jar \"\$AIRNESS_APPLICATION_ARTIFACT\" --server.port=\$PORT"
   },
   "devDependencies": {
-    "@airness/node": "1.0.11-SNAPSHOT",
+    "@airness/node": "1.0.11",
     "@playwright/test": "1.64.1",
     "@types/node": "26.6.6"
   },

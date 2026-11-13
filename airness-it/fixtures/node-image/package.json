@@ -7,7 +7,7 @@
     "with:services": "node scripts/with-services.ts"
   },
   "devDependencies": {
-    "@airness/node": "1.0.11-SNAPSHOT",
+    "@airness/node": "1.0.11",
     "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.0.5",
     "typescript": "6.0.3",
