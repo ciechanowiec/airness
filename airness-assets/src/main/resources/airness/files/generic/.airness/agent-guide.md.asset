@@ -88,7 +88,9 @@ Airness governs all of the following domains:
   variable a compose file interpolates without a default is documented in `.env.example` (or `.env.sample`,
   `.env.template`) and supplied by every workflow that runs Maven through `verify`; every such example file,
   wherever it lies, leaves each variable whose name holds `PASSWORD`, `PASSWD`, `SECRET` or `TOKEN`, or ends in
-  `KEY`, empty (`NAME=`), so no copy of it supplies a default credential; and `.claude/settings.json`
+  `KEY`, empty (`NAME=`), so no copy of it supplies a default credential; no compose service publishes on a
+  host port the file fixes, a literal or a variable's default, or names its container, so two checkouts or two
+  projects start side by side; and `.claude/settings.json`
   denies `Edit(...)` of every generated file and of every pinned managed file, with no local settings allowing
   one back. `mvn airness:assets-sync` writes those rules beside the project's own.
 - **Frontend resources:** at `validate`, every module inventories the scripts (`.js`, `.mjs`, `.cjs`, `.jsx`,
@@ -317,6 +319,11 @@ when the run is stopped by a signal or killed outright. `network: true` gives th
 on which `prepare` can run a one-off container with `services.once`; `prepare` also runs steps such as
 migrations against the services before the command. Never start fixed-name containers on fixed ports, or reuse a
 developer's database, for verification.
+
+A compose file a developer or an agent starts by hand holds to the same: a host port is a variable without a
+default, such as `${APP_PORT}`, which the script that starts the project sets to a free loopback port and prints, or
+it is left to Docker, as in `127.0.0.1::8080`, and no service sets `container_name`. A project whose own URL must
+be known when it starts, as an origin it accepts requests from, chooses the port in that script.
 
 The Extended `image` gate holds every Dockerfile of a node project to the image a deployment runs. It builds
 each one with the node project's directory as the build left it as its context, which holds the lockfile and

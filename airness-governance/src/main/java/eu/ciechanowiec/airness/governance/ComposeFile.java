@@ -26,8 +26,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class ComposeFile {
 
+    static final String SERVICES = "services";
+
     private static final Pattern COMMENTED = Pattern.compile("(?:^|\\s)#");
-    private static final String SERVICES = "services";
     private static final String IMAGE = "image";
     private static final String BUILD = "build";
     private static final String PULL_POLICY = "pull_policy";

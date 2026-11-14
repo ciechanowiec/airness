@@ -1,6 +1,7 @@
 # Starts the database and the application together on one machine. Build the archive first with
 # `mvn clean verify`, because the image unpacks what that produced rather than compiling the project.
-# Copy .env.example to .env and choose the values before the first `docker compose up`.
+# Copy .env.example to .env and choose the values, then start it with `pnpm run up`, which publishes the
+# application on a free loopback port and prints it, so another checkout or project runs beside it.
 services:
   db:
     image: postgres:18-alpine
@@ -33,8 +34,8 @@ services:
       # Whether the first start writes the people and tasks of the demonstration. Off unless .env asks.
       APP_DEMO_DATA: ${APP_DEMO_DATA:-false}
     # Published on the loopback interface alone, because this file runs the application for the machine it
-    # is on. A deployment that serves others puts its own proxy in front of it.
+    # is on, and on the port `pnpm run up` chooses. A deployment that serves others puts its own proxy in front.
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${APP_PORT}:8080"
 volumes:
   database:

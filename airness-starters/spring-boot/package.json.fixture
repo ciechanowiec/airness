@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsx scripts/build.ts && tailwindcss --input src/main/frontend/styles/app.css --output target/frontend/css/app.css --minify",
     "serve": "\"$JAVA_HOME/bin/java\" -jar \"$AIRNESS_APPLICATION_ARTIFACT\" --server.port=$PORT",
+    "up": "tsx scripts/up.ts",
     "with:services": "tsx scripts/with-services.ts",
     "format": "airness-node format"
   },
@@ -40,8 +41,8 @@
     ],
     "coverageExclude": [
       {
-        "pattern": "scripts/with-services.ts",
-        "reason": "the wrapper every test, build and browser gate runs inside: it starts and removes a disposable PostgreSQL, so each gate run exercises it and a unit run would need a Docker round trip of its own"
+        "pattern": "scripts/{with-services,up}.ts",
+        "reason": "the scripts that start containers: the wrapper every test, build and browser gate runs inside, which starts and removes a disposable PostgreSQL, so each gate run exercises it, and the launcher a developer runs by hand, which chooses a free port and runs docker compose up; a unit run of either would need a Docker round trip of its own"
       }
     ],
     "productionEntries": [

@@ -22,6 +22,7 @@ jobs:
       APP_DATABASE_PASSWORD: 'compose-check-only'
       APP_ADMINISTRATOR_EMAIL: 'administrator@starter.local'
       APP_ADMINISTRATOR_PASSWORD: 'compose-check-only'
+      APP_PORT: '8080'
     steps:
       - name: 'Checkout complete history'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

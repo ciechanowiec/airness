@@ -1,9 +1,10 @@
 # Starts the database, the object storage and the application together on one machine. Build the standalone
 # server first with `mvn clean verify`, because the image copies what that produced rather than building the
-# project. Copy .env.example to .env and choose the values before the first `docker compose up`.
+# project. Copy .env.example to .env and choose the values, then start it with `pnpm run up`.
 #
-# `pnpm dev` runs the application on the host against the same two services: `docker compose up db objects`
-# starts them alone, and the loopback ports below, which POSTGRES_PORT and S3_PORT move, reach them from the host.
+# Every port is published on the loopback interface, on the port scripts/local.ts chooses free on this machine, so
+# another checkout of the project, or another project, runs beside it. `pnpm dev` starts the database and the
+# storage alone through the same script and runs the development server on the host against them.
 services:
   db:
     image: postgres:18-alpine
@@ -21,7 +22,7 @@ services:
     volumes:
       - database:/var/lib/postgresql
     ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT}:5432"
   # S3-compatible storage for uploads. The health check creates the upload bucket, so it answers once RustFS
   # accepts requests and the bucket the application writes to exists.
   objects:
@@ -43,7 +44,7 @@ services:
     volumes:
       - objects:/data
     ports:
-      - "127.0.0.1:${S3_PORT:-9000}:9000"
+      - "127.0.0.1:${S3_PORT}:9000"
   app:
     build: .
     depends_on:
@@ -54,7 +55,8 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       PAYLOAD_SECRET: ${PAYLOAD_SECRET}
-      NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}
+      # The origin the application accepts authenticated requests from, which is the one it is published on.
+      NEXT_PUBLIC_SERVER_URL: http://localhost:${APP_PORT}
       TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT}
       S3_ENDPOINT: http://objects:9000
       S3_BUCKET: ${S3_BUCKET}
@@ -64,7 +66,7 @@ services:
     # Published on the loopback interface alone, because this file runs the application for the machine it
     # is on. A deployment that serves others puts its own proxy in front of it.
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${APP_PORT}:3000"
 volumes:
   database:
   objects:

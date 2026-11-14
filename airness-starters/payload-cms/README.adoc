@@ -80,18 +80,17 @@ mvn clean verify
 +
 [source,bash]
 ----
-docker compose up --build
+pnpm run up
 ----
-. Open `http://localhost:3000/admin` and follow the on-screen steps to create the first administrator.
+. Open the address the command prints, followed by `/admin`, and follow the on-screen steps to create the first administrator.
 
 [[development-server]]
 === Development Server
 
-. To change the application with a server that reloads when a file under `src/` changes, start the two services alone and run the development server on the host, which reaches them through their loopback ports:
+. To change the application with a server that reloads when a file under `src/` changes, run the development server on the host. It starts the database and the object storage alone and prints the address it serves on:
 +
 [source,bash]
 ----
-docker compose up -d db objects
 pnpm dev
 ----
 . Instead of the create-first-user screen, the administrator that `scripts/development-admin.ts` defines can be created with the password from `SEED_ADMIN_PASSWORD` in `.env`. The seed is idempotent, and it refuses any database host other than localhost, so it can't reach a remote database:
@@ -105,19 +104,19 @@ pnpm seed
 [[services-with-docker]]
 == Services with Docker
 
-The `compose.yaml` file defines three services. The variables prefixed `+POSTGRES_+` in `.env` configure the database, and the `+S3_+` variables configure both the object storage and the application. Inside the compose network the application reaches the database and the storage by their service names. `DATABASE_URL` and `S3_ENDPOINT` in `.env` serve only the development server and the seed on the host.
+The `compose.yaml` file defines three services. The variables prefixed `+POSTGRES_+` in `.env` configure the database, and the `+S3_+` variables configure both the object storage and the application. `scripts/local.ts` publishes each service on a loopback port free on the machine, so several checkouts of the application, or other projects, run side by side. It hands the application the addresses of the database and the storage, and the origin the application is served on, which is the only origin the application accepts authenticated requests from. `pnpm run up` starts all three services. `pnpm dev`, `pnpm seed` and the Payload commands start the database and the storage alone and run on the host against them.
 
 === Database
 
-The `db` service runs PostgreSQL 18 on the loopback host port `POSTGRES_PORT`, `5432` unless `.env` moves it, so the database isn't reachable from the network, and persists its data in the `database` volume.
+The `db` service runs PostgreSQL 18 on a loopback host port, so the database isn't reachable from the network, and persists its data in the `database` volume.
 
 === Object Storage
 
-The `objects` service runs https://rustfs.com[RustFS^], an S3-compatible object store, and holds every file uploaded to the `Media` collection. The application never writes uploads to the local disk. It serves the S3 API on the loopback host port `S3_PORT`, `9000` unless `.env` moves it, and persists objects in the `objects` volume. It takes `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` as its own root credentials and refuses to start while either is empty. Its health check creates the `S3_BUCKET` bucket, so the service reports healthy once the bucket exists.
+The `objects` service runs https://rustfs.com[RustFS^], an S3-compatible object store, and holds every file uploaded to the `Media` collection. The application never writes uploads to the local disk. It serves the S3 API on a loopback host port and persists objects in the `objects` volume. It takes `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` as its own root credentials and refuses to start while either is empty. Its health check creates the `S3_BUCKET` bucket, so the service reports healthy once the bucket exists.
 
 === Application
 
-The `app` service builds the image from the `Dockerfile`, which copies the standalone server that `mvn clean verify` built, and starts once both other services report healthy. It answers at `http://localhost:3000` on loopback only.
+The `app` service builds the image from the `Dockerfile`, which copies the standalone server that `mvn clean verify` built, and starts once both other services report healthy. It answers on a loopback host port only.
 
 [[collections]]
 == Collections
