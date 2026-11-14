@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 
@@ -37,7 +38,9 @@ import javax.lang.model.element.Modifier;
  * <p>A message assembled by concatenation, {@link String#format(String, Object...)} or {@code MessageFormat} is built
  * even when
  * the level is off and defeats the logger's grouping of equal messages. An argument is passed as it is, not
- * as {@code toString()} or as an explicit array, and an expensive one at a fine level is guarded. A guard
+ * as {@code toString()} or as an explicit array, and an expensive one at a fine level is guarded. The one
+ * {@code toString()} kept is that of a {@link Throwable} passed last, which the logger would otherwise take as the
+ * cause rather than as the placeholder's value. A guard
  * that matches its statement's level only around cheap arguments says nothing. A logger is a private field
  * named for the class declaring it.
  *
@@ -118,7 +121,7 @@ public final class AirnessLoggingIsParameterized extends BugChecker
                 "Pass the arguments themselves rather than an array of them"
             ),
             new Finding(
-                values.stream().anyMatch(AirnessLoggingIsParameterized::callsToString),
+                redundantToString(values, state),
                 "Pass the argument itself; the logger calls toString only when it writes"
             ),
             new Finding(
@@ -202,6 +205,31 @@ public final class AirnessLoggingIsParameterized extends BugChecker
             .map(MethodInvocationTree.class::cast)
             .toList();
         return calls.size() == statements.size() ? calls : List.of();
+    }
+
+    /**
+     * Whether a value is turned into text before the logger could do it.
+     *
+     * <p>The last value is exempt when it is a {@link Throwable}'s {@code toString()}: the logger takes a
+     * {@link Throwable} passed last as the cause and writes its stack trace, leaving the placeholder unfilled, so
+     * {@code toString()} is how its one-line summary reaches the message.
+     *
+     * @param values the arguments after the message
+     * @param state  the compilation state
+     * @return {@code true} when a value calls {@code toString()} that the logger would call itself
+     */
+    private static boolean redundantToString(List<? extends ExpressionTree> values, VisitorState state) {
+        int last = values.size() - 1;
+        return IntStream.range(0, values.size())
+            .filter(index -> callsToString(values.get(index)))
+            .anyMatch(index -> index != last || !describesThrowable(values.get(index), state));
+    }
+
+    private static boolean describesThrowable(ExpressionTree toStringCall, VisitorState state) {
+        MemberSelectTree select = (MemberSelectTree) ((MethodInvocationTree) toStringCall).getMethodSelect();
+        return ASTHelpers.isSubtype(
+            ASTHelpers.getType(select.getExpression()), state.getSymtab().throwableType, state
+        );
     }
 
     private static boolean callsToString(ExpressionTree value) {
