@@ -1,0 +1,41 @@
+allowBuilds:
+  esbuild: true
+
+# The image runs the standalone server `mvn clean verify` builds on the host, on Alpine Linux, so the install
+# also takes the Linux musl binaries of the native packages beside the host's own, for both processor families
+# an image is built for. next.config.ts traces the ones the server loads by a name it computes at run time.
+supportedArchitectures:
+  os:
+    - current
+    - linux
+  cpu:
+    - current
+    - x64
+    - arm64
+  libc:
+    - current
+    - musl
+
+# pnpm refuses a package published more recently than this many minutes, the window a compromised
+# publish is most dangerous in. Only the harness packages are excused, the one exclusion the harness
+# permits: a harness release is what failing gates wait on, so it may be taken the day it ships.
+minimumReleaseAge: 1440
+
+minimumReleaseAgeStrict: true
+
+minimumReleaseAgeExclude:
+  - "@airness/node"
+  - "@airness/payload"
+
+# The harness approves these exact security corrections; each must match an edge that resolves.
+overrides:
+  "eslint-plugin-functional@10.0.1>deepmerge-ts": "8.0.2"
+  "@eslint/config-array@0.23.5>minimatch": "11.0.4"
+  "@typescript-eslint/typescript-estree@8.72.2>minimatch": "11.0.4"
+  "eslint-plugin-sonarjs@4.2.2>minimatch": "11.0.4"
+  "eslint@10.14.0>minimatch": "11.0.4"
+  "type-coverage-core@2.31.1>minimatch": "11.0.4"
+  # The Payload layer approves these exact security corrections for Payload's own dependency edges.
+  "@esbuild-kit/core-utils@3.3.2>esbuild": "0.28.2"
+  "monaco-editor@0.57.0>dompurify": "3.4.17"
+  "@lexical/headless@0.50.0>happy-dom": "21.0.4"

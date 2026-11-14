@@ -1,0 +1,41 @@
+## Starter
+
+Starter is a content site: editors sign in to the Payload admin, keep accounts and upload media, and every sign-in
+and change is recorded as an audit event. It began from the Airness Payload CMS template, a generic beginning for
+an application built on Airness with Payload CMS, Next.js, PostgreSQL and S3-compatible storage. Replace this
+paragraph with the goal of the application it becomes.
+
+- `README.adoc` explains the template to people. It follows `README-guideline-writing.adoc` and must pass
+  `adocent lint README.adoc`.
+- A local run starts with `cp .env.example .env`, choosing the secrets the copy leaves empty, then
+  `mvn clean verify` and `docker compose up --build`. The first start applies the committed migrations to the
+  empty database, and the admin at `http://localhost:3000/admin` then asks for the first account.
+- Both `mvn clean verify` and `mvn clean verify -Pextended` need Docker: the test wrapper `scripts/with-services.ts`
+  starts a PostgreSQL and a RustFS container of its own for each wrapped command.
+<!-- @SNAPSHOT_ONLY_BEGIN@ -->
+- Every build starts the local npm registry with `python3`, which serves `@airness/node` and `@airness/payload`
+  from the Airness artifacts installed in the local Maven repository, so `python3` must be on the path and the
+  Airness version the parent names must be installed there. When the build refreshes `pnpm-lock.yaml` against
+  those artifacts and stops, build again and commit the lockfile.
+<!-- @SNAPSHOT_ONLY_END@ -->
+- The Payload layer guide is `.airness/agent-guide-payload.md`. Payload reference documentation is indexed by
+  `.claude/skills/payload/SKILL.md` and stored under `.claude/skills/payload/reference/`; read the relevant
+  reference when changing Payload behavior.
+
+## Schema
+
+The schema is the committed migrations in `src/migrations`. Create a migration after a schema change with
+`pnpm run migrate:create <name>`; `pnpm run dev`, `start`, and `seed` apply pending ones first.
+
+## Application Conventions
+
+Reuse the access predicates in `src/access`. Server-rendered pages and complete user flows are exercised by the
+browser suite in `tests/e2e`.
+
+Audit events are written from hooks in `src/hooks/audit.ts`.
+
+## Next.js Version
+
+This Next.js version has breaking changes: APIs, conventions, and file structure may all differ from your
+training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code, and heed
+deprecation notices.

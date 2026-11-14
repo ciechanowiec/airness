@@ -1354,6 +1354,11 @@
                         -->
                         <exclude>**/README*.html</exclude>
                         <exclude>**/README*.pdf</exclude>
+                        <!--
+                            The types the CMS generates for its starter, which the starter's generated-file gate
+                            compares byte for byte with what the CMS writes, so they keep its formatting.
+                        -->
+                        <exclude>airness-starters/payload-cms/src/payload-types.ts</exclude>
                     </excludes>
                 </configuration>
                 <executions>

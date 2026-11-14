@@ -1,0 +1,70 @@
+# Starts the database, the object storage and the application together on one machine. Build the standalone
+# server first with `mvn clean verify`, because the image copies what that produced rather than building the
+# project. Copy .env.example to .env and choose the values before the first `docker compose up`.
+#
+# `pnpm dev` runs the application on the host against the same two services: `docker compose up db objects`
+# starts them alone, and the loopback ports below, which POSTGRES_PORT and S3_PORT move, reach them from the host.
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # The application waits for this to answer rather than for the container to exist, because
+    # PostgreSQL accepts connections only once its first start has initialised the volume.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - database:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+  # S3-compatible storage for uploads. The health check creates the upload bucket, so it answers once RustFS
+  # accepts requests and the bucket the application writes to exists.
+  objects:
+    image: rustfs/rustfs:1.0.5
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY}
+      UPLOAD_BUCKET: ${S3_BUCKET}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          RC_CONFIG_DIR=/tmp/rc RC_HOST_local="http://$$RUSTFS_ACCESS_KEY:$$RUSTFS_SECRET_KEY@127.0.0.1:9000"
+          rc bucket create "local/$$UPLOAD_BUCKET" --ignore-existing
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - objects:/data
+    ports:
+      - "127.0.0.1:${S3_PORT:-9000}:9000"
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      objects:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET}
+      NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT}
+      S3_ENDPOINT: http://objects:9000
+      S3_BUCKET: ${S3_BUCKET}
+      S3_REGION: ${S3_REGION}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    # Published on the loopback interface alone, because this file runs the application for the machine it
+    # is on. A deployment that serves others puts its own proxy in front of it.
+    ports:
+      - "127.0.0.1:3000:3000"
+volumes:
+  database:
+  objects:
