@@ -62,12 +62,16 @@ class EditorconfigLookupTest {
         );
         assertAll(
             Stream.concat(
-                tabbed.stream().<Executable>map(name -> () -> assertEquals(
-                    Optional.of(IndentStyleValue.tab), lookup.settings(root.resolve(name)).style(), name
-                )),
-                Stream.of("src/Main.java", "docs/Caddyfile.md").<Executable>map(name -> () -> assertEquals(
-                    Optional.of(IndentStyleValue.space), lookup.settings(root.resolve(name)).style(), name
-                ))
+                tabbed.stream().<Executable>map(
+                    name -> () -> assertEquals(
+                        Optional.of(IndentStyleValue.tab), lookup.settings(root.resolve(name)).style(), name
+                    )
+                ),
+                Stream.of("src/Main.java", "docs/Caddyfile.md").<Executable>map(
+                    name -> () -> assertEquals(
+                        Optional.of(IndentStyleValue.space), lookup.settings(root.resolve(name)).style(), name
+                    )
+                )
             )
         );
     }
