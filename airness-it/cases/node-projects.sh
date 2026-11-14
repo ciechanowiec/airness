@@ -155,7 +155,7 @@ write_node_consumer() {
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-java</artifactId>
-        <version>1.0.12-SNAPSHOT</version>
+        <version>1.0.12</version>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>consumer</artifactId>
