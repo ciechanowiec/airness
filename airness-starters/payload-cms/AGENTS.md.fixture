@@ -8,8 +8,11 @@ paragraph with the goal of the application it becomes.
 - `README.adoc` explains the template to people. It follows `README-guideline-writing.adoc` and must pass
   `adocent lint README.adoc`.
 - A local run starts with `cp .env.example .env`, choosing the secrets the copy leaves empty, then
-  `mvn clean verify` and `docker compose up --build`. The first start applies the committed migrations to the
-  empty database, and the admin at `http://localhost:3000/admin` then asks for the first account.
+  `mvn clean verify` and `pnpm run up`. The first start applies the committed migrations to the empty database,
+  and the admin then asks for the first account.
+- `scripts/local.ts` publishes every service on a loopback port free on the machine and prints the address, so
+  several checkouts of the application run side by side. `pnpm dev`, `pnpm seed`, `pnpm run migrate:create` and
+  the other Payload commands start the database and the storage through it and run on the host against them.
 - Both `mvn clean verify` and `mvn clean verify -Pextended` need Docker: the test wrapper `scripts/with-services.ts`
   starts a PostgreSQL and a RustFS container of its own for each wrapped command.
 <!-- @SNAPSHOT_ONLY_BEGIN@ -->

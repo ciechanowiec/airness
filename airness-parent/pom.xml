@@ -276,6 +276,7 @@
                             <goal>entry-files</goal>
                             <goal>image-assets</goal>
                             <goal>environment</goal>
+                            <goal>compose-isolation</goal>
                             <goal>runner-images</goal>
                             <goal>ignore-patterns</goal>
                             <goal>instruction-references</goal>

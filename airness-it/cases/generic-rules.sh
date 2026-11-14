@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 
 # The generic repository rules: image integrity, environment coherence, hosted runner images, agent
-# documentation references, skill manifests, generated-file denial, container definitions and workflows.
+# documentation references, skill manifests, generated-file denial, compose isolation, container definitions and
+# workflows.
 # Their variants are unit-tested in airness-governance and airness-maven-plugin. These runs prove each goal
 # is bound in the installed parent: one report-only run up to the Extended scanners carries a planted defect
 # for every rule, since none of the defects reads what another rule reads, and one enforcing Default run
@@ -17,6 +18,9 @@ run_generic_rule_cases() {
 services:
   database:
     image: postgres:17.5
+    container_name: shared-database
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 YAML
@@ -43,6 +47,10 @@ YAML
         'public/broken[.]png: truncated PNG [(]no IEND chunk[)]'
     expect_match generic_batch 'generic rules: environment coherence names the undocumented compose variable' \
         'DB_PASSWORD in compose[.]yaml'
+    expect_match generic_batch 'generic rules: compose isolation names the host port every checkout asks for' \
+        'compose[.]yaml:6: database publishes host port 5432'
+    expect_match generic_batch 'generic rules: compose isolation names the container name every checkout asks for' \
+        'compose[.]yaml:4: database is named shared-database'
     expect_match generic_batch 'generic rules: runner images name the aliased hosted runner with its replacement' \
         '[.]github/workflows/ci[.]yml:7: ubuntu-latest - .*; use ubuntu-26[.]04'
     expect_match generic_batch 'generic rules: agent documentation names the missing file' \

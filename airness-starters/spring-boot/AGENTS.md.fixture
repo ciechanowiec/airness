@@ -9,7 +9,8 @@ PostgreSQL. Replace this paragraph with the goal of the application it becomes.
   `adocent lint README.adoc`. Its diagrams are draw.io PNG files under `.adocent/resources/visuals` that carry
   their editable source: edit them in draw.io and export them with the diagram embedded again.
 - A local run starts with `cp .env.example .env`, choosing the two passwords the copy leaves empty, then
-  `mvn clean verify` and `docker compose up --build`.
+  `mvn clean verify` and `pnpm run up`, which starts `compose.yaml` on a free loopback port and prints the
+  address, so several checkouts of the application run side by side.
   `.env.example` sets `APP_DEMO_DATA=true`, so the first start against an empty database writes a
   demonstration team, whose accounts sign in with the administrator's password at addresses in the
   administrator's domain, such as `maja.kowalska@starter.local`.
