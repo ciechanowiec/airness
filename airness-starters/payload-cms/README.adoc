@@ -51,7 +51,7 @@ Starter began from the Airness template for Payload, a generic beginning for a c
 ----
 mvn clean verify
 ----
-. Run the Extended verification, the complete verification command, before finishing a change:
+. Run the Extended verification, the complete verification command, before finishing a change, unless a required pull-request gate runs it. The workflow `.github/workflows/verify-full.yml` runs it every night, for each release tag and on demand, but not on pull requests, so it is no such gate:
 +
 [source,bash]
 ----

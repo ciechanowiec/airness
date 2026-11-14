@@ -389,10 +389,16 @@ sources it runs, is built and booted all the same.
    gates. The Java layer's guide names the format command of a Java module.
 4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
    its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
-5. Run `mvn clean verify -Pextended` before finishing. Extended verification is the verification command of the
-   governing standard; Default and delta verification run declared subsets of its checks. It includes Default
-   verification and adds the known-vulnerability scan, the HTML/PDF compliance report, and the history, secret, and Qodana checks. Default verification alone never reads the
-   vulnerability database.
+5. Run `mvn clean verify -Pextended` for Extended verification before finishing, unless a required pull-request
+   gate runs Extended or delta verification on the change. With such a gate, Default verification is enough, and
+   the gate runs the rest. A repository without CI always runs Extended verification locally.
+6. To reproduce a failure the gate reported, run the gate's command locally. In a node project,
+   `pnpm exec airness-node gate <id> --verbose` runs one gate, `e2e` or `image` included, and gives no verdict.
+
+Extended verification is the verification command of the governing standard; Default and delta verification run
+declared subsets of its checks. It includes Default verification and adds the known-vulnerability scan, the
+HTML/PDF compliance report, and the history, secret, and Qodana checks. Default verification alone never reads
+the vulnerability database.
 
 ### Browser Verification
 
