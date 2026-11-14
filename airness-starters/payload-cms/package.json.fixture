@@ -1,0 +1,115 @@
+{
+  "name": "starter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Starter, a Payload CMS application on Next.js, PostgreSQL and S3-compatible storage",
+  "type": "module",
+  "scripts": {
+    "build": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/build.ts",
+    "dev": "pnpm run migrate && cross-env NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--no-deprecation next dev",
+    "devsafe": "rm -rf .next && cross-env NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--no-deprecation next dev",
+    "start": "pnpm run migrate && cross-env NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--no-deprecation next start",
+    "migrate": "cross-env NODE_OPTIONS=--no-deprecation payload migrate",
+    "migrate:create": "cross-env NODE_OPTIONS=--no-deprecation payload migrate:create",
+    "seed": "pnpm run migrate && cross-env NODE_OPTIONS=--no-deprecation tsx scripts/seed.ts",
+    "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
+    "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types",
+    "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
+    "format": "airness-node format",
+    "with:services": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/with-services.ts"
+  },
+  "dependencies": {
+    "@payloadcms/db-postgres": "3.92.1",
+    "@payloadcms/next": "3.92.1",
+    "@payloadcms/richtext-lexical": "3.92.1",
+    "@payloadcms/storage-s3": "3.92.1",
+    "cross-env": "10.1.0",
+    "dotenv": "18.0.8",
+    "graphql": "16.14.2",
+    "next": "16.4.3",
+    "payload": "3.92.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "@airness/node": "@AIRNESS_VERSION@",
+    "@airness/payload": "@AIRNESS_VERSION@",
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitest/coverage-v8": "5.0.5",
+    "fast-check": "4.10.2",
+    "jsdom": "30.1.3",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "airness": {
+    "coverageExclude": [
+      {
+        "pattern": "scripts/**",
+        "reason": "operational scripts that provision services for the harness or seed a database, driven by the harness rather than imported"
+      }
+    ],
+    "generatedArtefacts": [
+      {
+        "pattern": "src/migrations/**",
+        "reason": "Payload writes each migration and its schema snapshot from the config with migrate:create; the files are frozen once applied, so they are read and applied rather than edited, and reformatting or refactoring one would change a migration that has already run elsewhere"
+      }
+    ],
+    "vulnerabilityAllowlist": [
+      {
+        "package": "deepmerge",
+        "advisory": "GHSA-gcqx-w48m-w2h4",
+        "reason": "deepmerge reaches the application only through payload, which merges a write's data into the document its field validators read. Every collection checks access before that merge, so only a signed-in caller allowed to write reaches it: an admin creating an account or uploading, an editor uploading, a user updating their own account. The poisoned prototype belongs to that merge's result alone, and no validator of this project reads a property of it.",
+        "mitigation": "No release fixes the advisory: deepmerge 4.3.1 is the last affected and the latest version, and payload 3.92.1, the version Airness pins, still depends on it. Keep field validators reading their own value rather than the merged data, and remove this entry once payload drops deepmerge or a fixed deepmerge is released.",
+        "addedOn": "2026-11-11"
+      }
+    ],
+    "testWrapper": [
+      "pnpm",
+      "run",
+      "with:services",
+      "--"
+    ],
+    "serverUrlVariables": [
+      "NEXT_PUBLIC_SERVER_URL"
+    ]
+  },
+  "airnessPayload": {
+    "publicAccess": [
+      {
+        "entity": "media",
+        "operation": "read",
+        "reason": "uploaded images are the site's own assets, served to every visitor; _objectKey, which the S3 adapter adds, is a random folder segment of the object in the private upload bucket, which only Payload's own file route reads, so knowing it reaches nothing",
+        "fields": [
+          "alt",
+          "updatedAt",
+          "createdAt",
+          "url",
+          "thumbnailURL",
+          "filename",
+          "mimeType",
+          "filesize",
+          "width",
+          "height",
+          "focalX",
+          "focalY",
+          "_objectKey"
+        ]
+      }
+    ],
+    "analysisEnv": {
+      "S3_ENDPOINT": "http://127.0.0.1:9000",
+      "S3_BUCKET": "starter-static-analysis",
+      "S3_ACCESS_KEY_ID": "static-analysis-placeholder",
+      "S3_SECRET_ACCESS_KEY": "static-analysis-placeholder",
+      "NEXT_PUBLIC_SERVER_URL": "http://localhost:3000"
+    }
+  }
+}

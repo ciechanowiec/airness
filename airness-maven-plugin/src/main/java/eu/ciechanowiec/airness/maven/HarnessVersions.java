@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.maven.project.MavenProject;
@@ -25,6 +26,13 @@ record HarnessVersions(Map<String, String> versions) {
     private static final Map<String, String> PACKAGES = Map.of(
         AirnessCoordinates.GENERIC_PARENT, "@airness/node",
         "airness-parent-payload", "@airness/payload"
+    );
+
+    // The module that packs each harness package as an attached tarball, which is how a SNAPSHOT harness serves
+    // it from the local Maven repository, because a SNAPSHOT package is never published.
+    private static final Map<String, String> ARTIFACTS = Map.of(
+        "@airness/node", "airness-node",
+        "@airness/payload", "airness-payload-node"
     );
 
     /**
@@ -74,6 +82,16 @@ record HarnessVersions(Map<String, String> versions) {
      */
     static boolean harnessPackage(String name) {
         return PACKAGES.containsValue(name);
+    }
+
+    /**
+     * The Maven artifact that attaches a harness package's tarball, under the name {@code <artifact>-<version>.tgz}.
+     *
+     * @param name the npm package name
+     * @return the artifactId, empty when the package is no harness package
+     */
+    static Optional<String> artifact(String name) {
+        return Optional.ofNullable(ARTIFACTS.get(name));
     }
 
     /**

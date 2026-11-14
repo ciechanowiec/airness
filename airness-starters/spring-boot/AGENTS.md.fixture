@@ -16,7 +16,8 @@ PostgreSQL. Replace this paragraph with the goal of the application it becomes.
 <!-- @SNAPSHOT_ONLY_BEGIN@ -->
 - Every build starts the local npm registry with `python3`, which serves `@airness/node` from the Airness
   artifacts installed in the local Maven repository, so `python3` must be on the path and the Airness
-  version the parent names must be installed there.
+  version the parent names must be installed there. When the build refreshes `pnpm-lock.yaml` against those
+  artifacts and stops, build again and commit the lockfile.
 <!-- @SNAPSHOT_ONLY_END@ -->
 - The `identity`, `audit`, `language`, `web` and `failure` packages are the platform every application
   keeps: sign-in, roles, account management, the audit trail, English and Polish, and the failure page.

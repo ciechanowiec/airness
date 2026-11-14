@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent-payload</artifactId>
+        <version>@AIRNESS_VERSION@</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>@GROUP_ID@</groupId>
+    <artifactId>@ARTIFACT_ID@</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>@ARTIFACT_ID@</name>
+    <description>A Payload CMS application on Next.js, PostgreSQL and S3-compatible storage.</description>
+
+    <properties>
+        <airness.package.root>@PACKAGE@</airness.package.root>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- @SNAPSHOT_ONLY_BEGIN@ -->
+            <!--
+                A SNAPSHOT harness package is never published, so it comes from the installed, versioned
+                Maven artifact. The loopback registry is process-local, writes only the ignored .npmrc, and
+                stops with Maven. Before the frozen install, a lockfile whose recorded integrity the installed
+                packages no longer match is refreshed and the build stops, so the next build runs on the
+                refreshed lock. A released harness package installs from the public registry instead.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>harness-registry-reset</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>set -eu; mkdir -p "$0"; rm -f "$0/registry.port"; test -s "$1" &amp;&amp; test -s "$2" || { echo 'Install the local Airness artifacts before verification' &gt;&amp;2; exit 1; }</argument>
+                                <argument>${project.build.directory}</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-node/${project.parent.version}/airness-node-${project.parent.version}.tgz</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-payload-node/${project.parent.version}/airness-payload-node-${project.parent.version}.tgz</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>harness-registry</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>python3</executable>
+                            <async>true</async>
+                            <asyncDestroyOnShutdown>true</asyncDestroyOnShutdown>
+                            <arguments>
+                                <argument>${project.basedir}/.airness/npm-registry.py</argument>
+                                <argument>--port-file</argument>
+                                <argument>${project.build.directory}/registry.port</argument>
+                                <argument>--npmrc</argument>
+                                <argument>${project.basedir}/.npmrc</argument>
+                                <argument>--scope</argument>
+                                <argument>@airness</argument>
+                                <argument>--fresh</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-node/${project.parent.version}/airness-node-${project.parent.version}.tgz</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-payload-node/${project.parent.version}/airness-payload-node-${project.parent.version}.tgz</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>harness-registry-ready</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>waited=0; until [ -s "$0" ]; do [ "$waited" -ge 300 ] &amp;&amp; { echo 'The local registry did not start' &gt;&amp;2; exit 1; }; sleep 0.1; waited=$((waited + 1)); done</argument>
+                                <argument>${project.build.directory}/registry.port</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>harness-lock-refresh</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>version="$(unzip -p "$0" eu/ciechanowiec/airness/node/toolchain.properties | sed -n 's/^pnpm[.]version=//p')"; case "$(uname -s)" in Darwin) system=darwin ;; *) system=linux ;; esac; case "$(uname -m)" in arm64 | aarch64) architecture=arm64 ;; *) architecture=x64 ;; esac; exec python3 "$1" --refresh-with "$2/pnpm-$version-$system-$architecture/pnpm" --lockfile "$3" --fresh "$4" "$5"</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-maven-plugin/${project.parent.version}/airness-maven-plugin-${project.parent.version}.jar</argument>
+                                <argument>${project.basedir}/.airness/npm-registry.py</argument>
+                                <argument>${settings.localRepository}/.airness/toolchain</argument>
+                                <argument>${project.basedir}/pnpm-lock.yaml</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-node/${project.parent.version}/airness-node-${project.parent.version}.tgz</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-payload-node/${project.parent.version}/airness-payload-node-${project.parent.version}.tgz</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- @SNAPSHOT_ONLY_END@ -->
+            <!--
+                Builds the standalone server of the application into .next/standalone, which the Dockerfile
+                copies into the image, as a Spring Boot application's image copies its archive.
+            -->
+            <plugin>
+                <groupId>eu.ciechanowiec</groupId>
+                <artifactId>airness-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>standalone-server</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>node-run</goal>
+                        </goals>
+                        <configuration>
+                            <project>.</project>
+                            <script>build</script>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

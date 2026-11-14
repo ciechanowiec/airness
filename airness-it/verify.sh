@@ -212,6 +212,7 @@ run_domain() {
             ;;
         starters)
             run_starter_cases
+            run_payload_starter_cases
             ;;
         *)
             exit 2

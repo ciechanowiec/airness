@@ -49,6 +49,7 @@ class StackConfinementTest {
     private static final String PARENT = "airness-parent-payload";
     private static final String NODE_MODULE = "airness-payload-node";
     private static final String ASSETS_MODULE = "airness-payload-assets";
+    private static final String STARTER = "payload-cms";
     private static final String LAYER = "PAYLOAD";
     private static final String PRODUCT = "Payload";
     private static final String PLUGIN = "airness-maven-plugin/src/main/java/eu/ciechanowiec/airness/maven/";
@@ -61,13 +62,14 @@ class StackConfinementTest {
         = "the HTTP and JSON bodies the examples of the writing guideline send";
 
     /**
-     * The paths the stack owns whole, which removing it deletes: its modules, its integration domain and the one
-     * test per core module that holds its registration.
+     * The paths the stack owns whole, which removing it deletes: its modules, its starter, its integration domain
+     * and the one test per core module that holds its registration.
      */
     private static final List<String> STACK_PATHS = List.of(
         "airness-payload-assets/", "airness-parent-payload/", "airness-payload-node/", "airness-it/cases/payload.sh",
-        "airness-it/fixtures/payload/", GOVERNANCE_TESTS + "PayloadRegistrationTest.java",
-        PLUGIN_TESTS + "PayloadRegistrationTest.java", "airness-node/tests/payload-registration.spec.ts"
+        "airness-it/fixtures/payload/", "airness-starters/" + STARTER + "/",
+        GOVERNANCE_TESTS + "PayloadRegistrationTest.java", PLUGIN_TESTS + "PayloadRegistrationTest.java",
+        "airness-node/tests/payload-registration.spec.ts"
     );
 
     /**
@@ -77,17 +79,19 @@ class StackConfinementTest {
 
     private static final List<Entry> REGISTRATION_POINTS = List.of(
         new Entry(
-            "pom.xml", Set.of(ASSETS_MODULE, PARENT, NODE_MODULE),
-            "the reactor modules, the npm-only module kept out of Central, and its dist kept from the editor check"
+            "pom.xml", Set.of(ASSETS_MODULE, PARENT, NODE_MODULE, STARTER, "payload-types.ts"),
+            "the reactor modules, the npm-only module kept out of Central, its dist and the types generated for the"
+                + " stack's starter, both kept from the editor check"
         ),
         new Entry(".gitignore", Set.of(NODE_MODULE), "the .npmrc the stack's local registry writes"),
+        new Entry("airness-starters/pom.xml", Set.of(STARTER), "the stack's starter, packed beside the others"),
         new Entry(
             "README.adoc",
             Set.of(
                 NPM_PACKAGE, PRODUCT, WORD, PARENT, ASSETS_MODULE, NODE_MODULE, "agent-guide-payload.md",
                 "airnessPayload.publicAccess", "airnessPayload.localStorage", "payload-blocklist", "payload-defaults",
                 "payload-environment", "payload-generated", "payload-migrations", "payload-source-rules",
-                "payload-stack", "payload.sh", "payloadcms.com"
+                "payload-stack", "payload.sh", "payloadcms.com", STARTER
             ),
             "the Payload stack section: what it adds, how to attach it and how to remove it"
         ),
@@ -105,9 +109,10 @@ class StackConfinementTest {
             "airness-it/verify.sh",
             Set.of(
                 WORD, "payload.sh", "payload_package", "payload_mismatched_package", "prepare_payload_packages",
-                "run_payload_cases"
+                "run_payload_cases", "run_payload_starter_cases"
             ),
-            "the payload integration domain: its name, its case file, its lane and the packages its registry serves"
+            "the payload integration domain: its name, its case file, its lane, the packages its registry serves and"
+                + " the stack's starter, which the starters domain verifies"
         ),
         new Entry(
             ".claude/settings.json", Set.of(NODE_MODULE),
@@ -123,8 +128,8 @@ class StackConfinementTest {
         ),
         new Entry(PLUGIN + "RepositoryProjects.java", Set.of(PARENT), "a parent Airness publishes"),
         new Entry(
-            PLUGIN + "HarnessVersions.java", Set.of(PARENT, NPM_PACKAGE),
-            "the parent that names the version of the stack's npm package"
+            PLUGIN + "HarnessVersions.java", Set.of(PARENT, NPM_PACKAGE, NODE_MODULE),
+            "the parent that names the version of the stack's npm package, and the module that packs its tarball"
         ),
         new Entry(
             "airness-node/src/layer.ts", Set.of(NPM_PACKAGE, NODE_MODULE),

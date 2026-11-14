@@ -25,7 +25,7 @@
     <name>airness-starters</name>
     <description>
         The starter projects an application built on Airness begins from. A file that would take effect over
-        the directory it is stored in, such as pom.xml, package.json, .gitignore or AGENTS.md, is stored
+        the directory it is stored in, such as pom.xml, package.json, .gitignore, .dockerignore or AGENTS.md, is stored
         under an added .fixture suffix, which airness:new removes.
     </description>
 
@@ -34,6 +34,10 @@
             <resource>
                 <directory>spring-boot</directory>
                 <targetPath>airness/starters/spring-boot</targetPath>
+            </resource>
+            <resource>
+                <directory>payload-cms</directory>
+                <targetPath>airness/starters/payload-cms</targetPath>
             </resource>
         </resources>
         <plugins>

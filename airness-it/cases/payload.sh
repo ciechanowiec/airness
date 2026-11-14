@@ -356,3 +356,20 @@ ${harness_version}"
 
     unset PAYLOAD_SECRET DATABASE_URL
 }
+
+# The payload-cms starter, which the starters domain makes and verifies beside the others: the application holds
+# to what every starter promises, its first lockfile also resolves the installed @airness/payload, assets-init
+# writes the Payload layer's guide, and every Payload gate passes in the same Extended build. Its image copies
+# the standalone server the build leaves, so the image gate boots it under a SNAPSHOT harness too.
+run_payload_starter_cases() {
+    verify_starter payload-cms content-site -Dairness.groupId=org.sample
+    expect_file_match "${starter_application}/pnpm-lock.yaml" \
+        'starters: the first lockfile of the payload-cms application resolves the installed Payload package' \
+        "'@airness/payload@${harness_version}'"
+    expect_file_match "${starter_application}/.airness/agent-guide-payload.md" \
+        'starters: assets-init writes the Payload layer guide into the payload-cms application' 'Payload'
+    for gate in ${payload_gates}; do
+        expect_match starter_verify_payload_cms "starters: ${gate} passes on the payload-cms application" \
+            "Node gate ${gate} in [.] passed"
+    done
+}

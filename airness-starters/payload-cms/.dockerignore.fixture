@@ -1,0 +1,9 @@
+# The image copies the standalone server `mvn clean verify` builds, and nothing else of the host: the
+# standalone directory carries the server, its traced dependencies and the public files, and the static
+# directory carries the client assets the server answers with.
+*
+!.next/standalone
+!.next/static
+# Next.js copies the environment files it finds into the standalone directory, and a local .env holds the
+# secrets of the machine it was written on; the container reads its own environment when it starts.
+.next/standalone/.env*

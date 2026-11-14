@@ -202,9 +202,10 @@
             <!-- @SNAPSHOT_ONLY_BEGIN@ -->
             <!--
                 A SNAPSHOT harness package is never published, so it comes from the installed, versioned
-                Maven artifact. The loopback registry is process-local, writes only the ignored .npmrc,
-                refuses a lockfile whose recorded integrity the installed package no longer matches, and
-                stops with Maven. A released harness package installs from the public registry instead.
+                Maven artifact. The loopback registry is process-local, writes only the ignored .npmrc, and
+                stops with Maven. Before the frozen install, a lockfile whose recorded integrity the installed
+                package no longer matches is refreshed and the build stops, so the next build runs on the
+                refreshed lock. A released harness package installs from the public registry instead.
             -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -244,8 +245,6 @@
                                 <argument>${project.basedir}/.npmrc</argument>
                                 <argument>--scope</argument>
                                 <argument>@airness</argument>
-                                <argument>--lockfile</argument>
-                                <argument>${project.basedir}/pnpm-lock.yaml</argument>
                                 <argument>--fresh</argument>
                                 <argument>${settings.localRepository}/eu/ciechanowiec/airness-node/${project.parent.version}/airness-node-${project.parent.version}.tgz</argument>
                             </arguments>
@@ -263,6 +262,25 @@
                                 <argument>-c</argument>
                                 <argument>waited=0; until [ -s "$0" ]; do [ "$waited" -ge 300 ] &amp;&amp; { echo 'The local registry did not start' &gt;&amp;2; exit 1; }; sleep 0.1; waited=$((waited + 1)); done</argument>
                                 <argument>${project.build.directory}/registry.port</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>harness-lock-refresh</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>sh</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>version="$(unzip -p "$0" eu/ciechanowiec/airness/node/toolchain.properties | sed -n 's/^pnpm[.]version=//p')"; case "$(uname -s)" in Darwin) system=darwin ;; *) system=linux ;; esac; case "$(uname -m)" in arm64 | aarch64) architecture=arm64 ;; *) architecture=x64 ;; esac; exec python3 "$1" --refresh-with "$2/pnpm-$version-$system-$architecture/pnpm" --lockfile "$3" --fresh "$4"</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-maven-plugin/${project.parent.version}/airness-maven-plugin-${project.parent.version}.jar</argument>
+                                <argument>${project.basedir}/.airness/npm-registry.py</argument>
+                                <argument>${settings.localRepository}/.airness/toolchain</argument>
+                                <argument>${project.basedir}/pnpm-lock.yaml</argument>
+                                <argument>${settings.localRepository}/eu/ciechanowiec/airness-node/${project.parent.version}/airness-node-${project.parent.version}.tgz</argument>
                             </arguments>
                         </configuration>
                     </execution>

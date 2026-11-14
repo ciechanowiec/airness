@@ -1,13 +1,14 @@
 package eu.ciechanowiec.airness.maven;
 
+import eu.ciechanowiec.airness.governance.PackageManifest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
@@ -22,10 +23,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>It runs outside any project. It writes the starter into a new directory under the names it is given,
  * starts a Git repository there, runs assets-init, so the managed files come from this same harness, writes the
- * first lockfile, and commits the result as the repository's first commit. A released harness's npm package
- * installs from the public registry. A SNAPSHOT harness's package is never published, so the lockfile is written
- * against the one installed in the local Maven repository, served by a loopback registry. Its own logs stay under
- * the application's ignored target directory.
+ * first lockfile, and commits the result as the repository's first commit. A released harness's npm packages
+ * install from the public registry. A SNAPSHOT harness's packages are never published, so the lockfile is written
+ * against the ones the starter declares, installed in the local Maven repository and served by a loopback
+ * registry. Its own logs stay under the application's ignored target directory.
  *
  * <p>Outside a project a parameter can come from the command line alone, so each is read there:
  * {@code -Dairness.groupId} and {@code -Dairness.artifactId}, and optionally {@code -Dairness.package},
@@ -36,9 +37,6 @@ import org.jspecify.annotations.Nullable;
 public final class NewMojo extends AbstractMojo {
 
     private static final Duration COMMAND_LIMIT = Duration.ofMinutes(30);
-    private static final Duration REGISTRY_LIMIT = Duration.ofSeconds(30);
-    private static final Duration POLL = Duration.ofMillis(100);
-    private static final String HARNESS_PACKAGE = "airness-node";
     private static final String LOGS = "target/airness-new";
 
     // The id of this plugin as Maven resolved it, group, artifact and version, so assets-init runs from the same
@@ -113,25 +111,14 @@ public final class NewMojo extends AbstractMojo {
     }
 
     // The application's pom starts the same registry for every build of a SNAPSHOT harness. The registry serves
-    // the harness package installed in the local repository.
+    // each harness package the starter declares, installed in the local repository.
     private void lockAgainstLocalRegistry(Path destination) throws IOException {
-        Path logs = destination.resolve(LOGS);
-        Path tarball = LocalRepository.of(this.session()).head()
-            .resolve(Path.of("eu", "ciechanowiec", HARNESS_PACKAGE, this.version()))
-            .resolve(HARNESS_PACKAGE + "-" + this.version() + ".tgz");
-        if (!Files.isRegularFile(tarball)) {
-            throw new IOException(tarball + " is missing. Install the local Airness artifacts first.");
-        }
-        Path port = Files.createDirectories(logs).resolve("registry.port");
-        Process registry = new ProcessBuilder(
-            "python3", destination.resolve(".airness/npm-registry.py").toString(), "--port-file", port.toString(),
-            "--npmrc", destination.resolve(".npmrc").toString(), "--scope", "@airness", "--fresh", tarball.toString()
-        ).redirectErrorStream(true).redirectOutput(logs.resolve("registry.log").toFile()).start();
-        try {
-            awaitPort(registry, port);
+        List<Path> tarballs = LocalHarnessRegistry.tarballs(
+            LocalRepository.of(this.session()).head(),
+            PackageManifests.in(destination).map(PackageManifest::installed).orElse(Set.of()), this.version()
+        );
+        try (LocalHarnessRegistry _ = LocalHarnessRegistry.start(destination, tarballs, destination.resolve(LOGS))) {
             this.install(destination);
-        } finally {
-            registry.destroy();
         }
     }
 
@@ -211,29 +198,6 @@ public final class NewMojo extends AbstractMojo {
             process.destroyForcibly();
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while running " + command, exception);
-        }
-    }
-
-    private static void awaitPort(Process registry, Path port) throws IOException {
-        Instant deadline = Instant.now().plus(REGISTRY_LIMIT);
-        while (!ready(port)) {
-            if (!registry.isAlive() || Instant.now().isAfter(deadline)) {
-                throw new IOException("The local registry did not start; see " + port.resolveSibling("registry.log"));
-            }
-            pause();
-        }
-    }
-
-    private static boolean ready(Path port) throws IOException {
-        return Files.exists(port) && Files.size(port) > 0;
-    }
-
-    private static void pause() throws IOException {
-        try {
-            Thread.sleep(POLL);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for the local registry", exception);
         }
     }
 

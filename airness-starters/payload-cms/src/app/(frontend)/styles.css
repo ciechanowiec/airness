@@ -1,0 +1,168 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 18px;
+    line-height: 32px;
+
+    background: rgb(0 0 0);
+    -webkit-font-smoothing: antialiased;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: system-ui;
+    margin: 0;
+    color: rgb(1000 1000 1000);
+
+    @media (width <= 1024px) {
+        font-size: 15px;
+        line-height: 24px;
+    }
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+h1 {
+    margin: 40px 0;
+    font-size: 64px;
+    line-height: 70px;
+    font-weight: bold;
+
+    @media (width <= 1024px) {
+        margin: 24px 0;
+        font-size: 42px;
+        line-height: 42px;
+    }
+
+    @media (width <= 768px) {
+        font-size: 38px;
+        line-height: 38px;
+    }
+
+    @media (width <= 400px) {
+        font-size: 32px;
+        line-height: 32px;
+    }
+}
+
+p {
+    margin: 24px 0;
+
+    @media (width <= 1024px) {
+        margin: calc(var(--base) * 0.75) 0;
+    }
+}
+
+a {
+    color: currentColor;
+
+    /* Every link sits on the black page, so a white ring set off from it contrasts with both the page and
+       the link's own unfocused rendering, whatever the link's colors are. */
+    &:focus-visible {
+        outline: 2px solid rgb(255 255 255);
+        outline-offset: 3px;
+    }
+
+    &:active {
+        opacity: 0.7;
+        outline: none;
+    }
+}
+
+svg {
+    vertical-align: middle;
+}
+
+.home {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    height: 100vh;
+    padding: 45px;
+    max-width: 1024px;
+    margin: 0 auto;
+    overflow: hidden;
+
+    @media (width <= 400px) {
+        padding: 24px;
+    }
+
+    .content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex-grow: 1;
+
+        h1 {
+            text-align: center;
+        }
+    }
+
+    .links {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        /* At least 44 by 44 CSS pixels, the AAA pointer target size, like the footer link below. */
+        a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            min-height: 44px;
+            text-decoration: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+        }
+
+        .admin {
+            color: rgb(0 0 0);
+            background: rgb(1000 1000 1000);
+            border: 1px solid rgb(0 0 0);
+        }
+
+        .docs {
+            color: rgb(1000 1000 1000);
+            background: rgb(0 0 0);
+            border: 1px solid rgb(1000 1000 1000);
+        }
+    }
+
+    .footer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        @media (width <= 1024px) {
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        p {
+            margin: 0;
+        }
+
+        .codeLink {
+            display: inline-flex;
+            align-items: center;
+            min-width: 44px;
+            min-height: 44px;
+            text-decoration: none;
+            padding: 0 0.5rem;
+            background: rgb(60 60 60);
+            border-radius: 4px;
+        }
+    }
+}
