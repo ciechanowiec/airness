@@ -7,10 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.ec4j.core.model.PropertyType.IndentStyleValue;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -43,6 +46,29 @@ class EditorconfigLookupTest {
         assertAll(
             () -> assertEquals(Optional.of(IndentStyleValue.tab), settings.style()),
             () -> assertEquals(Optional.empty(), settings.size(), "indent_size = tab defers to a tab width")
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void holdsTheFormatsTheirFormattersWriteWithTabsToTabsInTheManagedEditorconfig(@TempDir Path root) {
+        Path managed = SelfModules.repository()
+            .resolve("airness-assets/src/main/resources/airness/files/generic/.editorconfig.asset");
+        write(root.resolve(EDITORCONFIG), Files.readString(managed));
+        EditorconfigLookup lookup = new EditorconfigLookup(root);
+        List<String> tabbed = List.of(
+            "Makefile", "tools/rules.mk", ".gitmodules", "cmd/main.go", "Caddyfile", "deployment/site.Caddyfile",
+            "deployment/site.caddyfile"
+        );
+        assertAll(
+            Stream.concat(
+                tabbed.stream().<Executable>map(name -> () -> assertEquals(
+                    Optional.of(IndentStyleValue.tab), lookup.settings(root.resolve(name)).style(), name
+                )),
+                Stream.of("src/Main.java", "docs/Caddyfile.md").<Executable>map(name -> () -> assertEquals(
+                    Optional.of(IndentStyleValue.space), lookup.settings(root.resolve(name)).style(), name
+                ))
+            )
         );
     }
 
