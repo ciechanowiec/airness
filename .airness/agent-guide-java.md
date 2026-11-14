@@ -244,8 +244,8 @@ Airness governs all of the following domains in a Java module:
     three is correct everywhere a tool looks and wrong the first time the query runs. The count is read against the
     records the module itself declares, so a type declared beside it in another module is passed over rather than
     reported.
-  - **Bounded results:** the ban on unbounded queries of the section Banned Constructs of the governing standard
-    is read as `AirnessSpringDataQueryIsBounded`, at the declaration and at the call. A query method declared in
+  - **Bounded results:** `AirnessSpringDataQueryIsBounded` bounds every query that returns rows by a page, a
+    limit, or the size of its input, and judges it at the declaration and at the call. A query method declared in
     any interface that descends from Spring Data's `Repository` or carries `@RepositoryDefinition`, whatever its
     name, takes a `Pageable` or a `Limit` when it returns an `Iterable`, a collection or a `Stream`. A bound
     written into a derived name, such as `findTop10By`, is refused, because the call site can neither see nor
