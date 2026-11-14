@@ -82,8 +82,8 @@ and the generic Airness approvals.
   HTTP. `payload-defaults` evaluates the configuration with `NODE_ENV` set to `production`.
 - `auth.maxLoginAttempts` counts failures only against an account that exists, so an attempt naming an unknown
   email is never limited, while it still pays for the decoy hash that keeps its refusal as slow as any other. The
-  limit the section Authentication of the governing standard places on attempts that name no account is therefore
-  the project's own to add, for example per client in front of the sign-in route.
+  limit on repeated authentication failures that the section Authentication of the governing standard asks for
+  is therefore the project's own to add for those attempts, for example per client in front of the sign-in route.
 - At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through
   `req.payload` or `request.payload` passes `req`; a call carrying `user`, a call composed with a spread, and
   every call in an endpoint module, a route handler, a server action (a `'use server'` module or function) or a
