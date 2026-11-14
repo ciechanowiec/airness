@@ -13,7 +13,6 @@ import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.ec4j.core.model.PropertyType.IndentStyleValue;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -62,12 +61,12 @@ class EditorconfigLookupTest {
         );
         assertAll(
             Stream.concat(
-                tabbed.stream().<Executable>map(
+                tabbed.stream().map(
                     name -> () -> assertEquals(
                         Optional.of(IndentStyleValue.tab), lookup.settings(root.resolve(name)).style(), name
                     )
                 ),
-                Stream.of("src/Main.java", "docs/Caddyfile.md").<Executable>map(
+                Stream.of("src/Main.java", "docs/Caddyfile.md").map(
                     name -> () -> assertEquals(
                         Optional.of(IndentStyleValue.space), lookup.settings(root.resolve(name)).style(), name
                     )
