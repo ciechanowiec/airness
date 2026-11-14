@@ -79,6 +79,48 @@ const UNTHREADED_REQUEST_SYNTAX: readonly Readonly<Record<string, string>>[] = [
   { selector: boundRequestPayload('AssignmentExpression', 'right'), message: UNTHREADED_REQUEST_MESSAGE },
 ]
 
+// Where a Payload project writes the handlers its `endpoints:` entries serve, which `require-endpoint-module` holds
+// them to: the one place a request's body is the module's own input.
+const PAYLOAD_ENDPOINT_FILES: readonly string[] = ['src/endpoints/**']
+
+const REQUEST_DATA_MESSAGE: string =
+  'Read req.data only in an endpoint handler under src/endpoints. It is the raw request body, shaped by the ' +
+  'transport: the parsed body over REST, { query, variables } over GraphQL, nothing over the Local API. Read the ' +
+  "operation's own arguments instead, data in a collection or field hook and args.data in beforeOperation or " +
+  'afterOperation, or a value an operation hook of the same request set on req.context.'
+
+// `req.data`, `request.data` and `<object>.req.data`, dotted, bracketed or behind a type-only expression.
+const REQUEST_DATA: string =
+  "MemberExpression:matches([property.name='data'], [property.value='data'])" +
+  `:matches([object.name=${REQUEST_NAME}], [object.property.name=${REQUEST_NAME}], ` +
+  `[object.expression.name=${REQUEST_NAME}])`
+
+// A hook outside an endpoint reads its operation's data from its own arguments, because `req.data` holds whatever
+// the transport parsed: a root `afterError` hook reading a sign-in's email from it records the email over REST and
+// nothing over GraphQL, where the credentials travel in the operation's variables. Every way of reading it is
+// banned: the property itself, destructuring it out of the request in a parameter, a declaration or an
+// assignment, and `Reflect.get`, so that no spelling reads the body the rule exists to keep out of reach.
+const REQUEST_DATA_SYNTAX: readonly Readonly<Record<string, string>>[] = [
+  { selector: REQUEST_DATA, message: REQUEST_DATA_MESSAGE },
+  {
+    selector: `ObjectPattern > Property[key.name=${REQUEST_NAME}] > ObjectPattern > Property[key.name='data']`,
+    message: REQUEST_DATA_MESSAGE,
+  },
+  {
+    selector:
+      `:matches(VariableDeclarator[init.name=${REQUEST_NAME}], ` +
+      `VariableDeclarator[init.property.name=${REQUEST_NAME}], ` +
+      `AssignmentExpression[right.name=${REQUEST_NAME}]) > ObjectPattern > Property[key.name='data']`,
+    message: REQUEST_DATA_MESSAGE,
+  },
+  {
+    selector:
+      "CallExpression[callee.object.name='Reflect'][callee.property.name='get'][arguments.1.value='data']" +
+      `:matches([arguments.0.name=${REQUEST_NAME}], [arguments.0.property.name=${REQUEST_NAME}])`,
+    message: REQUEST_DATA_MESSAGE,
+  },
+]
+
 // The node layer's restricted-syntax setting for every file, which a block naming the rule replaces, so the
 // Payload block extends it rather than dropping the selectors it carries.
 /** One block of the configuration, as ESLint reads it. */
@@ -90,17 +132,28 @@ type ConfigBlock = (typeof nodeConfig)[number]
 // runtime's, say - wherever the two overlap. Following the node blocks in their own order, the extensions resolve
 // for each file to the same node setting as before, with the selectors added. The node blocks themselves stay
 // first and untouched, because the harness admits a layer only as an extension of the node layer's own blocks.
+//
+// Each extension is followed by its twin for every file but the endpoint handlers, which adds the request-body
+// selectors. A file outside src/endpoints resolves to the twin, and an endpoint handler, which the twin ignores, to
+// the extension before it, so the body stays readable exactly where it is the module's own input.
 const payloadSyntaxBlocks: readonly ConfigBlock[] = nodeConfig.flatMap((block: ConfigBlock): readonly ConfigBlock[] => {
   const setting: unknown = block.rules?.[RESTRICTED_SYNTAX]
-  return isArray(setting)
-    ? [
-        {
-          ...(block.files !== undefined && { files: block.files }),
-          ...(block.ignores !== undefined && { ignores: block.ignores }),
-          rules: { [RESTRICTED_SYNTAX]: ['error', ...setting.slice(1), ...UNTHREADED_REQUEST_SYNTAX] },
-        },
-      ]
-    : []
+  if (!isArray(setting)) {
+    return []
+  }
+  const extended: readonly unknown[] = [...setting.slice(1), ...UNTHREADED_REQUEST_SYNTAX]
+  return [
+    {
+      ...(block.files !== undefined && { files: block.files }),
+      ...(block.ignores !== undefined && { ignores: block.ignores }),
+      rules: { [RESTRICTED_SYNTAX]: ['error', ...extended] },
+    },
+    {
+      ...(block.files !== undefined && { files: block.files }),
+      ignores: [...(block.ignores ?? []), ...PAYLOAD_ENDPOINT_FILES],
+      rules: { [RESTRICTED_SYNTAX]: ['error', ...extended, ...REQUEST_DATA_SYNTAX] },
+    },
+  ]
 })
 
 const baseRestrictedSyntax = (): readonly unknown[] => {
@@ -161,7 +214,13 @@ const payloadBlocks: readonly ConfigBlock[] = [
   {
     files: [...PAYLOAD_CONFIG_FILES],
     rules: {
-      [RESTRICTED_SYNTAX]: ['error', ...baseRestrictedSyntax(), ...UNTHREADED_REQUEST_SYNTAX, INLINE_CONFIG_FUNCTION],
+      [RESTRICTED_SYNTAX]: [
+        'error',
+        ...baseRestrictedSyntax(),
+        ...UNTHREADED_REQUEST_SYNTAX,
+        ...REQUEST_DATA_SYNTAX,
+        INLINE_CONFIG_FUNCTION,
+      ],
     },
   },
   // The environment surface stays auditable in one validated, unit-tested module. Every TypeScript extension

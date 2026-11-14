@@ -80,6 +80,10 @@ and the generic Airness approvals.
 - An auth collection sets `auth.cookies.secure` to true in production, for example from a value
   `src/lib/environment.ts` derives from `NODE_ENV`, because Payload's default sends the session cookie over plain
   HTTP. `payload-defaults` evaluates the configuration with `NODE_ENV` set to `production`.
+- `auth.maxLoginAttempts` counts failures only against an account that exists, so an attempt naming an unknown
+  email is never limited, while it still pays for the decoy hash that keeps its refusal as slow as any other. The
+  limit the section Authentication of the governing standard places on attempts that name no account is therefore
+  the project's own to add, for example per client in front of the sign-in route.
 - At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through
   `req.payload` or `request.payload` passes `req`; a call carrying `user`, a call composed with a spread, and
   every call in an endpoint module, a route handler, a server action (a `'use server'` module or function) or a
@@ -102,6 +106,10 @@ and the generic Airness approvals.
 - ESLint refuses an inline function in a collection, global, field or block configuration, a read of
   `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` taken out of `req` or
   `request`, destructured or bound to a name as in `const cms = req.payload` (call `req.payload` and pass
-  `req`). A hook writes request state only on `req.context`. A migration keeps the snake-case name
-  `payload migrate:create` gives it.
+  `req`). A hook writes request state only on `req.context`. Outside `src/endpoints` nothing reads `req.data`,
+  dotted, bracketed, destructured or through `Reflect.get`: it is the raw request body, the parsed body over REST,
+  `{ query, variables }` over GraphQL and nothing over the Local API. A hook reads its operation's own arguments,
+  `data` in a collection or field hook and `args.data` in `beforeOperation` or `afterOperation`, and a root hook
+  such as `afterError` reads what an operation hook of the same request put on `req.context`. A migration keeps
+  the snake-case name `payload migrate:create` gives it.
 
