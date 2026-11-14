@@ -2803,27 +2803,6 @@
         </module>
         <module name="MatchXpath">
             <!--
-                The result set is whatever the table holds. A query that answers instantly against a seeded
-                test database exhausts the heap against a real one, and nothing between the two says when that
-                changed.
-
-                A bound named in the method rather than taken as a parameter is not accepted. A name carrying
-                the bound carries the ordering with it, which is how a derived name reaches the length a method
-                name is held to, and the parameter states the same bound where a reader of the call site can
-                see it rather than where only the declaration can.
-            -->
-            <property name="id" value="AirnessSpringDataQueryIsBounded"/>
-            <property name="query"
-                      value="//INTERFACE_DEF[./IDENT[ends-with(@text,'Repository')]]//METHOD_DEF[./TYPE/IDENT[@text='List' or @text='Set' or @text='Collection' or @text='Stream'] and not(./PARAMETERS/PARAMETER_DEF/TYPE/IDENT[@text='Pageable' or @text='Limit'])]"/>
-            <message key="matchxpath.match"
-                     value="A repository method returning a collection reads as many rows as the table holds unless the caller states the bound. Take a Pageable, or a Limit where only the bound is wanted, because a bound written into the method name cannot be seen or varied at the call site."/>
-        </module>
-        <module name="SuppressionXpathSingleFilter">
-            <property name="id" value="AirnessSpringDataQueryIsBounded"/>
-            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
-        </module>
-        <module name="MatchXpath">
-            <!--
                 Anything joined into JPQL or SQL with a plus is a query fragment rather than a bound
                 parameter, whatever the surrounding code intends by it. Two literals joined only to fit a line
                 are not matched, because the operand that makes this dangerous is the one that is not a

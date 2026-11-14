@@ -244,6 +244,18 @@ Airness governs all of the following domains in a Java module:
     three is correct everywhere a tool looks and wrong the first time the query runs. The count is read against the
     records the module itself declares, so a type declared beside it in another module is passed over rather than
     reported.
+  - **Bounded results:** the ban on unbounded queries of the section Banned Constructs of the governing standard
+    is read as `AirnessSpringDataQueryIsBounded`, at the declaration and at the call. A query method declared in
+    any interface that descends from Spring Data's `Repository` or carries `@RepositoryDefinition`, whatever its
+    name, takes a `Pageable` or a `Limit` when it returns an `Iterable`, a collection or a `Stream`. A bound
+    written into a derived name, such as `findTop10By`, is refused, because the call site can neither see nor
+    vary it. A production call to a method Spring Data itself declares, such as `findAll(Specification)` inherited
+    from `JpaSpecificationExecutor`, is read where it is written, since the application declares nothing there to
+    read. It passes when it hands over a `Pageable`, a `Limit` or a `ScrollPosition`, when it returns a `Page`, a
+    `Slice` or a `Window`, or when it takes an `Iterable` and returns no more rows than it is given, as
+    `findAllById` and `saveAll` do. A fluent query ends in `all()` or `stream()` only after `limit(...)`, and
+    `Pageable.unpaged()` and `Limit.unlimited()` are refused in production code as the bound taken away. Where
+    only a number is wanted, count with an aggregate query in place of reading the rows.
   - **Streaming timeouts:** registered production handlers returning `StreamingResponseBody`
     directly or inside `ResponseEntity` require a production timeout declaration and an effective MVC
     timeout choice in the existing ready-context tests. Declare `spring.mvc.async.request-timeout` in
