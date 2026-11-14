@@ -175,6 +175,7 @@ mvn airness:assets-sync
 
 |===
 
+. Before finishing a change, run xref:#extended-verification[Extended verification]. When a required pull-request gate runs Extended or xref:#delta-verification[delta verification] on the change, xref:#default-verification[Default verification] is enough locally, and the gate runs the rest. A project without CI always runs Extended verification locally.
 . System properties change the behavior of a verification. They don't enable more checks.
 +
 [cols="2,3,5"]
