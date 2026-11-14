@@ -236,6 +236,7 @@ This section describes the state of the source code: its size, its types, its na
 . Dead code is banned: a xref:#check[check] fails on an unused file, an unused xref:#callable[callable], an unused parameter, an unused dependency, and an unused export outside the declared public interface of the xref:#governed-repository[governed repository].
 . `TODO` and `FIXME` comments are banned.
 . A call to an API that its own supplier marks deprecated in the released artifact is banned.
+. An unbounded query is banned: a query that returns stored records is bounded by a page, a limit, or the size of its input, such as a lookup that returns at most one record for each identifier it receives. An unbounded query runs only under a xref:#suppressions[suppression].
 . A ban specific to one xref:#governed-repository[governed repository] becomes a xref:#check[check] when the check can verify it reliably, and it isn't restated in the xref:#instruction-file[instruction file].
 
 [[suppressions]]
@@ -270,8 +271,9 @@ These rules govern access, authentication, audit events, and data handling where
 
 . Interactive authenticated sessions have a declared lifetime. The component that validates access enforces expiry and logout, so a saved session credential can't restore a terminated session.
 . Account disablement, permission removal, and credential revocation take effect within declared time limits. Existing sessions and credentials obey those limits.
-. A declared policy limits repeated authentication failures and specifies recovery conditions. The software enforces that policy.
-. Login and account-recovery failures reveal neither the existence of a private account nor which credential component was correct. Neither the response content, the status code, nor the response time distinguishes these failures from each other.
+. A declared policy limits repeated authentication failures and specifies recovery conditions. The limit also counts failures that name no existing account. Work that the software performs on purpose for an unauthenticated request, such as a decoy credential check that meets the xref:#equal-failure-responses[rule on equal failure responses], runs only within that limit. The software enforces that policy.
+. A limit that identifies a client by its network address reads that address from the connection, or from the forwarding records that a declared number of trusted proxies append. A forwarding record that the client sends itself never identifies the client.
+. [[equal-failure-responses]]Login and account-recovery failures reveal neither the existence of a private account nor which credential component was correct. Neither the response content, the status code, nor the response time distinguishes these failures from each other.
 
 [[audit-events]]
 === Audit Events
