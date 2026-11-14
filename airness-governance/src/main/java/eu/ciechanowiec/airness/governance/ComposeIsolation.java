@@ -65,7 +65,7 @@ final class ComposeIsolation {
      */
     static List<Located<String>> containerNames(CharSequence yaml) {
         return nodes(yaml).stream()
-            .filter(node -> node.under(ComposeFile.SERVICES) && node.path().size() == SERVICE_DEPTH)
+            .filter(node -> node.underServices() && node.path().size() == SERVICE_DEPTH)
             .filter(node -> CONTAINER_NAME.equals(node.key()) && !node.value().isEmpty())
             .map(node -> new Located<>(node.line(), node.service() + " is named " + node.value()))
             .toList();
@@ -219,17 +219,17 @@ final class ComposeIsolation {
             return new ComposeLine(this.line, this.indent, List.copyOf(ancestors), this.key, this.value);
         }
 
-        boolean under(String section) {
-            return !this.path.isEmpty() && section.equals(this.path.getFirst());
+        boolean underServices() {
+            return !this.path.isEmpty() && ComposeFile.SERVICES.equals(this.path.getFirst());
         }
 
         boolean listsPorts() {
-            return this.under(ComposeFile.SERVICES) && this.path.size() == PORT_DEPTH
+            return this.underServices() && this.path.size() == PORT_DEPTH
                 && PORTS.equals(this.path.getLast());
         }
 
         boolean holdsPorts() {
-            return this.under(ComposeFile.SERVICES) && this.path.size() == SERVICE_DEPTH && PORTS.equals(this.key);
+            return this.underServices() && this.path.size() == SERVICE_DEPTH && PORTS.equals(this.key);
         }
 
         String service() {

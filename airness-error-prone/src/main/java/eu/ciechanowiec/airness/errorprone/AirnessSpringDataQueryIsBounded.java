@@ -176,7 +176,7 @@ public final class AirnessSpringDataQueryIsBounded extends BugChecker
      * findAllById and saveAll. A Sort is an Iterable of its orders, and bounds nothing.
      */
     private static boolean boundedByInput(Symbol.MethodSymbol symbol, VisitorState state) {
-        return Optional.ofNullable(INPUT.get(state)).filter(input -> takes(symbol, input, state)).isPresent();
+        return takes(symbol, INPUT.get(state), state);
     }
 
     private static boolean takes(Symbol.MethodSymbol symbol, Type input, VisitorState state) {
