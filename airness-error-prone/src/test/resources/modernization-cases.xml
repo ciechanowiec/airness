@@ -1499,6 +1499,30 @@ import org.slf4j.*; class C { private static final Logger log = LoggerFactory.ge
 import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); private static final Marker AUDIT = MarkerFactory.getMarker("AUDIT"); void m(String b, Exception e) { log.atError().setCause(e).addKeyValue("b", b).log("a {}", b); } }
 ]]></source>
         </case>
+        <case name="thr1" flagged="false" scope="main">
+            <source><![CDATA[package example.thr1;
+
+import java.io.*; import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); void m(IOException e) { log.atInfo().log("unreachable: {}", e.toString()); } }
+]]></source>
+        </case>
+        <case name="thr2" flagged="false" scope="main">
+            <source><![CDATA[package example.thr2;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); void m(String b, RuntimeException e) { log.warn("{} failed: {}", b, e.toString()); } }
+]]></source>
+        </case>
+        <case name="thr3" flagged="true" scope="main">
+            <source><![CDATA[package example.thr3;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); void m(String b, RuntimeException e) { log.warn("{} failed on {}", e.toString(), b); } }
+]]></source>
+        </case>
+        <case name="thr4" flagged="true" scope="main">
+            <source><![CDATA[package example.thr4;
+
+import org.slf4j.*; class C { private static final Logger log = LoggerFactory.getLogger(C.class); void m(Object b, RuntimeException e) { log.warn("{} failed: {}", b.toString(), e.toString()); } }
+]]></source>
+        </case>
     </rule>
     <rule tool="ErrorProne" id="AirnessMapContainsKey" kind="new">
         <case name="mck1" flagged="true" scope="main">
