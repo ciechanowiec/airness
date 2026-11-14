@@ -26,6 +26,7 @@ eu.ciechanowiec.airness.errorprone.AirnessPrimitiveIsNeverNull
 eu.ciechanowiec.airness.errorprone.AirnessPropertyOverEnvironment
 eu.ciechanowiec.airness.errorprone.AirnessSequencedAccess
 eu.ciechanowiec.airness.errorprone.AirnessSerialFieldIsAnnotated
+eu.ciechanowiec.airness.errorprone.AirnessSpringDataQueryIsBounded
 eu.ciechanowiec.airness.errorprone.AirnessToArrayIsTyped
 eu.ciechanowiec.airness.errorprone.AirnessTryResourceClosesItself
 eu.ciechanowiec.airness.errorprone.AirnessTypeArgumentsAreInferred
