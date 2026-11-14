@@ -208,6 +208,9 @@ PY
     printf '%s\n' "import type { CollectionAfterChangeHook } from 'payload'" '' \
         'export const countPosts: CollectionAfterChangeHook = async ({ doc, req: { payload } }) => {' \
         "  await payload.count({ collection: 'posts' })" '  return doc' '}' > "${payload_site}/src/hooks/count-posts.ts"
+    printf '%s\n' "import type { PayloadRequest } from 'payload'" '' \
+        "export const signInTarget = (req: PayloadRequest): unknown => req.data?.['email']" \
+        > "${payload_site}/src/hooks/sign-in-target.ts"
     python3 - "${payload_site}/src/payload.config.ts" "${payload_site}/src/collections/Posts.ts" \
         "${payload_site}/src/lib/environment.ts" "${payload_site}/src/payload-types.ts" \
         "${payload_site}/src/app/(payload)/admin/importMap.js" <<'PY'
@@ -341,6 +344,8 @@ ${harness_version}"
         'error  No inline functions in collection, global, field or block configs'
     expect_match payload_report 'payload: eslint refuses payload destructured out of req in a hook' \
         'error  Do not destructure payload out of the request'
+    expect_match payload_report 'payload: eslint refuses a hook reading the request body' \
+        'error  Read req.data only in an endpoint handler'
 
     # One enforcing build of the defective tree proves the findings fail it; it stops at the first, preflight.
     # That a post-integration-test gate's finding fails an enforcing build is node-gate's generic proof.
