@@ -152,7 +152,8 @@ public final class ManagedVersions {
         "shellcheck.image",
         "checkov.image",
         "hadolint.image",
-        "actionlint.image"
+        "actionlint.image",
+        "trivy.image"
     );
     private static final Set<String> PROTECTED_PROPERTIES = Stream.concat(
         Stream.concat(

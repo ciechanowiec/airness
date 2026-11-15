@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
@@ -18,20 +19,27 @@ import org.apache.maven.project.MavenProject;
 
 /**
  * Requires complete current-invocation evidence before a module enters the aggregate report: the Maven
- * inventory, scan and SBOM, and the npm inventory and SBOM of every node project the module declares.
+ * inventory, scan and SBOM, the npm inventory and SBOM of every node project the module declares, and what every
+ * image its node projects built holds.
  */
 final class ReportInputs {
 
     private final Instant started;
     private final OsvScan osv;
+    private final Function<MavenProject, ImageReportInputs> images;
 
     ReportInputs(Instant started) {
         this(started, OsvScan.of(OsvScan.PUBLIC));
     }
 
     ReportInputs(Instant started, OsvScan osv) {
+        this(started, osv, project -> ImageReportInputs.read(project, osv));
+    }
+
+    ReportInputs(Instant started, OsvScan osv, Function<MavenProject, ImageReportInputs> images) {
         this.started = started;
         this.osv = osv;
+        this.images = images;
     }
 
     @SneakyThrows
@@ -52,7 +60,8 @@ final class ReportInputs {
             throw new IllegalStateException("Invalid CycloneDX evidence for " + project.getId());
         }
         ReportSbom.validate(parsed, dependencies);
-        NpmReportInputs npm = NpmReportInputs.read(project, this.started, this.osv);
+        ImageReportInputs shipped = this.images.apply(project);
+        NpmReportInputs npm = NpmReportInputs.read(project, this.started, this.osv, shipped.language());
         List<ReportPackage> packages = npm.packages(
             Stream.concat(dependencies.stream(), this.tools(project, build).stream()).toList()
         );
@@ -61,14 +70,19 @@ final class ReportInputs {
             scan, this.started, project.getId(),
             ReportVulnerabilities.harnessNotes(build.resolve("airness/plugin-inputs"))
         );
+        List<ReportAdvisory> all = Stream.of(advisories, npm.advisories(), shipped.system())
+            .flatMap(List::stream).toList();
+        String documents = ReportJson.encode(
+            Stream.concat(ReportJson.parse(npm.documents()).valueStream(), shipped.documents().stream()).toList()
+        );
         return new ReportModule(
-            project.getId(), packages, Stream.concat(advisories.stream(), npm.advisories().stream()).toList(), Map.of(
+            project.getId(), packages, all, Map.of(
                 "SBOM", sbom,
                 "SBOM SHA-256", ReportJson.hash(sbom), "Scanner SHA-256", ReportJson.hash(Files.readString(scan)),
                 "Scan date", ReportJson.read(scan).path("projectInfo").path("reportDate").asText(),
                 "Graph", ReportJson.encode(npm.graph(this.graph(project, build))),
-                NpmReportInputs.DOCUMENTS, npm.documents()
-            )
+                NpmReportInputs.DOCUMENTS, documents
+            ), shipped.needed(all)
         );
     }
 

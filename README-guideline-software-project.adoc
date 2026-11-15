@@ -303,11 +303,9 @@ These rules govern access, authentication, audit events, and data handling where
 [[dependency-vulnerabilities]]
 === Known Vulnerabilities
 
-. A xref:#check[check] reads every package in the xref:#resolved-set[resolved set] against a public vulnerability database. It fails when a package has a published vulnerability with no installed fix and no applied workaround, even a low-rated one.
-. The xref:#check[check] covers packages used by the product, tests, and build. Build tools run with build privileges, so their vulnerabilities are reachable by anyone who can change the xref:#governed-repository[governed repository].
-. A finding is repaired by upgrading the package. If no upgrade exists, an entry in a declared vulnerability allowlist mitigates it. Each entry explains why the vulnerability can't be exploited, states a mitigation plan, and records its addition date.
-. Every entry in the vulnerability allowlist matches a finding. An entry that matches none fails the xref:#check[check].
-. The vulnerability xref:#check[check] reads a public database, so its verdict can change while the xref:#governed-repository[governed repository] stays unchanged. The section xref:#check-qualities[] excludes the vulnerability check from determinism. An unreachable database fails the vulnerability check.
+. A vulnerability xref:#check[check] reads every package in the xref:#resolved-set[resolved set] and in each container image the xref:#governed-repository[governed repository] builds to ship against a public database. It fails when the database is unreachable and on each published vulnerability with no installed fix and no applied workaround, even a low-rated one. A system package's vulnerability in a container image fails only once a fix is available to the image, and the vulnerability check reports it until then.
+. A vulnerability is repaired by upgrading the package. A container image takes a fix for a system package of its base image only from a newer release of that base image.
+. Where no fix exists, a declared vulnerability allowlist entry mitigates the vulnerability. Each entry explains why the vulnerability can't be exploited, states a mitigation plan, and records its addition date. An unused entry fails the vulnerability xref:#check[check].
 
 [[compliance-report]]
 === Compliance Report

@@ -41,7 +41,10 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
                     ReportProjects.partial(session.getProjects(), session.getAllProjects()),
                     enforced
                 ).stream(),
-                NpmReportInputs.qualifications(session.getProjects()).stream()
+                Stream.concat(
+                    NpmReportInputs.qualifications(session.getProjects()).stream(),
+                    ImageReportInputs.qualifications(session.getProjects()).stream()
+                )
             ).toList()
         );
     }

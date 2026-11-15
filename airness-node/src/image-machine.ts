@@ -32,6 +32,10 @@ export interface ImageMachine {
   /** What `docker image inspect` prints for the image's exposed ports, as JSON. */
   readonly exposedPorts: (tag: string) => RunResult
   readonly remove: (tag: string) => void
+  /** The scanner image the installed harness pins, undefined when the gate runs outside `mvn verify`. */
+  readonly scannerImage: () => string | undefined
+  /** Trivy's CycloneDX list of the packages the image holds, printed on standard output. */
+  readonly catalogue: (tag: string, scanner: string) => RunResult
   /** Boot the image inside the member's wrapper, or inside an empty services run of the harness's own. */
   readonly boot: (member: Member, request: BootRequest) => Promise<BootOutcome>
   /**
@@ -41,8 +45,25 @@ export interface ImageMachine {
   readonly holdStops: <T>(body: (isStopped: () => boolean) => Promise<T>) => Promise<T>
 }
 
+/** The variable through which `airness:node-gate` names the scanner image the installed harness pins. */
+export const TRIVY_IMAGE_VARIABLE: string = 'AIRNESS_TRIVY_IMAGE'
+
 const TAG_BYTES: number = 6
 const PREFIX: string = '[image]'
+const CATALOGUE_TIMEOUT_MS: number = 600_000
+
+// The image reaches the scanner on its standard input, saved to a file of this run first, so no directory of the
+// host is mounted into the container, which runs with no network, no capability and no way to gain privileges.
+const CATALOGUE_SCRIPT: string =
+  'docker save --output "$1" "$2" && docker run --rm --interactive --cap-drop=ALL ' +
+  '--security-opt=no-new-privileges --network none --entrypoint sh "$3" -c "$4" < "$1"'
+
+// What runs inside the scanner image: the saved image is listed without a vulnerability database, and Java
+// archives are left to the dependency scan.
+const TRIVY_SCRIPT: string =
+  'cat > /tmp/image.tar && exec trivy image --quiet --skip-version-check --disable-telemetry ' +
+  "--input /tmp/image.tar --format cyclonedx --skip-files '**/*.jar' --skip-files '**/*.war' " +
+  "--skip-files '**/*.ear'"
 
 // The harness's own entry points, each named by its literal specifier, which the dead-code gate follows.
 const bootScript = (): string => fileURLToPath(import.meta.resolve('#harness/image-boot-main'))
@@ -95,6 +116,18 @@ export const SYSTEM_IMAGE_MACHINE: ImageMachine = {
     const removed: RunResult = run('docker', ['image', 'rm', '--force', tag], { cwd: process.cwd() })
     if (removed.code !== 0) {
       console.error(`${PREFIX} the image ${tag} could not be removed: ${removed.output.trim()}`)
+    }
+  },
+  scannerImage: (): string | undefined => process.env[TRIVY_IMAGE_VARIABLE],
+  catalogue: (tag: string, scanner: string): RunResult => {
+    const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-image-'))
+    try {
+      return run('sh', ['-c', CATALOGUE_SCRIPT, 'sh', path.join(directory, 'image.tar'), tag, scanner, TRIVY_SCRIPT], {
+        cwd: process.cwd(),
+        timeoutMs: CATALOGUE_TIMEOUT_MS,
+      })
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
     }
   },
   boot: async (member: Member, request: BootRequest): Promise<BootOutcome> => {

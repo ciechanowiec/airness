@@ -5,8 +5,11 @@
 #
 # Pinned by digest so an upstream rebuild of the tag cannot change what is built here; resolve a new digest with
 # `docker buildx imagetools inspect node:26-alpine` when bumping.
-FROM node:26.8.2-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868
-RUN addgroup -S -g 10001 starter && adduser -S -u 10001 -G starter starter
+FROM node:26.13.1-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
+# The server runs on Node alone, so the npm the base image carries, with the packages it bundles, is removed rather
+# than shipped unused: a vulnerability in one of them would otherwise be the image's own.
+RUN addgroup -S -g 10001 starter && adduser -S -u 10001 -G starter starter \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /application
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

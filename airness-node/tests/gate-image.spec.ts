@@ -1,3 +1,6 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { doesInstallPackages, isDockerfile, memberDockerfiles } from '@/dockerfiles.js'
 import type { RunResult } from '@/exec.js'
@@ -31,6 +34,8 @@ interface Recorded {
   readonly built: readonly string[]
   readonly removed: readonly string[]
   readonly boots: readonly BootRequest[]
+  /** What the machine did to images, in order: `catalogue <tag>` and `remove <tag>`. */
+  readonly events: readonly string[]
 }
 
 interface MachineOptions {
@@ -39,12 +44,25 @@ interface MachineOptions {
   readonly boot?: BootOutcome
   /** Whether a stop arrived before the gate began. */
   readonly stopped?: boolean
+  /** The scanner image the machine names; the pinned one unless a test says it names none. */
+  readonly scanner?: string | undefined
+  readonly catalogue?: RunResult
 }
 
 interface Machine {
   readonly machine: ImageMachine
   readonly recorded: Recorded
 }
+
+const SCANNER: string = `aquasec/trivy:0.76.2@sha256:${'a'.repeat(64)}`
+
+const LISTED_DOCUMENT: Readonly<Record<string, unknown>> = {
+  bomFormat: 'CycloneDX',
+  specVersion: '1.7',
+  components: [],
+}
+
+const LISTED: string = JSON.stringify(LISTED_DOCUMENT)
 
 const BOOTED: BootOutcome = {
   verdict: { ok: true, findings: [] },
@@ -53,7 +71,12 @@ const BOOTED: BootOutcome = {
 
 /* eslint-disable functional/immutable-data -- the stand-in machine records what the gate built, booted and removed, which is what the tests read */
 const stand = (options: MachineOptions = {}): Machine => {
-  const recorded: { built: string[]; removed: string[]; boots: BootRequest[] } = { built: [], removed: [], boots: [] }
+  const recorded: { built: string[]; removed: string[]; boots: BootRequest[]; events: string[] } = {
+    built: [],
+    removed: [],
+    boots: [],
+    events: [],
+  }
   const machine: ImageMachine = {
     tag: (): string => `airness-image-${String(recorded.built.length)}:verification`,
     build: async (_member: Member, dockerfile: string, tag: string): Promise<RunResult> => {
@@ -64,6 +87,12 @@ const stand = (options: MachineOptions = {}): Machine => {
     exposedPorts: (): RunResult => options.exposed ?? answered('{"3000/tcp":{}}\n'),
     remove: (tag: string): void => {
       recorded.removed.push(tag)
+      recorded.events.push(`remove ${tag}`)
+    },
+    scannerImage: (): string | undefined => ('scanner' in options ? options.scanner : SCANNER),
+    catalogue: (tag: string, scanner: string): RunResult => {
+      recorded.events.push(`catalogue ${tag} with ${scanner}`)
+      return options.catalogue ?? answered(LISTED)
     },
     boot: async (_member: Member, request: BootRequest): Promise<BootOutcome> => {
       recorded.boots.push(request)
@@ -76,6 +105,15 @@ const stand = (options: MachineOptions = {}): Machine => {
   return { machine, recorded }
 }
 /* eslint-enable functional/immutable-data -- the tests below only read what the stand-in recorded */
+
+const withEvidence = async (body: (directory: string) => Promise<void>): Promise<void> => {
+  const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-image-evidence-'))
+  try {
+    await body(directory)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
 
 const withProject = async (
   files: Readonly<Record<string, string>>,
@@ -376,6 +414,97 @@ describe('the image gate', PROCESS_TIME, () => {
       const result: GateResult = await image(memberAt(root, SERVED), undefined, stopped.machine)
       expect(result.findings).toEqual(['Dockerfile: not judged, because the gate was stopped'])
       expect(stopped.recorded.built).toEqual([])
+    })
+  })
+})
+
+describe('the packages of the images the gate builds', PROCESS_TIME, () => {
+  it('are listed beside the result for every Dockerfile, each before its image is removed', async () => {
+    await withProject({ Dockerfile: DOCKERFILE, 'web.Dockerfile': DOCKERFILE }, async (root: string): Promise<void> => {
+      await withEvidence(async (directory: string): Promise<void> => {
+        const { machine, recorded }: Machine = stand()
+        const result: GateResult = await image(memberAt(root), { evidenceDirectory: directory }, machine)
+        expect(result.ok).toBe(true)
+        expect(result.evidence).toEqual(['image-Dockerfile.json', 'image-web.Dockerfile.json'])
+        expect(recorded.events).toEqual([
+          `catalogue airness-image-0:verification with ${SCANNER}`,
+          'remove airness-image-0:verification',
+          `catalogue airness-image-1:verification with ${SCANNER}`,
+          'remove airness-image-1:verification',
+        ])
+        const written: unknown = JSON.parse(readFileSync(path.join(directory, 'image-web.Dockerfile.json'), 'utf8'))
+        expect(written).toEqual({ contract: 1, dockerfile: 'web.Dockerfile', sbom: LISTED_DOCUMENT })
+      })
+    })
+  })
+
+  it('are not listed by a run that writes no result, since nothing would read them', async () => {
+    await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+      const { machine, recorded }: Machine = stand()
+      const result: GateResult = await image(memberAt(root), undefined, machine)
+      expect(result.ok).toBe(true)
+      expect(result.evidence).toBeUndefined()
+      expect(recorded.events).toEqual(['remove airness-image-0:verification'])
+    })
+  })
+
+  it('fail an image whose packages cannot be listed, with what the scanner printed, and still remove it', async () => {
+    await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+      await withEvidence(async (directory: string): Promise<void> => {
+        const { machine, recorded }: Machine = stand({ catalogue: answered('FATAL no space left on device', 1) })
+        const result: GateResult = await image(memberAt(root), { evidenceDirectory: directory }, machine)
+        expect(result.ok).toBe(false)
+        expect(result.findings).toEqual([
+          'Dockerfile: the packages of the image could not be listed (exit code 1):',
+          '| FATAL no space left on device',
+        ])
+        expect(result.evidence).toBeUndefined()
+        expect(existsSync(path.join(directory, 'image-Dockerfile.json'))).toBe(false)
+        expect(recorded.removed).toEqual(['airness-image-0:verification'])
+      })
+    })
+  })
+
+  it.each(['{"bomFormat": "SPDX"}', 'Unable to find image locally'])(
+    'fail a list that is no CycloneDX document rather than write it: %j',
+    async (printed: string) => {
+      await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+        await withEvidence(async (directory: string): Promise<void> => {
+          const { machine }: Machine = stand({ catalogue: answered(printed) })
+          const result: GateResult = await image(memberAt(root), { evidenceDirectory: directory }, machine)
+          expect(result.ok).toBe(false)
+          expect(result.findings[0]).toBe('Dockerfile: the packages of the image could not be listed (exit code 0):')
+          expect(existsSync(path.join(directory, 'image-Dockerfile.json'))).toBe(false)
+        })
+      })
+    },
+  )
+
+  it('fail when no scanner image is named, naming the command that passes the pinned one', async () => {
+    await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+      await withEvidence(async (directory: string): Promise<void> => {
+        const { machine, recorded }: Machine = stand({ scanner: undefined })
+        const result: GateResult = await image(memberAt(root), { evidenceDirectory: directory }, machine)
+        expect(result.ok).toBe(false)
+        expect(result.findings[0]).toContain('AIRNESS_TRIVY_IMAGE names no scanner image')
+        expect(result.findings[0]).toContain('mvn verify -Pextended')
+        expect(recorded.events).toEqual(['remove airness-image-0:verification'])
+      })
+    })
+  })
+
+  it('are written under a name unique to the member, naming the Dockerfile from the node project', async () => {
+    await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+      await withEvidence(async (directory: string): Promise<void> => {
+        const { machine }: Machine = stand()
+        const member: Member = { ...memberAt(root), path: 'apps/web' }
+        const result: GateResult = await image(member, { evidenceDirectory: directory }, machine)
+        expect(result.evidence).toEqual(['image-apps-web-Dockerfile.json'])
+        const written: unknown = JSON.parse(
+          readFileSync(path.join(directory, 'image-apps-web-Dockerfile.json'), 'utf8'),
+        )
+        expect(written).toEqual({ contract: 1, dockerfile: 'apps/web/Dockerfile', sbom: LISTED_DOCUMENT })
+      })
     })
   })
 })

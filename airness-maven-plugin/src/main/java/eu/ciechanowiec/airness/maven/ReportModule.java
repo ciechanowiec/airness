@@ -12,15 +12,31 @@ import java.util.Map;
  * @param packages   resolved dependencies and build tools
  * @param advisories findings from that module's scanner
  * @param evidence   exact per-module SBOM and scanner provenance
+ * @param repairs    what the module does about the open findings its shipped images hold
  */
 record ReportModule(
     String coordinate, List<ReportPackage> packages, List<ReportAdvisory> advisories,
-    Map<String, String> evidence
+    Map<String, String> evidence, List<String> repairs
 ) {
 
     ReportModule {
         packages = List.copyOf(packages);
         advisories = List.copyOf(advisories);
         evidence = Map.copyOf(evidence);
+        repairs = List.copyOf(repairs);
+    }
+
+    /**
+     * Evidence of a module that ships no image needing a repair.
+     *
+     * @param coordinate module identity
+     * @param packages   resolved dependencies and build tools
+     * @param advisories findings from that module's scanner
+     * @param evidence   exact per-module SBOM and scanner provenance
+     */
+    ReportModule(
+        String coordinate, List<ReportPackage> packages, List<ReportAdvisory> advisories, Map<String, String> evidence
+    ) {
+        this(coordinate, packages, advisories, evidence, List.of());
     }
 }

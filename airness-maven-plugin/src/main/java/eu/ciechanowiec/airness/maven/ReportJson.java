@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -18,6 +19,8 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class ReportJson {
 
+    private static final int ABBREVIATION = 200;
+
     @SneakyThrows
     static JsonNode read(Path file) {
         if (!Files.isRegularFile(file) || Files.isSymbolicLink(file)) {
@@ -29,6 +32,23 @@ final class ReportJson {
             throw new IllegalStateException("Malformed compliance evidence: " + file);
         }
         return document;
+    }
+
+    /**
+     * Reads a JSON document a tool printed.
+     *
+     * @param text what the tool printed
+     * @return the document, an object or an array
+     * @throws IllegalStateException when the text is empty or is no JSON document
+     */
+    static JsonNode parse(String text) {
+        try {
+            return Optional.ofNullable(new ObjectMapper().readTree(text)).filter(JsonNode::isContainerNode).orElseThrow(
+                () -> new IllegalStateException("A tool printed no JSON document: " + abbreviated(text))
+            );
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("A tool printed malformed JSON: " + abbreviated(text), exception);
+        }
     }
 
     @SneakyThrows
@@ -49,6 +69,11 @@ final class ReportJson {
         return HexFormat.of().formatHex(
             MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8))
         );
+    }
+
+    private static String abbreviated(String text) {
+        String stripped = text.strip();
+        return stripped.length() <= ABBREVIATION ? stripped : stripped.substring(0, ABBREVIATION) + "...";
     }
 
     static String required(JsonNode object, String name) {

@@ -7,6 +7,7 @@ import eu.ciechanowiec.airness.governance.ReportUse;
 import eu.ciechanowiec.airness.maven.NpmEvidence.NpmPackage;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -69,6 +70,24 @@ record NpmReportInputs(
      *                               the vulnerability database cannot be read
      */
     static NpmReportInputs read(MavenProject project, Instant started, OsvScan osv) {
+        return read(project, started, osv, Map.of());
+    }
+
+    /**
+     * Reads the npm evidence of every node project a module declares, mitigating the language packages its images
+     * hold beside its npm packages, since the node project's allowlist answers for both.
+     *
+     * @param project the module
+     * @param started when this Maven invocation started, which every document must postdate
+     * @param osv     the vulnerability database every resolved npm package is looked up in
+     * @param images  the findings of the language packages each node project's images hold, by its directory
+     * @return the evidence, empty for a module that declares no node project
+     * @throws IllegalStateException when a node project's inventory or SBOM is missing, malformed or stale, or
+     *                               the vulnerability database cannot be read
+     */
+    static NpmReportInputs read(
+        MavenProject project, Instant started, OsvScan osv, Map<Path, List<OsvAdvisory>> images
+    ) {
         List<NpmEvidence> evidence = NpmEvidence.of(project);
         if (evidence.isEmpty()) {
             return new NpmReportInputs(List.of(), Map.of(), "[]", List.of());
@@ -84,11 +103,13 @@ record NpmReportInputs(
         ).toList();
         return new NpmReportInputs(
             packages, roots.isEmpty() ? Map.of() : Map.of(project.getId(), roots), ReportJson.encode(documents),
-            advisories(evidence, osv, project.getId())
+            advisories(evidence, osv, project.getId(), images)
         );
     }
 
-    private static List<ReportAdvisory> advisories(List<NpmEvidence> evidence, OsvScan osv, String module) {
+    private static List<ReportAdvisory> advisories(
+        List<NpmEvidence> evidence, OsvScan osv, String module, Map<Path, List<OsvAdvisory>> images
+    ) {
         Map<NpmEvidence, Set<String>> packages = evidence.stream().collect(
             Collectors.toUnmodifiableMap(
                 entry -> entry, entry -> entry.packages().stream().map(NpmPackage::purl).collect(
@@ -99,8 +120,10 @@ record NpmReportInputs(
         List<OsvAdvisory> findings = osv.findings(packages.values().stream().flatMap(Set::stream).toList(), module);
         return evidence.stream().flatMap(
             entry -> NpmMitigations.read(entry.directory()).apply(
-                findings.stream().filter(
-                    finding -> Objects.requireNonNull(packages.get(entry)).contains(finding.advisory().artifact())
+                Stream.concat(
+                    findings.stream().filter(
+                        finding -> Objects.requireNonNull(packages.get(entry)).contains(finding.advisory().artifact())
+                    ), images.getOrDefault(entry.directory(), List.of()).stream()
                 ).toList()
             ).stream()
         ).toList();

@@ -62,6 +62,10 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
     private static final String IDENTITY_VARIABLE = "AIRNESS_MODULE";
 
     private static final String BROWSER_GATE = "e2e";
+    private static final String IMAGE_GATE = "image";
+    // The image gate lists the packages of every image it builds with the scanner image the installed harness pins,
+    // which a project cannot replace.
+    private static final String TRIVY_VARIABLE = "AIRNESS_TRIVY_IMAGE";
     private static final String ASSESSED = ": an assessed web interface";
 
     /**
@@ -196,6 +200,9 @@ public final class NodeGateMojo extends AbstractGovernanceMojo {
         if (BROWSER_GATE.equals(gate.id())) {
             environment.put(NodeTools.PROGRESS_LOG, log.toString());
             environment.putAll(launch);
+        }
+        if (IMAGE_GATE.equals(gate.id())) {
+            environment.put(TRIVY_VARIABLE, ScannerTools.image("trivy"));
         }
         return Map.copyOf(environment);
     }
