@@ -288,14 +288,15 @@
                         The node gates, one execution per gate, each run by node-gate in every declared node project
                         through the harness's pnpm as pnpm exec airness-node gate <id>, from the @airness/node the
                         project installed. A module that declares no node project runs none. They are bound in
-                        verify, after the module's own build, its integration tests and any teardown a project
-                        binds to post-integration-test, and ahead of the tree check and module-complete below, which
-                        this build binds last. wiring runs earlier, at prepare-package. The extended profile's gates
-                        cannot be bound here: a profile's verify executions merge after module-complete.
+                        prepare-package after wiring, which judges the harness first, and so after every node-run
+                        a project binds before prepare-package, the static gates first and tests last. They run
+                        before package, the integration tests and the extended profile's slower gates, so a
+                        defect they find fails the build in minutes. The extended profile's gates cannot be bound
+                        in verify: a profile's verify executions merge after module-complete.
                     -->
                     <execution>
                         <id>node-gate-types</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -306,7 +307,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-biome</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -317,7 +318,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-oxlint</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -328,7 +329,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-eslint</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -339,7 +340,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-source-rules</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -350,7 +351,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-config-refs</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -361,7 +362,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-javascript-allowlist</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -377,7 +378,7 @@
                     -->
                     <execution>
                         <id>node-gate-css</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -388,7 +389,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-tailwind-tokens</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -399,7 +400,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-arch</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -410,7 +411,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-type-coverage</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -421,7 +422,7 @@
                     </execution>
                     <execution>
                         <id>node-gate-knip</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -431,19 +432,8 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>node-gate-tests</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>node-gate</goal>
-                        </goals>
-                        <configuration>
-                            <gate>tests</gate>
-                            <command>airness-node gate tests</command>
-                        </configuration>
-                    </execution>
-                    <execution>
                         <id>node-gate-install-scripts</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
@@ -454,13 +444,24 @@
                     </execution>
                     <execution>
                         <id>node-gate-release-age</id>
-                        <phase>verify</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>node-gate</goal>
                         </goals>
                         <configuration>
                             <gate>release-age</gate>
                             <command>airness-node gate release-age</command>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>node-gate-tests</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>node-gate</goal>
+                        </goals>
+                        <configuration>
+                            <gate>tests</gate>
+                            <command>airness-node gate tests</command>
                         </configuration>
                     </execution>
                     <!--
@@ -805,8 +806,9 @@
                                 of a node project and boots the image of one that serves against empty services, at
                                 post-integration-test, after package, since an image may copy what package made: a
                                 profile's verify executions merge after module-complete, which closes the build.
-                                They therefore run before the Default gates, and before any teardown a project binds
-                                to the same phase, so a failing one skips that teardown. Each reads as not
+                                They therefore run after the Default gates, which run in prepare-package, and
+                                before any teardown a project binds to the same phase, so a failing one skips that
+                                teardown. Each reads as not
                                 applicable in a node project without its facet.
                             -->
                             <execution>
