@@ -26,6 +26,7 @@ import {
   canReuseBrowserServer,
   VERIFICATION_ENVIRONMENT_VARIABLE,
 } from './browser-server-policy.js'
+import { auxiliaryServerEnvironment } from './browser-settings.js'
 import { coversEveryEngine } from './change-scope-policy.js'
 import { clockedEnvironment } from './clock-environment.js'
 import { portOf, runEnvironmentFiles } from './environment-files.js'
@@ -286,7 +287,7 @@ const declared: ReturnType<typeof defineConfig> = defineConfig({
         cwd: path.resolve(projectDirectory, server.cwd ?? '.'),
         reuseExistingServer: isReuseExistingServer,
         timeout: SERVER_TIMEOUT_MS,
-        env: withPort({ ...serverEnvironment, __NEXT_PROCESSED_ENV: '' }, portOf(server.url)),
+        env: withPort(auxiliaryServerEnvironment(serverEnvironment), portOf(server.url)),
       })),
       {
         command,

@@ -20,6 +20,7 @@ const FILES: readonly string[] = [
   'src/entry.ts',
   'src/generated/client.ts',
   'src/view.tsx',
+  'src/view.stories.tsx',
   'src/types.d.ts',
   'scripts/release.mts',
   'tests/total.spec.ts',

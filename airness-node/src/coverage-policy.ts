@@ -6,7 +6,11 @@ import { memberFiles } from './source-selection.js'
 
 const TEST_ROOT: string = 'tests'
 
-/** Roles no coverage floor measures, whichever source root holds them. */
+/**
+ * Roles no coverage floor measures, whichever source root holds them. A Storybook story is the tooling the
+ * Storybook plugin reads, as `knip` and `arch` take it, and the browser sweep renders and judges every one, so it is
+ * measured no more than a spec is.
+ */
 const COVERAGE_ROLE_EXCLUDE: readonly string[] = [
   `${TEST_ROOT}/**`,
   '**/node_modules/**',
@@ -15,6 +19,7 @@ const COVERAGE_ROLE_EXCLUDE: readonly string[] = [
   '**/*.d.cts',
   '**/*.spec.*',
   '**/*.test.*',
+  '**/*.stories.*',
 ]
 
 const coverageRoots = (sourceRoots: readonly string[]): readonly string[] =>

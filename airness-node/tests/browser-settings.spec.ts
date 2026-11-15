@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CLOCK_ENVIRONMENT_VARIABLE } from '@/browser-run.js'
-import { browserSettings } from '@/browser-settings.js'
+import { auxiliaryServerEnvironment, browserSettings } from '@/browser-settings.js'
 import { clockedEnvironment } from '@/clock-environment.js'
 import { readSettings } from '@/settings.js'
 
@@ -115,6 +115,22 @@ describe('the browser startup inputs', () => {
       clockedEnvironment({ settings: readSettings({ airness: { clock: 'real' } }) }, '--no-deprecation', ''),
     ).toEqual({
       NODE_OPTIONS: '--no-deprecation',
+    })
+  })
+})
+
+describe('the environment of an auxiliary server', () => {
+  it('clears the production mode of the application, so the server chooses its own', () => {
+    const environment: Readonly<Record<string, string>> = auxiliaryServerEnvironment({
+      NODE_ENV: 'production',
+      HOSTNAME: 'localhost',
+      NEXT_TELEMETRY_DISABLED: '1',
+    })
+    expect(environment).toStrictEqual({
+      NODE_ENV: '',
+      HOSTNAME: 'localhost',
+      NEXT_TELEMETRY_DISABLED: '1',
+      __NEXT_PROCESSED_ENV: '',
     })
   })
 })

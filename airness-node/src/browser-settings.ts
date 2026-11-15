@@ -99,6 +99,21 @@ const optionalServerFields = (
   }
 }
 
+/**
+ * The environment an auxiliary server starts with: the application's, without the application's mode.
+ *
+ * A verification run carries NODE_ENV=production for the application under test, and Playwright hands every server
+ * the run's environment beneath the one named here, so the mode is set to the empty value, which Node.js tools read
+ * as unset. The server's own command then chooses its mode: `next start` and a standalone Next.js server choose
+ * production, and a development server such as Storybook's, which renders through React's development build, keeps
+ * the development mode it needs.
+ * @param underTest the environment the application under test starts with.
+ * @returns the environment of an auxiliary server, before its own port is added.
+ */
+export const auxiliaryServerEnvironment = (
+  underTest: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> => ({ ...underTest, __NEXT_PROCESSED_ENV: '', NODE_ENV: '' })
+
 const asAuxiliaryServers = (raw: unknown): readonly AuxiliaryServer[] =>
   isArray(raw)
     ? raw.flatMap((entry: unknown): readonly AuxiliaryServer[] => {

@@ -53,6 +53,21 @@ describe('runEnvironmentFiles', () => {
     }
   })
 
+  it('keeps a placeholder in force where an environment file leaves the value empty', () => {
+    const directory: string = mkdtempSync(path.join(tmpdir(), 'airness-analysis-environment-'))
+    try {
+      writeFileSync(path.join(directory, '.env'), 'DATABASE_URL=\nUNPLACED=\nSECRET=chosen\n')
+      const placeholders: Readonly<Record<string, string>> = { DATABASE_URL: 'placeholder', SECRET: 'placeholder' }
+      expect(analysisEnvironment(directory, placeholders, {})).toStrictEqual({
+        DATABASE_URL: 'placeholder',
+        SECRET: 'chosen',
+        UNPLACED: '',
+      })
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
   it('reads nothing when the project keeps no environment file', () => {
     expect(filesPresent([])).toEqual([])
   })

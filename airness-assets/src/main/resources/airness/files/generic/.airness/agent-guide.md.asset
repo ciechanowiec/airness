@@ -97,8 +97,8 @@ Airness governs all of the following domains:
 - **Frontend resources:** at `validate`, every module inventories the scripts (`.js`, `.mjs`, `.cjs`, `.jsx`,
   `.ts`, `.mts`, `.cts`, `.tsx`) and stylesheets (`.css`, `.scss`) a commit would carry, whether or not it has a
   `package.json`. Each must lie in a declared node project and under one of its checked source roots (`src`,
-  `tests`, `scripts` and `airness.sourceRoots`); a script directly in a project's top directory is a tooling file
-  the linters and the type check read. `.sass` and `.less` files are refused because no gate reads them. Only a
+  `tests`, `scripts` and `airness.sourceRoots`); a script directly in a project's top directory, or in its Storybook
+  configuration directory `.storybook`, is a tooling file the linters and the type check read. `.sass` and `.less` files are refused because no gate reads them. Only a
   generated file or a file the harness places is passed over; a `vendor` directory or a minified name is not evidence of third-party ownership, so take
   a distribution from a dependency (a WebJar, or an npm package a `node-run` build copies under `target/`). An
   ignored input is the concern of `build-inputs` under Repository files and instructions.
@@ -460,7 +460,8 @@ of each server the application needs before it starts, with an optional member-r
 finds Storybook stories on those servers. In verification, `e2e` keeps the scheme, host and path of
 `serverUrl` and of each auxiliary URL but serves on a loopback port chosen for the run, handed to the server as
 `$PORT`, so a `serve` script and every auxiliary command listen on `$PORT`, such as
-`storybook dev --port $PORT`; the declared port matters only outside verification. Specifications reach the application through
+`storybook dev --port $PORT`; the declared port matters only outside verification. An auxiliary command starts
+without the application's `NODE_ENV`, so it runs in the mode it chooses, as Storybook's development server needs. Specifications reach the application through
 Playwright's `baseURL` or relative URLs, never a written-out origin. An application that builds absolute links
 or a list of accepted origins from its own variable names it in `serverUrlVariables`, which the run sets to the
 served origin, and reads it at runtime. The node harness owns the general browser rules; an installed
