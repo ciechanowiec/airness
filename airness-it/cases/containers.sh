@@ -163,7 +163,7 @@ run_image_cases() {
     printf 'RUN apk upgrade --no-cache\n' >> "${image_fixture}/Dockerfile"
     run_maven image_upgrade containers "${image_fixture}" airness:dockerfile-upgrades
     expect_exit image_upgrade 'image: a Dockerfile that upgrades what its base holds fails' 1
-    expect_match image_upgrade 'image: the refusal names the command at its line' 'Dockerfile:[0-9]+ runs `apk upgrade --no-cache`'
+    expect_match image_upgrade 'image: the refusal names the command at its line' "Dockerfile:[0-9]+ runs \`apk upgrade --no-cache\`"
     expect_match image_upgrade 'image: the refusal names the newer base as the repair' \
         'move FROM to a newer release of the base image'
     git -C "${image_fixture}" checkout --quiet -- Dockerfile
