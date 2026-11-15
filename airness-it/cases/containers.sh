@@ -138,7 +138,8 @@ PY_EDIT
 
 # Commits the Dockerfile the fixture started with, so the next case begins from the image that passes.
 restore_image_dockerfile() {
-    git -C "${image_fixture}" checkout --quiet "$(git -C "${image_fixture}" rev-list --max-parents=0 HEAD)" -- Dockerfile
+    first_image_commit="$(git -C "${image_fixture}" rev-list --max-parents=0 HEAD)"
+    git -C "${image_fixture}" checkout --quiet "${first_image_commit}" -- Dockerfile
     commit_image_fixture "$1"
 }
 
