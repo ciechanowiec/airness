@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   // `next dev` would otherwise write its agent rules into AGENTS.md, in typography the harness refuses;
   // AGENTS.md carries the same guidance in its project-owned part.
   agentRules: false,
+  // Next.js and withPayload would otherwise name themselves in X-Powered-By, which the harness refuses.
+  poweredByHeader: false,
   // The Dockerfile copies `.next/standalone`, which `next build` produces only under this setting.
   output: 'standalone',
   // sharp loads the binary of the platform it runs on by a name it computes at run time, which the tracing

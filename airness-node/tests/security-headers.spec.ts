@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { securityHeaderProblems } from '@/security-headers.js'
+import { disclosureProblems, securityHeaderProblems } from '@/security-headers.js'
 
 const baseline: Readonly<Record<string, string>> = {
   'x-content-type-options': 'nosniff',
@@ -118,5 +118,39 @@ describe('cookies the production server sets', () => {
   })
   it('leaves a development server to send its cookies over plain HTTP', () => {
     expect(securityHeaderProblems({ ...baseline, 'set-cookie': 'session=def; Path=/' }, 'development')).toEqual([])
+  })
+})
+
+describe('headers that name the software behind a response', () => {
+  it.each(['Next.js', 'Next.js, Payload', 'Express', 'PHP/8.3.1', ''])(
+    'refuses x-powered-by: "%s"',
+    (value: string) => {
+      expect(disclosureProblems({ 'x-powered-by': value })).toEqual([
+        expect.stringContaining(`x-powered-by is "${value}"`),
+      ])
+    },
+  )
+  it.each([
+    'nginx/1.25.3',
+    'Apache/2.4.58 (Unix)',
+    'Apache-Coyote/1.1',
+    'Microsoft-IIS/10.0',
+    'Jetty(12.0.5)',
+    'Caddy/v2',
+  ])('refuses a server header that names a version: %s', (value: string) => {
+    expect(disclosureProblems({ server: value })).toEqual([expect.stringContaining(`server is "${value}"`)])
+  })
+  it.each(['nginx', 'cloudflare', 'Apache', 'h2o', 'gunicorn (Unix)'])(
+    'accepts a server header that names no version: %s',
+    (value: string) => {
+      expect(disclosureProblems({ server: value })).toEqual([])
+    },
+  )
+  it('holds a development server to it as well as the production one', () => {
+    const disclosing: Readonly<Record<string, string>> = { 'x-powered-by': 'Next.js' }
+    expect(securityHeaderProblems({ ...baseline, ...disclosing }, 'development')).toEqual([
+      expect.stringContaining('x-powered-by is "Next.js"'),
+    ])
+    expect(productionProblemsWith(disclosing)).toEqual([expect.stringContaining('x-powered-by is "Next.js"')])
   })
 })

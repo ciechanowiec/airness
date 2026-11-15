@@ -339,7 +339,8 @@ workspace file a member of a pnpm workspace installs by, so a member's Dockerfil
 or a database at build time, and may copy what `package` made, such as a Spring Boot archive. For a browser application it then publishes the one TCP port the image exposes on a loopback port of
 the run, starts the image under the wrapper with `AIRNESS_IMAGE_VERIFICATION=1`, and asks the path of
 `serverUrl` and each path a stack layer names until every one answers below 500, for at most two minutes; a
-container that stops, or a path still answering 500 or nothing, fails with the container's log. In that mode
+container that stops, or a path still answering 500 or nothing, fails with the container's log. An answer that
+names the software behind it, as the security-header baseline below describes, fails too. In that mode
 `withServices` runs no `prepare`, so the services start as a fresh deployment's do and the image has to bring an
 empty database to its schema itself, as its migrations at startup; anything a deployment provisions before the
 application first starts, such as a bucket, belongs in a container's `ready` command. It also puts the containers
@@ -542,6 +543,9 @@ referrer policy, a framing decision and a content security policy that constrain
 `max-age` of at least 31536000 seconds, one year, and marks every cookie it sets `Secure`. A development server owes
 neither, so send HSTS from production alone: a browser that receives it over HTTPS keeps it for every port of the
 host, `localhost` included.
+Every server, a development one included, also names no software: it sends no `X-Powered-By`, which Next.js
+leaves out under `poweredByHeader: false` in `next.config` and Express after `app.disable('x-powered-by')`, and
+no product version in `Server`, as in `Jetty(12.0.5)` or `nginx/1.25.3`.
 `expectSecurityHeaders` from `@airness/node/security` applies the same baseline to a response a project's own
 specification receives.
 

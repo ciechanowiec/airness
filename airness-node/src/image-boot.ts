@@ -1,6 +1,7 @@
 // Boots a project's image against the services its wrapper started, inside that wrapper: the image gate builds the
 // image, and this runs it as a container on the run's network, hands it the services and its own origin, and asks
-// it over HTTP until every probed path answers or the time a healthy start needs is over.
+// it over HTTP until every probed path answers or the time a healthy start needs is over. The answers must not name
+// the software behind them, which is the first place the image itself, rather than a server a test starts, is asked.
 //
 // The services are handed over in the variables the plan names, whose addresses point at ports Docker published on
 // the host's loopback. A container's loopback is its own, so each such address is rewritten to the service
@@ -9,6 +10,7 @@
 // the run ends; this removes it itself once the verdict is in.
 import type { RunResult } from './exec.js'
 import { asRecord, isArray, parseJsonc } from './json-shapes.js'
+import { disclosureProblems } from './security-headers.js'
 import {
   type PublishedPort,
   parseServicesDescription,
@@ -53,8 +55,10 @@ export const parseBootRequest = (text: string | undefined): BootRequest | undefi
     : undefined
 }
 
-/** The answer to one request, or why none came. */
-type ProbeOutcome = { readonly status: number } | { readonly problem: string }
+/** The answer to one request, with its headers named in lower case, or why none came. */
+type ProbeOutcome =
+  | { readonly status: number; readonly headers: Readonly<Record<string, string>> }
+  | { readonly problem: string }
 
 /** The verdict of one boot. */
 export interface BootVerdict {
@@ -215,7 +219,13 @@ const awaitAnswers = async (runtime: BootRuntime, booting: Booting): Promise<Boo
     booting.probes.map(async (path: string): Promise<ProbeOutcome> => await runtime.probe(`${booting.origin}${path}`)),
   )
   if (outcomes.every((outcome: ProbeOutcome): boolean => isAnswered(outcome))) {
-    return { ok: true, findings: [] }
+    const disclosures: readonly string[] = booting.probes.flatMap((path: string, index: number): readonly string[] => {
+      const outcome: ProbeOutcome | undefined = outcomes[index]
+      return outcome !== undefined && 'headers' in outcome
+        ? disclosureProblems(outcome.headers).map((problem: string): string => `GET ${path}: ${problem}`)
+        : []
+    })
+    return { ok: disclosures.length === 0, findings: disclosures }
   }
   if (runtime.now() >= booting.deadline) {
     const unanswered: readonly string[] = booting.probes.flatMap((path: string, index: number): readonly string[] => {
@@ -292,13 +302,13 @@ const problemOf = (error: unknown): string => {
 /**
  * Ask one URL, without following a redirect: a redirect is the application answering.
  * @param url the URL.
- * @returns its status, or why no answer came within {@link PROBE_TIMEOUT_MS}.
+ * @returns its status and headers, or why no answer came within {@link PROBE_TIMEOUT_MS}.
  */
 export const probeOnce = async (url: string): Promise<ProbeOutcome> => {
   try {
     const response: Response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
     await response.arrayBuffer()
-    return { status: response.status }
+    return { status: response.status, headers: Object.fromEntries(response.headers) }
   } catch (error: unknown) {
     return { problem: problemOf(error) }
   }

@@ -115,6 +115,8 @@ writeFileSync(
     // The development server refuses its hot-reload socket to an origin it does not know, and without it
     // no client component hydrates. The fixture serves on 127.0.0.1.
     "  allowedDevOrigins: ['127.0.0.1'],",
+    // Next.js names itself in X-Powered-By unless told not to, and the baseline refuses the header.
+    '  poweredByHeader: false,',
     '  async headers() { return [{ source: "/:path*", headers: [',
     '    { key: "X-Content-Type-Options", value: "nosniff" },',
     '    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },',
