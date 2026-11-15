@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -46,6 +47,8 @@ final class ReportJson {
             return Optional.ofNullable(new ObjectMapper().readTree(text)).filter(JsonNode::isContainerNode).orElseThrow(
                 () -> new IllegalStateException("A tool printed no JSON document: " + abbreviated(text))
             );
+        } catch (JsonMappingException exception) {
+            throw new IllegalStateException("A tool printed JSON no tree holds: " + abbreviated(text), exception);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("A tool printed malformed JSON: " + abbreviated(text), exception);
         }

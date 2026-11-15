@@ -72,7 +72,7 @@ class ImageReportInputsTest {
             )
         ) {
             ImageReportInputs images = ImageReportInputs.read(
-                project, new ImageReportInputs.Lookups(
+                project, new ImageLookups(
                     osv.scan(), docker.images(), _ -> Optional.of("node:26.13.1-alpine"), TODAY
                 )
             );
@@ -98,7 +98,7 @@ class ImageReportInputsTest {
                     images.needed(advisories)
                 ),
                 () -> assertEquals(
-                    List.of(BASE, REBUILT, NEWER), docker.listed, "the base, then each release, is listed once"
+                    List.of(BASE, REBUILT, NEWER), docker.listed(), "the base, then each release, is listed once"
                 )
             );
         }
@@ -110,11 +110,11 @@ class ImageReportInputsTest {
         Images docker = new Images(Map.of(), Map.of());
         try (OsvStub osv = new OsvStub()) {
             ImageReportInputs images = ImageReportInputs.read(
-                project, new ImageReportInputs.Lookups(osv.scan(), docker.images(), _ -> Optional.empty(), TODAY)
+                project, new ImageLookups(osv.scan(), docker.images(), _ -> Optional.empty(), TODAY)
             );
             assertAll(
                 () -> assertEquals(List.of(), images.system()),
-                () -> assertEquals(List.of(), docker.listed),
+                () -> assertEquals(List.of(), docker.listed()),
                 () -> assertEquals(List.of(OPENSSL_QUERY, GLOB_QUERY), osv.asked())
             );
         }
@@ -128,13 +128,13 @@ class ImageReportInputsTest {
         );
         try (OsvStub osv = new OsvStub().lists(OPENSSL_QUERY, CVE, ADVISORY)) {
             ImageReportInputs images = ImageReportInputs.read(
-                project, new ImageReportInputs.Lookups(osv.scan(), docker.images(), _ -> Optional.empty(), TODAY)
+                project, new ImageLookups(osv.scan(), docker.images(), _ -> Optional.empty(), TODAY)
             );
             assertAll(
                 () -> assertTrue(images.system().getFirst().mitigation().orElseThrow().harness()),
                 () -> assertEquals(List.of(), images.needed(images.system())),
                 () -> assertEquals(
-                    List.of(BASE), docker.listed, "a tag that still names the base is no release to list"
+                    List.of(BASE), docker.listed(), "a tag that still names the base is no release to list"
                 )
             );
         }
@@ -148,7 +148,7 @@ class ImageReportInputsTest {
             );
             Images unread = new Images(Map.of(), Map.of());
             ImageReportInputs owned = ImageReportInputs.read(
-                variable, new ImageReportInputs.Lookups(osv.scan(), unread.images(), _ -> Optional.empty(), TODAY)
+                variable, new ImageLookups(osv.scan(), unread.images(), _ -> Optional.empty(), TODAY)
             );
             MavenProject tagged = this.module(
                 ImageDocuments.document(ALPINE, RELEASE, OPENSSL), "FROM node:26.8.2-alpine\n"
@@ -161,10 +161,10 @@ class ImageReportInputsTest {
                 Map.of("node:26.8.2-alpine", REBUILT)
             );
             ImageReportInputs moved = ImageReportInputs.read(
-                tagged, new ImageReportInputs.Lookups(osv.scan(), rebuilt.images(), _ -> Optional.empty(), TODAY)
+                tagged, new ImageLookups(osv.scan(), rebuilt.images(), _ -> Optional.empty(), TODAY)
             );
             assertAll(
-                () -> assertEquals(List.of(), unread.listed, "a base no default resolves is not pulled"),
+                () -> assertEquals(List.of(), unread.listed(), "a base no default resolves is not pulled"),
                 () -> assertTrue(
                     owned.needed(owned.system()).getFirst().contains("which the Dockerfile installs itself"),
                     "a package no base can be shown to hold is the build's own"
@@ -184,7 +184,7 @@ class ImageReportInputsTest {
         MavenProject project = NpmFixture.module(this.directory, true);
         try (OsvStub osv = new OsvStub()) {
             ImageReportInputs images = ImageReportInputs.read(
-                project, new ImageReportInputs.Lookups(
+                project, new ImageLookups(
                     osv.scan(), new Images(Map.of(), Map.of()).images(), _ -> Optional.empty(), TODAY
                 )
             );
@@ -278,6 +278,10 @@ class ImageReportInputsTest {
 
         DockerImages images() {
             return new DockerImages(SCANNER, this);
+        }
+
+        List<String> listed() {
+            return List.copyOf(this.listed);
         }
 
         @Override

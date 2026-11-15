@@ -58,7 +58,7 @@ record ImageJudgement(
      * @return the system findings as reported, the language findings for the node project's allowlist, and the
      *         repairs
      */
-    Verdict judge(List<OsvAdvisory> findings, List<ImageCandidate> candidates) {
+    ImageVerdict judge(List<OsvAdvisory> findings, List<ImageCandidate> candidates) {
         List<OsvAdvisory> answerable = this.answerable(findings);
         Comparator<ImageCandidate> answering = Comparator.comparingLong(
             candidate -> this.answered(candidate, answerable)
@@ -76,7 +76,7 @@ record ImageJudgement(
         best.filter(_ -> !answered.isEmpty()).ifPresent(candidate -> repairs.add(this.newerBase(candidate, answered)));
         repairs.addAll(this.installed(findings));
         repairs.addAll(this.unanswered(language, answered));
-        return new Verdict(system, language, repairs);
+        return new ImageVerdict(system, language, repairs);
     }
 
     private long answered(ImageCandidate candidate, List<OsvAdvisory> answerable) {
@@ -188,30 +188,5 @@ record ImageJudgement(
 
     private static Set<String> keys(Stream<OsvAdvisory> findings) {
         return findings.map(finding -> finding.advisory().key()).collect(Collectors.toUnmodifiableSet());
-    }
-
-    /**
-     * What judging one image came back with.
-     *
-     * @param system   the system findings as reported, harness accounts included
-     * @param language the language findings, still open to the node project's allowlist
-     * @param repairs  the repairs, each printed while a finding it answers is open
-     */
-    record Verdict(List<ReportAdvisory> system, List<OsvAdvisory> language, List<ImageRepair> repairs) {
-
-        Verdict {
-            system = List.copyOf(system);
-            language = List.copyOf(language);
-            repairs = List.copyOf(repairs);
-        }
-
-        /**
-         * The verdict of an image that holds no finding.
-         *
-         * @return a verdict with nothing in it
-         */
-        static Verdict none() {
-            return new Verdict(List.of(), List.of(), List.of());
-        }
     }
 }

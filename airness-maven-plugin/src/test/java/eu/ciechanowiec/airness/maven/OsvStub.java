@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -55,8 +56,10 @@ final class OsvStub implements AutoCloseable {
     private static Stream<String> queries(String body) {
         try {
             return new ObjectMapper().readTree(body).path("queries").valueStream().map(OsvStub::key);
+        } catch (JsonMappingException exception) {
+            throw new IllegalStateException("A query body holds no JSON tree", exception);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException(exception);
+            throw new IllegalStateException("A query body is no JSON", exception);
         }
     }
 

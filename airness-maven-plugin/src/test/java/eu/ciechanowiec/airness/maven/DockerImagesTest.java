@@ -31,11 +31,11 @@ class DockerImagesTest {
     void listsAnImageThisMachineHoldsWithoutPullingIt() {
         Recording docker = new Recording(true, command -> command.contains("run") ? LISTED : "");
         new DockerImages(SCANNER, docker).packages(BASE);
-        List<String> run = docker.commands.getLast();
+        List<String> run = docker.commands().getLast();
         assertAll(
-            () -> assertEquals(List.of("docker image inspect " + BASE), docker.asked),
-            () -> assertEquals("docker save --output", String.join(" ", docker.commands.getFirst().subList(0, 3))),
-            () -> assertEquals(BASE, docker.commands.getFirst().getLast()),
+            () -> assertEquals(List.of("docker image inspect " + BASE), docker.asked()),
+            () -> assertEquals("docker save --output", String.join(" ", docker.commands().getFirst().subList(0, 3))),
+            () -> assertEquals(BASE, docker.commands().getFirst().getLast()),
             () -> assertTrue(
                 run.containsAll(List.of("--network", "none", "--cap-drop=ALL", "--interactive", SCANNER)), run
                     .toString()
@@ -45,11 +45,11 @@ class DockerImagesTest {
                 run.stream().noneMatch(argument -> argument.startsWith("--mount") || "-v".equals(argument))
             ),
             () -> assertTrue(
-                Objects.requireNonNull(docker.input.get()).endsWith("image.tar"),
+                docker.input().endsWith("image.tar"),
                 "the saved image reaches the scanner on its input"
             ),
             () -> assertFalse(
-                Files.exists(Path.of(Objects.requireNonNull(docker.input.get()))),
+                Files.exists(Path.of(docker.input())),
                 "the saved image is removed once listed"
             )
         );
@@ -59,7 +59,7 @@ class DockerImagesTest {
     void pullsAnImageThisMachineDoesNotHold() {
         Recording docker = new Recording(false, command -> command.contains("run") ? LISTED : "");
         new DockerImages(SCANNER, docker).packages(BASE);
-        assertEquals(List.of("docker", "pull", "--quiet", BASE), docker.commands.getFirst());
+        assertEquals(List.of("docker", "pull", "--quiet", BASE), docker.commands().getFirst());
     }
 
     @Test
@@ -79,7 +79,7 @@ class DockerImagesTest {
             () -> assertEquals(
                 "node:26.8.2-alpine@" + DIGEST, new DockerImages(SCANNER, docker).current("node:26.8.2-alpine")
             ),
-            () -> assertEquals(List.of("docker", "pull", "--quiet", "node:26.8.2-alpine"), docker.commands.getFirst())
+            () -> assertEquals(List.of("docker", "pull", "--quiet", "node:26.8.2-alpine"), docker.commands().getFirst())
         );
     }
 
@@ -106,6 +106,18 @@ class DockerImagesTest {
             this.commands = new ArrayList<>();
             this.asked = new ArrayList<>();
             this.input = new AtomicReference<>("");
+        }
+
+        List<List<String>> commands() {
+            return List.copyOf(this.commands);
+        }
+
+        List<String> asked() {
+            return List.copyOf(this.asked);
+        }
+
+        String input() {
+            return Objects.requireNonNull(this.input.get());
         }
 
         @Override
