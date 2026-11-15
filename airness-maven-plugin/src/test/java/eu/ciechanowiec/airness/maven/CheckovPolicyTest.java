@@ -55,10 +55,12 @@ class CheckovPolicyTest {
             excluded.containsAll(
                 Set.of(
                     "CKV_AWS_310", "CKV_AWS_374", "CKV_AWS_338", "CKV2_AWS_61", "CKV_AWS_91", "CKV2_AWS_11",
-                    "CKV_AWS_336", "CKV_K8S_22"
+                    "CKV_AWS_336"
                 )
             )
         );
+        assertFalse(excluded.contains("CKV_K8S_21"));
+        assertFalse(excluded.contains("CKV_K8S_22"));
         assertFalse(excluded.contains("CKV_AWS_192"));
         assertFalse(excluded.contains("CKV2_AWS_31"));
         assertFalse(excluded.contains("CKV_AWS_31"));

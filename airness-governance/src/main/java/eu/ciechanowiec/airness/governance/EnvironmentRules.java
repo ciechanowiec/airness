@@ -20,6 +20,7 @@ import lombok.experimental.UtilityClass;
 final class EnvironmentRules {
 
     private static final String NAME = "name";
+    private static final String NEXT_PUBLIC = "NEXT_PUBLIC_";
     // A dotenv assignment, optionally exported. A comment line cannot match, because '#' is no name.
     private static final Pattern ASSIGNMENT = Pattern.compile(
         "^[ \\t]*(?:export[ \\t]+)?(?<name>[A-Za-z_]\\w*)[ \\t]*=", Pattern.MULTILINE
@@ -88,10 +89,32 @@ final class EnvironmentRules {
      */
     static Set<String> valuedCredentials(CharSequence example) {
         return VALUED.matcher(example).results()
-            .filter(assignment -> CREDENTIAL.matcher(assignment.group(NAME)).find())
+            .filter(assignment -> credential(assignment.group(NAME)))
             .filter(assignment -> !value(assignment.group("value")).isEmpty())
             .map(assignment -> assignment.group(NAME))
             .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    /**
+     * Whether a variable's name marks its value as a credential, which every rule on credentials reads alike.
+     *
+     * @param name the name of the variable
+     * @return whether it holds {@code PASSWORD}, {@code PASSWD}, {@code SECRET} or {@code TOKEN}, or ends in
+     *         {@code KEY}, in any case
+     */
+    static boolean credential(String name) {
+        return CREDENTIAL.matcher(name).find();
+    }
+
+    /**
+     * Whether a variable's name marks a credential that must stay private, leaving out a name a Next.js build
+     * inlines into the bundle it serves to every browser, which is public by definition.
+     *
+     * @param name the name of the variable
+     * @return whether it names a credential outside the {@code NEXT_PUBLIC_} prefix
+     */
+    static boolean privateCredential(String name) {
+        return credential(name) && !name.startsWith(NEXT_PUBLIC);
     }
 
     /**

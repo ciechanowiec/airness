@@ -91,7 +91,15 @@ Airness governs all of the following domains:
   wherever it lies, leaves each variable whose name holds `PASSWORD`, `PASSWD`, `SECRET` or `TOKEN`, or ends in
   `KEY`, empty (`NAME=`), so no copy of it supplies a default credential; no compose service publishes on a
   host port the file fixes, a literal or a variable's default, or names its container, so two checkouts or two
-  projects start side by side; and `.claude/settings.json`
+  projects start side by side; no compose service runs `privileged`, adds a capability with `cap_add`, sets a
+  `security_opt` that is `unconfined` or `label:disable`, shares a namespace of the host (`network_mode`, `pid`,
+  `ipc`, `userns_mode`, `uts` or `cgroup` set to `host`) or mounts the Docker socket; every port a compose service
+  publishes binds the loopback interface, as in `127.0.0.1:${APP_PORT}:8080` or `host_ip: 127.0.0.1`; a compose
+  service's `environment` passes each variable whose name marks a credential, by the same rule as the example file,
+  as `${NAME}` without a default rather than writing its value; no Dockerfile declares such a variable with `ARG` or
+  `ENV`, since the image keeps both for whoever pulls it, so a build reads its credential through
+  `RUN --mount=type=secret` and the container receives its own when it starts (a `NEXT_PUBLIC_` name is public by
+  design and exempt); and `.claude/settings.json`
   denies `Edit(...)` of every generated file and of every pinned managed file, with no local settings allowing
   one back. `mvn airness:assets-sync` writes those rules beside the project's own.
 - **Frontend resources:** at `validate`, every module inventories the scripts (`.js`, `.mjs`, `.cjs`, `.jsx`,
@@ -153,8 +161,8 @@ Airness governs all of the following domains:
   client JavaScript within 1100 KiB), for a browser application `e2e`: the harness's accessibility, layout and
   security-header specs and the member's own end-to-end specs under the shipped Playwright configuration, and for a
   member holding a Dockerfile `image`, which builds every Dockerfile of the member, as Node Application Preparation
-  and Security Corrections describes, lists the packages of each image, and boots the image of a browser
-  application against empty services. A
+  and Security Corrections describes, lists the packages of each image, refuses an image that runs as root, and
+  boots the image of a browser application, hardened, against empty services. A
   browser application that is not a Next.js application declares the script that serves it as `serve`. A
   Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top and
   refuses a routes directory (`app` or `pages`) at the member root rather than under `src`, the pages the crawl
@@ -336,11 +344,17 @@ The Extended `image` gate holds every Dockerfile of a node project to the image 
 each one with the node project's directory as the build left it as its context, which holds the lockfile and
 workspace file a member of a pnpm workspace installs by, so a member's Dockerfile names its files from there, as in
 `COPY web/src web/src`. It passes no build argument and starts no service, so the image cannot depend on a secret
-or a database at build time, and may copy what `package` made, such as a Spring Boot archive. For a browser application it then publishes the one TCP port the image exposes on a loopback port of
+or a database at build time, and may copy what `package` made, such as a Spring Boot archive. Every image runs as
+an unprivileged user: an image whose final stage sets no `USER`, on a base image that sets none either, runs as
+root and fails, as does one whose `USER` is `root` or `0`, so the final stage ends with a `USER` such as
+`USER 10001:10001`. For a browser application it then publishes the one TCP port the image exposes on a loopback port of
 the run, starts the image under the wrapper with `AIRNESS_IMAGE_VERIFICATION=1`, and asks the path of
 `serverUrl` and each path a stack layer names until every one answers below 500, for at most two minutes; a
 container that stops, or a path still answering 500 or nothing, fails with the container's log. An answer that
-names the software behind it, as the security-header baseline below describes, fails too. In that mode
+names the software behind it, as the security-header baseline below describes, fails too. The container runs as
+a hardened deployment runs it: with a read-only root filesystem, no capability and no privilege escalation. Only
+`/tmp` and the volumes the image declares are writable, so the image declares with `VOLUME` each other path the
+application writes, such as a cache, and gives the path to its `USER`. In that mode
 `withServices` runs no `prepare`, so the services start as a fresh deployment's do and the image has to bring an
 empty database to its schema itself, as its migrations at startup; anything a deployment provisions before the
 application first starts, such as a bucket, belongs in a container's `ready` command. It also puts the containers

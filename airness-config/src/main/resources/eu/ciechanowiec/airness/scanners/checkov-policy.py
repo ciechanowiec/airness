@@ -23,7 +23,6 @@ EXCEPTIONS = {
     "CKV_GHA_6": "A particular SBOM attestation product is not mandatory.",
     "CKV_GHA_7": "Governed release workflows may declare manual inputs.",
     "CKV_K8S_15": "A pinned image permits cached pulls and disconnected deployments.",
-    "CKV_K8S_21": "Namespace allocation is a deployment choice.",
     "CKV_K8S_35": "Applications may receive secrets through environment variables.",
     "CKV_K8S_40": "A base image may declare a non-root UID below the arbitrary floor.",
     "CKV_K8S_43": "Airness permits explicit version tags as well as digests.",
@@ -56,7 +55,6 @@ EXCEPTIONS.update({
     "CKV2_AWS_61": "Retention depends on the data and the deployment.",
     "CKV_AWS_338": "Retention depends on the data and the deployment.",
     "CKV_AWS_336": "Whether a root filesystem can be read-only depends on where the application writes.",
-    "CKV_K8S_22": "Whether a root filesystem can be read-only depends on where the application writes.",
 })
 # A logging rule demands one log source; which sources a deployment keeps is its logging design.
 for identifier in ("CKV_AWS_18", "CKV_AWS_86", "CKV_AWS_91", "CKV_AWS_129", "CKV_AWS_285",

@@ -1,17 +1,19 @@
 // The deployable image of a node project: every Dockerfile of the member builds, with the node project's directory as
 // it stands after the build as the context, so a member of a pnpm workspace reaches the lockfile it installs by, with
-// no build argument and no service, and, for a member that serves an application, the image starts against services
-// as a fresh deployment finds them and answers every probed path below 500.
+// no build argument and no service, and, for a member that serves an application, the image starts against services as
+// a fresh deployment finds them and answers every probed path below 500.
 //
-// Linting a Dockerfile proves nothing about the image it makes. A `COPY` of a directory that does not exist, a
-// build that reads a secret it is never given, a configuration that leaves an empty production database without a
-// schema, an origin set only in the stage that builds: each passes the linter and fails the first deployment. So
-// the image is built and run as a deployment runs it. The services come from the member's own test wrapper, asked
-// through a variable of the harness's own to start them empty and to describe them, so the container reaches them
-// on the run's network; a member without a wrapper gets a run with no services of the harness's own, which still
-// names and removes the container. Before an image is removed, the packages it holds are listed beside the gate's
-// result, which is the only moment the image can be read, for the closing step's vulnerability check. Every image is
-// removed afterwards, also when the gate is stopped.
+// Linting a Dockerfile proves nothing about the image it makes. A `COPY` of a directory that does not exist, a build
+// that reads a secret it is never given, a configuration that leaves an empty production database without a schema, an
+// origin set only in the stage that builds: each passes the linter and fails the first deployment. So the image is
+// built and run as a deployment runs it. The services come from the member's own test wrapper, asked through a variable
+// of the harness's own to start them empty and to describe them, so the container reaches them on the run's network; a
+// member without a wrapper gets a run with no services of the harness's own, which still names and removes the
+// container. The image runs as an unprivileged user, and it boots as a hardened deployment runs it: with a root
+// filesystem it cannot write, no capability and no way to gain a privilege, so a path the application writes is one the
+// image declares as a volume. Before an image is removed, the packages it holds are listed beside the gate's result,
+// which is the only moment the image can be read, for the closing step's vulnerability check. Every image is removed
+// afterwards, also when the gate is stopped.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { doesInstallPackages, memberDockerfiles } from './dockerfiles.js'
@@ -25,17 +27,46 @@ import { asRecord, declaredDependencies, parseJsonc } from './json-shapes.js'
 import type { Member } from './project.js'
 
 const TCP: string = '/tcp'
+const ROOT_NAMES: ReadonlySet<string> = new Set<string>(['', 'root', '0'])
+
+/** What the gate reads of the image's metadata: the user it runs as and the TCP ports it exposes. */
+interface ImageMetadata {
+  readonly user: string
+  readonly ports: readonly number[]
+}
 
 /**
- * The TCP ports an image exposes, read from what `docker image inspect` printed for them.
- * @param printed the JSON of the image's `ExposedPorts`, `null` when it exposes none.
- * @returns the port numbers, in the order the image lists them.
+ * The image's metadata, read from what `docker image inspect` printed for its configuration.
+ * @param printed the JSON of the image's `Config`.
+ * @returns the user, empty when the image names none, and the TCP ports in the order the image lists them.
  */
-const exposedTcpPorts = (printed: string): readonly number[] => {
-  const exposed: Record<string, unknown> = asRecord(parseJsonc(printed.trim()).value)
-  return Object.keys(exposed)
-    .filter((port: string): boolean => port.endsWith(TCP))
-    .map((port: string): number => Number(port.slice(0, -TCP.length)))
+const metadataOf = (printed: string): ImageMetadata => {
+  const { User: user, ExposedPorts: ports }: Record<string, unknown> = asRecord(parseJsonc(printed.trim()).value)
+  const exposed: Record<string, unknown> = asRecord(ports)
+  return {
+    user: typeof user === 'string' ? user.trim() : '',
+    ports: Object.keys(exposed)
+      .filter((port: string): boolean => port.endsWith(TCP))
+      .map((port: string): number => Number(port.slice(0, -TCP.length))),
+  }
+}
+
+/**
+ * Why the image runs as root, if it does: it names no user, so it inherits root, or it names root by name or ID.
+ * @param dockerfile the Dockerfile the image was built from.
+ * @param user the user the image's configuration names, as `name`, `uid` or either with `:group`.
+ * @returns the finding, none for an unprivileged user.
+ */
+const rootFindings = (dockerfile: string, user: string): readonly string[] => {
+  const [name = '']: readonly string[] = user.split(':', 1)
+  if (!ROOT_NAMES.has(name.trim())) {
+    return []
+  }
+  const cause: string = user === '' ? 'neither its final stage nor its base image sets USER' : `it sets USER ${user}`
+  return [
+    `${dockerfile}: the image runs as root, because ${cause}; add USER with an unprivileged user ID, such as ` +
+      'USER 10001:10001, to the final stage after the last step that needs root',
+  ]
 }
 
 /**
@@ -50,14 +81,7 @@ const probePaths = (member: Member): readonly string[] => [
 /** The one port an image serves on, or why it cannot be booted on one. */
 type ContainerPort = { readonly port: number } | { readonly problem: string }
 
-const containerPortOf = (machine: ImageMachine, dockerfile: string, tag: string): ContainerPort => {
-  const inspected: RunResult = machine.exposedPorts(tag)
-  if (inspected.code !== 0) {
-    return {
-      problem: `${dockerfile}: the built image could not be inspected: ${inspected.output.trim()}`,
-    }
-  }
-  const ports: readonly number[] = exposedTcpPorts(inspected.stdout)
+const containerPortOf = (dockerfile: string, ports: readonly number[]): ContainerPort => {
   const [port] = ports
   if (port !== undefined && ports.length === 1) {
     return { port }
@@ -72,13 +96,19 @@ const containerPortOf = (machine: ImageMachine, dockerfile: string, tag: string)
   }
 }
 
+// What the container is allowed when it boots, named beside a boot that failed, as the likeliest cause of a write.
+const HARDENED_BOOT: string =
+  '  the container ran with a read-only root filesystem, no capability and no privilege escalation; only /tmp ' +
+  'and the volumes the image declares are writable, so declare each other path the application writes with VOLUME'
+
 const bootFindings = async (
-  machine: ImageMachine,
-  member: Member,
+  run: ImageRun,
   dockerfile: string,
   tag: string,
+  ports: readonly number[],
 ): Promise<readonly string[]> => {
-  const port: ContainerPort = containerPortOf(machine, dockerfile, tag)
+  const { machine, member } = run
+  const port: ContainerPort = containerPortOf(dockerfile, ports)
   if ('problem' in port) {
     return [port.problem]
   }
@@ -101,6 +131,7 @@ const bootFindings = async (
     : [
         `${dockerfile}: the image does not boot against empty services:`,
         ...outcome.verdict.findings.map((finding: string): string => `  ${finding}`),
+        HARDENED_BOOT,
       ]
 }
 
@@ -124,8 +155,24 @@ const imageOutcome = async (run: ImageRun, dockerfile: string): Promise<ImageOut
   }
   try {
     const listed: CatalogueOutcome = catalogue(run, dockerfile, tag)
-    const booted: readonly string[] = isBrowserApp(member) ? await bootFindings(machine, member, dockerfile, tag) : []
-    return { findings: [...listed.findings, ...booted], evidence: listed.evidence }
+    const inspected: RunResult = machine.metadata(tag)
+    if (inspected.code !== 0) {
+      return {
+        findings: [
+          ...listed.findings,
+          `${dockerfile}: the built image could not be inspected: ${inspected.output.trim()}`,
+        ],
+        evidence: listed.evidence,
+      }
+    }
+    const metadata: ImageMetadata = metadataOf(inspected.stdout)
+    const booted: readonly string[] = isBrowserApp(member)
+      ? await bootFindings(run, dockerfile, tag, metadata.ports)
+      : []
+    return {
+      findings: [...listed.findings, ...rootFindings(dockerfile, metadata.user), ...booted],
+      evidence: listed.evidence,
+    }
   } finally {
     machine.remove(tag)
   }

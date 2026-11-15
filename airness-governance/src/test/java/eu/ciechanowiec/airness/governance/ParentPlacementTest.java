@@ -48,6 +48,7 @@ class ParentPlacementTest {
                 Stream.of(
                     "actions", "assets-check", "blocklist", "build-inputs", "build-practices",
                     "checkov", "commit-history", "commit-typography", "completion-order", "compose-isolation",
+                    "container-hardening",
                     "dependency-freshness", "docker", "dockerfile-upgrades", "editorconfig-excludes", "entry-files",
                     "environment",
                     "generated-denial", "ignore-patterns", "image-assets", "indentation", "instruction-references",

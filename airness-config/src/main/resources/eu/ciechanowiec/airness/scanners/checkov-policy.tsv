@@ -1144,8 +1144,8 @@ CKV_K8S_18	enable	Portable security requirement.	Do not admit containers wishing
 CKV_K8S_19	enable	Portable security requirement.	Do not admit containers wishing to share the host network namespace
 CKV_K8S_2	enable	Portable security requirement.	Do not admit privileged containers
 CKV_K8S_20	enable	Portable security requirement.	Containers should not run with allowPrivilegeEscalation
-CKV_K8S_21	exclude	Namespace allocation is a deployment choice.	The default namespace should not be used
-CKV_K8S_22	exclude	Whether a root filesystem can be read-only depends on where the application writes.	Use read-only filesystem for containers where possible
+CKV_K8S_21	enable	Portable security requirement.	The default namespace should not be used
+CKV_K8S_22	enable	Portable security requirement.	Use read-only filesystem for containers where possible
 CKV_K8S_23	enable	Portable security requirement.	Minimize the admission of root containers
 CKV_K8S_24	enable	Portable security requirement.	Do not allow containers with added capability
 CKV_K8S_25	enable	Portable security requirement.	Minimize the admission of containers with added capability

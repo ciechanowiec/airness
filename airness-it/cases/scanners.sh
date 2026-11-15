@@ -82,6 +82,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: settings
+  namespace: scanner
 data:
   image: ordinary-configuration-data
 YAML

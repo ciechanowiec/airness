@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 
 # The generic repository rules: image integrity, environment coherence, hosted runner images, agent
-# documentation references, skill manifests, generated-file denial, compose isolation, container definitions and
-# workflows.
+# documentation references, skill manifests, generated-file denial, compose isolation, container hardening,
+# container definitions and workflows.
 # Their variants are unit-tested in airness-governance and airness-maven-plugin. These runs prove each goal
 # is bound in the installed parent: one report-only run up to the Extended scanners carries a planted defect
 # for every rule, since none of the defects reads what another rule reads, and one enforcing Default run
@@ -19,15 +19,17 @@ services:
   database:
     image: postgres:17.5
     container_name: shared-database
+    privileged: true
     ports:
       - "5432:5432"
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      CACHE_TOKEN: shared
 YAML
     printf '\nRead %sdocs/missing-guide.md%s before changing the build.\n' '`' '`' >> "${generic_consumer}/AGENTS.md"
     printf '# Release notes\n\nDrafts release notes.\n' \
         > "${generic_consumer}/.claude/skills/Release_Notes/SKILL.md"
-    printf 'FROM alpine:3.22\nUSER 65532\nRUN apk add curl\n' > "${generic_consumer}/Dockerfile"
+    printf 'FROM alpine:3.22\nUSER 65532\nRUN apk add curl\nARG NPM_TOKEN\n' > "${generic_consumer}/Dockerfile"
     cat > "${generic_consumer}/.github/workflows/ci.yml" <<'YAML'
 name: 'Greeting'
 on: push
@@ -48,9 +50,17 @@ YAML
     expect_match generic_batch 'generic rules: environment coherence names the undocumented compose variable' \
         'DB_PASSWORD in compose[.]yaml'
     expect_match generic_batch 'generic rules: compose isolation names the host port every checkout asks for' \
-        'compose[.]yaml:6: database publishes host port 5432'
+        'compose[.]yaml:7: database publishes host port 5432'
     expect_match generic_batch 'generic rules: compose isolation names the container name every checkout asks for' \
         'compose[.]yaml:4: database is named shared-database'
+    expect_match generic_batch 'generic rules: container hardening names the privileged service' \
+        'compose[.]yaml:5: database runs privileged'
+    expect_match generic_batch 'generic rules: container hardening names the port published beyond loopback' \
+        'compose[.]yaml:7: database publishes 5432:5432 beyond loopback'
+    expect_match generic_batch 'generic rules: container hardening names the credential the compose file writes' \
+        'compose[.]yaml:10: database gives CACHE_TOKEN a value'
+    expect_match generic_batch 'generic rules: container hardening names the credential the Dockerfile declares' \
+        'Dockerfile:4: ARG NPM_TOKEN'
     expect_match generic_batch 'generic rules: runner images name the aliased hosted runner with its replacement' \
         '[.]github/workflows/ci[.]yml:7: ubuntu-latest - .*; use ubuntu-26[.]04'
     expect_match generic_batch 'generic rules: agent documentation names the missing file' \

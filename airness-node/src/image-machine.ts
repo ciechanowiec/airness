@@ -29,8 +29,8 @@ export interface ImageMachine {
   readonly tag: () => string
   /** Build the image of one Dockerfile of the member, with the node project's directory as the build context. */
   readonly build: (member: Member, dockerfile: string, tag: string) => Promise<RunResult>
-  /** What `docker image inspect` prints for the image's exposed ports, as JSON. */
-  readonly exposedPorts: (tag: string) => RunResult
+  /** What `docker image inspect` prints for the image's configuration, its user and exposed ports among it, as JSON. */
+  readonly metadata: (tag: string) => RunResult
   readonly remove: (tag: string) => void
   /** The scanner image the installed harness pins, undefined when the gate runs outside `mvn verify`. */
   readonly scannerImage: () => string | undefined
@@ -110,8 +110,8 @@ export const SYSTEM_IMAGE_MACHINE: ImageMachine = {
       ['build', '--progress=plain', '--file', path.join(member.path, dockerfile), '--tag', tag, '.'],
       { cwd: member.projectRoot, onLine: report },
     ),
-  exposedPorts: (tag: string): RunResult =>
-    run('docker', ['image', 'inspect', '--format', '{{json .Config.ExposedPorts}}', tag], { cwd: process.cwd() }),
+  metadata: (tag: string): RunResult =>
+    run('docker', ['image', 'inspect', '--format', '{{json .Config}}', tag], { cwd: process.cwd() }),
   remove: (tag: string): void => {
     const removed: RunResult = run('docker', ['image', 'rm', '--force', tag], { cwd: process.cwd() })
     if (removed.code !== 0) {
