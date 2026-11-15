@@ -123,21 +123,22 @@ class ParentPlacementTest {
         assertEquals(
             List.of(
                 "node-gate-wiring@prepare-package", "node-gate-npm-inventory@prepare-package",
-                "node-gate-types@verify", "node-gate-biome@verify",
-                "node-gate-oxlint@verify", "node-gate-eslint@verify",
-                "node-gate-source-rules@verify", "node-gate-config-refs@verify",
-                "node-gate-javascript-allowlist@verify", "node-gate-css@verify",
-                "node-gate-tailwind-tokens@verify", "node-gate-arch@verify",
-                "node-gate-type-coverage@verify", "node-gate-knip@verify",
-                "node-gate-tests@verify", "node-gate-install-scripts@verify",
-                "node-gate-release-age@verify", "extended:node-gate-npm-sbom@prepare-package",
+                "node-gate-types@prepare-package", "node-gate-biome@prepare-package",
+                "node-gate-oxlint@prepare-package", "node-gate-eslint@prepare-package",
+                "node-gate-source-rules@prepare-package", "node-gate-config-refs@prepare-package",
+                "node-gate-javascript-allowlist@prepare-package", "node-gate-css@prepare-package",
+                "node-gate-tailwind-tokens@prepare-package", "node-gate-arch@prepare-package",
+                "node-gate-type-coverage@prepare-package", "node-gate-knip@prepare-package",
+                "node-gate-install-scripts@prepare-package", "node-gate-release-age@prepare-package",
+                "node-gate-tests@prepare-package", "extended:node-gate-npm-sbom@prepare-package",
                 "extended:node-gate-build@post-integration-test", "extended:node-gate-bundle@post-integration-test",
                 "extended:node-gate-e2e@post-integration-test", "extended:node-gate-image@post-integration-test"
             ),
             gates,
-            "wiring judges the harness before npm-inventory writes evidence the package-phase policies read, the "
-                + "facet gates of Default run beside the core gates in verify, and the Extended ones only in its "
-                + "profile, before verify, since a profile's verify executions would follow module-complete"
+            "wiring judges the harness before npm-inventory writes evidence the package-phase policies read and "
+                + "before the Default gates, which follow in prepare-package, the static ones first and tests last, "
+                + "so they fail before the slower phases run, and the Extended ones only in its profile, before "
+                + "verify, since a profile's verify executions would follow module-complete"
         );
     }
 
@@ -153,12 +154,7 @@ class ParentPlacementTest {
             .toList();
         assertEquals(
             List.of(
-                "release:sign-artifacts@verify", "node-gate-types@verify", "node-gate-biome@verify",
-                "node-gate-oxlint@verify", "node-gate-eslint@verify", "node-gate-source-rules@verify",
-                "node-gate-config-refs@verify", "node-gate-javascript-allowlist@verify", "node-gate-css@verify",
-                "node-gate-tailwind-tokens@verify", "node-gate-arch@verify", "node-gate-type-coverage@verify",
-                "node-gate-knip@verify", "node-gate-tests@verify", "node-gate-install-scripts@verify",
-                "node-gate-release-age@verify", "airness-coverage-evidence@verify", "airness-governance@verify",
+                "release:sign-artifacts@verify", "airness-coverage-evidence@verify", "airness-governance@verify",
                 "airness-artifact@verify", "airness-module-complete@verify", "airness-coverage-report@verify",
                 "airness-coverage-check@verify"
             ),
