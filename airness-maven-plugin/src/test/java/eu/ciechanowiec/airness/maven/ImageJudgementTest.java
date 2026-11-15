@@ -70,7 +70,7 @@ class ImageJudgementTest {
 
     @Test
     void failsABaseFindingTheReleaseThatAnswersMostFixesAndNamesThatRelease() {
-        ImageJudgement.Verdict verdict = judgement(Optional.of(IN_BASE)).judge(
+        ImageVerdict verdict = judgement(Optional.of(IN_BASE)).judge(
             FINDINGS, List.of(NEWER_RELEASE, REBUILD)
         );
         assertAll(
@@ -90,7 +90,7 @@ class ImageJudgementTest {
 
     @Test
     void accountsForABaseFindingNoReleaseAnswersYetAndOneTheDistributionHasNotFixed() {
-        ImageJudgement.Verdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of(REBUILD));
+        ImageVerdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of(REBUILD));
         ReportMitigation awaiting = reported(verdict.system(), "CVE-2026-85091").mitigation().orElseThrow();
         ReportMitigation unfixed = reported(verdict.system(), "CVE-2026-4738").mitigation().orElseThrow();
         assertAll(
@@ -117,7 +117,7 @@ class ImageJudgementTest {
 
     @Test
     void failsAPackageTheBuildInstalledOnceItsDistributionHasAFix() {
-        ImageJudgement.Verdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of());
+        ImageVerdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of());
         assertAll(
             () -> assertTrue(reported(verdict.system(), "CVE-2026-1000").open()),
             () -> assertTrue(
@@ -139,7 +139,7 @@ class ImageJudgementTest {
 
     @Test
     void namesTheRemovalOfABaseLanguagePackageNoReleaseAnswers() {
-        ImageJudgement.Verdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of(REBUILD));
+        ImageVerdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of(REBUILD));
         assertAll(
             () -> assertEquals(List.of(UNDICI_FINDING, GLOB_FINDING), verdict.language()),
             () -> assertEquals(
@@ -157,7 +157,7 @@ class ImageJudgementTest {
     @Test
     void prefersTheFirstListedReleaseWhenTwoAnswerAlike() {
         ImageCandidate other = carrying(OTHER, ZLIB_FIXED, GLOB_FINDING);
-        ImageJudgement.Verdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of(REBUILD, other));
+        ImageVerdict verdict = judgement(Optional.of(IN_BASE)).judge(FINDINGS, List.of(REBUILD, other));
         assertTrue(
             verdict.repairs().getFirst().text().contains("with FROM " + REBUILT), verdict.repairs().getFirst().text()
         );
@@ -165,7 +165,7 @@ class ImageJudgementTest {
 
     @Test
     void treatsEveryPackageAsTheBuildsOwnWhenTheBaseCannotBeRead() {
-        ImageJudgement.Verdict verdict = judgement(Optional.empty()).judge(
+        ImageVerdict verdict = judgement(Optional.empty()).judge(
             List.of(OPENSSL_FIXED, GLOB_FINDING), List.of(REBUILD)
         );
         assertAll(
@@ -191,7 +191,7 @@ class ImageJudgementTest {
 
     @Test
     void judgesAnImageWithoutFindingsToNothing() {
-        assertEquals(ImageJudgement.Verdict.none(), judgement(Optional.of(IN_BASE)).judge(List.of(), List.of(REBUILD)));
+        assertEquals(ImageVerdict.none(), judgement(Optional.of(IN_BASE)).judge(List.of(), List.of(REBUILD)));
     }
 
     private static ImageJudgement judgement(Optional<ImageInventory> inBase) {

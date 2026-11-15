@@ -16,10 +16,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.maven.project.MavenProject;
 
 /**
@@ -44,9 +42,6 @@ record ImageReportInputs(
 ) {
 
     private static final Pattern DOCKERFILE = Pattern.compile("^(?:Dockerfile(?:\\..+)?|.+\\.[Dd]ockerfile)$");
-    private static final char PATH_SEPARATOR = '/';
-    private static final char TAG_SEPARATOR = ':';
-    private static final char DIGEST_SEPARATOR = '@';
 
     ImageReportInputs {
         documents = List.copyOf(documents);
@@ -63,7 +58,7 @@ record ImageReportInputs(
      * @return the evidence, empty for a module whose node projects built no image
      * @throws IllegalStateException when an image's list, its base or a release cannot be read
      */
-    static ImageReportInputs read(MavenProject project, Lookups lookups) {
+    static ImageReportInputs read(MavenProject project, ImageLookups lookups) {
         List<Judged> judged = NpmEvidence.of(project).stream().flatMap(
             node -> ImageEvidence.of(node).orElse(List.of()).stream()
                 .map(evidence -> Judged.of(project.getId(), node, evidence, lookups))
@@ -91,7 +86,7 @@ record ImageReportInputs(
      */
     static ImageReportInputs read(MavenProject project, OsvScan osv) {
         BaseReleases hub = new BaseReleases();
-        return read(project, new Lookups(osv, DockerImages.system(), hub::newer, LocalDate.now(ZoneOffset.UTC)));
+        return read(project, new ImageLookups(osv, DockerImages.system(), hub::newer, LocalDate.now(ZoneOffset.UTC)));
     }
 
     /**
@@ -137,62 +132,11 @@ record ImageReportInputs(
             + " was not checked.";
     }
 
-    // The release the base's tag names today, when the Dockerfile pins another, then the newest release on Docker Hub.
-    private static Stream<String> candidates(String base, Lookups lookups) {
-        Stream<String> rebuilt = tagged(base).map(lookups.images()::current)
-            .filter(current -> !digest(current).equals(digest(base))).stream();
-        Stream<String> newer = lookups.releases().apply(base).map(lookups.images()::current).stream();
-        return Stream.concat(rebuilt, newer).distinct();
-    }
-
-    // The reference without its digest, when it names a tag.
-    private static Optional<String> tagged(String reference) {
-        int at = reference.indexOf(DIGEST_SEPARATOR);
-        String named = at < 0 ? reference : reference.substring(0, at);
-        return named.lastIndexOf(TAG_SEPARATOR) > named.lastIndexOf(PATH_SEPARATOR) ? Optional.of(named)
-            : Optional.empty();
-    }
-
-    private static String digest(String reference) {
-        int at = reference.indexOf(DIGEST_SEPARATOR);
-        return at < 0 ? "" : reference.substring(at + 1);
-    }
-
-    private static String text(Path dockerfile) {
-        try {
-            return Files.readString(dockerfile);
-        } catch (IOException exception) {
-            throw new UncheckedIOException(
-                "The Dockerfile an image was built from cannot be read: " + dockerfile, exception
-            );
-        }
-    }
-
     // Whether a Dockerfile a commit would carry lies under the node project. Where Git cannot say, nothing is read,
     // and the report is not drafted on this account.
     private static boolean holdsDockerfile(Path directory) {
         return Repository.committableFiles(directory).orElse(List.of()).stream()
             .anyMatch(file -> DOCKERFILE.matcher(String.valueOf(file.getFileName())).matches());
-    }
-
-    /**
-     * Where the image check reads its verdicts from.
-     *
-     * @param osv      the vulnerability database
-     * @param images   the host's Docker client with the pinned scanner
-     * @param releases the newer releases of a base on Docker Hub
-     * @param today    the date the harness records its accounts on
-     */
-    record Lookups(OsvScan osv, DockerImages images, Function<String, Optional<String>> releases, LocalDate today) {
-
-        private List<OsvAdvisory> findings(ImageInventory inventory, ImageEvidence evidence, String module) {
-            return this.osv.findingsOf(inventory.queries(evidence.dockerfile()), module);
-        }
-
-        private ImageCandidate candidate(String reference, ImageEvidence evidence, String module) {
-            ImageInventory release = ImageInventory.of(this.images.packages(reference));
-            return ImageCandidate.of(reference, release, this.findings(release, evidence, module));
-        }
     }
 
     /**
@@ -202,9 +146,9 @@ record ImageReportInputs(
      * @param document  the image's document for the aggregate SBOM
      * @param verdict   the verdict
      */
-    private record Judged(Path directory, JsonNode document, ImageJudgement.Verdict verdict) {
+    private record Judged(Path directory, JsonNode document, ImageVerdict verdict) {
 
-        static Judged of(String module, NpmEvidence node, ImageEvidence evidence, Lookups lookups) {
+        static Judged of(String module, NpmEvidence node, ImageEvidence evidence, ImageLookups lookups) {
             ImageInventory inventory = ImageInventory.of(evidence.sbom());
             return new Judged(
                 node.directory(), ImageSbom.document(module, evidence, inventory),
@@ -213,21 +157,31 @@ record ImageReportInputs(
         }
 
         // The base and its releases are listed only for a finding a newer base could answer.
-        private static ImageJudgement.Verdict verdict(
-            String module, ImageEvidence evidence, ImageInventory inventory, Lookups lookups
+        private static ImageVerdict verdict(
+            String module, ImageEvidence evidence, ImageInventory inventory, ImageLookups lookups
         ) {
             List<OsvAdvisory> findings = lookups.findings(inventory, evidence, module);
             if (findings.isEmpty()) {
-                return ImageJudgement.Verdict.none();
+                return ImageVerdict.none();
             }
             Optional<String> base = DockerfileBase.of(text(evidence.file()))
                 .filter(reference -> reference.indexOf('$') < 0);
             Optional<ImageInventory> inBase = base.map(lookups.images()::packages).map(ImageInventory::of);
             ImageJudgement judgement = new ImageJudgement(module, evidence, inventory, base, inBase, lookups.today());
             List<ImageCandidate> candidates = judgement.answerable(findings).isEmpty() ? List.of()
-                : base.stream().flatMap(reference -> candidates(reference, lookups))
+                : base.stream().flatMap(lookups::candidates)
                     .map(reference -> lookups.candidate(reference, evidence, module)).toList();
             return judgement.judge(findings, candidates);
+        }
+
+        private static String text(Path dockerfile) {
+            try {
+                return Files.readString(dockerfile);
+            } catch (IOException exception) {
+                throw new UncheckedIOException(
+                    "The Dockerfile an image was built from cannot be read: " + dockerfile, exception
+                );
+            }
         }
     }
 }
