@@ -29,8 +29,8 @@ import java.util.stream.StreamSupport;
  * <li>a stylesheet ({@code .css}, {@code .scss}) is checked when it lies under a checked source root, which
  * is how the {@code css} gate selects it.</li>
  * <li>a script (the JS and TS variants) is checked under a checked source root, or as a tooling file at the
- * top of its project, such as a test or lint configuration, which the linters and the type check read
- * over the whole project.</li>
+ * top of its project, such as a test or lint configuration, or in its Storybook configuration directory,
+ * {@code .storybook}, which the linters and the type check read over the whole project.</li>
  * <li>a {@code .sass} or {@code .less} file is checked by no gate wherever it lies.</li>
  * </ul>
  *
@@ -58,6 +58,7 @@ final class FrontendCoverage {
     static final List<String> CHECKED = Stream.concat(SCRIPTS.stream(), STYLESHEETS.stream()).toList();
     private static final List<String> UNREAD = List.of(".sass", ".less");
     private static final String INSTALLED = "node_modules";
+    private static final String STORYBOOK = ".storybook";
     private static final String DEPENDENCY = "; if it is a third-party distribution, take it from a dependency "
         + "(a WebJar, or an npm package the build copies) instead of keeping a copy";
 
@@ -148,9 +149,11 @@ final class FrontendCoverage {
             .orElseGet(() -> Optional.of(path + " lies in no declared node project" + DEPENDENCY));
     }
 
-    // A script directly in the project's top directory is a tooling file the linters and type check read.
+    // A script directly in the project's top directory, or in its Storybook configuration directory, is a tooling
+    // file the linters and the type check read: the types gate includes .storybook whenever a project keeps one.
     private static Optional<String> outsideRoots(Path module, Path file, NodeMember member) {
-        boolean tooling = SCRIPTS.contains(extension(file).orElseThrow()) && member.root().equals(file.getParent());
+        boolean tooling = SCRIPTS.contains(extension(file).orElseThrow())
+            && (member.root().equals(file.getParent()) || file.startsWith(member.root().resolve(STORYBOOK)));
         if (member.checked(file) || tooling) {
             return Optional.empty();
         }

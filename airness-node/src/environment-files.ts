@@ -44,6 +44,10 @@ export const localEnvironment = (
  * The environment of a tool that imports the application's configuration without running the application: the
  * caller's own values win over the environment files, which win over the inert placeholders a stack layer names.
  * Only the names the caller does not already carry are returned, since the caller's environment is inherited.
+ *
+ * A file's empty value (`NAME=`) leaves its placeholder in force. An example file leaves every value a script fills
+ * in at run time empty, and a copy of it is how a project starts, so an empty value means the file supplies
+ * nothing; letting it hide the placeholder would make the configuration refuse to load for following the setup.
  * @param directory the member's directory, which holds its environment files.
  * @param placeholders the analysis placeholders the declared layers contribute.
  * @param inherited the caller's environment.
@@ -57,7 +61,11 @@ export const analysisEnvironment = (
   ...Object.fromEntries(
     Object.entries(placeholders).filter(([name]: readonly [string, string]): boolean => inherited[name] === undefined),
   ),
-  ...localEnvironment(directory, inherited),
+  ...Object.fromEntries(
+    Object.entries(localEnvironment(directory, inherited)).filter(
+      ([name, value]: readonly [string, string]): boolean => value !== '' || !Object.hasOwn(placeholders, name),
+    ),
+  ),
 })
 
 /**

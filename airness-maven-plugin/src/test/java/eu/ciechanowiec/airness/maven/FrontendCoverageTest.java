@@ -132,6 +132,22 @@ class FrontendCoverageTest {
     }
 
     @Test
+    void readsTheStorybookConfigurationAsToolingButNotAStylesheetBesideIt() {
+        this.write(TOOLING + '/' + MANIFEST, EMPTY);
+        this.write(TOOLING + "/.storybook/main.ts");
+        this.write(TOOLING + "/.storybook/preview.tsx");
+        this.write(TOOLING + "/.storybook/addons/theme.ts");
+        this.write(TOOLING + "/.storybook/preview.css");
+        List<String> offences = this.offences(TOOLING);
+        String reason = "the Storybook scripts are tooling the linters and type check read: " + offences;
+        assertEquals(1, offences.size(), reason);
+        assertTrue(
+            offences.getFirst().startsWith(TOOLING + "/.storybook/preview.css lies in the node project frontend"),
+            "no gate reads a stylesheet outside the checked source roots, Storybook's included: " + offences
+        );
+    }
+
+    @Test
     void acceptsTheResourcesAModuleRootProjectAddsToItsSourceRoots() {
         this.write(MANIFEST, "{\"airness\": {\"sourceRoots\": [\"" + STATIC + "\"]}}\n");
         this.write(STATIC + "css/theme.css");
