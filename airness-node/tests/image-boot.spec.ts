@@ -40,6 +40,9 @@ const ENVIRONMENT: Readonly<Record<string, string>> = {
 
 type Probe = Awaited<ReturnType<BootRuntime['probe']>>
 
+// An answer with the status, and with no header unless one is named.
+const status = (code: number, headers: Readonly<Record<string, string>> = {}): Probe => ({ status: code, headers })
+
 /** One docker call the stand-in machine saw, with the variables it was started with. */
 interface DockerCall {
   readonly commandArguments: readonly string[]
@@ -88,7 +91,7 @@ const machine = (options: MachineOptions = {}): Machine => {
       const attempt: number = attempts.get(path) ?? 0
       attempts.set(path, attempt + 1)
       await Promise.resolve()
-      return options.answer?.(path, attempt) ?? { status: 200 }
+      return options.answer?.(path, attempt) ?? status(200)
     },
     freePort: async (): Promise<number> => {
       await Promise.resolve()
@@ -163,8 +166,10 @@ describe('a boot of the image', () => {
 
   it('waits while the application starts and passes once every path answers below 500', async () => {
     const recorded: Machine = machine({
-      answer: (path: string, attempt: number): Probe =>
-        attempt < 2 ? { problem: 'ECONNREFUSED' } : { status: path === '/admin' ? 302 : 404 },
+      answer: (path: string, attempt: number): Probe => {
+        const code: number = path === '/admin' ? 302 : 404
+        return attempt < 2 ? { problem: 'ECONNREFUSED' } : status(code)
+      },
     })
     const verdict: BootVerdict = await bootImage(REQUEST, recorded.runtime)
     expect(verdict.ok).toBe(true)
@@ -173,7 +178,7 @@ describe('a boot of the image', () => {
 
   it('fails an application that answers 500 until the deadline, naming the path and showing its log', async () => {
     const recorded: Machine = machine({
-      answer: (path: string): Probe => ({ status: path === '/admin' ? 500 : 200 }),
+      answer: (path: string): Probe => status(path === '/admin' ? 500 : 200),
     })
     const verdict: BootVerdict = await bootImage(REQUEST, recorded.runtime)
     expect(verdict.ok).toBe(false)
@@ -183,6 +188,27 @@ describe('a boot of the image', () => {
     ])
     expect(verdict.findings).toContain('| Error: relation "users" does not exist')
     expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', 'shop-ab12-image'])
+  })
+
+  it('fails an application whose answers name the software behind them, naming each path', async () => {
+    const recorded: Machine = machine({
+      answer: (path: string): Probe =>
+        status(200, path === '/admin' ? { 'x-powered-by': 'Next.js, Payload' } : { server: 'Jetty(12.0.5)' }),
+    })
+    const verdict: BootVerdict = await bootImage(REQUEST, recorded.runtime)
+    expect(verdict).toEqual({
+      ok: false,
+      findings: [
+        expect.stringMatching(/^GET \/: server is "Jetty\(12\.0\.5\)"/u),
+        expect.stringMatching(/^GET \/admin: x-powered-by is "Next\.js, Payload"/u),
+      ],
+    })
+    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', 'shop-ab12-image'])
+  })
+
+  it('accepts a server header that names no version', async () => {
+    const recorded: Machine = machine({ answer: (): Probe => status(200, { server: 'nginx' }) })
+    expect(await bootImage(REQUEST, recorded.runtime)).toEqual({ ok: true, findings: [] })
   })
 
   it('names a path that never answered at all', async () => {
@@ -228,7 +254,7 @@ describe('a boot request', () => {
 describe('one request to a served application', PROCESS_TIME, () => {
   const server: Server = createServer((request, response): void => {
     if (request.url === '/moved') {
-      response.writeHead(302, { location: '/elsewhere' })
+      response.writeHead(302, { location: '/elsewhere', 'X-Powered-By': 'Express' })
     } else {
       response.writeHead(request.url === '/broken' ? 500 : 200)
     }
@@ -253,10 +279,13 @@ describe('one request to a served application', PROCESS_TIME, () => {
     })
   })
 
-  it('reads the status, without following a redirect', async () => {
-    expect(await probeOnce(`${origin()}/`)).toEqual({ status: 200 })
-    expect(await probeOnce(`${origin()}/broken`)).toEqual({ status: 500 })
-    expect(await probeOnce(`${origin()}/moved`)).toEqual({ status: 302 })
+  it('reads the status and the headers in lower case, without following a redirect', async () => {
+    expect(await probeOnce(`${origin()}/`)).toMatchObject({ status: 200 })
+    expect(await probeOnce(`${origin()}/broken`)).toMatchObject({ status: 500 })
+    expect(await probeOnce(`${origin()}/moved`)).toMatchObject({
+      status: 302,
+      headers: { location: '/elsewhere', 'x-powered-by': 'Express' },
+    })
   })
 
   it('names the error of a connection nothing accepts', async () => {

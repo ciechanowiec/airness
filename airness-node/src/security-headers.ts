@@ -1,5 +1,5 @@
 // The browser baseline shared by the security-header spec, the sweep's checks of individual HTML responses and a
-// project's own specifications.
+// project's own specifications. Its disclosure part also judges every answer the image gate gets from the image.
 //
 // Two of its requirements bind the production server alone, because each would harm a developer's machine or be
 // impossible there. A browser that receives Strict-Transport-Security over HTTPS remembers it for every port of
@@ -100,6 +100,33 @@ const cookieProblems = (value: string | undefined): readonly string[] =>
         'every cookie the production server sets Secure',
     )
 
+// A product version a Server header names, as in `nginx/1.25.3`, `Apache-Coyote/1.1` or `Jetty(12.0.5)`: RFC 9110
+// writes it after a slash, and some servers put it in parentheses instead.
+const VERSIONED_PRODUCT: RegExp = /[/(]\s*v?\d/u
+
+/**
+ * Judge the headers that tell a client which software, and which release of it, answered. They help nobody but
+ * someone matching the response against published vulnerabilities, and every server can be told to leave them
+ * out, so any server is held to this, a development server included.
+ * @param headers the response headers, named in lower case.
+ * @returns one problem per disclosing header, or nothing.
+ */
+export const disclosureProblems = (headers: Readonly<Record<string, string>>): readonly string[] => {
+  const poweredBy: string | undefined = headers['x-powered-by']
+  const server: string | undefined = headers['server']
+  return [
+    ...(poweredBy === undefined
+      ? []
+      : [
+          `x-powered-by is "${poweredBy}"; send no x-powered-by, as Next.js does under poweredByHeader: false ` +
+            "in next.config and Express after app.disable('x-powered-by')",
+        ]),
+    ...(server !== undefined && VERSIONED_PRODUCT.test(server)
+      ? [`server is "${server}"; send a server header without its version, or none`]
+      : []),
+  ]
+}
+
 const productionProblems = (headers: Readonly<Record<string, string>>): readonly string[] => [
   ...transportSecurityProblems(headers[TRANSPORT_SECURITY_HEADER]),
   ...cookieProblems(headers['set-cookie']),
@@ -126,6 +153,7 @@ export const securityHeaderProblems = (
       ? ['declare a framing decision through x-frame-options or frame-ancestors']
       : []),
     ...scriptProblems(policy),
+    ...disclosureProblems(headers),
     ...(servedBy === 'production' ? productionProblems(headers) : []),
   ]
 }
