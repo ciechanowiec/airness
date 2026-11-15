@@ -77,7 +77,7 @@ A [[request-source]]_writing request_ is an instruction to produce a document.
 
 . A document opens with a short abstract when a summary is useful and fits that kind of document. Reports, studies, specifications, and substantial guides can benefit from an abstract. A short notice, checklist, or form can begin directly when an abstract would repeat its content or interrupt its usual format.
 . [[abstract-content]]An abstract states the subject, purpose, and scope. It includes the main finding, conclusion, or recommendation when the document presents one. An abstract of a specification or guide summarizes the behavior or requirements described in the body.
-. An abstract is understandable without first reading the body. It states concrete content and contains only claims supported or developed in the document. The abstract stays consistent with the body as the document changes.
+. An abstract is understandable without first reading the body. It states concrete content and contains only claims supported or developed in the document.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -101,7 +101,7 @@ The town library will close at 16:00 on 3 October 2026 for maintenance.
 === Distribution by Domain, Not by Writing Request
 
 . The document covers all important aspects of its subject, even when the xref:#request-source[writing request] mentions only some of them. The amount of detail given to each aspect reflects its importance, not merely its mention in the writing request.
-. An explicit instruction in the xref:#request-source[writing request] to focus on one aspect or give it more space takes priority. Related material stays together, even when the writing request mentions it in several places.
+. An explicit instruction in the xref:#request-source[writing request] to focus on one aspect or give it more space takes priority.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -140,6 +140,26 @@ The lease allows either party to end the agreement with 30 days' notice. (The su
 .{good-icon} Good example
 ====
 The excerpt states the rent and payment dates. The terms for ending the lease aren't included, so they must be checked in the complete agreement.
+====
+
+[[consistent-statements]]
+=== Statements Consistent Throughout the Document
+
+. [[consistency-rule]]The statements the document makes agree with each other wherever they appear, including in prose, headings, lists, tables, the xref:#abstract-content[abstract], examples, diagrams, captions, and code.
+. An author who changes a statement also corrects every statement that the change brings into disagreement.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The section _Opening Hours_ states that the pool opens at 07:00 on weekdays. The timetable in the section _Lane Booking_ still lists the first weekday lane slot at 06:30.
+
+(The opening time changed from 06:30 to 07:00, and the author updated only the section _Opening Hours_.)
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The section _Opening Hours_ states that the pool opens at 07:00 on weekdays. The timetable in the section _Lane Booking_ lists the first weekday lane slot at 07:00.
 ====
 
 [[no-hedging]]
@@ -184,9 +204,9 @@ The trial used one greenhouse. Whether the same growth would occur outdoors rema
 ====
 
 [[no-false-universals]]
-=== Universal Wording Only for Claims Without Exceptions
+=== Universal Wording Only for Claims That Always Hold
 
-A claim that reads as universal holds in every case it covers. If it holds only under certain conditions or has exceptions, those limits appear in the claim.
+A claim that reads as universal holds in every case it covers. If it holds only under certain conditions or has exceptions, those limits appear in the claim. An illustrative case isn't written as a universal claim. It carries an example label under the xref:#illustrative-case-labeling[rules for illustrative cases].
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -234,7 +254,7 @@ At month-end, 18 of the 120 invoices remain unpaid. Their total value is EUR 8,4
 [[dates-and-times]]
 === Dates with Named Months and Clear Times
 
-. Full dates in prose use the day, full month name in the document's language, and four-digit year. Examples are _31 August 2028_ and [.lang-pl]_31 sierpnia 2028_. Month names follow the spelling and grammar of that language. The day has no leading zero or ordinal suffix. Headings, captions, tables, and fields in the xref:#source-list[source list] use the same format. A date known only to the month or year appears, for example, as _August 2028_, [.lang-pl]_sierpień 2028_, or _2028_.
+. Full dates in prose use the day, full month name in the document's language, and four-digit year. Examples are _31 August 2028_ in English and [.lang-pl]_31 sierpnia 2028 r._ in Polish. Month names follow the spelling and grammar of that language. The day has no leading zero or ordinal suffix. Headings, captions, tables, and fields in the xref:#source-list[source list] use the same format. A date known only to the month or year appears, for example, as _August 2028_, [.lang-pl]_sierpień 2028 r._, or _2028_.
 . Quotations, exact source titles, identifiers, and machine-readable data preserve their original or required date format, including ISO dates where applicable.
 . Times include a timezone offset or the timezone name when readers could be in different timezones or the timezone isn't clear from context. Durations are written in the ISO 8601 form `P30D` or with explicit units such as _30 calendar days_. Relative references - _yesterday_, _next week_, _Q3_, etc. - are avoided unless the reference point is the document's effective date and that date is stated.
 
@@ -434,8 +454,9 @@ A source takes one of these types unless it's a Polish act, ruling, position, or
 [cols="1,2,2",options="header"]
 |===
 |Type |Required fields |Optional fields
-|[[contract-source-type]]`Contract` |`Parties` |`Concluded on`, `Governing law`
+|[[contract-source-type]]`Contract` | |`Parties`, `Concluded on`, `Governing law`
 |[[general-legal-source-type]]`Legal source` |`Issuing body`, `Identifier` |`Date`
+|`Filing` |`Kind`, `Author`, `Addressee`, `Date` |`Case number`, `Parties`
 |`Official record` |`Register` |`Entry number`
 |`Financial record` |`Issuer` |`Kind`, `Number`, `Date`, `Amount`
 |`Correspondence` |`Participants` |`Platform`, `Sender`, `Addressee`, `Sent on`, `Time range`, `Subject`
@@ -478,7 +499,7 @@ A source takes one of these types unless it's a Polish act, ruling, position, or
 
 . A [[source-status-definition]]_status_ states the standing of the artifact in the `Status` field: `draft` for work in progress, or `final` for the released form - for example, executed, published, sent, or in force. Free elaboration follows the word, for example _draft v3 of 15 July 2026_ or _final, executed 30 July 2026_. An entry of the xref:#contract-source-type[`Contract` type] states its status always. Other entries state it whenever the standing is contestable.
 
-. A draft shows what was proposed. It doesn't establish what was agreed, released, or enacted. Those statements require the final source. A claim that treats a draft as final receives xref:#unsupported-verdict[the unsupported verdict]. The source's draft or final status is part of the xref:#citation-support-check[citation support check].
+. A draft shows what was proposed. It doesn't establish what was agreed, released, or enacted. Those statements require the final source.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -585,6 +606,51 @@ Of the survey respondents, 62% use the town library. Sunday opening was approved
 
 The document presents its subject as a coherent whole, with related material grouped so that each topic can be understood, found, and referenced.
 
+[[topic-consolidation]]
+=== Each Topic in One Place Without Repetition
+
+. [[topic-consolidation-rule]]All statements about a topic appear together in one passage, the topic's [[topic-place]]_place_. The place can be a sentence, a paragraph, a group of paragraphs, a section, or a group of sections. Statements about the topic appear outside its place only in the xref:#outside-place-rule[cases listed below].
+. [[no-restatement]]Within the xref:#topic-place[place], each statement is made once. A later sentence doesn't reword it, and the paragraph doesn't end by summarizing it.
+. [[outside-place-rule]]A statement about a topic can appear outside the topic's xref:#topic-place[place] only in two cases.
+.. The xref:#abstract-content[abstract] repeats the statements it summarizes.
+.. Another passage repeats a statement when the passage can't be understood or acted on without that statement. Such a passage repeats only the statements it needs and carries a xref:#cross-reference[cross-reference] to each of them in the xref:#topic-place[place] of its topic.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+A tenancy agreement covers the deposit in three sections. The section _Rent_ states the deposit amount, the section _Payments_ names the account that holds the deposit, and the section _Ending the Tenancy_ states when the landlord returns the deposit.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+A tenancy agreement has a section _Deposit_. It states the deposit amount, the account that holds the deposit, and the conditions for returning it.
+====
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The invoice is due 30 days after receipt. Payment must be made within 30 days of receiving the invoice.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The invoice is due 30 days after receipt.
+====
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The section _Late Payment_ explains that the landlord may deduct unpaid rent from the deposit. It also repeats the deposit amount, the account that holds the deposit, and the date of its return from the section _Deposit_.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The section _Late Payment_ explains that the landlord may deduct unpaid rent from the deposit and carries a xref:#cross-reference[cross-reference] to the section _Deposit_.
+====
+
 [[set-the-stage]]
 === Topic Introduction Before the Details
 
@@ -601,24 +667,7 @@ The plan introduces retention basins in three neighborhoods.
 [.good-example]
 .{good-icon} Good example
 ====
-A retention basin is a shallow area that temporarily holds rainwater. The town plans basins in three neighborhoods to reduce the amount of water reaching its drains during heavy rain. The next sections describe the locations, capacity, and maintenance of each basin.
-====
-
-[[outer-topics-in-outline-only]]
-=== Related Topics Summarized, Full Details Referenced
-
-An explanation of a related topic covers only the material needed for the current discussion and carries a xref:#cross-reference[cross-reference] to the authoritative source for the full treatment. It doesn't reproduce that source's full documentation.
-
-[.bad-example]
-.{bad-icon} Bad example: school-meal cost comparison
-====
-The annual spending limit for school meals is EUR 120,000, as stated in the _Spending by Program_ section of the _Education Budget_. The budget also allocates EUR 40,000 to textbooks and EUR 60,000 to sports equipment. Of the textbook allocation, EUR 25,000 is for primary schools and EUR 15,000 for secondary schools.
-====
-
-[.good-example]
-.{good-icon} Good example: school-meal cost comparison
-====
-The annual spending limit for school meals is EUR 120,000, as stated in the _Spending by Program_ section of the _Education Budget_.
+A retention basin is a shallow area that temporarily holds rainwater. The town plans basins in three neighborhoods to reduce the amount of water reaching its drains during heavy rain.
 ====
 
 [[purpose-before-mechanism]]
@@ -641,7 +690,7 @@ To keep each result attached to the correct sample, the laboratory assigns a sam
 [[forward-order]]
 === Definitions Before Use, Prerequisites Before Actions
 
-[[forward-order-rule]]Information flows from the general to the specific, from the prerequisite to the dependent, and from the cause to the consequence. The reader should never need a fact that the document hasn't yet introduced. A concept needed before its full definition has a short explanation at first mention and a xref:#cross-reference[cross-reference] to that definition.
+[[forward-order-rule]]Information flows from the general to the specific, from the prerequisite to the dependent, and from the cause to the consequence. The reader never needs a statement that the document hasn't yet made.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -653,36 +702,6 @@ The notice period begins when the letter arrives. A notice period is the interva
 .{good-icon} Good example
 ====
 A notice period is the interval between notification that an agreement will end and the date it ends. Under this agreement, the notice period begins when the letter arrives.
-====
-
-[[no-restatement]]
-=== One Authoritative Location for Each Fact or Rule
-
-. Each fact or requirement has one authoritative location, within a document and across related documents. Other passages carry a xref:#cross-reference[cross-reference] to that location. For example, an agreed price appears in the contract's price schedule, and other passages carry cross-references to that entry. Independently maintained copies can disagree and leave the reader unable to identify the authoritative value. The xref:#abstract-content[abstract] may summarize material developed in the body, and its statements must stay consistent with that material.
-. The same point isn't repeated in consecutive sentences or summarized again at the end of its paragraph. A later passage may add facts or explanations about a defined concept, but it doesn't repeat the definition.
-
-[.bad-example]
-.{bad-icon} Bad example
-====
-The invoice is due 30 days after receipt. Payment must be made within 30 days of receiving the invoice.
-====
-
-[.good-example]
-.{good-icon} Good example
-====
-The invoice is due 30 days after receipt.
-====
-
-[.bad-example]
-.{bad-icon} Bad example
-====
-The employee handbook, payroll guide, and expense form each reproduce the daily meal allowance. The three copies are maintained separately.
-====
-
-[.good-example]
-.{good-icon} Good example
-====
-The travel policy states the daily meal allowance. The employee handbook, payroll guide, and expense form carry xref:#cross-reference[cross-references] to that policy.
 ====
 
 [[sections-and-headings]]
@@ -796,7 +815,7 @@ The maintenance team repairs damaged paths before the summer season.
 [[headings-as-promises]]
 ==== Headings That Match Their Section Content
 
-A heading announces exactly what the section contains. The section delivers exactly that, no more and no less. For example, a section titled "Rent Payments" describes rent payments. It doesn't also describe building repairs. Material that doesn't belong under the heading goes into a separate section.
+A heading announces exactly what the section contains. The section delivers exactly that, no more and no less. For example, a section titled "Rent Payments" describes rent payments. It doesn't also describe building repairs. Material that doesn't belong under the heading goes under the heading of its own topic.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -871,7 +890,7 @@ Heading: "Payment Deadline." Body: "Payment is due 30 days after the invoice is 
 [[one-paragraph-one-topic]]
 ==== One Topic per Paragraph
 
-[[single-topic-rule]]A paragraph develops one thought, for example a claim followed by its elaboration, qualifications, and consequences. When the topic shifts, the paragraph ends. A paragraph that introduces a second, parallel topic must be split, even when the two topics are related. The xref:#verify-every-paragraph[paragraph-review procedure] verifies this structure before delivery.
+[[single-topic-rule]]A paragraph develops one thought, for example a claim followed by its elaboration, qualifications, and consequences. When the topic shifts, the paragraph ends. A paragraph that introduces a second, parallel topic must be split, even when the two topics are related.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1145,7 +1164,7 @@ The color of the label was recognized by the team traveling to the theater.
 ==== Wording in Another Language Marked as Such
 
 . A word, phrase, or passage written in a language other than the document's language is marked with its language. The mark tells a reader which language the wording belongs to, and it tells a checking tool to read the wording with the spelling and grammar of that language rather than of the document. A word borrowed from another language needs no mark if it's now an ordinary word of the document's language and is listed in its dictionaries. For example, _software_ in a Polish document and _kindergarten_ in an English one are left unmarked.
-. In AsciiDoc, the mark is the role `lang-` followed by the language code. A span with no formatting carries the role in front of a pair of `+#+` characters, as in `+[.lang-pl]#Terminy płatności#+`, and a pair of `+##+` characters marks a span inside a word. The role also stands in front of italic text, as in `+[.lang-pl]_31 sierpnia 2028_+`, when the wording is italicized for its own reason. A `[.lang-pl]` line directly above a paragraph or a delimited block marks the whole block.
+. In AsciiDoc, the mark is the role `lang-` followed by the language code. A span with no formatting carries the role in front of a pair of `+#+` characters, as in `+[.lang-pl]#Terminy płatności#+`, and a pair of `+##+` characters marks a span inside a word. The role also stands in front of italic text, as in `+[.lang-pl]_31 sierpnia 2028 r._+`, when the wording is italicized for its own reason. A `[.lang-pl]` line directly above a paragraph or a delimited block marks the whole block.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -2719,10 +2738,11 @@ The _approved budget_ is stored in `budget.csv` under the heading _Approved Budg
 [[final-review]]
 == Final Review
 
-Before delivery, read the finished document in its rendered form and run the three review procedures of this section in the order in which they appear.
+Before delivery, read the finished document in its rendered form and run the review procedures of this section in the order in which they appear.
 
-. Each procedure depends on the results of the ones before it. The xref:#verify-citations[citation review] settles what the document may claim, the xref:#verify-every-paragraph[paragraph review] arranges the sentences that remain, and the xref:#verify-nomenclature[terminology review] passes over the wording that the first two produce.
+. Each procedure depends on the results of the ones before it.
 . Run each procedure during writing as well, whenever the material it checks has changed. The final review is the last run of a procedure, not its first.
+. A requester can also name one procedure by its heading. That procedure then runs alone, on the document as it stands.
 . After a correction, repeat the checks the correction affects, on the changed passage and on the content that depends on it. A procedure ends when its checks find nothing left to correct.
 
 [[independent-verification]]
@@ -2737,7 +2757,7 @@ Verification is strongest when the reviewer didn't write the text. An author who
 . Open the cited xref:#source[source] at its xref:#locator[locator], and for a xref:#citation[citation] of the xref:#request-source[writing request] open the original request. Never work from a memory of the source. Where a source can't be consulted, tell the requester and restore access or cite another source that supports the claim. Where the claim stays unverifiable, state the gap or remove the claim.
 . Find the xref:#quote[quote] word for word and read what surrounds it. For a visual fact, inspect the region the xref:#locator[locator] identifies. Where the wording or the location isn't there, search the rest of the xref:#source[source] for the intended support. Repair the quote and the locator where that support stands elsewhere in the source.
 . [[citation-support-check]]Compare the claim with the evidence found.
-.. A xref:#reported-claim[reported claim] holds when the evidence and its context support every part of it.
+.. A xref:#reported-claim[reported claim] holds when the evidence and its context, including the source's xref:#source-status-definition[status], support every part of it.
 .. An xref:#inferred-claim[inferred claim] holds when the evidence supports each premise and the conclusion follows from those premises together.
 . Keep a xref:#citation[citation] whose claim holds. [[unsupported-verdict]]A citation whose claim fails either check receives the _unsupported_ verdict. Narrow or correct the claim until the evidence supports it, or cite a xref:#source[source] that does. Where no source supports the claim, state the gap or remove the claim under the xref:#no-invented-facts[prohibition on invented facts]. A removed claim takes its citation with it.
 . Classify every statement that carries no xref:#citation[citation] by the xref:#origin-test[origin test] and the xref:#introduced-and-reported-statements[distinction between introducing and reporting]. Cite each xref:#reported-claim[reported claim] and xref:#inferred-claim[inferred claim] found, then verify the new xref:#citation[citation] by the steps above.
@@ -2752,6 +2772,48 @@ The draft cites page 41 of the accounts for equipment spending of EUR 90,000. Th
 .{good-icon} Good example
 ====
 The author opens the accounts and checks the recorded expenditure before reviewing the claim. The record gives EUR 30,000 for equipment. The claim is corrected to that amount and category, and its citation points to the expenditure record.
+====
+
+[[verify-consistency]]
+=== Review of Statement Consistency
+
+. Collect the statements the document makes, including those in prose, headings, lists, tables, the xref:#abstract-content[abstract], examples, diagrams, captions, and code. Group them by topic. A statement about several topics belongs to the group of each of them.
+. Compare the statements within each group under the xref:#consistency-rule[consistency rule], and record each contradiction found.
+. Settle each contradiction and correct every statement that disagrees with the result. Ask the requester about each contradiction left unsettled. Where the requester's answer doesn't settle it either, state the disputed matter as unknown under the xref:#no-invented-facts[prohibition on invented facts].
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The reviewer finds that the introduction says every branch opens on Saturdays, while the section _Branch Hours_ lists one branch as closed on Saturdays. The reviewer corrects the branch list to match the introduction without checking the timetable.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The reviewer checks the current timetable, which shows the Riverside branch closed on Saturdays. The reviewer corrects the introduction to state that every branch except Riverside opens on Saturdays.
+====
+
+[[verify-topic-placement]]
+=== Review of Topic Placement
+
+. List the topics of the document. For each topic, find every statement about it, including statements in prose, headings, lists, tables, the xref:#abstract-content[abstract], examples, diagrams, captions, and code.
+. Choose a xref:#topic-place[place] for each topic, and move into it each statement about the topic that the place doesn't yet contain.
+. Apply the xref:#outside-place-rule[rule for statements outside their topic's place] to each statement repeated outside the xref:#topic-place[place] of its topic.
+.. Keep a statement repeated in the xref:#abstract-content[abstract] when the abstract summarizes it.
+.. Remove any other repeated statement and read its passage without it.
+.. Leave the statement removed when the passage can still be understood and acted on. Otherwise, restore the statement and add a xref:#cross-reference[cross-reference] to it in the xref:#topic-place[place] of its topic if the passage lacks one.
+. Re-read each passage that gained or lost statements, and correct the defects that the changes introduced.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+A dishwasher manual covers detergent in the sections _Installation_, _Daily Use_, and _Troubleshooting_. The reviewer adds a cross-reference from each of these sections to the other two.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The reviewer gathers the detergent instructions in a new section _Detergent_ and removes them from the section _Installation_. The section _Daily Use_ replaces them with a cross-reference to the section _Detergent_. The section _Troubleshooting_ keeps one sentence on excess detergent, because the foam fault it diagnoses can't be explained without it. That sentence carries a cross-reference to the section _Detergent_.
 ====
 
 [[verify-every-paragraph]]

@@ -45,7 +45,8 @@ Airness governs all of the following domains:
   completed, one closing step compares the committable tree with the one the build started from, holds the
   Java sources and the node projects' own code to their suppression ceilings, refuses every module of the build
   that holds code (Java under its source roots, or a `package.json`) without inheriting an Airness parent, and
-  under Extended verification writes the compliance report and looks every npm package up in the OSV database. Build Helper and Assembly
+  under Extended verification writes the compliance report and looks up in the OSV database every npm package and
+  every package of each image the `image` gate builds. Build Helper and Assembly
   are optional managed plugins: declare one without a version in the module that uses it. Build Helper's source
   and resource roots and Assembly's distribution descriptors belong to the project.
 - **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
@@ -152,7 +153,8 @@ Airness governs all of the following domains:
   client JavaScript within 1100 KiB), for a browser application `e2e`: the harness's accessibility, layout and
   security-header specs and the member's own end-to-end specs under the shipped Playwright configuration, and for a
   member holding a Dockerfile `image`, which builds every Dockerfile of the member, as Node Application Preparation
-  and Security Corrections describes, and boots the image of a browser application against empty services. A
+  and Security Corrections describes, lists the packages of each image, and boots the image of a browser
+  application against empty services. A
   browser application that is not a Next.js application declares the script that serves it as `serve`. A
   Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top and
   refuses a routes directory (`app` or `pages`) at the member root rather than under `src`, the pages the crawl
@@ -197,6 +199,11 @@ Airness governs all of the following domains:
   placed against that release is refused rather than guessed, and the freshness bound never demands an upgrade into
   a refused release. Every container image the repository names is pinned to a tag or a digest: `latest` or no tag
   lets what is pulled change without the repository changing. There is no setting that widens or narrows the list.
+  Default verification refuses a Dockerfile that upgrades the system packages its base image holds, because a newer
+  release of the base image is the repair, as Compliance Reports describes. It refuses `apk upgrade`,
+  `apk add --upgrade`, `apt-get install --only-upgrade`, and the `upgrade`, `dist-upgrade`, and `full-upgrade` verbs
+  of `apt-get`, `apt`, and `aptitude`. It also refuses the update verbs of `dnf`, `yum`, `microdnf`, `tdnf`, and
+  `zypper`.
   Compose images remain in scope beside `build` unless a literal service-level `pull_policy: build`
   establishes local output. External Dockerfile `COPY --from` references are read alongside base images;
   stage names and numeric stage indexes identify local stages rather than registry images. The known-vulnerability
@@ -341,7 +348,11 @@ variables the plan names, each loopback address of a published port rewritten to
 it, and sets each `serverUrlVariables` variable to the origin it serves the image on. A wrapper that does not
 describe its services fails the gate; a member without a wrapper boots its image with no services. Every
 container and image the gate starts is removed afterwards, also when the build is stopped. There is no setting
-that exempts a Dockerfile: one that cannot produce a working image is removed or repaired.
+that exempts a Dockerfile: one that cannot produce a working image is removed or repaired. Before the gate removes
+an image, it lists the packages of the image and writes the list beside its result for the compliance report. The
+listing runs the Trivy image the installed harness pins, which reads a saved copy of the image on its standard input,
+in a container with no network and no mount. The listing leaves Java archives to the dependency scan, which judges
+the archives the Maven build puts in an image.
 
 Vitest collects TypeScript and TSX specifications. Server integration specs run in Node, component specs in
 Happy DOM with native dialog and fetch support, and browser-application unit specs retain their jsdom environment. Application suites and wrapped suites
@@ -541,11 +552,28 @@ moving focus or scrolling on the test's behalf. Use it for time-sensitive keyboa
 
 Extended verification writes one HTML and PDF compliance report for the participating reactor under the
 root project's configured build directory, in `compliance/`. It embeds one SBOM: every module's Maven
-artifacts and build tools, every node project's npm packages, and the Node and pnpm that ran the node gates,
-joined in one dependency graph. Every npm package is looked up in the OSV database, and an advisory it lists,
-or an OSV that can't be reached, fails Extended verification. The common filename is
-`oss-compliance-report-<root-artifactId>-<12-character-commit>`. Both formats are required, including
+artifacts and build tools, every node project's npm packages, every package of each image the `image` gate builds,
+and the Node and pnpm that ran the node gates, joined in one dependency graph. Every npm package is looked up in the
+OSV database, and an advisory it lists, or an OSV that can't be reached, fails Extended verification. The common
+filename is `oss-compliance-report-<root-artifactId>-<12-character-commit>`. Both formats are required, including
 for plain Java projects. Default verification produces no compliance report.
+
+The compliance report also looks up every package of each image the `image` gate builds. It looks up a system package
+of an Alpine, Debian, or Ubuntu base image by its source package, and any other package, such as the npm a Node.js
+image ships, by its package URL. An image built on any other distribution fails the report, and the failure names that
+distribution. A system package the base image holds fails only once a newer release of the base image ships the fix.
+The report looks for that release in two places: the release that the base image's tag names when the build runs, and
+the newest release of the same variant and major version on Docker Hub. The failure names the `FROM` line that takes
+the release answering the most findings, such as `replace FROM node:26.8.2-alpine@sha256:... with FROM
+node:26.13.1-alpine@sha256:...`. Until a release ships the fix, the report lists the finding as mitigated by the
+harness, with one of two reasons: the distribution published no fix, or no release of the base image ships the fix it
+published. A system package the Dockerfile installs fails once its distribution publishes the fix. Repair it by
+raising the version its install line pins. When no newer release of the base image fixes a language package of the
+base image, remove the package from the final stage if the image doesn't use it, as a Node.js application can remove
+the npm and npx of its base image. Otherwise, record an npm package in `airness.vulnerabilityAllowlist`. Never upgrade
+packages inside a Dockerfile to answer a finding. The upgrade is refused, and the base image is the repair. A report
+over a node project whose Dockerfile's image the gate didn't list, as when `airness:compliance-report` runs on its
+own, is a draft.
 
 Install the Chromium revision this Airness version pins with `mvn airness:report-browser-install`.
 Linux also needs Chromium's system libraries. The renderer uses this browser's separate cache, not the
@@ -594,7 +622,7 @@ Earlier report pairs are removed only after a complete replacement has been rend
   setting writes it into its own fixture repository.
 - There is no setting that turns a check off. If a check is wrong for the project, that is an Airness bug to be
   fixed in Airness, not a local override.
-- ShellCheck, Checkov, hadolint and actionlint accept no project-owned suppression or replacement configuration. Their image pins
+- ShellCheck, Checkov, hadolint, actionlint, and Trivy accept no project-owned suppression or replacement configuration. Their image pins
   and policy are carried in the installed Airness artifacts, so even a command-line image override cannot replace
   them. A ShellCheck source hint must identify the actual repository import, never an empty substitute. Report a
   false finding to Airness.
@@ -647,7 +675,9 @@ including their supported regex forms, and a dependency selector is not mandator
 and entries using namespace prefixes are checked too. Each entry carries its own explanation, mitigation plan and
 date.
 
-Each `airness.vulnerabilityAllowlist` entry carries `package`, `advisory`, `reason`, `mitigation` and `addedOn`.
+A system package of an image needs no exception, because the harness records each finding that no release can fix
+yet, as Compliance Reports describes. Each `airness.vulnerabilityAllowlist` entry carries `package`, `advisory`,
+`reason`, `mitigation` and `addedOn`.
 Name one exact npm package and one literal advisory identifier or an alias OSV supplies, explain why it cannot be
 exploited here, state the removal plan, and use a YYYY-MM-DD calendar date. Prefer an available, compatible
 upgrade or an approved security replacement. An exception belongs only to that node project's inventory: it

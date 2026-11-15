@@ -29,10 +29,13 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
     static final String SBOM = "bom.cdx.json";
     static final String CYCLONEDX = "CycloneDX";
     static final String FORMAT = "bomFormat";
+    /**
+     * The key under which an evidence file names the contract it was written to.
+     */
+    static final String CONTRACT_FIELD = "contract";
     private static final String WIRING = "wiring.json";
     private static final String PACKAGES = "packages";
     private static final int CONTRACT = 1;
-    private static final String CONTRACT_FIELD = "contract";
     private static final ObjectMapper JSON = new ObjectMapper();
 
     /**

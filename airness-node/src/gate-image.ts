@@ -9,7 +9,9 @@
 // the image is built and run as a deployment runs it. The services come from the member's own test wrapper, asked
 // through a variable of the harness's own to start them empty and to describe them, so the container reaches them
 // on the run's network; a member without a wrapper gets a run with no services of the harness's own, which still
-// names and removes the container. Every image is removed afterwards, also when the gate is stopped.
+// names and removes the container. Before an image is removed, the packages it holds are listed beside the gate's
+// result, which is the only moment the image can be read, for the closing step's vulnerability check. Every image is
+// removed afterwards, also when the gate is stopped.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { doesInstallPackages, memberDockerfiles } from './dockerfiles.js'
@@ -17,21 +19,12 @@ import type { RunResult } from './exec.js'
 import { isBrowserApp } from './facets.js'
 import { failed, type GateContext, type GateResult, notApplicable, passed } from './gate-result.js'
 import { isHarnessPackage } from './harness-packages.js'
+import { type CatalogueOutcome, catalogue, type ImageRun, tailOf } from './image-catalogue.js'
 import { type BootOutcome, type ImageMachine, SYSTEM_IMAGE_MACHINE } from './image-machine.js'
 import { asRecord, declaredDependencies, parseJsonc } from './json-shapes.js'
 import type { Member } from './project.js'
 
-const BUILD_TAIL_LINES: number = 30
 const TCP: string = '/tcp'
-
-// The end of what a command printed, which names the step that failed and why.
-const tailOf = (output: string): readonly string[] =>
-  output
-    .split('\n')
-    .map((line: string): string => line.trimEnd())
-    .filter((line: string): boolean => line.length > 0)
-    .slice(-BUILD_TAIL_LINES)
-    .map((line: string): string => `| ${line}`)
 
 /**
  * The TCP ports an image exposes, read from what `docker image inspect` printed for them.
@@ -111,39 +104,58 @@ const bootFindings = async (
       ]
 }
 
-const imageFindings = async (machine: ImageMachine, member: Member, dockerfile: string): Promise<readonly string[]> => {
+/** What judging one Dockerfile came back with: the findings, and the evidence written beside the result. */
+type ImageOutcome = CatalogueOutcome
+
+const imageOutcome = async (run: ImageRun, dockerfile: string): Promise<ImageOutcome> => {
+  const { machine, member } = run
   const tag: string = machine.tag()
   const built: RunResult = await machine.build(member, dockerfile, tag)
   // Docker tags an image only once its build succeeded, so a failed build leaves nothing to remove.
   if (built.code !== 0) {
-    return [
-      `${dockerfile}: the image does not build from the node project's directory with no build argument and no ` +
-        `service (docker build exited ${String(built.code)}):`,
-      ...tailOf(built.output),
-    ]
+    return {
+      findings: [
+        `${dockerfile}: the image does not build from the node project's directory with no build argument and no ` +
+          `service (docker build exited ${String(built.code)}):`,
+        ...tailOf(built.output),
+      ],
+      evidence: [],
+    }
   }
   try {
-    return isBrowserApp(member) ? await bootFindings(machine, member, dockerfile, tag) : []
+    const listed: CatalogueOutcome = catalogue(run, dockerfile, tag)
+    const booted: readonly string[] = isBrowserApp(member) ? await bootFindings(machine, member, dockerfile, tag) : []
+    return { findings: [...listed.findings, ...booted], evidence: listed.evidence }
   } finally {
     machine.remove(tag)
   }
 }
 
 const judged = async (
-  machine: ImageMachine,
-  member: Member,
+  run: ImageRun,
   dockerfiles: readonly string[],
   isStopped: () => boolean,
-): Promise<readonly string[]> => {
+): Promise<ImageOutcome> => {
   const [dockerfile, ...rest] = dockerfiles
   if (dockerfile === undefined) {
-    return []
+    return { findings: [], evidence: [] }
   }
   if (isStopped()) {
-    return [`${dockerfile}: not judged, because the gate was stopped`]
+    return { findings: [`${dockerfile}: not judged, because the gate was stopped`], evidence: [] }
   }
-  const findings: readonly string[] = await imageFindings(machine, member, dockerfile)
-  return [...findings, ...(await judged(machine, member, rest, isStopped))]
+  const outcome: ImageOutcome = await imageOutcome(run, dockerfile)
+  const others: ImageOutcome = await judged(run, rest, isStopped)
+  return { findings: [...outcome.findings, ...others.findings], evidence: [...outcome.evidence, ...others.evidence] }
+}
+
+// The verdict over every image built, carrying the evidence written for the images it could list.
+const verdictOf = (member: Member, ready: readonly string[], left: string, outcome: ImageOutcome): GateResult => {
+  const what: string = isBrowserApp(member) ? 'builds an image that boots against empty services' : 'builds'
+  const verdict: GateResult =
+    outcome.findings.length === 0
+      ? passed(`every Dockerfile (${ready.join(', ')}) ${what}${left}`)
+      : failed(`an image of ${member.path} does not build, cannot be listed or does not boot`, outcome.findings)
+  return outcome.evidence.length === 0 ? verdict : { ...verdict, evidence: outcome.evidence }
 }
 
 const EMPTY_CONTEXT: GateContext = { evidenceDirectory: undefined }
@@ -178,16 +190,17 @@ const waitingDockerfiles = (
       )
 
 /**
- * Build every Dockerfile of a member and boot the image of one that serves an application.
+ * Build every Dockerfile of a member, list the packages of each image, and boot the image of one that serves an
+ * application.
  * @param member the member.
- * @param _context the gate's context, which this gate writes no evidence to.
+ * @param context the gate's context, beside whose result the packages of every built image are written.
  * @param machine the machine, replaced only by tests.
  * @returns not applicable for a member without a Dockerfile, or whose every Dockerfile installs a harness not yet
- * released; otherwise the verdict over every image it can build.
+ * released; otherwise the verdict over every image it can build, listing the evidence it wrote.
  */
 export const image = async (
   member: Member,
-  _context: GateContext = EMPTY_CONTEXT,
+  context: GateContext = EMPTY_CONTEXT,
   machine: ImageMachine = SYSTEM_IMAGE_MACHINE,
 ): Promise<GateResult> => {
   const dockerfiles: readonly string[] = memberDockerfiles(member)
@@ -204,15 +217,13 @@ export const image = async (
         'depends on a released harness',
     )
   }
-  const findings: readonly string[] = await machine.holdStops(
-    async (isStopped: () => boolean): Promise<readonly string[]> => await judged(machine, member, ready, isStopped),
+  const outcome: ImageOutcome = await machine.holdStops(
+    async (isStopped: () => boolean): Promise<ImageOutcome> =>
+      await judged({ machine, member, context }, ready, isStopped),
   )
-  const what: string = isBrowserApp(member) ? 'builds an image that boots against empty services' : 'builds'
   const left: string =
     waiting.length === 0
       ? ''
       : `; ${waiting.join(', ')} installs packages, and is built once the harness is released: ${unpublished}`
-  return findings.length === 0
-    ? passed(`every Dockerfile (${ready.join(', ')}) ${what}${left}`)
-    : failed(`an image of ${member.path} does not build or does not boot`, findings)
+  return verdictOf(member, ready, left, outcome)
 }

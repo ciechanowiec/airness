@@ -21,10 +21,12 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Reads the known vulnerabilities of npm packages from the OSV database, by their package URLs.
+ * Reads the known vulnerabilities of packages from the OSV database: npm and other language packages by their
+ * package URLs, and a distribution's system packages by their source packages.
  *
  * <p>The npm SBOM names every resolved package by its package URL, which is what OSV's batch query takes, so the
- * scan needs no Docker, no credential and no lockfile reader of its own. It runs under the extended profile with
+ * scan needs no Docker, no credential and no lockfile reader of its own. A system package a shipped image holds is
+ * asked as {@link OsvQuery} describes. It runs under the extended profile with
  * the compliance report, as the Maven scan does. A query or an advisory that cannot be read fails the scan: an
  * unreachable database is never a clean result. A query OSV answers in part, with a page token in place of the
  * rest of its vulnerabilities, is asked again with that token until no token comes back: OSV cuts a query short
@@ -69,8 +71,20 @@ record OsvScan(String base, HttpClient client) {
      * @throws IllegalStateException when OSV cannot be read
      */
     List<OsvAdvisory> findings(Collection<String> purls, String module) {
-        List<String> queried = purls.stream().distinct().sorted().toList();
-        List<Map.Entry<String, String>> found = IntStream.range(0, (queried.size() + BATCH - 1) / BATCH)
+        return this.findingsOf(purls.stream().distinct().sorted().map(OsvQuery::purl).toList(), module);
+    }
+
+    /**
+     * The findings and database-supplied advisory aliases of the given queries.
+     *
+     * @param queries the packages to ask about, each with the artifact its findings are reported against
+     * @param module  the module the packages belong to
+     * @return one advisory per vulnerability and query, most severe first
+     * @throws IllegalStateException when OSV cannot be read
+     */
+    List<OsvAdvisory> findingsOf(List<OsvQuery> queries, String module) {
+        List<OsvQuery> queried = queries.stream().distinct().toList();
+        List<Map.Entry<OsvQuery, String>> found = IntStream.range(0, (queried.size() + BATCH - 1) / BATCH)
             .mapToObj(batch -> queried.subList(batch * BATCH, Math.min(queried.size(), (batch + 1) * BATCH)))
             .flatMap(this::batch).toList();
         Map<String, JsonNode> details = found.stream().map(Map.Entry::getValue).distinct()
@@ -82,13 +96,13 @@ record OsvScan(String base, HttpClient client) {
             .sorted(Comparator.comparing(OsvAdvisory::advisory, ReportAdvisory.TRIAGE)).toList();
     }
 
-    // Each package with the identifier of every vulnerability OSV lists for it.
-    private Stream<Map.Entry<String, String>> batch(List<String> purls) {
-        return this.pages(purls.stream().map(purl -> new Query(purl, "")).toList());
+    // Each query with the identifier of every vulnerability OSV lists for it.
+    private Stream<Map.Entry<OsvQuery, String>> batch(List<OsvQuery> queries) {
+        return this.pages(queries.stream().map(query -> new Query(query, "")).toList());
     }
 
     // One page of every query, followed by the pages OSV still holds for the queries it answered in part.
-    private Stream<Map.Entry<String, String>> pages(List<Query> queries) {
+    private Stream<Map.Entry<OsvQuery, String>> pages(List<Query> queries) {
         Map<String, Object> body = Map.of("queries", queries.stream().map(Query::body).toList());
         JsonNode results = this.send(
             HttpRequest.newBuilder(URI.create(this.base + "v1/querybatch")).timeout(TIMEOUT)
@@ -98,13 +112,13 @@ record OsvScan(String base, HttpClient client) {
         if (!results.isArray() || results.size() != queries.size()) {
             throw new IllegalStateException("OSV answered " + results.size() + " result(s) for " + queries.size());
         }
-        List<Map.Entry<String, String>> found = IntStream.range(0, queries.size()).boxed().flatMap(
+        List<Map.Entry<OsvQuery, String>> found = IntStream.range(0, queries.size()).boxed().flatMap(
             index -> results.get(index).path("vulns").valueStream()
-                .map(vulnerability -> Map.entry(queries.get(index).purl(), vulnerability.path("id").asText()))
+                .map(vulnerability -> Map.entry(queries.get(index).query(), vulnerability.path("id").asText()))
         ).toList();
         List<Query> unfinished = IntStream.range(0, queries.size())
             .filter(index -> !results.get(index).path(NEXT_PAGE).asText().isEmpty())
-            .mapToObj(index -> new Query(queries.get(index).purl(), results.get(index).path(NEXT_PAGE).asText()))
+            .mapToObj(index -> new Query(queries.get(index).query(), results.get(index).path(NEXT_PAGE).asText()))
             .toList();
         return Stream.concat(found.stream(), unfinished.isEmpty() ? Stream.empty() : this.pages(unfinished));
     }
@@ -151,16 +165,13 @@ record OsvScan(String base, HttpClient client) {
     /**
      * One package query of a batch.
      *
-     * @param purl  the package URL
+     * @param query the package asked about
      * @param token the page token OSV returned for the package, empty for its first page
      */
-    private record Query(String purl, String token) {
+    private record Query(OsvQuery query, String token) {
 
         Map<String, Object> body() {
-            Map<String, String> coordinates = Map.of("purl", this.purl);
-            return this.token.isEmpty()
-                ? Map.of("package", coordinates)
-                : Map.of("package", coordinates, "page_token", this.token);
+            return this.query.body(this.token);
         }
     }
 }

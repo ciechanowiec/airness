@@ -17,8 +17,9 @@ import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
 /**
- * Reads the two things a Dockerfile names that the blocklist judges: the images its {@code FROM} lines
- * or external {@code COPY --from} references pull, and the system packages its {@code RUN} lines install.
+ * Reads what a Dockerfile names: the images its {@code FROM} lines or external {@code COPY --from}
+ * references pull, the system packages its {@code RUN} lines install, which the blocklist judges, the base its
+ * last stage ships on, and the {@code RUN} commands that upgrade what that base holds.
  *
  * <p>A line reader over a known syntax, in the manner of {@link SpringConfiguration}: what has to be
  * recognised is one keyword and the tokens after it. It reads the logical lines {@link DockerfileLines}
@@ -91,6 +92,64 @@ final class DockerfileReader {
         return contentLines(text).stream()
             .flatMap(line -> packagesIn(line).map(name -> new Located<>(line.line(), name)))
             .toList();
+    }
+
+    /**
+     * The registry image the last stage is built on, which is where a shipped image's own system packages
+     * come from: the last {@code FROM}, followed through every earlier stage it names down to the registry
+     * image beneath them, with {@code ARG} defaults substituted.
+     *
+     * @param text the Dockerfile
+     * @return the reference, empty when the last stage starts from {@code scratch} or the file has no
+     *         {@code FROM}
+     */
+    static Optional<String> shippedBase(String text) {
+        Map<String, String> defaults = new HashMap<>();
+        Map<String, Optional<String>> stages = new HashMap<>();
+        Optional<String> last = Optional.empty();
+        for (Located<String> line : contentLines(text)) {
+            readArgument(line.value(), defaults);
+            Matcher from = FROM.matcher(line.value());
+            if (from.find()) {
+                List<String> tokens = fromTokens(from.group(REST));
+                Optional<String> base = tokens.stream().findFirst()
+                    .flatMap(first -> beneath(substitute(first, defaults), stages));
+                stageName(tokens).ifPresent(name -> stages.put(name, base));
+                last = base;
+            }
+        }
+        return last;
+    }
+
+    /**
+     * The commands of {@code RUN} lines that upgrade the system packages a base image already holds.
+     *
+     * @param text the Dockerfile
+     * @return each upgrading command with the line its instruction starts on, in file order
+     */
+    static List<Located<String>> packageUpgrades(String text) {
+        return contentLines(text).stream().flatMap(
+            line -> commandsIn(line).filter(PackageUpgrades::upgrades).map(
+                command -> new Located<>(line.line(), command)
+            )
+        ).toList();
+    }
+
+    // A stage an earlier FROM named stands for the image that stage was built on, and scratch stands for none.
+    private static Optional<String> beneath(String reference, Map<String, Optional<String>> stages) {
+        String key = reference.toLowerCase(Locale.ROOT);
+        if (SCRATCH.equals(key)) {
+            return Optional.empty();
+        }
+        return stages.getOrDefault(key, Optional.of(reference));
+    }
+
+    private static Stream<String> commandsIn(Located<String> line) {
+        Matcher run = RUN.matcher(line.value());
+        return run.find()
+            ? Arrays.stream(COMMAND_SEPARATOR.split(run.group(REST))).map(String::strip)
+                .filter(command -> !command.isEmpty())
+            : Stream.empty();
     }
 
     private static List<Located<String>> contentLines(String text) {

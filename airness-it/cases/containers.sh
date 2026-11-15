@@ -143,6 +143,30 @@ run_image_cases() {
         'image: the wrapper starts the services empty, with no preparation run' \
         'answer empty, as the image gate asks, with no preparation run'
     expect_no_gate_images 'image: the gate removes the image it built once the image passes'
+    image_evidence="$(find "${image_fixture}/target/airness/node" -name 'image-Dockerfile.json' 2>/dev/null | head -n 1)"
+    expect_file_match "${image_evidence:-${image_fixture}/target/airness/node/image-Dockerfile.json}" \
+        'image: the gate lists the system packages of the image it built, by the pinned scanner' \
+        '"purl": ?"pkg:apk/alpine/'
+
+    # The fixture's base is a release of node:26 whose Alpine packages have fixes a newer release ships, so the report
+    # names the FROM line that takes it. The verdict reads OSV and Docker Hub as they are today, so only its shape is
+    # asserted, and report-only mode lets the run finish with the finding it names.
+    run_maven image_report containers "${image_fixture}" -Pextended -Dairness.enforce=false \
+        airness:node-gate@node-gate-image airness:compliance-report
+    expect_exit image_report 'image: the compliance report judges what the built image holds' 0
+    expect_match image_report 'image: a fixed base package names the newer release of the base as the repair' \
+        'replace FROM node:26[.]8[.]2-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868 with FROM node:26[.][0-9.]+-alpine@sha256:[0-9a-f]{64}'
+    expect_match image_report 'image: the repair refuses an upgrade inside the Dockerfile' \
+        'Upgrading packages inside the Dockerfile is refused'
+    expect_no_gate_images 'image: listing the base and its releases leaves no image the gate tagged'
+
+    printf 'RUN apk upgrade --no-cache\n' >> "${image_fixture}/Dockerfile"
+    run_maven image_upgrade containers "${image_fixture}" airness:dockerfile-upgrades
+    expect_exit image_upgrade 'image: a Dockerfile that upgrades what its base holds fails' 1
+    expect_match image_upgrade 'image: the refusal names the command at its line' 'Dockerfile:[0-9]+ runs `apk upgrade --no-cache`'
+    expect_match image_upgrade 'image: the refusal names the newer base as the repair' \
+        'move FROM to a newer release of the base image'
+    git -C "${image_fixture}" checkout --quiet -- Dockerfile
 
     python3 - "${image_fixture}/src/server.ts" <<'PY_UNMIGRATED'
 import sys

@@ -37,6 +37,9 @@ public final class ComplianceReportMojo extends AbstractGovernanceMojo {
                 modules, Optional.ofNullable(this.output)
             );
         this.getLog().info("Compliance report written: " + report.fileStem() + ".html and .pdf");
-        return List.of(new Findings("Dependency compliance report", report.inventory().failures()));
+        return List.of(
+            new Findings("Dependency compliance report", report.inventory().failures()),
+            ImageReportInputs.repairs(modules)
+        );
     }
 }

@@ -28,9 +28,12 @@ import org.cyclonedx.parsers.JsonParser;
 @UtilityClass
 final class ReportSbom {
 
+    /**
+     * The key a CycloneDX component is referenced by.
+     */
+    static final String REFERENCE = "bom-ref";
     private static final int VERSION = 1;
     private static final String PACKAGE_URL = "pkg:";
-    private static final String REFERENCE = "bom-ref";
 
     static String assemble(Collection<ReportPackage> packages, Collection<ReportModule> modules) {
         Set<String> coordinates = packages.stream().map(ReportPackage::coordinate).collect(

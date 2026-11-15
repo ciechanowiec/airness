@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.maven;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,6 +45,39 @@ class OsvScanTest {
                 .advisory();
             assertEquals("First line.", advisory.description());
             assertEquals("Unknown", advisory.severity());
+        }
+    }
+
+    @Test
+    void asksASystemPackageByItsSourceAndReadsTheDistributionsOwnIdentifiersAndRating() {
+        String artifact = "pkg:deb/ubuntu/libssl3@3.0.13-0ubuntu3?distro=ubuntu-24.04";
+        try (ArchiveServer server = new ArchiveServer()) {
+            server.serve("/v1/querybatch", bytes("{\"results\": [{\"vulns\": [{\"id\": \"UBUNTU-CVE-2026-1\"}]}]}"));
+            server.serve(
+                "/v1/vulns/UBUNTU-CVE-2026-1", bytes(
+                    "{\"id\": \"UBUNTU-CVE-2026-1\", \"upstream\": [\"CVE-2026-1\"], \"severity\": [{\"type\":"
+                        + " \"CVSS_V3\", \"score\": \"CVSS:3.1/AV:N\"}, {\"type\": \"Ubuntu\", \"score\": \"medium\"}],"
+                        + " \"affected\": [{\"package\": {\"ecosystem\": \"Ubuntu:24.04:LTS\", \"name\": \"openssl\"},"
+                        + " \"ranges\": [{\"events\": [{\"introduced\": \"0\"},"
+                        + " {\"fixed\": \"3.0.13-0ubuntu3.5\"}]}]}]}"
+                )
+            );
+            OsvAdvisory finding = OsvScan.of(server.uri("/").toString()).findingsOf(
+                List.of(OsvQuery.system(artifact, "Ubuntu:24.04:LTS", "openssl", "3.0.13-0ubuntu3")), MODULE
+            ).getFirst();
+            assertAll(
+                () -> assertTrue(
+                    server.bodies().getFirst().contains("\"ecosystem\":\"Ubuntu:24.04:LTS\""), server.bodies()
+                        .getFirst()
+                ),
+                () -> assertTrue(server.bodies().getFirst().contains("\"version\":\"3.0.13-0ubuntu3\"")),
+                () -> assertEquals(artifact, finding.advisory().artifact()),
+                () -> assertEquals("MEDIUM", finding.advisory().severity()),
+                () -> assertTrue(
+                    finding.identifiers().contains("CVE-2026-1"), "the CVE an advisory answers is one of its names"
+                ),
+                () -> assertTrue(finding.fixed())
+            );
         }
     }
 
