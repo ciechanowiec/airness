@@ -34,6 +34,27 @@ class ComposeIsolationTest {
     }
 
     @Test
+    void readsTheHostAddressOfEveryShortSyntax() {
+        assertAll(
+            () -> assertEquals("<>", address("8080")),
+            () -> assertEquals("<>", address("8080:80")),
+            () -> assertEquals("<>", address("${APP_PORT}:80")),
+            () -> assertEquals("<127.0.0.1>", address("127.0.0.1:8080:80/tcp")),
+            () -> assertEquals("<127.0.0.1>", address("127.0.0.1::80")),
+            () -> assertEquals("<127.0.0.1>", address("127.0.0.1:${PORT:-5432}:5432")),
+            () -> assertEquals("<::1>", address("[::1]:8080:80")),
+            () -> assertEquals("<::1>", address("[::1]::80")),
+            () -> assertEquals("<0.0.0.0>", address("0.0.0.0:8080:80")),
+            () -> assertEquals("<${BIND}>", address("${BIND}:8080:80"))
+        );
+    }
+
+    // The address between angle brackets, so an empty one reads as <> in a failure.
+    private static String address(String port) {
+        return "<" + ComposeIsolation.hostAddress(port) + ">";
+    }
+
+    @Test
     void holdsALiteralOrADefaultedPortFixedAndAVariableOrNothingChosen() {
         assertAll(
             () -> assertTrue(ComposeIsolation.fixed(DATABASE)),

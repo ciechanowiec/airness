@@ -122,6 +122,26 @@ commit_image_fixture() {
         --message 'The real application proves the image gate against the installed harness and a real daemon.'
 }
 
+# Replaces one line of the fixture's Dockerfile, each written with \n, and stops the suite when the line is gone.
+edit_image_dockerfile() {
+    python3 - "${image_fixture}/Dockerfile" "$1" "$2" <<'PY_EDIT'
+import sys
+from pathlib import Path
+dockerfile = Path(sys.argv[1])
+line, replacement = (argument.replace('\\n', '\n') for argument in sys.argv[2:4])
+source = dockerfile.read_text()
+if line not in source:
+    sys.exit(f'the fixture Dockerfile no longer holds {line!r}')
+dockerfile.write_text(source.replace(line, replacement))
+PY_EDIT
+}
+
+# Commits the Dockerfile the fixture started with, so the next case begins from the image that passes.
+restore_image_dockerfile() {
+    git -C "${image_fixture}" checkout --quiet "$(git -C "${image_fixture}" rev-list --max-parents=0 HEAD)" -- Dockerfile
+    commit_image_fixture "$1"
+}
+
 # The images the gate tags are its own, so none may remain once a run of it is over, whatever its verdict.
 expect_no_gate_images() {
     left="$(docker images --quiet --filter 'reference=airness-image-*' 2>/dev/null)"
@@ -167,6 +187,32 @@ run_image_cases() {
     expect_match image_upgrade 'image: the refusal names the newer base as the repair' \
         'move FROM to a newer release of the base image'
     git -C "${image_fixture}" checkout --quiet -- Dockerfile
+
+    # An image that names no user inherits root from its base, which every pinned Node.js base runs as.
+    edit_image_dockerfile 'USER 1000:1000\n' ''
+    commit_image_fixture 'an image that runs as root'
+    run_maven image_root containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_root 'image: an image that runs as root fails' 1
+    expect_match image_root 'image: the gate says the image runs as root' \
+        'Dockerfile: the image runs as root, because neither its final stage nor its base image sets USER'
+    expect_no_gate_images 'image: the gate removes the image that runs as root'
+    restore_image_dockerfile 'an image that runs as its unprivileged user again'
+
+    # The node user owns its home directory, so the write below succeeds in any container but one whose root
+    # filesystem is read-only. Declaring the directory a volume, which keeps its owner, is the repair.
+    edit_image_dockerfile 'CMD ["node", "src/server.ts"]\n' \
+        'CMD ["sh", "-c", "touch /home/node/started && exec node src/server.ts"]\n'
+    commit_image_fixture 'an image that writes to its home directory'
+    run_maven image_readonly containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_readonly 'image: an image that writes to its read-only root filesystem fails' 1
+    expect_match image_readonly 'image: the failure names a volume as the repair' \
+        'declare each other path the application writes with VOLUME'
+    edit_image_dockerfile 'USER 1000:1000\n' 'VOLUME /home/node\nUSER 1000:1000\n'
+    commit_image_fixture 'an image that writes to the volume it declares'
+    run_maven image_volume containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_volume 'image: an image that writes only to the volume it declares passes' 0
+    expect_no_gate_images 'image: the gate removes the image whose volume it wrote'
+    restore_image_dockerfile 'an image that writes nothing again'
 
     python3 - "${image_fixture}/src/server.ts" <<'PY_UNMIGRATED'
 import sys

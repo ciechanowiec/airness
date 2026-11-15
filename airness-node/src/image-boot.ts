@@ -151,6 +151,17 @@ const containerEnvironment = (
 })
 
 /**
+ * How the container runs: as a hardened deployment runs it, with a root filesystem it cannot write, no capability
+ * and no way to gain a privilege. Only `/tmp` and the volumes the image declares stay writable.
+ */
+const HARDENING: readonly string[] = [
+  '--read-only',
+  '--tmpfs=/tmp',
+  '--cap-drop=ALL',
+  '--security-opt=no-new-privileges',
+]
+
+/**
  * The `docker run` arguments that start the image. The values travel in docker's own environment and only the
  * names on its command line, so no credential the wrapper made appears in a process listing.
  * @param request the boot request.
@@ -169,6 +180,7 @@ const containerRunArguments = (
   '--detach',
   `--name=${description.prefix}-image`,
   `--network=${description.network}`,
+  ...HARDENING,
   `--publish=127.0.0.1:${String(port)}:${String(request.containerPort)}`,
   ...Object.keys(variables).map((name: string): string => `--env=${name}`),
   request.image,
@@ -284,7 +296,8 @@ export const bootImage = async (request: BootRequest, runtime: BootRuntime): Pro
       deadline: runtime.now() + BOOT_TIMEOUT_MS,
     })
   } finally {
-    runtime.docker(['rm', '--force', name])
+    // A volume the image declares is created for the container alone, so it goes with the container.
+    runtime.docker(['rm', '--force', '--volumes', name])
   }
 }
 

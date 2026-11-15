@@ -40,7 +40,8 @@ interface Recorded {
 
 interface MachineOptions {
   readonly build?: (dockerfile: string) => RunResult
-  readonly exposed?: RunResult
+  /** What inspecting the image prints, an unprivileged image exposing port 3000 unless a test says otherwise. */
+  readonly configured?: RunResult
   readonly boot?: BootOutcome
   /** Whether a stop arrived before the gate began. */
   readonly stopped?: boolean
@@ -64,6 +65,10 @@ const LISTED_DOCUMENT: Readonly<Record<string, unknown>> = {
 
 const LISTED: string = JSON.stringify(LISTED_DOCUMENT)
 
+// What `docker image inspect` prints for the configuration of an image running as the user and exposing the ports.
+const configured = (user: string, exposed: string): string =>
+  `{"User":${JSON.stringify(user)},"ExposedPorts":${exposed}}\n`
+
 const BOOTED: BootOutcome = {
   verdict: { ok: true, findings: [] },
   result: answered(''),
@@ -84,7 +89,7 @@ const stand = (options: MachineOptions = {}): Machine => {
       await Promise.resolve()
       return options.build?.(dockerfile) ?? answered('built')
     },
-    exposedPorts: (): RunResult => options.exposed ?? answered('{"3000/tcp":{}}\n'),
+    metadata: (): RunResult => options.configured ?? answered(configured('1000:1000', '{"3000/tcp":{}}')),
     remove: (tag: string): void => {
       recorded.removed.push(tag)
       recorded.events.push(`remove ${tag}`)
@@ -351,7 +356,7 @@ describe('the image gate', PROCESS_TIME, () => {
   ])('refuses to guess the port of an image whose ports are %s', async (exposed: string, finding: string) => {
     await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
       const { machine, recorded }: Machine = stand({
-        exposed: answered(exposed),
+        configured: answered(configured('1000', exposed)),
       })
       const result: GateResult = await image(memberAt(root, SERVED), undefined, machine)
       expect(result.findings[0]).toContain(finding)
@@ -362,7 +367,7 @@ describe('the image gate', PROCESS_TIME, () => {
   it('fails an image that cannot be inspected', async () => {
     await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
       const { machine }: Machine = stand({
-        exposed: answered('No such image', 1),
+        configured: answered('No such image', 1),
       })
       const result: GateResult = await image(memberAt(root, SERVED), undefined, machine)
       expect(result.findings).toEqual(['Dockerfile: the built image could not be inspected: No such image'])
@@ -382,9 +387,43 @@ describe('the image gate', PROCESS_TIME, () => {
       expect(result.findings).toEqual([
         'Dockerfile: the image does not boot against empty services:',
         '  GET /admin answered 500',
+        '  the container ran with a read-only root filesystem, no capability and no privilege escalation; only /tmp ' +
+          'and the volumes the image declares are writable, so declare each other path the application writes with ' +
+          'VOLUME',
       ])
     })
   })
+
+  it.each([
+    ['', 'neither its final stage nor its base image sets USER'],
+    ['root', 'it sets USER root'],
+    ['0', 'it sets USER 0'],
+    ['0:0', 'it sets USER 0:0'],
+    ['root:root', 'it sets USER root:root'],
+  ])('fails an image that runs as root when its user is "%s"', async (user: string, cause: string) => {
+    await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+      const { machine, recorded }: Machine = stand({ configured: answered(configured(user, 'null')) })
+      const result: GateResult = await image(memberAt(root), undefined, machine)
+      expect(result.ok).toBe(false)
+      expect(result.findings).toEqual([
+        `Dockerfile: the image runs as root, because ${cause}; add USER with an unprivileged user ID, such as ` +
+          'USER 10001:10001, to the final stage after the last step that needs root',
+      ])
+      expect(recorded.removed).toHaveLength(1)
+      expect(recorded.boots).toEqual([])
+    })
+  })
+
+  it.each(['1000', '1000:1000', 'node', 'node:node', '10001:0'])(
+    'passes an image that runs as the unprivileged user "%s"',
+    async (user: string) => {
+      await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {
+        const { machine }: Machine = stand({ configured: answered(configured(user, 'null')) })
+        const result: GateResult = await image(memberAt(root), undefined, machine)
+        expect(result.ok).toBe(true)
+      })
+    },
+  )
 
   it('fails a boot the test wrapper never completed, with the end of its output', async () => {
     await withProject({ Dockerfile: DOCKERFILE }, async (root: string): Promise<void> => {

@@ -122,6 +122,10 @@ describe('a boot of the image', () => {
       '--detach',
       '--name=shop-ab12-image',
       '--network=shop-ab12',
+      '--read-only',
+      '--tmpfs=/tmp',
+      '--cap-drop=ALL',
+      '--security-opt=no-new-privileges',
       `--publish=127.0.0.1:${String(SERVED_PORT)}:3000`,
       '--env=DATABASE_URL',
       '--env=CACHE_URL',
@@ -139,7 +143,7 @@ describe('a boot of the image', () => {
       `http://localhost:${String(SERVED_PORT)}/`,
       `http://localhost:${String(SERVED_PORT)}/admin`,
     ])
-    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', 'shop-ab12-image'])
+    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', '--volumes', 'shop-ab12-image'])
   })
 
   it('rewrites only an address of a published port, whatever loopback name it uses', async () => {
@@ -187,7 +191,7 @@ describe('a boot of the image', () => {
       'GET /admin answered 500',
     ])
     expect(verdict.findings).toContain('| Error: relation "users" does not exist')
-    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', 'shop-ab12-image'])
+    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', '--volumes', 'shop-ab12-image'])
   })
 
   it('fails an application whose answers name the software behind them, naming each path', async () => {
@@ -203,7 +207,7 @@ describe('a boot of the image', () => {
         expect.stringMatching(/^GET \/admin: x-powered-by is "Next\.js, Express"/u),
       ],
     })
-    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', 'shop-ab12-image'])
+    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', '--volumes', 'shop-ab12-image'])
   })
 
   it('accepts a server header that names no version', async () => {
@@ -229,7 +233,7 @@ describe('a boot of the image', () => {
     const recorded: Machine = machine({ started: answered('pull access denied', 125) })
     const verdict: BootVerdict = await bootImage(REQUEST, recorded.runtime)
     expect(verdict).toEqual({ ok: false, findings: ['the container could not be started: pull access denied'] })
-    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', 'shop-ab12-image'])
+    expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', '--volumes', 'shop-ab12-image'])
   })
 
   it('refuses to start anything when the wrapper described no services', async () => {
