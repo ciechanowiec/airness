@@ -193,14 +193,14 @@ describe('a boot of the image', () => {
   it('fails an application whose answers name the software behind them, naming each path', async () => {
     const recorded: Machine = machine({
       answer: (path: string): Probe =>
-        status(200, path === '/admin' ? { 'x-powered-by': 'Next.js, Payload' } : { server: 'Jetty(12.0.5)' }),
+        status(200, path === '/admin' ? { 'x-powered-by': 'Next.js, Express' } : { server: 'Jetty(12.0.5)' }),
     })
     const verdict: BootVerdict = await bootImage(REQUEST, recorded.runtime)
     expect(verdict).toEqual({
       ok: false,
       findings: [
         expect.stringMatching(/^GET \/: server is "Jetty\(12\.0\.5\)"/u),
-        expect.stringMatching(/^GET \/admin: x-powered-by is "Next\.js, Payload"/u),
+        expect.stringMatching(/^GET \/admin: x-powered-by is "Next\.js, Express"/u),
       ],
     })
     expect(recorded.calls.at(-1)?.commandArguments).toEqual(['rm', '--force', 'shop-ab12-image'])
