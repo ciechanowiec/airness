@@ -122,7 +122,7 @@ describe('cookies the production server sets', () => {
 })
 
 describe('headers that name the software behind a response', () => {
-  it.each(['Next.js', 'Next.js, Payload', 'Express', 'PHP/8.3.1', ''])(
+  it.each(['Next.js', 'Next.js, Express', 'Express', 'PHP/8.3.1', ''])(
     'refuses x-powered-by: "%s"',
     (value: string) => {
       expect(disclosureProblems({ 'x-powered-by': value })).toEqual([
