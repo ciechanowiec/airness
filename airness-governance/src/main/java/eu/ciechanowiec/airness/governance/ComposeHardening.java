@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,7 +72,7 @@ final class ComposeHardening {
         List<ComposeLine> listed = lines.stream().filter(line -> line.under(PORTS)).toList();
         Stream<Located<String>> blocked = entries(listed).flatMap(entry -> exposedEntry(entry).stream());
         return Stream.concat(flowed, blocked)
-            .sorted((left, right) -> Integer.compare(left.line(), right.line()))
+            .sorted(Comparator.comparingInt(Located::line))
             .toList();
     }
 

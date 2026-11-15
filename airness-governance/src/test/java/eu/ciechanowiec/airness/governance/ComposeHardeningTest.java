@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -169,11 +170,10 @@ class ComposeHardeningTest {
     void readsNothingOutsideTheServices() {
         assertEquals(
             List.of(),
-            List.of(
+            Stream.of(
                 ComposeHardening.isolationLifts(OUTSIDE), ComposeHardening.exposedPorts(OUTSIDE),
                 ComposeHardening.valuedCredentials(OUTSIDE)
-            ).stream()
-                .flatMap(List::stream).toList()
+            ).flatMap(List::stream).toList()
         );
     }
 
