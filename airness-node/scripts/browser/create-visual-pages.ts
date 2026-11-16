@@ -176,6 +176,15 @@ const PAGES: Readonly<Record<string, Variant>> = {
   // desktop. The repairs align the same prose to its start edge and keep it within the page's measure.
   'text-justified': { defect: `<p className="justified">${PROSE}</p>`, valid: `<p>${PROSE}</p>` },
   'line-length': { defect: `<p className="wide-measure">${PROSE}</p>`, valid: `<p>${PROSE}</p>` },
+  // WCAG 1.3.2: each term precedes its figure in the markup, and `order` shows the figure above it, so a
+  // screen reader reads the label first. The repair writes each figure and its label as one phrase, in the
+  // order they are shown.
+  'reading-order': {
+    defect:
+      '<dl className="figures"><div className="figure"><dt>Branches</dt><dd>12</dd></div>' +
+      '<div className="figure"><dt>Members</dt><dd>340</dd></div></dl>',
+    valid: '<div className="figures"><p><strong>12</strong> branches</p><p><strong>340</strong> members</p></div>',
+  },
   'text-spacing': {
     defect: '<p className="fixed-line">Fixture line</p>',
     valid: '<p className="growing-line">Fixture line</p>',
@@ -235,6 +244,9 @@ h1, p { margin: 0; }
 .pill-ring:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 0; }
 .justified { text-align: justify; }
 .wide-measure { width: min(60rem, calc(100vw - 32px)); }
+.figures { display: flex; gap: 24px; margin: 0; }
+.figure { display: flex; flex-direction: column; }
+.figure dd { order: -1; margin: 0; font-size: 2rem; }
 /* Drawn beyond a gap, as a ring with an offset is: the focus rules compare the whole indicator. */
 .strong-ring:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 6px; }
 /* The card a stretched link covers draws the link's focus, as a news or product card does. */

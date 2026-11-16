@@ -37,6 +37,7 @@ const EXEMPTIBLE_RULES: readonly string[] = [
   'media-space',
   'text-justified',
   'line-length',
+  'reading-order',
   'unrevealed-content',
   'focus-visible',
   'focus-contrast',

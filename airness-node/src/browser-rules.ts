@@ -3,6 +3,7 @@
 // here, never by a project setting.
 import type { CandidateFinding } from './browser-exemptions.js'
 import { findJustifiedText, findLongLines } from './layout-lines.js'
+import { findReorderedText } from './layout-order.js'
 import {
   type FontFaceFacts,
   hasArea,
@@ -48,7 +49,10 @@ export const DEVICE_SCALE_FACTOR: number = 1
 /** The width of the ring around a focused element whose pixels the focus-visible rule compares. */
 export const FOCUS_RING_WIDTH: number = 4
 
-/** The element rules of the resting scan beyond geometry: T4, M1 to M5, and WCAG 1.4.8's text presentation. */
+/**
+ * The element rules of the resting scan beyond geometry: T4, M1 to M5, WCAG 1.4.8's text presentation, and
+ * WCAG 1.3.2's reading order.
+ */
 export const RESTING_ELEMENT_RULES: readonly string[] = [
   'small-text',
   'image-load',
@@ -58,6 +62,7 @@ export const RESTING_ELEMENT_RULES: readonly string[] = [
   'media-space',
   'text-justified',
   'line-length',
+  'reading-order',
 ]
 
 /** The page rule of the resting scan: T6. */
@@ -629,7 +634,7 @@ export const instability = (first: GeometrySnapshot, second: GeometrySnapshot): 
 /**
  * Every element candidate the resting scan's text and media rules find on one page.
  * @param snapshot the measured page.
- * @returns the candidates of T4, M1 to M5, `text-justified` and `line-length`.
+ * @returns the candidates of T4, M1 to M5, `text-justified`, `line-length` and `reading-order`.
  */
 export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateFinding[] => [
   ...findSmallText(snapshot),
@@ -640,4 +645,5 @@ export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateF
   ...findUnreservedMedia(snapshot),
   ...findJustifiedText(snapshot),
   ...findLongLines(snapshot),
+  ...findReorderedText(snapshot),
 ]
