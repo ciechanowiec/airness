@@ -31,7 +31,9 @@
                 Maven artifact. The loopback registry is process-local, writes only the ignored .npmrc, and
                 stops with Maven. Before the frozen install, a lockfile whose recorded integrity the installed
                 packages no longer match is refreshed and the build stops, so the next build runs on the
-                refreshed lock. A released harness package installs from the public registry instead.
+                refreshed lock. The refresh is bound to validate, which always precedes the frozen install at
+                initialize, whatever order the plugins take. A released harness package installs from the
+                public registry instead.
             -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -95,7 +97,7 @@
                     </execution>
                     <execution>
                         <id>harness-lock-refresh</id>
-                        <phase>initialize</phase>
+                        <phase>validate</phase>
                         <goals>
                             <goal>exec</goal>
                         </goals>

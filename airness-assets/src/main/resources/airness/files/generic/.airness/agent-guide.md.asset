@@ -391,11 +391,11 @@ write its endpoint only to an ignored `.npmrc`, and keep its lifetime inside the
 project's lockfile with `--lockfile`, it refuses to start when a served tarball's integrity differs from the
 one the lockfile records, or when a `package.json` asks for a served version the lockfile records no specifier
 of, as after a harness version bump, and names the lockfile-only `pnpm install` that refreshes the lock. With
-`--refresh-with <pnpm>` and the lockfile, bound with the pinned pnpm at initialize before the frozen install, it
-serves nothing and runs that refresh itself on a stale lock or one with merge conflict markers, then fails the
-build, which has rewritten a tracked file, so the next build runs on the refreshed lock. With the `CI` variable
-set it refreshes nothing and fails. Other packages retain their public registry metadata and release-age
-checks. Only the unpublished harness packages may be excluded from the age floor. A Docker build reaches no
+`--refresh-with <pnpm>` and the lockfile, bound with the pinned pnpm at validate, before the frozen install at
+initialize, it serves nothing and runs that refresh itself on a stale lock or one with merge conflict markers,
+then fails the build, which has rewritten a tracked file, so the next build runs on the refreshed lock. With the
+`CI` variable set it refreshes nothing and fails. Other packages retain their public registry metadata and
+release-age checks. Only the unpublished harness packages may be excluded from the age floor. A Docker build reaches no
 loopback registry of the host, so an image that installs the development dependencies, as a Next.js build does,
 builds only against a released harness. While a member declares a harness package at a SNAPSHOT version, the `image`
 gate therefore leaves out each Dockerfile whose `RUN` installs packages with npm, pnpm, yarn or bun, and judges it once
