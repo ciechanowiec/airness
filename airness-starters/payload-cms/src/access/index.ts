@@ -29,6 +29,13 @@ type BooleanAccess = NonNullable<NonNullable<CollectionConfig['access']>['admin'
  */
 export const adminsOrEditors: BooleanAccess = ({ req: { user } }) => isAdminOrEditor(user)
 
+/**
+ * Admins and editors read every document, drafts included; everyone else reads only what has been published. The
+ * `Where` keeps an unpublished draft out of every list and lookup a visitor or a signed-in reader makes.
+ */
+export const publishedOrEditors: Access = ({ req: { user } }) =>
+  isAdminOrEditor(user) || { _status: { equals: 'published' } }
+
 /** Admins see everything; other users are constrained to their own record. */
 export const adminsOrSelf: Access = ({ req: { user } }) => (user ? isAdmin(user) || { id: { equals: user.id } } : false)
 

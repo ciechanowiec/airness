@@ -3,7 +3,8 @@
 //
 // Each invocation starts a PostgreSQL and a RustFS through the harness's services helper, with credentials
 // and a Payload signing secret of this run's own. Once both answer and the upload bucket exists, the
-// committed migrations are applied, because the adapter never pushes a schema; then the command runs with
+// committed migrations are applied, because the adapter never pushes a schema, and the demo content is seeded, so
+// the browser sweep reaches every page template of a site with posts; then the command runs with
 // the database and the bucket handed over in the variables the application reads. The development services
 // compose.yaml starts are never touched.
 import { execFileSync } from 'node:child_process'
@@ -62,5 +63,6 @@ process.exitCode = await withServices({
   }),
   prepare: (_services, environment) => {
     execFileSync('pnpm', ['run', 'migrate'], { env: { ...process.env, ...environment }, stdio: 'inherit' })
+    execFileSync('pnpm', ['run', 'seed:content'], { env: { ...process.env, ...environment }, stdio: 'inherit' })
   },
 })

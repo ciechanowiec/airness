@@ -9,11 +9,13 @@
     "up": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/local.ts",
     "dev": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/local.ts next dev",
     "devsafe": "rm -rf .next && pnpm run dev",
+    "storybook": "storybook dev --port 6006",
     "start": "pnpm run migrate && cross-env NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--no-deprecation next start",
     "migrate": "cross-env NODE_OPTIONS=--no-deprecation payload migrate",
     "migrate:create": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/local.ts payload migrate:create",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/local.ts pnpm run seed:direct",
     "seed:direct": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/seed.ts",
+    "seed:content": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/seed-content.ts",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/local.ts payload",
     "generate:types": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/local.ts payload generate:types",
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/local.ts payload generate:importmap",
@@ -22,12 +24,14 @@
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.92.1",
+    "@payloadcms/live-preview-react": "3.92.1",
     "@payloadcms/next": "3.92.1",
     "@payloadcms/richtext-lexical": "3.92.1",
     "@payloadcms/storage-s3": "3.92.1",
     "cross-env": "10.1.0",
     "dotenv": "18.0.8",
     "graphql": "16.14.2",
+    "lucide-react": "1.73.0",
     "next": "16.4.3",
     "payload": "3.92.1",
     "react": "19.3.1",
@@ -37,15 +41,26 @@
   "devDependencies": {
     "@airness/node": "@AIRNESS_VERSION@",
     "@airness/payload": "@AIRNESS_VERSION@",
+    "@fontsource-variable/newsreader": "5.3.0",
+    "@fontsource-variable/schibsted-grotesk": "5.3.0",
     "@playwright/test": "1.64.1",
+    "@storybook/nextjs-vite": "10.6.7",
+    "@tailwindcss/postcss": "4.3.5",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitest/coverage-v8": "5.0.5",
+    "daisyui": "5.7.50",
     "fast-check": "4.10.2",
+    "happy-dom": "21.0.4",
     "jsdom": "30.1.3",
+    "storybook": "10.6.7",
+    "tailwindcss": "4.3.5",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
+    "vite": "8.3.8",
     "vitest": "5.0.5"
   },
   "engines": {
@@ -56,6 +71,10 @@
       {
         "pattern": "scripts/**",
         "reason": "operational scripts that provision services for the harness or seed a database, driven by the harness rather than imported"
+      },
+      {
+        "pattern": "src/components/live-preview-refresh.tsx",
+        "reason": "a client component that renders only inside the Next.js App Router, whose router it refreshes; the end-to-end preview spec drives it through a real save event in a real browser"
       }
     ],
     "generatedArtefacts": [
@@ -71,6 +90,20 @@
         "reason": "deepmerge reaches the application only through payload, which merges a write's data into the document its field validators read. Every collection checks access before that merge, so only a signed-in caller allowed to write reaches it: an admin creating an account or uploading, an editor uploading, a user updating their own account. The poisoned prototype belongs to that merge's result alone, and no validator of this project reads a property of it.",
         "mitigation": "No release fixes the advisory: deepmerge 4.3.1 is the last affected and the latest version, and payload 3.92.1, the version Airness pins, still depends on it. Keep field validators reading their own value rather than the merged data, and remove this entry once payload drops deepmerge or a fixed deepmerge is released.",
         "addedOn": "2026-11-11"
+      },
+      {
+        "package": "glob",
+        "advisory": "GHSA-3g3m-2fjr-6pw4",
+        "reason": "glob 13.0.7 reaches the project only through @joshwooding/vite-plugin-react-docgen-typescript, which @storybook/react-vite loads into the Storybook development server to read the project's own component files. It never runs in the application or its image, and the advisory needs a caller that cancels a walk with an AbortSignal and relies on it stopping, which the plugin does not do.",
+        "mitigation": "Storybook is a development dependency, served only on a developer's loopback port and by the Extended browser sweep. Remove this entry once @storybook/react-vite allows @joshwooding/vite-plugin-react-docgen-typescript 0.9, which replaces glob with tinyglobby, or a glob release of 14.0.2 or later.",
+        "addedOn": "2026-11-15"
+      },
+      {
+        "package": "minimatch",
+        "advisory": "GHSA-g3hv-75wg-m249",
+        "reason": "minimatch 10.2.6 reaches the project only through glob 13.0.7 inside the Storybook development server's docgen plugin, which matches the fixed story and component patterns the project's own Storybook configuration names. No pattern comes from a request or from content, so the amplified pattern the advisory needs is never built.",
+        "mitigation": "Storybook is a development dependency and never runs in the application or its image. Remove this entry together with the glob entry, once @storybook/react-vite allows a docgen plugin without glob 13.",
+        "addedOn": "2026-11-15"
       }
     ],
     "testWrapper": [
@@ -81,10 +114,59 @@
     ],
     "serverUrlVariables": [
       "NEXT_PUBLIC_SERVER_URL"
+    ],
+    "auxiliaryServers": [
+      {
+        "command": "pnpm exec storybook dev --port $PORT --ci --no-open",
+        "url": "http://localhost:6006"
+      }
     ]
   },
   "airnessPayload": {
     "publicAccess": [
+      {
+        "entity": "posts",
+        "operation": "read",
+        "reason": "the site publishes its posts to every visitor; the read rule hands a stranger only published posts, so a draft never reaches one, and the version history stays with editors",
+        "fields": [
+          "title",
+          "excerpt",
+          "cover",
+          "content",
+          "slug",
+          "category",
+          "publishedAt",
+          "featured",
+          "updatedAt",
+          "createdAt",
+          "_status"
+        ]
+      },
+      {
+        "entity": "categories",
+        "operation": "read",
+        "reason": "the categories are the public site's topics, which its navigation and category pages show to every visitor",
+        "fields": [
+          "title",
+          "slug",
+          "description",
+          "updatedAt",
+          "createdAt"
+        ]
+      },
+      {
+        "entity": "site-settings",
+        "operation": "read",
+        "reason": "the site settings hold the tagline, description, navigation and footer note every public page shows",
+        "fields": [
+          "tagline",
+          "description",
+          "navigation",
+          "footerNote",
+          "updatedAt",
+          "createdAt"
+        ]
+      },
       {
         "entity": "media",
         "operation": "read",

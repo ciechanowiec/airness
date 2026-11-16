@@ -6,8 +6,11 @@ import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
 import { AuditEvents } from './collections/AuditEvents'
+import { Categories } from './collections/Categories'
 import { Media } from './collections/Media'
+import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
+import { SiteSettings } from './globals/SiteSettings'
 import { auditAuthenticationFailure } from './hooks/audit'
 import { concealLockedAccount } from './hooks/login-concealment'
 import { loadServerEnvironment, type ServerEnvironment } from './lib/environment'
@@ -26,7 +29,8 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, AuditEvents],
+  collections: [Posts, Categories, Media, Users, AuditEvents],
+  globals: [SiteSettings],
   editor: lexicalEditor(),
   // Root hooks rather than collection ones, because a GraphQL request reaches only these. The trail records the
   // refusal as it happened; the concealment then changes only what the caller is told.

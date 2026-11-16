@@ -11,7 +11,7 @@ import { type Credentials, sessionTokenFor, sessionTokenOf } from './accounts'
 import { payloadInstance } from './payload'
 
 /** The origin requests come from; Payload authenticates a session cookie only from an allowed origin. */
-export const ORIGIN: string = loadServerEnvironment().serverUrl
+const ORIGIN: string = loadServerEnvironment().serverUrl
 
 /** The response statuses the specs expect. */
 export const OK: number = 200

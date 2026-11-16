@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
       './node_modules/.pnpm/@img+sharp-libvips-linuxmusl-*/**/*',
     ],
   },
+  // The site and the admin panel each have a root layout, so no layout can wrap a 404 page for an address neither
+  // claims; src/app/global-not-found.tsx draws that page whole instead of Next.js's bare built-in one.
+  experimental: {
+    globalNotFound: true,
+  },
   images: {
     localPatterns: [
       {
