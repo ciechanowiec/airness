@@ -3,7 +3,7 @@
 import { type DeclaredExemption, staleExemptions, type UsedExemption } from '@/browser-exemptions'
 import { type BrowserFinding, findingLine, type Viewport } from '@/browser-findings'
 import { type JudgedPage, judgeLayout, LAYOUT_RULES } from '@/layout-defects'
-import type { LayoutBorder, LayoutNode, LayoutRect, LayoutSnapshot } from '@/layout-snapshot'
+import type { FlowStyle, LayoutBorder, LayoutNode, LayoutRect, LayoutSnapshot } from '@/layout-snapshot'
 import { LAYOUT_MINIMUM_GAP } from '@/settings'
 
 export const TRANSPARENT: string = 'rgba(0, 0, 0, 0)'
@@ -28,6 +28,17 @@ export const rect = (left: number, top: number, right: number, bottom: number): 
   right,
   bottom,
 })
+
+// What a measured element reports of its flow when nothing in it is reordered: a left-to-right block.
+export const FLOW: FlowStyle = {
+  order: '0',
+  flexDirection: 'row',
+  flexWrap: 'nowrap',
+  gridAutoFlow: 'row',
+  gridLines: ['auto', 'auto', 'auto', 'auto'],
+  direction: 'ltr',
+  writingMode: 'horizontal-tb',
+}
 
 export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 'parent'>): LayoutNode => ({
   label: `div#n${String(fields.index)}`,
@@ -73,6 +84,7 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   textAlignLast: 'auto',
   whiteSpace: 'normal',
   media: undefined,
+  flow: FLOW,
   ...fields,
 })
 
@@ -110,6 +122,7 @@ export const EXEMPTIBLE_RULES: readonly string[] = [
   'media-space',
   'text-justified',
   'line-length',
+  'reading-order',
   'unrevealed-content',
   'focus-visible',
   'focus-contrast',

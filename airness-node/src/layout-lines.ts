@@ -79,7 +79,7 @@ const blockOf = (snapshot: LayoutSnapshot, node: LayoutNode): LayoutNode =>
   ) ?? node
 
 /** One rect of a word in a block's lines, with the font size of the element that drew it. */
-interface PlacedWord {
+export interface PlacedWord {
   readonly rect: LayoutRect
   readonly characters: number
   readonly cjkCharacters: number
@@ -116,7 +116,7 @@ const isShown = (snapshot: LayoutSnapshot, node: LayoutNode): boolean =>
   !isInTurn(snapshot, node)
 
 /** A block of text and the words set in its lines. */
-interface TextBlock {
+export interface TextBlock {
   readonly block: LayoutNode
   readonly words: readonly PlacedWord[]
 }
@@ -129,7 +129,7 @@ interface TextBlock {
  * @param snapshot the measured page.
  * @returns one entry per block that sets any visible word, in document order.
  */
-const textBlocksOf = (snapshot: LayoutSnapshot): readonly TextBlock[] => {
+export const textBlocksOf = (snapshot: LayoutSnapshot): readonly TextBlock[] => {
   const placed: readonly TextBlock[] = snapshot.nodes.flatMap((node: LayoutNode): readonly TextBlock[] => {
     const words: readonly PlacedWord[] = visibleWordsOf(snapshot, node)
     return words.length === 0 ? [] : [{ block: blockOf(snapshot, node), words }]

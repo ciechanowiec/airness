@@ -512,6 +512,16 @@ which WCAG exempts, needs only a contrasting line along half the control. No blo
 viewport including the desktop one (`line-length`): give prose a measure, such as a `max-width` of about `60ch`.
 Preformatted text, code and form controls keep their own lines. Each of these is exemptible per element.
 
+A flex or grid group shows its text in document order, the order a screen reader, a braille display and the
+keyboard follow (`reading-order`, WCAG 1.3.2). It fails when `order`, a `*-reverse` direction,
+`flex-wrap: wrap-reverse`, explicit grid lines or `grid-auto-flow: dense` shows an item that sets one block of
+text, such as a term, a figure, a label or a button, before an item that precedes it in the document: a figure
+shown above its label is announced after it. Write the markup in the order it is shown, such as
+`<p><strong>12</strong> branches</p>` for a figure and its label. Where the order is intended, as an eyebrow shown
+above a heading that stays first for heading navigation, exempt the group per element with its reason. An item
+that sets no text, such as an image moved above a heading, and one holding several blocks, such as a sidebar
+shown before the main content, are not compared; a vertical writing mode is not judged.
+
 The disclosure pass also holds each role to its WAI-ARIA keyboard pattern. A dialog a control opens takes focus,
 closes on Escape and returns focus to its opener, or to a visible element when the opener went with it; a modal
 one keeps Tab and Shift+Tab inside (`dialog-keyboard`). Declare every dialog opener with `aria-haspopup="dialog"`,

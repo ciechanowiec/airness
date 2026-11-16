@@ -13,6 +13,7 @@
 [media-space] /flex-media @390x844 (chromium, resting): img reserves
 [text-justified] /text-justified @390x844 (chromium, resting): text justified to both edges over
 [line-length] /line-length @1280x800 (chromium, resting): a line of
+[reading-order] /reading-order @390x844 (chromium, resting): div.figure shows dd "12" before dt "Branches", which comes first in the document, through order: -1 on dd "12"
 [text-overlap] /turned-card @390x844 (chromium, resting): overlapping text: h2.pulled
 [text-overlap] /scrolled-blurb @390x844 (chromium, resting): overlapping text: p
 [attached] /scrolled-blurb @390x844 (chromium, resting): overlapping boxes: p

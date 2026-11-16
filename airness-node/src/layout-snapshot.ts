@@ -100,6 +100,26 @@ export interface LayoutNode {
   readonly whiteSpace: string
   /** What a replaced element reports about its content, or undefined for any other element. */
   readonly media: MediaFacts | undefined
+  /** How CSS can set the element's boxes in an order other than its document's. */
+  readonly flow: FlowStyle
+}
+
+/**
+ * The computed properties by which CSS shows an element's boxes in an order other than the document's: as a
+ * flex or grid container, and as an item of one.
+ */
+export interface FlowStyle {
+  /** The computed `order`, an integer: `0` unless the element is placed among its siblings. */
+  readonly order: string
+  readonly flexDirection: string
+  readonly flexWrap: string
+  readonly gridAutoFlow: string
+  /** The computed `grid-row-start`, `grid-row-end`, `grid-column-start` and `grid-column-end`, in that order. */
+  readonly gridLines: readonly string[]
+  /** The computed `direction`, `ltr` or `rtl`, which says which way a line is read. */
+  readonly direction: string
+  /** The computed `writing-mode`, `horizontal-tb` for lines that run across the page. */
+  readonly writingMode: string
 }
 
 /**

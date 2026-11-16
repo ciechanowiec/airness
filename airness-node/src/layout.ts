@@ -16,7 +16,6 @@ import { layoutViewportsWith } from './layout-defects.js'
 import { type PageInlineStyle, reservedBoxOf } from './layout-reserved.js'
 import type {
   FontFaceFacts,
-  LayoutBorder,
   LayoutBorders,
   LayoutNode,
   LayoutRect,
@@ -24,6 +23,7 @@ import type {
   LayoutWord,
   MediaFacts,
 } from './layout-snapshot.js'
+import { bordersOf, flowOf, lineHeightOf, type PageStyle, paintOrderOf } from './layout-style.js'
 import { adoptStyle } from './page-style.js'
 import { projectSettings } from './project-settings.js'
 
@@ -37,10 +37,6 @@ interface PageRect {
   readonly top: number
   readonly right: number
   readonly bottom: number
-}
-
-interface PageStyle {
-  readonly getPropertyValue: (property: string) => string
 }
 
 interface PageText {
@@ -134,6 +130,7 @@ interface LayoutTools {
   readonly lineHeightOf: (style: PageStyle) => number
   readonly labelOf: (element: PageElement, tools: LayoutTools) => string
   readonly paintOrderOf: (style: PageStyle) => Pick<LayoutNode, 'rotate' | 'transform' | 'zIndex'>
+  readonly flowOf: typeof flowOf
   readonly describe: (element: PageElement, context: NodeContext, tools: LayoutTools) => LayoutNode
   readonly reservedBoxOf: (element: PageElement) => PageBox
   readonly contentSizeOf: (box: PageBox, style: PageStyle) => Pick<MediaFacts, 'contentHeight' | 'contentWidth'>
@@ -246,27 +243,6 @@ const textOf = (element: PageElement, style: PageStyle, tools: LayoutTools): Own
   }
 }
 
-const bordersOf = (style: PageStyle): LayoutBorders => {
-  const side = (name: string): LayoutBorder => ({
-    // A computed border width is always a pixel length, `0px` for a side drawn with no border.
-    width: Number(style.getPropertyValue(`border-${name}-width`).replace('px', '')),
-    style: style.getPropertyValue(`border-${name}-style`),
-    color: style.getPropertyValue(`border-${name}-color`),
-  })
-  return {
-    top: side('top'),
-    right: side('right'),
-    bottom: side('bottom'),
-    left: side('left'),
-  }
-}
-
-// `normal` reads as NaN, which the rules take as 0: no line height to shrink a text rect to.
-const lineHeightOf = (style: PageStyle): number => {
-  const lineHeight: number = Number(style.getPropertyValue('line-height').replace('px', ''))
-  return Number.isFinite(lineHeight) ? lineHeight : 0
-}
-
 // A tag, then the id or the first two classes, then the element's own text: `a.button "Sign in"`.
 const labelOf = (element: PageElement, tools: LayoutTools): string => {
   const maxClasses: number = 2
@@ -287,13 +263,6 @@ const labelOf = (element: PageElement, tools: LayoutTools): string => {
     .trim()
   return text.length === 0 ? `${tag}${name}` : `${tag}${name} "${text.slice(0, maxText)}"`
 }
-
-// What decides how an element is painted against the others: its stacking order and any turn.
-const paintOrderOf = (style: PageStyle): Pick<LayoutNode, 'rotate' | 'transform' | 'zIndex'> => ({
-  zIndex: style.getPropertyValue('z-index'),
-  transform: style.getPropertyValue('transform'),
-  rotate: style.getPropertyValue('rotate'),
-})
 
 const describe = (element: PageElement, context: NodeContext, tools: LayoutTools): LayoutNode => {
   const style: PageStyle = getComputedStyle(element)
@@ -342,6 +311,7 @@ const describe = (element: PageElement, context: NodeContext, tools: LayoutTools
     fontSize: Number(read('font-size').replace('px', '')) || 0,
     fontFamily: read('font-family'),
     media: tools.mediaOf(element, style, context.sources, tools),
+    flow: tools.flowOf(style),
   }
 }
 
@@ -557,6 +527,7 @@ const STEPS: Readonly<Record<keyof LayoutTools, Step>> = {
   lineHeightOf,
   labelOf,
   paintOrderOf,
+  flowOf,
   describe,
   reservedBoxOf,
   contentSizeOf,
