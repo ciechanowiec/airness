@@ -21,5 +21,5 @@ USER 10001:10001
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD ["wget", "--quiet", "--spider", "http://127.0.0.1:3000/"]
 # The container reads its configuration when it starts, and applies the pending migrations before it serves;
-# README.adoc, section Deployment, describes it.
+# AGENTS.md, section Deployment, describes it.
 CMD ["node", "server.js"]

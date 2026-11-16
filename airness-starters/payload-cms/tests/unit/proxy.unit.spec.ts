@@ -44,6 +44,14 @@ describe('the script policy and its nonce', () => {
   })
 })
 
+describe('the one page a frame may show', () => {
+  it('lets the admin panel on this origin frame the draft preview, in the header and the policy', () => {
+    const response: NextResponse = proxy(new NextRequest(new Request('http://localhost:3000/preview/posts/a-draft')))
+    expect(response.headers.get('x-frame-options')).toBe('SAMEORIGIN')
+    expect(directiveOf(policyOf(response), 'frame-ancestors')).toBe("frame-ancestors 'self'")
+  })
+})
+
 describe('where the proxy runs', () => {
   it('skips the static assets, which carry no markup for a policy to govern', () => {
     const [matcher] = config.matcher

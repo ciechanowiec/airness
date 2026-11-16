@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { isDevelopment } from '@/lib/environment'
-import { contentSecurityPolicy, staticSecurityHeaders } from '@/lib/security-headers'
+import { contentSecurityPolicy, type Framing, framingOf, staticSecurityHeaders } from '@/lib/security-headers'
 
 // The only place a per-request security value can be produced: a nonce has to differ per response, so
 // it cannot come from `next.config.ts`, which is read once.
@@ -29,8 +29,9 @@ const newNonce = (): string => btoa(crypto.randomUUID())
 export const proxy = (request: NextRequest): NextResponse => {
   const nonce: string = newNonce()
   const isDevelopmentServer: boolean = isDevelopment()
-  const policy: string = contentSecurityPolicy(nonce, isDevelopmentServer)
-  const headers: Readonly<Record<string, string>> = staticSecurityHeaders(isDevelopmentServer)
+  const framing: Framing = framingOf(request.nextUrl.pathname)
+  const policy: string = contentSecurityPolicy(nonce, isDevelopmentServer, framing)
+  const headers: Readonly<Record<string, string>> = staticSecurityHeaders(isDevelopmentServer, framing)
 
   // Set on the REQUEST as well as the response: this is where Next.js looks for the nonce when it
   // renders, and a policy present only on the response would leave its own scripts unnonced and blocked.

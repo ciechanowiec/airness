@@ -1,168 +1,171 @@
-* {
-    box-sizing: border-box;
+/*
+ * The stylesheet of the public site, which Storybook loads too. Tailwind writes only the utilities the components
+ * and pages name, and daisyUI adds the components those utilities compose into.
+ *
+ * The look is one light theme, paper: a warm cream ground, ink-dark text and a terracotta accent. The site is light
+ * whatever the reader's system prefers. A site made from this template changes its look here, in the colours, the
+ * radii and the two typefaces, and every page follows.
+ *
+ * The theme holds text to 4.5:1 against every surface it is drawn on, the AA level of WCAG 2.2 the harness
+ * measures; muted text is base-content at 70%, which keeps above 5.4:1 on every ground.
+ */
+@import "tailwindcss" source("../..");
+@import "@fontsource-variable/schibsted-grotesk";
+@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/newsreader/wght-italic.css";
+@source "../../../.storybook";
+@plugin "daisyui" {
+    themes: false;
+}
+@plugin "daisyui/theme" {
+    name: "paper";
+    default: true;
+    prefersdark: false;
+    color-scheme: light;
+    --color-base-100: #fffdf8;
+    --color-base-200: #f6f1e7;
+    --color-base-300: #e6dece;
+    --color-base-content: #1f1b16;
+    --color-primary: #9a3412;
+    --color-primary-content: #fff;
+    --color-secondary: #1e3a5f;
+    --color-secondary-content: #fff;
+    --color-accent: #8a5a00;
+    --color-accent-content: #fff;
+    --color-neutral: #1f1b16;
+    --color-neutral-content: #fffdf8;
+    --color-info: #1d4ed8;
+    --color-info-content: #fff;
+    --color-success: #166534;
+    --color-success-content: #fff;
+    --color-warning: #92400e;
+    --color-warning-content: #fff;
+    --color-error: #b42318;
+    --color-error-content: #fff;
+    --radius-selector: 1rem;
+    --radius-field: 0.5rem;
+    --radius-box: 1rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+@theme {
+    --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+    --font-serif: "Newsreader Variable", ui-serif, Georgia, serif;
+    /* The reading measure: no line of running text grows past about 70 characters, whatever the typeface. */
+    --container-measure: 54ch;
 }
 
+/*
+ * daisyUI paints a texture under some components from an inline image the content security policy refuses.
+ * The themes draw no texture, so the image is never named and the browser never asks for it.
+ */
+:root {
+    --fx-noise: none;
+}
+
+/*
+ * The ground every page stands on. It keeps the room of a scrollbar whether the page scrolls or not, so a page
+ * that grows past the window never moves sideways.
+ */
 html {
-    font-size: 18px;
-    line-height: 32px;
-
-    background: rgb(0 0 0);
-    -webkit-font-smoothing: antialiased;
+    scrollbar-gutter: stable;
 }
 
-html,
-body {
-    height: 100%;
+/*
+ * A solid ring in the accent colour changes the pixels around a focused control by more than 3:1. It is 3px wide
+ * because a control that lands on a half pixel, as a centred card can, has each edge of its ring antialiased over
+ * one more row; 3px keeps at least 2 full-contrast rows all the way round, the perimeter WCAG 2.4.13 asks for.
+ */
+:focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
 }
 
-body {
-    font-family: system-ui;
-    margin: 0;
-    color: rgb(1000 1000 1000);
-
-    @media (width <= 1024px) {
-        font-size: 15px;
-        line-height: 24px;
-    }
+/*
+ * Whatever takes focus keeps room for its ring when the browser scrolls it into view, so a control that lands
+ * at the edge of the window, as a large card below the fold does, keeps all of its ring on screen.
+ */
+:where(a[href], button, input, select, textarea, summary, [tabindex]) {
+    scroll-margin-block: 0.75rem;
 }
 
-img {
-    max-width: 100%;
-    height: auto;
-    display: block;
-}
+/*
+ * The rich text of a post, as the editor stores it: headings, paragraphs, lists, quotes, links and code, set in
+ * the serif at a comfortable size and rhythm, in the theme's own colours.
+ */
+.article-body {
+    font-family: var(--font-serif);
+    font-size: 1.1875rem;
+    line-height: 1.75;
 
-h1 {
-    margin: 40px 0;
-    font-size: 64px;
-    line-height: 70px;
-    font-weight: bold;
-
-    @media (width <= 1024px) {
-        margin: 24px 0;
-        font-size: 42px;
-        line-height: 42px;
+    & > * + * {
+        margin-top: 1.25em;
     }
 
-    @media (width <= 768px) {
-        font-size: 38px;
-        line-height: 38px;
+    & h2,
+    & h3 {
+        margin-top: 2em;
+        font-weight: 600;
+        line-height: 1.25;
     }
 
-    @media (width <= 400px) {
-        font-size: 32px;
-        line-height: 32px;
-    }
-}
-
-p {
-    margin: 24px 0;
-
-    @media (width <= 1024px) {
-        margin: calc(var(--base) * 0.75) 0;
-    }
-}
-
-a {
-    color: currentColor;
-
-    /* Every link sits on the black page, so a white ring set off from it contrasts with both the page and
-       the link's own unfocused rendering, whatever the link's colors are. */
-    &:focus-visible {
-        outline: 2px solid rgb(255 255 255);
-        outline-offset: 3px;
+    & h2 {
+        font-size: 1.6em;
     }
 
-    &:active {
-        opacity: 0.7;
-        outline: none;
-    }
-}
-
-svg {
-    vertical-align: middle;
-}
-
-.home {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    height: 100vh;
-    padding: 45px;
-    max-width: 1024px;
-    margin: 0 auto;
-    overflow: hidden;
-
-    @media (width <= 400px) {
-        padding: 24px;
+    & h3 {
+        font-size: 1.3em;
     }
 
-    .content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        flex-grow: 1;
-
-        h1 {
-            text-align: center;
-        }
+    & ul,
+    & ol {
+        padding-left: 1.5em;
     }
 
-    .links {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-
-        /* At least 44 by 44 CSS pixels, the AAA pointer target size, like the footer link below. */
-        a {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 44px;
-            min-height: 44px;
-            text-decoration: none;
-            padding: 0.25rem 0.75rem;
-            border-radius: 4px;
-        }
-
-        .admin {
-            color: rgb(0 0 0);
-            background: rgb(1000 1000 1000);
-            border: 1px solid rgb(0 0 0);
-        }
-
-        .docs {
-            color: rgb(1000 1000 1000);
-            background: rgb(0 0 0);
-            border: 1px solid rgb(1000 1000 1000);
-        }
+    & ul {
+        list-style: disc;
     }
 
-    .footer {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    & ol {
+        list-style: decimal;
+    }
 
-        @media (width <= 1024px) {
-            flex-direction: column;
-            gap: 6px;
-        }
+    & li + li {
+        margin-top: 0.5em;
+    }
 
-        p {
-            margin: 0;
-        }
+    & li::marker {
+        color: var(--color-primary);
+    }
 
-        .codeLink {
-            display: inline-flex;
-            align-items: center;
-            min-width: 44px;
-            min-height: 44px;
-            text-decoration: none;
-            padding: 0 0.5rem;
-            background: rgb(60 60 60);
-            border-radius: 4px;
-        }
+    & blockquote {
+        border-left: 3px solid var(--color-primary);
+        padding-left: 1em;
+        font-style: italic;
+    }
+
+    & a {
+        color: var(--color-primary);
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+    }
+
+    & strong {
+        font-weight: 600;
+    }
+
+    & code {
+        border-radius: var(--radius-field);
+        background: var(--color-base-200);
+        padding: 0.1em 0.35em;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.85em;
+    }
+
+    & hr {
+        border-color: var(--color-base-300);
     }
 }

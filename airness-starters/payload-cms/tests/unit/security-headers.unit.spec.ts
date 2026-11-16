@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contentSecurityPolicy, staticSecurityHeaders } from '@/lib/security-headers'
+import { contentSecurityPolicy, framingOf, staticSecurityHeaders } from '@/lib/security-headers'
 import { directiveOf } from '../helpers/csp'
 
 const NONCE: string = 'test-nonce'
@@ -66,5 +66,19 @@ describe('transport security', () => {
 
   it('leaves the development server, which serves plain HTTP on localhost, without it', () => {
     expect(staticSecurityHeaders(true)).not.toHaveProperty('strict-transport-security')
+  })
+})
+
+describe('framing', () => {
+  it('lets only a page of this origin frame the draft preview, as the Live Preview does', () => {
+    expect(framingOf('/preview/posts/a-draft')).toBe('same-origin')
+    expect(directiveOf(contentSecurityPolicy(NONCE, false, 'same-origin'), 'frame-ancestors')).toBe(
+      "frame-ancestors 'self'",
+    )
+    expect(staticSecurityHeaders(false, 'same-origin')['x-frame-options']).toBe('SAMEORIGIN')
+  })
+
+  it.each(['/', '/posts', '/posts/preview', '/previews', '/admin'])('refuses every frame on %s', (pathname) => {
+    expect(framingOf(pathname)).toBe('none')
   })
 })
