@@ -9,8 +9,8 @@ const PHOTO_HEIGHT: number = 120
 const POSTER_WIDTH: number = 1600
 const POSTER_HEIGHT: number = 1200
 // A source drawn at its own size whose every pixel differs, so no compression shrinks it below its raw bytes.
-const GRAIN_WIDTH: number = 400
-const GRAIN_HEIGHT: number = 300
+const GRAIN_WIDTH: number = 240
+const GRAIN_HEIGHT: number = 180
 const CHANNELS: number = 3
 // An integer hash of each byte's position, so the grain is the same on every run and no two neighbours repeat.
 const GRAIN_MIXER: number = 0x04_5d_9f_3b
@@ -141,8 +141,8 @@ export const IMAGE_PAGES: Readonly<Record<string, { readonly defect: string; rea
   // A file at the size of its box whose pixels no compression shrinks weighs about 24 bits a pixel; the same
   // size in a file that compresses well weighs a fraction of one.
   'image-heavy': {
-    defect: '<img src="/grain.png" alt="Heavy photo" width={400} height={300} />',
-    valid: '<img src="/calm.png" alt="Light photo" width={400} height={300} />',
+    defect: '<img src="/grain.png" alt="Heavy photo" width={240} height={180} />',
+    valid: '<img src="/calm.png" alt="Light photo" width={240} height={180} />',
   },
   'media-space': {
     defect: '<img src="/photo.png" alt="Unsized photo" className="fluid" />',
