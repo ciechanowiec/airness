@@ -16,7 +16,7 @@ export const REQUIRED_PINS: Readonly<Record<string, string>> = {
   // Held on 16: graphql 17 exists, and Payload declares graphql ^16.8.1 as a peer.
   graphql: '16.14.2',
   sharp: '0.35.5',
-  next: '16.4.3',
+  next: '16.4.6',
   react: '19.3.1',
   'react-dom': '19.3.1',
 }
