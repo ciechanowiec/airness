@@ -85,13 +85,6 @@
     ],
     "vulnerabilityAllowlist": [
       {
-        "package": "deepmerge",
-        "advisory": "GHSA-gcqx-w48m-w2h4",
-        "reason": "deepmerge reaches the application only through payload, which merges a write's data into the document its field validators read. Every collection checks access before that merge, so only a signed-in caller allowed to write reaches it: an admin creating an account or uploading, an editor uploading, a user updating their own account. The poisoned prototype belongs to that merge's result alone, and no validator of this project reads a property of it.",
-        "mitigation": "No release fixes the advisory: deepmerge 4.3.1 is the last affected and the latest version, and payload 3.92.1, the version Airness pins, still depends on it. Keep field validators reading their own value rather than the merged data, and remove this entry once payload drops deepmerge or a fixed deepmerge is released.",
-        "addedOn": "2026-11-11"
-      },
-      {
         "package": "glob",
         "advisory": "GHSA-3g3m-2fjr-6pw4",
         "reason": "glob 13.0.7 reaches the project only through @joshwooding/vite-plugin-react-docgen-typescript, which @storybook/react-vite loads into the Storybook development server to read the project's own component files. It never runs in the application or its image, and the advisory needs a caller that cancels a walk with an AbortSignal and relies on it stopping, which the plugin does not do.",
