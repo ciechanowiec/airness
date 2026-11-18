@@ -14,7 +14,7 @@ import { PINNED_PAGES, PINNED_STYLES, pinnedModule } from '#browser/focus-pages'
 import { INTERACTION_COMPONENTS, INTERACTION_PAGES, INTERACTION_STYLES } from '#browser/interaction-components'
 import { SCROLL_COMPONENTS, SCROLL_PAGES, SCROLL_STYLES } from '#browser/scroll-components'
 import { GROW, SETTLE } from '#browser/visual-components'
-import { PHOTO_HEIGHT, PHOTO_WIDTH, POSTER_HEIGHT, POSTER_WIDTH, photo } from '#browser/visual-images'
+import { IMAGE_PAGES, visualImages } from '#browser/visual-images'
 import { asRecord } from '#harness/json-shapes'
 
 const ARGUMENT_OFFSET: number = 2
@@ -62,38 +62,7 @@ const PROSE: string =
 // Each page's body in both modes. The valid body is the same markup repaired, never a different page.
 const PAGES: Readonly<Record<string, Variant>> = {
   'small-text': { defect: '<p className="tiny">Fine print</p>', valid: '<p className="legible">Fine print</p>' },
-  'image-load': {
-    defect: '<img src="/missing.png" alt="Missing photo" width={40} height={40} />',
-    valid: '<img src="/photo.png" alt="Photo" width={160} height={120} />',
-  },
-  'image-distorted': {
-    defect: '<img src="/photo.png" alt="Stretched photo" width={160} height={60} />',
-    valid: '<img src="/photo.png" alt="Cropped photo" width={160} height={60} className="cover" />',
-  },
-  'image-upscaled': {
-    defect: '<img src="/photo.png" alt="Enlarged photo" width={240} height={180} />',
-    valid:
-      '<div data-airness-layout="image-upscaled" data-airness-layout-reason="the fixture shows its only source">' +
-      '<img src="/photo.png" alt="Enlarged photo" width={240} height={180} /></div>',
-  },
-  // The repair keeps the large source for screens that need it and lets the browser choose by the box.
-  'image-oversized': {
-    defect: '<img src="/poster.png" alt="Oversized photo" width={160} height={120} />',
-    valid:
-      '<img src="/poster.png" srcSet="/photo.png 160w, /poster.png 1600w" sizes="160px" alt="Fitted photo" ' +
-      'width={160} height={120} />',
-  },
-  'media-space': {
-    defect: '<img src="/photo.png" alt="Unsized photo" className="fluid" />',
-    valid: '<img src="/photo.png" alt="Sized photo" className="fluid" width={160} height={120} />',
-  },
-  // A source chosen from a srcset whose declared width is larger than the file, as an image server that
-  // will not enlarge a small original answers: the file's own pixels decide, not the declared width.
-  'srcset-image': {
-    defect:
-      '<img src="/photo.png" srcSet="/photo.png 160w" sizes="240px" alt="Enlarged photo" width={240} height={180} />',
-    valid: '<img src="/photo.png" srcSet="/photo.png 320w" sizes="160px" alt="Photo" width={160} height={120} />',
-  },
+  ...IMAGE_PAGES,
   // An image sized as a share of a flex row reserves that share, whatever else the row holds.
   'flex-media': {
     defect: '<div className="media-row"><img src="/photo.png" alt="Unsized" className="half" /><p>Beside it</p></div>',
@@ -542,8 +511,9 @@ writeModule(
   path.join(appRoot, 'globals.css'),
   `${readFileSync(path.join(appRoot, 'globals.css'), 'utf8')}${STYLES}${PINNED_STYLES}${SCROLL_STYLES}${AXE_STYLES}${INTERACTION_STYLES}${ARIA_STYLES}`,
 )
-writeModule(path.join(directory, 'public', 'photo.png'), photo(PHOTO_WIDTH, PHOTO_HEIGHT))
-writeModule(path.join(directory, 'public', 'poster.png'), photo(POSTER_WIDTH, POSTER_HEIGHT))
+for (const [name, bytes] of Object.entries(visualImages())) {
+  writeModule(path.join(directory, 'public', name), bytes)
+}
 const storyPort: number = await freePort()
 writeModule(path.join(directory, 'story-server.mjs'), storyServer(mode))
 const manifestPath: string = path.join(directory, 'package.json')

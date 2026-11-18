@@ -143,6 +143,11 @@ export interface MediaFacts {
   /** The pixel size of the loaded source file, unscaled by a `srcset` density; 0 when it has none. */
   readonly naturalWidth: number
   readonly naturalHeight: number
+  /**
+   * The bytes the browser received for the loaded source file, or for a `data:` source the bytes it encodes;
+   * 0 where the page does not say, such as for a file another origin serves without timing permission.
+   */
+  readonly encodedBytes: number
   /** The content box, inside padding and border. */
   readonly contentWidth: number
   readonly contentHeight: number
