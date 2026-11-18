@@ -8,6 +8,7 @@
 [image-distorted] /image-distorted @390x844 (chromium, resting): image rendered at 160x60px from a 160x120px source
 [image-upscaled] /image-upscaled @390x844 (chromium, resting): image source 160x120px displayed at 150%
 [image-oversized] /image-oversized @390x844 (chromium, resting): image source 1600x1200px fills a 160x120px box at 10.0 source pixels per CSS pixel
+[image-heavy] /image-heavy @390x844 (chromium, resting): image source 400x300px weighs
 [media-space] /media-space @390x844 (chromium, resting): img reserves 160x0px before loading
 [image-upscaled] /srcset-image @390x844 (chromium, resting): image source 160x120px displayed at 150%
 [media-space] /flex-media @390x844 (chromium, resting): img reserves

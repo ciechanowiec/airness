@@ -502,6 +502,9 @@ geometry and pixel-contrast comparisons remain in the still passes. Text clipped
 is a finding; inactive subtrees and text deliberately outside a scrollable region are distinguished from it.
 An image whose source carries more than three pixels per CSS pixel of its box, decoding at least a mebipixel
 no screen shows, is `image-oversized`; serve a smaller source, or a `srcset` whose `sizes` match the box.
+A raster image of at least 100 KiB whose file costs more than four bits per pixel it decodes to, as a
+photograph saved as PNG or as a JPEG at full quality does, is `image-heavy`; encode it as AVIF, WebP or a
+JPEG of moderate quality.
 
 Focus and text presentation are held to WCAG 2.2 AAA. No part of a keyboard-focused control may lie under fixed
 or sticky content (`focus-obscured`). A focus indicator the page draws must change pixels by at least 3:1 over the

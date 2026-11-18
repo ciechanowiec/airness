@@ -102,6 +102,9 @@ declare const Image: new () => {
   readonly naturalHeight: number
   readonly decode: () => Promise<void>
 }
+declare const performance: {
+  readonly getEntriesByName: (name: string) => ArrayLike<{ readonly encodedBodySize?: number }>
+}
 declare const scrollX: number
 declare const scrollY: number
 
@@ -134,10 +137,12 @@ interface LayoutTools {
   readonly describe: (element: PageElement, context: NodeContext, tools: LayoutTools) => LayoutNode
   readonly reservedBoxOf: (element: PageElement) => PageBox
   readonly contentSizeOf: (box: PageBox, style: PageStyle) => Pick<MediaFacts, 'contentHeight' | 'contentWidth'>
+  readonly weightOf: (source: string) => number
   readonly loadedSourceOf: (
     element: PageElement,
     sources: SourceSizes,
-  ) => Pick<MediaFacts, 'isVector' | 'naturalHeight' | 'naturalWidth'>
+    tools: LayoutTools,
+  ) => Pick<MediaFacts, 'encodedBytes' | 'isVector' | 'naturalHeight' | 'naturalWidth'>
   readonly mediaOf: (
     element: PageElement,
     style: PageStyle,
@@ -328,11 +333,23 @@ const contentSizeOf = (box: PageBox, style: PageStyle): Pick<MediaFacts, 'conten
   }
 }
 
-// The source an element shows, and its pixel size: the file's own where it was decoded alone.
+// The weight of a source: the bytes Resource Timing says the browser received for it, or for a `data:` source
+// the bytes its data encodes, three for every four characters of Base64.
+const weightOf = (source: string): number => {
+  const base64Bytes: number = 3
+  const base64Characters: number = 4
+  const header: string = source.slice(0, Math.max(source.indexOf(','), 0))
+  const encoded: number = source.length - header.length - 1
+  const inline: number = header.endsWith(';base64') ? Math.floor((encoded * base64Bytes) / base64Characters) : encoded
+  return source.startsWith('data:') ? inline : (performance.getEntriesByName(source)[0]?.encodedBodySize ?? 0)
+}
+
+// The source an element shows, its pixel size, the file's own where it was decoded alone, and its weight.
 const loadedSourceOf = (
   element: PageElement,
   sources: SourceSizes,
-): Pick<MediaFacts, 'isVector' | 'naturalHeight' | 'naturalWidth'> => {
+  tools: LayoutTools,
+): Pick<MediaFacts, 'encodedBytes' | 'isVector' | 'naturalHeight' | 'naturalWidth'> => {
   const source: string = element.currentSrc ?? element.getAttribute('src') ?? ''
   const file: PageBox = sources.get(source) ?? {
     width: element.naturalWidth ?? 0,
@@ -342,6 +359,7 @@ const loadedSourceOf = (
     isVector: /\.svg(?:[?#]|$)|^data:image\/svg/iu.test(source),
     naturalWidth: file.width,
     naturalHeight: file.height,
+    encodedBytes: tools.weightOf(source),
   }
 }
 
@@ -359,7 +377,7 @@ const mediaOf = (
   const reserved: PageBox = tools.reservedBoxOf(element)
   return {
     isComplete: tag !== 'img' || element.complete === true,
-    ...tools.loadedSourceOf(element, sources),
+    ...tools.loadedSourceOf(element, sources, tools),
     ...tools.contentSizeOf(box, style),
     objectFit: style.getPropertyValue('object-fit'),
     reservedWidth: Math.round(reserved.width),
@@ -531,6 +549,7 @@ const STEPS: Readonly<Record<keyof LayoutTools, Step>> = {
   describe,
   reservedBoxOf,
   contentSizeOf,
+  weightOf,
   loadedSourceOf,
   mediaOf,
   sourceSizesOf,

@@ -43,6 +43,22 @@ const OVERSIZE_FLOOR_PIXELS: number = 1_048_576
 
 const PIXELS_PER_MEGAPIXEL: number = 1_000_000
 
+// A file's weight is its pixels times the bits each pixel costs, and image-oversized bounds the pixels, so a
+// bound on the bits per pixel bounds the weight. A photograph encoded as AVIF or WebP costs about one bit a
+// pixel and a good JPEG two or three, while the same photograph saved as PNG or as a JPEG at full quality
+// costs five to sixteen, which is the waste this finds. An icon or a small screenshot costs too little to
+// judge whatever it is saved as, so only a file of at least 100 KiB is.
+
+/** The bits a pixel of a raster image may cost in its file before the image is judged heavy. */
+const MAXIMUM_BITS_PER_PIXEL: number = 4
+
+/** The bytes below which an image costs too little to be judged heavy. */
+const HEAVY_FLOOR_BYTES: number = 102_400
+
+const BITS_PER_BYTE: number = 8
+
+const BYTES_PER_KIBIBYTE: number = 1024
+
 /** The device pixel ratio every viewport is rendered at. */
 export const DEVICE_SCALE_FACTOR: number = 1
 
@@ -50,8 +66,8 @@ export const DEVICE_SCALE_FACTOR: number = 1
 export const FOCUS_RING_WIDTH: number = 4
 
 /**
- * The element rules of the resting scan beyond geometry: T4, M1 to M5, WCAG 1.4.8's text presentation, and
- * WCAG 1.3.2's reading order.
+ * The element rules of the resting scan beyond geometry: T4, M1 to M5, `image-heavy`, WCAG 1.4.8's text
+ * presentation, and WCAG 1.3.2's reading order.
  */
 export const RESTING_ELEMENT_RULES: readonly string[] = [
   'small-text',
@@ -59,6 +75,7 @@ export const RESTING_ELEMENT_RULES: readonly string[] = [
   'image-distorted',
   'image-upscaled',
   'image-oversized',
+  'image-heavy',
   'media-space',
   'text-justified',
   'line-length',
@@ -231,6 +248,32 @@ const findOversizedImages = (snapshot: LayoutSnapshot): readonly CandidateFindin
               `${String(MAXIMUM_DEVICE_PIXEL_RATIO)} any screen draws, so ` +
               `${(surplus / PIXELS_PER_MEGAPIXEL).toFixed(1)} megapixels are decoded and never shown; serve a ` +
               `smaller source, or a srcset whose sizes match the box: ${node.label}`,
+          },
+        ]
+      : []
+  })
+
+/**
+ * Images whose file costs more bits per pixel than a well-compressed photograph does (rule `image-heavy`).
+ * @param snapshot the measured page.
+ * @returns one candidate per raster image of at least 100 KiB whose file costs more than four bits a pixel.
+ */
+const findHeavyImages = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+  renderedMedia(snapshot).flatMap(({ node, media }: MediaNode): readonly CandidateFinding[] => {
+    if (!(isImage(node) && hasRaster(media)) || media.encodedBytes < HEAVY_FLOOR_BYTES) {
+      return []
+    }
+    const bits: number = (media.encodedBytes * BITS_PER_BYTE) / (media.naturalWidth * media.naturalHeight)
+    return bits > MAXIMUM_BITS_PER_PIXEL
+      ? [
+          {
+            rule: 'image-heavy',
+            subjects: [node],
+            message:
+              `image source ${String(media.naturalWidth)}x${String(media.naturalHeight)}px weighs ` +
+              `${String(Math.round(media.encodedBytes / BYTES_PER_KIBIBYTE))} KiB, ${bits.toFixed(1)} bits per ` +
+              `pixel, beyond the ${String(MAXIMUM_BITS_PER_PIXEL)} a well-compressed photograph needs; ` +
+              `encode it as AVIF, WebP or a JPEG of moderate quality: ${node.label}`,
           },
         ]
       : []
@@ -634,7 +677,7 @@ export const instability = (first: GeometrySnapshot, second: GeometrySnapshot): 
 /**
  * Every element candidate the resting scan's text and media rules find on one page.
  * @param snapshot the measured page.
- * @returns the candidates of T4, M1 to M5, `text-justified`, `line-length` and `reading-order`.
+ * @returns the candidates of T4, M1 to M5, `image-heavy`, `text-justified`, `line-length` and `reading-order`.
  */
 export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateFinding[] => [
   ...findSmallText(snapshot),
@@ -642,6 +685,7 @@ export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateF
   ...findDistortedImages(snapshot),
   ...findUpscaledImages(snapshot),
   ...findOversizedImages(snapshot),
+  ...findHeavyImages(snapshot),
   ...findUnreservedMedia(snapshot),
   ...findJustifiedText(snapshot),
   ...findLongLines(snapshot),

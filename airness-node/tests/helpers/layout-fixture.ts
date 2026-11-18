@@ -119,6 +119,7 @@ export const EXEMPTIBLE_RULES: readonly string[] = [
   'image-distorted',
   'image-upscaled',
   'image-oversized',
+  'image-heavy',
   'media-space',
   'text-justified',
   'line-length',

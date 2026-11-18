@@ -69,6 +69,7 @@ const RASTER: MediaFacts = {
   objectFit: 'fill',
   reservedWidth: 400,
   reservedHeight: 300,
+  encodedBytes: 0,
 }
 
 const image = (media: Partial<MediaFacts>, fields: Partial<LayoutNode> = {}): LayoutSnapshot =>
@@ -177,6 +178,34 @@ describe('image rules', () => {
         image({ naturalWidth: 1400, naturalHeight: 1050 }),
         image({ naturalWidth: 64, naturalHeight: 64, contentWidth: 16, contentHeight: 16 }),
       ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] => candidatesOf('image-oversized', snapshot)),
+    ).toEqual([])
+  })
+
+  it('fails a file that costs more bits per pixel than a well-compressed photograph', () => {
+    expect(messages(candidatesOf('image-heavy', image({ encodedBytes: 960_000 })))).toEqual([
+      'image-heavy: image source 800x600px weighs 938 KiB, 16.0 bits per pixel, beyond the 4 a well-compressed ' +
+        'photograph needs; encode it as AVIF, WebP or a JPEG of moderate quality: img.hero',
+    ])
+  })
+
+  it('judges the file a source set or a picture chose, by the pixels that file decodes to', () => {
+    expect(
+      [
+        image({ naturalWidth: 1600, naturalHeight: 1200, encodedBytes: 1_200_000 }),
+        image({ naturalWidth: 1600, naturalHeight: 1200, encodedBytes: 600_000 }),
+      ].map((snapshot: LayoutSnapshot): number => candidatesOf('image-heavy', snapshot).length),
+    ).toEqual([1, 0])
+  })
+
+  it('passes a file it cannot weigh, a vector, a file under 100 KiB and a well-compressed photograph', () => {
+    expect(
+      [
+        image({ encodedBytes: 0 }),
+        image({ encodedBytes: 960_000, isVector: true }),
+        image({ naturalWidth: 100, naturalHeight: 100, encodedBytes: 102_399 }),
+        image({ encodedBytes: 240_000 }),
+        image({ encodedBytes: 960_000 }, { tag: 'video' }),
+      ].flatMap((snapshot: LayoutSnapshot): readonly CandidateFinding[] => candidatesOf('image-heavy', snapshot)),
     ).toEqual([])
   })
 

@@ -147,7 +147,7 @@ const nextFramesInPage = async (): Promise<void> => {
 }
 
 /**
- * Measure a settled page twice, and judge it by the resting rules: L1 to L4, T4, T6 and M1 to M5.
+ * Measure a settled page twice, and judge it by the resting rules: L1 to L4, T4, T6, M1 to M5 and `image-heavy`.
  *
  * Geometry that differs between the two measurements is a finding of its own, and the page is then
  * judged on neither: every other verdict on a page that moves is a coin toss.
