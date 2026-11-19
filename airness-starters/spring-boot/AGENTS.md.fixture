@@ -8,7 +8,8 @@ PostgreSQL. Replace this paragraph with the goal of the application it becomes.
 - `README.adoc` explains the template to people. It follows `README-guideline-writing.adoc` and must pass
   `adocent lint README.adoc`. Its diagrams are draw.io PNG files under `.adocent/resources/visuals` that carry
   their editable source: edit them in draw.io and export them with the diagram embedded again.
-- A local run starts with `cp .env.example .env`, choosing the two passwords the copy leaves empty, then
+- A local run starts with `cp .env.example .env`, choosing the passwords, the storage key pair and the
+  hexadecimal imgproxy key and salt the copy leaves empty, then
   `mvn clean verify` and `pnpm run up`, which starts `compose.yaml` on a free loopback port and prints the
   address, so several checkouts of the application run side by side.
   `.env.example` sets `APP_DEMO_DATA=true`, so the first start against an empty database writes a
@@ -26,3 +27,10 @@ PostgreSQL. Replace this paragraph with the goal of the application it becomes.
 - A component is a Thymeleaf fragment under `src/main/resources/templates/components`. Pages call the
   fragments rather than repeating daisyUI class lists, and a fragment switches between whole literal class
   names, because Tailwind writes only the classes it finds written out in a template.
+- A file a user hands the application, such as an attachment or a portrait, is stored through `MediaLibrary`
+  in RustFS and never on the server's disk, and a page draws it only through
+  `src/main/resources/templates/components/media.html`, which serves its renditions with `srcset` and
+  `sizes`. An image that ships with the pages, such as an illustration, stays a static file under
+  `src/main/resources/static`, saved at the size the page draws it at.
+- The demonstration pictures under `src/main/resources/demo` are stored at the first start like any upload.
+  They were generated once and are committed; no build or test reaches an image service.
