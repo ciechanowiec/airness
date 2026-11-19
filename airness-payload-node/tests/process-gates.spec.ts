@@ -239,8 +239,8 @@ describe('payload-defaults against a started probe', PROCESS_TIME, () => {
     const result: GateResult = payloadDefaults(
       memberProbing(
         'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false }\n' +
-          "export default { collections: [{ slug: 'media', upload: { staticDir: 'media' }, access: decided }], " +
-          'globals: [] }\n',
+          "export default { collections: [{ slug: 'media', upload: { staticDir: 'media', mimeTypes: ['application/pdf'] }, " +
+          'access: decided }], globals: [] }\n',
       ),
     )
     expect(result.ok).toBe(false)
@@ -253,11 +253,46 @@ describe('payload-defaults against a started probe', PROCESS_TIME, () => {
   it('accepts an upload collection the project declares it keeps on the local disk', () => {
     const root: string = memberProbing(
       'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false }\n' +
-        "export default { collections: [{ slug: 'media', upload: true, access: decided }], globals: [] }\n",
+        "export default { collections: [{ slug: 'media', upload: { mimeTypes: ['application/pdf'] }, access: decided }], " +
+        'globals: [] }\n',
     ).member.root
     const declared: unknown = {
       ...asRecord(PAYLOAD_MANIFEST),
       airnessPayload: { localStorage: [{ collection: 'media', reason: 'one server with a backed-up volume' }] },
+    }
+    expect(payloadDefaults(payloadMemberAt(root, declared)).ok).toBe(true)
+  })
+
+  it('names an upload collection that stores a picture as it arrived', () => {
+    const result: GateResult = payloadDefaults(
+      memberProbing(
+        'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false }\n' +
+          "export default { collections: [{ slug: 'media', upload: { disableLocalStorage: true }, " +
+          'access: decided }], globals: [] }\n',
+      ),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.summary).toBe('1 upload collection(s) keep what a camera wrote')
+    expect(result.findings.join('\n')).toContain('upload collection "media" stores an uploaded picture as it arrived')
+  })
+
+  it('accepts an upload collection that re-encodes its pictures, or one the project keeps as they arrived', () => {
+    const reencoding: GateResult = payloadDefaults(
+      memberProbing(
+        'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false }\n' +
+          "export default { collections: [{ slug: 'media', upload: { disableLocalStorage: true, " +
+          'constructorOptions: { limitInputPixels: 1000000 } }, access: decided }], globals: [] }\n',
+      ),
+    )
+    expect(reencoding.findings).toStrictEqual([])
+    const root: string = memberProbing(
+      'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false }\n' +
+        "export default { collections: [{ slug: 'archive', upload: { disableLocalStorage: true }, " +
+        'access: decided }], globals: [] }\n',
+    ).member.root
+    const declared: unknown = {
+      ...asRecord(PAYLOAD_MANIFEST),
+      airnessPayload: { keptMetadata: [{ collection: 'archive', reason: 'the capture data is the point' }] },
     }
     expect(payloadDefaults(payloadMemberAt(root, declared)).ok).toBe(true)
   })

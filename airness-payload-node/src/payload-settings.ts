@@ -40,12 +40,25 @@ export interface LocalStorage {
   readonly reason: string
 }
 
+/**
+ * One upload collection whose pictures a project stores with the metadata the camera wrote, on purpose, with the
+ * reason it does, such as an archive of photographs whose capture data is the point. An entry missing a field is
+ * dropped, which restores the finding rather than excusing a collection nobody chose to keep the metadata of.
+ */
+export interface KeptMetadata {
+  /** The upload collection's slug. */
+  readonly collection: string
+  readonly reason: string
+}
+
 /** The Payload settings a gate reads, every field populated. */
 export interface PayloadSettings {
   /** The anonymous permissions the project grants on purpose. */
   readonly publicAccess: readonly PublicAccess[]
   /** The upload collections the project keeps on the local disk on purpose. */
   readonly localStorage: readonly LocalStorage[]
+  /** The upload collections whose pictures the project keeps with their metadata on purpose. */
+  readonly keptMetadata: readonly KeptMetadata[]
   /**
    * Placeholder environment for the gates that import the configuration without running the application. A
    * Payload configuration validates `process.env` at module scope, so it cannot load in a bare shell. The
@@ -81,9 +94,10 @@ const asPublicAccess = (raw: unknown): readonly PublicAccess[] =>
       })
     : []
 
-const asLocalStorage = (raw: unknown): readonly LocalStorage[] =>
+// Both declarations that excuse an upload collection name it and say why, so one reader serves both.
+const asCollectionReasons = (raw: unknown): readonly (LocalStorage & KeptMetadata)[] =>
   isArray(raw)
-    ? raw.flatMap((entry: unknown): readonly LocalStorage[] => {
+    ? raw.flatMap((entry: unknown): readonly (LocalStorage & KeptMetadata)[] => {
         const record: Record<string, unknown> = asRecord(entry)
         const collection: string = asText(record['collection']).trim()
         const reason: string = asText(record['reason']).trim()
@@ -100,7 +114,8 @@ export const readPayloadSettings = (packageJson: unknown): PayloadSettings => {
   const block: unknown = readKey(packageJson, PAYLOAD_SETTINGS_KEY)
   return {
     publicAccess: asPublicAccess(readKey(block, 'publicAccess')),
-    localStorage: asLocalStorage(readKey(block, 'localStorage')),
+    localStorage: asCollectionReasons(readKey(block, 'localStorage')),
+    keptMetadata: asCollectionReasons(readKey(block, 'keptMetadata')),
     analysisEnv: { ...DEFAULT_ANALYSIS_ENV, ...asStringRecord(readKey(block, 'analysisEnv')) },
   }
 }

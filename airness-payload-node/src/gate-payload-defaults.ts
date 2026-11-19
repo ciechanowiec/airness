@@ -4,9 +4,9 @@
 // boots, so the collections the framework builds for the project (the folder tree, the job queue, a plugin's
 // own) are judged too. Each of those arrives with Payload's default, which admits every signed-in user, and the
 // anonymous sweep cannot see that because a signed-in user is not anonymous. The same import shows where every
-// upload collection stores its files once every storage adapter has run, which no source rule can read, and
-// what each auth collection resolves its session cookie to in production, which a login the anonymous sweep
-// never makes is the only other way to observe.
+// upload collection stores its files once every storage adapter has run, which no source rule can read, whether
+// it keeps what a camera wrote into an uploaded picture, and what each auth collection resolves its session cookie
+// to in production, which a login the anonymous sweep never makes is the only other way to observe.
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { RunResult } from '@airness/node/exec'
@@ -19,12 +19,13 @@ import {
   parseInheritedAccessReport,
 } from './payload-defaults.js'
 import { PAYLOAD_PACKAGE, type PayloadMember } from './payload-member.js'
+import { findKeptPictureMetadata, type PictureHandlingReport, parsePictureHandlingReport } from './payload-pictures.js'
 import {
   findPayloadSecurityViolations,
   type PayloadSecurityReport,
   parsePayloadSecurityReport,
 } from './payload-security.js'
-import type { LocalStorage } from './payload-settings.js'
+import type { PayloadSettings } from './payload-settings.js'
 import { findLocalUploadStorage, parseUploadStorageReport, type UploadStorageReport } from './payload-storage.js'
 import { asFindings } from './tool-findings.js'
 
@@ -43,6 +44,7 @@ interface FindingCounts {
   readonly inherited: number
   readonly draftReads: number
   readonly storage: number
+  readonly pictures: number
 }
 
 const summariseFindings = (counts: FindingCounts): string =>
@@ -54,6 +56,7 @@ const summariseFindings = (counts: FindingCounts): string =>
       ? [`${String(counts.draftReads)} drafts read(s) serve an unapproved document to a stranger`]
       : []),
     ...(counts.storage > 0 ? [`${String(counts.storage)} upload storage defect(s)`] : []),
+    ...(counts.pictures > 0 ? [`${String(counts.pictures)} upload collection(s) keep what a camera wrote`] : []),
   ].join('; ')
 
 /**
@@ -62,21 +65,32 @@ const summariseFindings = (counts: FindingCounts): string =>
  * @param result what the probe exited with and printed.
  * @returns the gate result.
  */
-const judgeProbe = (result: RunResult, localStorage: readonly LocalStorage[]): GateResult => {
+const judgeProbe = (
+  result: RunResult,
+  declared: Pick<PayloadSettings, 'localStorage' | 'keptMetadata'>,
+): GateResult => {
   if (result.code !== 0) {
     return failed('the Payload configuration could not be built', asFindings(result.output))
   }
   const report: InheritedAccessReport | undefined = parseInheritedAccessReport(result.stdout)
   const security: PayloadSecurityReport | undefined = parsePayloadSecurityReport(result.stdout)
   const storage: UploadStorageReport | undefined = parseUploadStorageReport(result.stdout)
-  if (report === undefined || security === undefined || storage === undefined) {
+  const pictures: PictureHandlingReport | undefined = parsePictureHandlingReport(result.stdout)
+  if (report === undefined || security === undefined || storage === undefined || pictures === undefined) {
     return failed('the configuration probe printed incomplete or malformed evidence', asFindings(result.output))
   }
   const inherited: readonly string[] = findInheritedAccess(report)
   const draftReads: readonly string[] = findUnconstrainedDraftReads(report)
   const securityFindings: readonly string[] = findPayloadSecurityViolations(security)
-  const storageFindings: readonly string[] = findLocalUploadStorage(storage, localStorage)
-  const findings: readonly string[] = [...inherited, ...draftReads, ...securityFindings, ...storageFindings]
+  const storageFindings: readonly string[] = findLocalUploadStorage(storage, declared.localStorage)
+  const pictureFindings: readonly string[] = findKeptPictureMetadata(pictures, declared.keptMetadata)
+  const findings: readonly string[] = [
+    ...inherited,
+    ...draftReads,
+    ...securityFindings,
+    ...storageFindings,
+    ...pictureFindings,
+  ]
   const summary: string =
     securityFindings.length > 0
       ? 'the resolved Payload security configuration has defects'
@@ -84,20 +98,21 @@ const judgeProbe = (result: RunResult, localStorage: readonly LocalStorage[]): G
           inherited: inherited.length,
           draftReads: draftReads.length,
           storage: storageFindings.length,
+          pictures: pictureFindings.length,
         })
   return findings.length > 0
     ? failed(summary, findings)
     : passed(
         'every collection and global decides its access, framework-built ones included, no drafts read serves ' +
           'an unapproved document to a stranger, the production authentication settings are valid and mark ' +
-          'every session cookie Secure, and no ' +
-          'upload collection stores its files on the local disk unless the project declares it',
+          'every session cookie Secure, no upload collection stores its files on the local disk, and none keeps ' +
+          'what a camera wrote into a picture, unless the project declares it',
       )
 }
 
 /**
  * Import the member's built configuration and fail on every operation it leaves to Payload's default, and on
- * every upload collection it stores on the local disk without a declaration.
+ * every upload collection it stores on the local disk or keeps a picture's metadata in without a declaration.
  * @param target the member being judged.
  * @returns the gate result.
  */
@@ -122,5 +137,5 @@ export const payloadDefaults = (target: PayloadMember): GateResult => {
     ])
   }
   const result: RunResult = runConfigProbe(target, [...PROBE_COMMAND, configFile, defaultAccessFile], PROBE_TIMEOUT_MS)
-  return withOutput(judgeProbe(result, target.payload.localStorage), result.output)
+  return withOutput(judgeProbe(result, target.payload), result.output)
 }

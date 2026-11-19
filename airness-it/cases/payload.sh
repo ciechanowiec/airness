@@ -232,7 +232,10 @@ with open(posts, encoding='utf-8') as stream:
     text = stream.read()
 with open(posts, 'w', encoding='utf-8') as stream:
     stream.write(
-        text.replace('versions: true,', 'versions: true,\n  folders: true,')
+        text.replace(
+            'versions: true,',
+            "versions: true,\n  folders: true,\n  upload: { mimeTypes: ['image/jpeg'], disableLocalStorage: true },",
+        )
         .replace(
             "import { anyone, nobody } from '@/access'",
             "import { anyone, nobody } from '@/access'\nimport { recentPosts } from '@/lib/recent-posts'",
@@ -334,6 +337,9 @@ ${harness_version}"
     expect_match payload_report \
         'payload: payload-defaults reports the folder collection Payload builds with its default access' \
         'payload-folders'
+    expect_match payload_report \
+        'payload: payload-defaults reports an upload collection that stores a picture as it arrived' \
+        'upload collection "posts" stores an uploaded picture as it arrived'
     expect_match payload_report 'payload: payload-migrations reports a schema change no migration records' \
         'ALTER TABLE "posts" ADD COLUMN "folder_id"'
     for gate in ${payload_gates}; do
