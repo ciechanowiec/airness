@@ -124,11 +124,14 @@ class ContainerFreshnessCheckTest {
     }
 
     @Test
-    void rejectsAResponseWhoseCountDoesNotMatchItsTags() {
+    void rejectsAResponseThatListsFewerTagsThanItCounts() {
         String registry = this.registry(
             HTTP_OK, "{\"count\":2,\"results\":[{\"name\":\"" + CURRENT_TAG + "\"}]}"
         );
-        assertThrows(IllegalStateException.class, () -> this.check(CURRENT_TAG, registry));
+        IllegalStateException failure = assertThrows(
+            IllegalStateException.class, () -> this.check(CURRENT_TAG, registry)
+        );
+        assertTrue(failure.toString().contains("reported 2 tag(s) but returned only 1"));
     }
 
     private ContainerFreshnessCheck check(String tag, String registry) {

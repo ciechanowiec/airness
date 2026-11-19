@@ -7,9 +7,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 
 /**
  * Reads public tag metadata from Docker Hub's versioned HTTP API.
@@ -26,6 +26,7 @@ final class DockerHub {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int PAGE_SIZE = 100;
     private static final int ANONYMOUS_TAG_LIMIT = 1000;
+    private static final int MAX_PAGES = ANONYMOUS_TAG_LIMIT / PAGE_SIZE;
     private static final int OK = 200;
 
     private final String base;
@@ -40,18 +41,28 @@ final class DockerHub {
         if (count > ANONYMOUS_TAG_LIMIT) {
             return RegistryTags.forHub(this.base).tags(image);
         }
-        int pages = Math.max(1, Math.ceilDiv(count, PAGE_SIZE));
-        List<String> found = IntStream.rangeClosed(1, pages)
-            .mapToObj(page -> page == 1 ? first : this.fetch(this.tagsUri(image, page)))
-            .flatMap(body -> names(body).stream())
-            .toList();
-        if (found.size() != count) {
+        List<String> found = this.pages(image, first);
+        // Fewer tags than the count is a listing cut short, which could hide the newest release. More is a count
+        // that lags a tag pushed since it was taken, and the pages read to the end already hold every tag.
+        if (found.size() < count) {
             throw new IllegalStateException(
-                "Docker Hub reported " + count + " tag(s) but returned " + found.size()
+                "Docker Hub reported " + count + " tag(s) but returned only " + found.size()
                     + " for " + image.name()
             );
         }
         return found;
+    }
+
+    // Read page after page until one comes back short, rather than as many pages as the count implies, since the
+    // count can lag the tags it counts in either direction.
+    private List<String> pages(DockerReference image, String first) {
+        List<String> found = new ArrayList<>(names(first));
+        List<String> page = names(first);
+        for (int number = 2; page.size() == PAGE_SIZE && number <= MAX_PAGES; number++) {
+            page = names(this.fetch(this.tagsUri(image, number)));
+            found.addAll(page);
+        }
+        return List.copyOf(found);
     }
 
     String digest(DockerReference image, String tag) {
