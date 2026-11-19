@@ -105,6 +105,14 @@ html {
 }
 
 /*
+ * A control the keyboard reaches off the screen is scrolled into view with room for its ring, which is drawn
+ * outside it, so the ring of a control at the foot of a long page is never cut off by the edge of the window.
+ */
+:where(a[href], button, input, select, textarea, summary, [tabindex]) {
+    scroll-margin: 0.5rem;
+}
+
+/*
  * A raised surface: a hairline edge and a soft, low shadow. A filled control takes its edge from its own
  * colour. Only a surface a reader can act on, a link, a button, a label or a card they can drag, lifts a
  * little under the pointer and settles when pressed, so a panel or a badge never moves under a click.
