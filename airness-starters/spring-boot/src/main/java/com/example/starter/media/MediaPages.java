@@ -3,6 +3,7 @@ package com.example.starter.media;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -19,9 +20,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Serves the stored files to whoever may see them: each rendition a page draws, and the file as it was
- * handed over, which is always downloaded rather than opened in the page. A file the reader may not see is
- * answered as one that does not exist.
+ * Serves the stored files to whoever may see them: each rendition a page draws, and an attachment as it was
+ * handed over, which is always downloaded rather than opened in the page. A portrait is served by its
+ * renditions alone, since it is shown to everybody signed in and the file as it was handed over still carries
+ * its metadata, such as where a photograph was taken. A file the reader may not see is answered as one that
+ * does not exist.
  *
  * <p>Neither a rendition nor a file ever changes under its address, since a changed file is a new file under
  * a new reference, so a browser keeps both for a year without asking again. They are kept by the browser
@@ -87,7 +90,9 @@ public final class MediaPages {
      */
     @GetMapping("/{reference}/original")
     public ResponseEntity<Resource> original(@PathVariable(name = REFERENCE, required = true) UUID reference) {
-        MediaObject file = this.seen(reference);
+        MediaObject file = Optional.of(this.seen(reference))
+            .filter(seen -> seen.getPurpose() == MediaPurpose.ATTACHMENT)
+            .orElseThrow(MediaPages::missing);
         StoredObject original = this.library.original(file);
         return ResponseEntity.ok()
             .cacheControl(KEPT)
