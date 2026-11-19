@@ -6,6 +6,7 @@ import com.example.starter.identity.UserProfile;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
@@ -87,10 +88,7 @@ public final class DemoData implements ApplicationRunner {
         LocalDate today = this.layer.today();
         this.acting(this.administrator, Role.ADMIN, () -> DemoCast.PEOPLE.forEach(this::admit));
         DemoCast.PEOPLE.forEach(
-            person -> this.acting(
-                person.email(this.domain()), person.role(),
-                () -> person.tasks().forEach(task -> this.layer.create(task.content(today)))
-            )
+            person -> this.acting(person.email(this.domain()), person.role(), () -> this.seeded(person, today))
         );
         this.acting(
             this.administrator, Role.ADMIN,
@@ -100,6 +98,18 @@ public final class DemoData implements ApplicationRunner {
         );
         int written = DemoCast.PEOPLE.stream().mapToInt(person -> person.tasks().size()).sum();
         log.atInfo().log(WRITTEN, DemoCast.PEOPLE.size(), written);
+    }
+
+    // Each person is given the portrait the demonstration ships for them, and each of their tasks the picture
+    // shipped for it, named by the person and the task's place among theirs, counted from one.
+    private void seeded(DemoPerson person, LocalDate today) {
+        this.layer.portray("demo/people/%s.webp".formatted(person.slug()));
+        IntStream.range(0, person.tasks().size()).forEach(
+            index -> this.layer.attach(
+                this.layer.create(person.tasks().get(index).content(today)),
+                "demo/tasks/%s-%d.webp".formatted(person.slug(), index + 1)
+            )
+        );
     }
 
     private void admit(DemoPerson person) {

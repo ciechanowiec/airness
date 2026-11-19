@@ -28,4 +28,13 @@ record DemoPerson(String fullName, String mailbox, Role role, boolean stopped, L
     String email(String domain) {
         return this.mailbox + "@" + domain;
     }
+
+    /**
+     * Answers the word the pictures the demonstration ships for the person are named by.
+     *
+     * @return the mailbox with its dots as hyphens, such as {@code maja-kowalska}
+     */
+    String slug() {
+        return this.mailbox.replace('.', '-');
+    }
 }

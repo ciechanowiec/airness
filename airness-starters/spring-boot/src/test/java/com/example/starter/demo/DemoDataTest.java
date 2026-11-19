@@ -35,6 +35,14 @@ class DemoDataTest {
     private static final String TASKS = """
         SELECT COUNT(*) FROM task JOIN app_user ON app_user.id = task.owner_id WHERE app_user.email LIKE ?""";
 
+    private static final String PORTRAITS = """
+        SELECT COUNT(*) FROM user_portrait JOIN app_user ON app_user.id = user_portrait.user_id
+        WHERE app_user.email LIKE ?""";
+
+    private static final String ATTACHMENTS = """
+        SELECT COUNT(*) FROM task_attachment JOIN task ON task.id = task_attachment.task_id
+        JOIN app_user ON app_user.id = task.owner_id WHERE app_user.email LIKE ?""";
+
     private final DemoLayer layer;
 
     private final Users users;
@@ -52,7 +60,13 @@ class DemoDataTest {
     @AfterEach
     void removeTheTeams() {
         this.database.update(
+            "DELETE FROM user_portrait WHERE user_id IN (SELECT id FROM app_user WHERE email LIKE ?)", TEAMS
+        );
+        this.database.update(
             "DELETE FROM task WHERE owner_id IN (SELECT id FROM app_user WHERE email LIKE ?)", TEAMS
+        );
+        this.database.update(
+            "DELETE FROM media_object WHERE created_by IN (SELECT id FROM app_user WHERE email LIKE ?)", TEAMS
         );
         this.database.update("DELETE FROM app_user WHERE email LIKE ?", TEAMS);
     }
@@ -102,6 +116,16 @@ class DemoDataTest {
                 engineer.tasks().size(),
                 this.database.queryForObject(TASKS, Long.class, engineer.email("team.demo.test"))
             )
+        );
+    }
+
+    @Test
+    void givesEachPersonTheirPortraitAndEachTaskItsPicture() {
+        this.written("pictured.demo.test", true);
+        long tasks = DemoCast.PEOPLE.stream().mapToLong(person -> person.tasks().size()).sum();
+        assertAll(
+            () -> assertEquals(DemoCast.PEOPLE.size(), this.count(PORTRAITS, "pictured.demo.test")),
+            () -> assertEquals(tasks, this.count(ATTACHMENTS, "pictured.demo.test"))
         );
     }
 
