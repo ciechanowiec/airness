@@ -1,8 +1,10 @@
 package com.example.starter.identity;
 
 import com.example.starter.TransactionTimeout;
+import com.example.starter.media.MediaView;
 import com.example.starter.web.Listing;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -29,13 +31,17 @@ public class Roster {
 
     private final UserRepository repository;
 
+    private final Portraits portraits;
+
     /**
      * Reads the accounts through the given repository.
      *
      * @param repository the accounts as the database holds them
+     * @param portraits  the pictures the accounts are shown with
      */
-    public Roster(UserRepository repository) {
+    public Roster(UserRepository repository, Portraits portraits) {
         this.repository = repository;
+        this.portraits = portraits;
     }
 
     /**
@@ -49,10 +55,15 @@ public class Roster {
     public Listing<UserView> people(int page) {
         Page<User> found = this.repository.admitted(Listing.request(page, PAGE_SIZE, Sort.unsorted()));
         long administrators = this.repository.enabledUnder(Role.ADMIN);
+        Map<Long, MediaView> drawn = this.portraits.of(found.getContent().stream().map(User::getId).toList());
         List<UserView> views = found.getContent()
             .stream()
-            .map(user -> UserView.of(user, user.getAccess().soleAdministrator(administrators)))
-            .toList();
+            .map(
+                user -> UserView.of(
+                    user, user.getAccess().soleAdministrator(administrators),
+                    drawn.getOrDefault(user.getId(), MediaView.NONE)
+                )
+            ).toList();
         return Listing.of(found, views);
     }
 
@@ -66,7 +77,12 @@ public class Roster {
     public Optional<UserView> person(UUID reference) {
         long administrators = this.repository.enabledUnder(Role.ADMIN);
         return this.repository.findByReference(reference)
-            .map(user -> UserView.of(user, user.getAccess().soleAdministrator(administrators)));
+            .map(
+                user -> UserView.of(
+                    user, user.getAccess().soleAdministrator(administrators),
+                    this.portraits.of(List.of(user.getId())).getOrDefault(user.getId(), MediaView.NONE)
+                )
+            );
     }
 
     /**

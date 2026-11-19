@@ -1,5 +1,6 @@
 package com.example.starter.identity;
 
+import com.example.starter.media.MediaView;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
@@ -17,13 +18,17 @@ public final class Owners {
 
     private final UserRepository repository;
 
+    private final Portraits portraits;
+
     /**
      * Reads the accounts through the given repository.
      *
      * @param repository the accounts as the database holds them
+     * @param portraits  the pictures the accounts are shown with
      */
-    public Owners(UserRepository repository) {
+    public Owners(UserRepository repository, Portraits portraits) {
         this.repository = repository;
+        this.portraits = portraits;
     }
 
     /**
@@ -56,6 +61,16 @@ public final class Owners {
         return this.repository.findAllById(identifiers)
             .stream()
             .collect(Collectors.toMap(User::getId, user -> user.getProfile().fullName()));
+    }
+
+    /**
+     * Answers the portraits the given accounts are shown with, read in two queries.
+     *
+     * @param identifiers the identifiers of the accounts
+     * @return each portrait, under the identifier of its account, for each account with one
+     */
+    public Map<Long, MediaView> portraits(Collection<Long> identifiers) {
+        return this.portraits.of(identifiers);
     }
 
     private User account() {

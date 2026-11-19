@@ -49,10 +49,25 @@ public final class Pictures {
      *
      * @return its bytes
      */
-    @SneakyThrows
     public static byte[] pdf() {
+        return pdf(PDRectangle.A4);
+    }
+
+    /**
+     * Answers a PDF of one page of the given size.
+     *
+     * @param width  the width of the page, in points
+     * @param height the height of the page, in points
+     * @return its bytes
+     */
+    public static byte[] pdf(float width, float height) {
+        return pdf(new PDRectangle(width, height));
+    }
+
+    @SneakyThrows
+    private static byte[] pdf(PDRectangle box) {
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
-            document.addPage(new PDPage(PDRectangle.A4));
+            document.addPage(new PDPage(box));
             document.save(bytes);
             return bytes.toByteArray();
         }

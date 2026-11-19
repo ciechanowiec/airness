@@ -1,28 +1,17 @@
 <!--/*
-    A person drawn as their portrait where the application ships one, and as their initials on one of six
-    tones otherwise. The tone is read from the name, so the same person is the same colour on every page.
-    Either repeats the name beside it, so both are hidden from assistive technology.
+    A person drawn as their portrait where they have one, and as their initials on one of six tones otherwise.
+    The tone is read from the name, so the same person is the same colour on every page. Either repeats the
+    name beside it, so both are hidden from assistive technology.
+
+    A portrait is drawn from its renditions, which are made at the widths an avatar is ever drawn at, so the
+    browser is told the widest avatar and takes the rendition that fills it at the screen's density.
 */-->
-<th:block
-    th:fragment="avatar(name, size)"
-    th:with="portrait=${@portraits.of(name)}"
-    xmlns:th="http://www.thymeleaf.org"
->
-    <img
-        th:if="${portrait.isPresent()}"
-        class="avatar-photo"
-        th:classappend="${size}"
-        th:src="@{${portrait.get()}}"
-        alt=""
-        aria-hidden="true"
-        draggable="false"
-        width="96"
-        height="96"
-        loading="lazy"
-        decoding="async"
-    />
+<th:block th:fragment="avatar(name, portrait, size)" xmlns:th="http://www.thymeleaf.org">
+    <th:block th:if="${portrait.rendering().drawable()}">
+        <picture th:replace="~{components/media :: drawn(${portrait}, '5rem', '', |avatar-photo ${size}|)}"></picture>
+    </th:block>
     <span
-        th:unless="${portrait.isPresent()}"
+        th:unless="${portrait.rendering().drawable()}"
         th:with="parts=${#strings.arraySplit(name, ' ')}"
         class="avatar-initials"
         th:classappend="|avatar-tone-${#strings.length(name) % 6} ${size}|"
@@ -31,3 +20,22 @@
         >AB</span
     >
 </th:block>
+
+<!--/*
+    A face the application ships with its pages, which the preview on the landing page draws for people who
+    exist only in that preview and have no account to keep a portrait for.
+*/-->
+<img
+    th:fragment="still(source, size)"
+    class="avatar-photo"
+    th:classappend="${size}"
+    th:src="@{${source}}"
+    alt=""
+    aria-hidden="true"
+    draggable="false"
+    width="96"
+    height="96"
+    loading="lazy"
+    decoding="async"
+    xmlns:th="http://www.thymeleaf.org"
+/>

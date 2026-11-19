@@ -1,5 +1,7 @@
 package com.example.starter.task;
 
+import com.example.starter.identity.Person;
+
 /**
  * The tasks one account keeps that are not yet done, counted by how they stand, as the database adds them
  * up before the account is named. A task past its due day counts as late whatever its status, so no task
@@ -13,12 +15,12 @@ package com.example.starter.task;
 public record Tally(long ownerId, long inProgress, long open, long late) {
 
     /**
-     * Answers this tally under the name its account is shown under.
+     * Answers this tally under the person its account is shown as.
      *
-     * @param name the name the account is shown under
+     * @param person the name and the portrait the account is shown with
      * @return the load the pages show
      */
-    Load named(String name) {
-        return new Load(name, this.inProgress, this.open, this.late);
+    Load of(Person person) {
+        return new Load(person.name(), person.portrait(), this.inProgress, this.open, this.late);
     }
 }

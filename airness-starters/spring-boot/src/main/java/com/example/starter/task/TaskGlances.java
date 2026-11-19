@@ -2,8 +2,10 @@ package com.example.starter.task;
 
 import com.example.starter.TransactionTimeout;
 import com.example.starter.identity.Owners;
+import com.example.starter.identity.Person;
 import com.example.starter.identity.Reader;
 import com.example.starter.identity.Role;
+import com.example.starter.media.MediaView;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -105,10 +107,17 @@ public class TaskGlances {
         List<Tally> tallies = this.repository.tallied(
             today, TaskStatus.IN_PROGRESS, TaskStatus.DONE, Limit.of(LOADS)
         );
-        Map<Long, String> names = this.owners.names(tallies.stream().map(Tally::ownerId).toList());
+        List<Long> keepers = tallies.stream().map(Tally::ownerId).toList();
+        Map<Long, String> names = this.owners.names(keepers);
+        Map<Long, MediaView> portraits = this.owners.portraits(keepers);
         return tallies.stream()
-            .map(tally -> tally.named(names.getOrDefault(tally.ownerId(), "")))
-            .sorted(Comparator.comparing(Load::name))
+            .map(
+                tally -> tally.of(
+                    new Person(
+                        names.getOrDefault(tally.ownerId(), ""), portraits.getOrDefault(tally.ownerId(), MediaView.NONE)
+                    )
+                )
+            ).sorted(Comparator.comparing(Load::name))
             .toList();
     }
 

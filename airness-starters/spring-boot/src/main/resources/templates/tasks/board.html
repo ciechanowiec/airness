@@ -98,12 +98,12 @@
                             <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
                                 <span th:if="${administrator}" class="flex min-w-0 items-center gap-2 text-open-ink">
                                     <span
-                                        th:replace="~{components/avatar :: avatar(${task.owner()}, 'size-6 text-xs')}"
+                                        th:replace="~{components/avatar :: avatar(${task.owner().name()}, ${task.owner().portrait()}, 'size-6 text-xs')}"
                                     ></span>
                                     <span
                                         class="truncate"
-                                        th:title="${task.owner()}"
-                                        th:text="${#strings.contains(task.owner(), ' ')} ? ${#strings.substringBefore(task.owner(), ' ')} : ${task.owner()}"
+                                        th:title="${task.owner().name()}"
+                                        th:text="${#strings.contains(task.owner().name(), ' ')} ? ${#strings.substringBefore(task.owner().name(), ' ')} : ${task.owner().name()}"
                                         >Maja</span
                                     >
                                 </span>

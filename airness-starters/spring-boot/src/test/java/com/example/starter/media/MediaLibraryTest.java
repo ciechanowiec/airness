@@ -7,11 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.example.starter.Caller;
 import com.example.starter.DatabaseTest;
-import com.example.starter.identity.Accounts;
-import com.example.starter.identity.Role;
-import com.example.starter.identity.UserRepository;
-import com.example.starter.identity.Users;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -21,6 +18,7 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 @DatabaseTest
@@ -58,17 +56,27 @@ class MediaLibraryTest {
 
     private static final int OVERLONG = 400;
 
+    // A page one point wide and far taller than any sheet, which fitted to the page width alone would decode into
+    // a picture of millions of pixels.
+    private static final float STRIP_WIDTH = 1;
+
+    private static final float STRIP_HEIGHT = 2000;
+
+    private static final int PAGE_HEIGHT_BOUND = 4000;
+
     private final MediaLibrary library;
 
     private final MediaStorage storage;
 
     private final long actor;
 
-    MediaLibraryTest(MediaLibrary library, MediaStorage storage, Users users, UserRepository accounts) {
+    // Files are stored as the first administrator, whom every run writes.
+    MediaLibraryTest(MediaLibrary library, MediaStorage storage, JdbcTemplate database) {
         this.library = library;
         this.storage = storage;
-        String email = Accounts.admitted(users, "media", Role.USER);
-        this.actor = accounts.findByProfileEmail(email).orElseThrow().getId();
+        this.actor = Objects.requireNonNull(
+            database.queryForObject("SELECT id FROM app_user WHERE email = ?", Long.class, Caller.ADMINISTRATOR)
+        );
     }
 
     private static Upload upload(String name, byte[] bytes) {
@@ -124,6 +132,17 @@ class MediaLibraryTest {
     void keepsAPdfThatCannotBeReadWithoutAPicture() {
         MediaObject file = this.stored("broken.pdf", "%PDF-1.7 nothing follows".getBytes(StandardCharsets.US_ASCII));
         assertEquals(Rendering.NONE, this.view(file).rendering());
+    }
+
+    @Test
+    void drawsAPageOfAnyProportionsNoLargerThanItsBounds() {
+        Rendering rendering = this.view(this.stored("strip.pdf", Pictures.pdf(STRIP_WIDTH, STRIP_HEIGHT))).rendering();
+        assertTrue(rendering.height() <= PAGE_HEIGHT_BOUND);
+    }
+
+    @Test
+    void keepsAPdfWhosePageHasNoAreaWithoutAPicture() {
+        assertEquals(Rendering.NONE, this.view(this.stored("flat.pdf", Pictures.pdf(STRIP_WIDTH, 0))).rendering());
     }
 
     @Test

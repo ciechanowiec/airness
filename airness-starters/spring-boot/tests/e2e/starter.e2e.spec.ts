@@ -118,6 +118,22 @@ test('a task with attached files passes the scans', async ({ page }) => {
   }
 })
 
+// A portrait is drawn beside the reader's name in the navigation and large on their account page, each from
+// the rendition that fills it.
+test('a reader with a portrait passes the scans', async ({ page }) => {
+  const { email, secret } = await admitUser(page)
+  await signIn(page, email, secret)
+  await page.goto('/account')
+  await page.locator('#portrait-file').setInputFiles({
+    name: 'me.webp',
+    mimeType: 'image/webp',
+    buffer: await readFile('src/main/resources/static/images/empty.webp'),
+  })
+  await page.locator('form[action="/account/portrait"] button[type="submit"]').click()
+  await expect(page).toHaveURL(/notice=PORTRAIT_CHANGED$/u)
+  await expectSweptPage(page)
+})
+
 // The language switch loads the whole page, so the page declares the language it is now written in and a
 // screen reader pronounces it in that language.
 test('switching the language makes the page declare it', async ({ page }) => {

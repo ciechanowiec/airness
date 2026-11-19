@@ -1,5 +1,7 @@
 package com.example.starter.identity;
 
+import com.example.starter.media.MediaView;
+import java.util.List;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
@@ -13,13 +15,30 @@ public final class ReaderModel {
 
     private final UserRepository repository;
 
+    private final Portraits portraits;
+
     /**
      * Reads the reader's account from the given repository.
      *
      * @param repository the accounts of the application
+     * @param portraits  the pictures the accounts are shown with
      */
-    public ReaderModel(UserRepository repository) {
+    public ReaderModel(UserRepository repository, Portraits portraits) {
         this.repository = repository;
+        this.portraits = portraits;
+    }
+
+    /**
+     * Answers the portrait the signed-in reader is shown with, which the navigation draws beside their name.
+     *
+     * @return the portrait, or {@link MediaView#NONE} where the reader has none or nobody has signed in
+     */
+    @ModelAttribute("readerPortrait")
+    public MediaView readerPortrait() {
+        return Reader.email()
+            .flatMap(this.repository::findByProfileEmail)
+            .map(user -> this.portraits.of(List.of(user.getId())).getOrDefault(user.getId(), MediaView.NONE))
+            .orElse(MediaView.NONE);
     }
 
     /**

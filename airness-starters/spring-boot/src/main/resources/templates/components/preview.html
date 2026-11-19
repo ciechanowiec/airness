@@ -52,7 +52,7 @@
                             >
                             <span class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                                 <span
-                                    th:replace="~{components/avatar :: avatar('Maja Kowalska', 'size-5 text-xs')}"
+                                    th:replace="~{components/avatar :: still('/images/preview/maja-kowalska.webp', 'size-5 text-xs')}"
                                 ></span>
                                 <span class="chip px-2 text-xs chip-late" th:text="#{task.due.late(2)}"
                                     >2 days late</span
@@ -68,7 +68,7 @@
                             >
                             <span class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                                 <span
-                                    th:replace="~{components/avatar :: avatar('Tomasz Nowak', 'size-5 text-xs')}"
+                                    th:replace="~{components/avatar :: still('/images/preview/tomasz-nowak.webp', 'size-5 text-xs')}"
                                 ></span>
                                 <span class="chip px-2 text-xs chip-today" th:text="#{task.due.today}">Due today</span>
                             </span>
@@ -99,7 +99,7 @@
                             >
                             <span class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                                 <span
-                                    th:replace="~{components/avatar :: avatar('Sophie Turner', 'size-5 text-xs')}"
+                                    th:replace="~{components/avatar :: still('/images/preview/sophie-turner.webp', 'size-5 text-xs')}"
                                 ></span>
                                 <span class="chip px-2 text-xs chip-open" th:text="#{task.due.in(3)}">in 3 days</span>
                             </span>
@@ -132,7 +132,7 @@
                             >
                             <span class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                                 <span
-                                    th:replace="~{components/avatar :: avatar('Piotr Wiśniewski', 'size-5 text-xs')}"
+                                    th:replace="~{components/avatar :: still('/images/preview/piotr-wisniewski.webp', 'size-5 text-xs')}"
                                 ></span>
                                 <span class="chip px-2 text-xs chip-done" th:text="#{task.status.done}">Done</span>
                             </span>
@@ -146,7 +146,7 @@
                             >
                             <span class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                                 <span
-                                    th:replace="~{components/avatar :: avatar('Emily Carter', 'size-5 text-xs')}"
+                                    th:replace="~{components/avatar :: still('/images/preview/emily-carter.webp', 'size-5 text-xs')}"
                                 ></span>
                                 <span class="chip px-2 text-xs chip-done" th:text="#{task.status.done}">Done</span>
                             </span>
@@ -165,7 +165,9 @@
                     >Review the checkout redesign</span
                 >
                 <span class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-                    <span th:replace="~{components/avatar :: avatar('Emily Carter', 'size-5 text-xs')}"></span>
+                    <span
+                        th:replace="~{components/avatar :: still('/images/preview/emily-carter.webp', 'size-5 text-xs')}"
+                    ></span>
                     <span class="chip px-2 text-xs chip-open" th:text="#{task.due.in(2)}">in 2 days</span>
                 </span>
             </div>

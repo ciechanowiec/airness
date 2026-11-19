@@ -4,6 +4,7 @@ import com.example.starter.audit.AuditAction;
 import com.example.starter.audit.AuditOutcome;
 import com.example.starter.audit.AuditTrail;
 import com.example.starter.identity.Owners;
+import com.example.starter.identity.Person;
 import com.example.starter.identity.Reader;
 import com.example.starter.identity.Role;
 import com.example.starter.media.MediaView;
@@ -60,19 +61,25 @@ public final class TaskReach {
 
     /**
      * Answers how the given tasks are shown to the reader, their owners' names read in one query and their
-     * covers in two.
+     * owners' portraits and the tasks' covers in two each.
      *
      * @param found the tasks as the database holds them
      * @return the tasks as the pages show them, in the same order
      */
     List<TaskView> views(List<Task> found) {
-        Map<Long, String> names = this.names(found.stream().map(Task::getOwnerId).collect(Collectors.toSet()));
+        Set<Long> keepers = found.stream().map(Task::getOwnerId).collect(Collectors.toSet());
+        Map<Long, String> names = this.names(keepers);
+        Map<Long, MediaView> portraits = this.portraits(keepers);
         Map<Long, MediaView> drawn = this.covers.of(found.stream().map(Task::getId).toList());
         LocalDate today = LocalDate.now(this.clock);
         return found.stream()
             .map(
                 task -> TaskView.of(
-                    task, today, names.getOrDefault(task.getOwnerId(), ""),
+                    task, today,
+                    new Person(
+                        names.getOrDefault(task.getOwnerId(), ""),
+                        portraits.getOrDefault(task.getOwnerId(), MediaView.NONE)
+                    ),
                     drawn.getOrDefault(task.getId(), MediaView.NONE)
                 )
             ).toList();
@@ -105,5 +112,9 @@ public final class TaskReach {
 
     private Map<Long, String> names(Set<Long> owners) {
         return Reader.holds(Role.ADMIN) ? this.owners.names(owners) : Map.of();
+    }
+
+    private Map<Long, MediaView> portraits(Set<Long> owners) {
+        return Reader.holds(Role.ADMIN) ? this.owners.portraits(owners) : Map.of();
     }
 }
