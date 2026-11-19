@@ -6,6 +6,16 @@ import type { NextConfig } from 'next'
 const __filename: string = fileURLToPath(import.meta.url)
 const dirname: string = path.dirname(__filename)
 
+// The widths, in pixels, next/image renders a stored picture at: a card in the grid, a phone's screen at once and
+// twice its pixels, a tablet, a laptop and a desktop, and the article cover at twice its 72rem.
+const CARD: number = 384
+const PHONE: number = 640
+const PHONE_TWICE: number = 828
+const TABLET: number = 1080
+const LAPTOP: number = 1280
+const DESKTOP: number = 1920
+const COVER_TWICE: number = 2304
+
 const nextConfig: NextConfig = {
   // `next dev` would otherwise write its agent rules into AGENTS.md, in typography the harness refuses;
   // AGENTS.md carries the same guidance in its project-owned part.
@@ -34,8 +44,8 @@ const nextConfig: NextConfig = {
   // is the smaller of the two, and WebP serves a browser without it. A rendered picture is reused for a day, so a
   // file replaced under the same name appears within one.
   images: {
-    deviceSizes: [640, 828, 1080, 1280, 1920, 2304],
-    imageSizes: [384],
+    deviceSizes: [PHONE, PHONE_TWICE, TABLET, LAPTOP, DESKTOP, COVER_TWICE],
+    imageSizes: [CARD],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86_400,
     localPatterns: [
