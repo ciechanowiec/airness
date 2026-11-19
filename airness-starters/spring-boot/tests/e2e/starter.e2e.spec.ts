@@ -53,6 +53,30 @@ test('the pages a user works in pass the scans', async ({ page }) => {
   await expectSweptPage(page)
 })
 
+// The due day is typed or picked from a calendar the browser's own date control would not let the stylesheet
+// reach. The page is scanned with the calendar open, so its days and month buttons meet the same checks as
+// every other control, and a picked day is the one the task is saved with.
+test('a day picked from the calendar is the day the task keeps', async ({ page }) => {
+  await signIn(page, ADMINISTRATOR, CREDENTIAL)
+  const title: string = `Calendar task ${randomUUID()}`
+  await writeTask(page, title)
+  await page.goto(`/tasks?search=${encodeURIComponent(title)}`)
+  const edit: string | null = await page.getByRole('link', { name: title }).getAttribute('href')
+  await page.goto(edit ?? '')
+  await page.locator('[data-date-field] summary').click()
+  const calendar: Locator = page.locator('calendar-date')
+  await expect(calendar).toBeVisible()
+  await expectSweptPage(page)
+  await calendar.locator('button[part~="day"]').filter({ hasText: /^15$/u }).click()
+  await expect(calendar).toBeHidden()
+  const day: string = await page.locator('input[name="dueOn"]').inputValue()
+  expect(day).toMatch(/^\d{4}-\d{2}-15$/u)
+  await page.locator('main form').first().locator('button[type="submit"]').click()
+  await expect(page).toHaveURL(/notice=SAVED$/u)
+  await page.goto(edit ?? '')
+  await expect(page.locator('input[name="dueOn"]')).toHaveValue(day)
+})
+
 // The language switch loads the whole page, so the page declares the language it is now written in and a
 // screen reader pronounces it in that language.
 test('switching the language makes the page declare it', async ({ page }) => {

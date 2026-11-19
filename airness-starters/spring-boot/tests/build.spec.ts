@@ -14,6 +14,8 @@ describe('the frontend build', (): void => {
       expect(await readdir(path.join(destination, 'js'))).toContain('app.js')
       const licenses: readonly string[] = await readdir(path.join(destination, 'licenses'))
       expect(licenses.toSorted((first: string, second: string): number => first.localeCompare(second))).toEqual([
+        'atomico.txt',
+        'cally.txt',
         'daisyui.txt',
         'fontsource-geist-mono.txt',
         'fontsource-variable-schibsted-grotesk.txt',
