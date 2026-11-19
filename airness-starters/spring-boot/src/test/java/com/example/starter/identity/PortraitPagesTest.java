@@ -119,10 +119,22 @@ class PortraitPagesTest {
 
     @Test
     void showsEveryAccountWithItsPortraitToAnAdministrator(@LocalServerPort int port) {
-        Caller reader = this.reader(port);
+        String email = Accounts.admitted(this.users, "portrait", Role.USER);
+        Caller reader = Caller.signedIn(port, email, Accounts.SECRET);
         reader.upload(PORTRAIT, PICTURE, Map.of("me.png", Pictures.png(SIDE, SIDE)));
         String portrait = rendition(reader.get(ACCOUNT).body());
         String media = portrait.substring(0, portrait.lastIndexOf('/'));
-        assertTrue(Caller.administrator(port).get("/users").body().contains(media));
+        assertTrue(listingOf(Caller.administrator(port), email).contains(media));
+    }
+
+    // The list of accounts holds twenty to a page, ordered by name, and the suite's tests share one database, so
+    // how many accounts come before this one depends on which tests ran first. The account is looked for on each
+    // page in turn, following the link to the next page until the list ends.
+    private static String listingOf(Caller administrator, String email) {
+        String page = administrator.get("/users").body();
+        for (int number = 2; !page.contains(email) && page.contains("page=" + number); number++) {
+            page = administrator.get("/users?page=" + number).body();
+        }
+        return page;
     }
 }
