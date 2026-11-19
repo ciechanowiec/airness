@@ -17,6 +17,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -38,6 +39,9 @@ class AttachmentPagesTest {
     private static final int HIGH = 600;
 
     private static final int SMALL = 32;
+
+    // Well past the 25 MB a file may hold, so the refusal does not hang on where any one limit sits.
+    private static final long BEYOND_ONE_FILE = 30L * 1024 * 1024;
 
     private static final Pattern RENDITION = Pattern.compile("/media/[0-9a-f-]{36}/w\\d+\\.avif");
 
@@ -148,6 +152,21 @@ class AttachmentPagesTest {
             () -> assertTrue(landing(answer).endsWith(edit(task) + "?refused=UNSUPPORTED")),
             () -> assertTrue(
                 reader.get(within(landing(answer))).body().contains("One of the files is not an image or a PDF.")
+            )
+        );
+    }
+
+    @Test
+    void saysAFileIsTooLargeWhateverItsSize(@LocalServerPort int port) {
+        String email = this.reader();
+        UUID task = this.task(email);
+        Caller reader = Caller.signedIn(port, email, Accounts.SECRET);
+        byte[] large = Arrays.copyOf(Pictures.jpeg(SMALL, SMALL), Math.toIntExact(BEYOND_ONE_FILE));
+        HttpResponse<String> answer = reader.upload(attachments(task), FILES, Map.of("scan.jpg", large));
+        assertAll(
+            () -> assertTrue(landing(answer).endsWith(edit(task) + "?refused=TOO_LARGE")),
+            () -> assertTrue(
+                reader.get(within(landing(answer))).body().contains("One of the files is larger than 25 MB.")
             )
         );
     }
