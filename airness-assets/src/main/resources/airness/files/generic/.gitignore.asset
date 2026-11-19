@@ -36,6 +36,10 @@ dist/
 dist-tarballs/
 build/
 out/
+# JVM class files and Gradle's state, which every project ignores, Java or not, since adocent asks it of each
+# project it manages.
+*.class
+.gradle/
 
 # Supabase
 .supabase/
