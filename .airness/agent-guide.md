@@ -164,7 +164,8 @@ Airness governs all of the following domains:
   and Security Corrections describes, lists the packages of each image, refuses an image that runs as root, and
   boots the image of a browser application, hardened, against empty services. A
   browser application that is not a Next.js application declares the script that serves it as `serve`. A
-  Next.js application gets the React and Next.js lint rules and Biome domains, `arch` keeps `src/app` on top and
+  Next.js application gets the React and Next.js lint rules and Biome domains, sends every picture through the
+  image optimizer rather than past it with `unoptimized` or `images.unoptimized`, `arch` keeps `src/app` on top and
   refuses a routes directory (`app` or `pages`) at the member root rather than under `src`, the pages the crawl
   renders and `src/proxy.ts` are left to `e2e` rather than to the coverage floor, and the assets goal seeds
   `src/proxy.ts`. A node project declares only what the harness cannot know, under the `airness` key
