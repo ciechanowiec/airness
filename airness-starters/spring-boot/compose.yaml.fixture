@@ -18,10 +18,60 @@ services:
       retries: 20
     volumes:
       - database:/var/lib/postgresql
+  # S3-compatible storage for every attached file. The health check creates the bucket with the image's own
+  # client, so it answers once RustFS accepts requests and the bucket the application writes to exists.
+  objects:
+    image: rustfs/rustfs:1.0.6
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${APP_STORAGE_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${APP_STORAGE_SECRET_KEY}
+      BUCKET: ${APP_STORAGE_BUCKET}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          RC_CONFIG_DIR=/tmp/rc RC_HOST_local="http://$${RUSTFS_ACCESS_KEY}:$${RUSTFS_SECRET_KEY}@127.0.0.1:9000"
+          rc bucket create "local/$$BUCKET" --ignore-existing
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - objects:/data
+  # Renders the pictures of stored files, reading them from the bucket above. It answers only addresses
+  # signed with the key and salt the application shares, decodes no file larger than the application keeps,
+  # reads no source but the bucket, keeps no metadata of a picture and reports the size of each rendition.
+  images:
+    image: darthsim/imgproxy:v4.0.24
+    depends_on:
+      objects:
+        condition: service_healthy
+    environment:
+      IMGPROXY_KEY: ${APP_IMAGES_KEY}
+      IMGPROXY_SALT: ${APP_IMAGES_SALT}
+      IMGPROXY_USE_S3: "true"
+      IMGPROXY_S3_ENDPOINT: http://objects:9000
+      IMGPROXY_S3_REGION: us-east-1
+      IMGPROXY_S3_ALLOWED_BUCKETS: ${APP_STORAGE_BUCKET}
+      AWS_ACCESS_KEY_ID: ${APP_STORAGE_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${APP_STORAGE_SECRET_KEY}
+      IMGPROXY_ALLOWED_SOURCES: s3://
+      IMGPROXY_KEEP_COPYRIGHT: "false"
+      IMGPROXY_MAX_SRC_FILE_SIZE: "26214400"
+      IMGPROXY_ENABLE_DEBUG_HEADERS: "true"
+    healthcheck:
+      test: ["CMD", "imgproxy", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
   app:
     build: .
     depends_on:
       db:
+        condition: service_healthy
+      objects:
+        condition: service_healthy
+      images:
         condition: service_healthy
     environment:
       # Whom the application writes as its first administrator when it starts against a database that
@@ -33,9 +83,17 @@ services:
       APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD}
       # Whether the first start writes the people and tasks of the demonstration. Off unless .env asks.
       APP_DEMO_DATA: ${APP_DEMO_DATA:-false}
+      APP_STORAGE_ENDPOINT: http://objects:9000
+      APP_STORAGE_BUCKET: ${APP_STORAGE_BUCKET}
+      APP_STORAGE_ACCESS_KEY: ${APP_STORAGE_ACCESS_KEY}
+      APP_STORAGE_SECRET_KEY: ${APP_STORAGE_SECRET_KEY}
+      APP_IMAGES_URL: http://images:8080
+      APP_IMAGES_KEY: ${APP_IMAGES_KEY}
+      APP_IMAGES_SALT: ${APP_IMAGES_SALT}
     # Published on the loopback interface alone, because this file runs the application for the machine it
     # is on, and on the port `pnpm run up` chooses. A deployment that serves others puts its own proxy in front.
     ports:
       - "127.0.0.1:${APP_PORT}:8080"
 volumes:
   database:
+  objects:

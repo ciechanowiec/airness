@@ -42,6 +42,11 @@
                             draggable="true"
                             th:attr="data-reference=${task.reference()}"
                         >
+                            <th:block th:if="${task.cover().rendering().drawable()}">
+                                <picture
+                                    th:replace="~{components/media :: drawn(${task.cover()}, '(min-width: 64rem) 22rem, min(24rem, calc(100vw - 5rem))', '', 'pointer-events-none mx-auto aspect-video w-full max-w-sm rounded-field object-cover')}"
+                                ></picture>
+                            </th:block>
                             <div class="flex items-start justify-between gap-2">
                                 <a
                                     class="font-semibold leading-snug hover:underline"

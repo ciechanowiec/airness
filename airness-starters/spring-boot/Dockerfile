@@ -18,4 +18,4 @@ COPY --from=layers --chown=10001:10001 /layers/extracted/application/ ./
 USER 10001:10001
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD ["wget", "--quiet", "--spider", "http://127.0.0.1:8080/actuator/health"]
-ENTRYPOINT ["java", "-jar", "application.jar"]
+ENTRYPOINT ["java", "-Dpdfbox.fontcache=/tmp", "-jar", "application.jar"]

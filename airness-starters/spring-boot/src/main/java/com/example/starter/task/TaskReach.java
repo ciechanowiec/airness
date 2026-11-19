@@ -6,6 +6,7 @@ import com.example.starter.audit.AuditTrail;
 import com.example.starter.identity.Owners;
 import com.example.starter.identity.Reader;
 import com.example.starter.identity.Role;
+import com.example.starter.media.MediaView;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,17 +32,21 @@ public final class TaskReach {
 
     private final Clock clock;
 
+    private final TaskCovers covers;
+
     /**
      * Reads the reader's reach through the given accounts.
      *
      * @param owners the accounts as the tasks they keep read them
      * @param trail  what records every change to a task somebody else keeps
      * @param clock  the clock the day a task is shown on is read from
+     * @param covers the pictures a task is shown by
      */
-    public TaskReach(Owners owners, AuditTrail trail, Clock clock) {
+    public TaskReach(Owners owners, AuditTrail trail, Clock clock, TaskCovers covers) {
         this.owners = owners;
         this.trail = trail;
         this.clock = clock;
+        this.covers = covers;
     }
 
     /**
@@ -54,15 +59,23 @@ public final class TaskReach {
     }
 
     /**
-     * Answers how the given tasks are shown to the reader, their owners' names read in one query.
+     * Answers how the given tasks are shown to the reader, their owners' names read in one query and their
+     * covers in two.
      *
      * @param found the tasks as the database holds them
      * @return the tasks as the pages show them, in the same order
      */
     List<TaskView> views(List<Task> found) {
         Map<Long, String> names = this.names(found.stream().map(Task::getOwnerId).collect(Collectors.toSet()));
+        Map<Long, MediaView> drawn = this.covers.of(found.stream().map(Task::getId).toList());
         LocalDate today = LocalDate.now(this.clock);
-        return found.stream().map(task -> TaskView.of(task, today, names.getOrDefault(task.getOwnerId(), ""))).toList();
+        return found.stream()
+            .map(
+                task -> TaskView.of(
+                    task, today, names.getOrDefault(task.getOwnerId(), ""),
+                    drawn.getOrDefault(task.getId(), MediaView.NONE)
+                )
+            ).toList();
     }
 
     /**

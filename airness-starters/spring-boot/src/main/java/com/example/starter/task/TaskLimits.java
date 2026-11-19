@@ -18,4 +18,9 @@ final class TaskLimits {
      * The most characters a description holds.
      */
     static final int DESCRIPTION = 2000;
+
+    /**
+     * The most files a task holds.
+     */
+    static final int ATTACHMENTS = 20;
 }
