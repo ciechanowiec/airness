@@ -58,6 +58,10 @@ class PortraitPagesTest {
         assertAll(
             () -> assertTrue(landing(answer).endsWith("/account?notice=PORTRAIT_CHANGED")),
             () -> assertEquals(HttpStatus.OK.value(), this.reader(port).bytes(portrait).statusCode()),
+            () -> assertEquals(
+                HttpStatus.NOT_FOUND.value(),
+                reader.bytes(portrait.substring(0, portrait.lastIndexOf('/')) + "/original").statusCode()
+            ),
             () -> assertEquals(HttpStatus.FOUND.value(), new Caller(port).bytes(portrait).statusCode())
         );
     }
