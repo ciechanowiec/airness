@@ -8,9 +8,18 @@ runs:
       run: |
         set -eu
         archive="$RUNNER_TEMP/apache-maven-3.10.0-bin.tar.gz"
-        curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 \
+        # Maven Central's CDN has answered 404 for this archive for minutes on end, longer than the retries
+        # wait, so Apache's archive of the same release is the second source. The checksum below holds either
+        # download to the same bytes, so which source answered changes nothing that is installed.
+        for source in \
           'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.10.0/apache-maven-3.10.0-bin.tar.gz' \
-          --output "$archive"
+          'https://archive.apache.org/dist/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.tar.gz'; do
+          if curl --fail --silent --show-error --location --retry 3 --retry-all-errors --retry-delay 15 \
+            "$source" --output "$archive"; then
+            break
+          fi
+          echo "Maven could not be downloaded from $source" >&2
+        done
         printf '%s  %s\n' \
           '908b1501bfb420bf7c8affb855534a9c407fd6099367bfb9f2f2dcb8e9799102bffb84518cde74c679bd76870247c6528683abdd620581bffa90f95d92d175aa' \
           "$archive" | sha512sum --check
