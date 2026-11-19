@@ -37,6 +37,10 @@ dist/
 dist-tarballs/
 build/
 out/
+# JVM class files and Gradle's state, which every project ignores, Java or not, since adocent asks it of each
+# project it manages.
+*.class
+.gradle/
 
 # Supabase
 .supabase/
@@ -90,8 +94,6 @@ claude/scheduled_tasks.lock
 
 # BEGIN AIRNESS MANAGED: java
 # Java
-*.class
-.gradle/
 hs_err_pid*
 # END AIRNESS MANAGED: java
 
