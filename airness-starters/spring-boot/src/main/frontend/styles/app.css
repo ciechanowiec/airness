@@ -450,34 +450,93 @@ picture {
 }
 
 /*
- * The calendar of a date field. daisyUI sizes its text below what the page lets text shrink to and draws no
- * focus of its own, so a day and a month button take the page's text size, a target a finger can hit, and the
- * same two-pixel ring every other control draws. The parts live in the component's shadow tree, so they are
- * reached through the parts it exposes.
+ * The calendar of a date field, drawn like the rest of the page. daisyUI sizes its text below what the page lets
+ * text shrink to and draws no focus of its own, and the browser draws the month buttons as bare buttons, so each
+ * part is drawn here: the month buttons as the page's plain raised buttons, a day as a rounded target a finger can
+ * hit that the pointer tints, the chosen day in the accent, and today in the accent's ink. The header carries one
+ * title naming the month and the year, which the page script writes, so the month grid's own name is hidden; it
+ * still names the grid's table. The parts live in the component's shadow tree, so they are reached through the
+ * parts it exposes. A weekday's heading is a part named day too, so a day is reached as the grid's button.
  */
 .cally {
     font-size: 0.875rem;
+    color: var(--color-ink);
 }
 
 .cally calendar-month {
     min-width: 16rem;
 }
 
-.cally::part(button),
-.cally ::part(day) {
-    min-width: 2.25rem;
-    min-height: 2.25rem;
-    font-size: 0.875rem;
+.cally::part(header) {
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
-.cally ::part(head) {
+.cally::part(heading) {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.cally calendar-month::part(heading) {
+    display: none;
+}
+
+.cally::part(button) {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-field);
+    background: var(--color-base-200);
+    box-shadow: var(--shadow-press);
+    font: inherit;
+    font-weight: 600;
+    color: var(--color-ink);
+    cursor: pointer;
+}
+
+.cally::part(button):hover {
+    background: var(--color-base-300);
+}
+
+.cally::part(button):active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.cally calendar-month::part(th) {
+    padding-block: 0.25rem;
     font-size: 0.75rem;
-    opacity: 1;
+    font-weight: 500;
     color: var(--color-muted);
 }
 
+.cally calendar-month::part(button) {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    border-radius: var(--radius-field);
+    font-size: 0.875rem;
+    color: var(--color-ink);
+    cursor: pointer;
+}
+
+.cally calendar-month::part(button):hover {
+    background: var(--color-base-200);
+}
+
+.cally calendar-month::part(today) {
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.cally calendar-month::part(selected),
+.cally calendar-month::part(selected):hover {
+    background: var(--color-primary);
+    font-weight: 600;
+    color: var(--color-primary-content);
+}
+
 .cally::part(button):focus-visible,
-.cally ::part(day):focus-visible {
+.cally calendar-month::part(button):focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 1px;
 }

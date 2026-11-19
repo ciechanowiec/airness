@@ -34,6 +34,13 @@ const disclosure = (): HTMLDetailsElement => element('details', HTMLDetailsEleme
 
 const calendar = (): HTMLElement => element('calendar-date', HTMLElement)
 
+const title = (): string => element('calendar-date [slot="heading"]', HTMLElement).textContent
+
+// The calendar announces the day it moves to as a moment at midnight in UTC.
+const turnTo = (detail: unknown): void => {
+  calendar().dispatchEvent(new CustomEvent('focusday', { detail }))
+}
+
 // Draws the given markup the way htmx swaps it in, announcing it with the event htmx fires for new content.
 const draw = (markup: string): void => {
   document.body.insertAdjacentHTML('beforeend', markup)
@@ -62,6 +69,29 @@ describe('a date field', (): void => {
     expect(calendar().querySelector('[slot="previous"]')).not.toBeNull()
     expect(calendar().querySelector('calendar-month')).not.toBeNull()
     expect(disclosure().hidden).toBe(false)
+  })
+
+  it('titles the calendar with the month and the year it shows, in the language of the page', (): void => {
+    draw(FIELD)
+    expect(title()).toBe('Styczeń 2100')
+    expect(element('calendar-date [slot="heading"]', HTMLElement).getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('retitles the calendar with every month it turns to and ignores an announcement of no day', (): void => {
+    draw(FIELD)
+    turnTo(new Date(Date.UTC(2100, 2, 5)))
+    expect(title()).toBe('Marzec 2100')
+    turnTo('2100-07-01T00:00:00.000Z')
+    expect(title()).toBe('Lipiec 2100')
+    turnTo('soon')
+    calendar().dispatchEvent(new Event('focusday'))
+    expect(title()).toBe('Lipiec 2100')
+  })
+
+  it('titles a calendar that starts on no day with the month of today', (): void => {
+    draw('<div data-date-field><input><details hidden><div data-calendar data-locale="en"></div></details></div>')
+    const now: Date = new Date()
+    expect(title()).toBe(new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(now))
   })
 
   it('builds one calendar however often the field is announced', (): void => {
@@ -94,6 +124,21 @@ describe('a date field', (): void => {
     draw(fieldHolding('2100-03-09'))
     line().dispatchEvent(new Event('input', { bubbles: true }))
     expect(calendar().getAttribute('value')).toBe('2100-03-09')
+    expect(calendar().getAttribute('focused-date')).toBe('2100-03-09')
+  })
+
+  it('closes an open calendar on a click outside it and keeps it open on a click inside', (): void => {
+    draw(FIELD)
+    calendar().click()
+    expect(disclosure().open).toBe(true)
+    element('p', HTMLParagraphElement).click()
+    expect(disclosure().open).toBe(false)
+  })
+
+  it('closes an open calendar on a click that lands on no element', (): void => {
+    draw(FIELD)
+    document.dispatchEvent(new MouseEvent('click'))
+    expect(disclosure().open).toBe(false)
   })
 
   it('leaves the calendar where it is while the typed day is incomplete', (): void => {
@@ -148,6 +193,7 @@ describe('a date field', (): void => {
       document.dispatchEvent(new Event('input'))
       document.dispatchEvent(new Event('htmx:load'))
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      document.dispatchEvent(new MouseEvent('click'))
     }).not.toThrow()
   })
 })
