@@ -42,7 +42,7 @@
                      ${taskForm.status()}, ${refusals['status']})}"
                         ></div>
                         <div
-                            th:replace="~{components/field :: field(${controls.dueOn}, ${taskForm.dueOn()},
+                            th:replace="~{components/date-field :: dateField(${controls.dueOn}, ${taskForm.dueOn()},
                      ${refusals['dueOn']})}"
                         ></div>
                     </div>

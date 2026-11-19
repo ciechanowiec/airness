@@ -1,0 +1,67 @@
+<!--/*
+    One labelled day a reader types or picks. The typed line is the control the form posts: it takes the day
+    as an ISO date, so the form works where the page script does not run and a reader who knows the day types
+    it. Beside it a button opens a calendar in a disclosure, and the page script copies the day picked there
+    into the line and closes the calendar.
+
+    The browser's own date control draws a picker no stylesheet reaches, so the calendar is a web component
+    the stylesheet themes. The page script builds it inside the placeholder below from the values the
+    placeholder carries, moving the month buttons it holds into it, and only then shows the disclosure, so a
+    page without the script offers the typed line alone. The calendar starts the week on the day the page's
+    language does. Its month buttons hold an icon, so each carries its words for a reader who never sees it.
+*/-->
+<div
+    th:fragment="dateField(control, value, error)"
+    th:with="invalid=${not #strings.isEmpty(error)}, monday=${#locale.language != 'en'}"
+    class="fieldset"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <label class="fieldset-legend text-sm font-semibold" th:for="${control.name()}" th:text="${words.of(control.key())}"
+        >Label</label
+    >
+    <div class="date-field flex items-stretch gap-2" data-date-field>
+        <input
+            class="input ink-border min-w-0 flex-1"
+            th:classappend="${invalid} ? 'input-error' : ''"
+            type="text"
+            inputmode="numeric"
+            pattern="\d{4}-\d{2}-\d{2}"
+            th:placeholder="#{date.placeholder}"
+            th:id="${control.name()}"
+            th:name="${control.name()}"
+            th:value="${value}"
+            th:autocomplete="${control.purpose()}"
+            th:attr="aria-invalid=${invalid} ? 'true' : null,
+                        aria-describedby=${invalid} ? |${control.name()}-error| : null"
+        />
+        <details class="dropdown dropdown-end" hidden data-calendar-disclosure>
+            <summary class="btn btn-square ink-border" th:aria-label="#{date.pick}">
+                <svg th:replace="~{components/icon :: icon('calendar-days', 'size-5')}"></svg>
+            </summary>
+            <div class="dropdown-content z-20 mt-2 rounded-box border border-line bg-base-100 p-2 shadow-lg">
+                <div
+                    data-calendar
+                    th:attr="data-value=${value}, data-locale=${#locale.toLanguageTag()},
+                                data-first-day=${monday} ? 1 : 0"
+                >
+                    <span slot="previous" class="flex items-center">
+                        <svg th:replace="~{components/icon :: icon('chevron-left', 'size-4')}"></svg>
+                        <span class="sr-only" th:text="#{date.previous}">Previous month</span>
+                    </span>
+                    <span slot="next" class="flex items-center">
+                        <svg th:replace="~{components/icon :: icon('chevron-right', 'size-4')}"></svg>
+                        <span class="sr-only" th:text="#{date.next}">Next month</span>
+                    </span>
+                </div>
+            </div>
+        </details>
+    </div>
+    <p
+        class="flex items-center gap-1.5 text-sm font-medium text-error"
+        th:if="${invalid}"
+        th:id="|${control.name()}-error|"
+        th:text="${error}"
+    >
+        What is wrong
+    </p>
+</div>

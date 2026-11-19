@@ -436,6 +436,39 @@ html {
     outline-offset: -4px;
 }
 
+/*
+ * The calendar of a date field. daisyUI sizes its text below what the page lets text shrink to and draws no
+ * focus of its own, so a day and a month button take the page's text size, a target a finger can hit, and the
+ * same two-pixel ring every other control draws. The parts live in the component's shadow tree, so they are
+ * reached through the parts it exposes.
+ */
+.cally {
+    font-size: 0.875rem;
+}
+
+.cally calendar-month {
+    min-width: 16rem;
+}
+
+.cally::part(button),
+.cally ::part(day) {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    font-size: 0.875rem;
+}
+
+.cally ::part(head) {
+    font-size: 0.75rem;
+    opacity: 1;
+    color: var(--color-muted);
+}
+
+.cally::part(button):focus-visible,
+.cally ::part(day):focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+}
+
 /* The board: a card a reader moves between the columns, and the column it is about to land in. */
 .board-card {
     cursor: grab;

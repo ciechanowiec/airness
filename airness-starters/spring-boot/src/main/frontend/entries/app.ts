@@ -1,5 +1,7 @@
+import 'cally'
 import htmx from 'htmx.org'
 import { enableBoard } from '@/board'
+import { enableDateFields } from '@/date-field'
 import { openNamedDialog } from '@/dialogs'
 import { enablePreview } from '@/preview'
 
@@ -25,4 +27,5 @@ document.addEventListener('htmx:beforeSwap', (event: Event): void => {
 
 document.addEventListener('click', openNamedDialog)
 enableBoard(document)
+enableDateFields(document)
 enablePreview(document)

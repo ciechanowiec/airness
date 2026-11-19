@@ -1,5 +1,5 @@
+import { realpathSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
@@ -8,18 +8,23 @@ const PROJECT: string = fileURLToPath(new URL('../', import.meta.url))
 
 const TEMPLATES: string = path.join(PROJECT, 'src/main/resources/templates')
 
-const fromProject: NodeJS.Require = createRequire(path.join(PROJECT, 'package.json'))
-
 // The packages whose code the stylesheet, the script, the fonts or the icons carry, each shipping its license
 // beside it. The stylesheet itself is written by the Tailwind command line the build script runs after this,
 // which names its input there, where the dependency analysis reads it.
 const SHIPPED: readonly string[] = [
+  'cally',
   'daisyui',
   'htmx.org',
   'tailwindcss',
   'lucide-static',
   '@fontsource-variable/schibsted-grotesk',
   '@fontsource/geist-mono',
+]
+
+// The packages the script carries that the project does not name itself, each found from the package that
+// depends on it and under the name its own release gives its license.
+const CARRIED: readonly { readonly name: string; readonly through: string; readonly license: string }[] = [
+  { name: 'atomico', through: 'cally', license: 'LICENCE' },
 ]
 
 // The font files the stylesheet's faces point at, kept beside it under the folder their rules name. Geist Mono
@@ -38,7 +43,11 @@ const ICON_CALL: RegExp = /icon\('([a-z0-9-]+)'/gu
 const STROKE: string =
   'fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"'
 
-const releaseOf = (name: string): string => path.dirname(fromProject.resolve(`${name}/package.json`))
+// A package is found where pnpm links it, because some releases export no package.json to resolve. A package
+// the project does not name itself is linked beside the package that depends on it.
+const MODULES: string = path.join(PROJECT, 'node_modules')
+
+const releaseOf = (name: string, modules: string = MODULES): string => realpathSync(path.join(modules, name))
 
 // The icon set is named outright, so the dependency analysis sees that the build reads it.
 const LUCIDE_MANIFEST: string = fileURLToPath(import.meta.resolve('lucide-static/package.json'))
@@ -121,5 +130,12 @@ export const buildAssets = async (destination: string): Promise<void> => {
     SHIPPED.map(
       async (name: string): Promise<void> => cp(path.join(releaseOf(name), 'LICENSE'), licenseFile(destination, name)),
     ),
+  )
+  await Promise.all(
+    CARRIED.map(async (carried: (typeof CARRIED)[number]): Promise<void> => {
+      const beside: string = path.dirname(releaseOf(carried.through))
+      const release: string = releaseOf(carried.name, beside)
+      await cp(path.join(release, carried.license), licenseFile(destination, carried.name))
+    }),
   )
 }
