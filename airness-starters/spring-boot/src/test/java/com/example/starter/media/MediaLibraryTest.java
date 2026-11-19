@@ -9,11 +9,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.starter.Caller;
 import com.example.starter.DatabaseTest;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import javax.imageio.ImageIO;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
@@ -64,6 +69,15 @@ class MediaLibraryTest {
 
     private static final int PAGE_HEIGHT_BOUND = 4000;
 
+    // A picture stored on its side, as a phone held upright writes one, with the tag that says so.
+    private static final int TAGGED_LONG = 64;
+
+    private static final int TAGGED_SHORT = 32;
+
+    private static final int TURNED_LEFT = 6;
+
+    private static final String ARTIST = "Somebody Private";
+
     private final MediaLibrary library;
 
     private final MediaStorage storage;
@@ -89,6 +103,17 @@ class MediaLibraryTest {
 
     private MediaObject stored(String name, byte[] bytes) {
         return this.library.store(upload(name, bytes), this.actor, MediaPurpose.ATTACHMENT);
+    }
+
+    @SneakyThrows
+    private byte[] kept(MediaObject file) {
+        try (InputStream content = this.library.original(file).content()) {
+            return content.readAllBytes();
+        }
+    }
+
+    private static boolean namesTheArtist(byte[] bytes) {
+        return new String(bytes, StandardCharsets.ISO_8859_1).contains(ARTIST);
     }
 
     @Test
@@ -157,8 +182,11 @@ class MediaLibraryTest {
     }
 
     @Test
-    void discardsNothingWhereNoFileIsNamed() {
-        assertDoesNotThrow(() -> this.library.discard(List.of()));
+    void removesNothingWhereNothingIsNamed() {
+        assertAll(
+            () -> assertDoesNotThrow(() -> this.library.discard(List.of())),
+            () -> assertDoesNotThrow(() -> this.storage.removeUnder("media/%s/".formatted(UUID.randomUUID())))
+        );
     }
 
     @Test
@@ -166,9 +194,35 @@ class MediaLibraryTest {
     void drawsAPhotographTakenOnAPhone() {
         byte[] heic = new ClassPathResource("media/sample.heic").getContentAsByteArray();
         MediaObject file = this.stored("IMG_0001.HEIC", heic);
+        byte[] kept = this.kept(file);
         assertAll(
             () -> assertEquals("image/heic", file.getFile().contentType()),
+            () -> assertEquals(
+                "image/heic", MediaTypes.of(Arrays.copyOf(kept, MediaTypes.HEAD)).orElseThrow().contentType()
+            ),
             () -> assertTrue(this.view(file).rendering().drawable())
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void keepsAPictureUprightAndWithoutWhatTheCameraWroteIntoIt() {
+        byte[] tagged = Pictures.taggedJpeg(TAGGED_LONG, TAGGED_SHORT, TURNED_LEFT, ARTIST);
+        MediaObject file = this.stored("tagged.jpg", tagged);
+        byte[] kept = this.kept(file);
+        BufferedImage drawn = Objects.requireNonNull(ImageIO.read(new ByteArrayInputStream(kept)), "a JPEG is kept");
+        assertAll(
+            () -> assertTrue(namesTheArtist(tagged), "the fixture carries the artist"),
+            // The encoder writes a block of its own, holding the size and resolution it encoded at and nothing the
+            // camera wrote, so what is checked is that the camera's words are gone.
+            () -> assertFalse(namesTheArtist(kept), "what the camera wrote is dropped"),
+            () -> assertEquals(TAGGED_SHORT, drawn.getWidth()),
+            () -> assertEquals(TAGGED_LONG, drawn.getHeight()),
+            () -> assertEquals("image/jpeg", file.getFile().contentType()),
+            () -> assertEquals(kept.length, file.getFile().byteSize()),
+            () -> assertThrows(
+                NoSuchKeyException.class, () -> this.storage.open("media/%s/handed".formatted(file.getReference()))
+            )
         );
     }
 

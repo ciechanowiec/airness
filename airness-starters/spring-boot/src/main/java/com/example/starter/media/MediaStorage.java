@@ -80,6 +80,15 @@ final class MediaStorage {
     }
 
     /**
+     * Removes the object under the given key, where there is one.
+     *
+     * @param key where the object was written
+     */
+    void remove(String key) {
+        this.client.deleteObject(request -> request.bucket(this.bucket).key(key));
+    }
+
+    /**
      * Removes every object whose key starts with the given prefix.
      *
      * @param prefix the prefix, ending with a slash so a neighbour sharing its first characters is kept
@@ -89,14 +98,14 @@ final class MediaStorage {
             .stream()
             .map(page -> page.contents().stream().map(S3Object::key).map(this::identified).toList())
             .filter(keys -> !keys.isEmpty())
-            .forEach(this::remove);
+            .forEach(this::removed);
     }
 
     private ObjectIdentifier identified(String key) {
         return ObjectIdentifier.builder().key(key).build();
     }
 
-    private void remove(List<ObjectIdentifier> keys) {
+    private void removed(List<ObjectIdentifier> keys) {
         this.client.deleteObjects(
             request -> request.bucket(this.bucket).delete(Delete.builder().objects(keys).quiet(true).build())
         );

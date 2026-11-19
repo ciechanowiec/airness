@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 /**
  * The addresses a page draws a stored file from, which the media fragment asks for by the name
  * {@code media}: a source set of every rendition in one encoding, the one rendition a browser without source
- * sets draws, and the file as it was handed over.
+ * sets draws, and the whole file a reader downloads.
  */
 @Component("media")
 public final class MediaLinks {
@@ -65,7 +65,7 @@ public final class MediaLinks {
     }
 
     /**
-     * Answers the address the file is downloaded from as it was handed over.
+     * Answers the address the whole file is downloaded from.
      *
      * @param view the file as a page shows it
      * @return that address
