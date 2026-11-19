@@ -22,10 +22,13 @@ export const FORBIDDEN: number = 403
 export const TOO_MANY_REQUESTS: number = 429
 export const NOT_FOUND: number = 404
 
-/** A complete one-pixel PNG, a real image the media collection accepts. */
+/**
+ * A complete one-pixel PNG, a real image the media collection accepts. The collection re-encodes every picture it
+ * stores, so the bytes must decode whole, not only carry a header that names their type and size.
+ */
 export const PIXEL: Uint8Array<ArrayBuffer> = Uint8Array.from(
   Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==',
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==',
     'base64',
   ),
 )
