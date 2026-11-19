@@ -11,3 +11,8 @@ Schibsted
 Testcontainers
 PMD
 tsx
+RustFS
+imgproxy
+PDFBox
+WebP
+AVIF
