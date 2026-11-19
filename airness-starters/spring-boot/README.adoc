@@ -143,11 +143,11 @@ enablePreview(document)
 . The _security filter chain_ is the series of {l-spring-security} filters that every request passes first. The security filter chain sends a user who hasn't signed in to the sign-in page, except on public addresses, such as the addresses of the xref:#static-file[static files].
 . The [[application-logic]]_application logic_ is the {l-java} code that answers each permitted request. The application logic applies the business rules, including what each user may do, reads and writes the database and the xref:#stored-file[stored files], and fills a {l-thymeleaf} template with the result to render the HTML for the browser.
 . The database schema changes only through {l-flyway} migrations, which the application applies at each start.
-. The following figure shows the security filter chain, the xref:#application-logic[application logic], the xref:#templates[templates], and the xref:#static-file[static files] in a request:
+. The following figure shows the security filter chain, the xref:#application-logic[application logic], the xref:#templates[templates], the xref:#static-file[static files], and the services that the application logic uses in a request:
 +
 [[runtime-architecture-figure]]
 .Runtime architecture of Starter
-image::.adocent/resources/visuals/runtime-architecture.drawio.png["The browser sends requests to the security filter chain of the Spring Boot application. Permitted requests reach the application logic, which reads and writes PostgreSQL and fills a Thymeleaf template. The application sends the rendered HTML back to the browser. Spring sends the static files inside the JAR without sign-in: the page script, the style sheet, the fonts, and the icons."]
+image::.adocent/resources/visuals/runtime-architecture.drawio.png["The browser sends requests to the security filter chain of the Spring Boot application. Permitted requests reach the application logic, which fills a Thymeleaf template. The application sends the rendered HTML back to the browser. The application logic reads and writes PostgreSQL and the stored files in RustFS, and asks imgproxy for copies of pictures, which imgproxy reads from RustFS. Spring sends the static files inside the JAR without sign-in, such as the page script, the style sheet, the fonts, and the icons."]
 
 [[templates]]
 === Templates
