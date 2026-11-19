@@ -49,9 +49,10 @@ spring:
   servlet:
     multipart:
       # A file is refused above 25 MB by the application, which says so on the page it was attached from.
-      # The container lets a little more through so that refusal is the one a reader meets, and a request
-      # carries several files at once.
-      max-file-size: 26MB
+      # The container holds a file to the limit of the whole request alone: the security filters read the
+      # form's token from the same body, and a file the container refused would hide the token with it, so
+      # the reader would meet a refused token instead of the reason. A request carries several files at once.
+      max-file-size: 110MB
       max-request-size: 110MB
   messages:
     encoding: UTF-8
