@@ -254,7 +254,7 @@ At month-end, 18 of the 120 invoices remain unpaid. Their total value is EUR 8,4
 [[dates-and-times]]
 === Dates with Named Months and Clear Times
 
-. Full dates in prose use the day, full month name in the document's language, and four-digit year. Examples are _31 August 2028_ and [.lang-pl]_31 sierpnia 2028_. Month names follow the spelling and grammar of that language. The day has no leading zero or ordinal suffix. Headings, captions, tables, and fields in the xref:#source-list[source list] use the same format. A date known only to the month or year appears, for example, as _August 2028_, [.lang-pl]_sierpień 2028_, or _2028_.
+. Full dates in prose use the day, full month name in the document's language, and four-digit year. Examples are _31 August 2028_ in English and [.lang-pl]_31 sierpnia 2028 r._ in Polish. Month names follow the spelling and grammar of that language. The day has no leading zero or ordinal suffix. Headings, captions, tables, and fields in the xref:#source-list[source list] use the same format. A date known only to the month or year appears, for example, as _August 2028_, [.lang-pl]_sierpień 2028 r._, or _2028_.
 . Quotations, exact source titles, identifiers, and machine-readable data preserve their original or required date format, including ISO dates where applicable.
 . Times include a timezone offset or the timezone name when readers could be in different timezones or the timezone isn't clear from context. Durations are written in the ISO 8601 form `P30D` or with explicit units such as _30 calendar days_. Relative references - _yesterday_, _next week_, _Q3_, etc. - are avoided unless the reference point is the document's effective date and that date is stated.
 
@@ -454,8 +454,9 @@ A source takes one of these types unless it's a Polish act, ruling, position, or
 [cols="1,2,2",options="header"]
 |===
 |Type |Required fields |Optional fields
-|[[contract-source-type]]`Contract` |`Parties` |`Concluded on`, `Governing law`
+|[[contract-source-type]]`Contract` | |`Parties`, `Concluded on`, `Governing law`
 |[[general-legal-source-type]]`Legal source` |`Issuing body`, `Identifier` |`Date`
+|`Filing` |`Kind`, `Author`, `Addressee`, `Date` |`Case number`, `Parties`
 |`Official record` |`Register` |`Entry number`
 |`Financial record` |`Issuer` |`Kind`, `Number`, `Date`, `Amount`
 |`Correspondence` |`Participants` |`Platform`, `Sender`, `Addressee`, `Sent on`, `Time range`, `Subject`
@@ -1163,7 +1164,7 @@ The color of the label was recognized by the team traveling to the theater.
 ==== Wording in Another Language Marked as Such
 
 . A word, phrase, or passage written in a language other than the document's language is marked with its language. The mark tells a reader which language the wording belongs to, and it tells a checking tool to read the wording with the spelling and grammar of that language rather than of the document. A word borrowed from another language needs no mark if it's now an ordinary word of the document's language and is listed in its dictionaries. For example, _software_ in a Polish document and _kindergarten_ in an English one are left unmarked.
-. In AsciiDoc, the mark is the role `lang-` followed by the language code. A span with no formatting carries the role in front of a pair of `+#+` characters, as in `+[.lang-pl]#Terminy płatności#+`, and a pair of `+##+` characters marks a span inside a word. The role also stands in front of italic text, as in `+[.lang-pl]_31 sierpnia 2028_+`, when the wording is italicized for its own reason. A `[.lang-pl]` line directly above a paragraph or a delimited block marks the whole block.
+. In AsciiDoc, the mark is the role `lang-` followed by the language code. A span with no formatting carries the role in front of a pair of `+#+` characters, as in `+[.lang-pl]#Terminy płatności#+`, and a pair of `+##+` characters marks a span inside a word. The role also stands in front of italic text, as in `+[.lang-pl]_31 sierpnia 2028 r._+`, when the wording is italicized for its own reason. A `[.lang-pl]` line directly above a paragraph or a delimited block marks the whole block.
 
 [.bad-example]
 .{bad-icon} Bad example
