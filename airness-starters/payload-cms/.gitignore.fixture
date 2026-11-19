@@ -1,6 +1,10 @@
 # Vitest generated reports and metadata
 .vitest/
 
+# Paths every adocent project ignores
+*.class
+.gradle/
+
 # @SNAPSHOT_ONLY_BEGIN@
 # The loopback registry a verification starts writes its address here; it is never a project setting.
 .npmrc
