@@ -28,7 +28,16 @@ const nextConfig: NextConfig = {
   experimental: {
     globalNotFound: true,
   },
+  // next/image renders each stored picture at the widths below, on its first request, and keeps the result. The
+  // widths are the ones the pages draw a picture at, from a card on a phone to the article cover on a wide screen at
+  // twice its pixels, so each picture has few variants and a later visitor reuses them. AVIF comes first, since it
+  // is the smaller of the two, and WebP serves a browser without it. A rendered picture is reused for a day, so a
+  // file replaced under the same name appears within one.
   images: {
+    deviceSizes: [640, 828, 1080, 1280, 1920, 2304],
+    imageSizes: [384],
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 86_400,
     localPatterns: [
       {
         pathname: '/api/media/file/**',
