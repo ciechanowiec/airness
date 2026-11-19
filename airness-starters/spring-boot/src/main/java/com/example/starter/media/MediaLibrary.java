@@ -14,7 +14,10 @@ import org.springframework.stereotype.Service;
  *
  * <p>Storing a file reads it once into a temporary file, which names its bytes by their SHA-256 and tells what
  * they are from their first bytes. The file is written to the object store under a reference of its own, and
- * its picture, or the first page of a PDF, is rendered at every width its purpose draws it at. Renditions are
+ * its picture, or the first page of a PDF, is rendered at every width its purpose draws it at. A picture is not
+ * kept as it was handed over, since a camera writes into it whatever it knows, such as where the picture was
+ * taken: what is kept is a clean copy at its own size and in its own encoding, turned upright and keeping none
+ * of that, and the bytes handed over are removed once it is written. Renditions are
  * named by the bytes rather than by the file, so the same bytes stored twice are rendered once. The row naming
  * the file is saved last, so a file is never named before its bytes are stored, and whatever a failed store
  * wrote is removed again.
@@ -98,7 +101,7 @@ public final class MediaLibrary {
     }
 
     /**
-     * Opens the bytes the given file was handed over as.
+     * Opens the bytes kept for the given file: a PDF as it was handed over, and a picture as its clean copy.
      *
      * @param file the file
      * @return its bytes, which the caller closes
@@ -138,15 +141,12 @@ public final class MediaLibrary {
     }
 
     private void written(MediaObject media, SpooledUpload spooled) throws IOException {
-        String original = originalKey(media.getReference());
-        this.storage.put(original, spooled.file(), media.getFile().contentType());
         boolean written = false;
         try {
-            Optional<String> source = media.getFile().kind() == MediaKind.PDF
-                ? this.page(media, spooled)
-                : Optional.of(original);
-            if (source.isPresent()) {
-                this.renderer.render(source.get(), MediaRecords.keyOf(media));
+            if (media.getFile().kind() == MediaKind.PDF) {
+                this.writtenDocument(media, spooled);
+            } else {
+                this.writtenPicture(media, spooled);
             }
             written = true;
         } finally {
@@ -154,6 +154,26 @@ public final class MediaLibrary {
                 this.storage.removeUnder(MEDIA + media.getReference() + "/");
             }
         }
+    }
+
+    private void writtenDocument(MediaObject media, SpooledUpload spooled) throws IOException {
+        this.storage.put(originalKey(media.getReference()), spooled.file(), media.getFile().contentType());
+        Optional<String> page = this.page(media, spooled);
+        if (page.isPresent()) {
+            this.renderer.render(page.get(), MediaRecords.keyOf(media));
+        }
+    }
+
+    // The renderer reads only from the object store, so the bytes handed over are written there first, under a
+    // key of their own, and removed once the clean copy that stands for them is written.
+    private void writtenPicture(MediaObject media, SpooledUpload spooled) throws IOException {
+        String contentType = media.getFile().contentType();
+        String handed = MEDIA + media.getReference() + "/handed";
+        String original = originalKey(media.getReference());
+        this.storage.put(handed, spooled.file(), contentType);
+        media.storedAs(this.renderer.cleaned(handed, original, contentType));
+        this.storage.remove(handed);
+        this.renderer.render(original, MediaRecords.keyOf(media));
     }
 
     private Optional<String> page(MediaObject media, SpooledUpload spooled) {

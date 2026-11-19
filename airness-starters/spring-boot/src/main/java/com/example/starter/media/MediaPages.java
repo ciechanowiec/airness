@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Serves the stored files to whoever may see them: each rendition a page draws, and an attachment as it was
- * handed over, which is always downloaded rather than opened in the page. A portrait is served by its
- * renditions alone, since it is shown to everybody signed in and the file as it was handed over still carries
- * its metadata, such as where a photograph was taken. A file the reader may not see is answered as one that
- * does not exist.
+ * Serves the stored files to whoever may see them: each rendition a page draws, and the whole of an attachment,
+ * which is always downloaded rather than opened in the page. That is a PDF as it was handed over and a picture
+ * as its clean copy, which keeps nothing of what the camera wrote into it. A portrait is served by its
+ * renditions alone, since a page only ever draws it. A file the reader may not see is answered as one that does
+ * not exist.
  *
  * <p>Neither a rendition nor a file ever changes under its address, since a changed file is a new file under
  * a new reference, so a browser keeps both for a year without asking again. They are kept by the browser
@@ -83,7 +83,8 @@ public final class MediaPages {
     }
 
     /**
-     * Answers a file as it was handed over, for the reader to download.
+     * Answers the whole of an attachment, for the reader to download: a PDF as it was handed over and a picture as
+     * its clean copy.
      *
      * @param reference the reference the file is known by
      * @return the file

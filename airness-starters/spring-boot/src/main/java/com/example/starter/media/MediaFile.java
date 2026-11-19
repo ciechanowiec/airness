@@ -12,8 +12,8 @@ import jakarta.persistence.Enumerated;
  * @param originalName the name the file was handed over under
  * @param kind         how the file is drawn
  * @param contentType  the media type the bytes say they are
- * @param byteSize     how many bytes the file holds
- * @param sha256       the SHA-256 of the bytes, in lowercase hexadecimal
+ * @param byteSize     how many bytes the stored file holds
+ * @param sha256       the SHA-256 of the bytes as they were handed over, in lowercase hexadecimal
  */
 @Embeddable
 public record MediaFile(
@@ -36,4 +36,14 @@ public record MediaFile(
     public static final int NAME = 255;
 
     private static final int DIGEST = 64;
+
+    /**
+     * Answers this file as it is stored where the bytes stored are not the bytes handed over.
+     *
+     * @param stored how many bytes are stored
+     * @return the file holding that many bytes
+     */
+    MediaFile sized(long stored) {
+        return new MediaFile(this.originalName, this.kind, this.contentType, stored, this.sha256);
+    }
 }

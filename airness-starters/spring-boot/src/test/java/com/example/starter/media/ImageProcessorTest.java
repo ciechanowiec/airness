@@ -1,6 +1,8 @@
 package com.example.starter.media;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 import java.util.HexFormat;
@@ -21,20 +23,37 @@ class ImageProcessorTest {
         );
     }
 
-    @Test
-    void asksForAStoredFileFittedIntoAWidthInAFormat() {
+    private static ImageProcessor processor() {
         StorageSettings storage = new StorageSettings(
             URI.create("http://objects:9000"), "files", "us-east-1",
             new StorageSettings.StorageCredentials("access", "secret")
         );
-        try (
-            ImageProcessor images = new ImageProcessor(
-                new ImagingSettings(URI.create("http://images:8080"), "00", "00"), storage
-            )
-        ) {
+        return new ImageProcessor(new ImagingSettings(URI.create("http://images:8080"), "00", "00"), storage);
+    }
+
+    @Test
+    void asksForAStoredFileFittedIntoAWidthInAFormat() {
+        try (ImageProcessor images = processor()) {
             assertEquals(
                 "/rs:fit:640:0/q:50/f:avif/plain/s3://files/media/a/original",
                 images.path("media/a/original", WIDTH, ImageFormat.AVIF)
+            );
+        }
+    }
+
+    @Test
+    void asksForACleanCopyInTheEncodingOfTheFile() {
+        try (ImageProcessor images = processor()) {
+            assertAll(
+                () -> assertEquals(
+                    "/q:90/f:jpg/plain/s3://files/media/a/handed", images.cleanPath("media/a/handed", "image/jpeg")
+                ),
+                () -> assertEquals(
+                    "/q:90/f:heic/plain/s3://files/media/a/handed", images.cleanPath("media/a/handed", "image/heif")
+                ),
+                () -> assertThrows(
+                    IllegalArgumentException.class, () -> images.cleanPath("media/a/handed", "application/pdf")
+                )
             );
         }
     }

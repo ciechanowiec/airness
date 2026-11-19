@@ -76,6 +76,15 @@ public class MediaObject {
     }
 
     /**
+     * Records how many bytes are stored for this file, where those are not the bytes it was handed over as.
+     *
+     * @param stored how many bytes are stored
+     */
+    void storedAs(long stored) {
+        this.file = this.file.sized(stored);
+    }
+
+    /**
      * Answers whether the other object is the same file, which is decided by the reference.
      *
      * @param other the object to compare this file with

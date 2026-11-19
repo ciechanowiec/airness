@@ -69,6 +69,22 @@ final class Renderer {
         }
     }
 
+    /**
+     * Writes a clean copy of the stored picture under the given key, at its own size and in its own encoding,
+     * turned upright and keeping none of its metadata, under the other key.
+     *
+     * @param source      the key of the stored picture
+     * @param target      the key the copy is written under
+     * @param contentType the media type of the picture, which the copy keeps
+     * @return how many bytes the copy holds
+     * @throws IOException when the renderer cannot be reached or refuses the picture
+     */
+    long cleaned(String source, String target, String contentType) throws IOException {
+        byte[] copy = this.images.cleaned(source, contentType);
+        this.storage.put(target, copy, contentType);
+        return copy.length;
+    }
+
     private void renderedAll(String source, RenditionKey key, List<Integer> widths, int widest) throws IOException {
         List<Future<?>> pending = widths.stream()
             .flatMap(width -> Stream.of(ImageFormat.values()).map(format -> new Wanted(width, format)))
