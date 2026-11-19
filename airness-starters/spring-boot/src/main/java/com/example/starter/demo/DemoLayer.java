@@ -7,7 +7,6 @@ import com.example.starter.identity.Users;
 import com.example.starter.task.TaskContent;
 import com.example.starter.task.Tasks;
 import com.example.starter.web.Listing;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,7 +26,7 @@ public final class DemoLayer {
 
     private final Tasks tasks;
 
-    private final Clock clock;
+    private final DemoSeeds seeds;
 
     /**
      * Reaches the application through the given services.
@@ -35,13 +34,13 @@ public final class DemoLayer {
      * @param users  the accounts and what may be done to them
      * @param roster the accounts as an administrator lists them
      * @param tasks  the tasks the users keep
-     * @param clock  the clock that decides which day the data is written on
+     * @param seeds  the pictures of the demonstration, and the day it is written on
      */
-    public DemoLayer(Users users, Roster roster, Tasks tasks, Clock clock) {
+    public DemoLayer(Users users, Roster roster, Tasks tasks, DemoSeeds seeds) {
         this.users = users;
         this.roster = roster;
         this.tasks = tasks;
-        this.clock = clock;
+        this.seeds = seeds;
     }
 
     /**
@@ -76,9 +75,29 @@ public final class DemoLayer {
      * Writes a task for the signed-in reader.
      *
      * @param content the task
+     * @return the reference of the task written
      */
-    void create(TaskContent content) {
-        this.tasks.create(content);
+    UUID create(TaskContent content) {
+        return this.tasks.create(content);
+    }
+
+    /**
+     * Gives the signed-in reader the portrait the demonstration ships for them.
+     *
+     * @param picture the path of the picture under the classpath
+     */
+    void portray(String picture) {
+        this.seeds.portray(picture);
+    }
+
+    /**
+     * Attaches the picture the demonstration ships for a task to that task, as its keeper.
+     *
+     * @param task    the reference of the task
+     * @param picture the path of the picture under the classpath
+     */
+    void attach(UUID task, String picture) {
+        this.seeds.attach(task, picture);
     }
 
     /**
@@ -87,7 +106,7 @@ public final class DemoLayer {
      * @return the day
      */
     LocalDate today() {
-        return LocalDate.now(this.clock);
+        return this.seeds.today();
     }
 
     private Optional<UUID> reference(String email) {
