@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--/*
-    The page a reader changes their own password on. It carries no reference and offers no way to name
-    anybody else. Neither password is ever drawn back into the page.
+    The page a reader changes their own password and their own portrait on. It carries no reference and offers
+    no way to name anybody else. Neither password is ever drawn back into the page.
 */-->
 <html
     lang="en"
@@ -24,6 +24,61 @@
                     </div>
                 </div>
             </form>
+            <section class="panel max-w-2xl space-y-4 p-6" aria-labelledby="portrait-title">
+                <div class="space-y-1">
+                    <h2 id="portrait-title" class="text-lg font-bold" th:text="#{account.portrait.title}">Portrait</h2>
+                    <p class="text-sm text-muted" th:text="#{account.portrait.lead}">
+                        The picture you are shown with beside your name.
+                    </p>
+                </div>
+                <p
+                    th:if="${portraitRefusal.isPresent()}"
+                    class="alert alert-error"
+                    role="alert"
+                    th:text="${words.of(portraitRefusal.get())}"
+                >
+                    The file is not a picture.
+                </p>
+                <div class="flex flex-wrap items-end gap-4">
+                    <span
+                        th:replace="~{components/avatar :: avatar(${readerName}, ${readerPortrait}, 'size-20 text-2xl')}"
+                    ></span>
+                    <form
+                        class="flex min-w-0 grow flex-wrap items-end gap-3"
+                        method="post"
+                        enctype="multipart/form-data"
+                        th:action="@{/account/portrait}"
+                    >
+                        <div class="fieldset min-w-0 grow">
+                            <label
+                                class="fieldset-legend text-sm font-semibold"
+                                for="portrait-file"
+                                th:text="#{account.portrait.choose}"
+                                >Choose a picture</label
+                            >
+                            <input
+                                id="portrait-file"
+                                class="file-input ink-border w-full"
+                                type="file"
+                                name="picture"
+                                accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,.heic,.heif"
+                            />
+                        </div>
+                        <button class="btn btn-primary press" type="submit" th:text="#{account.portrait.upload}">
+                            Use this picture
+                        </button>
+                    </form>
+                    <form
+                        th:if="${readerPortrait.rendering().drawable()}"
+                        method="post"
+                        th:action="@{/account/portrait/delete}"
+                    >
+                        <button class="btn btn-ghost text-error" type="submit" th:text="#{account.portrait.remove}">
+                            Remove the portrait
+                        </button>
+                    </form>
+                </div>
+            </section>
         </div>
     </body>
 </html>

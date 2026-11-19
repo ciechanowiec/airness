@@ -83,7 +83,9 @@
                 <div class="mt-auto flex flex-col gap-3">
                     <div th:replace="~{components/language-switch :: languageSwitch(true)}"></div>
                     <div class="flex items-center gap-2.5 rounded-box border border-line p-2.5">
-                        <span th:replace="~{components/avatar :: avatar(${readerName}, 'size-9 text-sm')}"></span>
+                        <span
+                            th:replace="~{components/avatar :: avatar(${readerName}, ${readerPortrait}, 'size-9 text-sm')}"
+                        ></span>
                         <a class="flex min-w-0 flex-col" th:href="@{/account}">
                             <span
                                 class="truncate text-sm font-semibold"

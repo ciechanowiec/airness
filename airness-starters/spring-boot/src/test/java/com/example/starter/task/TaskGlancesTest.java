@@ -7,6 +7,7 @@ import com.example.starter.DatabaseTest;
 import com.example.starter.identity.Accounts;
 import com.example.starter.identity.Role;
 import com.example.starter.identity.Users;
+import com.example.starter.media.MediaView;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -63,7 +64,7 @@ class TaskGlancesTest {
         Caller.acting(Caller.ADMINISTRATOR, Role.ADMIN.getAuthority());
         String name = "Test %s".formatted(who);
         List<Load> found = this.glances.load().stream().filter(load -> name.equals(load.name())).toList();
-        assertEquals(List.of(new Load(name, 1, 1 + SURPLUS, 2)), found);
+        assertEquals(List.of(new Load(name, MediaView.NONE, 1, 1 + SURPLUS, 2)), found);
     }
 
     @Test

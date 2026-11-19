@@ -8,6 +8,7 @@ import com.example.starter.web.Wording;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * The page a reader changes their own password on. It carries no reference: what it changes belongs to
@@ -61,6 +63,19 @@ public final class AccountPages {
     @ModelAttribute("controls")
     public Map<String, Control> controls() {
         return Map.of(PasswordForm.CURRENT, CURRENT, PasswordForm.CHOSEN, CHOSEN);
+    }
+
+    /**
+     * Answers why a picture the reader chose for their portrait was not taken, as the address says.
+     *
+     * @param refused the name of the refusal the address carries, which is empty where it carries none
+     * @return that refusal, and nothing where the address carries none the application says
+     */
+    @ModelAttribute("portraitRefusal")
+    public Optional<PortraitRefusal> portraitRefusal(
+        @RequestParam(name = PortraitRefusal.PARAMETER, defaultValue = "") String refused
+    ) {
+        return PortraitRefusal.named(refused);
     }
 
     /**

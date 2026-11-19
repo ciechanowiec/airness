@@ -39,8 +39,10 @@
     </td>
     <td th:if="${administrator}" class="whitespace-nowrap px-3 py-3 align-top">
         <span class="flex items-center gap-2">
-            <span th:replace="~{components/avatar :: avatar(${task.owner()}, 'size-7 text-xs')}"></span>
-            <span th:text="${task.owner()}">Owner</span>
+            <span
+                th:replace="~{components/avatar :: avatar(${task.owner().name()}, ${task.owner().portrait()}, 'size-7 text-xs')}"
+            ></span>
+            <span th:text="${task.owner().name()}">Owner</span>
         </span>
     </td>
     <td class="whitespace-nowrap px-3 py-3 align-top">

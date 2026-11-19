@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.example.starter.identity.Person;
 import com.example.starter.media.MediaView;
 import com.example.starter.web.Wording;
 import java.time.LocalDate;
@@ -47,7 +48,9 @@ class TaskFormTest {
     @Test
     void opensOnWhatATaskSaysAndTheVersionItIsAt() {
         TaskContent content = new TaskContent("Write", "it", TaskStatus.DONE, TODAY);
-        TaskForm form = TaskForm.of(new TaskView("reference", content, false, "", 3, 0, MediaView.NONE));
+        TaskForm form = TaskForm.of(
+            new TaskView("reference", content, false, Person.named(""), 3, 0, MediaView.NONE)
+        );
         assertEquals(new TaskForm("Write", "it", TaskStatus.DONE, TODAY, 3), form);
     }
 }

@@ -48,7 +48,17 @@ public enum Notice implements Named {
     /**
      * A file was taken from a task.
      */
-    DETACHED("notice.detached");
+    DETACHED("notice.detached"),
+
+    /**
+     * The reader's portrait was changed.
+     */
+    PORTRAIT_CHANGED("notice.portraitChanged"),
+
+    /**
+     * The reader's portrait was removed.
+     */
+    PORTRAIT_REMOVED("notice.portraitRemoved");
 
     /**
      * The name of the query parameter a notice travels in.
