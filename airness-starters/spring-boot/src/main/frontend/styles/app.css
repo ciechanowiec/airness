@@ -436,6 +436,11 @@ html {
     outline-offset: -4px;
 }
 
+/* A picture lays its image out as if the image stood in its place, so the image is sized by what holds it. */
+picture {
+    display: contents;
+}
+
 /*
  * The calendar of a date field. daisyUI sizes its text below what the page lets text shrink to and draws no
  * focus of its own, so a day and a month button take the page's text size, a target a finger can hit, and the

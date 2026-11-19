@@ -39,6 +39,16 @@ public final class TaskCriteria {
     }
 
     /**
+     * Answers the task the given identifier stands for.
+     *
+     * @param id the identifier the database keeps the task under
+     * @return the criterion
+     */
+    public static Specification<Task> identified(long id) {
+        return (root, _, builder) -> builder.equal(root.get("id"), id);
+    }
+
+    /**
      * Answers the tasks that stand at the given status.
      *
      * @param status where the tasks stand

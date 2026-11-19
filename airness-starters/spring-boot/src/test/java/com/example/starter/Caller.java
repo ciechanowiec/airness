@@ -1,6 +1,7 @@
 package com.example.starter;
 
 import com.example.starter.web.Htmx;
+import java.io.ByteArrayOutputStream;
 import java.net.CookieManager;
 import java.net.CookieStore;
 import java.net.URI;
@@ -10,6 +11,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.SneakyThrows;
@@ -39,6 +42,9 @@ public final class Caller {
     public static final String SECRET = "starter-" + "fixture-not-a-secret";
 
     private static final String LOGIN = "/login";
+
+    // A multipart body separates its lines with a carriage return and a line feed whatever the platform.
+    private static final String CRLF = "\r\n";
 
     // Every page carries the language switch, which is a form, so every page carries a token.
     private static final String TOKENED = "/";
@@ -205,6 +211,60 @@ public final class Caller {
      */
     public HttpResponse<String> reading(String path, String language) {
         return this.read(this.request(path).header(HttpHeaders.ACCEPT_LANGUAGE, language).GET().build());
+    }
+
+    /**
+     * Posts the given files as a multipart form under the given field, with a token from a page this caller
+     * may read, the way a browser sends a form that uploads files.
+     *
+     * @param path  the address to post to
+     * @param field the name of the field the files are sent under
+     * @param files each file's name and bytes, in the order they are sent
+     * @return what the application answered
+     */
+    public HttpResponse<String> upload(String path, String field, Map<String, byte[]> files) {
+        String boundary = "starter-" + UUID.randomUUID();
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        part(
+            body, boundary, "Content-Disposition: form-data; name=\"_csrf\"", this.token(TOKENED).getBytes(
+                StandardCharsets.UTF_8
+            )
+        );
+        files.forEach(
+            (name, content) -> part(
+                body, boundary,
+                "Content-Disposition: form-data; name=\"" + field + "\"; filename=\"" + name + "\"" + CRLF
+                    + "Content-Type: application/octet-stream",
+                content
+            )
+        );
+        body.writeBytes(("--" + boundary + "--" + CRLF).getBytes(StandardCharsets.UTF_8));
+        return this.read(
+            this.request(path)
+                .header(HttpHeaders.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary)
+                .header(HttpHeaders.ACCEPT, MediaType.TEXT_HTML_VALUE)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
+                .build()
+        );
+    }
+
+    /**
+     * Reads the bytes at the given address, such as a stored file.
+     *
+     * @param path the address to read
+     * @return what the application answered
+     */
+    @SneakyThrows
+    public HttpResponse<byte[]> bytes(String path) {
+        try (HttpClient client = HttpClient.newBuilder().cookieHandler(this.cookies).build()) {
+            return client.send(this.request(path).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+        }
+    }
+
+    private static void part(ByteArrayOutputStream body, String boundary, String headers, byte[] content) {
+        body.writeBytes(("--" + boundary + CRLF + headers + CRLF + CRLF).getBytes(StandardCharsets.UTF_8));
+        body.writeBytes(content);
+        body.writeBytes(CRLF.getBytes(StandardCharsets.UTF_8));
     }
 
     private HttpResponse<String> posting(String tokened, String path, String form) {

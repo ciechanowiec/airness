@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { expectSweptPage } from '@airness/node/a11y'
 import { type APIResponse, expect, type JSHandle, type Locator, type Page, test } from '@playwright/test'
 import { ADMINISTRATOR, CREDENTIAL, signIn } from './helpers/sign-in'
@@ -75,6 +76,46 @@ test('a day picked from the calendar is the day the task keeps', async ({ page }
   await expect(page).toHaveURL(/notice=SAVED$/u)
   await page.goto(edit ?? '')
   await expect(page.locator('input[name="dueOn"]')).toHaveValue(day)
+})
+
+// A one-page PDF, written out whole so the test carries no binary fixture of its own.
+const PDF: string = [
+  '%PDF-1.4',
+  '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+  '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
+  '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >> endobj',
+  'trailer << /Root 1 0 R >>',
+  '%%EOF',
+].join('\n')
+
+// Files attached to a task are drawn from the renditions of their pictures on the task's page, its list and its
+// board, so each is scanned with them, and the task's page again with a picture opened large in its dialog.
+test('a task with attached files passes the scans', async ({ page }) => {
+  const { email, secret } = await admitUser(page)
+  await signIn(page, email, secret)
+  const title: string = `Attached task ${randomUUID()}`
+  await writeTask(page, title)
+  await page.goto(`/tasks?search=${encodeURIComponent(title)}`)
+  const edit: string | null = await page.getByRole('link', { name: title }).getAttribute('href')
+  await page.goto(edit ?? '')
+  await page.locator('#attachment-files').setInputFiles([
+    {
+      name: 'empty.webp',
+      mimeType: 'image/webp',
+      buffer: await readFile('src/main/resources/static/images/empty.webp'),
+    },
+    { name: 'brief.pdf', mimeType: 'application/pdf', buffer: Buffer.from(PDF, 'latin1') },
+  ])
+  await page.locator('form[enctype="multipart/form-data"] button[type="submit"]').click()
+  await expect(page).toHaveURL(/notice=ATTACHED$/u)
+  await expectSweptPage(page)
+  await page.locator('button[aria-haspopup="dialog"]').first().click()
+  await expect(page.locator('dialog[open]')).toBeVisible()
+  await expectSweptPage(page)
+  for (const address of [`/tasks?search=${encodeURIComponent(title)}`, '/tasks/board']) {
+    await expect(await open(page, address)).toBeVisible()
+    await expectSweptPage(page)
+  }
 })
 
 // The language switch loads the whole page, so the page declares the language it is now written in and a

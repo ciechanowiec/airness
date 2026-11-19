@@ -65,6 +65,125 @@
                     </div>
                 </div>
             </form>
+            <section th:if="${existing}" class="panel max-w-2xl space-y-4 p-6" aria-labelledby="attachments-title">
+                <div class="space-y-1">
+                    <h2 id="attachments-title" class="text-lg font-bold" th:text="#{attachments.title}">Attachments</h2>
+                    <p class="text-sm text-muted" th:text="#{attachments.lead}">Images and PDFs, up to 25 MB each.</p>
+                </div>
+                <p
+                    th:if="${attachmentRefusal.isPresent()}"
+                    class="alert alert-error"
+                    role="alert"
+                    th:text="${words.of(attachmentRefusal.get())}"
+                >
+                    One of the files is not an image or a PDF.
+                </p>
+                <p th:if="${attachments.isEmpty()}" class="text-muted" th:text="#{attachments.none}">
+                    Nothing is attached yet.
+                </p>
+                <ul th:unless="${attachments.isEmpty()}" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <li
+                        th:each="attachment, row : ${attachments}"
+                        th:with="opened=|attachment-${row.index}|, original=${@media.original(attachment)}"
+                        class="min-w-0 space-y-1.5"
+                    >
+                        <button
+                            type="button"
+                            class="attachment-tile press flex aspect-4/3 w-full items-center justify-center overflow-hidden rounded-field bg-sunken"
+                            th:attr="data-opens=${opened}"
+                            aria-haspopup="dialog"
+                            th:aria-label="#{attachments.open(${attachment.name()})}"
+                        >
+                            <th:block th:if="${attachment.rendering().drawable()}">
+                                <picture
+                                    th:replace="~{components/media :: thumbnail(${attachment}, '(min-width: 40rem) 13rem, 45vw', '', 'size-full object-cover')}"
+                                ></picture>
+                            </th:block>
+                            <th:block th:unless="${attachment.rendering().drawable()}">
+                                <svg th:replace="~{components/icon :: icon('file-text', 'size-8 text-muted')}"></svg>
+                            </th:block>
+                        </button>
+                        <p class="truncate text-sm" th:text="${attachment.name()}" th:title="${attachment.name()}">
+                            photo.jpg
+                        </p>
+                        <dialog th:id="${opened}" class="modal" th:aria-labelledby="|${opened}-title|">
+                            <div class="modal-box max-w-5xl space-y-4 rounded-box">
+                                <h3
+                                    th:id="|${opened}-title|"
+                                    class="break-words font-bold"
+                                    th:text="${attachment.name()}"
+                                >
+                                    photo.jpg
+                                </h3>
+                                <th:block th:if="${attachment.rendering().drawable()}">
+                                    <picture
+                                        th:replace="~{components/media :: drawn(${attachment}, 'min(90vw, 64rem)', ${attachment.name()}, 'mx-auto h-auto max-w-full rounded-field')}"
+                                    ></picture>
+                                </th:block>
+                                <p
+                                    th:unless="${attachment.rendering().drawable()}"
+                                    class="text-muted"
+                                    th:text="#{attachments.document}"
+                                >
+                                    PDF document
+                                </p>
+                                <div class="modal-action flex-wrap">
+                                    <a
+                                        class="btn btn-primary press"
+                                        th:href="@{${original}}"
+                                        hx-boost="false"
+                                        download
+                                        th:text="#{attachments.download(${attachment.name()})}"
+                                        >Download photo.jpg</a
+                                    >
+                                    <form
+                                        method="post"
+                                        th:action="@{/tasks/{reference}/attachments/{media}/delete(reference=${task.reference()},media=${attachment.reference()})}"
+                                    >
+                                        <button
+                                            class="btn btn-ghost text-error"
+                                            type="submit"
+                                            th:aria-label="#{attachments.removeNamed(${attachment.name()})}"
+                                            th:text="#{attachments.remove}"
+                                        >
+                                            Remove
+                                        </button>
+                                    </form>
+                                    <form method="dialog" hx-boost="false">
+                                        <button class="btn btn-ghost" type="submit" th:text="#{attachments.close}">
+                                            Close
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </dialog>
+                    </li>
+                </ul>
+                <form
+                    class="flex flex-wrap items-end gap-3"
+                    method="post"
+                    enctype="multipart/form-data"
+                    th:action="@{/tasks/{reference}/attachments(reference=${task.reference()})}"
+                >
+                    <div class="fieldset min-w-0 grow">
+                        <label
+                            class="fieldset-legend text-sm font-semibold"
+                            for="attachment-files"
+                            th:text="#{attachments.choose}"
+                            >Add files</label
+                        >
+                        <input
+                            id="attachment-files"
+                            class="file-input ink-border w-full"
+                            type="file"
+                            name="files"
+                            multiple
+                            accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,.heic,.heif,application/pdf"
+                        />
+                    </div>
+                    <button class="btn btn-primary press" type="submit" th:text="#{attachments.upload}">Attach</button>
+                </form>
+            </section>
             <dialog th:if="${existing}" id="delete-task" class="modal" aria-labelledby="delete-task-title">
                 <div class="modal-box press space-y-4 rounded-box">
                     <h2 id="delete-task-title" class="text-lg font-bold" th:text="#{task.delete.title}">

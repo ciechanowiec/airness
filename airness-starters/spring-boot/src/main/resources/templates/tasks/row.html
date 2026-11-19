@@ -14,19 +14,28 @@
     xmlns:th="http://www.thymeleaf.org"
 >
     <td class="max-w-md py-3 pl-5 pr-3 align-top">
-        <a
-            class="font-semibold hover:underline"
-            th:href="@{/tasks/{reference}/edit(reference=${task.reference()})}"
-            th:text="${task.content().title()}"
-            >Title</a
-        >
-        <p
-            class="truncate text-muted"
-            th:text="${task.content().description()}"
-            th:title="${task.content().description()}"
-        >
-            What the task asks for.
-        </p>
+        <div class="flex items-start gap-3">
+            <th:block th:if="${task.cover().rendering().drawable()}">
+                <picture
+                    th:replace="~{components/media :: thumbnail(${task.cover()}, '2.5rem', '', 'size-10 rounded-field object-cover')}"
+                ></picture>
+            </th:block>
+            <div class="min-w-0">
+                <a
+                    class="font-semibold hover:underline"
+                    th:href="@{/tasks/{reference}/edit(reference=${task.reference()})}"
+                    th:text="${task.content().title()}"
+                    >Title</a
+                >
+                <p
+                    class="truncate text-muted"
+                    th:text="${task.content().description()}"
+                    th:title="${task.content().description()}"
+                >
+                    What the task asks for.
+                </p>
+            </div>
+        </div>
     </td>
     <td th:if="${administrator}" class="whitespace-nowrap px-3 py-3 align-top">
         <span class="flex items-center gap-2">

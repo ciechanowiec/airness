@@ -67,5 +67,15 @@ public enum AuditAction {
     /**
      * An administrator removed a task somebody else keeps.
      */
-    TASK_REMOVED
+    TASK_REMOVED,
+
+    /**
+     * An administrator attached a file to a task somebody else keeps.
+     */
+    ATTACHMENT_ADDED,
+
+    /**
+     * An administrator took a file from a task somebody else keeps.
+     */
+    ATTACHMENT_REMOVED
 }

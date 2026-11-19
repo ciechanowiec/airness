@@ -1,0 +1,57 @@
+<!--/*
+    One stored picture, drawn from the renditions made when it was stored. The browser is handed every width in
+    AVIF and in WebP together with how wide the picture is drawn, and takes the narrowest rendition that fills
+    the box at the screen's density in the first encoding it reads; a browser that reads neither takes the
+    WebP rendition nearest 640 pixels. The picture states its width and height, so the page keeps its box
+    before the rendition arrives, and it is fetched only once it comes near the screen.
+
+    Every stored picture a page draws is drawn here and nowhere else, so no page can serve a file as it was
+    handed over where a rendition belongs.
+
+    The parameters are the file as a page shows it, how wide the picture is drawn as a sizes list, its
+    alternative text, empty where words beside it say the same, and the classes that size and crop it.
+*/-->
+<picture
+    th:fragment="drawn(view, sizes, alt, classes)"
+    th:with="avif=${@media.srcset(view, 'avif')}, webp=${@media.srcset(view, 'webp')}, fallback=${@media.fallback(view)}"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <source type="image/avif" srcset="" th:attr="srcset=${avif}" th:sizes="${sizes}" />
+    <img
+        th:src="${fallback}"
+        alt=""
+        th:attr="srcset=${webp}"
+        th:attrappend="alt=${alt}"
+        th:sizes="${sizes}"
+        th:width="${view.rendering().width()}"
+        th:height="${view.rendering().height()}"
+        th:class="${classes}"
+        loading="lazy"
+        decoding="async"
+    />
+</picture>
+
+<!--/*
+    The same picture drawn small, from no rendition wider than 640 pixels, which fills a thumbnail at three
+    device pixels per CSS pixel. A page that also opens the picture large holds wider renditions in the
+    browser's cache, which the browser would otherwise take for the thumbnail too.
+*/-->
+<picture
+    th:fragment="thumbnail(view, sizes, alt, classes)"
+    th:with="avif=${@media.srcset(view, 'avif', 640)}, webp=${@media.srcset(view, 'webp', 640)}, fallback=${@media.fallback(view)}"
+    xmlns:th="http://www.thymeleaf.org"
+>
+    <source type="image/avif" srcset="" th:attr="srcset=${avif}" th:sizes="${sizes}" />
+    <img
+        th:src="${fallback}"
+        alt=""
+        th:attr="srcset=${webp}"
+        th:attrappend="alt=${alt}"
+        th:sizes="${sizes}"
+        th:width="${view.rendering().width()}"
+        th:height="${view.rendering().height()}"
+        th:class="${classes}"
+        loading="lazy"
+        decoding="async"
+    />
+</picture>

@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
@@ -64,6 +65,8 @@ public final class TaskPages {
 
     private static final String NO_AUTOFILL = "off";
 
+    private static final String REFUSED_ATTACHMENT = "attachmentRefusal";
+
     private static final Control TITLE = new Control("task.control.title", "title", "text", NO_AUTOFILL);
 
     private static final Control DESCRIPTION = new Control(
@@ -82,17 +85,21 @@ public final class TaskPages {
 
     private final Clock clock;
 
+    private final Attachments attachments;
+
     /**
      * Shows and changes the tasks through the given application layer.
      *
-     * @param tasks    the tasks, and what may be done to one
-     * @param refusals everything wrong with a submitted form, under the name of its control
-     * @param clock    the clock the day a new task opens on is read from
+     * @param tasks       the tasks, and what may be done to one
+     * @param refusals    everything wrong with a submitted form, under the name of its control
+     * @param clock       the clock the day a new task opens on is read from
+     * @param attachments the files attached to the tasks
      */
-    public TaskPages(Tasks tasks, Refusals refusals, Clock clock) {
+    public TaskPages(Tasks tasks, Refusals refusals, Clock clock, Attachments attachments) {
         this.tasks = tasks;
         this.refusals = refusals;
         this.clock = clock;
+        this.attachments = attachments;
     }
 
     /**
@@ -209,15 +216,22 @@ public final class TaskPages {
      * Answers the form that changes a task, holding what it says today.
      *
      * @param reference the reference the task is known by outside the database
+     * @param refused   why a file the reader tried to attach was not attached, which is empty where none was
+     *                  refused
      * @param model     what the template is given
      * @return the name of the view that renders the form
      * @throws ResponseStatusException when the reader may not see a task under that reference
      */
     @GetMapping("/{reference}/edit")
-    public String edit(@PathVariable(name = REFERENCE, required = true) UUID reference, Model model) {
+    public String edit(
+        @PathVariable(name = REFERENCE, required = true) UUID reference,
+        @RequestParam(name = AttachmentOutcome.PARAMETER, defaultValue = NOTHING) String refused,
+        Model model
+    ) {
         TaskView task = this.tasks.task(reference).orElseThrow(TaskPages::unknown);
         model.addAttribute(BOUND_FORM, TaskForm.of(task));
-        changing(model, task);
+        this.changing(model, task);
+        model.addAttribute(REFUSED_ATTACHMENT, AttachmentOutcome.named(refused));
         return FORM;
     }
 
@@ -250,7 +264,7 @@ public final class TaskPages {
             return Notice.SAVED.redirect(destination(model));
         }
         refused(model, taskForm, wrong);
-        changing(model, task);
+        this.changing(model, task);
         return FORM;
     }
 
@@ -296,7 +310,7 @@ public final class TaskPages {
     @PostMapping("/{reference}/delete")
     public String delete(@PathVariable(name = REFERENCE, required = true) UUID reference, Model model) {
         this.seen(reference);
-        this.tasks.remove(reference);
+        this.attachments.removedWith(reference, () -> this.tasks.remove(reference));
         return Notice.DELETED.redirect(destination(model));
     }
 
@@ -321,12 +335,14 @@ public final class TaskPages {
         model.addAttribute("existing", false);
     }
 
-    private static void changing(Model model, TaskView task) {
+    private void changing(Model model, TaskView task) {
         model.addAttribute("target", "%s/%s".formatted(TASKS, task.reference()));
         model.addAttribute("heading", "task.heading.changing");
         model.addAttribute("submit", "task.submit.save");
         model.addAttribute("existing", true);
         model.addAttribute("task", task);
+        model.addAttribute("attachments", this.attachments.of(UUID.fromString(task.reference())));
+        model.addAttribute(REFUSED_ATTACHMENT, Optional.empty());
     }
 
     // The page the form leads back to, which the model holds from the reader's request.

@@ -38,7 +38,17 @@ public enum Notice implements Named {
     /**
      * The reader's password was changed.
      */
-    PASSWORD_CHANGED("notice.passwordChanged");
+    PASSWORD_CHANGED("notice.passwordChanged"),
+
+    /**
+     * Files were attached to a task.
+     */
+    ATTACHED("notice.attached"),
+
+    /**
+     * A file was taken from a task.
+     */
+    DETACHED("notice.detached");
 
     /**
      * The name of the query parameter a notice travels in.

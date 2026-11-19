@@ -7,6 +7,10 @@ management:
         include: health
 server:
   shutdown: graceful
+  tomcat:
+    # A request refused for its size is read to its end before the refusal is sent, up to this much, so the
+    # browser is told why instead of finding the connection dropped. It matches the largest request below.
+    max-swallow-size: 110MB
   servlet:
     session:
       # A session lapses after half an hour without a request, and signing out ends it at once.
@@ -42,6 +46,13 @@ spring:
     open-in-view: false
   # The encoding is stated because the Polish bundle needs more than ASCII. Falling back to the locale
   # of the machine is turned off, so a server running under another language never decides the answer.
+  servlet:
+    multipart:
+      # A file is refused above 25 MB by the application, which says so on the page it was attached from.
+      # The container lets a little more through so that refusal is the one a reader meets, and a request
+      # carries several files at once.
+      max-file-size: 26MB
+      max-request-size: 110MB
   messages:
     encoding: UTF-8
     fallback-to-system-locale: false
@@ -74,3 +85,17 @@ app:
   demo-data: ${APP_DEMO_DATA:false}
   # The zone the application keeps, in which a task's due day is a day. Instants are stored in UTC.
   zone: UTC
+  # Where the bytes of every stored file live: an S3-compatible object store, RustFS on a machine of its own.
+  storage:
+    endpoint: ${APP_STORAGE_ENDPOINT}
+    bucket: ${APP_STORAGE_BUCKET}
+    region: ${APP_STORAGE_REGION:us-east-1}
+    credentials:
+      access-key: ${APP_STORAGE_ACCESS_KEY}
+      secret-key: ${APP_STORAGE_SECRET_KEY}
+  # Where the renditions of a picture are made: an imgproxy server reading the object store, and the
+  # hexadecimal key and salt every address the application asks it for is signed with.
+  images:
+    url: ${APP_IMAGES_URL}
+    key: ${APP_IMAGES_KEY}
+    salt: ${APP_IMAGES_SALT}
