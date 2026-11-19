@@ -52,6 +52,9 @@ endif::[]
 :l-daisyui: https://daisyui.com/[daisyUI^]
 :l-esbuild: https://esbuild.github.io/[esbuild^]
 :l-nodejs: https://nodejs.org/[Node.js^]
+:l-rustfs: https://rustfs.com/[RustFS^]
+:l-imgproxy: https://imgproxy.net/[imgproxy^]
+:l-pdfbox: https://pdfbox.apache.org/[Apache PDFBox^]
 :l-pnpm: https://pnpm.io/[pnpm^]
 :l-npm: https://www.npmjs.com/[npm^]
 :l-postgresql: https://www.postgresql.org/[PostgreSQL^]
@@ -67,12 +70,12 @@ endif::[]
 [[abstract]]
 == Abstract
 
-This repository holds Starter, a multi-user task tracker that serves as a project template for new web applications. The {l-airness} build harness turns every rule that automation can verify into a check of the build, so changes that AI agents write can merge without a developer reading every line. The application renders HTML pages on the server, updates parts of the pages with {l-htmx}, and keeps its data in {l-postgresql}. One {l-maven} build turns the repository into a verified executable {l-java} archive (JAR). A project generated from the template keeps the accounts, the navigation, and the build, and replaces the task features, the demonstration data, the name, and the look.
+This repository holds Starter, a project template for new web applications and a working multi-user application for tracking tasks. The {l-airness} build harness turns every rule that automation can verify into a check of the build, so changes that AI agents write can merge without a developer reading every line. The application renders HTML pages on the server, updates parts of the pages with {l-htmx}, and keeps its records in {l-postgresql} and the files that users attach in {l-rustfs}. One {l-maven} build turns the repository into a verified executable {l-java} archive (JAR).
 
 [[template-and-purpose]]
 == Purpose and Technologies
 
-. Starter is a web application in which users sign in, keep tasks with a status and a due date, and see the tasks as a list or as a board with one column per status. An [[administrator]]_administrator_ is a user with the role `ADMIN`, who manages the accounts. The pages are available in English and in Polish.
+. Starter is a web application in which users sign in, keep tasks with a status and a due date, and see the tasks as a list or as a board with one column per status. Users also attach pictures and PDFs to the tasks and give their account a portrait. An [[administrator]]_administrator_ is a user with the role `ADMIN`, who manages the accounts. The pages are available in English and in Polish.
 . A _project template_ is a repository that new projects start from as copies. Starter is a project template. A [[generated-project]]_generated project_ is a copy of Starter under its own group, artifact, and package names. A generated project passes every check of the build from the start, so the first change of the generated project is made on a working base.
 . The application combines, among others, the technologies in the following table.
 +
@@ -85,9 +88,12 @@ This repository holds Starter, a multi-user task tracker that serves as a projec
 |{l-tailwind-css} and {l-daisyui} |provide the utility classes, such as `p-4` for padding, and the ready-made interface elements of the style sheet
 |{l-typescript} and {l-esbuild} |hold and bundle the xref:#page-script[page script]
 |{l-nodejs} and {l-pnpm} |run the frontend build and the tests in browsers
-|{l-postgresql} and {l-flyway} |store the data and create its schema
+|{l-postgresql} and {l-flyway} |store the records and create their schema
+|{l-rustfs} |keeps the xref:#stored-file[stored files] and their xref:#rendition[renditions]
+|{l-imgproxy} |makes the xref:#clean-copy[clean copies] and xref:#rendition[renditions] of pictures
+|{l-pdfbox} |renders the first page of an attached PDF as a picture
 |{l-maven} and {l-airness} |build the application and verify every change
-|{l-docker} |runs the database for tests and packages the application as an image
+|{l-docker} |runs the database, {l-rustfs}, and {l-imgproxy} for tests and packages the application as an image
 |===
 
 [[airness-governance]]
@@ -120,7 +126,7 @@ Starter is one {l-spring-boot} application without a separate frontend applicati
 === Runtime Architecture
 
 . A [[static-file]]_static file_ is a file that {l-spring} sends to the browser unchanged, such as the style sheet or the favicon.
-. The [[page-script]]_page script_ is the xref:#static-file[static file] `app.js`, the one {l-javascript} file that every page loads. The page script starts {l-htmx} and the parts of the pages that HTML alone can't do: dragging cards on the task board, confirming before a task is deleted, and the demonstration board. The source of the page script starts like this:
+. The [[page-script]]_page script_ is the xref:#static-file[static file] `app.js`, the one {l-javascript} file that every page loads. The page script starts {l-htmx}. The page script also runs the parts of a page that need a script: dragging cards on the task board, confirming before a task is deleted, opening an attachment in a larger view, picking a due date from a calendar, and the demonstration board. The source of the page script starts like this:
 +
 .`src/main/frontend/entries/app.ts`, shortened
 [source,typescript]
@@ -135,7 +141,7 @@ enableBoard(document)
 enablePreview(document)
 ----
 . The _security filter chain_ is the series of {l-spring-security} filters that every request passes first. The security filter chain sends a user who hasn't signed in to the sign-in page, except on public addresses, such as the addresses of the xref:#static-file[static files].
-. The [[application-logic]]_application logic_ is the {l-java} code that answers each permitted request. The application logic applies the business rules, including what each user may do, reads and writes the database, and fills a {l-thymeleaf} template with the result to render the HTML for the browser.
+. The [[application-logic]]_application logic_ is the {l-java} code that answers each permitted request. The application logic applies the business rules, including what each user may do, reads and writes the database and the xref:#stored-file[stored files], and fills a {l-thymeleaf} template with the result to render the HTML for the browser.
 . The database schema changes only through {l-flyway} migrations, which the application applies at each start.
 . The following figure shows the security filter chain, the xref:#application-logic[application logic], the xref:#templates[templates], and the xref:#static-file[static files] in a request:
 +
@@ -158,11 +164,19 @@ Pages are rendered from {l-thymeleaf} templates: HTML files under `templates/` t
 
 . Every address of the application answers with a whole page, so each page also works on its own, for example after a reload or from a bookmark.
 . When the user follows a link, {l-htmx} loads the next page in the background and replaces the current page without a full reload, so the screen doesn't flash.
-. Some parts of a page update alone. For example, while the user types into the search field of the task list, htmx asks the same address, `/tasks`, for new results. htmx marks such a request, so the application renders only the list of results, and htmx replaces only that list. The following figure shows both cases:
+. Some parts of a page update alone. For example, while the user types into the search field of the task list, {l-htmx} asks the same address, `/tasks`, for new results. htmx marks such a request, so the application renders only the list of results, and htmx replaces only that list. The following figure shows both cases:
 +
 [[page-rendering-figure]]
 .One address for the whole page and for one part
 image::.adocent/resources/visuals/page-rendering.drawio.png["Opening the task list and typing into its search field both send a request to the same address, /tasks. A request that asks for one part receives only the list of results, and htmx replaces that list on the page. Every other request receives the whole page, which the browser shows."]
+
+[[stored-files]]
+=== Stored Files and Pictures
+
+. A [[stored-file]]_stored file_ is a file that the application takes in and keeps while it runs, such as a picture attached to a task or the portrait of an account, as opposed to a xref:#static-file[static file] that ships inside the JAR.
+. The application keeps every xref:#stored-file[stored file] in {l-rustfs}, an object store outside the application. The files therefore outlast a replaced application container, and every instance of the application sees the same files.
+. A [[clean-copy]]_clean copy_ is a copy of a picture without the metadata of the original file, such as where the picture was taken. To keep that metadata from the users who download a picture, the application keeps only the clean copy, which {l-imgproxy} makes.
+. A [[rendition]]_rendition_ is a copy of a picture at one width. The browser downloads the narrowest rendition that fills the picture's place on the screen, so a page loads no more of a picture than it shows. The application has {l-imgproxy} make the renditions of a picture when the picture is stored, not when a page asks for it. A PDF that the application can read is shown by a picture of its first page.
 
 [[languages-and-failures]]
 === Languages and Failures
@@ -180,13 +194,13 @@ image::.adocent/resources/visuals/page-rendering.drawio.png["Opening the task li
 A user signs in with an email address and a password. The [[first-administrator]]_first administrator_ is the xref:#administrator[administrator] account that the application creates from two environment variables at the first start against an empty database, so no password is built into the JAR. An administrator adds every other account with the role `USER` or `ADMIN`. A user with the role `USER` keeps their own tasks, and an administrator also sees every task.
 . *Role checks*
 +
-Before every action, the xref:#application-logic[application logic] checks that the role of the user allows the action. For example, only a user with the role `ADMIN` can add an account.
+Before every action, the xref:#application-logic[application logic] checks that the role of the user allows the action. For example, only a user with the role `ADMIN` can add an account. The application serves a file attached to a task only to a user who may see the task.
 . *Audit trail*
 +
-The application writes to an audit trail every attempt to sign in or to prove a password, every change to an account, and every change an administrator makes to somebody else's task. The database itself refuses to change or delete the entries of the audit trail.
+The application writes to an audit trail every attempt to sign in or to prove a password, every change to an account, and every change an xref:#administrator[administrator] makes to somebody else's task. The database itself refuses to change or delete the entries of the audit trail.
 . *Demonstration data*
 +
-[[demonstration-data-definition]]_Demonstration data_ is a set of demonstration accounts and their tasks that the application writes at the start when the environment variable `APP_DEMO_DATA` is `true` and the database holds no demonstration account yet. The environment file `.env.example` turns the demonstration data on. A deployment that doesn't set `APP_DEMO_DATA` starts with only the xref:#first-administrator[first administrator].
+[[demonstration-data-definition]]_Demonstration data_ is a set of demonstration accounts and their tasks that the application writes at its first start when the environment variable `APP_DEMO_DATA` is `true`. Without demonstration data, the application starts with only the xref:#first-administrator[first administrator].
 
 [[repository-architecture]]
 == Repository Architecture
@@ -240,7 +254,7 @@ starter/
 <8> The message files in English and Polish.
 <9> The runtime settings.
 <10> The {l-java} tests.
-<11> The scripts of the frontend build and of the test database.
+<11> The scripts of the frontend build, of the services that the tests run against, and of the local start.
 <12> The tests of the xref:#page-script[page script] and the frontend build, and the end-to-end tests.
 <13> The container image and the local start.
 <14> The workflow that runs xref:#extended-verification[extended verification] every week and on demand.
@@ -256,7 +270,7 @@ starter/
 . xref:#default-verification[Default verification] checks the tool versions, installs the {l-npm} packages, and runs the xref:#frontend-build[frontend build]. Default verification then compiles, checks, and tests the {l-java} code and packages the executable JAR, which holds every dependency and starts with `java -jar`.
 . xref:#extended-verification[Extended verification] adds three steps to the build: the scans for vulnerabilities and secrets after packaging, the xref:#browser-checks[browser checks] against the executable JAR, and the xref:#compliance-report[compliance report] at the end.
 . The build doesn't use a {l-nodejs} installed on the machine. On the first run, {l-airness} downloads the official {l-nodejs} and {l-pnpm} programs of the versions that {l-airness} pins, checks their checksums, and keeps the programs in the local {l-maven} repository. Every later run of the xref:#node-project[Node project] uses those copies, so every machine builds with the same versions.
-. The `Dockerfile` builds the container image from the executable JAR, and the file `compose.yaml` starts the image beside a {l-postgresql} container with the settings from `.env`.
+. The `Dockerfile` builds the container image from the executable JAR, and the file `compose.yaml` starts the image beside a {l-postgresql} container, a {l-rustfs} container, and an {l-imgproxy} container with the settings from `.env`.
 
 [[frontend-build]]
 === Frontend Build
@@ -276,7 +290,7 @@ The xref:#page-script[page script] goes from its source to the browser in four s
 ----
 export const enableBoard = (root: Document): void => { ... }
 ----
-.. {l-esbuild}, a build tool for {l-javascript}, reads `app.ts`. Each `import` line in `app.ts` names another piece of code that the page script needs, such as the file `board.ts` or the package {l-htmx}, and {l-esbuild} reads that code too:
+.. {l-esbuild}, a build tool for {l-javascript}, reads `app.ts`. Each `import` line in `app.ts` names another piece of code that the xref:#page-script[page script] needs, such as the file `board.ts` or the package {l-htmx}, and {l-esbuild} reads that code too:
 +
 [source,typescript]
 ----
@@ -320,7 +334,7 @@ The font files come from {l-fontsource} packages and ship with the application, 
 The icons come from {l-lucide}, a set of more than a thousand icons. The build copies only the icons that the templates name into the one file `sprite.svg`, so a page downloads one small file instead of the whole set.
 . *Licenses*
 +
-The build copies the license file of each package whose code the frontend resources carry into `licenses/`, and {l-maven} packages these license files into the JAR under `META-INF/licenses`, which the application doesn't serve.
+The build copies the license file of each package whose code the xref:#frontend-resources-definition[frontend resources] carry into `licenses/`, and {l-maven} packages these license files into the JAR under `META-INF/licenses`, which the application doesn't serve.
 
 == About the Document
 
