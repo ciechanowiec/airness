@@ -14,8 +14,10 @@ import java.util.stream.Stream;
  * The frontmatter of an agent skill manifest, {@code SKILL.md}, and the defects that stop an agent from
  * discovering or invoking the skill.
  *
- * <p>Only the frontmatter is judged. A skill body is a knowledge file with tables and examples, so rules
- * about its prose would reject valid skills. Only flat top-level keys are read: a line indented under a
+ * <p>Only the frontmatter is judged here. A skill body is a knowledge file with tables and examples, so rules
+ * about its prose would reject valid skills. The body answers instead to the structural rules
+ * {@link MarkdownCheck} holds every Markdown document to, none of which reads prose for its wording. Only flat
+ * top-level keys are read: a line indented under a
  * nested key such as {@code metadata} is part of that key, and a folded or literal block scalar carries its
  * value on the indented lines beneath it.
  *

@@ -1,5 +1,6 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -103,6 +104,24 @@ final class ManagedSections {
     private static String token(String line) {
         String token = (line.contains(BEGIN_TEXT) ? "B" : "") + (line.contains(END_TEXT) ? "E" : "");
         return token.isEmpty() ? token : token + ',';
+    }
+
+    /**
+     * The lines the managed blocks of a file span, markers included.
+     *
+     * @param content the file content, with line feeds
+     * @return the zero-based indexes of those lines
+     */
+    static BitSet managedLines(String content) {
+        BitSet lines = new BitSet();
+        BLOCK.matcher(content).results().forEach(
+            block -> lines.set(lineOf(content, block.start()), lineOf(content, block.end() - 1) + 1)
+        );
+        return lines;
+    }
+
+    private static int lineOf(String content, int offset) {
+        return (int) content.substring(0, offset).chars().filter(character -> character == '\n').count();
     }
 
     /**

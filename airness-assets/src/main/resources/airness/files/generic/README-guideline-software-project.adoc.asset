@@ -117,7 +117,7 @@ The xref:#harness[harness] stays beyond the xref:#governed-repository[governed r
 [[governed-repository-organization]]
 == Governed Repository Organization
 
-This section describes the organization of a xref:#governed-repository[governed repository]: its xref:#instruction-file[instruction files], its project goal, the coherence of its parts, its production boundaries, its generated files, and the configuration that fixes formatting.
+This section describes the organization of a xref:#governed-repository[governed repository]: its xref:#instruction-file[instruction files], its project goal, the coherence of its parts, its Markdown documents, its production boundaries, its generated files, and the configuration that fixes formatting.
 
 [[instruction-files]]
 === Instruction Files
@@ -143,6 +143,20 @@ A xref:#governed-repository[governed repository] grows through many separate cha
 . A xref:#part[part] holds the parts that cover the more specific areas within its own area: a directory holds directories and files, and a file holds named divisions. A specific area doesn't sit beside the general area it belongs to.
 . Each xref:#part[part] is as large as its role in the xref:#project-goal[project goal] requires and no larger. A minor case takes less code, documentation, and instruction text than a major one, and no part holds an abstraction, a configuration option, or an extension point that no current use needs.
 . xref:#part[Parts] that solve the same kind of problem solve it the same way. Two approaches coexist only where the problems differ. For example, either every xref:#callable[callable] reports an expected failure through a result type, or every callable raises an error for it, never a mix of both.
+
+[[markdown-documents]]
+=== Markdown Documents
+
+. A xref:#check[check] reads every committed Markdown document as a CommonMark renderer with GitHub tables and a leading YAML front matter block reads it. The check fails on the first document that breaks a rule of this section. Code blocks, code spans, HTML, and front matter hold no prose, so the rules about headings, paragraphs, and links don't read them.
+. Each relative link and image path names a committed file, or a directory that holds one, in the letter case of that file. A fragment names a heading or an HTML ID of its target document. Each reference link has a definition, and a link uses each definition.
+. The headings form an outline without gaps. Each heading is written with number signs rather than an underline, has text, and doesn't end with a period, a colon, a semicolon, or a comma. A heading sits at most one level below the heading before it, and no sibling heading has the same title.
+. No section is empty, and no section holds exactly one subsection.
+. Each code block is a fenced block whose opening fence names a language.
+. A list nests at most two levels deep, and each level holds at least two items.
+. Each paragraph sits on one source line, in a list item and in a quotation too. A backslash at the end of a line is the only line break.
+. No two documents hold the same text, and no paragraph of 80 or more characters appears in two places. The later copy links to the first one instead, as the section xref:#coherence[] requires. Text that the xref:#harness[harness] writes into several files is exempt.
+. An xref:#instruction-file[instruction file] holds at most 2,000 words of text that the xref:#governed-repository[governed repository] owns. A `SKILL.md` file of an AI agent skill holds at most 4,000 words below the front matter.
+. Link text names the destination of the link, and each image has alternative text.
 
 [[production-imports]]
 === Production Boundaries
@@ -251,7 +265,7 @@ This section describes the state of the source code: its size, its types, its na
 [[typography]]
 === Typography
 
-. The following characters are banned: the em dash, the en dash, typographic quotation marks, and the single-character ellipsis. The plain equivalents - the hyphen, the straight quotation mark, and three periods - stand in their place.
+. The following characters are banned: the em dash, the en dash, typographic quotation marks, the single-character ellipsis, the no-break spaces, the zero-width space, and the word joiner. The plain equivalents - the hyphen, the straight quotation mark, three periods, and the ordinary space - stand in their place.
 . The banned characters are absent from every commit message and from every tracked file the xref:#governed-repository[governed repository] doesn't exclude by xref:#file-role[file role]. A xref:#check[check] scans those files by code point and fails on the first finding.
 
 [[security]]

@@ -55,6 +55,28 @@
             <scope>compile</scope>
         </dependency>
         <!--
+            The CommonMark reference parser for Java, which the Markdown check reads documents with, so a verdict
+            follows what a renderer draws rather than what a line looks like. The two extensions read GitHub tables
+            and a leading YAML frontmatter block as what they are, where the core parser would read a table row as
+            a paragraph cut across lines and a skill's frontmatter as a rule beneath an underlined heading. None of
+            the three carries a dependency beyond the core.
+        -->
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark-ext-gfm-tables</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark-ext-yaml-front-matter</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <!--
             The EditorConfig parser the file linter of the same build reads .editorconfig files with, so the
             indentation check resolves a file's properties exactly as the linter does. Like the parser above,
             it carries no dependency of its own beyond its tests.

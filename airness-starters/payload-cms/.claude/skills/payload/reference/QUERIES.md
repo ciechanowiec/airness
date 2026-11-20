@@ -213,7 +213,7 @@ const response = await fetch(`https://api.example.com/api/posts${queryString}`)
 const data = await response.json()
 ```
 
-### REST Endpoints
+## REST Endpoints
 
 ```txt
 GET    /api/{collection}           - Find documents

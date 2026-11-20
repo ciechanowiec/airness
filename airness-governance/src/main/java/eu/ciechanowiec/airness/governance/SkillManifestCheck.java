@@ -13,8 +13,11 @@ import java.util.Optional;
  */
 public final class SkillManifestCheck {
 
+    /**
+     * The file name of a skill manifest.
+     */
+    static final String MANIFEST = "SKILL.md";
     private static final Path SKILLS = Path.of(".claude", "skills");
-    private static final String MANIFEST = "SKILL.md";
     private static final String BROKEN
         = "Agent skill manifests whose frontmatter an agent cannot use (repair the frontmatter)";
 

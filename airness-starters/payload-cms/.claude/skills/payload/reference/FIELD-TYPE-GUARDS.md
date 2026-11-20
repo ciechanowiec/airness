@@ -315,9 +315,7 @@ fieldIsHiddenOrDisabled<TField extends ClientField | Field | TabAsField | TabAsF
 
 ## Layout Guards
 
-### fieldIsSidebar
-
-Checks if field is positioned in sidebar.
+`fieldIsSidebar` checks if a field is positioned in the sidebar.
 
 ```ts
 import { fieldIsSidebar } from 'payload'

@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 
 # The generic repository rules: image integrity, environment coherence, hosted runner images, agent
-# documentation references, skill manifests, generated-file denial, compose isolation, container hardening,
-# container definitions and workflows.
+# documentation references, skill manifests, Markdown documents, generated-file denial, compose isolation,
+# container hardening, container definitions and workflows.
 # Their variants are unit-tested in airness-governance and airness-maven-plugin. These runs prove each goal
 # is bound in the installed parent: one report-only run up to the Extended scanners carries a planted defect
 # for every rule, since none of the defects reads what another rule reads, and one enforcing Default run
@@ -11,7 +11,7 @@ run_generic_rule_cases() {
     new_consumer generic-rules
     generic_consumer="${consumer_directory}"
     mkdir -p "${generic_consumer}/public" "${generic_consumer}/.claude/skills/Release_Notes" \
-        "${generic_consumer}/.github/workflows" "${generic_consumer}/broken"
+        "${generic_consumer}/.github/workflows" "${generic_consumer}/broken" "${generic_consumer}/docs"
     printf 'services: not-a-mapping\n' > "${generic_consumer}/broken/compose.yaml"
     printf '\211PNG\r\n\032\n' > "${generic_consumer}/public/broken.png"
     cat > "${generic_consumer}/compose.yaml" <<'YAML'
@@ -29,6 +29,8 @@ YAML
     printf '\nRead %sdocs/missing-guide.md%s before changing the build.\n' '`' '`' >> "${generic_consumer}/AGENTS.md"
     printf '# Release notes\n\nDrafts release notes.\n' \
         > "${generic_consumer}/.claude/skills/Release_Notes/SKILL.md"
+    printf '# Guide\n\nThis paragraph is cut\nacross two lines and links to [the setup](setup.md).\n' \
+        > "${generic_consumer}/docs/guide.md"
     printf 'FROM alpine:3.22\nUSER 65532\nRUN apk add curl\nARG NPM_TOKEN\n' > "${generic_consumer}/Dockerfile"
     cat > "${generic_consumer}/.github/workflows/ci.yml" <<'YAML'
 name: 'Greeting'
@@ -67,6 +69,10 @@ YAML
         'AGENTS[.]md: docs/missing-guide[.]md'
     expect_match generic_batch 'generic rules: skill manifests name the missing frontmatter' \
         '[.]claude/skills/Release_Notes/SKILL[.]md [[]frontmatter[]]'
+    expect_match generic_batch 'generic rules: Markdown names the link to a file nobody committed' \
+        "docs/guide[.]md:4: 'setup[.]md' names no committed file"
+    expect_match generic_batch 'generic rules: Markdown names the paragraph cut across lines' \
+        'docs/guide[.]md:3: the paragraph is cut across lines'
     expect_match generic_batch 'generic rules: generated-file denial is bound in the generic parent' \
         'generated-denial [(]airness-governance-sources[)]'
     expect_match generic_batch 'generic rules: the Dockerfile is linted by the pinned hadolint' \

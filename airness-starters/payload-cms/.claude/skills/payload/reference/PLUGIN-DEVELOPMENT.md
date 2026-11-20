@@ -31,7 +31,7 @@ export const myPlugin =
 
 ### Simple Structure
 
-```
+```text
 plugin-<name>/
 ├── package.json              # Package metadata and dependencies
 ├── README.md                 # Plugin documentation
@@ -46,7 +46,7 @@ plugin-<name>/
 
 ### Exhaustive Structure
 
-```
+```text
 plugin-<name>/
 ├── .swcrc                    # SWC compiler config
 ├── package.json              # Package metadata and dependencies
@@ -656,8 +656,6 @@ import type { MyPluginConfig } from '@payloadcms/plugin-example/types'
 
 ## Client Components
 
-### Custom Field Component
-
 ```tsx
 // src/fields/CustomField/Component.tsx
 'use client'
@@ -1250,9 +1248,7 @@ collection.endpoints = [
 
 ### Field & Collection Modifications
 
-#### Admin Folders Override
-
-Control admin UI organization:
+Override the admin folders to control the admin UI organization:
 
 ```ts
 // From plugin-redirects
@@ -1265,8 +1261,6 @@ collection.admin = {
 ```
 
 ### Background Jobs & Async Operations
-
-#### Jobs Registration
 
 Register plugin background tasks:
 
@@ -1301,40 +1295,40 @@ Include a `dev/` directory with a complete Payload project for local development
 
 1. Create `dev/.env` from `.env.example`:
 
-```bash
-DATABASE_URL=mongodb://127.0.0.1/plugin-dev
-PAYLOAD_SECRET=your-secret-here
-```
+   ```bash
+   DATABASE_URL=mongodb://127.0.0.1/plugin-dev
+   PAYLOAD_SECRET=your-secret-here
+   ```
 
 2. Configure `dev/payload.config.ts`:
 
-```ts
-import { buildConfig } from 'payload'
-import { mongooseAdapter } from '@payloadcms/db-mongodb'
-import { myPlugin } from '../src/index.js'
+   ```ts
+   import { buildConfig } from 'payload'
+   import { mongooseAdapter } from '@payloadcms/db-mongodb'
+   import { myPlugin } from '../src/index.js'
 
-export default buildConfig({
-  secret: process.env.PAYLOAD_SECRET!,
-  db: mongooseAdapter({ url: process.env.DATABASE_URL! }),
-  plugins: [
-    myPlugin({
-      collections: ['posts'],
-    }),
-  ],
-  collections: [
-    {
-      slug: 'posts',
-      fields: [{ name: 'title', type: 'text' }],
-    },
-  ],
-})
-```
+   export default buildConfig({
+     secret: process.env.PAYLOAD_SECRET!,
+     db: mongooseAdapter({ url: process.env.DATABASE_URL! }),
+     plugins: [
+       myPlugin({
+         collections: ['posts'],
+       }),
+     ],
+     collections: [
+       {
+         slug: 'posts',
+         fields: [{ name: 'title', type: 'text' }],
+       },
+     ],
+   })
+   ```
 
 3. Run development server:
 
-```bash
-npm run dev  # Starts Next.js on http://localhost:3000
-```
+   ```bash
+   npm run dev  # Starts Next.js on http://localhost:3000
+   ```
 
 ### Integration Tests (Vitest) (optional)
 

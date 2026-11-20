@@ -7,9 +7,13 @@ import lombok.experimental.UtilityClass;
 
 /**
  * Scans already-decoded text for the typographic code points the guideline bans: the em dash, the en
- * dash, the single-character ellipsis, and the typographic (curly) quotation marks. The plain ASCII
- * equivalents (the hyphen, three periods, and the straight quotation mark) stand in their place. The
- * scan takes decoded text and never touches the filesystem, so it stays a pure, unit-testable rule.
+ * dash, the single-character ellipsis, the typographic (curly) quotation marks, and the spaces a reader
+ * cannot tell from an ordinary one or cannot see at all. The plain ASCII equivalents (the hyphen, three
+ * periods, the straight quotation mark and the ordinary space) stand in their place. An invisible space
+ * makes two lines that read the same compare as different, so a search, a diff or a duplicate check
+ * misses what a reader would match. The joiners that compose an emoji or a word of a script that needs
+ * them stay allowed, being part of the character they join. The scan takes decoded text and never
+ * touches the filesystem, so it stays a pure, unit-testable rule.
  */
 @UtilityClass
 final class TypographyRules {
@@ -22,9 +26,16 @@ final class TypographyRules {
     static final int LEFT_DOUBLE_QUOTE = 0x201C;
     static final int RIGHT_DOUBLE_QUOTE = 0x201D;
     static final int LOW_DOUBLE_QUOTE = 0x201E;
+    static final int NO_BREAK_SPACE = 0x00A0;
+    static final int FIGURE_SPACE = 0x2007;
+    static final int ZERO_WIDTH_SPACE = 0x200B;
+    static final int NARROW_NO_BREAK_SPACE = 0x202F;
+    static final int WORD_JOINER = 0x2060;
+    static final int ZERO_WIDTH_NO_BREAK_SPACE = 0xFEFF;
     private static final Set<Integer> BANNED = Set.of(
         EM_DASH, EN_DASH, ELLIPSIS, LEFT_SINGLE_QUOTE, RIGHT_SINGLE_QUOTE,
-        LEFT_DOUBLE_QUOTE, RIGHT_DOUBLE_QUOTE, LOW_DOUBLE_QUOTE
+        LEFT_DOUBLE_QUOTE, RIGHT_DOUBLE_QUOTE, LOW_DOUBLE_QUOTE, NO_BREAK_SPACE, FIGURE_SPACE,
+        ZERO_WIDTH_SPACE, NARROW_NO_BREAK_SPACE, WORD_JOINER, ZERO_WIDTH_NO_BREAK_SPACE
     );
     private static final String NEWLINE = "\n";
 

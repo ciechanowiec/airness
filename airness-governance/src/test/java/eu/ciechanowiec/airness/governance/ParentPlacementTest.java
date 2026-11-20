@@ -53,7 +53,7 @@ class ParentPlacementTest {
                     "environment",
                     "generated-denial", "ignore-patterns", "image-assets", "indentation", "instruction-references",
                     "license-metadata",
-                    "linear-history",
+                    "linear-history", "markdown",
                     "module-complete",
                     "node-dependencies", "node-gate", "node-install", "node-projects", "npm-dependencies",
                     "plugin-inputs", "project-settings",
