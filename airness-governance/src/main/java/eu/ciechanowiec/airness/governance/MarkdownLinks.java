@@ -47,6 +47,9 @@ final class MarkdownLinks {
         "here", "click here", "this", "this link", "link", "read more", "more"
     );
     private static final String BARRIER = Character.toString(0);
+    private static final List<Class<? extends Node>> OPAQUE = List.of(
+        Code.class, HtmlInline.class, Link.class, Image.class
+    );
     private static final String MARKDOWN = ".md";
     private static final String PARENT = "..";
     private static final char FRAGMENT = '#';
@@ -178,8 +181,7 @@ final class MarkdownLinks {
     }
 
     private static String barrier(Node node) {
-        return node instanceof Code || node instanceof HtmlInline || node instanceof Link || node instanceof Image
-            ? BARRIER : "";
+        return OPAQUE.stream().anyMatch(type -> type.isInstance(node)) ? BARRIER : "";
     }
 
     private static String label(String text, String label) {
@@ -199,7 +201,8 @@ final class MarkdownLinks {
             return Optional.of(document);
         }
         boolean rooted = file.charAt(0) == SLASH;
-        Path base = rooted ? Path.of("") : Optional.ofNullable(Path.of(document).getParent()).orElse(Path.of(""));
+        Path root = Path.of("");
+        Path base = rooted ? root : Optional.ofNullable(Path.of(document).getParent()).orElse(root);
         Path target = base.resolve(rooted ? file.substring(1) : file).normalize();
         return target.startsWith(PARENT) ? Optional.empty()
             : Optional.of(target.toString().replace(File.separatorChar, SLASH));
@@ -208,19 +211,6 @@ final class MarkdownLinks {
     private static Stream<String> ancestors(String file) {
         return Stream.iterate(file.lastIndexOf(SLASH), index -> index > 0, index -> file.lastIndexOf(SLASH, index - 1))
             .map(index -> file.substring(0, index));
-    }
-
-    private static String decoded(String encoded) {
-        return ESCAPES.matcher(encoded).replaceAll(escapes -> Matcher.quoteReplacement(utf8(escapes.group())));
-    }
-
-    private static String utf8(String escapes) {
-        byte[] bytes = new byte[escapes.length() / ESCAPE];
-        for (int index = 0; index < bytes.length; index++) {
-            int start = index * ESCAPE + 1;
-            bytes[index] = (byte) Integer.parseInt(escapes.substring(start, start + ESCAPE - 1), HEX);
-        }
-        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     /**
@@ -240,6 +230,19 @@ final class MarkdownLinks {
                 decoded(query < 0 ? location : location.substring(0, query)),
                 hash < 0 ? "" : decoded(destination.substring(hash + 1))
             );
+        }
+
+        private static String decoded(String encoded) {
+            return ESCAPES.matcher(encoded).replaceAll(escapes -> Matcher.quoteReplacement(utf8(escapes.group())));
+        }
+
+        private static String utf8(String escapes) {
+            byte[] bytes = new byte[escapes.length() / ESCAPE];
+            for (int index = 0; index < bytes.length; index++) {
+                int start = index * ESCAPE + 1;
+                bytes[index] = (byte) Integer.parseInt(escapes.substring(start, start + ESCAPE - 1), HEX);
+            }
+            return new String(bytes, StandardCharsets.UTF_8);
         }
     }
 

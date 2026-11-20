@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.governance;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -116,7 +117,7 @@ final class MarkdownOutline {
     }
 
     private static boolean empty(Heading heading) {
-        return MarkdownDocument.following(heading)
+        return Stream.iterate(heading.getNext(), Objects::nonNull, Node::getNext)
             .filter(block -> !comment(block))
             .findFirst()
             .map(block -> block instanceof Heading next && next.getLevel() <= heading.getLevel())
