@@ -24,13 +24,20 @@ import org.commonmark.node.Paragraph;
  * catches a paragraph pasted from one file into another.
  *
  * <p>The blocks Airness manages are left out of both readings. Airness writes the same block into every node
- * project of a repository by design, and a project can neither change one nor remove it.
+ * project of a repository by design, and a project can neither change one nor remove it. The agent-rules block
+ * {@code next dev} writes into the {@code AGENTS.md} of each Next.js application is left out for the same reason:
+ * Next.js writes it verbatim and adds it again once removed, so two applications of one repository always share
+ * it. Only that block, named by its exact markers, is left out, so no other marked text escapes the comparison.
  */
 @UtilityClass
 final class MarkdownDuplicates {
 
     private static final int SHORTEST = 80;
     private static final Pattern SPACES = Pattern.compile("\\s+");
+    private static final Pattern FRAMEWORK_BLOCK = Pattern.compile(
+        "(?m)^<!-- BEGIN:nextjs-agent-rules -->[ \\t]*\\n(?:.*\\n)*?"
+            + "<!-- END:nextjs-agent-rules -->[ \\t]*(?:\\n|\\z)"
+    );
 
     /**
      * The copied files and paragraphs.
@@ -72,6 +79,7 @@ final class MarkdownDuplicates {
 
     private static Stream<Place> paragraphs(MarkdownDocument document) {
         BitSet managed = ManagedSections.managedLines(document.text());
+        managed.or(ManagedSections.blockLines(FRAMEWORK_BLOCK, document.text()));
         return document.nodes(Paragraph.class)
             .filter(paragraph -> !managed.get(MarkdownDocument.line(paragraph) - 1))
             .map(paragraph -> new Place(document.place(paragraph), normal(MarkdownDocument.text(paragraph))))
@@ -79,7 +87,8 @@ final class MarkdownDuplicates {
     }
 
     private static String owned(MarkdownDocument document) {
-        return ManagedSections.projectPart(document.text()).orElse(document.text()).strip();
+        String project = ManagedSections.projectPart(document.text()).orElse(document.text());
+        return FRAMEWORK_BLOCK.matcher(project).replaceAll("").strip();
     }
 
     private static String normal(String text) {

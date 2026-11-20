@@ -113,9 +113,20 @@ final class ManagedSections {
      * @return the zero-based indexes of those lines
      */
     static BitSet managedLines(String content) {
+        return blockLines(BLOCK, content);
+    }
+
+    /**
+     * The lines the matches of a block pattern span, from the first line of each match to its last.
+     *
+     * @param block   a pattern each of whose matches starts at a line start and ends with its last line
+     * @param content the file content, with line feeds
+     * @return the zero-based indexes of those lines
+     */
+    static BitSet blockLines(Pattern block, String content) {
         BitSet lines = new BitSet();
-        BLOCK.matcher(content).results().forEach(
-            block -> lines.set(lineOf(content, block.start()), lineOf(content, block.end() - 1) + 1)
+        block.matcher(content).results().forEach(
+            match -> lines.set(lineOf(content, match.start()), lineOf(content, match.end() - 1) + 1)
         );
         return lines;
     }
