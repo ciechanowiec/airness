@@ -79,9 +79,43 @@ class ScannerInventoryTest {
 
     @Test
     @SneakyThrows
-    void rejectsLinksRatherThanFollowingUnselectedInput() {
-        Path root = new GitFixture("scanner-link").write("real.sh", "#!/bin/sh\nexit 0\n").root();
+    void passesOverLinksWithinTheCommittedTreeWithoutFollowingThem() {
+        Path root = new GitFixture("scanner-link")
+            .write("real.sh", "#!/bin/sh\nexit 0\n")
+            .write("shared/guide/SKILL.md", "# Guide\n")
+            .root();
         Files.createSymbolicLink(root.resolve("link.sh"), Path.of("real.sh"));
-        assertTrue(new ScannerInventory(root).problems().getFirst().contains("symbolic links"));
+        Files.createDirectories(root.resolve("agent"));
+        Files.createSymbolicLink(root.resolve("agent/guide"), Path.of("../shared/guide"));
+        ScannerInventory inventory = new ScannerInventory(root);
+        assertEquals(List.of(), inventory.problems(), "a link to a committed file or directory is no problem");
+        assertEquals(
+            List.of("real.sh", "shared/guide/SKILL.md"),
+            inventory.files().stream().map(root::relativize).map(Path::toString).sorted().toList(),
+            "only regular files are scanner inputs, so what a link leads to is scanned as itself"
+        );
+        assertEquals(
+            List.of("real.sh"), inventory.scripts().stream().map(root::relativize).map(Path::toString).toList()
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void rejectsLinksThatWouldPutUnselectedInputBeforeAScanner() {
+        Path outside = Files.createTempFile("scanner-outside", ".sh");
+        Path root = new GitFixture("scanner-link-out")
+            .write(".gitignore", "target/\n")
+            .write("target/generated.sh", "#!/bin/sh\nexit 1\n")
+            .root();
+        Files.createSymbolicLink(root.resolve("dangling.sh"), Path.of("missing.sh"));
+        Files.createSymbolicLink(root.resolve("outside.sh"), outside);
+        Files.createSymbolicLink(root.resolve("ignored.sh"), Path.of("target/generated.sh"));
+        List<String> problems = new ScannerInventory(root).problems();
+        assertEquals(
+            List.of("dangling.sh", "ignored.sh", "outside.sh"),
+            problems.stream().map(problem -> problem.substring(0, problem.indexOf(':'))).toList(),
+            "a dangling link, one leaving the repository and one to an ignored file are each refused"
+        );
+        assertTrue(problems.stream().allMatch(problem -> problem.contains("symbolic link")));
     }
 }

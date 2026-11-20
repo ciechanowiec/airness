@@ -1,9 +1,12 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -12,6 +15,11 @@ import java.util.stream.Stream;
  *
  * <p>Which files a scanner would read as its own configuration is decided by {@link ToolConfigurationFiles},
  * the one inventory of such files, which also refuses them on every build rather than only before a scan.
+ *
+ * <p>No scanner follows a symbolic link: an input is a regular file, copied into the scanner's own tree. A link
+ * within the committed tree, such as one that replaces a copied document, is passed over, since what it leads to
+ * is committed and scanned as itself. A link that dangles, leaves the repository or leads to something nothing
+ * commits is refused, because it would put input before a scanner that the inventory never selected.
  *
  * @param root repository root
  */
@@ -27,12 +35,12 @@ public record ScannerInventory(Path root) {
     );
 
     /**
-     * Every present committable file, including ordinary unstaged work.
+     * Every present committable regular file, including ordinary unstaged work, without the symbolic links.
      *
      * @return absolute paths in Git's order
      */
     public List<Path> files() {
-        return Repository.trackedFiles(this.root);
+        return Repository.trackedFiles(this.root).stream().filter(file -> !Files.isSymbolicLink(file)).toList();
     }
 
     /**
@@ -45,12 +53,25 @@ public record ScannerInventory(Path root) {
     }
 
     /**
-     * Configuration that could hide findings, and links that escape the input tree.
+     * Configuration that could hide findings, and links that lead outside the committed tree.
      *
      * @return violations that must be repaired before starting a scanner
      */
     public List<String> problems() {
-        return this.files().stream().flatMap(this::problems).sorted().toList();
+        List<Path> tracked = Repository.trackedFiles(this.root);
+        Set<Path> committed = tracked.stream()
+            .filter(file -> !Files.isSymbolicLink(file))
+            .map(ScannerInventory::real)
+            .flatMap(Optional::stream)
+            .collect(Collectors.toUnmodifiableSet());
+        return tracked.stream().flatMap(file -> this.problems(file, committed)).sorted().toList();
+    }
+
+    private Stream<String> problems(Path file, Set<Path> committed) {
+        if (Files.isSymbolicLink(file)) {
+            return this.linkProblem(file, committed).stream();
+        }
+        return this.problems(file);
     }
 
     private Stream<String> problems(Path file) {
@@ -62,9 +83,29 @@ public record ScannerInventory(Path root) {
         if (ToolConfigurationFiles.scannerConfiguration(this.root.relativize(file))) {
             return Optional.of(relative + ": scanner configuration belongs to Airness; remove the local copy");
         }
-        return Files.isSymbolicLink(file)
-            ? Optional.of(relative + ": scanner inputs must be regular repository files, not symbolic links") : Optional
-                .empty();
+        return Optional.empty();
+    }
+
+    private Optional<String> linkProblem(Path link, Set<Path> committed) {
+        Optional<Path> root = real(this.root);
+        boolean selected = real(link)
+            .filter(target -> root.filter(target::startsWith).isPresent())
+            .filter(target -> committed.contains(target) || (Files.isDirectory(target) && committed.stream().anyMatch(
+                file -> file.startsWith(target)
+            )))
+            .isPresent();
+        return selected ? Optional.empty() : Optional.of(
+            this.root.relativize(link) + ": a symbolic link may lead only to a committed file, or a directory holding"
+                + " one, inside the repository; scanners never follow it, so commit what it leads to or remove it"
+        );
+    }
+
+    private static Optional<Path> real(Path path) {
+        try {
+            return Optional.of(path.toRealPath());
+        } catch (IOException _) {
+            return Optional.empty();
+        }
     }
 
     private Stream<String> contentProblems(Path file) {
