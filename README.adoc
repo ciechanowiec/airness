@@ -1,5 +1,5 @@
 [.text-justify]
-= _airness_ User Guide
+= Airness
 :reproducible:
 :doctype: article
 :author: Herman Ciechanowiec
@@ -40,40 +40,61 @@ endif::[]
 
 :airness-version: 1.0.13-SNAPSHOT
 
-// This metadata table pairs each event with its timestamp and needs no column headers.
-[cols=">.^1,<.^1",adocent-disable-next-line="Structure.TableHeaders"]
+[cols=">.^1h,<.^1"]
+// The two-row metadata table labels its rows in its first column, not its columns.
+// adocent-disable-next-line Structure.TableHeaders
 |===
-| Document last modified | {docdatetime}
-| Document generated | {localdatetime}
+| Document last modified: | {docdatetime}
+| Document generated: | {localdatetime}
 |===
 
-[[overview]]
-== Overview
+Airness is a build xref:#harness[harness] for software repositories that https://maven.apache.org[Maven^] builds and whose code AI agents write. Each xref:#module[module] of the build inherits an xref:#airness-parent[Airness parent], and from then on the build runs the automated xref:#check[checks] that the software project guideline requires for the repository's technology stack. The build fails when any check fails, so a change that passes can merge without human code review. This document explains the mechanisms behind that outcome: checks and xref:#finding[findings], Airness parents, xref:#node-project[node projects], xref:#managed-file[managed files], rules a repository can't turn off, agent instructions, build commands, the build lifecycle, and the areas the rules cover. It then shows how a new application starts with Airness. The agent guides, which agents read, hold the exact rules, so this document names only the main ones.
 
-_airness_ is a Maven parent that keeps shared build rules in one place. This guide explains xref:#quick-start[how to add _airness_ version `{airness-version}`], how to xref:#build-commands[run its checks], how to xref:#release-publication[publish a release], and how to xref:#configuration[configure it for a project]. It doesn't cover the source modules or internal implementation.
+[[code-without-human-review]]
+== Code Without Human Review
 
-[[quick-start]]
-== Quick Start
-
-[[starter-projects]]
-=== Starter Projects
-
-. A new application can begin from a starter, a working application that already passes xref:#extended-verification[Extended verification], instead of from an empty project. The `spring-boot` starter is a multi-user task tracker: sign-in with `USER` and `ADMIN` roles, account administration, an audit trail, English and Polish pages, the tasks of each user as a list or as a board with one column per status, and a demonstration team a local run can start with. Users attach pictures and PDFs to tasks and give their accounts portraits. It is built with Spring Boot, server-rendered Thymeleaf pages with htmx, Tailwind CSS with daisyUI, Flyway and PostgreSQL, and it ships a `Dockerfile` and a `compose.yaml`, which `pnpm run up` starts on a free loopback port, so several applications, or checkouts of one, run side by side. The attached files live in S3-compatible storage, and an image service makes the copies of pictures that pages show. Node builds and checks its frontend; the application runs on Java alone. The `payload-cms` starter is a content site on Payload CMS, Next.js, PostgreSQL and S3-compatible storage: an admin panel for administrators and editors, uploads stored in a bucket rather than on disk, and an audit trail of sign-ins and account changes. It inherits `airness-parent-payload`, and its `Dockerfile` copies the standalone server the build leaves, so `mvn clean verify` and `pnpm run up` start it as they start the `spring-boot` starter.
-. The `new` goal makes the application in a new directory, outside any project:
+. A [[governed-repository]]_governed repository_ is a software repository in which AI agents write all the code and changes merge without human review. The link:README-guideline-software-project.adoc[software project guideline^] defines it and states the rules that such a repository keeps. Every repository that uses Airness carries a copy of that guideline.
+. No human reviews the code of a xref:#governed-repository[governed repository], so a machine must check every rule that it can verify reliably. A [[check]]_check_ is an automated verification with exactly two verdicts: _pass_ and _fail_. A check that can't run fails as well. No warning exists between the two verdicts. A [[harness]]_harness_ is the complete set of checks of a repository.
+. A [[verification-command]]_verification command_ runs every xref:#check[check] of the xref:#harness[harness] and gives one verdict for all of them. A [[finding]]_finding_ is the report of a failed check: it names the broken rule and the place that breaks it.
+. Airness is a xref:#harness[harness] for repositories that https://maven.apache.org[Maven^] builds. It turns the rules of the software project guideline that a machine can verify into xref:#check[checks] for the technologies Airness supports: https://dev.java[Java^], https://spring.io/projects/spring-boot[Spring Boot^], https://tc39.es/ecma262/[JavaScript^] and https://www.typescriptlang.org[TypeScript^], and https://payloadcms.com[Payload CMS^]. A rule that no check can verify reliably reaches agents as an instruction, as the section xref:#agent-instructions[] describes.
+. The [[project-goal]]_project goal_ is the statement in `AGENTS.md` of what the software of a xref:#governed-repository[governed repository] achieves and for whom. Only a human changes the project goal.
+. Work in a xref:#governed-repository[governed repository] runs in a loop:
 +
-[source,bash,subs="attributes+"]
+[[change-loop-figure]]
+.Path of a change from an AI agent to a merge
+image::.adocent/resources/visuals/change-loop.drawio.png["A human states the project goal for an AI agent. The agent writes a change, and the verification command runs every check of the harness on it. A pass means the change can merge without human review. A fail produces a finding that names the broken rule and its place, and the finding returns to the agent."]
++
+An AI agent writes a change that serves the xref:#project-goal[project goal], and the xref:#verification-command[verification command] runs on it. The agent repairs each xref:#finding[finding], and the command runs again. The change reaches the main branch only after a pass.
+
+[[checks-and-findings]]
+== Checks and Findings
+
+. A https://maven.apache.org[Maven^] build that inherits Airness ends with `BUILD SUCCESS` when every xref:#check[check] passed. When a check fails, the log carries the check's xref:#finding[finding], and the build ends with `BUILD FAILURE`. For example, a `CLAUDE.md` file anywhere in a xref:#governed-repository[governed repository] breaks xref:#forbidden-instruction-files[a rule on agent instructions], and the build fails with this finding:
++
+[source,text]
 ----
-mvn eu.ciechanowiec:airness-maven-plugin:{airness-version}:new \
-    -Dairness.groupId=com.example -Dairness.artifactId=task-tracker
+CLAUDE.md files are forbidden because Claude Code reads AGENTS.md (delete them) (1):
+  docs/CLAUDE.md
 ----
 +
-It moves the code to the package `com.example.tasktracker`, names the application _Task Tracker_ and writes it into `task-tracker`. `-Dairness.package`, `-Dairness.name` and `-Dairness.directory` choose otherwise, and `-Dairness.starter` names another starter. The goal then runs `assets-init` in the new directory, writes the first `pnpm-lock.yaml` and commits the result as the first commit of a new Git repository. A released harness installs the harness npm packages the starter declares from the public npm registry. A SNAPSHOT harness's npm packages are never published, so for one the goal and the application's builds serve them from the local Maven repository: the harness must be installed there, and `python3` must be on the path. A harness built in a clone of the _airness_ repository reaches the shared repository through `sh airness-it/promote.sh`, as xref:#local-harness-builds[] describes.
-. `mvn clean verify` in the new directory gives the application's first xref:#default-verification[Default verification] verdict. Its tests and the browser checks start their own PostgreSQL, so verification needs a running Docker daemon.
+The first line of the xref:#finding[finding] states the rule and the repair, the number in parentheses counts the offending places, and each indented line names one place.
+. Airness writes each xref:#finding[finding] for the agent that repairs it. The agent repairs the code that causes the finding. Turning the xref:#check[check] off isn't a repair, as the section xref:#harness-integrity[] explains.
+. [[report-only-mode]]_Report-only mode_ is a run in which the build lists the xref:#finding[findings] of every xref:#check[check] without failing on them. The flag `-Dairness.enforce=false` selects it. Compilation errors and tool failures still fail the build. A run in report-only mode is never a pass, so it only measures the work that an adoption of Airness needs.
+. [[skip-tests]]The flag `-DskipTests` skips the tests and nearly every Airness xref:#check[check]. Such a build produces the artifacts and no verdict.
 
-[[parent-configuration]]
-=== Parent Configuration
+[[airness-parents]]
+== Airness Parents
 
-. The following complete Maven project file configures a Java project with classes under `com.example.orders`.
+. A [[module]]_module_ is a part of a https://maven.apache.org[Maven^] build that describes its build in a `pom.xml` file of its own. A build consists of one or more modules. The file can name a parent, a published build configuration that the module inherits: its plugins, the build phases they run in, and their settings. An [[airness-parent]]_Airness parent_ is one of the five parents that Airness publishes, each for a different kind of module. A module that names one inherits every xref:#check[check] of that parent.
++
+For example, the https://maven.apache.org[Maven^] build of an online shop can consist of three xref:#module[modules], and each of them names the xref:#airness-parent[Airness parent] that matches its content:
++
+[[module-parents-figure]]
+.Modules of a Maven build and the Airness parents they name
+image::.adocent/resources/visuals/module-parents.drawio.png["A Maven build with three modules, drawn as a directory tree. The root module shop holds a pom.xml file and no code of its own and names airness-parent, the parent for a repository root or a module without code. The module order-service, a directory inside shop, holds a pom.xml file and Java code and names airness-parent-java, the parent for a Java module. The module web, another directory inside shop, holds a pom.xml file and TypeScript code and names airness-parent-node, the parent for a JavaScript or TypeScript module. Each module inherits from its parent the plugins, the build phases they run in, their settings, and the checks."]
++
+Each dashed arrow points from a xref:#module[module] to the parent that its `pom.xml` file names.
+. For example, the following complete `pom.xml` file makes a https://dev.java[Java^] xref:#module[module] with classes under `com.example.orders` inherit the Java parent:
 +
 [source,xml,subs="attributes+"]
 ----
@@ -100,424 +121,209 @@ It moves the code to the package `com.example.tasktracker`, names the applicatio
     </properties>
 </project>
 ----
-. [[package-root]]`airness.package.root` is the common prefix of every production and test package. For example, classes under `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`. The test coverage agent instruments only the classes under this root.
-
-. A Spring Boot project names `airness-parent-spring-boot` as its parent instead. Everything above still applies, and the parent additionally supplies the Spring Boot platform and the rules that only a Spring Boot project can break:
 +
-[source,xml,subs="attributes+"]
-----
-<parent>
-    <groupId>eu.ciechanowiec</groupId>
-    <artifactId>airness-parent-spring-boot</artifactId>
-    <version>{airness-version}</version>
-    <relativePath/>
-</parent>
-----
+[[package-root]]`airness.package.root` is the common prefix of every production and test package. For example, the packages `com.example.orders.api` and `com.example.orders.storage` share the root `com.example.orders`. This setting is the only one that a module must declare.
+. The xref:#airness-parent[Airness parents] form a hierarchy with `airness-parent` at its top. Every other parent inherits the parent above it and adds what its kind of xref:#module[module] needs:
 +
-Among those rules, a Spring test fails when the application logs an error it did not declare with `@ExpectedServerError`, which `.airness/agent-guide-java.md` describes.
-
-. [[generic-parent]]`airness-parent` is the generic parent. It carries only the repository rules, such as managed files, history, secrets, licenses and the compliance report, and suits a repository or a monorepo root with no Java of its own. A module with Java sources under `src/main/java` or `src/test/java` that inherits it directly fails verification and is told to inherit `airness-parent-java`. The repository rules run in the top-level project of a build, so a build whose top-level project is a plain aggregator inheriting no _airness_ parent is refused at `validate` and told to make it inherit `airness-parent`.
-
-. [[node-parent]]`airness-parent-node` is the parent of a module whose main content is JavaScript or TypeScript, such as a single-page application or a TypeScript library. It adds no rule to `airness-parent`. It makes the module's own directory its xref:#node-projects[node project], so the module declares `pom` packaging and needs no property:
+[[parent-chain-figure]]
+.Airness parents and what each one adds
+image::.adocent/resources/visuals/parent-chain.drawio.png["airness-parent holds the repository rules: instructions, commit history, secrets, dependencies, and JavaScript and TypeScript. airness-parent-java inherits it and adds the Java rules: compiler, static analysis, tests, and coverage. airness-parent-spring-boot inherits airness-parent-java and adds the Spring Boot platform and rules and the evidence that the application started. airness-parent-node also inherits airness-parent and serves a module whose content is JavaScript or TypeScript. airness-parent-payload inherits airness-parent-node and adds the Payload CMS rules."]
 +
-[source,xml,subs="attributes+"]
-----
-<parent>
-    <groupId>eu.ciechanowiec</groupId>
-    <artifactId>airness-parent-node</artifactId>
-    <version>{airness-version}</version>
-</parent>
-<packaging>pom</packaging>
-----
+Each arrow points from a parent to the parent that inherits it.
+. A xref:#module[module] names the xref:#airness-parent[Airness parent] that matches its content:
 +
-A Java module with a frontend inside it keeps `airness-parent-java` and lists the frontend's directory in xref:#airness-node-projects[`airness.node.projects`] instead.
-. [[parent-upgrade]]Upgrading from a version in which `airness-parent` carried the Java rules: change the parent of every Java module from `airness-parent` to `airness-parent-java`. A Spring Boot project that already names `airness-parent-spring-boot` needs no change.
-
-[[managed-file-setup]]
-=== Managed File Setup
-
-. Run the [[asset-sync-goal]]sync goal to create or update the xref:#managed-files[managed files]. Use `mvn airness:assets-init` for initial adoption when the optional workflow scaffold is wanted:
-+
-[source,bash]
-----
-mvn airness:assets-sync
-----
-. Review and commit the changes to the xref:#managed-files[managed files].
-
-[[build-commands]]
-== Build Commands
-
-. xref:#extended-verification[Extended verification] is the verification command. xref:#default-verification[Default verification] and xref:#delta-verification[delta verification] run subsets of its checks.
-+
-[cols="2,3,5"]
+[cols="2,3",options="header"]
 |===
-| Purpose | Command | Behavior
-
-| [[source-formatting]]Source formatting
-| `mvn process-resources -Pformat`
-| Formats Java code and normalizes its imports.
-
-| [[default-verification]]Default verification
-| `mvn clean verify`
-| Runs the default verification suite. Verify rather than package, because a project that repackages its archive produces the archive that ships during package, and the artifact-content check reads that archive afterward.
-
-| [[extended-verification]]Extended verification
-| `mvn clean verify -Pextended`
-| Runs the xref:#default-verification[default verification] plus additional checks.
-
-| [[delta-verification]]Delta verification
-| `mvn clean verify -Pextended,delta`
-| Runs every Extended check, with the automatic browser sweep scoped to the change in Chromium. Project and stack-layer specifications still run. The report identifies the scoped verdict; it is not a complete Extended verdict. The `delta` profile requires `extended` and is refused together with `release`.
-
-| [[release-publication]]Release publication
-| `mvn clean deploy -Prelease -DskipTests`
-| Checks the publication files, signs them, and sends them to the configured Maven Central server.
-
-|===
-
-. Before finishing a change, run xref:#extended-verification[Extended verification]. When a required pull-request gate runs Extended or xref:#delta-verification[delta verification] on the change, xref:#default-verification[Default verification] is enough locally, and the gate runs the rest. A project without CI always runs Extended verification locally.
-. System properties change the behavior of a verification. They don't enable more checks.
-+
-[cols="2,3,5"]
-|===
-| Flag | Use with | Behavior
-
-| [[report-only-mode]]`-Dairness.enforce=false`
-| xref:#default-verification[default verification] or xref:#extended-verification[extended verification]
-| Reports rule violations without failing the build.
-
-| [[skip-tests]]`-DskipTests`
-| xref:#default-verification[default verification] or xref:#extended-verification[extended verification]
-| Skips tests and ordinary _airness_ checks.
+| Parent | Module content
+| `airness-parent` | a repository root or a xref:#module[module] with no code of its own
+| `airness-parent-java` | https://dev.java[Java^] code
+| `airness-parent-spring-boot` | a https://spring.io/projects/spring-boot[Spring Boot^] application
+| `airness-parent-node` | mainly https://tc39.es/ecma262/[JavaScript^] or https://www.typescriptlang.org[TypeScript^], such as a single-page application
+| `airness-parent-payload` | a https://payloadcms.com[Payload CMS^] application
 |===
 +
-For example, `mvn clean verify -Pextended -Dairness.enforce=false` runs xref:#extended-verification[extended verification] in xref:#report-only-mode[report-only mode]. Use xref:#skip-tests[`mvn package -DskipTests`] when the build needs artifacts without an _airness_ verification verdict.
-. [[closing]]Every module ends with `airness:module-complete`, the last execution `airness-parent` binds in `verify`. A module that has finished all its executions records itself, and the module that completes the set, sequentially or as the last of a parallel build, runs one closing step for the whole build:
-+
-* The committable tree is compared with the tree the first module saw at `validate`, so a step of any module that rewrote a tracked file fails the build. Only a `format` profile the invocation selects, as `-Pformat` does, turns this comparison off, and the `tree-verify` comparison of each module with it; a profile of that id in a project's own model never does.
-* Every participating module that holds code without inheriting an _airness_ parent is refused: Java under its source roots, or a `package.json` in it, that no _airness_ rule would judge.
-* The suppressions in the Java sources of every module are held to a ceiling of three per thousand lines, and never fewer than five. Each class pattern a project file declares in `airness.coverage.excluded.classes` counts as one more.
-* The suppressions in the node projects' own code are held to a ceiling of two, and one more per 500 non-blank lines. Their own code is what lies under each member's source roots (`src`, `scripts` and its `sourceRoots`), without tests, without what its `generatedArtefacts` name, and without the files the harness pins or a stack layer declares generated. ESLint, Oxlint and Stylelint disable comments, Biome ignore comments, `@ts-ignore`, `@ts-expect-error` and `@ts-nocheck`, the `v8`, `c8` and `istanbul` coverage directives, `gitleaks:allow` and the layout exemption attribute count one per rule they turn off. A comment carrying a release tag knip honours, `@public`, `@beta` or `@alias` in every run and `@internal` in the production run, takes the export below it out of the dead-code rule, and counts once, listed as `knip @public` and so on beside the line it stands on. knip reads such a tag anywhere in a block comment and in a line comment on a line of its own, and so does the count. Each `coverageExclude` entry of a node manifest counts as one more, because it takes a whole file out of the coverage floor.
-* Under xref:#extended-verification[extended verification], one compliance report is written with one embedded SBOM: every module's Maven artifacts and build tools, every node project's npm packages, and the Node and pnpm that ran the node gates, joined in one dependency graph. Every resolved npm package is looked up by its package URL in the OSV database. An open advisory fails the build; a project may record a scoped mitigation under `airness.vulnerabilityAllowlist`, which remains visible in the report. An OSV that cannot be reached fails the build too.
-* Before the `image` gate removes an image it built, it lists the image's packages with the scanner image the installed harness pins, in a container with no network and no mount. The listing leaves Java archives to the dependency scan. The same report looks up every package the listing names: a system package of an Alpine, Debian, or Ubuntu base image by its source package, and any other package by its package URL. A system package the base image holds fails only once a newer release of the base image ships the fix, and the build names the `FROM` line that takes that release. The report looks for that release in two places: the release that the base image's tag names when the build runs, and the newest release of the same variant and major version on Docker Hub. Until a release ships the fix, the report lists the finding as mitigated by the build harness, with the reason. A system package the Dockerfile installs fails once its distribution ships the fix. In xref:#default-verification[default verification], a Dockerfile that upgrades the packages of its base image fails, for example with `apk upgrade` or `apt-get dist-upgrade`, because a newer base image is the repair.
-+
-Closing covers every module that inherits an Airness parent and every module one of them depends on. A module that does neither, such as a distribution module on a parent of its own, is left out, named in the log and in the report, whatever order the build finishes in. Such a module holds no code, or closing refuses it as above.
-+
-Nothing may run after `module-complete`, except the signing of the release profile, which reads the archives the verdict covers. The `completion-order` preflight refuses, at `validate`, a module whose plan runs anything else after it in `verify`, and any `verify` execution the project declares; bind a project step to an earlier phase, such as `post-integration-test`. A goal named on the command line after the lifecycle is refused too: name it before the lifecycle, as in `mvn sonar:sonar verify`, or run it in an invocation of its own, `mvn verify` and then `mvn sonar:sonar`. The node gates and the JaCoCo report and check run in `verify`, after a project's teardown at `post-integration-test`. The Extended node gates and the Spring Boot runtime evidence checks run at `post-integration-test`, because a profile's or a child parent's `verify` executions would follow `module-complete`, and so does failsafe's `verify`, because Maven orders a plugin the project declares after the one its parents bind. A harness check there runs before a teardown the project binds to that phase, so one that fails skips the teardown; declare a teardown plugin before failsafe, and start and stop what the integration tests need inside the tests, for example with Testcontainers, when a skipped teardown matters. A failed module never records itself, so a failed build never closes.
-+
-The final comparison covers what runs through `verify`. A project step bound to `install`, `deploy` or the site lifecycle runs after closing in the last module, so the tree it writes is outside the verdict.
-
-[[managed-files]]
-== Managed Files
-
-. Maven, Git, editors, and coding agents read some configuration from the working tree. _airness_ manages these files so that every project receives the same setup.
-. The files a repository receives follow what its modules contain, not which parent each one names. Each layer has its own files:
-+
-[cols="1,3,3"]
-|===
-| Layer | Present when | Receives files at
-
-| `generic`
-| always
-| the repository root
-
-| `java`
-| a module inherits `airness-parent-java`
-| the repository root
-
-| `node`
-| a module lists a directory in xref:#airness-node-projects[`airness.node.projects`]
-| the repository root and each listed directory
-|===
-+
-The repository root carries the files of every layer present in any module. The managed-file check reads the model of every `pom.xml` in the repository, so a build started inside one member checks what a build started at the root checks. A listed directory receives the `node` files only once it holds a `package.json`.
-. Each managed path has one of the following policies:
-+
-[cols="1,2,3"]
-|===
-| Policy | Files | Behavior
-
-| [[managed-section]]Managed section
-| `AGENTS.md`, `.gitignore`, `.dockerignore` at the root, and `AGENTS.md` in each node project directory
-| The file starts with one marked block for each layer that claims it, in the order `generic`, `java`, `node`. The project owns the text below the blocks.
-
-| [[pinned-file]]Pinned
-| `.airness/agent-guide.md`, `.airness/license-inventory.ftl`, `.airness/test.gitconfig`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/jvm.config`, `.mvn/settings.xml`, `README-guideline-software-project.adoc`, with `java` also `.airness/agent-guide-java.md`, `lombok.config`, `qodana.yaml`, and with `node` also `eslint.config.mjs`, `vitest.config.mts` and `.airness/npm-registry.py` in each node project directory
-| The file must match the active _airness_ version. In the _airness_ repository itself, `.mvn/maven.config` also ends with the two lines that the section xref:#local-harness-builds[] names. The agent runtime is denied `Edit(...)` of every pinned file in `.claude/settings.json`, which the xref:#asset-sync-goal[`assets-sync` goal] writes beside the project's own rules. `.mvn/jvm.config` is pinned with the startup files, because a `-D` option there would set a property such as `skipTests` for every build.
-
-| [[seed-file]]Seed
-| `.gitleaks.toml`, and with `node` also `src/proxy.ts` in a Next.js node project, as xref:#node-projects[] describes
-| The file must exist. The xref:#asset-sync-goal[`assets-sync` goal] creates it whenever it's missing, and the project owns its contents.
-
-| [[scaffold-file]]Scaffold
-| `.github/workflows/verify-full.yml` in a repository with node projects
-| `mvn airness:assets-init` creates the file when absent, after synchronizing managed files. The project owns it afterwards. Ordinary synchronization and verification neither require nor recreate it, so a project can customize or delete it.
-
-| [[reference-file]]Reference
-| `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`
-| The file is optional. When present, every line that says anything names `AGENTS.md`, so no tool gets instructions of its own.
-
-| [[forbidden-file]]Forbidden
-| with `java`, `rewrite.yml`, `qodana/profile.xml`
-| _airness_ supplies the Qodana profile elsewhere and refuses source-rewriting engines, whose artifacts the blocklist names. The files must be absent. The xref:#default-verification[default verification] reports but doesn't delete them.
-|===
-
-. `AGENTS.md` is the only agent instruction file. Claude Code reads it directly, so the xref:#default-verification[default verification] fails when the working tree contains a `CLAUDE.md` or `CLAUDE.local.md` file in any directory. No setting exempts one.
-. The other agent tools also read a directory of rule files or a file of their own name below the root, and neither form can point at `AGENTS.md` alone. The xref:#default-verification[default verification] therefore fails on any file under a `.clinerules/` directory, a `.cursor/rules/` or `.windsurf/rules/` directory in any directory, on a `.github/instructions/` file ending in `.instructions.md`, and on a `GEMINI.md` below the root. No setting exempts one.
-. Each block of a xref:#managed-section[managed section] is enclosed by `BEGIN AIRNESS MANAGED: <layer>` and `END AIRNESS MANAGED: <layer>`. The xref:#asset-sync-goal[`assets-sync` goal] creates the file or replaces the blocks while preserving the project text below them. A block appears exactly when its layer is present, so a stale or unclaimed block fails verification.
-. Every test run reads the pinned `.airness/test.gitconfig` as its global Git configuration and reads no system one: the Surefire and Failsafe runs of a module that inherits `airness-parent-java`, and the Vitest runs of a node project. The parents and the `tests` gate set `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_NOSYSTEM`, and the default verification fails on a project file that sets either one. The file turns off hooks, commit and tag signing, and the ignore and attribute files of the machine, starts a new repository on `main`, and gives commits a fixture identity, so a developer's or a CI image's Git configuration doesn't decide a test's verdict.
-. The xref:#default-verification[default verification] fails on an ignore line that repeats a pattern an earlier declaration already applies. A line repeats a declaration when it equals an earlier line of its own `.gitignore` or Docker ignore file. A `.gitignore` line with no slash but a trailing one, which git applies at every depth, also repeats an equal line of a `.gitignore` in a directory above. A line of the other polarity between the two that could reverse the repeat keeps it. In a `.gitignore` that is a line that may match a path the repeated pattern matches, so a `!.vscode/settings.json` between two `*.iml` lines keeps neither. In a Docker ignore file it is any line of the other polarity, because Docker also matches a pattern against every directory above a path. A line of a managed block counts as declared, so the project's copy is the line to remove.
-. The same check fails on a `.gitignore` negation beneath a directory an exclusion hides. Git never looks inside an excluded directory, so after `.vscode/` no `!.vscode/settings.json` keeps the file. Excluding the directory's contents, as the managed `**/.vscode/*` does, leaves such a negation working.
-. The xref:#default-verification[default verification] fails when a xref:#pinned-file[pinned file] is missing or outdated, when a xref:#managed-section[managed section] is missing or outdated, or when a xref:#seed-file[seed file] is missing. It also fails if a build plugin modifies a project file during the build.
-. Run the xref:#asset-sync-goal[sync goal] to create missing managed files and restore outdated ones. The goal updates the working tree and doesn't run a verification:
-+
-[source,bash]
-----
-mvn airness:assets-sync
-----
-. To let the project own a xref:#pinned-file[pinned file], xref:#seed-file[seed file], or xref:#forbidden-file[forbidden file], list it in xref:#airness-assets-unmanaged[`airness.assets.unmanaged`] and record the reason in a nearby project-file comment. _airness_ then ignores that path. A xref:#managed-section[managed section] can't be taken over, because the project already owns every line outside its blocks.
+Each xref:#airness-parent[Airness parent] serves one kind of xref:#module[module], so the parent that a module names decides which rules apply. A module with https://dev.java[Java^] code that inherits `airness-parent` fails, and the xref:#finding[finding] tells it to inherit `airness-parent-java`.
+. A new technology joins Airness with an xref:#airness-parent[Airness parent] of its own and leaves the rules of the other technologies unchanged. https://payloadcms.com[Payload CMS^] joined Airness this way, through `airness-parent-payload`.
 
 [[node-projects]]
 == Node Projects
 
-. A module lists the directories that hold its node projects in xref:#airness-node-projects[`airness.node.projects`]. Each listed directory holds a `package.json`, either for a single package or for a pnpm workspace root, whose listed members it covers.
-. _airness_ installs the Node and pnpm versions its release pins and checks each download against a pinned SHA-256. The installation is cached under `.airness/toolchain` in the local Maven repository, so later builds reuse it. Only Java and Maven need installing by hand. The pins cover macOS and Linux on x64 and arm64.
-. At `validate`, every module checks that each `package.json` in it belongs to a declared node project or to a member of a declared workspace, and that each declared directory holds a `package.json`. The check also runs in a module that declares nothing, so a new frontend in an undeclared folder fails the build. It reads the files a commit would carry, so build output that git ignores is passed over, and so are child modules. A workspace glob is read as pnpm reads it, and one using extended-glob or character-class syntax is refused.
-. The same `validate` step inventories every authored script (`.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.mts`, `.cts`, `.tsx`) and stylesheet (`.css`, `.scss`) a commit would carry in the module, with or without a `package.json`. Each must lie under a checked source root of a declared node project (`src`, `tests`, `scripts` and `sourceRoots`), or be a script in the project's top directory, which the linters and the type check read. `.sass` and `.less` are refused, because no gate reads them. Files a generator owns or the harness places are passed over; a `vendor` directory or a minified file name is not, so a third-party distribution comes from a dependency, such as a WebJar or an npm package a `node-run` build copies under `target/`. The finding names each file and the wiring it lacks:
-+
-[source,text]
-----
-Frontend resources have no applicable Airness source checks; declare a frontend tooling project in airness.node.projects and include these files in its checked source roots (src, tests, scripts and airness.sourceRoots). The application may retain its Java runtime (2):
-  src/main/resources/static/css/theme.css lies in no declared node project; ...
-  src/main/resources/static/js/browse.js lies in no declared node project; ...
-----
-+
-An ignored file the Maven build consumes is refused by `build-inputs`, and so is an ignored script or stylesheet under a checked source root of a declared node project, which the type check, the tests and the node build read from disk. A file that only a custom tool reads, outside the Maven inputs and outside the commit, is beyond the inventory. A tooling project holding only stylesheets needs no TypeScript sources, tests or server: `types`, `eslint`, `arch`, `type-coverage` and `knip` report not applicable, and `css` judges the stylesheets.
-. The same check refuses every setting with which pnpm would pick a pnpm or a Node of its own: `packageManager` and `devEngines` in a `package.json`, `useNodeVersion`, `nodeVersion`, `executionEnv` and `managePackageManagerVersions` there under `pnpm` or in `pnpm-workspace.yaml`, and their `.npmrc` forms. _airness_ supplies both.
-. At `initialize`, a module that declares a node project installs the toolchain and runs `pnpm install --frozen-lockfile --ignore-scripts` in each project that has its own `pnpm-lock.yaml`. No lifecycle script runs while dependencies are installed.
-. A frontend that the Maven build packs into the artifact is built by the `node-run` goal, which runs one `package.json` script of a declared project on the harness's Node and pnpm. A project may declare the _airness_ plugin only to bind such executions, each with an id of its own that it doesn't inherit, a phase before `prepare-package`, and no `combine` attribute:
+. A [[node-project]]_node project_ is a directory of https://tc39.es/ecma262/[JavaScript^] or https://www.typescriptlang.org[TypeScript^] code with a `package.json` file, which Airness checks. A xref:#module[module] declares its node projects in the setting `airness.node.projects`, and the directory of a module that inherits `airness-parent-node` is a node project itself. For example, a https://dev.java[Java^] module with a frontend keeps its Java parent and declares the frontend's directory:
 +
 [source,xml]
 ----
-<plugin>
-    <groupId>eu.ciechanowiec</groupId>
-    <artifactId>airness-maven-plugin</artifactId>
-    <executions>
-        <execution>
-            <id>frontend-build</id>
-            <phase>generate-resources</phase>
-            <goals>
-                <goal>node-run</goal>
-            </goals>
-            <configuration>
-                <project>src/main/frontend</project>
-                <script>build</script>
-            </configuration>
-        </execution>
-    </executions>
-</plugin>
+<!-- the rest of pom.xml is omitted -->
+<properties>
+    <airness.package.root>com.example.orders</airness.package.root>
+    <airness.node.projects>src/main/frontend</airness.node.projects>
+</properties>
+----
+. Airness installs the versions of https://nodejs.org[Node.js^] and https://pnpm.io[pnpm^] that it pins, checks each download against a pinned digest, and keeps them in the local https://maven.apache.org[Maven^] repository, so neither needs an installation by hand. The dependencies of a xref:#node-project[node project] install from its lockfile, with every install script switched off except those that the node project approves.
+. Every xref:#node-project[node project] declares the https://www.npmjs.com[npm^] package `@airness/node` as a development dependency. The package holds the xref:#check[checks] for https://tc39.es/ecma262/[JavaScript^] and https://www.typescriptlang.org[TypeScript^], together with the analyzers they run and the configurations they read. A [[gate]]_gate_ is one of these checks, run as one execution of the https://maven.apache.org[Maven^] build, so a node project gets its verdict from the same command as https://dev.java[Java^] code. The gates cover types, lint, architecture, dead code, tests with 80% coverage, and install scripts, among others.
+. Every hand-written script and style sheet that a commit carries must lie in a declared xref:#node-project[node project]. Such a file outside every node project fails the build, so no frontend code escapes the xref:#check[checks].
+
+[[managed-files]]
+== Managed Files
+
+. Several tools read their configuration from files in the working tree, such as https://git-scm.com[Git^] from `.gitignore` and AI agents from `AGENTS.md`. A [[managed-file]]_managed file_ is such a file whose content Airness decides, so that xref:#governed-repository[governed repositories] share one setup.
+. A [[stack-layer]]_stack layer_ is the group of xref:#managed-file[managed files] and rules for one kind of repository content: `generic` for every repository, `java` for a https://dev.java[Java^] xref:#module[module], `node` for a xref:#node-project[node project], and `payload` for a https://payloadcms.com[Payload CMS^] module.
+. Each xref:#managed-file[managed file] follows a policy, and the main policies are:
++
+[cols="1,3,2",options="header"]
+|===
+| Policy | Rule | Example
+| Pinned | The file matches the Airness version byte for byte. | `.editorconfig`
+| Managed section | The file starts with blocks that Airness writes, and the text below them belongs to the xref:#governed-repository[governed repository]. | `AGENTS.md`
+| Seed | Airness creates the file when it's missing, and the content belongs to the xref:#governed-repository[governed repository]. | `.gitleaks.toml`
+| Scaffold | Airness creates the file once, on request, and the file belongs to the xref:#governed-repository[governed repository] afterward. | a verification workflow
+| Forbidden | The file must not exist. | `rewrite.yml`
+|===
+. The `assets-sync` goal writes the missing and outdated xref:#managed-file[managed files]:
++
+[source,bash]
+----
+mvn airness:assets-sync
 ----
 +
-The script writes its output under `target/`. With `-DskipTests`, a module that binds `node-run` still installs the toolchain and builds its frontend.
-. The xref:#default-verification[default verification] refuses `com.github.eirslett:frontend-maven-plugin` and every other `com.github.eirslett` artifact wherever the module's build reaches it: declared in its project file with or without a version, inherited from a parent, or given to a plugin as a dependency. It also refuses an `exec-maven-plugin` or `maven-antrun-plugin` step whose executable is `node`, `npm`, `npx`, `pnpm`, `yarn`, `bun` or `deno`, including through the `exec.executable` property. Each of them would run a Node other than the one the checks use. _airness_ doesn't inspect what an allowed process starts, such as a shell script that calls Node by an absolute path.
-. Each JS/TS check runs through the `node-gate` goal in every declared project, as `pnpm exec <command> --result <file>`. The gate writes its result as `<gate>.json`, with any evidence files beside it, in `target/airness/node/module/` for the module itself and in `target/airness/node/projects/<project>/` for a project at `<project>` relative to the module. Command output goes to the same place under `target/airness/node-logs/`.
-. Each node project declares the npm package `@airness/node` as a development dependency, installed by its version from a registry. The package ships the JS/TS gates, the analyzer configurations they read and the analyzers at the versions _airness_ decides. `node-dependencies` installs the project's locked dependencies with every lifecycle script switched off, then runs the build scripts of exactly the dependencies `allowBuilds` in `pnpm-workspace.yaml` approves with `true`. `airness-parent` binds `wiring`, then `npm-inventory`, then one `node-gate` execution per gate in `prepare-package`, each running `airness-node gate <id>`, the static gates first and `tests` last, so a defect they find fails the build before `package`, the integration tests and the Extended gates run:
-+
-[cols="1,3",options="header"]
-|===
-| Gate | What it checks
-| `wiring` | The lockfile resolves `@airness/node` at the version of the `airness-parent` in the module's parent chain, and each stack layer's package at the version of the parent that layer publishes, from a registry rather than a `link:`, `file:`, `workspace:` or `portal:` path, except a harness package's own repository linking itself: only the Maven module that builds the package (`eu.ciechanowiec:airness-node` for `@airness/node`, and the registered module for a stack layer's package) may name a node project or member after it, and it versions the package as the module and needs no parent to name it. The project declares only exact security overrides approved by the installed harness and trusted layers. Their declarations and locked dependency edges must agree, and stale overrides fail. Other overrides, patches, package extensions, pnpmfile hooks and `configDependencies`, which pnpm installs outside the resolved set, are refused. `vitest`, `@vitest/coverage-v8` and `typescript` resolve to the versions `@airness/node` runs, and a member with source declares the first two.
-| `types` | The project's `tsconfig.json` extends `@airness/node/tsconfig.json`, sets no compiler option but `paths`, `baseUrl`, `plugins`, `types`, `rootDir` and `outDir`, and carries exactly the `include` and `exclude` the harness names, every nested workspace member excluded, and `.storybook/**/*.ts` and `.storybook/**/*.tsx` included in a member that keeps a Storybook configuration directory, which a recursive pattern passes over. Then it type-checks with the pinned TypeScript. Its incremental cache stays in the member's `node_modules/.airness`, so a library that publishes its `outDir` never packs it.
-| `biome` | Formatting and fast lint under the shipped Biome configuration, over the source roots, the JavaScript files and the root configuration files. A `biome.json` or `.biome.json` below the project root is refused, because it would replace the shipped configuration for its directory. Markup carrying Thymeleaf syntax (a `th:` or `data-th-` attribute, a `th:` element or the `xmlns:th` declaration) is a server template rather than the HTML a browser receives, so Biome passes over it: the Java template checks judge its source and the `e2e` sweep the HTML it renders.
-| `oxlint` | Native rules under a closed rule set the gate writes, with the accessibility rules over the JSX of a project that declares Next, among them `jsx-a11y/anchor-ambiguous-text`, which refuses link text such as _click here_ or _learn more_ that names no purpose (WCAG 2.4.9). A project Oxlint configuration is refused.
-| `eslint` | Type-aware lint under the shipped ESLint configuration, with the blocks a declared stack layer adds, whatever configuration the project keeps, with every warning a failure. Its spec rules fail, among others, a Vitest or Playwright test whose every assertion asks only whether a value exists or is truthy, such as `toBeDefined()` or `toBeTruthy()`. It passes over every path Git ignores, such as a site an auxiliary server built, as the other gates do. A project with no file to lint fails. The managed `eslint.config.mjs` re-exports the same configuration for editors.
-| `source-rules` | No parent-relative import under a source root, and no credential guard that opens when the credential is unset.
-| `config-refs` | Every file a tool configuration carves out exists, and every exclusion the project declares reaches a file.
-| `javascript-allowlist` | No hand-written JavaScript outside the allowlist: by default `eslint.config.mjs` and a PostCSS configuration.
-| `arch` | Under the shipped dependency-cruiser contract: no cycle, no import that does not resolve but the `cloudfront` module a declared CloudFront function takes from its runtime, no production import of a spec or of a development-only dependency, no import of test code under `tests` from a production source root (`src` and the declared `sourceRoots` but `tests`, `scripts` and the Storybook configuration in `.storybook`), no deprecated Node.js core module; in a Next.js application, no routes directory (`app` or `pages`) at the member root rather than under `src`.
-| `type-coverage` | Every identifier of hand-written logic is typed, with no `any` and no type assertion. A `typeCoverage` key in `package.json` is refused.
-| `knip` | No unused file, export or dependency, under the shipped knip configuration, which counts every test and tool as an entry point. At a workspace root, each nested member is left to its own run. A second run follows only the production entry points: the package's declared public interface (`main`, `bin` and `exports`), its `start` script, the routes of the frameworks knip knows, such as Next.js, the files a stack layer's framework runs and the project's `productionEntries`. It fails an export or a file under a production source root that only tests and tooling reach.
-| `css` | A facet: every authored stylesheet under a source root passes Stylelint under the shipped configuration, and every SCSS file is formatted as the shipped Prettier options format it. A project Stylelint configuration or `.stylelintignore` is refused. Not applicable to a member without a stylesheet.
-| `tailwind-tokens` | A facet: in a member that declares `tailwindcss`, no markup file under a source root, which is a `.tsx` or `.jsx` component or an `.html` or `.htm` template such as a Thymeleaf page, writes an arbitrary Tailwind value such as `bg-[#0a7]`, or an arbitrary property stating a number or a colour such as `[padding:13px]`; a value comes from the theme. Not applicable otherwise.
-| `tests` | Every spec sits where a runner collects it: unit specs at `tests/**/*.spec.ts`, and the end-to-end specs of a browser application at `tests/e2e/**/*.e2e.spec.ts`. The member's own Vitest runs its suite under the shipped configuration, in a fixed shuffled order, and every measured file reaches 80% line, branch, function and statement coverage. In a Next.js application the App Router files the `e2e` crawl renders (`page`, `layout`, `template`, `loading`, `not-found` and `global-not-found` under `src/app`) and `src/proxy.ts`, which the header spec judges, are left to `e2e`; route handlers, metadata routes and error boundaries stay under the floor. Storybook stories (`*.stories.*`), which the sweep renders and judges, aren't measured, as specs aren't. A member with source and no suite fails. The managed `vitest.config.mts` re-exports the same configuration for editors.
-| `install-scripts` | `allowBuilds` decides every installed dependency that runs an install script as `true` or `false`, names no other, and no other setting decides install scripts beside it. The packages are those the lockfile resolves; one limited to other systems is judged where it installs. A setting that moves the virtual store is refused.
-| `release-age` | `pnpm-workspace.yaml` sets `minimumReleaseAge` to at least 1440 minutes with `minimumReleaseAgeStrict: true`, excluding only a harness package, and every resolved release comes from a registry that dates it at least a day back. Each release is read from the registry pnpm fetched it from, with that registry's token and through the proxy `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` name, on every run. A git, tarball or directory resolution fails, and so does a registry that can't be read.
-| `npm-inventory` | Judges nothing. Bound in `prepare-package` after `wiring`, it writes `dependencies.json` beside its result: every package the lockfile resolves with its version, its declared license, whether a member declares it and whether this host installed it, for the dependency policies to read.
-|===
-+
-In `package`, the `npm-dependencies` goal reads that evidence. Every package this host installed answers to the license allowlist the Maven artifacts answer to, its SPDX expression read as alternatives, of which one must be admitted, an alternative joining licenses with `AND` only when the allowlist admits each. Only SPDX identifiers are matched, regardless of case: a free-text name such as `BSD` is refused, and `X WITH <exception>` is judged as `X` when the exception is on the SPDX exception list. Every resolved package is held to the npm blocklist, which refuses packages whose license misleads, such as drivers that reach only a non-open server. Every direct dependency but the harness packages answers to the freshness bound: no release two majors or more behind the latest stable one, read from the registry pnpm installs it from, where a release numbered above the one the registry's `latest` distribution tag names, such as a major its publisher still ships under `next`, is not yet the package's stable line and is not counted, as the user's and the project's `.npmrc` and the environment name it, the environment read as pnpm 12 reads it (`pnpm_config_` settings, and registry credentials of `npm_config_` or `pnpm_config_` variables), with the token configured for that registry. A redirect to another scheme, host or port carries only the token configured for the new address, and a redirect from HTTPS to plain HTTP is refused. A registry that refuses the request is named in the finding. A node project with no readable `dependencies.json` fails rather than passing as empty, and in report-only mode an inventory written past a failing `wiring` is named as such. The Node _airness_ pins answers to the bound counted in long-term-support lines, read from the Node release index, and pnpm to the ordinary bound, read from the npm registry.
-+
-The xref:#extended-verification[extended verification] adds five gates. A gate whose facet a node project lacks reports _not applicable_, which is no pass:
-+
-[cols="1,3",options="header"]
-|===
-| Gate | What it checks
-| `npm-sbom` | Judges nothing. Bound in `prepare-package`, it writes `bom.cdx.json` beside its result: a CycloneDX 1.6 document of every package the lockfile resolves, with its package URL, its declared license and the dependency graph, written offline from the same resolved set as `npm-inventory`.
-| `build` | The Next.js facet, in a member that declares `next`: `next build` with the member's own Next.js succeeds.
-| `bundle` | The Next.js facet: the gzipped client JavaScript of the build the `build` gate recorded for the tree as it is now stays within 1100 KiB; a stale or unrecorded build is refused, a ceiling a project may only lower with `bundleBudgetBytes`. The build directory is read from the member's own Next.js configuration.
-| `e2e` | The browser-application facet, which every module serving user-facing HTML must reach, starts the current production build or the declared `serve` script and runs the installed sweep, security-header specifications, stack-layer specifications and the project's own end-to-end specifications. Every HTML response declares `nosniff`, a referrer policy, a framing decision and a content security policy that refuses inline script, and the production server it starts also declares Strict-Transport-Security with a `max-age` of a year or more and marks every cookie it sets `Secure`. The sweep discovers pages, stories, breakpoints, locales and colour schemes and judges their layout, text, media, focus, keyboard behavior, requests and accessibility. Extended verification runs the complete sweep with Chromium, Firefox and WebKit. The browsers run in the Playwright container image matching the harness's pinned `@playwright/test`; pull that image before verification. A missing image fails with the pull command. The compliance report's host Chromium remains a separate toolchain.
-| `image` | The container facet, in a member that holds a Dockerfile (`Dockerfile`, `Dockerfile.<name>` or `<name>.Dockerfile`, outside any nested member): every Dockerfile builds with the node project's directory as the build left it as its context, which holds the lockfile and workspace file a member of a pnpm workspace installs by, and with no build argument and no service, so an image may copy what `package` made but can't depend on a secret or a database while it builds. Every image runs as an unprivileged user: one whose configuration names no `USER`, or names `root` or `0`, fails. For a browser application the image must also boot, with a read-only root filesystem, no capability and no privilege escalation, so each path it writes beyond `/tmp` is a `VOLUME` the image declares: the gate publishes the one TCP port it exposes on a loopback port of the run, starts it under the member's `testWrapper` with `AIRNESS_IMAGE_VERIFICATION=1`, and asks the path of `serverUrl` and each path a stack layer names until every one answers below 500, for at most two minutes. A container that stops, or a path that still answers 500 or nothing, fails the gate with the container's log. In that mode `withServices` starts the services empty, so the image brings a fresh database to its schema itself, and the gate hands it the variables the plan names, each loopback address of a published port rewritten to the service container on the run's network, and the served origin in each `serverUrlVariables` variable. A member without a wrapper boots with no services, and a wrapper that doesn't describe its services fails. Every container and image is removed afterwards, also when the build is stopped. No setting exempts a Dockerfile. While the member declares a harness package at a SNAPSHOT version, the gate leaves out each Dockerfile whose `RUN` installs packages with npm, pnpm, yarn or bun, because a Docker build can't reach the loopback registry that serves an unpublished harness; a Dockerfile that installs nothing is built and booted all the same.
-|===
-+
-The sweep checks keyboard and disclosure behavior with normal motion as well as reduced motion, and measures resting geometry with animations still. Beside the disclosures it drives the keyboard pattern each WAI-ARIA role promises. A dialog a control opens, a native `<dialog>` or `role="dialog"` or `role="alertdialog"`, takes focus, closes on Escape and returns focus to its opener, and a modal one keeps Tab and Shift+Tab inside (`dialog-keyboard`); its opener is found by what it declares, `aria-haspopup`, `aria-expanded` or an invoker `command="show-modal"`, never by activating an undeclared button. A tab list, menu, menu bar, list box, radio group, grid, tree or tree grid, a group of native radio buttons included, is one Tab stop whose arrow keys move focus or the active descendant among its items along its orientation, turned around in right-to-left text (`composite-keyboard`). At rest and with each disclosure open, it fails an `aria-expanded="true"` control whose `aria-controls` element is not rendered and a single-select tab list without exactly one selected tab or whose panels contradict the selection (`aria-state`), and, within a navigation landmark, a link to the current page without `aria-current="page"` or a link elsewhere with it (`aria-current`). On an emulated touch phone with normal motion, it scrolls one route per template and one story per component to the end and back, and fails a page that moves the document after a gesture ends or leaves text it brings into the upper half of the view fully transparent. It then loads each of those pages again with reduced motion and no animation frozen, scrolls and opens a disclosure, and fails content that still moves: an animation of position the step started, a scroll-driven one, parallax, or smooth scrolling to in-page links. After the keyboard walk, it fails an element a pointer is invited to operate that the keyboard never reaches and no reached control stands in for, and a sign-in field that refuses a paste or a password field that turns autocomplete off. A page that moves to another path or opens a window while it loads, before any input, fails too. It also fails an image whose source carries more than three pixels per CSS pixel of its box. It detects text hidden by non-scrollable ancestors and renders authored missing-page boundaries through their application layouts, including locale prefixes and redirects. An application with several root layouts answers an address none of them claims with its `global-not-found` module, which the sweep renders at the root; without one, Next.js answers with its bare built-in page, and the sweep judges that page as what a visitor receives.
-+
-The sweep's accessibility scan runs axe's default rules and adds, by rule id, the rules axe ships switched off or marks experimental: link purpose (WCAG 2.4.9), no timed refresh at any delay (2.2.4 and 3.2.5), target size (2.5.8), orientation (1.3.4), and the paragraph-as-heading, data-cell-header and faked-caption rules of 1.3.1. Two rules cost a design far more at their AAA level than the rest, so every project is held to their AA level and may raise either: a pointer target of 24 CSS pixels, or a smaller one with the room of a 24 pixel circle around it, raised by `accessibilityTargetSize: "AAA"` to the 44 CSS pixels of 2.5.5 with no allowance for that room, and text at 4.5:1 (1.4.3), raised by `accessibilityContrast: "AAA"` to the 7:1 of 1.4.6. A target set within a line of text stays exempt, and so does one the visually-hidden pattern clips to a pixel, such as a skip link before it takes focus, because no pointer reaches it. Links that share one name and lead to different addresses are findings. The hover and focus contrast probes measure the ratio of the project's contrast level as well, and `scopedAxe` from `@airness/node/a11y` starts a project specification's scan from the same rule set. The rule set has one source, `configs/axe-options.json` of `@airness/node`, which `airness-web-evidence` packages for the Java audit, so the two cannot drift apart.
-+
-The sweep holds focus and text presentation to WCAG 2.2 AAA. No part of a keyboard-focused control may lie under fixed or sticky content (`focus-obscured`). A focus indicator the page draws must change pixels by at least 3:1 over the area of a 2 CSS px thick perimeter of the control, following its border radius, as a 2px solid outline or ring does (`focus-contrast`); the browser's own `outline-style: auto` ring, which WCAG exempts, needs only a contrasting line along half the control. No block of text may be justified (`text-justified`), and no rendered line may run past 80 characters, or 40 in Chinese, Japanese or Korean, at any viewport (`line-length`); preformatted text, code and form controls keep their own lines. A flex or grid group shows its text in document order (`reading-order`, WCAG 1.3.2): when `order`, a reversed direction or wrap, explicit grid lines or dense packing shows an item that sets one block of text before one that precedes it in the document, the group fails, unless an exemption on it states why the order is intended; items that set no text or several blocks are not compared.
+The build fails on an outdated pinned file or managed section, so a new Airness version can ask for one run of the goal.
 
-A Java module that serves HTML through `spring-webmvc` or `spring-webflux` is a web interface: the `web-interface` goal at `validate` requires it to declare a node project whose `serve` script launches the packaged artifact, and in Extended `e2e` reconciles the crawl with the HTML routes that `airness-spring-evidence` records. The Java agent guide `.airness/agent-guide-java.md` defines what counts as a web interface and what evidence it needs.
+[[harness-integrity]]
+== Harness Integrity
 
-A Java test that audits a page it rendered itself runs `AxeLibrary.rules()` and then `AxeAudit.SCRIPT` from `airness-web-evidence`, which the Spring parent supplies at test scope, and reads the answer with `AxeAudit.of`; `airness:web-accessibility` refuses a test that asks axe a question of its own. The script hands axe `AxeAudit.OPTIONS`, the same `axe-options.json` the sweep reads, which the artifact packages from the node harness at build time: the rules the sweep adds, at the AA level of target size and contrast. A project that raised either level asks the same question through `AxeAudit.script(AccessibilityLevel targetSize, AccessibilityLevel contrast)`, which adds what each raised level holds.
-
-A temporary redirect (302, 303, 307) credits only the page it lands on, so a protected route answered by a sign-in page is not covered by the anonymous crawl; a permanent redirect still credits its source.
-
-A node project whose pages sit behind a sign-in adds `tests/e2e/sign-in.setup.ts`, a Playwright test that signs in by the project's own means as the account that reaches the most pages and then calls `saveSweepSession(page)` from `@airness/node/a11y`. The sweep then visits the application a second time in that session, with every pass in every engine, so a page behind the sign-in is checked as deeply as a public one. The signed-in passes take only the pages new to the signed-in visitor: those only it reaches and those whose element structure signing in changes. The passes that sample one page per template sample those pages on their own, and the route ceiling counts both visitors' routes together, so a public site that looks the same signed in adds little more than its crawl. The crawl proves its session on the first route that opens only with it and asks that route again after every visit and after the last pass; the address whose visit ended the session fails the sweep, because an address a link reaches must not change state. Signed-in findings say `signed in` after their state. Same-origin `hx-get` fragments found on swept and scanned pages are requested in the page's session, must answer HTML, and are reported as fragment coverage apart from swept pages.
-
-A route neither visitor reaches, such as one only another role or data a specification creates opens, is delegated to a project specification, which must have a completed `expectSweptPage` scan in the current run. Discovery clears previous records before dependent specifications start, and teardown rejects source-level calls that did not execute. `expectPerceivable` is available from `@airness/node/a11y` for controls revealed by keyboard interactions.
-
-A Next.js application also gets the facet's lint: React components need no return-type annotation, Next.js's Core Web Vitals rules apply to `src/`, Biome adds its React and Next.js rule domains, Oxlint adds its accessibility rules, and `arch` forbids any import of `src/app` from outside it. The assets goal seeds `src/proxy.ts`, which sends the security headers, into a node project that installs `next`, keeps its routes under `src/app` or `src/pages` and runs no `middleware` or `proxy` of its own; the project owns it afterwards. `airness:node-gate` runs only in the executions the parents bind; given on the command line without an execution id, or with the id of no bound execution, it is refused.
+. A rule that a xref:#governed-repository[governed repository] could turn off would protect nothing, because the agent that breaks the rule could also turn it off. Airness therefore keeps the configuration of every xref:#check[check] in its own artifacts, beyond the repository's reach, apart from a few open settings:
 +
-A pnpm workspace root and each of its members are judged as their own packages, and a failing member names itself in each finding.
-. A node project declares what only it knows under the `airness` key of its `package.json`. Each exclusion names its pattern and a `reason`, and an entry without one is not honoured:
+[[rule-ownership-figure]]
+.Division between the Airness artifacts and a governed repository
+image::.adocent/resources/visuals/rule-ownership.drawio.png["The Airness artifacts, under one pinned version, hold the parents, the rule configurations, and the managed-file templates. The governed repository holds pom.xml, the code and tests that the agents write, and the managed files. pom.xml selects the parents. The rule configurations configure the Maven build, which runs the checks and judges the code and tests. The assets-sync goal writes the managed files from the templates."]
 +
-[cols="1,3",options="header"]
-|===
-| Key | Use
-| `sourceRoots` | Directories of first-party source beyond `src`, `tests` and `scripts`, which stay.
-| `generatedArtefacts` | Globs of files a generator writes, which no gate judges.
-| `frameworkGlue` | Globs of files a framework writes to a fixed shape, which the lint relaxes.
-| `javascriptAllowlist` | Regular expressions of JavaScript files a tool forces on the project, each with a `runtime` of `node` or `cloudfront-js-2.0`.
-| `coverageExclude` | Globs of source files the coverage floor doesn't measure, such as a configuration a tool loads in a process of its own. It is an exception to the floor, so an entry that leaves no measured file is refused.
-| `pureLogicRoots` | Directories of pure logic, each with a `reason`, which `arch` forbids to import anything else under a source root.
-| `productionEntries` | Globs of files that run in production though no entry point knip reads reaches them, such as a script the `start` script runs before the server, or a script that builds a deployed site from a story. The production run of `knip` counts each as an entry point, so what only it reaches is production code, and prints every one with its reason beside its verdict. An entry that names a test, under `tests` or by a spec or test file name, is refused, and `config-refs` refuses one that matches no file. It states where production code starts rather than excusing a rule, so it does not count against the suppression ceiling.
-| `serve` | The `package.json` script that serves a browser application that is not a Next.js application, for `e2e`. It listens on `$PORT`, the port the run chose. For a Java web interface it launches `$AIRNESS_APPLICATION_ARTIFACT`, the artifact the same invocation packaged, on `$PORT`.
-| `clock` | The instant the build, application, test workers and browser start at. Application clocks advance normally; the browser keeps Date fixed while timers and animation clocks continue. The default is `2100-01-01T12:00:00.000Z`; an ISO instant selects another baseline, and `real` retains the real clock.
-| `auxiliaryServers` | Further servers started before the application. Each names `command`, `url` and optionally a member-relative `cwd`, for example a sibling CMS or Storybook. The command listens on `$PORT`, such as `storybook dev --port $PORT`, because a verification run serves it on a port of its own. It starts without the application's `NODE_ENV`, so it runs in the mode it chooses: Storybook's development server keeps the development mode it renders stories in. `urlVariables` names environment variables, refused as `serverUrlVariables` names are, that the run sets to the server's served origin for the application, the other servers and the specifications; one name belongs to one server. `fixedPort: true` serves the server on its declared port instead, only for an address the application inlines when it is built, such as a public variable a framework writes into its bundle, because the build precedes the run's choice of ports. The run then fails when that port is taken.
-| `serverUrl` | The origin of the application, `http://localhost:3000` by default. Outside verification, Playwright drives it there and may reuse a server already running. In verification, `e2e` keeps its scheme, host and path but serves the application on a loopback port chosen for the run, and each auxiliary server likewise, so a developer's server on the declared port, or another verification on the same machine, never collides with the run.
-| `serverUrlVariables` | Environment variables the application reads its own origin from, such as `NEXT_PUBLIC_SERVER_URL`, which `e2e` sets to the origin the run serves on, and `image` to the origin it serves the booted image on. An application that builds absolute links, or a list of origins it accepts, reads the variable at runtime: the run sets it after the build. Names the harness sets itself (`AIRNESS_*`, `NODE_*`, `NEXT_TELEMETRY_*`, `PORT`, `HOSTNAME`) are refused.
-| `bundleBudgetBytes`, `accessibilityRouteBudget` | Lower ceilings for the client bundle and for the number of routes the sweep may discover.
-| `accessibilityTargetSize`, `accessibilityContrast` | `"AAA"` raises the size of a pointer target to the 44 CSS pixels of WCAG 2.5.5 and the contrast of text to the 7:1 of 1.4.6; `"AA"`, the default, holds them to 24 CSS pixels or the room around a smaller target, and 4.5:1. `wiring` refuses any other value.
-| `accessibilitySkipRoutes` | Route prefixes, each with a `reason`, the sweep does not follow. Each names a subtree at a segment boundary; `config-refs` refuses `/`, and in a Next.js application a prefix that skips no declared page or every one.
-| `layoutMinimumGap`, `layoutViewports` | A larger gap between boxes, and further viewports the layout scan measures.
-| `pretest`, `testWrapper` | Arrays of literal command arguments that prepare services and wrap the test, production-build and browser gates, as described below.
-| `vulnerabilityAllowlist` | Mitigated npm advisories, in the root `package.json` of the declared node project only, as described below.
-|===
-. [[production-dead-code-upgrade]]Upgrading from a version in which the production run of `knip` was optional behind `productionDeadCode`: the run now judges every node project, so the first build on this version fails on each export, and each file under a production source root, that only tests and tooling reach. Test each through the production code that uses it, or remove it. A library declares its public interface in `main` or `exports`, and an application names the files that run in production by a way knip can't follow, such as a bundle entry a build script reads, in `productionEntries`. A `productionDeadCode` key left in `package.json` fails the gate with the repair: delete it.
-. A stack layer above the node layer joins the node gates through the `airness.layer` block of its own `package.json`, read from the copy a member resolves, only for the layer packages `@airness/node` names, and never from the member itself, so a project can neither name a layer's seams nor act as a layer by naming itself after one. Besides defaults for the settings above, `imageProbes` names the paths the `image` gate asks a booted image for beside the origin's own, such as a page the framework renders from its database, `e2eSpecs` names a directory inside the package whose compiled `*.e2e.spec.js` files the `e2e` gate runs as a Playwright project of the layer's own, and `eslint` names one of the package's exports, such as `./eslint`, whose configuration starts with the blocks of `@airness/node/eslint` and adds the layer's own. `productionEntries` names the files its framework runs in production of its own accord, which no import from the package's interface reaches, and both runs of `knip` count each as an entry point. knip's production mode passes over a file one of its plugins reads as a tool's configuration, even one named as an entry, so `knipConfigPlugins` names each plugin that reads one of those files that way, and that run turns it off. A framework's configuration can validate its environment as a knip plugin imports it, so `analysisEnvironment` names, under `defaults`, the inert placeholders that let it load, and under `projectSettings` the key of the member's `package.json` whose `analysisEnv` map extends them; both knip runs carry them beneath the member's environment files and the process's own values, so a clean checkout loads without a workflow supplying them. The harness composes the two in `@airness/node/eslint-layered`, which the `eslint` gate runs and the layer's managed `eslint.config.mjs` re-exports, and refuses a layer block that turns a node rule off, lowers it or replaces its options with ones that don't extend them, ignores files for every block, or sets anything but files, ignores, plugins and rules, except the relaxations `@airness/node` lists for that layer and those files. A seam value of the wrong shape, an export the layer doesn't have, or a specification directory holding no specification fails the gate.
-. The `browser` export named by a trusted stack layer's `airness.layer` block supplies `scanRootSelectors`. The generic browser scanner marks those roots while scanning a custom view, so a framework's own navigation and header around the view aren't judged as application content.
-. `pnpm exec airness-node scope --json` explains the next delta sweep. Its baseline is the merge-base with the remote default branch, and it includes committed, staged, unstaged and untracked changes. The import graph maps changes to routes and stories across declared node projects. Missing baselines, unsupported route mappings and global inputs broaden coverage; a failed graph read fails the diagnostic. Scope evidence names the baseline, targets and reasons. No result is cached.
-. The complete sweep belongs in release verification and in the nightly workflow scaffold. A delta sweep narrows only the automatic page and story sweep; its summary and compliance report retain that qualification.
-. `pnpm exec airness-node gate <id> --verbose` runs one gate in the node project it is started in and prints what the tool wrote. It diagnoses one finding and gives no verdict.
-. A node project's `airness.pretest` and `airness.testWrapper` arrays prepare services and provide isolated data for the test, production-build and browser gates. The harness forwards its pinned command through the wrapper and checks both its completion and the wrapper's exit. A wrapper cannot accidentally turn an unexecuted or failed child into a pass.
-. `withServices` from `@airness/node/services` writes such a wrapper. It starts the containers a plan names, each under a name of this run's own and published on a loopback port Docker chooses, waits until each answers its readiness command, runs an optional preparation such as migrations, and then runs the command after `--` with the variables the plan derives from the published ports. Asked by the `image` gate, through `AIRNESS_IMAGE_VERIFICATION=1`, it runs no preparation, so the services start as a fresh deployment's do, puts the containers on a network of the run's own, and hands the command `AIRNESS_SERVICES`, which names the run, the variables the plan handed over and the service container behind each published port. Provisioning a deployment's services have before the application first starts, such as a bucket, therefore belongs in a container's readiness command rather than in the preparation. A run stopped by SIGINT, SIGTERM or SIGHUP passes the signal on and removes its containers once the command has exited. A wrapper cannot do that when it is killed outright, or when a package manager that runs it as a script, in a process group Ctrl-C does not reach, ends that group as it stops itself, so each run also starts a guard, a detached process outside the wrapper's process tree that ignores the stop signals, which removes the run's containers and network as soon as the wrapper is gone. The e2e gate, for its part, passes a stop signal it is sent on to every process under the browser suite, whatever process group a package manager put them in, waits up to ten seconds for them to finish, ends what still runs, and only then ends itself with the signal, so Ctrl-C on a build leaves neither containers nor test processes behind. The gate looks at the suite's processes every two seconds while it runs and remembers each with its process group, so the stop also reaches a test runner or application server that a process ending before it left to the system. The harness's own launcher under the wrapper passes the signal to the test runner and waits for it, so the wrapper removes the services only once the runner is done with them. Every container also records the run that owns it, as the pinned browser server does, so containers a machine left behind when it went down are removed by the next run. A plan may give the containers a private network, on which a one-off container can, for example, create a bucket. The wrapper answers with the command's exit code.
-. Several verifications can run on one machine at once, of different projects or of two worktrees of one: `e2e` serves each run on ports of its own, the pinned browser server and the services `withServices` starts are named and published per run, and the npm registry the build starts binds a free port. A wrapper that starts fixed-name containers on fixed ports, or reuses a developer's database, gives that up. A worktree made by `git worktree add` verifies as a clone does: the secret scan and Qodana mount the main clone's Git directories beside it, and the secret scan first has Git in its image read the history, so a history the container can't reach fails the build rather than passing as clean. The harness decides the managed files from the project files a commit would carry, as Git lists them, so a worktree nested inside the main clone, as under `.claude/worktrees`, which the managed `.gitignore` block ignores, adds no module of its own to the main clone's checks.
-. `airness-node format` applies the shipped formatter configurations to the same authored files the gates inspect.
-. Vitest runs each kind of specification in the environment it needs, behind the harness's network guard. The generic agent guide, `.airness/agent-guide.md`, states the environments and the optional `vitest.setup.ts` and `vitest.global-setup.ts` under Node Application Preparation and Security Corrections.
-. Security replacements are exact, documented dependency edges. Airness owns the generic approvals and a trusted stack layer contributes its approvals through `airness.layer.securityOverrides`. An approved replacement still uses the registry, integrity, license, age and vulnerability checks.
-. Project npm mitigations live in `airness.vulnerabilityAllowlist` at the declared node project's root. Each entry names `package`, a literal `advisory` identifier, `reason`, `mitigation` and `addedOn` in YYYY-MM-DD form. Canonical OSV identifiers and the aliases it supplies are recognized. Malformed, overlapping and unused entries fail; an exception never crosses into another node project, and the aggregate report retains both open findings and each distinct mitigation.
-. The managed `.airness/npm-registry.py` helper serves the installed Maven tarballs of a SNAPSHOT harness's packages, which are never published, from a loopback registry that stops with the Maven process. It's bootstrap tooling, not a separate verification command, and the generic agent guide states how to bind it under Node Application Preparation and Security Corrections.
-
-[[payload-stack]]
-== Payload Stack
-
-. The Payload stack holds the rules that make sense only where https://payloadcms.com[Payload CMS^] is installed. Everything else a Payload repository is held to, from secrets and commit history to TypeScript, lint, tests and the browser sweep, is the generic and node rules above.
-. It applies to a module that inherits `airness-parent-payload`. That parent inherits `airness-parent-node`, so the module is a xref:#node-projects[node project] as well, and binds one `airness:node-gate` execution per gate the npm package `@airness/payload` ships: `preflight`, `payload-blocklist`, `payload-source-rules`, `admin-views`, `payload-environment`, `payload-generated`, `payload-defaults` and `payload-migrations`. The managed agent guide, `.airness/agent-guide-payload.md`, states what each checks.
-. Every member that declares `@airness/payload` receives Payload's generated files, framework glue, pure-logic floor and admin routes as defaults of the node settings, and its ESLint configuration adds the Payload blocks to the node ones. The production run of `knip` counts the Payload configuration, which the admin panel and the API boot from, and the migrations, which `payload migrate` runs, as production entry points, and turns off knip's Payload plugin, which reads the configuration as a tool's, so a collection, global, hook or helper only the configuration reaches counts as used. `preflight` holds Payload, its first-party packages, `graphql`, `sharp`, Next.js and React to the versions the stack decides. The `airness-payload-assets` jar adds the Payload agent guide, the Payload blocks of `AGENTS.md` and `.gitignore`, the Payload ESLint configuration, and the generated files agents may not edit.
-. The Extended `e2e` gate runs the stack's access-boundary specification, which asks Payload's `/api/access` what an anonymous caller may do and fails on every grant the project did not declare under `airnessPayload.publicAccess` in its `package.json`. `payload-defaults` reads where every upload collection of the built configuration stores its files, after every storage adapter has run, and fails on one that keeps Payload's local disk storage, which a replaced container loses and a second instance never sees, unless the project records it under `airnessPayload.localStorage` with its reason. It also fails an auth collection whose session cookie the configuration, evaluated as production evaluates it, leaves without `Secure`, which Payload's default `auth.cookies.secure: false` does. A custom admin view is scanned within Payload's template through the stack's `airness.layer.browser` export. The Extended `image` gate asks a booted Payload image for `/api/users/init`, which Payload answers by reading its default auth collection, so an image whose empty production database never receives the schema fails: the configuration applies the committed migrations as the server starts through `prodMigrations`, and the stage that runs `next build` gives the variables the configuration validates inert placeholders rather than secrets.
-. Attach the stack to a Payload module:
-.. Inherit the parent and declare `pom` packaging:
+Every analyzer, plugin, and container image that Airness supplies is pinned to an exact version, so a new release of a tool can't change a verdict.
+. A xref:#governed-repository[governed repository] sets only the few settings that the xref:#harness[harness] leaves open, such as xref:#package-root[`airness.package.root`]. The build fails on any other setting that would change a xref:#check[check].
+. A [[suppression]]_suppression_ is a marker in the code that turns one rule off at one place and states the reason. For example, a https://dev.java[Java^] method that has to catch a generic exception carries two annotations:
 +
-[source,xml,subs="attributes+"]
+[source,java]
 ----
-<parent>
-    <groupId>eu.ciechanowiec</groupId>
-    <artifactId>airness-parent-payload</artifactId>
-    <version>{airness-version}</version>
-</parent>
-<packaging>pom</packaging>
-----
-.. Declare `@airness/payload` and `@airness/node` as development dependencies at `{airness-version}`. A released harness installs both from the public npm registry. A SNAPSHOT harness's packages are never published, so install them from the local registry the managed `.airness/npm-registry.py` serves, with the scope line it writes for `@airness`.
-.. Run `mvn airness:assets-sync` to write the managed files, then `mvn clean verify`.
-. The stack is built in this repository by three modules: `airness-payload-assets`, `airness-parent-payload` and `airness-payload-node`, which is the npm package and is never sent to Maven Central. `sh airness-it/verify.sh payload` proves it against a real Payload application, including an admin view and the access boundary on an isolated PostgreSQL, and needs Docker.
-. To remove the stack, only delete, so that no text is added, moved or reworded:
-.. Delete every path the stack-path list of `StackConfinementTest` in `airness-governance` names: the three modules, the `payload-cms` starter, the `payload` integration domain (`airness-it/cases/payload.sh` and `airness-it/fixtures/payload`) and the one registration test of each core module.
-.. Delete this section.
-.. At every other registration point that test lists, delete what names the stack: its lines, its sentences and its list elements, each element with the separator that sets it apart. The three deny rules of `airness-payload-node` in `.claude/settings.json` are deleted by hand too, because `mvn airness:assets-sync` adds missing rules and never removes one.
-.. Delete every entry of the stack-path and registration lists of `StackConfinementTest`, with the line breaks around them, and the names only those entries read, which leaves both lists as `List.of()`. The generic uses it lists, where the word means a request body or the data of a PNG chunk, stay.
-
-[[local-harness-builds]]
-== Local Harness Builds
-
-. A governed project that names a snapshot version of an _airness_ parent resolves it from the shared local Maven repository, `~/.m2/repository`. Clones of the _airness_ repository that installed into that one repository would replace each other's harness under one version, and a build that starts while another clone installs would read a harness mixed from both.
-. Each clone of the _airness_ repository therefore installs into a local Maven repository of its own, with no setup. In the _airness_ repository alone, the xref:#pinned-file[pinned] `.mvn/maven.config` ends with two lines that no governed project receives:
-+
-[source,text]
-----
--Dmaven.repo.local=${user.home}/.m2/clones${session.rootDirectory}
--Dmaven.repo.local.tail=${user.home}/.m2/repository
+// imports and the enclosing class omitted
+@Justification("the vendor client declares Exception on every call, and the import reports each failed row")
+@SuppressWarnings("PMD.AvoidCatchingGenericException")
+void importRow(VendorClient client, String row) {
+    // method body omitted
+}
 ----
 +
-A clone at `/work/airness` therefore installs into `~/.m2/clones/work/airness`, outside its own tree, and reads the shared repository behind it as a read-only tail. Maven resolves each artifact from the first of the two that holds it, so the clone's builds and its integration suite read the clone's own harness and download nothing the shared repository already holds. The pinned Node toolchain is cached in the clone's own repository and is downloaded once for it. Under xref:#extended-verification[extended verification], Qodana mounts the tail beside the clone's repository. The xref:#asset-sync-goal[`assets-sync` goal] writes the two lines in the _airness_ repository and nowhere else, and the asset check requires them there and refuses them in a governed project.
-. `airness-it/verify.sh`, `airness-it/node.sh`, `airness-it/report-browser.sh` and `airness-it/promote.sh` ask Maven for the clone's repository. `verify.sh` hands that repository, with the shared one as its tail, to every consumer fixture it builds, because a fixture builds outside the clone and doesn't read its `.mvn/maven.config`. Two variables remain as optional overrides: `-Dmaven.repo.local` in `MAVEN_ARGS` moves the repository for Maven and the scripts alike, and `MAVEN_REPO_LOCAL` names a repository to the scripts without asking Maven.
-. `mvn clean install` in a clone doesn't change the harness that governed projects build against. To build a governed project against a clone's harness, promote it with `sh airness-it/promote.sh` after a passing build. The script copies every artifact of the group `eu.ciechanowiec` whose name starts with `airness` from the clone's repository into the shared one, and it refuses when the clone has installed nothing. One promotion runs at a time: a second one waits for the first, so two clones promoting at once leave the whole harness of one of them, and a lock left by a killed promotion is reported for removal rather than taken over. Run it while no governed project builds, because a build that starts during the copy can read a harness that is partly from each clone.
+The number of xref:#suppression[suppressions] has a ceiling that grows with the size of the code, and no setting raises it.
+. A xref:#governed-repository[governed repository] can't turn a xref:#check[check] off, except through xref:#suppression[suppressions] and through known vulnerabilities that it records as not exploitable. A check that is wrong for the repository is a defect of Airness, and its maintainers fix it in Airness.
 
-[[configuration]]
-== Configuration
+[[agent-instructions]]
+== Agent Instructions
 
-. _airness_ configuration values that accept lists use commas between entries.
-. Put settings used by every build in the Maven project file. Use command-line values for a single run.
-. The keys below are the only `airness.` settings a project declares. A project file is rejected, even inside a profile that never activates, when it declares any other name in that namespace, the verdict flags xref:#report-only-mode[`airness.enforce`] and xref:#skip-tests[`skipTests`], or a property that a bound goal reads in place of a verdict-deciding parameter. It is rejected too when it declares a profile of an id the _airness_ parents own, `delta`, `extended`, `format`, `release` or any `airness-` id, because Maven activates a profile of that id beside the harness's own. The generic agent guide, `.airness/agent-guide.md`, lists those cases under Project Settings.
+. An [[instruction-file]]_instruction file_ is a committed file that states the rules of a xref:#governed-repository[governed repository] for AI agents. Every agent starts at `AGENTS.md` in the repository root. [[forbidden-instruction-files]]The build fails on other instruction files, such as `CLAUDE.md`, because they could contradict `AGENTS.md`.
+. `AGENTS.md` sends an agent through four documents, from the general to the specific:
++
+[[instruction-chain-figure]]
+.Order in which an agent reads its instructions
+image::.adocent/resources/visuals/instruction-chain.drawio.png["AGENTS.md names the order of four steps. Step 1 is the software project guideline, the standard every governed repository meets. Step 2 is the Airness agent guide, which explains how Airness enforces the standard. Step 3 is the stack layer guides, one guide per stack layer present. Step 4 is the project text, with the project goal and other facts of the repository. The steps run from the general to the specific."]
++
+A later document may strengthen an earlier one but never weaken it.
+. The first three documents are xref:#managed-file[managed files], so Airness, not the xref:#governed-repository[governed repository], decides their content.
+. The instructions carry the rules that no xref:#check[check] verifies reliably, such as the rule that a test must fail when the code stops doing what the test's name says.
 
-[[required-keys]]
-=== Required Keys
+[[build-commands]]
+== Build Commands
 
-xref:#package-root[`airness.package.root`] is the only required project key.
-
-[[optional-keys]]
-=== Optional Keys
-
-[cols="2,2,4"]
+. Running every xref:#check[check] takes time, so Airness offers several levels of verification. [[default-verification]]_Default verification_ is the level for everyday work, which runs a subset of the checks that finishes faster. [[extended-verification]]_Extended verification_ is the level that runs every check, so it's the xref:#verification-command[verification command].
+. The [[compliance-report]]_compliance report_ is an https://html.spec.whatwg.org[HTML^] and https://www.iso.org/standard/75839.html[PDF^] document that xref:#extended-verification[Extended verification] writes. It lists every dependency of the build in a software bill of materials (SBOM).
+. The [[browser-sweep]]_browser sweep_ is the xref:#check[check] of xref:#extended-verification[Extended verification] that starts the application, discovers its pages, and visits them in https://www.chromium.org[Chromium^], https://www.firefox.com[Firefox^], and https://webkit.org[WebKit^]. It judges layout, text, keyboard behavior, network requests, and accessibility.
+. xref:#extended-verification[Extended verification] runs every xref:#check[check] of xref:#default-verification[Default verification] and adds, among others:
+.. the known-vulnerability scan of the dependencies and container images,
+.. the xref:#check[checks] of the whole commit history, of secrets, and of https://www.jetbrains.com/qodana/[Qodana^], a code-quality analyzer,
+.. the scanners of shell scripts, https://docs.docker.com/reference/dockerfile/[Dockerfiles^], and workflows,
+.. the xref:#compliance-report[compliance report],
+.. the xref:#browser-sweep[browser sweep],
+.. the build and start of container images.
+. A third level, [[delta-verification]]_Delta verification_, is xref:#extended-verification[Extended verification] with the xref:#browser-sweep[browser sweep] narrowed to the pages that a change reaches, in https://www.chromium.org[Chromium^] only. Its verdict covers the change, not the whole application.
+. The option `-P` activates a [[maven-profile]]_Maven profile_, a named set of build settings. Each level of verification is one https://maven.apache.org[Maven^] command:
++
+[cols="1,2",options="header"]
 |===
-| Key | Default | Use
+| Level | Command
+| xref:#default-verification[Default verification] | `mvn clean verify`
+| xref:#extended-verification[Extended verification] | `mvn clean verify -Pextended`
+| xref:#delta-verification[Delta verification] | `mvn clean verify -Pextended,delta`
+|===
+. The following figure compares the three levels of verification:
++
+[[verification-levels-figure]]
+.Checks of Default, Extended, and Delta verification
+image::.adocent/resources/visuals/verification-levels.drawio.png["Default verification, run by mvn clean verify, covers the Maven model and managed files, formatting and static analysis, tests and coverage, node gates, and dependency licenses and freshness. Extended verification, run by mvn clean verify -Pextended, contains all of Default verification and adds the known-vulnerability scan, the commit history, secrets, and Qodana checks, the compliance report with a software bill of materials, the browser sweep in three engines, and the container image build and boot. Delta verification, run with -Pextended,delta, is Extended verification with the browser sweep narrowed to what the change reaches, in Chromium only."]
+. [[verification-needs]]Every level of verification needs network access. xref:#extended-verification[Extended verification] also needs https://www.docker.com[Docker^] and the whole commit history, and xref:#default-verification[Default verification] needs Docker where tests start services, such as a database.
+. Run xref:#extended-verification[Extended verification] before a change is finished. When a continuous integration (CI) job runs Extended or xref:#delta-verification[Delta verification] on every pull request, xref:#default-verification[Default verification] is enough locally.
 
-| `airness.typography.excludes`
-| empty
-| Path prefixes excluded from typography checks. For example, `docs` matches `docs/guide.adoc` but not `docs-old/guide.adoc`. Files a generator owns (those the stack layers, `airness.generated.files` or the `airness.generatedArtefacts` of a node project or of a member of its workspace declare) are skipped without being listed here.
+[[build-lifecycle]]
+== Build Lifecycle
 
-| [[airness-node-projects]]`airness.node.projects`
-| empty
-| Directories of the module that hold a node project, relative to the module and comma-separated, for example `src/main/frontend`. Each one receives the `node` managed files and the xref:#node-projects[node toolchain and checks].
+. https://maven.apache.org[Maven^] runs a build as a fixed sequence of phases, from `validate` to `verify`, and binds each plugin execution to one phase. The xref:#airness-parent[Airness parents] bind each xref:#check[check] to a phase in which its input exists:
++
+[[build-lifecycle-figure]]
+.Phases of a Maven build and the checks that run in them
+image::.adocent/resources/visuals/build-lifecycle.drawio.png["Eight boxes run in two rows. validate checks the Maven model, the managed files, the node projects, and the run order. initialize installs the pinned Node.js and pnpm and the locked dependencies. The third box stands for the phases from compile to test, which check formatting and compiler rules and run Checkstyle and the unit tests. prepare-package runs the node gates and PMD. package runs SpotBugs and checks licenses and freshness, and in Extended verification also known vulnerabilities and secrets. integration-test runs the integration tests. post-integration-test runs the browser sweep and the image boot of Extended verification and checks the evidence that the application started. verify checks coverage and runs the closing step, which also compares the tree with its state at the start of the build."]
++
+A defect that a fast xref:#check[check] finds in an early phase fails the build before the slow checks of the later phases start.
+. The [[closing-step]]_closing step_ is the last execution of the build, which judges the build as a whole once the last xref:#module[module] completes. Among other things, the closing step:
+.. fails when the build changed a tracked file,
+.. holds the xref:#suppression[suppressions] to their ceiling,
+.. fails every xref:#module[module] that holds code without inheriting an xref:#airness-parent[Airness parent].
 
-| `airness.generated.files`
-| empty
-| Repository paths of further files a generator owns, comma-separated. Each is denied to the agent runtime through an `Edit(...)` rule in `.claude/settings.json`, beside the generated files the stack layers and the `airness.generatedArtefacts` of each node project and each member of its workspace declare. The typography, indentation and `.editorconfig` checks skip each of them too. The setting can only add to that set.
+[[governed-areas]]
+== Governed Areas
 
-| [[airness-assets-unmanaged]]`airness.assets.unmanaged`
-| empty
-| Repository paths managed by the project itself. The section xref:#managed-files[] lists the paths that can use this setting.
+The rules of Airness cover the whole state of a repository, not only its code. xref:#check[Checks] verify most of them, and the rest reach agents as xref:#agent-instructions[instructions]. The following table gives a sample of the rules in each area:
 
-| `airness.coverage.excluded.classes`
-| empty
-| Class patterns excluded from instruction and branch test coverage checks, each with its reason. Entries are separated by semicolons, and each is a pattern, then `--`, then the reason the role of the class gives, as in `++com.example.Application -- started only by the launcher the browser suite drives; com.example.cli.*Command -- each delegates to a tested service in one line++`. An entry without a reason fails, and each entry counts against the suppression ceiling, as a suppression annotation does. A pattern is written against the qualified name of a class, the way the source writes it: `com.example.cli.Example` names one class and `++com.example.cli.*Command++` names a group. A path written with slashes belongs to a different setting and matches nothing here. Each pattern must name at least one measured class, because an unmatched pattern has no effect and would otherwise appear to work.
-
-| [[airness-dependency-check-suppression-file]]`airness.dependency-check.suppression.file`
-| `.airness/dependency-check-suppressions.xml`
-a| Local path of an Open Worldwide Application Security Project (OWASP) Dependency-Check XML suppression file. The default path is resolved in the directory of each module, so the document lives in the module whose dependency it excuses, and a document at the repository root excuses nothing in a child module. A project that keeps its document at the default path declares nothing, because the exceptions are read from a document that exists there rather than from a key that names one. Naming another path without also leaving a document at the default one therefore leaves the exceptions unread. Every comma-separated entry names an existing file inside the repository, which the suppression rules then read: a URL, a `file:` URI, a missing path and a path outside the repository are refused, because a document read over the network or from elsewhere would make a verdict depend on something other than the repository. The default path names no document until one is kept there.
-
-Create it from the HTML report in the https://dependency-check.github.io/DependencyCheck/general/suppression.html[official suppression-file format^], and use a suppression only when no upgrade answers the advisory. The generic agent guide, `.airness/agent-guide.md`, states under Vulnerability Exceptions what each entry must name, explain and date, and which selectors are refused. The compliance report prints each entry's reason and mitigation plan beside the advisory.
-
-| `airness.test.timeout`
-| `30 s`
-| Ceiling on one test, lifecycle method, or template invocation. A test that runs longer fails. Raise it only for work that genuinely takes longer.
-
+[cols="1,4",options="header"]
+|===
+| Area | Examples of rules
+| Code | Files of at most 500 lines, methods of at most 50 lines, no https://projectlombok.org[Lombok^] builders, and static analysis.
+| Tests | Real databases instead of test doubles, 80% line and branch coverage, a shuffled test order, and no network beyond the machine.
+| Security | No secret in the files or the commit history, security headers, and rules for authorization and authentication.
+| Dependencies | Allowed licenses, no known vulnerability, and no dependency two major versions behind its latest release.
+| Version control | The form of commit messages and a linear history.
+| Repository | xref:#managed-file[Managed files], ignore files, and workflows.
+| Browser | Accessibility, layout, and keyboard behavior of every page.
+| Containers | Images that build without secrets and run as an unprivileged user.
 |===
 
-[[about-the-document]]
+[[getting-started]]
+== Getting Started
+
+. Airness needs exactly https://dev.java[Java^] `25`, https://maven.apache.org[Maven^] `3.10.0` or later, and a https://git-scm.com[Git^] working tree. xref:#verification-needs[Some levels of verification also need Docker].
+. A [[starter-application]]_starter application_ is a working application that already passes xref:#extended-verification[Extended verification] and is the starting point of a new application. Airness ships two starter applications:
+.. `spring-boot`, a multi-user task tracker built with https://spring.io/projects/spring-boot[Spring Boot^], https://www.thymeleaf.org[Thymeleaf^], https://htmx.org[htmx^], https://tailwindcss.com[Tailwind CSS^], and https://www.postgresql.org[PostgreSQL^],
+.. `payload-cms`, a content site built with https://payloadcms.com[Payload CMS^], https://nextjs.org[Next.js^], https://www.postgresql.org[PostgreSQL^], and https://aws.amazon.com/s3/[S3^]-compatible storage.
+. The `new` goal makes an application from a xref:#starter-application[starter application] in a new directory and commits it as the first commit of a new https://git-scm.com[Git^] repository.
+. For example, this command makes a https://spring.io/projects/spring-boot[Spring Boot^] application in the directory `task-tracker`:
++
+[source,bash,subs="attributes+"]
+----
+mvn eu.ciechanowiec:airness-maven-plugin:{airness-version}:new \
+    -Dairness.groupId=com.example -Dairness.artifactId=task-tracker
+----
+. For example, this command makes a https://payloadcms.com[Payload CMS^] application in the directory `content-site`:
++
+[source,bash,subs="attributes+"]
+----
+mvn eu.ciechanowiec:airness-maven-plugin:{airness-version}:new \
+    -Dairness.groupId=com.example -Dairness.artifactId=content-site \
+    -Dairness.starter=payload-cms
+----
+. Run `mvn clean verify` in the new directory for the first verdict. The application's `AGENTS.md` names the commands that start it locally.
+
 == About the Document
 
 . The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
 . The source text of this document must follow the link:README-guideline-writing.adoc[Writing Guideline for Utilitarian Non-Fiction^]. The guideline is stored beside the source text in the same Git repository.
 . The https://github.com/ciechanowiec/adocent[`adocent`^] application lints, converts, and watches the source text of this document.
+. *Usage of https://github.com/ciechanowiec/adocent[`adocent`^]*
++
+`adocent usage` prints the complete https://github.com/ciechanowiec/adocent[`adocent`^] manual and JSON reference catalogs, producing a large output. Don't run it during routine writing. Use it only when command help and lint diagnostics don't resolve a specific usage problem. Save the output to a temporary file and read only the relevant sections. AI agents must not load the full output into their context.
 . *Linting*
 +
 To lint the source text of this document, run this command from the directory containing the source text:
