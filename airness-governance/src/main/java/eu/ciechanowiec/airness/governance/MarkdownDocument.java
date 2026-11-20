@@ -145,16 +145,6 @@ record MarkdownDocument(String path, String text, List<String> lines, Node root)
         return Stream.iterate(node.getFirstChild(), Objects::nonNull, Node::getNext);
     }
 
-    /**
-     * The nodes that follow another below the same parent, in source order.
-     *
-     * @param node a parsed node
-     * @return its later siblings
-     */
-    static Stream<Node> following(Node node) {
-        return Stream.iterate(node.getNext(), Objects::nonNull, Node::getNext);
-    }
-
     private static Stream<Node> descendants(Node node) {
         return children(node).flatMap(child -> Stream.concat(Stream.of(child), descendants(child)));
     }
