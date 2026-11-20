@@ -184,6 +184,7 @@
         <axe-core.version>4.13.0</axe-core.version>
         <maven-artifact.version>3.10.0</maven-artifact.version>
         <attoparser.version>2.0.9.RELEASE</attoparser.version>
+        <commonmark.version>0.32.0</commonmark.version>
         <ec4j-core.version>0.2.1</ec4j-core.version>
         <jspecify.version>1.0.1</jspecify.version>
         <spotbugs-annotations.version>4.10.5</spotbugs-annotations.version>
@@ -1515,6 +1516,21 @@
                 <groupId>org.attoparser</groupId>
                 <artifactId>attoparser</artifactId>
                 <version>${attoparser.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.commonmark</groupId>
+                <artifactId>commonmark</artifactId>
+                <version>${commonmark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.commonmark</groupId>
+                <artifactId>commonmark-ext-gfm-tables</artifactId>
+                <version>${commonmark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.commonmark</groupId>
+                <artifactId>commonmark-ext-yaml-front-matter</artifactId>
+                <version>${commonmark.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.ec4j.core</groupId>

@@ -1,105 +1,62 @@
 ## Starter
 
-Starter is a small film journal: editors write posts, categories and the site settings in the Payload admin,
-preview drafts and publish them, and visitors read the published posts on a public site styled with Tailwind CSS and
-daisyUI. Every sign-in and account change is recorded as an audit event. It began from the Airness Payload CMS
-template. Replace this paragraph with the goal of the application it becomes.
+Starter is a small film journal: editors write posts, categories and the site settings in the Payload admin, preview drafts and publish them, and visitors read the published posts on a public site styled with Tailwind CSS and daisyUI. Every sign-in and account change is recorded as an audit event. It began from the Airness Payload CMS template. Replace this paragraph with the goal of the application it becomes.
 
-- `README.adoc` explains the mechanisms and the architecture of the application to people, juniors included. It
-  holds no run or deployment commands: those belong in this file. It follows `README-guideline-writing.adoc`, must
-  pass `adocent lint README.adoc`, and is updated in the same change as a mechanism it describes. Its diagrams are
-  draw.io files with the editable source embedded, under `.adocent/resources/visuals/`; edit them in draw.io and
-  export them again with the source embedded.
-- Both `mvn clean verify` and `mvn clean verify -Pextended` need Docker: the test wrapper `scripts/with-services.ts`
-  starts a PostgreSQL and a RustFS container of its own for each wrapped command.
+- `README.adoc` explains the mechanisms and the architecture of the application to people, juniors included. It holds no run or deployment commands: those belong in this file. It follows `README-guideline-writing.adoc`, must pass `adocent lint README.adoc`, and is updated in the same change as a mechanism it describes. Its diagrams are draw.io files with the editable source embedded, under `.adocent/resources/visuals/`; edit them in draw.io and export them again with the source embedded.
+- Both `mvn clean verify` and `mvn clean verify -Pextended` need Docker: the test wrapper `scripts/with-services.ts` starts a PostgreSQL and a RustFS container of its own for each wrapped command.
 <!-- @SNAPSHOT_ONLY_BEGIN@ -->
-- Every build starts the local npm registry with `python3`, which serves `@airness/node` and `@airness/payload`
-  from the Airness artifacts installed in the local Maven repository, so `python3` must be on the path and the
-  Airness version the parent names must be installed there. When the build refreshes `pnpm-lock.yaml` against
-  those artifacts and stops, build again and commit the lockfile.
+- Every build starts the local npm registry with `python3`, which serves `@airness/node` and `@airness/payload` from the Airness artifacts installed in the local Maven repository, so `python3` must be on the path and the Airness version the parent names must be installed there. When the build refreshes `pnpm-lock.yaml` against those artifacts and stops, build again and commit the lockfile.
 <!-- @SNAPSHOT_ONLY_END@ -->
-- The Payload layer guide is `.airness/agent-guide-payload.md`. Payload reference documentation is indexed by
-  `.claude/skills/payload/SKILL.md` and stored under `.claude/skills/payload/reference/`; read the relevant
-  reference when changing Payload behavior.
+- The Payload layer guide is `.airness/agent-guide-payload.md`. Payload reference documentation is indexed by `.claude/skills/payload/SKILL.md` and stored under `.claude/skills/payload/reference/`; read the relevant reference when changing Payload behavior.
 
 ## Making a New Site from This Template
 
-The film journal is example content. When the owner turns this application into another site, these files carry
-what makes it a film journal:
+The film journal is example content. When the owner turns this application into another site, these files carry what makes it a film journal:
 
 - `src/lib/site.ts`: the site name, the default tagline and the default description.
 - `src/app/(frontend)/styles.css`: the theme `paper` (colors, radii, typefaces) and the Fontsource imports.
 - `src/app/icon.svg`: the browser-tab icon.
-- `scripts/seed/posts.ts` and `scripts/seed/images`: the demo categories, posts and cover images, which every test
-  database receives.
+- `scripts/seed/posts.ts` and `scripts/seed/images`: the demo categories, posts and cover images, which every test database receives.
 - `.storybook/images`: the images the stories show.
 - The paragraph under `## Starter` above: the goal of the application.
 - `README.adoc`: the name and the description of the site.
 
 ## Local Run
 
-- `cp .env.example .env`, then give each empty secret a value and put the database password into `DATABASE_URL`, as
-  its comment shows. The example supplies no default secret.
-- `compose.yaml` defines three services: `db` (PostgreSQL 18, volume `database`), `objects` (RustFS, volume
-  `objects`; it takes `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` as root credentials, refuses to start while
-  either is empty, and its health check creates `S3_BUCKET`) and `app` (the image of the `Dockerfile`, started once
-  both others are healthy). The `POSTGRES_` variables configure the database, the `S3_` variables the storage and
-  the application. Every service answers on a loopback port only.
-- `scripts/local.ts` publishes every service on a loopback port free on the machine, so several checkouts run side
-  by side. `pnpm dev`, `pnpm seed`, `pnpm run migrate:create` and the other Payload commands start the database and
-  the storage through it and run on the host against them. It hands the application the addresses of the services and the origin it is
-  served on, the only origin from which it accepts authenticated requests.
-- `pnpm run up` starts all three services from the standalone server `mvn clean verify` built; open the printed
-  address with `/admin` to create the first administrator. `pnpm dev` runs a reloading server on the host instead.
-  `pnpm devsafe` clears a corrupt Next.js cache and starts it again.
-- `pnpm seed` creates the administrator of `scripts/development-admin.ts`, with the password `SEED_ADMIN_PASSWORD`
-  of `.env`, and the missing demo content, matched by slug. It refuses any database host other than localhost.
+- `cp .env.example .env`, then give each empty secret a value and put the database password into `DATABASE_URL`, as its comment shows. The example supplies no default secret.
+- `compose.yaml` defines three services: `db` (PostgreSQL 18, volume `database`), `objects` (RustFS, volume `objects`; it takes `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` as root credentials, refuses to start while either is empty, and its health check creates `S3_BUCKET`) and `app` (the image of the `Dockerfile`, started once both others are healthy). The `POSTGRES_` variables configure the database, the `S3_` variables the storage and the application. Every service answers on a loopback port only.
+- `scripts/local.ts` publishes every service on a loopback port free on the machine, so several checkouts run side by side. `pnpm dev`, `pnpm seed`, `pnpm run migrate:create` and the other Payload commands start the database and the storage through it and run on the host against them. It hands the application the addresses of the services and the origin it is served on, the only origin from which it accepts authenticated requests.
+- `pnpm run up` starts all three services from the standalone server `mvn clean verify` built; open the printed address with `/admin` to create the first administrator. `pnpm dev` runs a reloading server on the host instead. `pnpm devsafe` clears a corrupt Next.js cache and starts it again.
+- `pnpm seed` creates the administrator of `scripts/development-admin.ts`, with the password `SEED_ADMIN_PASSWORD` of `.env`, and the missing demo content, matched by slug. It refuses any database host other than localhost.
 - `pnpm run storybook` serves the stories of `src/components` without a database.
 
 ## Deployment
 
-- The image installs and builds nothing; it copies `.next/standalone` and `.next/static` and reads its configuration
-  at start, the variables the `app` service of `compose.yaml` passes. On start it applies the committed migrations
-  the database lacks.
-- A production server refuses to start without `NEXT_PUBLIC_SERVER_URL`, the only origin from which it accepts
-  authenticated Admin Panel requests.
-- The server must run behind at least one reverse proxy that appends the address it received each request from to
-  `X-Forwarded-For`; the limit on authentication attempts identifies a client by that entry. `TRUSTED_PROXY_COUNT`
-  (default 1) names how many such proxies stand in front. Naming more than the header lists refuses every
-  authentication attempt and logs the reason; naming fewer makes all clients behind the outermost proxy share one
-  limit. Without a proxy, a client can name any address and escape the limit.
+- The image installs and builds nothing; it copies `.next/standalone` and `.next/static` and reads its configuration at start, the variables the `app` service of `compose.yaml` passes. On start it applies the committed migrations the database lacks.
+- A production server refuses to start without `NEXT_PUBLIC_SERVER_URL`, the only origin from which it accepts authenticated Admin Panel requests.
+- The server must run behind at least one reverse proxy that appends the address it received each request from to `X-Forwarded-For`; the limit on authentication attempts identifies a client by that entry. `TRUSTED_PROXY_COUNT` (default 1) names how many such proxies stand in front. Naming more than the header lists refuses every authentication attempt and logs the reason; naming fewer makes all clients behind the outermost proxy share one limit. Without a proxy, a client can name any address and escape the limit.
 
 ## Schema
 
-The schema is the committed migrations in `src/migrations`. Create a migration after a schema change with
-`pnpm run migrate:create <name>`; `pnpm run dev`, `start`, and `seed` apply pending ones first.
+The schema is the committed migrations in `src/migrations`. Create a migration after a schema change with `pnpm run migrate:create <name>`; `pnpm run dev`, `start`, and `seed` apply pending ones first.
 
 ## Application Conventions
 
-Reuse the access predicates in `src/access`. Server-rendered pages and complete user flows are exercised by the
-browser suite in `tests/e2e`.
+Reuse the access predicates in `src/access`. Server-rendered pages and complete user flows are exercised by the browser suite in `tests/e2e`.
 
 The public site keeps four layers apart:
 
-- Pages under `src/app/(frontend)` read content only through `src/queries`, which call the Local API with
-  `overrideAccess: false`, so a page sees what its visitor may see and no draft reaches a public page.
+- Pages under `src/app/(frontend)` read content only through `src/queries`, which call the Local API with `overrideAccess: false`, so a page sees what its visitor may see and no draft reaches a public page.
 - The queries return the plain values of `src/lib/views.ts`, never Payload documents.
-- Components under `src/components` take those values as props and fetch nothing, so each renders the same in a
-  page, in a component spec under `tests/component` and in Storybook.
-- Every component has a story beside it, such as `src/components/post-card.stories.tsx`, with one story for each
-  state a reader can meet. Run `pnpm run storybook` to see them; the Extended sweep judges every story.
+- Components under `src/components` take those values as props and fetch nothing, so each renders the same in a page, in a component spec under `tests/component` and in Storybook.
+- Every component has a story beside it, such as `src/components/post-card.stories.tsx`, with one story for each state a reader can meet. Run `pnpm run storybook` to see them; the Extended sweep judges every story.
 
-The site has one light theme, in `src/app/(frontend)/styles.css`. Style with daisyUI components and the theme's
-Tailwind utilities; the harness refuses arbitrary Tailwind values. Icons come from `lucide-react`.
+The site has one light theme, in `src/app/(frontend)/styles.css`. Style with daisyUI components and the theme's Tailwind utilities; the harness refuses arbitrary Tailwind values. Icons come from `lucide-react`.
 
-`pnpm seed` creates the local admin and the demo content of `scripts/seed/posts.ts`; the test wrapper seeds the
-same content into every disposable database, so specs may rely on it but create their own data for what they
-assert.
+`pnpm seed` creates the local admin and the demo content of `scripts/seed/posts.ts`; the test wrapper seeds the same content into every disposable database, so specs may rely on it but create their own data for what they assert.
 
 Audit events are written from hooks in `src/hooks/audit.ts`.
 
 ## Next.js Version
 
-This Next.js version has breaking changes: APIs, conventions, and file structure may all differ from your
-training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code, and heed
-deprecation notices.
+This Next.js version has breaking changes: APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code, and heed deprecation notices.

@@ -106,6 +106,9 @@ public final class ManagedVersions {
         suppliedDependency("org.webjars.npm", "axe-core", "axe-core.version"),
         suppliedDependency("org.apache.maven", "maven-artifact", "maven-artifact.version"),
         suppliedDependency("org.attoparser", "attoparser", "attoparser.version"),
+        suppliedDependency("org.commonmark", "commonmark", "commonmark.version"),
+        suppliedDependency("org.commonmark", "commonmark-ext-gfm-tables", "commonmark.version"),
+        suppliedDependency("org.commonmark", "commonmark-ext-yaml-front-matter", "commonmark.version"),
         suppliedDependency("org.ec4j.core", "ec4j-core", "ec4j-core.version"),
         suppliedDependency("org.jspecify", "jspecify", "jspecify.version"),
         suppliedDependency(

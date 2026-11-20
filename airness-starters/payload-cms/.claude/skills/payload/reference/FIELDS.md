@@ -26,7 +26,7 @@ const textField: TextField = {
 }
 ```
 
-### Slug Field Helper
+## Slug Field Helper
 
 Built-in helper for auto-generating slugs:
 
@@ -79,7 +79,7 @@ const richTextField: RichTextField = {
 }
 ```
 
-### Advanced Lexical Configuration
+## Advanced Lexical Configuration
 
 ```ts
 import {
@@ -318,7 +318,7 @@ const locationField: PointField = {
 // Example: [-122.4194, 37.7749] for San Francisco
 ```
 
-### Geospatial Queries
+## Geospatial Queries
 
 ```ts
 // Query by distance (sorted by nearest first)

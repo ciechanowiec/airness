@@ -1,36 +1,14 @@
 ## Starter
 
-Starter is a multi-user task tracker: people sign in, keep tasks with a status and a due day, and
-administrators manage the accounts. It began from the Airness Spring Boot template, a generic beginning for
-an application built on Airness with Spring Boot, Thymeleaf, htmx, Tailwind CSS with daisyUI, and
-PostgreSQL. Replace this paragraph with the goal of the application it becomes.
+Starter is a multi-user task tracker: people sign in, keep tasks with a status and a due day, and administrators manage the accounts. It began from the Airness Spring Boot template, a generic beginning for an application built on Airness with Spring Boot, Thymeleaf, htmx, Tailwind CSS with daisyUI, and PostgreSQL. Replace this paragraph with the goal of the application it becomes.
 
-- `README.adoc` explains the template to people. It follows `README-guideline-writing.adoc` and must pass
-  `adocent lint README.adoc`. Its diagrams are draw.io PNG files under `.adocent/resources/visuals` that carry
-  their editable source: edit them in draw.io and export them with the diagram embedded again.
-- A local run starts with `cp .env.example .env`, choosing the passwords, the storage key pair and the
-  hexadecimal imgproxy key and salt the copy leaves empty, then
-  `mvn clean verify` and `pnpm run up`, which starts `compose.yaml` on a free loopback port and prints the
-  address, so several checkouts of the application run side by side.
-  `.env.example` sets `APP_DEMO_DATA=true`, so the first start against an empty database writes a
-  demonstration team, whose accounts sign in with the administrator's password at addresses in the
-  administrator's domain, such as `maja.kowalska@starter.local`.
+- `README.adoc` explains the template to people. It follows `README-guideline-writing.adoc` and must pass `adocent lint README.adoc`. Its diagrams are draw.io PNG files under `.adocent/resources/visuals` that carry their editable source: edit them in draw.io and export them with the diagram embedded again.
+- A local run starts with `cp .env.example .env`, choosing the passwords, the storage key pair and the hexadecimal imgproxy key and salt the copy leaves empty, then `mvn clean verify` and `pnpm run up`, which starts `compose.yaml` on a free loopback port and prints the address, so several checkouts of the application run side by side. `.env.example` sets `APP_DEMO_DATA=true`, so the first start against an empty database writes a demonstration team, whose accounts sign in with the administrator's password at addresses in the administrator's domain, such as `maja.kowalska@starter.local`.
 <!-- @SNAPSHOT_ONLY_BEGIN@ -->
-- Every build starts the local npm registry with `python3`, which serves `@airness/node` from the Airness
-  artifacts installed in the local Maven repository, so `python3` must be on the path and the Airness
-  version the parent names must be installed there. When the build refreshes `pnpm-lock.yaml` against those
-  artifacts and stops, build again and commit the lockfile.
+- Every build starts the local npm registry with `python3`, which serves `@airness/node` from the Airness artifacts installed in the local Maven repository, so `python3` must be on the path and the Airness version the parent names must be installed there. When the build refreshes `pnpm-lock.yaml` against those artifacts and stops, build again and commit the lockfile.
 <!-- @SNAPSHOT_ONLY_END@ -->
-- The `identity`, `audit`, `language`, `web` and `failure` packages are the platform every application
-  keeps: sign-in, roles, account management, the audit trail, English and Polish, and the failure page.
+- The `identity`, `audit`, `language`, `web` and `failure` packages are the platform every application keeps: sign-in, roles, account management, the audit trail, English and Polish, and the failure page.
 - The `task`, `home` and `demo` packages are the example domain, which an application renames or replaces.
-- A component is a Thymeleaf fragment under `src/main/resources/templates/components`. Pages call the
-  fragments rather than repeating daisyUI class lists, and a fragment switches between whole literal class
-  names, because Tailwind writes only the classes it finds written out in a template.
-- A file a user hands the application, such as an attachment or a portrait, is stored through `MediaLibrary`
-  in RustFS and never on the server's disk, and a page draws it only through
-  `src/main/resources/templates/components/media.html`, which serves its renditions with `srcset` and
-  `sizes`. An image that ships with the pages, such as an illustration, stays a static file under
-  `src/main/resources/static`, saved at the size the page draws it at.
-- The demonstration pictures under `src/main/resources/demo` are stored at the first start like any upload.
-  They were generated once and are committed; no build or test reaches an image service.
+- A component is a Thymeleaf fragment under `src/main/resources/templates/components`. Pages call the fragments rather than repeating daisyUI class lists, and a fragment switches between whole literal class names, because Tailwind writes only the classes it finds written out in a template.
+- A file a user hands the application, such as an attachment or a portrait, is stored through `MediaLibrary` in RustFS and never on the server's disk, and a page draws it only through `src/main/resources/templates/components/media.html`, which serves its renditions with `srcset` and `sizes`. An image that ships with the pages, such as an illustration, stays a static file under `src/main/resources/static`, saved at the size the page draws it at.
+- The demonstration pictures under `src/main/resources/demo` are stored at the first start like any upload. They were generated once and are committed; no build or test reaches an image service.

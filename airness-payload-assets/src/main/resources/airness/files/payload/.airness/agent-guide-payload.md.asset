@@ -1,8 +1,6 @@
 # Airness Payload Layer Guide
 
-This guide applies to every module that inherits `airness-parent-payload`. It adds to the generic guide and to
-the node rules; it never relaxes them. A Payload module is a node project whose `package.json` declares
-`payload` and `@airness/payload`, built with `pom` packaging.
+This guide applies to every module that inherits `airness-parent-payload`. It adds to the generic guide and to the node rules; it never relaxes them. A Payload module is a node project whose `package.json` declares `payload` and `@airness/payload`, built with `pom` packaging.
 
 ## Verification
 
@@ -21,32 +19,18 @@ The Payload gates run through `airness:node-gate` like every node gate, bound by
 
 Run one gate with `pnpm exec airness-payload gate <id> --verbose` to diagnose it. That is a diagnosis, never a verdict.
 
-The node gates apply the Payload layer's additions too. The `eslint` gate runs the node rules plus the Payload
-blocks below, and the Extended `e2e` gate runs the layer's `access-boundary` specification, which asks Payload's
-`/api/access` what an anonymous caller may do and fails on every grant `publicAccess` does not declare. The
-browser sweep scans a custom admin view within Payload's template: the layer supplies the template's content
-selectors through `airness.layer.browser`, so Payload's own navigation and header are not judged as the view's.
-The Extended `image` gate asks a booted image for `/api/users/init` beside the origin's own path, through the
-layer's `imageProbes`: the admin panel asks it whether a first user must be created, and Payload answers it by
-reading the users collection, its default auth collection, so an image whose empty database never received its
-schema answers 500 and fails. An admin page is no such probe, since Next.js has already sent its 200 when the
-query behind it fails.
+The node gates apply the Payload layer's additions too. The `eslint` gate runs the node rules plus the Payload blocks below, and the Extended `e2e` gate runs the layer's `access-boundary` specification, which asks Payload's `/api/access` what an anonymous caller may do and fails on every grant `publicAccess` does not declare. The browser sweep scans a custom admin view within Payload's template: the layer supplies the template's content selectors through `airness.layer.browser`, so Payload's own navigation and header are not judged as the view's. The Extended `image` gate asks a booted image for `/api/users/init` beside the origin's own path, through the layer's `imageProbes`: the admin panel asks it whether a first user must be created, and Payload answers it by reading the users collection, its default auth collection, so an image whose empty database never received its schema answers 500 and fails. An admin page is no such probe, since Next.js has already sent its 200 when the query behind it fails.
 
 An image of a Payload application passes that gate when:
 
-- its Dockerfile builds with no build argument: the stage that runs `next build` installs the dependencies from the
-  lockfile and gives the variables the configuration validates as it is imported inert placeholders on that `RUN`
-  line alone, as `analysisEnv` gives them to the gates, never a real value;
+- its Dockerfile builds with no build argument: the stage that runs `next build` installs the dependencies from the lockfile and gives the variables the configuration validates as it is imported inert placeholders on that `RUN` line alone, as `analysisEnv` gives them to the gates, never a real value;
 - every directory it copies exists in the build, so a `public` directory is copied only where the project has one;
-- the configuration applies the committed migrations as the server starts, with `prodMigrations` set to the
-  `migrations` export of `src/migrations`, because the runtime stage holds the built server alone;
-- the origin is read at runtime from a variable `serverUrlVariables` names, which the gate sets in the running
-  container, rather than set only in the stage that builds.
+- the configuration applies the committed migrations as the server starts, with `prodMigrations` set to the `migrations` export of `src/migrations`, because the runtime stage holds the built server alone;
+- the origin is read at runtime from a variable `serverUrlVariables` names, which the gate sets in the running container, rather than set only in the stage that builds.
 
 ## Settings
 
-The Payload settings live under the `airnessPayload` key of the member's `package.json`; the node settings stay
-under `airness`.
+The Payload settings live under the `airnessPayload` key of the member's `package.json`; the node settings stay under `airness`.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -55,62 +39,19 @@ under `airness`.
 | `keptMetadata` | empty | Entries with `collection` and `reason`, naming the upload collections whose pictures the project stores with the metadata the camera wrote, on purpose, such as an archive of photographs whose capture data is the point. An entry missing a field is dropped, and one naming no upload collection that keeps that metadata is a finding. |
 | `analysisEnv` | placeholders for `PAYLOAD_SECRET` and `DATABASE_URL` | Variables the gates that import the configuration use when neither the process nor `.env.local`/`.env` supplies them, an empty value supplying nothing, the node layer's `knip` among them. They let the configuration evaluate; nothing connects to them. |
 
-The layer contributes defaults to the node settings of every member that declares `@airness/payload`: the generated
-files (`src/payload-types.ts`, `src/payload-generated-schema.ts`, everything under `src/app/(payload)`, the
-admin and API glue Payload scaffolds as generated, and the `src/migrations/*.json` schema snapshots), the framework
-glue (`src/payload.config.ts`), the pure-logic floor (`src/access`, `src/lib`), the routes the accessibility
-sweep leaves to Payload (`/admin`, `/api`), and the production entry points of the dead-code gate's production run:
-the configuration, which the admin panel and the API boot from, and the migrations under `src/migrations`, which
-`payload migrate` runs. What only the configuration reaches, such as a collection, a hook or a helper, is therefore
-production code. Agents may not edit the generated files; regenerate them with the
-Payload CLI. The installed layer contributes exact security replacements for
-affected Payload dependency edges through `airness.layer.securityOverrides`; a project may use only those approvals
-and the generic Airness approvals.
+The layer contributes defaults to the node settings of every member that declares `@airness/payload`: the generated files (`src/payload-types.ts`, `src/payload-generated-schema.ts`, everything under `src/app/(payload)`, the admin and API glue Payload scaffolds as generated, and the `src/migrations/*.json` schema snapshots), the framework glue (`src/payload.config.ts`), the pure-logic floor (`src/access`, `src/lib`), the routes the accessibility sweep leaves to Payload (`/admin`, `/api`), and the production entry points of the dead-code gate's production run: the configuration, which the admin panel and the API boot from, and the migrations under `src/migrations`, which `payload migrate` runs. What only the configuration reaches, such as a collection, a hook or a helper, is therefore production code. Agents may not edit the generated files; regenerate them with the Payload CLI. The installed layer contributes exact security replacements for affected Payload dependency edges through `airness.layer.securityOverrides`; a project may use only those approvals and the generic Airness approvals.
 
 ## Application Code
 
-- Keep environment reads in `src/lib/environment.ts`, validate them there, and document each variable in the
-  example file beside the member's `.env`, or in the one at the repository root. The `payload-environment` gate
-  knows a variable by the name the module reads it by: a bracketed read, `process.env['NAME']` or `source['NAME']`
-  on a parameter that holds the environment, or a name destructured out of either. A schema library handed the
-  whole object, as in `schema.parse(process.env)`, names no variable to the gate, so read each variable by its
-  name.
-- Collection, global, field and block definitions are declarative. Define access rules and pure logic in
-  `src/access` or `src/lib`, hooks in `src/hooks`, and import them by reference.
+- Keep environment reads in `src/lib/environment.ts`, validate them there, and document each variable in the example file beside the member's `.env`, or in the one at the repository root. The `payload-environment` gate knows a variable by the name the module reads it by: a bracketed read, `process.env['NAME']` or `source['NAME']` on a parameter that holds the environment, or a name destructured out of either. A schema library handed the whole object, as in `schema.parse(process.env)`, names no variable to the gate, so read each variable by its name.
+- Collection, global, field and block definitions are declarative. Define access rules and pure logic in `src/access` or `src/lib`, hooks in `src/hooks`, and import them by reference.
 - A collection decides `create`, `read`, `update` and `delete`; a global decides `read` and `update`.
-- An auth collection sets `auth.cookies.secure` to true in production, for example from a value
-  `src/lib/environment.ts` derives from `NODE_ENV`, because Payload's default sends the session cookie over plain
-  HTTP. `payload-defaults` evaluates the configuration with `NODE_ENV` set to `production`.
-- `auth.maxLoginAttempts` counts failures only against an account that exists, so an attempt naming an unknown
-  email is never limited, while it still pays for the decoy hash that keeps its refusal as slow as any other. The
-  limit on repeated authentication failures that the section Authentication of the governing standard asks for
-  is therefore the project's own to add for those attempts, for example per client in front of the sign-in route.
-- At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through
-  `req.payload` or `request.payload` passes `req`; a call carrying `user`, a call composed with a spread, and
-  every call in an endpoint module, a route handler, a server action (a `'use server'` module or function) or a
-  page, layout, template, default or not-found module of the App Router outside `src/app/(payload)`, its
-  `generateMetadata` and `generateStaticParams` included, or in a function of the project one of them calls,
-  states `overrideAccess: false` after any spread. A name bound to `await getPayload(...)` is a Local API
-  receiver like `payload`.
-- Write every handler a collection, global or root `endpoints:` entry serves in a module under `src/endpoints`,
-  and import it there by a relative or `@/` path, so the endpoint rule above judges its calls. A handler written
-  in place, or imported from `src/lib`, `src/hooks` or another alias, is refused.
-- Store every upload collection's files through a storage adapter, such as `@payloadcms/storage-s3` against an
-  S3-compatible service (RustFS for local development and verification), never on the server's local disk: a
-  replaced container loses those files and a second instance never sees them. Add each new upload collection to
-  the adapter's `collections`.
-- A required relationship or upload, on a collection or a global, needs a `beforeDelete` hook on its target
-  collection that removes the dependants first, unless drafts are enabled on the holder.
-- A database adapter that does not push its schema needs a recorded migration for every schema change: after a
-  change, run `payload migrate:create <name>` and commit the migration with the `.json` snapshot it writes. A
-  deployed server applies them as it starts through `prodMigrations`, as the `image` gate requires.
-- ESLint refuses an inline function in a collection, global, field or block configuration, a read of
-  `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` taken out of `req` or
-  `request`, destructured or bound to a name as in `const cms = req.payload` (call `req.payload` and pass
-  `req`). A hook writes request state only on `req.context`. Outside `src/endpoints` nothing reads `req.data`,
-  dotted, bracketed, destructured or through `Reflect.get`: it is the raw request body, the parsed body over REST,
-  `{ query, variables }` over GraphQL and nothing over the Local API. A hook reads its operation's own arguments,
-  `data` in a collection or field hook and `args.data` in `beforeOperation` or `afterOperation`, and a root hook
-  such as `afterError` reads what an operation hook of the same request put on `req.context`. A migration keeps
-  the snake-case name `payload migrate:create` gives it.
+- An auth collection sets `auth.cookies.secure` to true in production, for example from a value `src/lib/environment.ts` derives from `NODE_ENV`, because Payload's default sends the session cookie over plain HTTP. `payload-defaults` evaluates the configuration with `NODE_ENV` set to `production`.
+- `auth.maxLoginAttempts` counts failures only against an account that exists, so an attempt naming an unknown email is never limited, while it still pays for the decoy hash that keeps its refusal as slow as any other. The limit on repeated authentication failures that the section Authentication of the governing standard asks for is therefore the project's own to add for those attempts, for example per client in front of the sign-in route.
+- At a Local API call use an explicit options object. A read states its `depth` or `limit`; a call through `req.payload` or `request.payload` passes `req`; a call carrying `user`, a call composed with a spread, and every call in an endpoint module, a route handler, a server action (a `'use server'` module or function) or a page, layout, template, default or not-found module of the App Router outside `src/app/(payload)`, its `generateMetadata` and `generateStaticParams` included, or in a function of the project one of them calls, states `overrideAccess: false` after any spread. A name bound to `await getPayload(...)` is a Local API receiver like `payload`.
+- Write every handler a collection, global or root `endpoints:` entry serves in a module under `src/endpoints`, and import it there by a relative or `@/` path, so the endpoint rule above judges its calls. A handler written in place, or imported from `src/lib`, `src/hooks` or another alias, is refused.
+- Store every upload collection's files through a storage adapter, such as `@payloadcms/storage-s3` against an S3-compatible service (RustFS for local development and verification), never on the server's local disk: a replaced container loses those files and a second instance never sees them. Add each new upload collection to the adapter's `collections`.
+- A required relationship or upload, on a collection or a global, needs a `beforeDelete` hook on its target collection that removes the dependants first, unless drafts are enabled on the holder.
+- A database adapter that does not push its schema needs a recorded migration for every schema change: after a change, run `payload migrate:create <name>` and commit the migration with the `.json` snapshot it writes. A deployed server applies them as it starts through `prodMigrations`, as the `image` gate requires.
+- ESLint refuses an inline function in a collection, global, field or block configuration, a read of `process.env` outside `src/lib/environment.ts` and `src/proxy.ts`, and `payload` taken out of `req` or `request`, destructured or bound to a name as in `const cms = req.payload` (call `req.payload` and pass `req`). A hook writes request state only on `req.context`. Outside `src/endpoints` nothing reads `req.data`, dotted, bracketed, destructured or through `Reflect.get`: it is the raw request body, the parsed body over REST, `{ query, variables }` over GraphQL and nothing over the Local API. A hook reads its operation's own arguments, `data` in a collection or field hook and `args.data` in `beforeOperation` or `afterOperation`, and a root hook such as `afterError` reads what an operation hook of the same request put on `req.context`. A migration keeps the snake-case name `payload migrate:create` gives it.
 

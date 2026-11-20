@@ -37,24 +37,12 @@ The root `pom.xml` also aggregates the Payload stack: `airness-payload-assets` (
 
 ## Build, Test, and Development Commands
 
-- `sh airness-it/report-browser.sh` installs the pinned Chromium used by report tests. Add `--with-deps` on Linux
-  to install its system libraries. Run this as toolchain setup before the first build.
-- `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, and
-  installs all reactor modules for consumer tests into this clone's own local Maven repository, which the README
-  section Local Harness Builds names. The integration suite installs its node fixtures from `registry.npmjs.org`.
-- Create each parallel worktree beside the clone, for example `git worktree add ../airness-<name>`, never inside
-  it: the harness reads every project file beneath the repository root, so a worktree under `.claude/worktrees`
-  fails the main clone's build.
-- `sh airness-it/promote.sh` copies this clone's installed harness into `~/.m2/repository`, which governed
-  projects build against. Run it only while no governed project builds.
+- `sh airness-it/report-browser.sh` installs the pinned Chromium used by report tests. Add `--with-deps` on Linux to install its system libraries. Run this as toolchain setup before the first build.
+- `mvn clean install` runs Default verification, reports stable updates across the complete parent chain, and installs all reactor modules for consumer tests into this clone's own local Maven repository, which the README section Local Harness Builds names. The integration suite installs its node fixtures from `registry.npmjs.org`.
+- Create each parallel worktree beside the clone, for example `git worktree add ../airness-<name>`, never inside it: the harness reads every project file beneath the repository root, so a worktree under `.claude/worktrees` fails the main clone's build.
+- `sh airness-it/promote.sh` copies this clone's installed harness into `~/.m2/repository`, which governed projects build against. Run it only while no governed project builds.
 - `sh airness-it/verify.sh` exercises expected pass and failure cases from isolated consumer projects.
-- `sh airness-it/verify.sh <domain>...` diagnoses only the named domains against installed artifacts. It is a
-  partial run; the complete integration verdict still requires the command without a domain. The domains are
-  `maven`, `analysis`, `templates`, `stylesheets`, `repository`, `spring`, `containers`, `scanners`, `node`,
-  `browser`, `payload` (the Payload stack against a real Payload application and an isolated PostgreSQL; it needs
-  Docker), `starters` (an application `airness:new` makes from each starter passes Extended verification; it
-  needs Docker) and `browser-evidence` (motion, ancestor clipping, missing-page layouts and completed project
-  scans, which also run in the browser domain).
+- `sh airness-it/verify.sh <domain>...` diagnoses only the named domains against installed artifacts. It is a partial run; the complete integration verdict still requires the command without a domain. The domains are `maven`, `analysis`, `templates`, `stylesheets`, `repository`, `spring`, `containers`, `scanners`, `node`, `browser`, `payload` (the Payload stack against a real Payload application and an isolated PostgreSQL; it needs Docker), `starters` (an application `airness:new` makes from each starter passes Extended verification; it needs Docker) and `browser-evidence` (motion, ancestor clipping, missing-page layouts and completed project scans, which also run in the browser domain).
 
 ## Coding Style & Naming Conventions
 
@@ -62,15 +50,8 @@ Prefer focused classes and explanatory Javadoc for public APIs.
 
 ## Testing Guidelines
 
-Airness tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example
-`rejectsATrailingPeriod`. Each npm package module, `airness-node` and `airness-payload-node`, tests with Vitest under its own tests directory, importing sources through the `@/` alias. Add regression coverage beside the changed module.
-The tests of a rule, gate or check that recognizes a construct cover each equivalent spelling the language or
-library allows for it, for example JUnit and AssertJ assertions, `req.payload` and a destructured `{ payload }`,
-`String.format` and `formatted`, `&&` and `||` around an `instanceof`. Self-coverage includes every governance
-class and every non-Mojo Maven-plugin support class. Do not treat `mvn clean package` inside
-`airness-it` as a normal test: its fixtures intentionally violate rules.
+Airness tests use JUnit Jupiter. Name test classes `*Test` and methods as descriptive behaviors, for example `rejectsATrailingPeriod`. Each npm package module, `airness-node` and `airness-payload-node`, tests with Vitest under its own tests directory, importing sources through the `@/` alias. Add regression coverage beside the changed module. The tests of a rule, gate or check that recognizes a construct cover each equivalent spelling the language or library allows for it, for example JUnit and AssertJ assertions, `req.payload` and a destructured `{ payload }`, `String.format` and `formatted`, `&&` and `||` around an `instanceof`. Self-coverage includes every governance class and every non-Mojo Maven-plugin support class. Do not treat `mvn clean package` inside `airness-it` as a normal test: its fixtures intentionally violate rules.
 
 ## Commit & Pull Request Guidelines
 
-Pull requests should explain intent, list verification performed, link relevant issues, and call out rule, workflow,
-or generated-asset changes; include screenshots only for documentation rendering changes.
+Pull requests should explain intent, list verification performed, link relevant issues, and call out rule, workflow, or generated-asset changes; include screenshots only for documentation rendering changes.

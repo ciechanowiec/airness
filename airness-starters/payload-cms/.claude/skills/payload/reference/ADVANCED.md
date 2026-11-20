@@ -371,7 +371,7 @@ For complete TypeScript type definitions and signatures, reference these files f
 
 ### Core Configuration Types
 
-- **[All Commonly-Used Types](https://github.com/payloadcms/payload/blob/3.x/packages/payload/src/index.ts)** - Check here first for commonly used types and interfaces. All core types are exported from this file.
+**[All Commonly-Used Types](https://github.com/payloadcms/payload/blob/3.x/packages/payload/src/index.ts)** - Check here first for commonly used types and interfaces. All core types are exported from this file.
 
 ### Database & Adapters
 
@@ -381,6 +381,6 @@ For complete TypeScript type definitions and signatures, reference these files f
 
 ### Rich Text & Plugins
 
-- **[Lexical Types](https://github.com/payloadcms/payload/blob/3.x/packages/richtext-lexical/src/exports/server/index.ts)** - Lexical editor configuration
+**[Lexical Types](https://github.com/payloadcms/payload/blob/3.x/packages/richtext-lexical/src/exports/server/index.ts)** - Lexical editor configuration
 
 When users need detailed type information, fetch these URLs to provide complete signatures and optional parameters.

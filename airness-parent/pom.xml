@@ -283,6 +283,7 @@
                             <goal>ignore-patterns</goal>
                             <goal>instruction-references</goal>
                             <goal>skills</goal>
+                            <goal>markdown</goal>
                             <goal>generated-denial</goal>
                         </goals>
                     </execution>

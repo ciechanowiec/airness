@@ -86,7 +86,7 @@ try {
 
 **Note**: MongoDB requires replicaset for transactions. SQLite requires `transactionOptions: {}` to enable.
 
-### Threading req Through Operations
+## Threading req Through Operations
 
 **Critical**: When performing nested operations in hooks, always pass `req` to maintain transaction context. Failing to do so breaks atomicity and can cause partial updates.
 
