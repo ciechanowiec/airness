@@ -52,6 +52,7 @@ class StackConfinementTest {
     private static final String STARTER = "payload-cms";
     private static final String LAYER = "PAYLOAD";
     private static final String PRODUCT = "Payload";
+    private static final String SITE = "payloadcms.com";
     private static final String PLUGIN = "airness-maven-plugin/src/main/java/eu/ciechanowiec/airness/maven/";
     private static final String PLUGIN_TESTS = "airness-maven-plugin/src/test/java/eu/ciechanowiec/airness/maven/";
 
@@ -86,14 +87,9 @@ class StackConfinementTest {
         new Entry(".gitignore", Set.of(NODE_MODULE), "the .npmrc the stack's local registry writes"),
         new Entry("airness-starters/pom.xml", Set.of(STARTER), "the stack's starter, packed beside the others"),
         new Entry(
-            "README.adoc",
-            Set.of(
-                NPM_PACKAGE, PRODUCT, WORD, PARENT, ASSETS_MODULE, NODE_MODULE, "agent-guide-payload.md",
-                "airnessPayload.publicAccess", "airnessPayload.localStorage", "payload-blocklist", "payload-defaults",
-                "payload-environment", "payload-generated", "payload-migrations", "payload-source-rules",
-                "payload-stack", "payload.sh", "payloadcms.com", STARTER
-            ),
-            "the Payload stack section: what it adds, how to attach it and how to remove it"
+            "README.adoc", Set.of(PRODUCT, WORD, PARENT, STARTER, SITE),
+            "the stack's parent, its starter and its official site among those the README names beside the other"
+                + " stacks'"
         ),
         new Entry(
             "AGENTS.md", Set.of(NPM_PACKAGE, PRODUCT, WORD, PARENT, ASSETS_MODULE, NODE_MODULE),

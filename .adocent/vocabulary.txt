@@ -1,4 +1,7 @@
-airness
+[Aa]irness
+npm
+lockfile
+htmx
 Qodana
 PMD
 [Tt]oolchain

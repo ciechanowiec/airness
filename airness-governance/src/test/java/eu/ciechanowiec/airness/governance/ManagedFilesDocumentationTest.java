@@ -10,31 +10,33 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
- * The policy table of the README's managed-files section names every path the generic, Java and node
- * manifests declare, so a file added to a manifest is documented in the same change rather than left for a
- * reader to discover in the jar. A stack layer outside the core documents its files in its own section.
+ * The agent guide's section on managed files names every path the generic, Java and node manifests declare, so a
+ * file added to a manifest is documented for the agents in the same change rather than left for them to discover in
+ * the jar. A stack layer outside the core documents its files in its own guide.
  */
 class ManagedFilesDocumentationTest {
 
     private static final Path MANIFESTS = Path.of("airness-assets/src/main/resources/airness/manifest");
-    private static final String POLICIES = "Each managed path has one of the following policies:";
-    private static final String TABLE_END = "|===";
+    private static final Path GUIDE = Path.of(
+        "airness-assets/src/main/resources/airness/files/generic/.airness/agent-guide.md.asset"
+    );
+    private static final String SECTION = "### Managed Files";
+    private static final String NEXT_SECTION = "\n### ";
     private static final String COMMENT = "#";
 
     @Test
     @SneakyThrows
-    void namesEveryManifestPathInThePolicyTable() {
-        String readme = Files.readString(SelfModules.repository().resolve("README.adoc"));
-        int start = readme.indexOf(POLICIES);
-        int end = readme.indexOf(TABLE_END, readme.indexOf(TABLE_END, start) + TABLE_END.length());
-        String table = readme.substring(start, end);
+    void namesEveryManifestPathInTheGuideSection() {
+        String guide = Files.readString(SelfModules.repository().resolve(GUIDE));
+        int start = guide.indexOf(SECTION);
+        String section = guide.substring(start, guide.indexOf(NEXT_SECTION, start + SECTION.length()));
         assertEquals(
             List.of(),
             Stream.of("generic.tsv", "java.tsv", "node.tsv").flatMap(ManagedFilesDocumentationTest::paths)
-                .filter(path -> !table.contains('`' + path + '`'))
+                .filter(path -> !section.contains('`' + path + '`'))
                 .distinct()
                 .toList(),
-            "each manifest path appears, in backticks, in the README's managed-files policy table"
+            "each manifest path appears, in backticks, in the Managed Files section of the agent guide"
         );
     }
 

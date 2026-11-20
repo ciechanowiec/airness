@@ -16,9 +16,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Every key the node harness reads under {@code airness} in a project's {@code package.json} is listed in the
- * agent guide's Node Project Settings table and in the README's key table, which are the two places a reader
- * looks for what a node project may declare. A key added to the harness alone would otherwise stay unknown to
- * the agents the guide instructs.
+ * agent guide's Node Project Settings table, which is where an agent looks for what a node project may declare. A
+ * key added to the harness alone would otherwise stay unknown to the agents the guide instructs.
  */
 class NodeSettingsDocumentationTest {
 
@@ -38,8 +37,6 @@ class NodeSettingsDocumentationTest {
         "airness-assets/src/main/resources/airness/files/generic/.airness/agent-guide.md.asset"
     );
     private static final String GUIDE_TABLE = "### Node Project Settings";
-    private static final String README_TABLE = "A node project declares what only it knows";
-    private static final String TABLE_END = "|===";
 
     @Test
     void readsAtLeastTheKeysEveryBrowserApplicationDeclares() {
@@ -55,14 +52,6 @@ class NodeSettingsDocumentationTest {
     void listsEveryKeyInTheGuide() {
         String guide = read(GUIDE);
         assertEquals(List.of(), undocumented(guide.substring(guide.indexOf(GUIDE_TABLE))), "the guide's table");
-    }
-
-    @Test
-    void listsEveryKeyInTheReadme() {
-        String readme = read(Path.of("README.adoc"));
-        int start = readme.indexOf(README_TABLE);
-        int end = readme.indexOf(TABLE_END, readme.indexOf(TABLE_END, start) + TABLE_END.length());
-        assertEquals(List.of(), undocumented(readme.substring(start, end)), "the README's key table");
     }
 
     private static List<String> undocumented(String table) {

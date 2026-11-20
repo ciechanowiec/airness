@@ -26,6 +26,21 @@ Airness governs all of the following domains:
 
 Do not treat a domain omitted from one command's output as ungoverned. The parent POM, bundled configurations, and Airness goals together define the executable contract.
 
+### Managed Files
+
+Each managed path follows one policy. `mvn airness:assets-sync` creates missing files and restores outdated ones, and Default verification fails on a missing or outdated pinned file or managed section, or a missing seed. A layer's files reach the root when any module carries the layer, and a node project's directory once it holds a `package.json`.
+
+| Policy | Paths | Rule |
+| --- | --- | --- |
+| Managed section | `AGENTS.md`, `.gitignore` and `.dockerignore` at the root, and `AGENTS.md` in each node project directory | the file leads with one block per layer that claims it, between `BEGIN AIRNESS MANAGED: <layer>` and `END AIRNESS MANAGED: <layer>`, in the order `generic`, `java`, `node`; the text below the blocks is the project's, and a stale or unclaimed block fails |
+| Pinned | `.airness/agent-guide.md`, `.airness/license-inventory.ftl`, `.airness/test.gitconfig`, `.editorconfig`, `.gitattributes`, `.java-version`, `.mvn/maven.config`, `.mvn/jvm.config`, `.mvn/settings.xml`, `README-guideline-software-project.adoc`; with `java` also `.airness/agent-guide-java.md`, `lombok.config` and `qodana.yaml`; with `node` also `eslint.config.mjs`, `vitest.config.mts` and `.airness/npm-registry.py` in each node project directory | the file matches the active Airness version byte for byte, and `.claude/settings.json` denies the agent runtime `Edit(...)` of it |
+| Seed | `.gitleaks.toml`; with `node` also `src/proxy.ts` in a Next.js node project that runs no `middleware` or `proxy` of its own | created when missing; the contents are the project's |
+| Scaffold | `.github/workflows/verify-full.yml` in a repository with node projects | `mvn airness:assets-init` creates it when absent; the project customizes or deletes it, and nothing recreates it |
+| Reference | `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md` | optional; every line that says anything names `AGENTS.md` |
+| Forbidden | with `java`, `rewrite.yml` and `qodana/profile.xml` | absent; verification reports them and deletes nothing |
+
+`AGENTS.md` is the only instruction file. A `CLAUDE.md` or `CLAUDE.local.md` in any directory fails, because Claude Code reads `AGENTS.md` itself, and so does any file under a `.clinerules/`, `.cursor/rules/` or `.windsurf/rules/` directory, a `.github/instructions/` file ending in `.instructions.md`, and a `GEMINI.md` below the root. No setting exempts one. `airness.assets.unmanaged` hands a pinned, seed or forbidden path to the project, never a managed section, whose lines below the blocks the project already owns. In the Airness repository alone, `.mvn/maven.config` also ends with the two local-repository lines that repository's `AGENTS.md` describes.
+
 ### Commit Messages
 
 The section Commit Messages of the governing standard states the policy. A published commit message cannot be rewritten, so an agent satisfies the policy only while writing the message. Airness adds these details:
@@ -108,6 +123,8 @@ A released harness installs its npm packages from the public registry. A SNAPSHO
 
 Extended verification is the verification command of the governing standard; Default and delta verification run declared subsets of its checks. It includes Default verification and adds the known-vulnerability scan, the HTML/PDF compliance report, and the history, secret, and Qodana checks. Default verification alone never reads the vulnerability database.
 
+A new application begins from a starter, a working application that already passes Extended verification: `mvn eu.ciechanowiec:airness-maven-plugin:<version>:new -Dairness.groupId=<group> -Dairness.artifactId=<artifact>`, run outside any project, writes the `spring-boot` starter into a directory named after the artifact, moves its code to a package derived from both, runs `assets-init`, writes the first `pnpm-lock.yaml` and commits the result as the first commit of a new repository. `-Dairness.package`, `-Dairness.name`, `-Dairness.directory` and `-Dairness.starter` choose otherwise. A SNAPSHOT harness's npm packages are never published, so for one the goal and the application's builds serve them from the local Maven repository, which must hold that harness, with `python3` on the path.
+
 ### Browser Verification
 
 Default verification runs no automatic browser sweep; browser tests a project writes itself may run there as ordinary tests. Extended verification runs the complete browser sweep, including Chromium, Firefox and WebKit, alongside the security-header, stack-layer and project specifications. Prepare the Playwright image matching the node harness's pinned `@playwright/test` before the run. A missing image fails with its pull command. The host Chromium used for compliance reports is a separate toolchain.
@@ -157,7 +174,7 @@ The HTML embeds an aggregate CycloneDX inventory and a CSV inventory for downloa
 - Fix a managed-file finding with `mvn airness:assets-sync`. A seed's contents belong to the project after creation, but its path remains mandatory. A project may take over an eligible path through `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
 - Fix formatter findings with the format command of step 3 of the Command Workflow. Modernization findings name the form to write, and no command writes it for you. Fix compilation, analysis, dependency, test, coverage, history, security, and tool failures at their source; do not disable the failing check.
 - Change an exclusion or the default test timeout only for an explicit project requirement. Never use one merely to obtain a pass.
-- The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
+- The test order seed and the suppression ceilings are the harness's own and take no project setting. The Java sources of the build hold three suppressions per thousand lines, and never fewer than five, and each class pattern of `airness.coverage.excluded.classes` counts as one. The node projects' own code holds two, and one more per 500 non-blank lines, with each `coverageExclude` entry counting as one. Answer a suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
 - So is the Git configuration a test reads. Every Surefire, Failsafe and Vitest run reads the managed `.airness/test.gitconfig` as its global Git configuration and no system one, through `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_NOSYSTEM`, which a project file may not set. It turns hooks, commit and tag signing and the machine's ignore and attribute files off, starts a repository on `main` and commits under a fixture identity, so a developer's or a CI image's Git configuration never decides a verdict. A test that needs another Git setting writes it into its own fixture repository.
 - There is no setting that turns a check off. If a check is wrong for the project, that is an Airness bug to be fixed in Airness, not a local override.
 - ShellCheck, Checkov, hadolint, actionlint, and Trivy accept no project-owned suppression or replacement configuration. Their image pins and policy are carried in the installed Airness artifacts, so even a command-line image override cannot replace them. A ShellCheck source hint must identify the actual repository import, never an empty substitute. Report a false finding to Airness.
