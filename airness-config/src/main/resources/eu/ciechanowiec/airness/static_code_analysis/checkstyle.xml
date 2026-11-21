@@ -1102,7 +1102,20 @@
         Miscellaneous
         -->
         <module name="ArrayTypeStyle"/>
-        <module name="AvoidEscapedUnicodeCharacters"/>
+        <module name="AvoidEscapedUnicodeCharacters">
+            <!--
+                The typography check refuses the invisible spaces raw in every committed file, and their
+                escape is the only form a reader can see, so the escape is what a literal holding one writes.
+                Control characters cover the zero-width space, the word joiner and the zero-width no-break
+                space; non-printable characters cover the no-break, figure and narrow no-break spaces and
+                the zero-width no-break space again. Each allowance admits a literal only when every escape
+                in it belongs to that allowance's own set, so a literal mixing the two sets is refused, and
+                is written as a concatenation of one literal per set, which stays a constant expression. An
+                escape of a printable character is refused still, because that character is written as it is.
+            -->
+            <property name="allowEscapesForControlCharacters" value="true"/>
+            <property name="allowNonPrintableEscapes" value="true"/>
+        </module>
         <module name="CommentsIndentation"/>
         <module name="HexLiteralCase"/>
         <module name="MultilineCommentLeadingAsteriskPresence"/>

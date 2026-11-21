@@ -50,10 +50,33 @@ class GitConfigurationTest {
     }
 }
 JAVA
+    # The typography check refuses the narrow no-break space raw, so a test that expects one writes its
+    # escape, which Checkstyle admits.
+    cat > "${maven_consumer}/src/test/java/com/example/GroupingTest.java" <<'JAVA'
+package com.example;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.text.NumberFormat;
+import java.util.Locale;
+import org.junit.jupiter.api.Test;
+
+class GroupingTest {
+
+    private static final int POPULATION = 1_234_567;
+
+    @Test
+    void groupsFrenchDigitsWithANarrowNoBreakSpace() {
+        assertEquals("1\u202F234\u202F567", NumberFormat.getIntegerInstance(Locale.FRANCE).format(POPULATION));
+    }
+}
+JAVA
     run_maven lifecycle_clean maven "${maven_consumer}" clean verify
     expect_exit lifecycle_clean 'lifecycle: a clean installed-parent consumer verifies' 0
     expect_match lifecycle_clean 'lifecycle: the consumer tests read the managed Git configuration' \
         'Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* in com[.]example[.]GitConfigurationTest'
+    expect_match lifecycle_clean 'lifecycle: an escaped invisible space passes typography and Checkstyle' \
+        'Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* in com[.]example[.]GroupingTest'
     expect_match lifecycle_clean 'lifecycle: Checkstyle is selected from the installed parent' \
         'checkstyle:[^:]+:check'
     expect_match lifecycle_clean 'lifecycle: PMD and CPD are both bound' \
