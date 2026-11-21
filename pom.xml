@@ -1729,6 +1729,12 @@
                             <waitUntil>published</waitUntil>
                             <waitMaxTime>7200</waitMaxTime>
                             <!--
+                                Central counts every published file against the organization's monthly file
+                                limit, checksums included, and requires only MD5 and SHA-1. The default adds
+                                SHA-256 and SHA-512, six files per artifact file instead of four.
+                            -->
+                            <checksums>required</checksums>
+                            <!--
                                 Each module listed here builds an npm package, such as @airness/node, governed by
                                 this reactor. It attaches its packed tarball (type tgz) so mvn install puts it in the
                                 local repository, but npm is where it is published, so neither its pom nor the
