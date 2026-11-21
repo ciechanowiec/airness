@@ -6,8 +6,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -90,14 +90,17 @@ public record ScannerInventory(Path root) {
         Optional<Path> root = real(this.root);
         boolean selected = real(link)
             .filter(target -> root.filter(target::startsWith).isPresent())
-            .filter(target -> committed.contains(target) || (Files.isDirectory(target) && committed.stream().anyMatch(
-                file -> file.startsWith(target)
-            )))
+            .filter(target -> leadsToCommitted(target, committed))
             .isPresent();
         return selected ? Optional.empty() : Optional.of(
             this.root.relativize(link) + ": a symbolic link may lead only to a committed file, or a directory holding"
                 + " one, inside the repository; scanners never follow it, so commit what it leads to or remove it"
         );
+    }
+
+    private static boolean leadsToCommitted(Path target, Set<Path> committed) {
+        return committed.contains(target)
+            || (Files.isDirectory(target) && committed.stream().anyMatch(file -> file.startsWith(target)));
     }
 
     private static Optional<Path> real(Path path) {

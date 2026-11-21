@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
@@ -79,15 +80,15 @@ class QodanaSnapshotTest {
 
     @Test
     @SneakyThrows
-    void copiesLiteralNamesBinaryBytesAndSymbolicLinks(@TempDir Path directory) {
+    void copiesLiteralNamesAndBinaryBytesButNoSymbolicLink(@TempDir Path directory) {
         Path root = repository(directory);
         List<String> names = List.of("with space", "line\nbreak", "tab\tname", "-C", "back\\slash", "quote'\"name");
         byte[] bytes = {0, 1, -1};
         writeBinaryFiles(root, names, bytes);
-        Path missingTarget = Path.of("missing");
-        Path ignoredTarget = Path.of("ignored");
-        Files.createSymbolicLink(root.resolve("dangling"), missingTarget);
-        Files.createSymbolicLink(root.resolve("linked-directory"), ignoredTarget);
+        write(root, "shared/guide.md", "# Guide\n");
+        Files.createSymbolicLink(root.resolve("linked-guide.md"), Path.of("shared/guide.md"));
+        Files.createSymbolicLink(root.resolve("dangling"), Path.of("missing"));
+        Files.createSymbolicLink(root.resolve("linked-directory"), Path.of("ignored"));
         write(root, ".gitignore", "ignored/\n");
         write(root, "ignored/secret", "never followed\n");
         Path manifest = QodanaSnapshot.prepare(root, directory.resolve(OUTPUT));
@@ -96,9 +97,10 @@ class QodanaSnapshotTest {
         for (String name : names) {
             assertArrayEquals(bytes, Files.readAllBytes(destination.resolve(name)), name);
         }
-        assertEquals(missingTarget, Files.readSymbolicLink(destination.resolve("dangling")));
-        assertEquals(ignoredTarget, Files.readSymbolicLink(destination.resolve("linked-directory")));
-        assertFalse(Files.exists(destination.resolve("ignored")));
+        assertEquals("# Guide\n", Files.readString(destination.resolve("shared/guide.md")));
+        for (String link : List.of("linked-guide.md", "dangling", "linked-directory", "ignored")) {
+            assertFalse(Files.exists(destination.resolve(link), LinkOption.NOFOLLOW_LINKS), link);
+        }
     }
 
     @Test
