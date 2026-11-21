@@ -87,9 +87,9 @@ public record ScannerInventory(Path root) {
     }
 
     private Optional<String> linkProblem(Path link, Set<Path> committed) {
-        Optional<Path> root = real(this.root);
+        Optional<Path> repository = real(this.root);
         boolean selected = real(link)
-            .filter(target -> root.filter(target::startsWith).isPresent())
+            .filter(target -> repository.filter(target::startsWith).isPresent())
             .filter(target -> leadsToCommitted(target, committed))
             .isPresent();
         return selected ? Optional.empty() : Optional.of(
@@ -99,8 +99,10 @@ public record ScannerInventory(Path root) {
     }
 
     private static boolean leadsToCommitted(Path target, Set<Path> committed) {
-        return committed.contains(target)
-            || (Files.isDirectory(target) && committed.stream().anyMatch(file -> file.startsWith(target)));
+        boolean committedFile = committed.contains(target);
+        boolean committedDirectory = Files.isDirectory(target)
+            && committed.stream().anyMatch(file -> file.startsWith(target));
+        return committedFile || committedDirectory;
     }
 
     private static Optional<Path> real(Path path) {

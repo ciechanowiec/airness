@@ -98,9 +98,13 @@ class QodanaSnapshotTest {
             assertArrayEquals(bytes, Files.readAllBytes(destination.resolve(name)), name);
         }
         assertEquals("# Guide\n", Files.readString(destination.resolve("shared/guide.md")));
-        for (String link : List.of("linked-guide.md", "dangling", "linked-directory", "ignored")) {
-            assertFalse(Files.exists(destination.resolve(link), LinkOption.NOFOLLOW_LINKS), link);
-        }
+        assertEquals(
+            List.of(),
+            Stream.of("linked-guide.md", "dangling", "linked-directory", "ignored")
+                .filter(link -> Files.exists(destination.resolve(link), LinkOption.NOFOLLOW_LINKS))
+                .toList(),
+            "no symbolic link reaches the copy, and none is followed"
+        );
     }
 
     @Test
