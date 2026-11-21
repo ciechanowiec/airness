@@ -38,7 +38,7 @@ ifndef::env-github[]
 endif::[]
 endif::[]
 
-:airness-version: 1.0.13
+:airness-version: 1.0.14-SNAPSHOT
 
 [cols=">.^1h,<.^1"]
 // The two-row metadata table labels its rows in its first column, not its columns.
