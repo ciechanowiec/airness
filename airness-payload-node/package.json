@@ -116,24 +116,6 @@
           "addedOn": "2026-10-28"
         },
         {
-          "parent": "monaco-editor@0.57.0",
-          "dependency": "dompurify",
-          "version": "3.4.17",
-          "advisories": [
-            "GHSA-55q2-fjhq-7xh7",
-            "GHSA-6688-9rhm-gjv2",
-            "GHSA-c2j3-45gr-mqc4",
-            "GHSA-c6gr-qvv4-5v3f",
-            "GHSA-cg2g-xh64-v4q7",
-            "GHSA-cmwh-pvxp-8882",
-            "GHSA-mrv2-3pqr-j5jr",
-            "GHSA-vxr8-fq34-vvx9",
-            "GHSA-p98j-92pf-mc4p"
-          ],
-          "reason": "The Payload code editor pins a vulnerable DOMPurify patch; the corrected patch retains the sanitizer API.",
-          "addedOn": "2026-10-28"
-        },
-        {
           "parent": "@lexical/headless@0.50.0",
           "dependency": "happy-dom",
           "version": "21.0.4",
