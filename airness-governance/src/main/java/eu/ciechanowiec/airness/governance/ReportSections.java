@@ -148,13 +148,14 @@ record ReportSections(ComplianceReport report) {
                 Stream.concat(
                     Stream.of(
                         "This report is generated from the project&#39;s build, not written by hand.",
-                        "It reads the same package list, license policy and vulnerability findings that the build&#39;s "
-                            + "license and vulnerability checks act on, so the report and those checks can&#39;t "
-                            + "disagree.",
+                        "It reads the same package list, license policy and vulnerability findings that the "
+                            + "build&#39;s license and vulnerability checks act on, so the report and those checks "
+                            + "can&#39;t disagree.",
                         "Anyone with the repository can regenerate it from the commit below with the command given."
                     ),
                     source.dirty() ? Stream.of(
-                        "This draft includes uncommitted changes, so it can&#39;t be reproduced exactly from that commit."
+                        "This draft includes uncommitted changes, so it can&#39;t be reproduced exactly from that "
+                            + "commit."
                     ) : Stream.empty()
                 ).toList()
             ) + ReportOutline.subheading("provenance-source")

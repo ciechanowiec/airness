@@ -151,9 +151,12 @@ record ReportVerdict(ComplianceReport report) {
 
     private static String noneOpen(ReportInventory inventory) {
         return inventory.advisories().isEmpty() ? "No known vulnerability was found."
-            : "No vulnerability is open: every one found is "
-                + (inventory.awaitingFix().isEmpty() ? "mitigated" : "mitigated or awaiting a fix") + ", as "
+            : "No vulnerability is open: every one found is " + closedStatuses(inventory) + ", as "
                 + ReportOutline.reference("vulnerabilities") + " shows.";
+    }
+
+    private static String closedStatuses(ReportInventory inventory) {
+        return inventory.awaitingFix().isEmpty() ? "mitigated" : "mitigated or awaiting a fix";
     }
 
     private static Stream<String> waiting(List<ReportAdvisory> awaiting) {

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import eu.ciechanowiec.airness.governance.ReportAdvisory;
 import eu.ciechanowiec.airness.governance.ReportPackage;
 import eu.ciechanowiec.airness.governance.ReportUse;
-import eu.ciechanowiec.airness.maven.NpmEvidence.NpmPackage;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;

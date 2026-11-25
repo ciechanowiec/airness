@@ -162,7 +162,7 @@ class NpmEvidenceTest {
 
     @Test
     void namesAnUnscopedAndAnUnversionedPackageAndOneDeclaringNoLicense() {
-        NpmEvidence.NpmPackage app = new NpmEvidence.NpmPackage("app", "", "", true, true, false, Map.of());
+        NpmPackage app = new NpmPackage("app", "", "", true, true, false, Map.of());
         assertEquals("pkg:npm/app", app.purl());
         NpmEvidence web = NpmEvidence.of(NpmFixture.module(this.directory, true)).getFirst();
         NpmEvidence bare = new NpmEvidence(web.module(), web.key(), web.directory(), this.directory.resolve("bare"));
