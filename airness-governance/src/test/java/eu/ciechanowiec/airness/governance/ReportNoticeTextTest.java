@@ -58,8 +58,9 @@ class ReportNoticeTextTest {
         assertTrue(html.contains("<p>Plain words &lt;b&gt;stay&lt;/b&gt; text.</p></div>"));
         assertTrue(
             html.contains(
-                "<p>See <span class=\"url\">https:<wbr>/<wbr>/<wbr>example.<wbr>com/<wbr>licenses/<wbr>plain-text-license"
-                    + "</span>, or <span class=\"url\">wiki.<wbr>example.<wbr>org/<wbr>Considerations</span>.</p>"
+                "<p>See <span class=\"url\">https:<wbr>/<wbr>/<wbr>example.<wbr>com/<wbr>licenses/<wbr>"
+                    + "plain-text-license</span>, or <span class=\"url\">wiki.<wbr>example.<wbr>org/<wbr>"
+                    + "Considerations</span>.</p>"
             ),
             html
         );

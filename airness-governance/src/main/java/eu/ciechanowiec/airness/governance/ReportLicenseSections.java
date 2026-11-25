@@ -19,10 +19,10 @@ record ReportLicenseSections(ComplianceReport report) {
     private static final List<Integer> ALIAS_WIDTHS = List.of(56, 28, 16);
     private static final List<String> CLASSES = List.of(
         "Every package version falls into one class by its license. <em>Permissive</em> licenses require that "
-            + "copyright and license notices are kept. <em>Weak copyleft</em> licenses also require, when the component "
-            + "is distributed, that its source code, including any changes to it, is available under the same license, "
-            + "and some add duties such as letting users replace the component. The code that uses it isn&#39;t "
-            + "affected. <em>Outside the policy</em> means the policy doesn&#39;t allow the license."
+            + "copyright and license notices are kept. <em>Weak copyleft</em> licenses also require, when the "
+            + "component is distributed, that its source code, including any changes to it, is available under the "
+            + "same license, and some add duties such as letting users replace the component. The code that uses it "
+            + "isn&#39;t affected. <em>Outside the policy</em> means the policy doesn&#39;t allow the license."
     );
     private static final List<String> OUTSIDE = List.of(
         "Each package version below has a license the policy doesn&#39;t allow, and fails the license check. It has "
@@ -82,8 +82,8 @@ record ReportLicenseSections(ComplianceReport report) {
             "policy", ReportMarkup.paragraphs(
                 List.of(
                     "This is the license policy every package is checked against. It is printed from the same list the "
-                        + "license check uses, so the two can&#39;t differ. The policy is part of the project&#39;s build "
-                        + "configuration, so a change to it is reviewed like any other change to the project.",
+                        + "license check uses, so the two can&#39;t differ. The policy is part of the project&#39;s "
+                        + "build configuration, so a change to it is reviewed like any other change to the project.",
                     "A package offered under a choice of licenses is allowed when any one of them is allowed. A "
                         + "package under several licenses that all apply at once is allowed only when every one of "
                         + "them is. Different spellings of a license name are matched to one standard identifier, as "

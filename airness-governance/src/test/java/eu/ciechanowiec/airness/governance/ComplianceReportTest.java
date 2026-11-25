@@ -160,7 +160,8 @@ class ComplianceReportTest {
         assertFalse(html.contains("Draft: not release evidence"));
         assertTrue(
             html.contains(
-                "1 package version is in use: 0 ship with the product, marked <em>Production</em>, and 1 is used only to"
+                "1 package version is in use: 0 ship with the product, marked <em>Production</em>, and 1 is used "
+                    + "only to"
             )
         );
         assertTrue(html.contains("Uncommitted changes</td><td>None"));

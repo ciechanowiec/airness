@@ -2,7 +2,6 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.OwnedCoordinate;
-import eu.ciechanowiec.airness.maven.NpmEvidence.NpmPackage;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

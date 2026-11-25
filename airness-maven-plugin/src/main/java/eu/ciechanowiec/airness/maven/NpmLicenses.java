@@ -4,7 +4,6 @@ import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.NpmBlocklist;
 import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
 import eu.ciechanowiec.airness.governance.ReportPackage;
-import eu.ciechanowiec.airness.maven.NpmEvidence.NpmPackage;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
