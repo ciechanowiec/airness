@@ -230,12 +230,11 @@ abstract class AbstractGovernanceMojo extends AbstractMojo {
     }
 
     private static List<Path> sourceRoots(Stream<MavenProject> projects) {
-        return projects
-            .flatMap(
-                project -> Stream.concat(
-                    project.getCompileSourceRoots().stream(), project.getTestCompileSourceRoots().stream()
-                )
-            ).map(Path::of)
+        return projects.flatMap(
+            project -> Stream.concat(
+                project.getCompileSourceRoots().stream(), project.getTestCompileSourceRoots().stream()
+            )
+        ).map(Path::of)
             .filter(Files::isDirectory)
             .distinct()
             .toList();

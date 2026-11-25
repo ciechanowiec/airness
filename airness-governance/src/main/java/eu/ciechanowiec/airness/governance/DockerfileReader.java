@@ -178,8 +178,7 @@ final class DockerfileReader {
         List<String> tokens = fromTokens(rest);
         Optional<String> reference = tokens.stream().findFirst().map(first -> substitute(first, defaults));
         stageName(tokens).ifPresent(stages::add);
-        return reference
-            .filter(image -> !SCRATCH.equalsIgnoreCase(image))
+        return reference.filter(image -> !SCRATCH.equalsIgnoreCase(image))
             .filter(image -> !stages.contains(image.toLowerCase(Locale.ROOT)));
     }
 

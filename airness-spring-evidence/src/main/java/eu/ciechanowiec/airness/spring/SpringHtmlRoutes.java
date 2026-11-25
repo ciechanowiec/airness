@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.spring;
 
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -9,11 +8,6 @@ import java.util.Set;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.handler.AbstractUrlHandlerMapping;
@@ -48,15 +42,12 @@ import org.springframework.web.servlet.view.RedirectView;
 final class SpringHtmlRoutes {
 
     static final String ERROR_ADDRESS = "/error";
-    private static final String PREFIX = "html-route\t";
 
     private static final String VIEW_CONTROLLER = "view-controller";
 
     private static final String REDIRECT = "redirect:";
 
-    private static final Set<Class<?>> BODIES = Set.of(
-        HttpEntity.class, Resource.class, ResponseBodyEmitter.class, StreamingResponseBody.class
-    );
+    private static final Set<Class<?>> BODIES = Set.of(ResponseBodyEmitter.class, StreamingResponseBody.class);
 
     /**
      * Every address of the application that renders a page.
@@ -69,7 +60,7 @@ final class SpringHtmlRoutes {
     static List<String> rendered(ConfigurableApplicationContext context, Collection<String> roots) {
         return context.isActive()
             ? Stream.concat(handlers(context, roots), viewControllers(context))
-                .filter(line -> !line.startsWith(PREFIX + ERROR_ADDRESS + '\t'))
+                .filter(line -> !line.startsWith(SpringPageMappings.PREFIX + ERROR_ADDRESS + '\t'))
                 .distinct()
                 .sorted()
                 .toList()
@@ -80,11 +71,11 @@ final class SpringHtmlRoutes {
         return context.getBeansOfType(RequestMappingHandlerMapping.class).values().stream()
             .map(RequestMappingHandlerMapping::getHandlerMethods)
             .flatMap(handlers -> handlers.entrySet().stream())
-            .filter(handler -> owned(handler.getValue(), roots))
+            .filter(handler -> SpringPageMappings.owned(handler.getValue(), roots))
             .filter(handler -> renders(handler.getKey(), handler.getValue()))
             .flatMap(
                 handler -> handler.getKey().getPatternValues().stream()
-                    .map(pattern -> line(pattern, source(handler.getValue())))
+                    .map(pattern -> SpringPageMappings.line(pattern, handler.getValue()))
             );
     }
 
@@ -92,7 +83,7 @@ final class SpringHtmlRoutes {
         return context.getBeansOfType(AbstractUrlHandlerMapping.class).values().stream()
             .flatMap(SpringHtmlRoutes::registered)
             .filter(entry -> entry.getValue() instanceof ParameterizableViewController controller && page(controller))
-            .map(entry -> line(entry.getKey(), VIEW_CONTROLLER));
+            .map(entry -> SpringPageMappings.line(entry.getKey(), VIEW_CONTROLLER));
     }
 
     // The root handler is held apart from the rest of the map, and it is where the welcome page sits.
@@ -109,35 +100,10 @@ final class SpringHtmlRoutes {
         return !controller.isStatusOnly() && !redirecting;
     }
 
-    private static boolean owned(HandlerMethod handler, Collection<String> roots) {
-        String declaring = handler.getBeanType().getName();
-        return roots.stream().anyMatch(root -> declaring.startsWith(root + '.'));
-    }
-
     private static boolean renders(RequestMappingInfo mapping, HandlerMethod handler) {
-        Set<RequestMethod> methods = mapping.getMethodsCondition().getMethods();
-        boolean read = methods.isEmpty() || methods.contains(RequestMethod.GET);
-        return read && !writesBody(handler) && producesPage(mapping);
-    }
-
-    private static boolean writesBody(HandlerMethod handler) {
-        Method method = handler.getMethod();
-        Class<?> returned = method.getReturnType();
-        return AnnotatedElementUtils.hasAnnotation(handler.getBeanType(), ResponseBody.class)
-            || AnnotatedElementUtils.hasAnnotation(method, ResponseBody.class)
-            || BODIES.stream().anyMatch(body -> body.isAssignableFrom(returned));
-    }
-
-    private static boolean producesPage(RequestMappingInfo mapping) {
-        Set<MediaType> produced = mapping.getProducesCondition().getProducibleMediaTypes();
-        return produced.isEmpty() || produced.stream().anyMatch(MediaType.TEXT_HTML::isCompatibleWith);
-    }
-
-    private static String source(HandlerMethod handler) {
-        return handler.getBeanType().getSimpleName() + '#' + handler.getMethod().getName();
-    }
-
-    private static String line(String pattern, String source) {
-        return PREFIX + pattern + '\t' + source;
+        return SpringPageMappings.renders(
+            mapping.getMethodsCondition().getMethods(), mapping.getProducesCondition().getProducibleMediaTypes(),
+            handler, BODIES
+        );
     }
 }

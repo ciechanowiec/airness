@@ -36,6 +36,16 @@ final class SpringModelRules {
     private static final List<String> SERVLET
         = List.of("spring-boot-starter-web", "spring-boot-starter-webmvc");
     private static final String REACTIVE = "spring-boot-starter-webflux";
+    private static final String CLOUD = "org.springframework.cloud";
+    /*
+     * Spring Cloud Gateway brings a web stack through a starter of its own rather than through a Boot one,
+     * so a gateway that declares only its starter serves HTTP as surely as one declaring the Boot starter.
+     * Gateway 4.3 renamed both starters and kept the old names beside them, so each is known by both.
+     */
+    private static final List<String> GATEWAY_SERVERS = List.of(
+        "spring-cloud-starter-gateway-server-webflux", "spring-cloud-starter-gateway",
+        "spring-cloud-starter-gateway-server-webmvc", "spring-cloud-starter-gateway-mvc"
+    );
     private static final List<String> MIGRATION_TOOLS = List.of("flyway", "liquibase");
 
     /**
@@ -188,7 +198,13 @@ final class SpringModelRules {
     }
 
     private static boolean serving(Collection<SpringDependency> dependencies) {
-        return servlet(dependencies) || declares(dependencies, REACTIVE);
+        return servlet(dependencies) || declares(dependencies, REACTIVE) || gateway(dependencies);
+    }
+
+    private static boolean gateway(Collection<SpringDependency> dependencies) {
+        return dependencies.stream().anyMatch(
+            dependency -> CLOUD.equals(dependency.groupId()) && GATEWAY_SERVERS.contains(dependency.artifactId())
+        );
     }
 
     private static boolean servlet(Collection<SpringDependency> dependencies) {

@@ -50,6 +50,35 @@ describe('the members of a node project', PROCESS_TIME, () => {
     }
   })
 
+  it('stops at a nested node project of its own, which no workspace file selects', () => {
+    const root: string = temporaryProject({
+      ...WORKSPACE,
+      'tools/package.json': '{"name":"tools"}\n',
+      'tools/pnpm-lock.yaml': "lockfileVersion: '9.0'\n",
+      'scripts/package.json': '{"name":"scripts"}\n',
+    })
+    try {
+      const members: readonly Member[] = membersOf(root)
+      expect(pathsOf(members)).toEqual(['.', 'apps/docs', 'apps/web'])
+      expect(members[0]?.siblingPaths).toEqual(['apps/docs', 'apps/web', 'tools'])
+    } finally {
+      removeProject(root)
+    }
+  })
+
+  it('stops at a nested node project of its own without a workspace file', () => {
+    const root: string = temporaryProject({
+      'package.json': '{"name":"solo"}\n',
+      'ui/package.json': '{"name":"ui"}\n',
+      'ui/pnpm-workspace.yaml': 'minimumReleaseAge: 1440\n',
+    })
+    try {
+      expect(membersOf(root)[0]?.siblingPaths).toEqual(['ui'])
+    } finally {
+      removeProject(root)
+    }
+  })
+
   it('walks the directory outside a git checkout, passing over installed and hidden directories', () => {
     const root: string = mkdtempSync(path.join(tmpdir(), 'airness-members-'))
     try {

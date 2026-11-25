@@ -469,6 +469,19 @@ PY
         fail 'node gates: the lock refresh moves a lock onto the served @airness/node version' \
             "see ${auto_case}/bumped.log"
     fi
+
+    # A node project's first build, before anything wrote its lock.
+    rm -f "${auto_case}/pnpm-lock.yaml"
+    run_lock_refresh missing ''
+    if [ "${lock_refresh_status}" -eq 0 ]; then
+        fail 'node gates: the lock refresh writes a missing lock and stops the build' \
+            'npm-registry.py --refresh-with exited 0 without a lock'
+    elif [ -f "${auto_case}/pnpm-lock.yaml" ] \
+        && python3 -c "${locks_packed_integrity}" "${packed_tarball}" "${auto_case}/pnpm-lock.yaml"; then
+        pass 'node gates: the lock refresh writes a missing lock and stops the build'
+    else
+        fail 'node gates: the lock refresh writes a missing lock and stops the build' "see ${auto_case}/missing.log"
+    fi
 }
 
 # Runs the lock refresh in the auto case with the pinned pnpm, under the CI value given second, logging to the

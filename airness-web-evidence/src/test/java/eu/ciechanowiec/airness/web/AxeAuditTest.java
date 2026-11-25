@@ -207,8 +207,7 @@ class AxeAuditTest {
 
     @Test
     void readsAFailureOfTheRulesThemselvesAsAFailure() {
-        List<String> problems = AxeAudit
-            .of(List.of("failed\taxe-did-not-run\tdocument\tScript timed out"))
+        List<String> problems = AxeAudit.of(List.of("failed\taxe-did-not-run\tdocument\tScript timed out"))
             .problems();
         assertTrue(
             problems.getFirst().contains("axe-did-not-run"),

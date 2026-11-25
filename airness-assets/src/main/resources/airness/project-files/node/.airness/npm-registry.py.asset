@@ -245,6 +245,9 @@ def conflicted(lockfile):
 
 
 def lock_problems(arguments):
+    # A node project's first build has no lockfile yet, which the refresh writes like a stale one.
+    if not os.path.exists(arguments.lockfile):
+        return [f'the lockfile {arguments.lockfile} does not exist yet']
     if conflicted(arguments.lockfile):
         return [f'the lockfile {arguments.lockfile} holds merge conflict markers']
     stale = stale_entries(arguments)

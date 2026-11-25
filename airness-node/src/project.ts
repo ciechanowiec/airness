@@ -113,6 +113,18 @@ const manifestDirectories = (root: string): readonly string[] => {
   }
 }
 
+// A directory with a lockfile or a workspace file of its own is the root of another node project, such as the
+// frontend tooling project of a nested Maven module. Its own run installs and checks it, so an enclosing project
+// stops at it exactly as it stops at a nested member, rather than compiling its sources under the enclosing paths.
+const isOwnProject = (directory: string): boolean =>
+  existsSync(path.join(directory, 'pnpm-lock.yaml')) || existsSync(path.join(directory, WORKSPACE_FILE))
+
+const ownProjects = (root: string, candidates: readonly string[], members: readonly string[]): readonly string[] =>
+  candidates.filter(
+    (candidate: string): boolean =>
+      candidate !== ROOT_MEMBER_PATH && !members.includes(candidate) && isOwnProject(path.join(root, candidate)),
+  )
+
 const createMember = (root: string, memberPath: string, every: readonly string[]): Member => {
   const directory: string = memberPath === ROOT_MEMBER_PATH ? root : path.join(root, memberPath)
   const packageJson: unknown = readJson(path.join(directory, MANIFEST))
@@ -129,7 +141,8 @@ const createMember = (root: string, memberPath: string, every: readonly string[]
 
 /**
  * The members of the node project rooted at a directory: the project itself, then each member its
- * `pnpm-workspace.yaml` selects.
+ * `pnpm-workspace.yaml` selects. Each member stops at the members nested inside it and at any nested directory
+ * that is a node project of its own.
  * @param root the node project directory.
  * @returns the members, the project first.
  */
@@ -138,9 +151,10 @@ export const membersOf = (root: string): readonly Member[] => {
   const patterns: readonly string[] = existsSync(workspaceFile)
     ? readWorkspacePackages(readFileSync(workspaceFile, 'utf8'))
     : []
-  const paths: readonly string[] =
-    patterns.length === 0 ? [ROOT_MEMBER_PATH] : selectProjects(patterns, manifestDirectories(root))
-  return paths.map((memberPath: string): Member => createMember(root, memberPath, paths))
+  const candidates: readonly string[] = manifestDirectories(root)
+  const paths: readonly string[] = patterns.length === 0 ? [ROOT_MEMBER_PATH] : selectProjects(patterns, candidates)
+  const boundaries: readonly string[] = [...paths, ...ownProjects(root, candidates, paths)]
+  return paths.map((memberPath: string): Member => createMember(root, memberPath, boundaries))
 }
 
 // Locating a tool is harder than it looks. A package may restrict its `exports` so `pkg/package.json` is

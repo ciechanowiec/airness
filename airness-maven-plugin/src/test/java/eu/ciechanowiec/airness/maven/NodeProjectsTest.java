@@ -71,6 +71,20 @@ class NodeProjectsTest {
 
     @Test
     @SneakyThrows
+    void namesTheProjectsWithAManifestButNoLockfile() {
+        Files.createDirectories(this.module.resolve("ui"));
+        Files.writeString(this.module.resolve("package.json"), "{}");
+        Files.writeString(this.module.resolve("ui").resolve("package.json"), "{}");
+        Files.writeString(this.module.resolve("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+        NodeProjects projects = NodeProjects.of(this.module, ". , ui, ../web");
+        assertEquals(
+            List.of("ui"), projects.unlocked().stream().map(NodeProject::key).toList(),
+            "a locked project, and one outside the module, are left out"
+        );
+    }
+
+    @Test
+    @SneakyThrows
     void letsNodeRunRunOnlyADeclaredScriptOfADeclaredProject() {
         NodeProjects projects = NodeProjects.of(this.module, FRONTEND);
         IllegalArgumentException missing = assertThrows(

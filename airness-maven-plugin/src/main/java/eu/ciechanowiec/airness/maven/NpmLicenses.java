@@ -75,8 +75,7 @@ record NpmLicenses(ReportLicensePolicy policy) {
     private boolean refuses(NpmPackage found) {
         return this.policy.refuses(
             new ReportPackage(
-                found.purl(), SpdxLicenses.alternatives(found.license()), List.of(), Map
-                    .of()
+                found.purl(), SpdxLicenses.alternatives(found.license()), List.of(), Map.of()
             )
         );
     }

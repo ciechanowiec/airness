@@ -364,6 +364,41 @@ else
     fail 'spring: the ready production application left no exact runtime evidence'
 fi
 
+# A Spring Cloud starter is published the way a Boot one is: it declares no type of its own, so the
+# dependency analysis reads it as unused unless the parent names Spring Cloud's starters beside Boot's.
+# The gateway starter stands for them, because a Spring Cloud Gateway declares it and nothing else.
+spring_cloud_starter="${scratch}/spring-cloud-starter"
+clone_tree "${spring_app}" "${spring_cloud_starter}"
+spring_cloud_bom='    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>2025.1.5</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+'
+# Written after the test starter, so the list stays in the order the recipe set sorts it into.
+spring_cloud_dependency='        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
+            <scope>compile</scope>
+        </dependency>
+'
+SPRING_CLOUD_BOM="${spring_cloud_bom}" SPRING_CLOUD_DEPENDENCY="${spring_cloud_dependency}" perl -0pi -e '
+    s{(    <dependencies>\n)}{$ENV{SPRING_CLOUD_BOM}$1};
+    s{(<artifactId>spring-boot-starter-test</artifactId>\n            <scope>test</scope>\n        </dependency>\n)}{$1$ENV{SPRING_CLOUD_DEPENDENCY}};
+' "${spring_cloud_starter}/pom.xml"
+git -C "${spring_cloud_starter}" add --all
+run_maven spring_cloud_starter spring "${spring_cloud_starter}" \
+    clean test-compile dependency:analyze-only@airness-analyze-dependencies
+expect_exit spring_cloud_starter 'spring: a Spring Cloud starter is not reported as unused' 0
+expect_no_match spring_cloud_starter 'spring: the dependency analysis reports no unused declaration' \
+    'Unused declared dependencies found'
+
 run_repository_proxy_cases
 
 # What a running application leaves open is only visible from the ready context, so these two cases are

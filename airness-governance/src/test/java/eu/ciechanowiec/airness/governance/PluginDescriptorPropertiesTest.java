@@ -227,8 +227,7 @@ class PluginDescriptorPropertiesTest {
     @SneakyThrows
     private static List<Path> parentPoms(Path repository) {
         try (Stream<Path> entries = Files.list(repository)) {
-            return entries
-                .filter(entry -> entry.getFileName().toString().startsWith(PARENT_PREFIX))
+            return entries.filter(entry -> entry.getFileName().toString().startsWith(PARENT_PREFIX))
                 .map(entry -> entry.resolve("pom.xml"))
                 .filter(Files::isRegularFile)
                 .sorted()

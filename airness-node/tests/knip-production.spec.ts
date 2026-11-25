@@ -1,6 +1,7 @@
 // The production run of the dead-code gate against real projects in temporary working trees: an export or a
 // production file that only a Vitest or a Playwright spec reaches fails every member, while an export production
 // code uses, and the declared public interface, pass.
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { knip } from '@/gate-knip.js'
 import type { GateResult } from '@/gate-result.js'
@@ -205,7 +206,38 @@ const STORYBOOK_REACH: Readonly<Record<string, string>> = {
     'export const Sketch = { render: sketch }\n',
 }
 
+// A member nested in a directory whose tsconfig.json extends a package nothing installed, as a node project inside a
+// Maven module sits under a repository root whose own packages are installed only after the module is built.
+const nestedJudged = (): GateResult => {
+  const nested: Readonly<Record<string, string>> = Object.fromEntries(
+    Object.entries({ ...LEDGER, 'package.json': manifestFile(MANIFEST) }).map(
+      ([file, content]: readonly [string, string]): readonly [string, string] => [`web/${file}`, content],
+    ),
+  )
+  const root: string = temporaryProject({
+    ...nested,
+    'tsconfig.json': '{"extends": "uninstalled-configuration/tsconfig.json"}\n',
+    'web/tsconfig.json': `${JSON.stringify({ compilerOptions: { paths: { '@/*': ['./src/*'] } } })}\n`,
+    'web/node_modules/.modules.yaml': 'layoutVersion: 5\n',
+  })
+  try {
+    return knip({ ...memberAt(path.join(root, 'web'), MANIFEST), settings: readSettings(MANIFEST, []) })
+  } finally {
+    removeProject(root)
+  }
+}
+
 describe('knip production run', PROCESS_TIME, () => {
+  it(
+    'loads a nested member under its own tsconfig.json rather than the one of the directory around it',
+    () => {
+      const result: GateResult = nestedJudged()
+      expect(findingsOf(result)).not.toContain('uninstalled-configuration')
+      expect(result.ok).toBe(true)
+    },
+    TOOL_TIMEOUT_MS,
+  )
+
   it(
     'fails an export only a Vitest spec imports, and names the repair',
     () => {

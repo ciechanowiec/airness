@@ -154,8 +154,7 @@ final class SpringBodyRules {
     }
 
     private static Optional<Integer> assignment(String code, String name, int from) {
-        Matcher written = Pattern
-            .compile("\\b(?:this\\s*\\.\\s*)?" + Pattern.quote(name) + "\\s*=(?!=)")
+        Matcher written = Pattern.compile("\\b(?:this\\s*\\.\\s*)?" + Pattern.quote(name) + "\\s*=(?!=)")
             .matcher(code);
         return written.find(from) ? Optional.of(written.start()) : Optional.empty();
     }

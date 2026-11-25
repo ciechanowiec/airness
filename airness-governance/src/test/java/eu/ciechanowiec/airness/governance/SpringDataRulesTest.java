@@ -89,8 +89,7 @@ class SpringDataRulesTest {
             interface BaseRepository<T, I> extends Repository<T, I> {
             }
             """;
-        String child = DIRECT
-            .replace("import org.springframework.data.jpa.repository.JpaRepository;\n", "")
+        String child = DIRECT.replace("import org.springframework.data.jpa.repository.JpaRepository;\n", "")
             .replace("JpaRepository<Order, Long>", "BaseRepository<Order, Long>");
         GitFixture fixture = new GitFixture("data-stereotype-inherited")
             .write("src/main/java/com/example/BaseRepository.java", parent)
@@ -101,8 +100,7 @@ class SpringDataRulesTest {
 
     @Test
     void readsAFullyQualifiedSpringDataHierarchy() {
-        String qualified = DIRECT
-            .replace("import org.springframework.data.jpa.repository.JpaRepository;\n", "")
+        String qualified = DIRECT.replace("import org.springframework.data.jpa.repository.JpaRepository;\n", "")
             .replace(
                 "JpaRepository<Order, Long>",
                 "org.springframework.data.jpa.repository.JpaRepository<Order, Long>"
@@ -116,11 +114,10 @@ class SpringDataRulesTest {
 
     @Test
     void passesOverAnUnrelatedRepositoryHierarchy() {
-        String unrelated = DIRECT
-            .replace(
-                "import org.springframework.data.jpa.repository.JpaRepository;",
-                "import com.example.storage.JpaRepository;"
-            );
+        String unrelated = DIRECT.replace(
+            "import org.springframework.data.jpa.repository.JpaRepository;",
+            "import com.example.storage.JpaRepository;"
+        );
 
         assertEquals(
             List.of(), offences(new GitFixture("data-stereotype-unrelated").write(REPOSITORY, unrelated)),

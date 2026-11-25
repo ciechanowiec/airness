@@ -1,21 +1,18 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.regex.MatchResult;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Reads an application configuration file into the flat settings Spring would bind from it.
  *
- * <p>The grammar this needs is a few keys wide: nested maps in YAML, one key per line in properties, and
- * a scalar at the end of each. That is small enough to read directly, and a library would have to be
- * added to a module that currently declares four dependencies and reads every other format by hand.
+ * <p>The grammar this needs is a few keys wide: nested maps and the items of lists in YAML, one key per
+ * line in properties, and a scalar at the end of each. That is small enough to read directly, and a
+ * library would have to be added to a module that currently declares four dependencies and reads every
+ * other format by hand.
  *
  * <p>A line this reader cannot account for is reported rather than skipped, the way
  * {@link SecretScanConfiguration} reports one. A reader that passed over what it did not recognise would
@@ -31,10 +28,13 @@ import java.util.regex.Pattern;
  * setting was excused by the note written beside it. Properties keep every {@code #} they carry, because
  * there the character opens a comment only at the start of a line.
  *
- * <p>A sequence entry is reported rather than read. Splitting {@code - name: first} on its colon made a
- * key out of the dash and the text beside it, which no rule could match and no reader could recognise as
- * the item of a list, so the line was neither honoured nor mentioned. The scalar items of a sequence
- * were already reported, and this puts the mapping items beside them.
+ * <p>A sequence entry is read as the item of a list, by its index, which is how Spring binds it: the
+ * {@code - id: orders} under {@code routes} is {@code routes[0].id}, and a scalar item such as
+ * {@code - health} is {@code include[0]}. So a list of objects, which Spring Cloud Gateway writes its
+ * routes as, is read item by item rather than as one key written several times, and every key an item
+ * holds is judged as the key of that item. The dash may sit at the column of the key that opens the list
+ * or deeper, as YAML allows either. A sequence that opens the file or an item that is itself a sequence
+ * written on one line binds to no key Spring reads from a settings file, so either is reported.
  *
  * <p>Nesting is read from the column each key starts at rather than from a fixed indent width. YAML lets a
  * file indent by any number of spaces, and dividing by two read four-space nesting as twice as deep as it
@@ -54,19 +54,14 @@ import java.util.regex.Pattern;
  */
 final class SpringConfiguration {
 
-    private static final Pattern QUOTED = Pattern.compile("\"[^\"]*\"|'[^']*'");
     private static final Pattern REPEATED_DOTS = Pattern.compile("\\.{2,}");
     private static final Pattern EDGE_DOTS = Pattern.compile("^\\.+|\\.+$");
-    private static final Pattern COMMENTED = Pattern.compile("(?:^|\\s)#");
     private static final Pattern PROPERTIES_DOCUMENT = Pattern.compile("[#!]---\\s*");
     private static final Pattern INDEX = Pattern.compile("\\.\\d+");
     // The canonical prefix of spring.config.activate.on-profile and of every other activation condition.
     private static final String CONDITION = "spring.config.activate.";
-    private static final String SPACE = " ";
     private static final String COMMENT = "#";
     private static final String PROPERTIES_COMMENT = "!";
-    private static final String DOCUMENT = "---";
-    private static final String SEQUENCE = "-";
     private static final String PROPERTIES = ".properties";
     private static final char SEPARATOR = ':';
     private static final char ASSIGNMENT = '=';
@@ -90,7 +85,9 @@ final class SpringConfiguration {
         if (name.endsWith(PROPERTIES)) {
             this.readProperties(lines);
         } else {
-            this.readYaml(lines);
+            SpringYaml yaml = new SpringYaml(lines);
+            this.settings.addAll(yaml.settings());
+            this.unreadable.addAll(yaml.unreadable());
         }
     }
 
@@ -226,71 +223,6 @@ final class SpringConfiguration {
         boolean colonFirst = separated >= 0 && separated < assigned;
         boolean colon = unassigned || colonFirst;
         return colon ? separated : assigned;
-    }
-
-    private void readYaml(List<String> lines) {
-        Deque<Level> path = new ArrayDeque<>();
-        int document = FIRST;
-        for (int number = 0; number < lines.size(); number++) {
-            String line = lines.get(number);
-            String text = line.strip();
-            if (DOCUMENT.equals(text)) {
-                path.clear();
-                document += 1;
-            } else if (hasContent(text)) {
-                this.entry(path, line, number + 1, document);
-            }
-        }
-    }
-
-    private void entry(Deque<Level> path, String line, int number, int document) {
-        String text = line.strip();
-        int column = line.length() - line.stripLeading().length();
-        int separated = text.indexOf(SEPARATOR);
-        if (separated < 0 || text.startsWith(SEQUENCE)) {
-            this.unreadable.add("line " + number + ": " + text);
-            return;
-        }
-        String written = text.substring(0, separated).strip();
-        nest(path, new Level(column, canonical(written)));
-        String value = scalar(text.substring(separated + 1).strip());
-        if (!value.isEmpty()) {
-            String key = String.join(".", path.stream().map(Level::key).toList());
-            this.settings.add(new Setting(key, written, value, number, document));
-        }
-    }
-
-    // A key sits under the nearest key above it written further left, so every level at its column or
-    // deeper is closed before it is placed.
-    private static void nest(Deque<Level> path, Level level) {
-        while (!path.isEmpty() && path.getLast().column() >= level.column()) {
-            path.removeLast();
-        }
-        path.addLast(level);
-    }
-
-    /*
-     * A '#' opens a comment only where whitespace precedes it and no quotation mark is open, which is
-     * what YAML says. The quoted spans are blanked to spaces of their own length first, so the search
-     * runs over a text in which a '#' inside a value cannot be found while every offset still lines up
-     * with the value the caller holds. This is how JavaCode reads a source around its literals.
-     */
-    private static String scalar(String value) {
-        String readable = QUOTED.matcher(value).replaceAll(SpringConfiguration::blanked);
-        Matcher comment = COMMENTED.matcher(readable);
-        return comment.find() ? value.substring(FIRST, comment.start()).strip() : value;
-    }
-
-    private static String blanked(MatchResult quoted) {
-        return SPACE.repeat(quoted.group().length());
-    }
-
-    private static boolean hasContent(String line) {
-        return !line.isEmpty() && !line.startsWith(COMMENT);
-    }
-
-    // One key of the path to a setting, with the column it starts at.
-    private record Level(int column, String key) {
     }
 
     /**

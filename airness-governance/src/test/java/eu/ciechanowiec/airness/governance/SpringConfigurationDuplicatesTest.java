@@ -54,6 +54,40 @@ class SpringConfigurationDuplicatesTest {
     }
 
     @Test
+    void acceptsTheSameKeyInEachItemOfAList() {
+        String configuration = """
+            spring:
+              cloud:
+                gateway:
+                  routes:
+                    - id: orders
+                      uri: http://orders:8080
+                    - id: billing
+                      uri: http://billing:8080
+            """;
+
+        assertEquals(
+            List.of(), offences(configuration),
+            "each item of a list holds its own keys, so two items naming one key write it once each"
+        );
+    }
+
+    @Test
+    void reportsAKeyDeclaredTwiceInOneItem() {
+        String configuration = """
+            routes:
+              - id: orders
+                uri: http://first:8080
+                uri: http://second:8080
+            """;
+
+        assertTrue(
+            offences(configuration).getFirst().contains("line 3"),
+            "within one item a key written twice is still bound once, from its last line"
+        );
+    }
+
+    @Test
     void acceptsAKeyRedeclaredInALaterDocument() {
         String configuration = """
             spring:

@@ -202,24 +202,6 @@ class SpringConfigurationTest {
     }
 
     @Test
-    void reportsASequenceEntryRatherThanReadingItAsAKey() {
-        String content = """
-            spring:
-              cloud:
-                routes:
-                  - name: first
-            """;
-
-        SpringConfiguration read = yaml(content);
-
-        assertEquals(1, read.unreadable().size(), "the reader does not model a sequence");
-        assertTrue(
-            read.settings().isEmpty(),
-            "and it makes no key out of the dash rather than recording one nothing could match"
-        );
-    }
-
-    @Test
     void readsNestingFromTheColumnWhateverTheIndentWidth() {
         List<String> spellings = List.of(
             """

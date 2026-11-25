@@ -269,6 +269,10 @@
         "reason": "the services guard's entry point, which runs only as a detached process of its own; the decisions it makes are measured in services-guard.ts and the integration suite proves a killed wrapper's containers removed"
       },
       {
+        "pattern": "src/knip-main.ts",
+        "reason": "the launcher the dead-code gate runs knip through, as a process of its own: it creates knip's configuration loader from inside the member and then hands over to knip; every knip gate spec runs through it, and a nested member's spec proves the loader reads the member's own tsconfig.json"
+      },
+      {
         "pattern": "src/image-{machine,boot-main,services-main}.ts",
         "reason": "the image gate's bindings to Docker, the member's wrapper and the stop signals, and the entry points the wrapper runs as processes of their own; the decisions they carry out are measured in gate-image.ts and image-boot.ts, and the integration suite builds and boots real images"
       },
