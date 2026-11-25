@@ -121,7 +121,10 @@ class ReportGraphTest {
     @Test
     void qualifiesAReportWhoseGoalsWithheldTheirFailures() {
         assertEquals(
-            List.of("Report-only mode does not establish an Airness verification pass."),
+            List.of(
+                "Checks not enforced: the build reported problems without failing on them, so the report doesn't show "
+                    + "that the checks passed."
+            ),
             ReportProjects.qualifications(List.of(), false, false),
             "the resolved enforcement switch, not the raw property text, decides the qualification"
         );

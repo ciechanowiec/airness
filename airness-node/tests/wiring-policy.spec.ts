@@ -5,16 +5,28 @@ import { type WiringInputs, wiringFindings } from '@/wiring-policy.js'
 const PINS: Readonly<Record<string, string>> = { vitest: '5.0.5', '@vitest/coverage-v8': '5.0.5', yaml: '2.9.1' }
 
 const SUITE: readonly DirectDependency[] = [
-  { name: 'vitest', specifier: '5.0.5', version: '5.0.5' },
-  { name: '@vitest/coverage-v8', specifier: '5.0.5', version: '5.0.5' },
+  { name: 'vitest', specifier: '5.0.5', version: '5.0.5', block: 'devDependencies' },
+  { name: '@vitest/coverage-v8', specifier: '5.0.5', version: '5.0.5', block: 'devDependencies' },
 ]
 
-const HARNESS: DirectDependency = { name: '@airness/node', specifier: '2.0.0', version: '2.0.0' }
+const HARNESS: DirectDependency = {
+  name: '@airness/node',
+  specifier: '2.0.0',
+  version: '2.0.0',
+  block: 'devDependencies',
+}
 
 const lockfileOf = (
   importers: Readonly<Record<string, readonly DirectDependency[]>>,
   packages: readonly ResolvedPackage[],
-): Lockfile => ({ importers: new Map(Object.entries(importers)), packages, roots: [], edges: new Map(), rewrites: [] })
+): Lockfile => ({
+  importers: new Map(Object.entries(importers)),
+  packages,
+  roots: [],
+  productionRoots: [],
+  edges: new Map(),
+  rewrites: [],
+})
 
 // The harness at one version, as the lockfile resolves it.
 const resolvedHarness = (version: string): ResolvedPackage => ({
@@ -81,7 +93,12 @@ describe('wiring', () => {
   })
 
   it('refuses a harness installed from a local path, but not the harness linking itself', () => {
-    const linked: DirectDependency = { name: '@airness/node', specifier: 'link:../node', version: 'link:../node' }
+    const linked: DirectDependency = {
+      name: '@airness/node',
+      specifier: 'link:../node',
+      version: 'link:../node',
+      block: 'devDependencies',
+    }
     const local: WiringInputs = {
       ...CONFORMING,
       lockfile: lockfileOf({ '.': [linked, ...SUITE] }, [resolvedHarness('2.0.0')]),
@@ -90,7 +107,12 @@ describe('wiring', () => {
       'package.json declares @airness/node as "link:../node"; install the released package by its version, ' +
         'which is what the gates are proven against',
     ])
-    const self: DirectDependency = { name: '@airness/node', specifier: 'link:.', version: 'link:.' }
+    const self: DirectDependency = {
+      name: '@airness/node',
+      specifier: 'link:.',
+      version: 'link:.',
+      block: 'devDependencies',
+    }
     const harness: WiringInputs = {
       ...CONFORMING,
       manifest: { name: '@airness/node', version: '2.0.0' },
@@ -108,9 +130,9 @@ describe('wiring', () => {
   it('holds a library the harness decides to the harness version, and leaves the others alone', () => {
     const drifted: readonly DirectDependency[] = [
       HARNESS,
-      { name: 'vitest', specifier: '^5.0.0', version: '5.0.4' },
-      { name: '@vitest/coverage-v8', specifier: '5.0.5', version: '5.0.5' },
-      { name: 'yaml', specifier: '2.8.0', version: '2.8.0' },
+      { name: 'vitest', specifier: '^5.0.0', version: '5.0.4', block: 'devDependencies' },
+      { name: '@vitest/coverage-v8', specifier: '5.0.5', version: '5.0.5', block: 'devDependencies' },
+      { name: 'yaml', specifier: '2.8.0', version: '2.8.0', block: 'devDependencies' },
     ]
     expect(
       wiringFindings({ ...CONFORMING, lockfile: lockfileOf({ '.': drifted }, [resolvedHarness('2.0.0')]) }),
@@ -143,7 +165,12 @@ describe('wiring', () => {
   })
 
   it('lets a harness package link itself in its own repository, and no other', () => {
-    const self: DirectDependency = { name: '@airness/node', specifier: 'link:.', version: 'link:.' }
+    const self: DirectDependency = {
+      name: '@airness/node',
+      specifier: 'link:.',
+      version: 'link:.',
+      block: 'devDependencies',
+    }
     const harness: WiringInputs = {
       ...CONFORMING,
       manifest: { name: '@airness/node', version: '2.0.0' },
@@ -158,7 +185,12 @@ describe('wiring', () => {
   })
 
   it('holds a harness package whose chain does not name it to the version of the module that builds it', () => {
-    const self: DirectDependency = { name: '@airness/node', specifier: 'link:.', version: 'link:.' }
+    const self: DirectDependency = {
+      name: '@airness/node',
+      specifier: 'link:.',
+      version: 'link:.',
+      block: 'devDependencies',
+    }
     const library: WiringInputs = {
       ...CONFORMING,
       manifest: { name: '@airness/node', version: '2.0.0-SNAPSHOT' },
@@ -177,7 +209,12 @@ describe('wiring', () => {
   })
 
   it('refuses a consumer posing as a harness package, at the root and in any member', () => {
-    const self: DirectDependency = { name: '@airness/node', specifier: 'link:.', version: 'link:.' }
+    const self: DirectDependency = {
+      name: '@airness/node',
+      specifier: 'link:.',
+      version: 'link:.',
+      block: 'devDependencies',
+    }
     const poser: WiringInputs = {
       ...CONFORMING,
       manifest: { name: '@airness/node', version: '2.0.0' },

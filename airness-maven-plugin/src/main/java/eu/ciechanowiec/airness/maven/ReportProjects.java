@@ -65,13 +65,18 @@ final class ReportProjects {
 
     static List<String> qualifications(Collection<MavenProject> selected, boolean partial, boolean enforced) {
         return Stream.<Stream<String>>of(
-            partial ? Stream.of("This invocation selected only part of the reactor.") : Stream.empty(),
+            partial ? Stream.of(
+                "Partial build: only some of the project's modules took part, so packages of the others may be missing."
+            ) : Stream.empty(),
             enforced ? Stream.empty()
-                : Stream.of("Report-only mode does not establish an Airness verification pass."),
+                : Stream.of(
+                    "Checks not enforced: the build reported problems without failing on them, so the report doesn't "
+                        + "show that the checks passed."
+                ),
             selected.stream().anyMatch(project -> active(project, "delta"))
                 ? Stream.of(
-                    "Delta verification scopes the browser sweep to the change. "
-                        + "This is not a complete Extended verdict."
+                    "Partial browser checks: only the pages the change affects were checked, so this isn't a complete "
+                        + "verification."
                 )
                 : Stream.empty()
         ).flatMap(stream -> stream).toList();

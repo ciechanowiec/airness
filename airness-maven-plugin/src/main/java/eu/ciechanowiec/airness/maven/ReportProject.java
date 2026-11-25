@@ -28,12 +28,12 @@ record ReportProject(Path root, Path build, ReportIdentity identity, ReportLicen
     private static ReportIdentity identity(String name, MavenProject owner) {
         return new ReportIdentity(
             name, Map.of(
-                "Airness version", required(owner, "airness.version"),
+                "Build checks version", required(owner, "airness.version"),
                 "PDF renderer", "Playwright " + Optional.ofNullable(
                     Playwright.class.getPackage().getImplementationVersion()
                 ).orElseThrow(() -> new IllegalStateException("The PDF renderer has no published version")),
-                "Vulnerability scanner", "Dependency-Check " + required(owner, "dependency-check-maven.version"),
-                "npm vulnerability database", "OSV, " + OsvScan.PUBLIC + "v1/querybatch",
+                "Vulnerability scanner", "OWASP Dependency-Check " + required(owner, "dependency-check-maven.version"),
+                "OSV vulnerability database", "OSV (https://osv.dev), queried at " + OsvScan.PUBLIC + "v1/querybatch",
                 "Published SBOM generator", "CycloneDX Maven " + required(owner, "cyclonedx-maven-plugin.version")
             )
         );

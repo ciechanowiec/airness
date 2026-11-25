@@ -93,9 +93,12 @@ const harnessAt = (source: ResolvedPackage['source'], tarball: string = ''): Res
 })
 
 const lockfileWith = (harness: ResolvedPackage): Lockfile => ({
-  importers: new Map([['.', [{ name: '@airness/node', specifier: '2.0.0', version: '2.0.0' }]]]),
+  importers: new Map([
+    ['.', [{ name: '@airness/node', specifier: '2.0.0', version: '2.0.0', block: 'devDependencies' }]],
+  ]),
   packages: [harness],
   roots: [],
+  productionRoots: [],
   edges: new Map(),
   rewrites: [],
 })

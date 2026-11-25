@@ -11,25 +11,16 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.Route;
 import com.microsoft.playwright.options.AriaRole;
+import com.microsoft.playwright.options.Media;
 import eu.ciechanowiec.airness.governance.ComplianceReport;
 import eu.ciechanowiec.airness.governance.ComplianceReportHtml;
-import eu.ciechanowiec.airness.governance.ReportAdvisory;
-import eu.ciechanowiec.airness.governance.ReportEvidence;
-import eu.ciechanowiec.airness.governance.ReportInventory;
-import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
-import eu.ciechanowiec.airness.governance.ReportMitigation;
-import eu.ciechanowiec.airness.governance.ReportPackage;
-import eu.ciechanowiec.airness.governance.ReportSource;
-import eu.ciechanowiec.airness.governance.ReportUse;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -39,8 +30,52 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ReportRenderingTest {
 
-    private static final int PACKAGES = 35;
     private static final int SECTIONS = 6;
+    // The width and height of an A4 page inside the report's print margins, in CSS pixels, so the page is laid out
+    // as the PDF prints it.
+    private static final int PRINTED_WIDTH = 673;
+    private static final int PRINTED_HEIGHT = 960;
+    // Every line a table cell wraps onto ends where a reader expects a break: at a space, or after a hyphen or a
+    // separator of a package name, never inside a word, a version or a license identifier.
+    private static final String WORD_BREAKS = """
+        () => Array.from(document.querySelectorAll('table.fixed td')).flatMap(cell => {
+            const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+            const broken = [];
+            for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+                const lines = new Map();
+                for (let index = 0; index < text.length; index++) {
+                    const range = document.createRange();
+                    range.setStart(text, index);
+                    range.setEnd(text, index + 1);
+                    const rect = range.getClientRects()[0];
+                    if (!rect) continue;
+                    const top = Math.round(rect.top);
+                    lines.set(top, (lines.get(top) || '') + text.data[index]);
+                }
+                const ordered = Array.from(lines.entries()).sort((a, b) => a[0] - b[0]).map(entry => entry[1]);
+                ordered.slice(0, -1).filter(line => !/[\\s/:.@,-]$/.test(line))
+                    .forEach(() => broken.push(text.data));
+            }
+            return broken;
+        })
+        """;
+    private static final String OVERFLOWS = """
+        () => Array.from(document.querySelectorAll('td')).filter(cell => cell.scrollWidth > cell.clientWidth + 1)
+            .map(cell => cell.textContent)
+        """;
+    private static final String RAGGED = """
+        () => Array.from(document.querySelectorAll(
+            '#content p:not(.empty):not(.title):not(.license-heading):not(.notice-packages), .statements li, '
+                + 'table.facts.plan td + td'
+        )).filter(element => getComputedStyle(element).textAlign !== 'justify').map(element => element.textContent)
+        """;
+    private static final String WIDER = """
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+        """;
+    private static final String HEADERS = """
+        () => Array.from(document.querySelectorAll('thead'))
+            .filter(header => getComputedStyle(header).display !== 'table-header-group').length
+        """;
 
     @TempDir
     private Path directory;
@@ -48,7 +83,7 @@ class ReportRenderingTest {
     @Test
     @SneakyThrows
     void downloadsTheEmbeddedInventoryAndSbomWithoutExternalRequests() {
-        ComplianceReport report = sample();
+        ComplianceReport report = ReportSample.report();
         Playwright.CreateOptions options = new Playwright.CreateOptions()
             .setEnv(ReportBrowser.environment());
         try (
@@ -112,11 +147,15 @@ class ReportRenderingTest {
     @Test
     @SneakyThrows
     void printsTheOfflineInventoryWithRealBookmarksAndFilledContents() {
-        ComplianceReport report = sample();
+        ComplianceReport report = ReportSample.report();
         String html = ComplianceReportHtml.render(report);
         byte[] pdf = ReportPdf.print(html);
         Map<String, Integer> contents = ReportPdfContents.read(pdf);
-        assertEquals(SECTIONS, contents.size());
+        assertTrue(
+            IntStream.rangeClosed(1, SECTIONS).allMatch(section -> contents.containsKey("section-" + section)),
+            "every section has a page in the contents"
+        );
+        assertTrue(contents.containsKey("section-4.2"), "every subsection has a page in the contents");
         assertTrue(
             Optional.ofNullable(contents.get("section-6")).orElseThrow()
                 > Optional.ofNullable(contents.get("section-1")).orElseThrow()
@@ -124,7 +163,8 @@ class ReportRenderingTest {
         try (PDDocument document = Loader.loadPDF(pdf)) {
             String text = new PDFTextStripper().getText(document).replaceAll("\\s+", " ");
             assertTrue(text.contains("Open Source Software Report"));
-            assertTrue(text.replace(" ", "").contains("sample:dependency-34:jar:1.0"));
+            assertTrue(text.replace(" ", "").contains("sample:dependency-34"));
+            assertTrue(text.contains("Awaiting fix"));
             assertFalse(text.contains("000"));
         }
         Path preview = Path.of("target/report-preview");
@@ -166,53 +206,23 @@ class ReportRenderingTest {
         assertEquals("other project", Files.readString(other));
     }
 
-    private static ComplianceReport sample() {
-        List<ReportPackage> packages = IntStream.range(0, PACKAGES).mapToObj(
-            index -> new ReportPackage(
-                "sample:dependency-" + index + ":jar:1.0", List.of("MIT"),
-                List.of(new ReportUse("sample:application:jar:1.0", "compile", "Direct")),
-                Map.of(
-                    "META-INF/LICENSE", "Copyright 2026 Example Authors.\nPermission is granted to use this example."
-                )
-            )
-        ).toList();
-        ReportPackage copyleft = new ReportPackage(
-            "sample:parser:jar:2.0", List.of("MPL-2.0"),
-            List.of(new ReportUse("sample:application:jar:1.0", "test", "Transitive")), Map.of()
-        );
-        List<ReportAdvisory> advisories = List.of(
-            new ReportAdvisory(
-                "CVE-2026-1001", "HIGH", "pkg:maven/sample/dependency-1@1.0?type=jar",
-                List.of("sample:application:jar:1.0"), "A crafted archive exhausts the heap. It needs untrusted input.",
-                Optional.empty()
-            ),
-            new ReportAdvisory(
-                "CVE-2026-1002", "MEDIUM", "pkg:maven/sample/parser@2.0?type=jar",
-                List.of("sample:application:jar:1.0"), "Deeply nested input overflows the stack.", Optional.of(
-                    ReportMitigation.of(
-                        "Added 2026-10-13. The parser reads only the project's own test fixtures. Mitigation: "
-                            + "It never runs in the deployed application. The entry is removed once the parser "
-                            + "releases a fix.", true
-                    )
-                )
-            )
-        );
-        ReportInventory inventory = new ReportInventory(
-            Stream.concat(packages.stream(), Stream.of(copyleft)).toList(),
-            advisories, new ReportLicensePolicy(Set.of("MIT", "MPL-2.0"), Map.of())
-        );
-        ReportEvidence evidence = new ReportEvidence(
-            "{}", ReportJson.encode(Map.of("sbom", "{}", "csv", "inventory")),
-            Map.of(
-                "SBOM SHA-256", ReportJson.hash("{}"), "Modules", "sample:application:jar:1.0",
-                "sample:application:jar:1.0 scan date", "2026-10-13T11:58:00Z"
-            )
-        );
-        return new ComplianceReport(
-            "example-application", new ReportSource(
-                "abcdef123456abcdef123456abcdef123456abcdef", "fingerprint", "2026-10-13T12:00:00Z", List.of()
-            ), inventory,
-            evidence
-        );
+    @Test
+    void printsEveryTableWithinItsColumnsAndEveryLicenseWhole() {
+        Playwright.CreateOptions options = new Playwright.CreateOptions().setEnv(ReportBrowser.environment());
+        try (
+            Playwright playwright = Playwright.create(options);
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage(new Browser.NewPageOptions().setViewportSize(PRINTED_WIDTH, PRINTED_HEIGHT))
+        ) {
+            page.route("**/*", Route::abort);
+            page.setContent(ComplianceReportHtml.render(ReportSample.report()));
+            page.evaluate("() => document.fonts.ready.then(() => true)");
+            page.emulateMedia(new Page.EmulateMediaOptions().setMedia(Media.PRINT));
+            assertEquals(List.of(), page.evaluate(WORD_BREAKS), "a table cell breaks inside a word");
+            assertEquals(List.of(), page.evaluate(OVERFLOWS), "a table cell overflows its column");
+            assertEquals(List.of(), page.evaluate(RAGGED), "a paragraph of prose is not justified");
+            assertEquals(0, page.evaluate(HEADERS), "a table header does not repeat on every printed page");
+            assertEquals(0, page.evaluate(WIDER), "content wider than the page makes the printer shrink every page");
+        }
     }
 }

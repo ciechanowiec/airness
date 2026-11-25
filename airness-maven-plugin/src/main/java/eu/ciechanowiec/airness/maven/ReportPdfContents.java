@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -19,18 +20,19 @@ import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlin
 @UtilityClass
 final class ReportPdfContents {
 
+    private static final Pattern NUMBER = Pattern.compile("^([0-9]+(?:\\.[0-9]+)?)\\.(?![0-9])");
+
     @SneakyThrows
     static Map<String, Integer> read(byte[] bytes) {
         try (PDDocument document = Loader.loadPDF(bytes)) {
             PDOutlineNode outline = Optional.ofNullable(document.getDocumentCatalog().getDocumentOutline())
                 .orElseThrow(() -> new IllegalStateException("The printed report has no PDF outline"));
-            // A section's bookmark reads "1.Vulnerabilities", and its subsections' read "1.1.All vulnerabilities"
-            // and are left out, since the printed contents list sections only.
-            return children(outline).filter(item -> item.getTitle().matches("^[0-9]+\\.(?![0-9]).*"))
-                .collect(
+            // A section's bookmark reads "1.Vulnerabilities" and a subsection's "1.1.All vulnerabilities". The
+            // printed contents list both, by the number before the title.
+            return children(outline).map(item -> Map.entry(NUMBER.matcher(item.getTitle()), item))
+                .filter(entry -> entry.getKey().find()).collect(
                     Collectors.toUnmodifiableMap(
-                        item -> "section-" + item.getTitle().split("\\.", -1)[0],
-                        item -> page(document, item)
+                        entry -> "section-" + entry.getKey().group(1), entry -> page(document, entry.getValue())
                     )
                 );
         }

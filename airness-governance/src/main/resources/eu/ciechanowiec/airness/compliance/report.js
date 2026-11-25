@@ -22,9 +22,8 @@
     });
   });
 
-  const table = document.getElementById("inventory-table");
-  const body = table.tBodies[0];
-  const rows = Array.from(body.rows);
+  const tables = Array.from(document.querySelectorAll("table[data-inventory]"));
+  const rows = tables.flatMap((table) => Array.from(table.tBodies[0].rows));
   const search = document.getElementById("filter-text");
   const scope = document.getElementById("filter-scope");
   const kind = document.getElementById("filter-class");
@@ -38,32 +37,37 @@
   };
   const apply = () => {
     rows.forEach((row) => row.toggleAttribute("hidden", !matches(row)));
-    shown.replaceChildren(`${rows.filter(matches).length} of ${rows.length} artifact versions`);
+    shown.replaceChildren(`${rows.filter(matches).length} of ${rows.length} package versions`);
   };
   [search, scope, kind].forEach((control) => control.addEventListener("input", apply));
 
-  table.querySelectorAll("th[data-sort]").forEach((header, index) => {
-    header.setAttribute("tabindex", "0");
-    const sort = () => {
-      const ascending = header.getAttribute("aria-sort") !== "ascending";
-      table.querySelectorAll("th").forEach((other) => other.removeAttribute("aria-sort"));
-      header.setAttribute("aria-sort", ascending ? "ascending" : "descending");
-      const ordered = rows.toSorted((left, right) => {
-        const leftText = left.cells[index].textContent;
-        const rightText = right.cells[index].textContent;
-        return (ascending ? 1 : -1) * leftText.localeCompare(rightText, undefined, {
-          numeric: true,
-          sensitivity: "base",
+  tables.forEach((table) => {
+    const body = table.tBodies[0];
+    const own = Array.from(body.rows);
+    table.querySelectorAll("th").forEach((header, index) => {
+      header.setAttribute("tabindex", "0");
+      header.setAttribute("data-sort", "");
+      const sort = () => {
+        const ascending = header.getAttribute("aria-sort") !== "ascending";
+        table.querySelectorAll("th").forEach((other) => other.removeAttribute("aria-sort"));
+        header.setAttribute("aria-sort", ascending ? "ascending" : "descending");
+        const ordered = own.toSorted((left, right) => {
+          const leftText = left.cells[index].textContent;
+          const rightText = right.cells[index].textContent;
+          return (ascending ? 1 : -1) * leftText.localeCompare(rightText, undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
         });
+        body.replaceChildren(...ordered);
+      };
+      header.addEventListener("click", sort);
+      header.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          sort();
+        }
       });
-      body.replaceChildren(...ordered);
-    };
-    header.addEventListener("click", sort);
-    header.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        sort();
-      }
     });
   });
   apply();

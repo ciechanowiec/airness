@@ -24,7 +24,7 @@ final class ReportFixtures {
     static ReportAdvisory open(String identity, String severity) {
         return new ReportAdvisory(
             identity, severity, "pkg:maven/group/library@1?type=jar", List.of(ROOT_MODULE),
-            "A parser overflows. It needs a nested input.", Optional.empty()
+            "A parser overflows. It needs a nested input.", Optional.empty(), List.of()
         );
     }
 
@@ -35,7 +35,7 @@ final class ReportFixtures {
                 ReportMitigation.of(
                     "Added 2026-10-13. The parser is absent. Mitigation: Removed with the next upgrade.", harness
                 )
-            )
+            ), List.of()
         );
     }
 

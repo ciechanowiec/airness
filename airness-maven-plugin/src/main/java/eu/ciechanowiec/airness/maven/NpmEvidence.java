@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.maven.project.MavenProject;
 
@@ -35,7 +37,7 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
     static final String CONTRACT_FIELD = "contract";
     private static final String WIRING = "wiring.json";
     private static final String PACKAGES = "packages";
-    private static final int CONTRACT = 1;
+    private static final int CONTRACT = 2;
     private static final ObjectMapper JSON = new ObjectMapper();
 
     /**
@@ -83,7 +85,8 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
         ) {
             throw new IllegalStateException(
                 this.subject() + ": " + INVENTORY + " is not the contract " + CONTRACT + " inventory, whose every"
-                    + " package names a name, a version, a license, and whether it is direct and installed"
+                    + " package names a name, a version, a license, whether it is direct, installed and shipped, and"
+                    + " the license files it carries"
             );
         }
         return packages.valueStream().map(NpmPackage::of).toList();
@@ -144,30 +147,49 @@ record NpmEvidence(String module, String key, Path directory, Path results) {
     // policies read a package as direct or installed when it said nothing.
     private static boolean complete(JsonNode entry) {
         boolean named = Stream.of("name", "version", "license").allMatch(field -> entry.path(field).isTextual());
-        return named && Stream.of("direct", "installed").allMatch(field -> entry.path(field).isBoolean());
+        boolean flagged = Stream.of("direct", "installed", "production")
+            .allMatch(field -> entry.path(field).isBoolean());
+        JsonNode notices = entry.path("notices");
+        return named && flagged && notices.isObject()
+            && notices.properties().stream().allMatch(notice -> notice.getValue().isTextual());
     }
 
     /**
      * One resolved npm package as the inventory lists it.
      *
-     * @param name      the package name, scoped or not
-     * @param version   the resolved version
-     * @param license   the declared license expression, empty when none is declared or it cannot be read here
-     * @param direct    whether a member of the project depends on it directly
-     * @param installed whether this host installed it, which a package limited to other platforms is not
+     * @param name       the package name, scoped or not
+     * @param version    the resolved version
+     * @param license    the declared license expression, empty when none is declared or it cannot be read here
+     * @param direct     whether a member of the project depends on it directly
+     * @param installed  whether this host installed it, which a package limited to other platforms is not
+     * @param production whether a member reaches it through its dependencies or optional dependencies, so the
+     *                   product ships it
+     * @param notices    the license, notice and copying files a shipped package carries, by file name
      */
-    public record NpmPackage(String name, String version, String license, boolean direct, boolean installed) {
+    record NpmPackage(
+        String name, String version, String license, boolean direct, boolean installed, boolean production,
+        Map<String, String> notices
+    ) {
 
         private static final String NAME = "name";
         private static final String VERSION = "version";
         private static final String LICENSE = "license";
         private static final String DIRECT = "direct";
         private static final String INSTALLED = "installed";
+        private static final String PRODUCTION = "production";
+        private static final String NOTICES = "notices";
+
+        NpmPackage {
+            notices = Map.copyOf(notices);
+        }
 
         static NpmPackage of(JsonNode entry) {
+            Map<String, String> notices = entry.path(NOTICES).properties().stream()
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, notice -> notice.getValue().asText()));
             return new NpmPackage(
                 entry.path(NAME).asText(), entry.path(VERSION).asText(), entry.path(LICENSE).asText(),
-                entry.path(DIRECT).asBoolean(), entry.path(INSTALLED).asBoolean()
+                entry.path(DIRECT).asBoolean(), entry.path(INSTALLED).asBoolean(), entry.path(PRODUCTION).asBoolean(),
+                notices
             );
         }
 

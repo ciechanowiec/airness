@@ -36,7 +36,7 @@ if sys.argv[2] == "patched":
         raise SystemExit("The evaluated plugin override or its declared license is missing")
     if any(component["version"] == "2.14.1" for component in tools):
         raise SystemExit("The report retained a replaced tool version")
-    if '"build"' not in downloads["csv"] or "log4j-core" not in downloads["csv"]:
+    if '"Build"' not in downloads["csv"] or "log4j-core" not in downloads["csv"]:
         raise SystemExit("The CSV lost the tool's Maven use")
 if sys.argv[2] == "mixed":
     components = sbom["components"]
@@ -62,6 +62,15 @@ if sys.argv[2] == "mixed":
         raise SystemExit("The report does not name the database the npm packages were looked up in")
     if "no scanner has read them" in html:
         raise SystemExit("The report still calls the scanned npm packages unscanned")
+    if 'data-inventory="inventory-npm"' not in html or "looked up in OSV, an open vulnerability database" not in html:
+        raise SystemExit("The report lists no npm inventory, or does not say how the npm packages were scanned")
+    npm_rows = [line for line in downloads["csv"].splitlines() if line.startswith('"pkg:npm/')]
+    tool_rows = [line for line in npm_rows if line.startswith('"pkg:npm/%40pnpm/exe.')]
+    package_rows = [line for line in npm_rows if line not in tool_rows]
+    if not package_rows or not all('"Production"' in line or '"Development"' in line for line in package_rows):
+        raise SystemExit("An npm package is listed without saying whether the product ships it")
+    if not tool_rows or not all('"Build"' in line for line in tool_rows):
+        raise SystemExit("The pinned pnpm is not listed as a build tool")
     if (root / "report-web/target/compliance").exists():
         raise SystemExit("The TypeScript module published a report of its own")
     print("One SBOM merges the Maven and npm evidence and the pinned toolchain, with one graph")
@@ -71,7 +80,7 @@ if commit not in html or commit[:SHORT_COMMIT] not in html_file.name:
     raise SystemExit("The report does not identify its source commit")
 if hashlib.sha256(downloads["sbom"].encode("utf-8")).hexdigest() not in html:
     raise SystemExit("The embedded SBOM differs from the digest printed beside it")
-if "This report is a draft" not in html or "Report-only" not in html:
+if "Draft: not release evidence" not in html or "reported problems without failing on them" not in html:
     raise SystemExit("The report-only invocation is presented as release evidence")
 verdict_match = re.search(r'<ul class="statements verdict">(.*?)</ul>', html, re.S)
 verdict = verdict_match.group(1) if verdict_match else ""
@@ -81,6 +90,10 @@ if ("satisfy the policy this report states" in html) != ('<li class="fail">' in 
     raise SystemExit("The draft banner and the verdict disagree about the policy")
 if html.find('class="statements verdict"') > html.find('id="toc"'):
     raise SystemExit("The verdict does not precede the contents")
+if "Every production artifact version ships a license file." in html and "No production dependency ships" in html:
+    raise SystemExit("The notices section contradicts itself")
+if "p{margin:0 0 .9em;text-align:justify" not in html:
+    raise SystemExit("The report does not justify its prose")
 if re.search(r'<(?:script|link)[^>]+(?:src|href)="https?://', html):
     raise SystemExit("The report loads an external script or stylesheet")
 print("HTML/PDF pair, inventory, licensing, source identity, verdict, draft status and embedded hashes passed")

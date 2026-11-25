@@ -111,7 +111,9 @@ class ImageJudgementTest {
             ),
             () -> assertTrue(unfixed.plan().contains("a newer release of " + BASE + " ships it"), unfixed.plan()),
             () -> assertEquals("2026-11-15", awaiting.addedOn()),
-            () -> assertTrue(awaiting.harness() && unfixed.harness(), "the harness answers for its own accounts")
+            () -> assertTrue(awaiting.harness() && unfixed.harness(), "the harness answers for its own accounts"),
+            () -> assertEquals(ReportMitigation.Kind.AWAITING_FIX, awaiting.kind(), "no fix is a mitigation"),
+            () -> assertEquals(ReportMitigation.Kind.AWAITING_FIX, unfixed.kind())
         );
     }
 

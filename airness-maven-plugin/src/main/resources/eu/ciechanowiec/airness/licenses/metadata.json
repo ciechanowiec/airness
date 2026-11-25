@@ -8,7 +8,7 @@
         "Java HTML Tidy License"
       ],
       "source": "https://raw.githubusercontent.com/jtidy/jtidy/d2f8dd407899c005c12a9df1b5db807bbc0c79c8/LICENSE.txt",
-      "reason": "The release license matches SPDX HTMLTIDY. The JAR omits its license text, which is retained from the release source.",
+      "reason": "The license of the release matches the SPDX license HTMLTIDY. The library file omits the license text, so the text is taken from the release source.",
       "texts": {
         "Release LICENSE.txt": "jtidy-LICENSE.txt"
       }
@@ -21,7 +21,7 @@
     "evidence": {
       "declared": [],
       "source": "https://raw.githubusercontent.com/codehaus-plexus/plexus-i18n/d5aaf49970fc3e95408f4f9cd1b856fa72be130f/src/main/java/org/codehaus/plexus/i18n/DefaultI18N.java",
-      "reason": "The effective POM has no license. Source headers at the exact release commit declare Apache License 2.0.",
+      "reason": "The package's published metadata states no license. The license headers in its source code, at the exact commit the release was built from, declare the Apache License 2.0.",
       "texts": {
         "Release source license header": "plexus-license-header.txt"
       }
@@ -34,7 +34,7 @@
     "evidence": {
       "declared": [],
       "source": "https://archive.apache.org/dist/xalan/xalan-j/binaries/xalan-j_2_7_3-bin.zip",
-      "reason": "The POM has no license. The official release contains this identical serializer JAR. The retained LICENSE excerpt includes the complete Apache License 2.0 terms and the explicit attribution to serializer.jar; NOTICE names the serializer separately.",
+      "reason": "The package's published metadata states no license. The official release contains this identical serializer file. Its LICENSE file, reproduced here in part, holds the complete Apache License 2.0 terms and names serializer.jar explicitly, and its NOTICE file names the serializer separately.",
       "texts": {
         "Distribution LICENSE.txt (Apache-2.0 and serializer attribution excerpt)": "xalan-LICENSE.txt",
         "Distribution NOTICE.txt": "xalan-NOTICE.txt"

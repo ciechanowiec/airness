@@ -9,6 +9,7 @@ import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.ReportAdvisory;
 import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
 import eu.ciechanowiec.airness.governance.ReportPackage;
+import eu.ciechanowiec.airness.governance.ReportUse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -72,11 +73,11 @@ class NpmEvidenceTest {
     @SneakyThrows
     void failsAnInventoryOrSbomOfTheWrongShape() {
         NpmEvidence web = NpmEvidence.of(NpmFixture.module(this.directory, true)).getFirst();
-        Files.writeString(web.results().resolve("dependencies.json"), "{\"contract\": 1}");
+        Files.writeString(web.results().resolve(NpmEvidence.INVENTORY), "{\"contract\": 1}");
         Files.writeString(web.results().resolve("bom.cdx.json"), "{\"bomFormat\": \"SPDX\"}");
         assertThrows(IllegalStateException.class, web::packages);
         assertThrows(IllegalStateException.class, web::sbom);
-        Files.writeString(web.results().resolve("dependencies.json"), "{");
+        Files.writeString(web.results().resolve(NpmEvidence.INVENTORY), "{");
         assertThrows(IllegalStateException.class, web::packages);
     }
 
@@ -103,6 +104,14 @@ class NpmEvidenceTest {
             NpmReportInputs npm = NpmReportInputs.read(project, Instant.EPOCH, OsvScan.of(server.uri("/").toString()));
             List<String> coordinates = npm.packages(List.of()).stream().map(ReportPackage::coordinate).toList();
             assertEquals("pkg:npm/left-pad@1.3.0", coordinates.getFirst());
+            ReportPackage shipped = npm.packages(List.of()).getFirst();
+            assertEquals(List.of(new ReportUse(project.getId(), ReportUse.PRODUCTION, "Direct")), shipped.uses());
+            assertEquals(Map.of("LICENSE", "The left-pad license text."), shipped.notices());
+            ReportPackage tooling = npm.packages(List.of()).get(1);
+            assertEquals(
+                List.of(new ReportUse(project.getId(), ReportUse.DEVELOPMENT, "Transitive")), tooling.uses(),
+                "a package only development reaches does not ship"
+            );
             assertTrue(coordinates.stream().anyMatch(coordinate -> coordinate.startsWith("pkg:generic/node@")));
             assertTrue(coordinates.stream().anyMatch(coordinate -> coordinate.startsWith("pkg:npm/%40pnpm/exe.")));
             assertEquals(List.of("pkg:npm/web@1.0.0"), npm.graph(Map.of()).get(project.getId()));
@@ -153,7 +162,7 @@ class NpmEvidenceTest {
 
     @Test
     void namesAnUnscopedAndAnUnversionedPackageAndOneDeclaringNoLicense() {
-        NpmEvidence.NpmPackage app = new NpmEvidence.NpmPackage("app", "", "", true, true);
+        NpmEvidence.NpmPackage app = new NpmEvidence.NpmPackage("app", "", "", true, true, false, Map.of());
         assertEquals("pkg:npm/app", app.purl());
         NpmEvidence web = NpmEvidence.of(NpmFixture.module(this.directory, true)).getFirst();
         NpmEvidence bare = new NpmEvidence(web.module(), web.key(), web.directory(), this.directory.resolve("bare"));
@@ -165,10 +174,11 @@ class NpmEvidenceTest {
     void namesAnInstalledPackageThatDeclaresNoLicenseAndOneRefusedByName() {
         NpmEvidence web = NpmEvidence.of(NpmFixture.module(this.directory, true)).getFirst();
         Files.writeString(
-            web.results().resolve("dependencies.json"),
-            "{\"contract\": 1, \"packages\": [{\"name\": \"bare\", \"version\": \"1.0.0\", \"license\": \" \","
-                + " \"direct\": true, \"installed\": true}, {\"name\": \"puppeteer\", \"version\": \"24.0.0\","
-                + " \"license\": \"Apache-2.0\", \"direct\": false, \"installed\": false}]}"
+            web.results().resolve(NpmEvidence.INVENTORY),
+            "{\"contract\": 2, \"packages\": [{\"name\": \"bare\", \"version\": \"1.0.0\", \"license\": \" \","
+                + " \"direct\": true, \"installed\": true, \"production\": true, \"notices\": {}},"
+                + " {\"name\": \"puppeteer\", \"version\": \"24.0.0\", \"license\": \"Apache-2.0\","
+                + " \"direct\": false, \"installed\": false, \"production\": false, \"notices\": {}}]}"
         );
         List<Findings> findings = new NpmLicenses(POLICY).findings(List.of(web));
         assertEquals(List.of(web.subject() + ": bare@1.0.0 declares no license"), findings.get(2).offences());
@@ -185,20 +195,29 @@ class NpmEvidenceTest {
     void refusesAnInventoryThatLeavesAFieldOut() {
         NpmEvidence web = NpmEvidence.of(NpmFixture.module(this.directory, true)).getFirst();
         Files.writeString(
-            web.results().resolve("dependencies.json"),
-            "{\"contract\": 1, \"packages\": [{\"name\": \"bare\", \"version\": \"1.0.0\", \"license\": \"MIT\"}]}"
+            web.results().resolve(NpmEvidence.INVENTORY),
+            "{\"contract\": 2, \"packages\": [{\"name\": \"bare\", \"version\": \"1.0.0\", \"license\": \"MIT\"}]}"
         );
         assertThrows(IllegalStateException.class, web::packages, "a missing field is refused, never defaulted");
-        String whole
-            = "\"name\": \"a\", \"version\": \"1\", \"license\": \"MIT\", \"direct\": true, \"installed\": true";
-        for (String field : List.of("name", "version", "license", "direct", "installed")) {
+        String whole = "\"name\": \"a\", \"version\": \"1\", \"license\": \"MIT\", \"direct\": true,"
+            + " \"installed\": true, \"production\": true, \"notices\": {\"LICENSE\": \"text\"}";
+        for (String field : List.of("name", "version", "license", "direct", "installed", "production", "notices")) {
             String entry = whole.replace("\"" + field + "\":", "\"other-" + field + "\":");
             Files.writeString(
-                web.results().resolve("dependencies.json"), "{\"contract\": 1, \"packages\": [{" + entry + "}]}"
+                web.results().resolve(NpmEvidence.INVENTORY), "{\"contract\": 2, \"packages\": [{" + entry + "}]}"
             );
             assertThrows(IllegalStateException.class, web::packages, "an inventory without " + field);
         }
-        Files.writeString(web.results().resolve("dependencies.json"), "{\"contract\": 2, \"packages\": []}");
+        Files.writeString(
+            web.results().resolve(NpmEvidence.INVENTORY),
+            "{\"contract\": 2, \"packages\": [{" + whole.replace("\"text\"", "1") + "}]}"
+        );
+        assertThrows(IllegalStateException.class, web::packages, "a license file that is no text is refused");
+        Files.writeString(
+            web.results().resolve(NpmEvidence.INVENTORY), "{\"contract\": 2, \"packages\": [{" + whole + "}]}"
+        );
+        assertEquals(Map.of("LICENSE", "text"), web.packages().getFirst().notices());
+        Files.writeString(web.results().resolve(NpmEvidence.INVENTORY), "{\"contract\": 1, \"packages\": []}");
         assertThrows(IllegalStateException.class, web::packages, "an unknown contract is refused");
     }
 

@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -60,7 +61,9 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
             this.initial, this.project,
             Stream.concat(
                 this.qualifications.stream(),
-                Stream.of("Report-only invocation does not establish an Extended verification pass.")
+                Stream.of(
+                    "Checks not run: the report was generated on its own, so it doesn't show that the checks passed."
+                )
             ).toList()
         );
     }
@@ -93,7 +96,8 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
                     )
                 ).values()
             ),
-            this.project.policy()
+            this.project.policy(),
+            modules.stream().flatMap(module -> module.images().stream()).distinct().toList()
         );
         String sbom = ReportSbom.assemble(packages, modules);
         Map<String, String> provenance = Stream.concat(
@@ -127,12 +131,20 @@ record ReportGeneration(ReportSource initial, ReportProject project, List<String
                 Map.entry(module.coordinate() + " scan date", module.evidence().get("Scan date"))
             )
         ).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
-        return Stream.concat(
+        Map<String, String> facts = Stream.concat(
             hashes.entrySet().stream(), Stream.of(
                 Map.entry("Aggregate SBOM SHA-256", ReportJson.hash(sbom)),
                 Map.entry("Modules", modules.stream().map(ReportModule::coordinate).collect(Collectors.joining(", ")))
             )
-        ).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+        ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        String listers = modules.stream().map(module -> module.evidence().get(ReportInputs.IMAGE_LISTER))
+            .filter(Objects::nonNull).flatMap(names -> Stream.of(names.split(", ", -1)))
+            .filter(name -> !name.isEmpty()).distinct().sorted()
+            .collect(Collectors.joining(", "));
+        if (!listers.isEmpty()) {
+            facts.put(ReportInputs.IMAGE_LISTER, listers);
+        }
+        return Map.copyOf(facts);
     }
 
     private static void unchanged(Path root, ReportSource source) {

@@ -10,6 +10,7 @@ const locked = (overrides: unknown, edge: string = 'deepmerge-ts@8.0.2'): Lockfi
   importers: new Map(),
   packages: [],
   roots: [],
+  productionRoots: [],
   edges: new Map([['eslint-plugin-functional@10.0.1(eslint@10.13.0)', [edge]]]),
   rewrites: [],
   overrides,

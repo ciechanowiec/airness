@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.governance.ReportLicenseEvidence;
 import eu.ciechanowiec.airness.governance.ReportLicensePolicy;
 import eu.ciechanowiec.airness.governance.ReportPackage;
 import java.nio.file.Files;
@@ -75,16 +76,20 @@ class LicenseMetadataTest {
     @Test
     void retainsReleaseTextsAndExplicitCorrectionProvenance() {
         LicenseMetadata serializer = LicenseMetadata.find(COORDINATE).orElseThrow();
-        String serializerNotice = String.join("\n", serializer.notices().values());
-        assertTrue(serializerNotice.contains(serializer.sha256()));
-        assertTrue(serializerNotice.contains("Supplier declaration: Missing"));
-        assertTrue(serializerNotice.contains("Apache Xalan (Xalan serializer)"));
+        ReportLicenseEvidence serializerEvidence = evidence(serializer);
+        assertEquals(serializer.sha256(), serializerEvidence.sha256());
+        assertEquals(serializer.license(), serializerEvidence.license());
+        assertTrue(serializerEvidence.declared().isEmpty(), "the supplier declares nothing");
+        assertTrue(String.join("\n", serializerEvidence.texts().values()).contains("Apache Xalan (Xalan serializer)"));
         LicenseMetadata tidy = LicenseMetadata.find("com.github.jtidy:jtidy:jar:1.0.5").orElseThrow();
         assertEquals("HTMLTIDY", tidy.license());
-        assertTrue(String.join("\n", tidy.notices().values()).contains("commercial products"));
-        assertTrue(tidy.evidence().description().contains("Supplier declaration: Java HTML Tidy License"));
+        assertTrue(String.join("\n", evidence(tidy).texts().values()).contains("commercial products"));
+        assertEquals(List.of("Java HTML Tidy License"), evidence(tidy).declared());
         LicenseMetadata plexus = LicenseMetadata.find("org.codehaus.plexus:plexus-i18n:jar:1.0-beta-10").orElseThrow();
-        assertTrue(plexus.evidence().description().contains("Licensed under the Apache License, Version 2.0"));
+        assertTrue(
+            String.join("\n", evidence(plexus).texts().values())
+                .contains("Licensed under the Apache License, Version 2.0")
+        );
         assertThrows(IllegalStateException.class, () -> LicenseMetadata.resource("absent-license.txt"));
     }
 
@@ -99,6 +104,10 @@ class LicenseMetadataTest {
                 new ReportPackage("unknown:artifact:jar:1", List.of(), List.of(), Map.of())
             )
         );
+    }
+
+    private static ReportLicenseEvidence evidence(LicenseMetadata metadata) {
+        return ReportLicenseEvidence.decode(String.join("", metadata.notices().values())).orElseThrow();
     }
 
     private static LicenseMetadata fixture(List<String> declared) {

@@ -24,9 +24,11 @@ import org.apache.maven.project.MavenProject;
  *
  * <p>Every declared node project contributes its packages to the license inventory, judged by the same
  * allowlist as a Maven artifact, and its CycloneDX document to the aggregate SBOM, which the closing step
- * merges with the Maven one. A package limited to other platforms is in the document but not in the license
- * inventory, because this host did not install it and so read no license for it. Its license is judged where
- * it installs. The Node and pnpm that ran the gates are listed as the build tools they are.
+ * merges with the Maven one. A package a workspace member reaches through its dependencies or optional dependencies
+ * is a production one, whose license files the report reproduces, and any other a development one. A package limited
+ * to other platforms is in the document but not in the license inventory, because this host did not install it and
+ * so read no license for it. Its license is judged where it installs. The Node and pnpm that ran the gates are listed
+ * as the build tools they are.
  *
  * @param packages   the npm packages and the toolchain, as report packages
  * @param graph      the edges from the module to each node project's root
@@ -42,8 +44,8 @@ record NpmReportInputs(
      */
     static final String DOCUMENTS = "npm SBOM";
 
-    private static final String NPM = "npm";
-    private static final String BUILD = "build";
+    private static final String DIRECT = "Direct";
+    private static final String TRANSITIVE = "Transitive";
 
     /**
      * Copies every collection, so the evidence cannot change after it was read.
@@ -151,10 +153,16 @@ record NpmReportInputs(
         );
     }
 
+    // A package a workspace member reaches through its dependencies ships with the product, and its license files
+    // are reproduced. One only development dependencies reach does not ship.
     private static ReportPackage npm(NpmPackage entry, String module) {
         return new ReportPackage(
-            entry.purl(), SpdxLicenses.alternatives(entry.license()),
-            List.of(new ReportUse(module, NPM, entry.direct() ? "direct" : "transitive")), Map.of()
+            entry.purl(), SpdxLicenses.alternatives(entry.license()), List.of(
+                new ReportUse(
+                    module, entry.production() ? ReportUse.PRODUCTION : ReportUse.DEVELOPMENT,
+                    entry.direct() ? DIRECT : TRANSITIVE
+                )
+            ), entry.production() ? entry.notices() : Map.of()
         );
     }
 
@@ -194,6 +202,6 @@ record NpmReportInputs(
      * @return the use
      */
     static ReportUse tool(String module) {
-        return new ReportUse(module, BUILD, "direct");
+        return new ReportUse(module, ReportUse.BUILD, DIRECT);
     }
 }

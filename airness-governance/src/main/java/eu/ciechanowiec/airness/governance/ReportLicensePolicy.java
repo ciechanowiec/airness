@@ -32,6 +32,17 @@ public record ReportLicensePolicy(Set<String> allowed, Map<String, String> alias
     }
 
     /**
+     * One declared alternative as the policy names it: the identifier the check's merges map it to, or, for licenses
+     * joined as an npm expression joins them, each license so normalized.
+     *
+     * @param alternative one declared alternative
+     * @return the alternative the report shows
+     */
+    public String display(String alternative) {
+        return String.join(" AND ", this.conjuncts(alternative));
+    }
+
+    /**
      * Classifies all declared alternatives using the check's admitted-license semantics.
      *
      * <p>An alternative that joins licenses with {@code AND}, as an npm expression can, is admitted only

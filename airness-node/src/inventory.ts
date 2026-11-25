@@ -1,16 +1,18 @@
 // The npm dependency evidence the repository's dependency policies read: every package the node project's
-// lockfile resolves, with its version, its declared license, whether a member depends on it directly, and
-// whether this host installed it. It judges nothing; the policies that read it do.
+// lockfile resolves, with its version, its declared license, whether a member depends on it directly, whether
+// this host installed it, whether the product runs it, and the notice files each such package ships. It judges
+// nothing; the policies and the compliance report that read it do.
 import type { InstalledPackage } from './installed-packages.js'
 import { asRecord, asText, isArray } from './json-shapes.js'
-import type { DirectDependency, ResolvedPackage } from './lockfile.js'
+import { type DirectDependency, productionKeys, type ResolvedPackage } from './lockfile.js'
+import { packageNotices } from './package-notices.js'
 import type { ResolvedSet } from './resolved-set.js'
 
 /** The evidence file the inventory writes beside its result. */
 export const INVENTORY_FILE: string = 'dependencies.json'
 
 /** The version of the evidence file's shape. */
-const INVENTORY_CONTRACT: number = 1
+const INVENTORY_CONTRACT: number = 2
 
 /** One package of the inventory. */
 interface InventoryEntry {
@@ -22,6 +24,10 @@ interface InventoryEntry {
   readonly direct: boolean
   /** Whether this host installed it; a package limited to other systems is resolved but not installed. */
   readonly installed: boolean
+  /** Whether a member's `dependencies` or `optionalDependencies` reach it, so the product runs it. */
+  readonly production: boolean
+  /** The notice files an installed production package ships, keyed by file name; empty for any other. */
+  readonly notices: Readonly<Record<string, string>>
 }
 
 /** The evidence file. */
@@ -52,12 +58,15 @@ const isDirect = (direct: readonly DirectDependency[], name: string, version: st
 
 /**
  * The inventory of a node project: every package the lockfile resolves, with the license of its installed
- * manifest, and the packages limited to other systems listed as not installed, without a license.
+ * manifest and, for a production package, its notice files, and the packages limited to other systems listed
+ * as not installed, without a license.
  * @param set the project's resolved set.
  * @returns the evidence.
  */
 export const inventoryOf = (set: ResolvedSet): Inventory => {
   const direct: readonly DirectDependency[] = [...set.lockfile.importers.values()].flat()
+  const production: ReadonlySet<string> = productionKeys(set.lockfile)
+  const isProduction = (name: string, version: string): boolean => production.has(`${name}@${version}`)
   return {
     contract: INVENTORY_CONTRACT,
     packages: [
@@ -68,6 +77,8 @@ export const inventoryOf = (set: ResolvedSet): Inventory => {
           license: licenseOf(entry.manifest),
           direct: isDirect(direct, entry.name, entry.version),
           installed: true,
+          production: isProduction(entry.name, entry.version),
+          notices: isProduction(entry.name, entry.version) ? packageNotices(entry.directory) : {},
         }),
       ),
       ...set.elsewhere.map(
@@ -77,6 +88,8 @@ export const inventoryOf = (set: ResolvedSet): Inventory => {
           license: '',
           direct: isDirect(direct, resolved.name, resolved.version),
           installed: false,
+          production: isProduction(resolved.name, resolved.version),
+          notices: {},
         }),
       ),
     ],

@@ -19,8 +19,9 @@ final class ReportOutline {
         new Entry(
             "vulnerabilities", "Vulnerabilities", List.of(
                 new Entry("advisories-all", "All vulnerabilities"),
+                new Entry("advisories-awaiting", "Awaiting fix"),
                 new Entry("advisories-plans", "Mitigation plans"),
-                new Entry("advisories-stale", "Recorded mitigations without a vulnerability")
+                new Entry("advisories-stale", "Outdated mitigation entries")
             )
         ),
         new Entry(
@@ -36,10 +37,18 @@ final class ReportOutline {
                 new Entry("policy-permissive", "Permissive licenses"),
                 new Entry("policy-weak-copyleft", "Weak copyleft licenses"),
                 new Entry("policy-outside", "Licenses outside the policy"),
-                new Entry("policy-evidence", "Verified license evidence")
+                new Entry("policy-aliases", "License names as declared"),
+                new Entry("policy-evidence", "Licenses confirmed from release evidence")
             )
         ),
-        new Entry("inventory", "Package inventory", List.of()),
+        new Entry(
+            "inventory", "Package inventory", List.of(
+                new Entry("inventory-maven", "Maven artifacts"),
+                new Entry("inventory-npm", "npm packages"),
+                new Entry("inventory-tools", "Build tools"),
+                new Entry("inventory-images", "Container image packages")
+            )
+        ),
         new Entry(
             "notices", "Third-party notices", List.of(
                 new Entry("notices-missing", "Packages without a license file"),
@@ -50,6 +59,7 @@ final class ReportOutline {
         new Entry(
             "provenance", "Provenance and reproduction", List.of(
                 new Entry("provenance-source", "Source"),
+                new Entry("provenance-scanners", "Scanners and databases"),
                 new Entry("provenance-scope", "Scope")
             )
         )
@@ -72,15 +82,18 @@ final class ReportOutline {
     ).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
 
     /**
-     * The table of contents. It lists the sections only, so it stays short enough to share the first page
-     * with the verdict.
+     * The table of contents: every section with its subsections, each with the page the printed report shows it
+     * on.
      *
      * @return the contents navigation
      */
     static String contents() {
         return "<nav id=\"toc\" aria-labelledby=\"toctitle\"><div id=\"toctitle\">Contents</div>"
-            + "<ul class=\"sectlevel1\">" + OUTLINE.stream().map(entry -> "<li>" + link(entry.id()) + "</li>")
-                .collect(Collectors.joining()) + "</ul></nav>";
+            + "<ul class=\"sectlevel1\">" + OUTLINE.stream().map(
+                entry -> "<li>" + link(entry.id()) + "<ul class=\"sectlevel2\">" + entry.subsections().stream()
+                    .map(subsection -> "<li>" + link(subsection.id()) + "</li>").collect(Collectors.joining())
+                    + "</ul></li>"
+            ).collect(Collectors.joining()) + "</ul></nav>";
     }
 
     /**
@@ -113,7 +126,8 @@ final class ReportOutline {
 
     private static String link(String id) {
         Numbered numbered = numbered(id);
-        return "<a href=\"#" + anchor(numbered) + "\">" + heading(numbered)
+        String target = numbered.number().indexOf('.') < 0 ? anchor(numbered) : id;
+        return "<a href=\"#" + target + "\">" + heading(numbered)
             + "<span class=\"leader\"></span><span class=\"page\" data-for=\"" + anchor(numbered)
             + "\"></span></a>";
     }

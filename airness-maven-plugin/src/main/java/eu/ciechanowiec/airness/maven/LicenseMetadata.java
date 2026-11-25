@@ -1,6 +1,7 @@
 package eu.ciechanowiec.airness.maven;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.ciechanowiec.airness.governance.ReportLicenseEvidence;
 import eu.ciechanowiec.airness.governance.ReportPackage;
 import java.io.InputStream;
 import java.net.URL;
@@ -9,9 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 
 /**
@@ -55,8 +58,15 @@ record LicenseMetadata(String coordinate, String sha256, String license, License
     Map<String, String> notices() {
         return Map.of(
             ReportPackage.LICENSE_EVIDENCE_PREFIX + this.evidence.source(),
-            "Verified license: " + this.license + "\nArtifact SHA-256: " + this.sha256 + "\n"
-                + this.evidence.description()
+            new ReportLicenseEvidence(
+                this.license, this.sha256, this.evidence.declared(), this.evidence.reason(), this.evidence.texts()
+                    .entrySet().stream().sorted(Map.Entry.comparingByKey()).collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, entry -> resource(entry.getValue()), (first, _) -> first,
+                            LinkedHashMap::new
+                        )
+                    )
+            ).encode()
         );
     }
 

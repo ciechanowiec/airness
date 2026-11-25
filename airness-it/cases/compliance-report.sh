@@ -25,7 +25,7 @@ run_compliance_report_cases() {
     report_commit="$(git -C "${vulnerability_consumer}" rev-parse --short=12 HEAD)"
     expect_file_match \
         "${vulnerability_consumer}/target/compliance/oss-compliance-report-consumer-${report_commit}.html" \
-        'compliance: the root report identifies a partial reactor' 'selected only part of the reactor'
+        'compliance: the root report identifies a partial reactor' 'Partial build: only some of the'
     run_maven compliance_stale maven "${vulnerability_consumer}" -Pextended \
         airness:tree-snapshot airness:module-complete
     expect_exit compliance_stale 'compliance: a new invocation refuses earlier scanner and license evidence' 1

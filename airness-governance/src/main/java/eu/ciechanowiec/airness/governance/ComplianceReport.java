@@ -36,7 +36,10 @@ public record ComplianceReport(
      */
     public List<String> draftReasons() {
         Stream<String> policy = this.inventory.withinPolicy() ? Stream.empty()
-            : Stream.of("The dependencies don't satisfy the policy this report states.");
+            : Stream.of(
+                "Policy not met: some packages don't satisfy the policy this report states, as the lines marked with a "
+                    + "cross below show."
+            );
         return Stream.concat(this.source.draftReasons().stream(), policy).toList();
     }
 
@@ -46,15 +49,16 @@ public record ComplianceReport(
      * @return RFC 4180 CSV with a header
      */
     public String csv() {
-        return "Artifact,License,Class,Module,Scope,Relation\r\n" + this.inventory.packages().stream()
+        return "Artifact,License,Declared license,Class,Module,Scope,Relation\r\n" + this.inventory.packages().stream()
             .flatMap(entry -> entry.uses().stream().map(use -> this.csv(entry, use)))
             .collect(Collectors.joining());
     }
 
     private String csv(ReportPackage entry, ReportUse use) {
         return Stream.of(
-            entry.coordinate(), entry.licenseSummary(),
-            this.inventory.policy().classification(entry.licenses()).label(), use.module(), use.scope(), use.relation()
+            entry.coordinate(), entry.licenseIds(this.inventory.policy()), entry.licenseSummary(),
+            this.inventory.policy().classification(entry.licenses()).label(), use.module(), use.label(),
+            use.relationLabel()
         ).map(ComplianceReport::csvCell).collect(Collectors.joining(",")) + "\r\n";
     }
 

@@ -17,11 +17,13 @@ import org.junit.jupiter.api.Test;
 class ImageRepairTest {
 
     private static final ReportAdvisory OPEN = new ReportAdvisory(
-        "GHSA-undici", "HIGH", "pkg:npm/undici@6.28.0", List.of("shop"), "Request smuggling", Optional.empty()
+        "GHSA-undici", "HIGH", "pkg:npm/undici@6.28.0", List.of("shop"), "Request smuggling", Optional.empty(),
+        List.of()
     );
     private static final ReportAdvisory MITIGATED = new ReportAdvisory(
         "GHSA-glob", "MEDIUM", "pkg:npm/glob@13.0.6", List.of("shop"), "Path traversal",
-        Optional.of(new ReportMitigation("Unused at runtime.", "Removed with the base.", "2026-11-15", false))
+        Optional.of(new ReportMitigation("Unused at runtime.", "Removed with the base.", "2026-11-15", false)),
+        List.of()
     );
 
     @Test

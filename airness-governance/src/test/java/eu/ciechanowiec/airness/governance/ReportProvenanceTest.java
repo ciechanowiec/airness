@@ -38,7 +38,7 @@ class ReportProvenanceTest {
         ReportSource dirty = ReportSource.read(fixture.root(), "later");
         assertEquals(clean.commit(), dirty.commit());
         assertNotEquals(clean.fingerprint(), dirty.fingerprint());
-        assertTrue(dirty.draftReasons().getFirst().contains("uncommitted"));
+        assertEquals(ReportSource.DIRTY, dirty.draftReasons().getFirst());
     }
 
     @Test
