@@ -32,9 +32,11 @@ color : red ;
      background:blue}
 CSS
     # A stylesheet a Java module serves belongs to a frontend tooling project; the module itself is one here.
+    # It holds the lockfile every declared project must have, since node-dependencies refuses one without.
     write_node_consumer "${formatting_consumer}" '.' ''
     printf '{\n  "name": "formatting-state",\n  "private": true,\n  "airness": { "sourceRoots": ["src/main/resources/static"] }\n}\n' \
         > "${formatting_consumer}/package.json"
+    install_airness_node "${formatting_consumer}"
     prepare_maven formatting_assets repository "${formatting_consumer}" --quiet airness:assets-sync
     run_maven formatting_before repository "${formatting_consumer}" process-resources
     expect_exit formatting_before 'formatting: unformatted source or stylesheet is rejected' 1
