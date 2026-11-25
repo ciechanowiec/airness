@@ -19,7 +19,7 @@ import java.util.stream.IntStream;
  */
 public final class LoneChainReceiverCheck extends AbstractCheck {
 
-    private static final String NAME = "[\\p{javaJavaIdentifierStart}][\\p{javaJavaIdentifierPart}]*";
+    private static final String NAME = "\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*";
     private static final Pattern RECEIVER = Pattern.compile(
         "(?:.*?(?:\\breturn|\\byield|[=(,]|->)\\s*)?" + NAME + "(?:\\." + NAME + ")*"
     );
