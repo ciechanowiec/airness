@@ -160,6 +160,8 @@ export interface SessionOutcome {
   readonly endedAt: string | undefined
   /** How many locations the signed-in passes visit. */
   readonly revisited: number
+  /** The routes requested from the route inventory rather than linked, by which the one that ended it is named. */
+  readonly seeded?: ReadonlyMap<string, unknown>
 }
 
 /**
@@ -171,8 +173,9 @@ export interface SessionOutcome {
 export const sessionProblems = (outcome: SessionOutcome): readonly string[] => {
   if (outcome.endedAt !== undefined) {
     return [
-      `visiting ${outcome.endedAt} ended the signed-in session, so the signed-in crawl stopped there; an address ` +
-        'a link reaches must not change state, so end the session only on a POST, or name the route in ' +
+      `visiting ${outcome.endedAt}${outcome.seeded?.has(outcome.endedAt) === true ? ', requested from the route inventory,' : ''} ` +
+        'ended the signed-in session, so the signed-in crawl stopped there; an address a link or the route ' +
+        'inventory reaches must not change state, so end the session only on a POST, or name the route in ' +
         'accessibilitySkipRoutes with the reason',
     ]
   }

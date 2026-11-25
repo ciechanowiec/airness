@@ -257,24 +257,30 @@ export const declaredNotFoundBoundaries = (): readonly NotFoundBoundary[] => {
       )
 }
 
+/** What the sweep reached, which the pages it did not cover are read against. */
+export interface SweptRoutes {
+  /** The addresses the crawl reached and scanned. */
+  readonly visitedRoutes: readonly string[]
+  /** The addresses credited for answering, permanently forwarding ones included. */
+  readonly answeredRoutes: readonly string[]
+  /** The addresses completed project scans reached, when the run's teardown reads them. */
+  readonly completedRoutes?: readonly string[]
+  /** The htmx fragments the crawl requested that rendered. */
+  readonly fragmentRoutes?: readonly string[]
+  /** Per inventory route requested with no link to it, what each visitor's request came to when it did not cover it. */
+  readonly seedAnswers?: ReadonlyMap<string, readonly string[]>
+}
+
 /**
  * The pages this project declares that the sweep did not cover, each with what to do about it.
  *
  * Answers with nothing when the member declares no application routes at all, neither an app directory nor
  * a route inventory, which is the honest result for a package without pages rather than a claim that its
  * pages are covered.
- * @param visitedRoutes the addresses the crawl reached and scanned.
- * @param answeredRoutes the addresses credited for answering, permanently forwarding ones included.
- * @param completedRoutes the addresses completed project scans reached, when the run's teardown reads them.
- * @param fragmentRoutes the htmx fragments the crawl requested that rendered.
+ * @param swept what the sweep reached.
  * @returns one sentence per uncovered page, ready to be shown as a failure.
  */
-export const unsweptRoutes = (
-  visitedRoutes: readonly string[],
-  answeredRoutes: readonly string[],
-  completedRoutes?: readonly string[],
-  fragmentRoutes: readonly string[] = [],
-): readonly string[] => {
+export const unsweptRoutes = (swept: SweptRoutes): readonly string[] => {
   const root: string = process.cwd()
   const paths: readonly string[] = projectFiles(root)
   const declared: readonly DeclaredRoute[] | undefined = appRoutes(paths)
@@ -284,13 +290,14 @@ export const unsweptRoutes = (
   const specs: readonly SpecSource[] = readSpecs(root, paths)
   return findUnsweptRoutes({
     declaredRoutes: declared,
-    visitedRoutes,
-    answeredRoutes,
-    fragmentRoutes,
+    visitedRoutes: swept.visitedRoutes,
+    answeredRoutes: swept.answeredRoutes,
+    fragmentRoutes: swept.fragmentRoutes ?? [],
     skippedPrefixes: SKIPPED_ROUTE_PREFIXES,
     customSkippedPrefixes: projectSettings.accessibilityCustomSkipRoutes,
     specs,
     everyFile: specs,
-    completedRoutes,
+    completedRoutes: swept.completedRoutes,
+    seedAnswers: swept.seedAnswers,
   }).map((unswept: UnsweptRoute): string => `${unswept.file} [${unswept.rule}] ${unswept.reason}`)
 }

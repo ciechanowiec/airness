@@ -4,16 +4,18 @@ import { type DeclaredRoute, normalisedRoute, resolvedRouteOf, staticPrefixOf } 
 
 // The pages the accessibility sweep never reached, and nobody was told about.
 //
-// The sweep finds routes by following links from the home page, anonymously. That is what keeps it
-// default-safe as a site grows - a page linked anywhere is checked the moment it exists, with no test
-// to add - and it is also its blind spot: a page the crawl cannot reach is not scanned, and until this
-// rule existed it was not reported either. A passing sweep read the same whether it had covered a
-// whole site or half of one.
+// The sweep finds routes by following links from the home page, and then requests every route of the
+// inventory that names one concrete address and no link reached. That is what keeps it default-safe as a
+// site grows - a page linked anywhere, or declared at a fixed address, is checked the moment it exists, with
+// no test to add - and what it still cannot reach is its blind spot: a page the sweep does not reach is not
+// scanned, and until this rule existed it was not reported either. A passing sweep read the same whether it
+// had covered a whole site or half of one.
 //
-// Three shapes of page fall outside the crawl, and all three are ordinary rather than exotic: one
-// linked from nowhere, one whose link renders only for a signed-in visitor, and one whose address does
-// not exist until a record is created. The first is an oversight, the second and third are the normal
-// architecture of an application with accounts.
+// Two shapes of page stay outside the sweep, and both are ordinary rather than exotic: one that a visitor
+// is forwarded away from, as a protected page forwards a visitor without the session to sign in, and one
+// whose address does not exist until a record is created, which the inventory can only name as a pattern.
+// Both are the normal architecture of an application with accounts. The signed-in visit reaches the first
+// when the member signs in.
 //
 // The harness cannot reach such a page, so the project is required to have reached it somewhere a check
 // can see. There are three honest answers - link it, scan it in a specification of the project's own, or
@@ -40,6 +42,11 @@ export interface RouteSweep {
   readonly everyFile: readonly SpecSource[]
   /** Present at teardown, when actual execution must back any source-level scan evidence. */
   readonly completedRoutes?: readonly string[] | undefined
+  /**
+   * Per inventory route the sweep requested with no link to it, what each visitor's request came to when it did
+   * not cover the route, such as `was forwarded to /login`.
+   */
+  readonly seedAnswers?: ReadonlyMap<string, readonly string[]> | undefined
 }
 
 /** A declared page nothing looked at. */
@@ -116,6 +123,21 @@ const executionFindings = (sweep: RouteSweep, route: DeclaredRoute): UnsweptRout
       ]
 }
 
+// Why the sweep did not reach a route, which is what tells its repair: a pattern names no address the sweep could
+// request, and a requested route answered something other than its page.
+const unreached = (sweep: RouteSweep, route: DeclaredRoute, sweepName: string): string => {
+  if (route.isDynamic) {
+    return (
+      `${sweepName} never reached "${route.route}", a pattern with a variable that names no concrete address ` +
+      'the sweep could request from the route inventory, so only a link or a specification reaches it'
+    )
+  }
+  const answers: readonly string[] = sweep.seedAnswers?.get(normalisedRoute(route.route)) ?? []
+  return answers.length === 0
+    ? `${sweepName} never reached "${route.route}"`
+    : `${sweepName} requested "${route.route}" from the route inventory, and it ${answers.join(', and ')}`
+}
+
 const unsweptRoute = (sweep: RouteSweep, route: DeclaredRoute): UnsweptRoute[] => {
   const driving: readonly SpecSource[] = sweep.specs.filter((spec: SpecSource): boolean => isDrivenBy(spec, route))
   if (driving.length === 0) {
@@ -125,7 +147,7 @@ const unsweptRoute = (sweep: RouteSweep, route: DeclaredRoute): UnsweptRoute[] =
         route: route.route,
         rule: 'route-unswept',
         reason:
-          `the accessibility sweep never reached "${route.route}", and no specification drives it ` +
+          `${unreached(sweep, route, 'the accessibility sweep')}; no specification drives it ` +
           `either, so this page has no accessibility coverage at all: ${REMEDIES}`,
       },
     ]
@@ -137,7 +159,7 @@ const unsweptRoute = (sweep: RouteSweep, route: DeclaredRoute): UnsweptRoute[] =
         route: route.route,
         rule: 'route-unscanned',
         reason:
-          `the accessibility sweep never reached "${route.route}". A specification drives it but ` +
+          `${unreached(sweep, route, 'the accessibility sweep')}. A specification drives it but ` +
           `nothing scans it with axe, so this page has no accessibility coverage: ${REMEDIES}`,
       },
     ]
@@ -149,7 +171,7 @@ const unsweptRoute = (sweep: RouteSweep, route: DeclaredRoute): UnsweptRoute[] =
         route: route.route,
         rule: 'route-unmeasured',
         reason:
-          `the sweep never reached "${route.route}". A specification scans it with axe but ` +
+          `${unreached(sweep, route, 'the sweep')}. A specification scans it with axe but ` +
           `nothing measures its layout, so this page has no layout coverage: ${REMEDIES}`,
       },
     ]

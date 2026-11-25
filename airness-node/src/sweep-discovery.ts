@@ -36,6 +36,17 @@ import {
   storyFile,
 } from './sweep-scope.js'
 import {
+  answeredSeed,
+  INVENTORY_SOURCE,
+  inventorySeeds,
+  type Queued,
+  type QueuedCrawl,
+  queuedRoute,
+  seedAnswer,
+  seededRoutesOf,
+  withSeeds,
+} from './sweep-seeds.js'
+import {
   type EarlierVisit,
   earlierVisit,
   guardedSession,
@@ -67,7 +78,6 @@ import {
 import { settledUnrequested } from './sweep-unrequested.js'
 import {
   distinctLocations,
-  isAtRouteCeiling,
   locationsToRevisit,
   sessionProblems,
   structureOf,
@@ -96,6 +106,13 @@ const toRoute = (href: string): string | undefined => {
     return undefined
   }
   return isSkippedSweepRoute(url.pathname) || STATIC_ASSET.test(url.pathname) ? undefined : url.pathname
+}
+
+// Whether a page the crawl landed on is one it sweeps: on the origin and outside the skipped prefixes. A seeded
+// page with a file extension is a page the inventory declares, so the extension alone does not leave it unswept.
+const isSweptLanding = (href: string, isSeed: boolean): boolean => {
+  const url: URL | undefined = parseUrl(href)
+  return isSeed && url?.origin === origin ? !isSkippedSweepRoute(url.pathname) : toRoute(href) !== undefined
 }
 
 interface PageFacts {
@@ -167,16 +184,7 @@ const pageFactsInPage = (controls: string): PageFacts => {
   }
 }
 
-interface Queued {
-  readonly route: string
-  /** The page or sitemap that linked it, for a broken link's report. */
-  readonly from: string
-}
-
-interface CrawlState {
-  readonly queue: readonly Queued[]
-  readonly seen: ReadonlySet<string>
-  readonly dropped: ReadonlySet<string>
+interface CrawlState extends QueuedCrawl {
   readonly answered: ReadonlySet<string>
   /** The answered addresses that cover themselves, rather than only the page a temporary redirect showed. */
   readonly credited: ReadonlySet<string>
@@ -186,8 +194,6 @@ interface CrawlState {
   readonly fragments: ReadonlySet<string>
   readonly reachable: readonly SweepLocation[]
   readonly findings: readonly BrowserFinding[]
-  /** The routes an earlier visit reached, which count towards the route ceiling with this crawl's own. */
-  readonly earlier: readonly string[]
   /** The route that proves the signed-in session, once the signed-in crawl found one. */
   readonly probe: string | undefined
   /** The route whose visit ended the signed-in session, when one did. */
@@ -197,16 +203,7 @@ interface CrawlState {
 const enqueue = (state: CrawlState, hrefs: readonly string[], from: string): CrawlState =>
   hrefs.reduce((current: CrawlState, href: string): CrawlState => {
     const route: string | undefined = toRoute(href)
-    if (route === undefined || current.seen.has(route) || current.dropped.has(route)) {
-      return current
-    }
-    return isAtRouteCeiling(current.seen, current.earlier, MAX_SWEEP_ROUTES)
-      ? { ...current, dropped: new Set<string>([...current.dropped, route]) }
-      : {
-          ...current,
-          seen: new Set<string>([...current.seen, route]),
-          queue: [...current.queue, { route, from }],
-        }
+    return route === undefined ? current : queuedRoute(current, route, from, MAX_SWEEP_ROUTES)
   }, state)
 
 const linkFinding = (queued: Queued, page: Page, reason: string): BrowserFinding =>
@@ -241,26 +238,36 @@ const routeLocation = (url: string, facts: PageFacts, structure: string): SweepL
   }
 }
 
+// A route that did not answer OK: a broken link when a link or the sitemap named it. A seed was named by no link,
+// so it is no broken link; what it answered is kept for the coverage finding the route then draws.
+const unanswered = (page: Page, next: CrawlState, queued: Queued, response: Response | null): CrawlState => {
+  if (queued.from === INVENTORY_SOURCE) {
+    return answeredSeed(next, queued.route, seedAnswer(response?.status(), false, ''))
+  }
+  const reason: string = response === null ? 'did not answer' : `answered ${String(response.status())}`
+  return queued.route === SEED_ROUTE
+    ? next
+    : { ...next, findings: [...next.findings, linkFinding(queued, page, reason)] }
+}
+
 // One route of the crawl: visited, judged, and its links queued.
 const crawlRoute = async (page: Page, next: CrawlState, queued: Queued): Promise<CrawlState> => {
   const response: Response | null = await visited(page, `${origin}${queued.route}`)
   if (response?.ok() !== true) {
-    const reason: string = response === null ? 'did not answer' : `answered ${String(response.status())}`
-    return queued.route === SEED_ROUTE
-      ? next
-      : {
-          ...next,
-          findings: [...next.findings, linkFinding(queued, page, reason)],
-        }
+    return unanswered(page, next, queued, response)
   }
-  const answered: CrawlState = {
-    ...next,
-    answered: new Set<string>([...next.answered, queued.route]),
-    credited: (await coversItsRoute(response, queued.route, page))
-      ? new Set<string>([...next.credited, queued.route])
-      : next.credited,
-  }
-  if (toRoute(page.url()) === undefined) {
+  const isCredited: boolean = await coversItsRoute(response, queued.route, page)
+  const landed: URL = new URL(page.url())
+  const answered: CrawlState = answeredSeed(
+    {
+      ...next,
+      answered: new Set<string>([...next.answered, queued.route]),
+      credited: isCredited ? new Set<string>([...next.credited, queued.route]) : next.credited,
+    },
+    queued.route,
+    seedAnswer(response.status(), isCredited, landed.origin === origin ? landed.pathname : landed.href),
+  )
+  if (!isSweptLanding(page.url(), queued.from === INVENTORY_SOURCE)) {
     return answered
   }
   const settled: CrawlState = await settledUnrequested(page, answered, queued.route, response.url())
@@ -295,10 +302,32 @@ const crawl = async (page: Page, state: CrawlState, watch: SessionWatch | undefi
   )
 }
 
-const crawlAs = async (page: Page, visitor: Visitor, start: CrawlState): Promise<CrawlState> =>
+// The links first, then every inventory route they did not reach, whose own links are followed in turn. Seeds come
+// last so that a page ending the session on a GET is reached after everything else, and never once a visit
+// already ended it, which would let the crawl go on without the session it proves. A route a crawled page already
+// requested as an htmx fragment is covered as one, and is not requested again as a page it never was.
+const crawlWithSeeds = async (
+  page: Page,
+  start: CrawlState,
+  seeds: readonly string[],
+  watch: SessionWatch | undefined,
+): Promise<CrawlState> => {
+  const linked: CrawlState = await crawl(page, start, watch)
+  const pages: readonly string[] = seeds.filter((route: string): boolean => !linked.fragments.has(route))
+  return linked.endedAt === undefined ? await crawl(page, withSeeds(linked, pages, MAX_SWEEP_ROUTES), watch) : linked
+}
+
+const crawlAs = async (
+  page: Page,
+  visitor: Visitor,
+  start: CrawlState,
+  seeds: readonly string[],
+): Promise<CrawlState> =>
   visitor === 'anonymous'
-    ? await crawl(page, start, undefined)
-    : await withSessionWatch(async (watch: SessionWatch): Promise<CrawlState> => await crawl(page, start, watch))
+    ? await crawlWithSeeds(page, start, seeds, undefined)
+    : await withSessionWatch(
+        async (watch: SessionWatch): Promise<CrawlState> => await crawlWithSeeds(page, start, seeds, watch),
+      )
 
 const MAX_SITEMAPS: number = 50
 
@@ -413,6 +442,7 @@ const crawlStart = (fromSitemap: readonly string[], earlier: readonly string[]):
       reachable: [],
       findings: [],
       earlier,
+      seeded: new Map<string, string | undefined>(),
       probe: undefined,
       endedAt: undefined,
     },
@@ -469,10 +499,11 @@ interface VisitFinds {
 }
 
 // Stories and not-found states look the same to every visitor, so only the anonymous visit reads them.
-const visitFinds = async (page: Page, visitor: Visitor, info: TestInfo): Promise<VisitFinds> => {
-  const earlier: EarlierVisit = visitor === 'anonymous' ? NO_EARLIER_VISIT : earlierVisit(info)
+const visitFinds = async (page: Page, visitor: Visitor, declared: readonly DeclaredRoute[]): Promise<VisitFinds> => {
+  const earlier: EarlierVisit = visitor === 'anonymous' ? NO_EARLIER_VISIT : earlierVisit(test.info())
   const fromSitemap: readonly string[] = await sitemapPages(page, [`${origin}/sitemap.xml`])
-  const crawled: CrawlState = await crawlAs(page, visitor, crawlStart(fromSitemap, earlier.routes))
+  const seeds: readonly string[] = inventorySeeds(declared, isSkippedSweepRoute)
+  const crawled: CrawlState = await crawlAs(page, visitor, crawlStart(fromSitemap, earlier.routes), seeds)
   const reachable: readonly SweepLocation[] = distinctLocations(crawled.reachable)
   if (visitor === 'signed-in') {
     const revisited: readonly SweepLocation[] = locationsToRevisit(reachable, earlier.locations)
@@ -491,10 +522,12 @@ const visitProblems = (visitor: Visitor, { crawled, revisited }: VisitFinds): re
 /**
  * Discover every page the sweep scans, and record it with whatever made the discovery incomplete.
  *
- * Routes come from a link crawl from `/`, every same-origin `hreflang` alternate, and `sitemap.xml`;
- * stories from each auxiliary server that answers `/index.json`; breakpoints and colour schemes from
- * each page's stylesheets. A crawled internal link that does not answer is a broken link. Under a
- * `delta` run's change scope the crawl still reaches and checks every route, and the passes are handed
+ * Routes come from a link crawl from `/`, every same-origin `hreflang` alternate, and `sitemap.xml`, and
+ * then from every concrete route of the route inventory no link reached, whose own links are followed too;
+ * stories from each auxiliary server that answers `/index.json`; breakpoints and colour schemes from each
+ * page's stylesheets. A crawled internal link that does not answer is a broken link; a seed that does not
+ * answer is reported with the route's coverage instead, since no link names it. Under a `delta` run's
+ * change scope the crawl still reaches and checks every route, and the passes are handed
  * only the routes and stories the change reaches, each with the reason it is swept. Every pass depends
  * on this test, so it fails only when it could not write its record; the summary judges the findings
  * and problems it recorded.
@@ -514,7 +547,7 @@ export const expectDiscoveredSite = async (page: Page): Promise<void> => {
   await preparePage(page)
   const { scope, problem }: NamedScope = namedScope()
   const declared: readonly DeclaredRoute[] = declaredRoutes()
-  const found: VisitFinds = await visitFinds(page, visitor, info)
+  const found: VisitFinds = await visitFinds(page, visitor, declared)
   const { crawled, missing }: VisitFinds = found
   const finds: ScopedFinds = {
     routes: chosen([...found.revisited, ...missing.locations], (location: SweepLocation): string | undefined =>
@@ -531,6 +564,7 @@ export const expectDiscoveredSite = async (page: Page): Promise<void> => {
     visitedRoutes: found.reachable.map((location: SweepLocation): string => location.location),
     answeredRoutes: [...crawled.credited],
     fragmentRoutes: [...crawled.fragments],
+    seededRoutes: seededRoutesOf(crawled.seeded),
     findings: visitedAs(crawled.findings, visitor),
     problems: [
       ...missing.problems,
