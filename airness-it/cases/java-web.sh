@@ -219,29 +219,26 @@ public final class Security {
     @SneakyThrows
     SecurityFilterChain chain(HttpSecurity http) {
         RequestMatcher exit = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/bye");
-        return http
-            .authorizeHttpRequests(
-                registry -> registry
-                    .requestMatchers("/").permitAll()
-                    .requestMatchers("/about").permitAll()
-                    .requestMatchers("/hidden").permitAll()
-                    .requestMatchers("/login").permitAll()
-                    .requestMatchers("/fragment/row").permitAll()
-                    .requestMatchers("/css/site.css").permitAll()
-                    .requestMatchers("/img/mark.svg").permitAll()
-                    .requestMatchers("/error").permitAll()
-                    .anyRequest().authenticated()
-            ).formLogin(form -> form.loginPage("/login")).logout(
-                out -> out.logoutRequestMatcher(exit).logoutSuccessUrl("/")
-            ).headers(
-                headers -> headers
-                    .contentSecurityPolicy(policy -> policy.policyDirectives(POLICY))
-                    .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                    .httpStrictTransportSecurity(
-                        transport -> transport.requestMatcher(AnyRequestMatcher.INSTANCE)
-                            .maxAgeInSeconds(TRANSPORT_SECURITY)
-                    )
-            ).build();
+        return http.authorizeHttpRequests(
+            registry -> registry.requestMatchers("/").permitAll()
+                .requestMatchers("/about").permitAll()
+                .requestMatchers("/hidden").permitAll()
+                .requestMatchers("/login").permitAll()
+                .requestMatchers("/fragment/row").permitAll()
+                .requestMatchers("/css/site.css").permitAll()
+                .requestMatchers("/img/mark.svg").permitAll()
+                .requestMatchers("/error").permitAll()
+                .anyRequest().authenticated()
+        ).formLogin(form -> form.loginPage("/login")).logout(
+            out -> out.logoutRequestMatcher(exit).logoutSuccessUrl("/")
+        ).headers(
+            headers -> headers.contentSecurityPolicy(policy -> policy.policyDirectives(POLICY))
+                .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                .httpStrictTransportSecurity(
+                    transport -> transport.requestMatcher(AnyRequestMatcher.INSTANCE)
+                        .maxAgeInSeconds(TRANSPORT_SECURITY)
+                )
+        ).build();
     }
 }
 JAVA

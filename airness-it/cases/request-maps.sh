@@ -108,12 +108,11 @@ public final class Security {
     @Bean
     @SneakyThrows
     SecurityFilterChain chain(HttpSecurity http) {
-        return http
-            .authorizeHttpRequests(
-                registry -> registry
-                    .requestMatchers("/parameters", "/repeated", "/ignored", "/named", "/failure", "/error").permitAll()
-                    .anyRequest().authenticated()
-            ).build();
+        return http.authorizeHttpRequests(
+            registry -> registry
+                .requestMatchers("/parameters", "/repeated", "/ignored", "/named", "/failure", "/error").permitAll()
+                .anyRequest().authenticated()
+        ).build();
     }
 }
 JAVA

@@ -306,13 +306,11 @@ public final class Security {
      */
     @Bean
     SecurityFilterChain chain(HttpSecurity http) throws Exception {
-        return http
-            .authorizeHttpRequests(
-                registry -> registry
-                    .requestMatchers("$2").permitAll()
-                    .requestMatchers("/error").permitAll()
-                    .anyRequest().authenticated()
-            ).build();
+        return http.authorizeHttpRequests(
+            registry -> registry.requestMatchers("$2").permitAll()
+                .requestMatchers("/error").permitAll()
+                .anyRequest().authenticated()
+        ).build();
     }
 }
 JAVA
@@ -486,14 +484,12 @@ public final class Security {
      */
     @Bean
     SecurityFilterChain chain(HttpSecurity http) throws Exception {
-        return http
-            .authorizeHttpRequests(
-                registry -> registry
-                    .requestMatchers(HttpMethod.GET, "/api/orders").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
-                    .requestMatchers("/error").permitAll()
-                    .anyRequest().authenticated()
-            ).build();
+        return http.authorizeHttpRequests(
+            registry -> registry.requestMatchers(HttpMethod.GET, "/api/orders").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+                .requestMatchers("/error").permitAll()
+                .anyRequest().authenticated()
+        ).build();
     }
 }
 JAVA
@@ -549,12 +545,10 @@ public final class Security {
      */
     @Bean
     SecurityFilterChain chain(HttpSecurity http) throws Exception {
-        return http
-            .authorizeHttpRequests(
-                registry -> registry
-                    .requestMatchers("/api/orders").permitAll()
-                    .anyRequest().authenticated()
-            ).build();
+        return http.authorizeHttpRequests(
+            registry -> registry.requestMatchers("/api/orders").permitAll()
+                .anyRequest().authenticated()
+        ).build();
     }
 }
 JAVA
