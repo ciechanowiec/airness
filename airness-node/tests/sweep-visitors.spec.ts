@@ -129,6 +129,21 @@ describe('the signed-in session', () => {
     ])
   })
 
+  it('names a seeded route that ended the session, which a GET must no more do than a linked one', () => {
+    expect(
+      sessionProblems({
+        probe: '/account',
+        endedAt: '/sign-out',
+        revisited: 3,
+        seeded: new Map([['/sign-out', undefined]]),
+      }),
+    ).toEqual([
+      expect.stringMatching(
+        /^visiting \/sign-out, requested from the route inventory, ended the signed-in session.*a link or the route inventory reaches must not change state/u,
+      ),
+    ])
+  })
+
   it('fails a signed-in visit that found nothing signing in changed', () => {
     expect(sessionProblems({ probe: undefined, endedAt: undefined, revisited: 0 })).toEqual([
       expect.stringContaining(`check that ${SIGN_IN_SETUP} signs in before it calls saveSweepSession`),

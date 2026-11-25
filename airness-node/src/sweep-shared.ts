@@ -43,6 +43,7 @@ import { engineOf, type HealthReading, healthFindings, type PlaceScan, sweepScre
 import { passStartLine } from './sweep-progress.js'
 import { recordProgress, reportPartFindings, reportPass } from './sweep-progress-log.js'
 import { firstUntaken, takeNext, untakenCount } from './sweep-queue.js'
+import type { SeededRoute } from './sweep-seeds.js'
 import { SWEEP_DIRECTORY, type Visitor, visitorDirectory, visitorOfTags } from './sweep-visitors.js'
 
 export type { Shard } from './browser-run.js'
@@ -129,6 +130,8 @@ export interface DiscoveryReport {
   readonly answeredRoutes: readonly string[]
   /** The htmx fragments the crawled pages requested that rendered, kept apart from the pages swept whole. */
   readonly fragmentRoutes: readonly string[]
+  /** The inventory routes no link reached, which discovery requested by itself, with what each came to. */
+  readonly seededRoutes: readonly SeededRoute[]
   /** The route the signed-in crawl proved its session with, which the summary checks again at the end. */
   readonly probeRoute?: string
 }
@@ -253,7 +256,15 @@ export const isDiscovery = (value: unknown): value is Discovery =>
  */
 export const isDiscoveryReport = (value: unknown): value is DiscoveryReport =>
   isRecord(value) &&
-  hasArrays(value, ['findings', 'problems', 'locations', 'visitedRoutes', 'answeredRoutes', 'fragmentRoutes']) &&
+  hasArrays(value, [
+    'findings',
+    'problems',
+    'locations',
+    'visitedRoutes',
+    'answeredRoutes',
+    'fragmentRoutes',
+    'seededRoutes',
+  ]) &&
   hasNumbers(value, ['places', 'elapsedMs']) &&
   isRecord(value['scope']) &&
   typeof value['scope']['isScoped'] === 'boolean' &&

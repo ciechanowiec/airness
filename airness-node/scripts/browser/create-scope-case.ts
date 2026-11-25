@@ -1,7 +1,8 @@
-// Real Next pages and stories for the change-scope contracts: two routes, of which only `/alpha` imports
-// the badge component, and an auxiliary server answering the Storybook contract with two stories, of
-// which only the badge story's file imports it. A change to the badge must therefore reach `/alpha` and
-// the badge story, and nothing else.
+// Real Next pages and stories for the change-scope contracts: two linked routes, of which only `/alpha`
+// imports the badge component, `/gamma`, which no page links to, and an auxiliary server answering the
+// Storybook contract with two stories, of which only the badge story's file imports it. A change to the badge
+// must therefore reach `/alpha` and the badge story, and nothing else, while discovery still requests
+// `/gamma` from the route inventory, so the scoped sweep covers it without handing it to the passes.
 //
 // Run after `create-a11y-page.ts`, which gives the case its server address, root layout and Next
 // configuration.
@@ -98,6 +99,7 @@ writeModule(
 )
 writeModule(path.join(appRoot, 'alpha', 'page.tsx'), page('Alpha', '<Badge />', ["import { Badge } from '@/badge'"]))
 writeModule(path.join(appRoot, 'beta', 'page.tsx'), page('Beta', '<p>No badge here</p>'))
+writeModule(path.join(appRoot, 'gamma', 'page.tsx'), page('Gamma', '<p>Linked from no page</p>'))
 writeModule(path.join(directory, 'src', 'badge.tsx'), component('Badge', 'Badge'))
 writeModule(path.join(directory, 'src', 'other.tsx'), component('Other', 'Other'))
 writeModule(path.join(directory, 'src', 'badge.stories.tsx'), story('Badge', 'badge'))

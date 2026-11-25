@@ -158,6 +158,53 @@ describe('a page the crawl never reached', () => {
   })
 })
 
+const reasonOf = (sweep: Partial<RouteSweep>): string => findUnsweptRoutes(sweepOf(sweep))[0]?.reason ?? ''
+
+describe('why the sweep did not reach a page', () => {
+  it('says a pattern with a variable names no address the sweep could request', () => {
+    const reason: string = reasonOf({ declaredRoutes: [routeOf('/orders/[id]', true)], visitedRoutes: ['/'] })
+    expect(reason).toContain('never reached "/orders/[id]", a pattern with a variable that names no concrete address')
+    expect(reason).toContain('expectSweptPage')
+  })
+
+  it("says what each visitor's request of a seeded page came to", () => {
+    const reason: string = reasonOf({
+      declaredRoutes: [routeOf('/account')],
+      visitedRoutes: ['/login'],
+      seedAnswers: new Map<string, readonly string[]>([
+        ['/account', ['was forwarded to /login', 'answered 403 signed in']],
+      ]),
+    })
+    expect(reason).toContain(
+      'requested "/account" from the route inventory, and it was forwarded to /login, and answered 403 signed in; ' +
+        'no specification drives it',
+    )
+  })
+
+  it('keeps the seeded answer when a specification drives the page but does not scan it', () => {
+    const driving: SpecSource = { path: 'tests/e2e/pages.e2e.spec.ts', source: "await page.goto('/profile')" }
+    const reason: string = reasonOf({
+      declaredRoutes: [routeOf('/profile')],
+      specs: [driving],
+      everyFile: [driving],
+      seedAnswers: new Map<string, readonly string[]>([['/profile', ['answered 400']]]),
+    })
+    expect(reason).toMatch(
+      /^the accessibility sweep requested "\/profile" from the route inventory, and it answered 400\./u,
+    )
+  })
+
+  it('reports nothing for a seeded page a visitor swept, whatever the other visitor got', () => {
+    expect(
+      rulesOf({
+        declaredRoutes: [routeOf('/account')],
+        visitedRoutes: ['/account'],
+        seedAnswers: new Map<string, readonly string[]>([['/account', ['was forwarded to /login']]]),
+      }),
+    ).toEqual([])
+  })
+})
+
 describe('a page the project declared out of scope', () => {
   // A framework layer puts its admin panel behind a page file of its own, and the crawl is told to skip
   // that prefix. Reporting it would be the harness disagreeing with itself.

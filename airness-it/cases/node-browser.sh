@@ -157,6 +157,22 @@ PY_SCOPE
     else
         fail 'browser delta: evidence selects only the changed alpha route and records its baseline' 'unexpected scope evidence'
     fi
+    # Discovery requests the page no link reaches from the route inventory even in a scoped run, which covers it,
+    # and the scope still keeps it from the passes, since the change does not reach it.
+    if python3 - "${browser_fixture}/node_modules/.airness/e2e/test-results/airness-sweep/discovery.json" <<'PY_SEEDED'
+import json
+import sys
+report = json.load(open(sys.argv[1]))
+assert {'route': '/gamma'} in report['seededRoutes'], report['seededRoutes']
+assert '/gamma' in report['visitedRoutes']
+assert '/gamma' not in report['locations']
+PY_SEEDED
+    then
+        pass 'browser delta: discovery requests and covers the unlinked page, and the scope keeps it from the passes'
+    else
+        fail 'browser delta: discovery requests and covers the unlinked page, and the scope keeps it from the passes' \
+            'discovery.json does not record /gamma as a swept seed outside the scoped locations'
+    fi
 
     for contract in engine-webgl settle-fonts server-lifecycle; do
         if (cd "${repository}/airness-node" && "${node_home}/bin/node" "scripts/browser/${contract}.ts") > "${scratch}/browser-${contract}.log" 2>&1; then

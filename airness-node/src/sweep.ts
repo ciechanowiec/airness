@@ -26,6 +26,7 @@ import { writeJson } from './project.js'
 import { projectDirectory, projectSettings } from './project-settings.js'
 import { completedScanRoutes } from './scan-evidence.js'
 import { SCROLLING_RULES } from './scroll-policy.js'
+import { type SeededRoute, seedAnswersOf, seededCoverageLines } from './sweep-seeds.js'
 import {
   type Discovery,
   type DiscoveryReport,
@@ -129,6 +130,7 @@ const NO_DISCOVERY_REPORT: DiscoveryReport = {
   visitedRoutes: [],
   answeredRoutes: [],
   fragmentRoutes: [],
+  seededRoutes: [],
   findings: [],
   problems: [],
   places: 0,
@@ -137,8 +139,15 @@ const NO_DISCOVERY_REPORT: DiscoveryReport = {
   scope: { isScoped: false, lines: [] },
 }
 
+// How many of the visit's routes only the route inventory led to, which the lines below the count then name.
+const seededText = (report: DiscoveryReport): string => {
+  const swept: number = report.seededRoutes.filter((seed: SeededRoute): boolean => seed.answer === undefined).length
+  return swept === 0 ? '' : ` (${String(swept)} seeded from the route inventory)`
+}
+
 const discoveryText = (discovery: Discovery, report: DiscoveryReport): string =>
-  `discovery (${CHROMIUM}): ${String(discovery.routes.length)} routes, ${String(discovery.stories.length)} stories, ` +
+  `discovery (${CHROMIUM}): ${String(discovery.routes.length)} routes${seededText(report)}, ` +
+  `${String(discovery.stories.length)} stories, ` +
   `${String(discovery.samples.length)} templates, ${String(report.findings.length)} findings, ` +
   `${String(Math.round(report.elapsedMs / MS_PER_SECOND))}s`
 
@@ -179,6 +188,7 @@ const visitorCoverage = (record: SweepRecord): readonly string[] =>
   [
     ...(record.discoveryReport ?? NO_DISCOVERY_REPORT).scope.lines.map((line: string): string => `scope: ${line}`),
     discoveryText(record.discovery ?? NOTHING_DISCOVERED, record.discoveryReport ?? NO_DISCOVERY_REPORT),
+    ...seededCoverageLines(record.discoveryReport?.seededRoutes ?? []),
     ...(record.discovery?.samples ?? []).map(
       (sample: TemplateSample): string =>
         `  template ${sample.template}: sampled by ${sample.route} (${String(sample.routes)} routes)`,
@@ -265,12 +275,18 @@ const routesOf = (
 // A route either visitor reached is covered: the signed-in visit judged it with every pass as the anonymous
 // one judges a public page.
 const coverageProblems = (records: readonly SweepRecord[], info: TestInfo): readonly string[] =>
-  unsweptRoutes(
-    routesOf(records, (report: DiscoveryReport): readonly string[] => report.visitedRoutes),
-    routesOf(records, (report: DiscoveryReport): readonly string[] => report.answeredRoutes),
-    completedScanRoutes(info.project.outputDir, new URL(projectSettings.serverUrl).origin),
-    routesOf(records, (report: DiscoveryReport): readonly string[] => report.fragmentRoutes),
-  )
+  unsweptRoutes({
+    visitedRoutes: routesOf(records, (report: DiscoveryReport): readonly string[] => report.visitedRoutes),
+    answeredRoutes: routesOf(records, (report: DiscoveryReport): readonly string[] => report.answeredRoutes),
+    completedRoutes: completedScanRoutes(info.project.outputDir, new URL(projectSettings.serverUrl).origin),
+    fragmentRoutes: routesOf(records, (report: DiscoveryReport): readonly string[] => report.fragmentRoutes),
+    seedAnswers: seedAnswersOf(
+      records.map((record: SweepRecord) => ({
+        visitor: record.visitor,
+        seeded: record.discoveryReport?.seededRoutes ?? [],
+      })),
+    ),
+  })
 
 const probeStatus = async (context: APIRequestContext, probe: string): Promise<number | undefined> => {
   try {
@@ -355,6 +371,11 @@ export const expectSweepSummary = async (): Promise<void> => {
     ]),
     problems,
     scope: records[0]?.discoveryReport?.scope,
+    seeded: records.flatMap((record: SweepRecord): readonly Readonly<Record<string, unknown>>[] =>
+      (record.discoveryReport?.seededRoutes ?? []).map(
+        (seed: SeededRoute): Readonly<Record<string, unknown>> => ({ visitor: record.visitor, ...seed }),
+      ),
+    ),
     passes: passEntries(records),
     missing,
   })

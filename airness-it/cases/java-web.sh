@@ -3,8 +3,9 @@
 # A Spring MVC and Thymeleaf application is swept by the same installed browser harness a Node application is.
 # Its frontend tooling project is the module itself: a package.json beside the pom, holding only the stylesheet
 # the application serves, whose serve script launches the artifact this invocation packaged. The route
-# inventory comes from the startup test's Spring evidence, so a page nothing links to, and a protected page
-# answered by the sign-in page, are both reported rather than passed over. Once the module holds a sign-in
+# inventory comes from the startup test's Spring evidence, so discovery requests a page nothing links to and
+# sweeps it, while a protected page answered by the sign-in page is reported rather than passed over, and the
+# htmx fragment the home page requests is not requested again as a page. Once the module holds a sign-in
 # setup, the sweep visits it signed in as well, and reaches the protected page itself; the account page links to
 # an address that signs out on a GET, which the signed-in crawl stops at and names.
 #
@@ -430,10 +431,14 @@ run_java_web_cases() {
     sweep_java_web java_web_uncovered
     expect_exit java_web_uncovered 'java web: uncovered inventory routes fail the sweep' 1
     expect_match java_web_uncovered 'java web: the sweep starts the packaged Java application' '\[airness-sweep\]'
-    expect_match java_web_uncovered 'java web: a route no page links to is reported from the inventory' \
+    expect_no_match java_web_uncovered 'java web: discovery requests a route no page links to from the inventory' \
         'Pages#hidden \[route-unswept\]'
+    expect_file_match "${java_web}/node_modules/.airness/e2e/test-results/airness-sweep/coverage.txt" \
+        'java web: the coverage summary names the route discovery requested from the inventory' '^  seeded: /hidden$'
     expect_match java_web_uncovered 'java web: a protected route answered by the sign-in page is not covered' \
         'Pages#account \[route-unswept\]'
+    expect_file_no_match "${java_web}/node_modules/.airness/e2e/test-results/airness-sweep/coverage.txt" \
+        'java web: the htmx fragment is not requested again as a page' 'seeded: /fragment/row'
     expect_no_match java_web_uncovered 'java web: a JSON endpoint is not an HTML route' 'route-unswept.*/api/status'
     expect_no_match java_web_uncovered 'java web: an htmx fragment the home page requests is covered' \
         'route-unswept.*/fragment/row'

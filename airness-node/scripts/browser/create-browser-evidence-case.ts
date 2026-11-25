@@ -61,7 +61,9 @@ export default function Page() {
 }
 `,
 )
-writePage('private', 'export default function Page() { return <h1>Unlinked account</h1> }')
+// A route with a variable, which discovery cannot request from the route inventory, so only the project's own
+// scan reaches it, and its evidence is what the completed-scan contract judges.
+writePage('private/[account]', 'export default function Page() { return <h1>Unlinked account</h1> }')
 writePage(
   'pointer',
   `"use client"
@@ -105,6 +107,10 @@ Read details</button>
   </dialog>, document.body)}</section>
 }`,
 )
+// The generated specification builds its address with a template placeholder, which a string here can only hold
+// assembled from its halves, or it reads as a placeholder this script forgot to interpolate.
+const DOLLAR: string = '$'
+const HOLE: string = `${DOLLAR}{`
 const specifications: string = path.join(directory, 'tests/e2e')
 mkdirSync(specifications, { recursive: true })
 writeFileSync(
@@ -113,7 +119,8 @@ writeFileSync(
 import { test, expect } from '@playwright/test'
 import { expectSweptPage } from '@airness/node/a11y'
 test('scans the account', async ({ page }) => {
-  await page.goto(${mode === 'valid' ? "['/pri', 'vate'].join('')" : "'/private'"})
+  const account: string = 'visitor'
+  await page.goto(${mode === 'valid' ? "['/pri', 'vate', '/', account].join('')" : `\`/private/${HOLE}account}\``})
   await expect(page.getByRole('heading', { name: 'Unlinked account' })).toBeVisible()
   if (process.env['AIRNESS_FIXTURE_SCAN'] !== 'no') await expectSweptPage(page)
 })
