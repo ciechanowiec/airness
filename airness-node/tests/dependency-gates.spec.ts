@@ -172,6 +172,14 @@ describe('install-scripts', PROCESS_TIME, () => {
   })
 })
 
+// What the inventory records of a package a member declares among its development dependencies alone.
+const DEVELOPMENT: Readonly<Record<string, unknown>> = {
+  direct: true,
+  installed: true,
+  production: false,
+  notices: {},
+}
+
 describe('npm-inventory', PROCESS_TIME, () => {
   it('writes the inventory of every resolved package beside the result and lists it as evidence', async () => {
     await withProject({ 'pnpm-lock.yaml': LOCKFILE }, (root: string): void => {
@@ -179,10 +187,10 @@ describe('npm-inventory', PROCESS_TIME, () => {
       const result: GateResult = npmInventory(memberAt(root), { evidenceDirectory: root })
       expect(result.evidence).toEqual(['dependencies.json'])
       expect(JSON.parse(readFileSync(path.join(root, 'dependencies.json'), 'utf8'))).toEqual({
-        contract: 1,
+        contract: 2,
         packages: [
-          { name: '@airness/node', version: '2.0.0', license: 'MIT-0', direct: true, installed: true },
-          { name: 'aged', version: '1.0.0', license: 'MIT', direct: true, installed: true },
+          { name: '@airness/node', version: '2.0.0', license: 'MIT-0', ...DEVELOPMENT },
+          { name: 'aged', version: '1.0.0', license: 'MIT', ...DEVELOPMENT },
         ],
       })
       expect(npmInventory(memberAt(root), { evidenceDirectory: undefined }).evidence).toBeUndefined()

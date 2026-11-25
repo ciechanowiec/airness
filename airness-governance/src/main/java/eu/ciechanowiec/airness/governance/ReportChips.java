@@ -1,6 +1,5 @@
 package eu.ciechanowiec.airness.governance;
 
-import java.util.Locale;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -9,9 +8,8 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class ReportChips {
 
-    static String severityChip(String severity) {
-        String level = ReportMarkup.escape(severity.toLowerCase(Locale.ROOT));
-        return "<span class=\"sev sev-" + level + "\">" + level + "</span>";
+    static String severityChip(ReportSeverity severity) {
+        return "<span class=\"sev sev-" + severity.key() + "\">" + severity.label() + "</span>";
     }
 
     static String classChip(LicenseClass classification) {

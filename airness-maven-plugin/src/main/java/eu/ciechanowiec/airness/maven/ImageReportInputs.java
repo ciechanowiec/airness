@@ -5,6 +5,7 @@ import eu.ciechanowiec.airness.governance.BaseReleases;
 import eu.ciechanowiec.airness.governance.DockerfileBase;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.ReportAdvisory;
+import eu.ciechanowiec.airness.governance.ReportImagePackage;
 import eu.ciechanowiec.airness.governance.Repository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -35,10 +37,12 @@ import org.apache.maven.project.MavenProject;
  * @param language  the language findings of each node project's images, by the node project's directory, which the
  *                  node project's allowlist mitigates beside its npm findings
  * @param repairs   the repairs, each printed while a finding it answers is open
+ * @param packages  every package the images hold, for the report's inventory
+ * @param listers   the tools that listed the images, such as {@code Trivy 0.60.0}
  */
 record ImageReportInputs(
     List<JsonNode> documents, List<ReportAdvisory> system, Map<Path, List<OsvAdvisory>> language,
-    List<ImageRepair> repairs
+    List<ImageRepair> repairs, List<ReportImagePackage> packages, List<String> listers
 ) {
 
     private static final Pattern DOCKERFILE = Pattern.compile("^(?:Dockerfile(?:\\..+)?|.+\\.[Dd]ockerfile)$");
@@ -48,6 +52,8 @@ record ImageReportInputs(
         system = List.copyOf(system);
         language = Map.copyOf(language);
         repairs = List.copyOf(repairs);
+        packages = List.copyOf(packages);
+        listers = List.copyOf(listers);
     }
 
     /**
@@ -73,7 +79,9 @@ record ImageReportInputs(
                     )
                 )
             ),
-            judged.stream().flatMap(entry -> entry.verdict().repairs().stream()).toList()
+            judged.stream().flatMap(entry -> entry.verdict().repairs().stream()).toList(),
+            judged.stream().flatMap(entry -> entry.packages().stream()).toList(),
+            judged.stream().flatMap(entry -> entry.lister().stream()).distinct().sorted().toList()
         );
     }
 
@@ -127,9 +135,43 @@ record ImageReportInputs(
             .map(ImageReportInputs::unlisted).toList();
     }
 
+    /**
+     * Names an image for a reader: the Dockerfile that built it, beneath its node project, and the distribution it is
+     * built on.
+     *
+     * @param key        the node project's key, {@code .} for the module itself
+     * @param dockerfile the Dockerfile, relative to the node project
+     * @param inventory  what the image holds
+     * @return such as {@code web/Dockerfile, on Alpine 3.24.4}
+     */
+    static String image(String key, String dockerfile, ImageInventory inventory) {
+        String path = ".".equals(key) ? dockerfile : key + '/' + dockerfile;
+        return inventory.distribution().isEmpty() ? path
+            : path + ", on " + inventory.distributionName() + ' ' + inventory.release();
+    }
+
+    /**
+     * The tool that listed an image, as its document names it. CycloneDX 1.5 lists the tools that wrote a document
+     * as components, and earlier versions as a plain list.
+     *
+     * @param sbom the image's document
+     * @return such as {@code Trivy 0.60.0}, or empty when the document names no tool
+     */
+    static Optional<String> lister(JsonNode sbom) {
+        JsonNode tools = sbom.path("metadata").path("tools");
+        JsonNode listed = tools.isArray() ? tools : tools.path("components");
+        return listed.valueStream().filter(tool -> !tool.path("name").asText().isBlank()).findFirst().map(
+            tool -> (capitalized(tool.path("name").asText()) + ' ' + tool.path("version").asText()).strip()
+        );
+    }
+
+    private static String capitalized(String name) {
+        return name.substring(0, 1).toUpperCase(Locale.ROOT) + name.substring(1);
+    }
+
     private static String unlisted(NpmEvidence node) {
-        return node.subject() + " holds a Dockerfile whose image the image gate did not list, so what the image ships"
-            + " was not checked.";
+        String place = ".".equals(node.key()) ? "the repository root" : node.key();
+        return "Container image not scanned: the image the Dockerfile in " + place + " builds isn't covered.";
     }
 
     // Whether a Dockerfile a commit would carry lies under the node project. Where Git cannot say, nothing is read,
@@ -140,19 +182,27 @@ record ImageReportInputs(
     }
 
     /**
-     * One image judged: the node project that built it, its document and its verdict.
+     * One image judged: the node project that built it, its document, its verdict, and what it holds.
      *
      * @param directory the node project's directory
      * @param document  the image's document for the aggregate SBOM
      * @param verdict   the verdict
+     * @param packages  every package the image holds
+     * @param lister    the tool that listed the image, when its document names one
      */
-    private record Judged(Path directory, JsonNode document, ImageVerdict verdict) {
+    private record Judged(
+        Path directory, JsonNode document, ImageVerdict verdict, List<ReportImagePackage> packages,
+        Optional<String> lister
+    ) {
 
         static Judged of(String module, NpmEvidence node, ImageEvidence evidence, ImageLookups lookups) {
             ImageInventory inventory = ImageInventory.of(evidence.sbom());
+            String image = image(node.key(), evidence.dockerfile(), inventory);
             return new Judged(
                 node.directory(), ImageSbom.document(module, evidence, inventory),
-                verdict(module, evidence, inventory, lookups)
+                verdict(module, evidence, inventory, lookups), inventory.packages().stream().map(
+                    entry -> new ReportImagePackage(image, entry.purl(), entry.licenses(), entry.system())
+                ).toList(), ImageReportInputs.lister(evidence.sbom())
             );
         }
 

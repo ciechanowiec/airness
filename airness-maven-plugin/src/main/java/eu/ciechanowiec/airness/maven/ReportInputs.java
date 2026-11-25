@@ -24,6 +24,11 @@ import org.apache.maven.project.MavenProject;
  */
 final class ReportInputs {
 
+    /**
+     * The evidence key, and the provenance fact, under which the tools that listed the shipped images are named.
+     */
+    static final String IMAGE_LISTER = "Image package lister";
+
     private final Instant started;
     private final OsvScan osv;
     private final Function<MavenProject, ImageReportInputs> images;
@@ -75,15 +80,15 @@ final class ReportInputs {
         String documents = ReportJson.encode(
             Stream.concat(ReportJson.parse(npm.documents()).valueStream(), shipped.documents().stream()).toList()
         );
-        return new ReportModule(
-            project.getId(), packages, all, Map.of(
-                "SBOM", sbom,
-                "SBOM SHA-256", ReportJson.hash(sbom), "Scanner SHA-256", ReportJson.hash(Files.readString(scan)),
-                "Scan date", ReportJson.read(scan).path("projectInfo").path("reportDate").asText(),
-                "Graph", ReportJson.encode(npm.graph(this.graph(project, build))),
-                NpmReportInputs.DOCUMENTS, documents
-            ), shipped.needed(all)
+        // The tools that listed the shipped images, empty for a module that ships none.
+        Map<String, String> evidence = Map.of(
+            "SBOM", sbom,
+            "SBOM SHA-256", ReportJson.hash(sbom), "Scanner SHA-256", ReportJson.hash(Files.readString(scan)),
+            "Scan date", ReportJson.read(scan).path("projectInfo").path("reportDate").asText(),
+            "Graph", ReportJson.encode(npm.graph(this.graph(project, build))),
+            NpmReportInputs.DOCUMENTS, documents, IMAGE_LISTER, String.join(", ", shipped.listers())
         );
+        return new ReportModule(project.getId(), packages, all, evidence, shipped.needed(all), shipped.packages());
     }
 
     private Map<String, List<String>> graph(MavenProject project, Path build) {

@@ -63,6 +63,17 @@ final class ReportMarkup {
         return "<code>" + escape(text) + "</code>";
     }
 
+    /**
+     * A package name that may break after its separators, such as the colon of a Maven coordinate or the slash of a
+     * scoped npm name, rather than inside a word.
+     *
+     * @param text the name
+     * @return the escaped name with break opportunities after each separator
+     */
+    static String breakable(String text) {
+        return escape(text).replaceAll("(?<=\\S)([:/@]|\\.(?=\\p{L}))(?=\\S)", "$1<wbr>");
+    }
+
     static String nowrap(String html) {
         return "<span class=\"nowrap\">" + html + "</span>";
     }
@@ -94,13 +105,44 @@ final class ReportMarkup {
      * @return the table markup
      */
     static String table(Collection<String> headings, List<String> rows, String empty) {
+        return table(headings, List.of(), rows, empty);
+    }
+
+    /**
+     * A ruled table with fixed column widths, or a sentence saying it would be empty. Fixed widths keep a column
+     * of short values, such as license identifiers, from being squeezed by a column of long ones.
+     *
+     * @param headings the column headings
+     * @param widths   each column's share of the width in percent, or empty to let the content decide
+     * @param rows     the rendered rows
+     * @param empty    what to say when there are no rows
+     * @return the table markup
+     */
+    static String table(Collection<String> headings, List<Integer> widths, List<String> rows, String empty) {
         if (rows.isEmpty()) {
             return empty(empty);
         }
+        return "<div class=\"table-wrap\">" + tableStart(headings, widths, "") + String.join("", rows)
+            + "</tbody></table></div>";
+    }
+
+    /**
+     * The opening of a ruled table up to its body: the column widths and the header, which repeats on every printed
+     * page the table spans.
+     *
+     * @param headings   the column headings
+     * @param widths     each column's share of the width in percent, or empty to let the content decide
+     * @param attributes further attributes of the table element, already rendered, such as an identifier
+     * @return the opening markup
+     */
+    static String tableStart(Collection<String> headings, List<Integer> widths, String attributes) {
+        String columns = widths.isEmpty() ? "" : "<colgroup>" + widths.stream()
+            .map(width -> "<col style=\"width:" + width + "%\">").collect(Collectors.joining()) + "</colgroup>";
         String header = headings.stream().map(heading -> "<th scope=\"col\">" + escape(heading) + "</th>")
             .collect(Collectors.joining());
-        return "<div class=\"table-wrap\"><table class=\"tableblock\"><thead><tr>" + header
-            + "</tr></thead><tbody>" + String.join("", rows) + "</tbody></table></div>";
+        String layout = widths.isEmpty() ? "tableblock" : "tableblock fixed";
+        return "<table class=\"" + layout + "\"" + attributes + ">" + columns + "<thead><tr>" + header
+            + "</tr></thead><tbody>";
     }
 
     /**

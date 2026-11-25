@@ -58,7 +58,7 @@ record NpmMitigation(String packageName, String identity, ReportMitigation mitig
     ReportAdvisory apply(ReportAdvisory advisory) {
         return new ReportAdvisory(
             advisory.identity(), advisory.severity(), advisory.artifact(), advisory.modules(), advisory.description(),
-            Optional.of(this.mitigation)
+            Optional.of(this.mitigation), advisory.aliases()
         );
     }
 

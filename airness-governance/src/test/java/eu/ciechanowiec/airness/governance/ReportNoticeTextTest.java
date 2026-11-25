@@ -40,7 +40,7 @@ class ReportNoticeTextTest {
     }
 
     @Test
-    void drawsHeadingsAndRulesAndSetsAddressesFlushLeft() {
+    void drawsHeadingsAndRulesAndLetAddressesBreakAtTheirSeparators() {
         String html = ReportNoticeText.render(
             ReportNoticeText.reflow(
                 """
@@ -48,7 +48,7 @@ class ReportNoticeTextTest {
                     ---
                     Plain words <b>stay</b> text.
 
-                    See https://example.com/licenses/plain-text-license for details.
+                    See https://example.com/licenses/plain-text-license, or wiki.example.org/Considerations.
 
                     Justified prose.
                     """
@@ -56,7 +56,13 @@ class ReportNoticeTextTest {
         );
         assertTrue(html.contains("<div class=\"license-entry\"><p class=\"license-heading\">first-library</p><hr>"));
         assertTrue(html.contains("<p>Plain words &lt;b&gt;stay&lt;/b&gt; text.</p></div>"));
-        assertTrue(html.contains("<p class=\"ragged\">See https://example.com/licenses/plain-text-license"));
+        assertTrue(
+            html.contains(
+                "<p>See <span class=\"url\">https:<wbr>/<wbr>/<wbr>example.<wbr>com/<wbr>licenses/<wbr>plain-text-license"
+                    + "</span>, or <span class=\"url\">wiki.<wbr>example.<wbr>org/<wbr>Considerations</span>.</p>"
+            ),
+            html
+        );
         assertTrue(html.contains("<p>Justified prose.</p>"));
     }
 

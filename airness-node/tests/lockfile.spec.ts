@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { type Lockfile, lockfileDefect, type ResolvedPackage, readLockfile, splitPackageKey } from '@/lockfile.js'
+import {
+  type Lockfile,
+  lockfileDefect,
+  productionKeys,
+  type ResolvedPackage,
+  readLockfile,
+  splitPackageKey,
+} from '@/lockfile.js'
 
 const LOCKFILE: string = [
   "lockfileVersion: '9.0'",
@@ -34,6 +41,57 @@ const LOCKFILE: string = [
   '',
 ].join('\n')
 
+// A workspace whose members declare production, optional and development dependencies, one through a link.
+const WORKSPACE: string = [
+  "lockfileVersion: '9.0'",
+  'importers:',
+  '  .:',
+  '    devDependencies:',
+  '      linter:',
+  '        specifier: 1.0.0',
+  '        version: 1.0.0',
+  '      shared:',
+  '        specifier: 1.0.0',
+  '        version: 1.0.0',
+  '  app:',
+  '    dependencies:',
+  '      framework:',
+  '        specifier: 2.0.0',
+  '        version: 2.0.0(peer@3.0.0)',
+  '      sibling:',
+  '        specifier: link:../lib',
+  '        version: link:../lib',
+  '    optionalDependencies:',
+  '      accelerator:',
+  '        specifier: 1.0.0',
+  '        version: 1.0.0',
+  '  lib:',
+  '    dependencies:',
+  '      shared:',
+  '        specifier: 1.0.0',
+  '        version: 1.0.0',
+  'packages:',
+  '  linter@1.0.0:',
+  '    resolution: {integrity: sha512-a}',
+  'snapshots:',
+  '  linter@1.0.0:',
+  '    dependencies:',
+  '      parser: 1.0.0',
+  '  parser@1.0.0: {}',
+  '  framework@2.0.0(peer@3.0.0):',
+  '    dependencies:',
+  '      runtime: 1.0.0',
+  '      peer: 3.0.0',
+  '  runtime@1.0.0:',
+  '    optionalDependencies:',
+  '      binding: 1.0.0',
+  '  binding@1.0.0: {}',
+  '  peer@3.0.0: {}',
+  '  accelerator@1.0.0: {}',
+  '  shared@1.0.0: {}',
+  '',
+].join('\n')
+
 describe('the lockfile', () => {
   it('splits a scoped key on its last at sign and drops the peers', () => {
     expect(splitPackageKey('@airness/node@2.0.0')).toEqual({ name: '@airness/node', version: '2.0.0' })
@@ -44,11 +102,11 @@ describe('the lockfile', () => {
   it('reads each importer with the version it resolved, without peers', () => {
     const read: Lockfile | undefined = readLockfile(LOCKFILE)
     expect(read?.importers.get('.')).toEqual([
-      { name: '@airness/node', specifier: '2.0.0', version: '2.0.0' },
-      { name: 'vitest', specifier: '5.0.5', version: '5.0.5' },
+      { name: '@airness/node', specifier: '2.0.0', version: '2.0.0', block: 'devDependencies' },
+      { name: 'vitest', specifier: '5.0.5', version: '5.0.5', block: 'devDependencies' },
     ])
     expect(read?.importers.get('gate')).toEqual([
-      { name: 'local', specifier: 'link:../local', version: 'link:../local' },
+      { name: 'local', specifier: 'link:../local', version: 'link:../local', block: 'dependencies' },
     ])
   })
 
@@ -125,5 +183,18 @@ describe('the lockfile', () => {
     expect(lockfileDefect(undefined)).toBe('pnpm-lock.yaml is missing; run pnpm install to write it')
     expect(lockfileDefect('lockfileVersion: 9\n')).toContain('pnpm-lock.yaml is unreadable')
     expect(lockfileDefect('importers: [\n')).toContain('pnpm-lock.yaml is unreadable')
+  })
+
+  it('counts as production what member dependencies and optional dependencies reach, and nothing else', () => {
+    const read: Lockfile | undefined = readLockfile(WORKSPACE)
+    expect(read?.importers.get('app')?.map((dependency) => dependency.block)).toEqual([
+      'dependencies',
+      'dependencies',
+      'optionalDependencies',
+    ])
+    expect(read?.productionRoots).toEqual(['framework@2.0.0(peer@3.0.0)', 'accelerator@1.0.0', 'shared@1.0.0'])
+    expect(read === undefined ? undefined : productionKeys(read)).toEqual(
+      new Set(['accelerator@1.0.0', 'binding@1.0.0', 'framework@2.0.0', 'peer@3.0.0', 'runtime@1.0.0', 'shared@1.0.0']),
+    )
   })
 })

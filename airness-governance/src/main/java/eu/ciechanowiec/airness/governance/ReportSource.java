@@ -16,7 +16,7 @@ public record ReportSource(String commit, String fingerprint, String generatedAt
     /**
      * The draft reason a working tree with uncommitted changes carries.
      */
-    public static final String DIRTY = "The working tree has uncommitted changes, so no commit describes this source.";
+    public static final String DIRTY = "Uncommitted changes: no commit describes exactly what this report covers.";
 
     public ReportSource {
         draftReasons = List.copyOf(draftReasons);

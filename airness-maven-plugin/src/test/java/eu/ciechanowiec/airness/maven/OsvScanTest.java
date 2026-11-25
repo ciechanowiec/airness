@@ -20,11 +20,12 @@ class OsvScanTest {
 
     private static final String KIT = "pkg:npm/%40scope/kit@2.0.0";
     private static final String MODULE = "web";
+    private static final String ROOT = "/";
 
     @Test
     void reportsEveryAdvisoryButAWithdrawnOne() {
         try (ArchiveServer server = NpmFixture.osv()) {
-            List<ReportAdvisory> advisories = OsvScan.of(server.uri("/").toString()).findings(
+            List<ReportAdvisory> advisories = OsvScan.of(server.uri(ROOT).toString()).findings(
                 List.of("pkg:npm/left-pad@1.3.0", KIT, "pkg:npm/%40esbuild/linux-x64@0.25.0", KIT), MODULE
             ).stream().map(OsvAdvisory::advisory).toList();
             assertEquals(1, advisories.size());
@@ -40,11 +41,35 @@ class OsvScanTest {
     void readsTheDetailsWhenAnAdvisoryHasNoSummaryOrSeverity() {
         try (ArchiveServer server = new ArchiveServer()) {
             server.serve("/v1/querybatch", bytes("{\"results\": [{\"vulns\": [{\"id\": \"OSV-1\"}]}]}"));
-            server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"details\": \"First line.\\nSecond.\"}"));
-            ReportAdvisory advisory = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), MODULE).getFirst()
+            server.serve(
+                "/v1/vulns/OSV-1",
+                bytes(
+                    "{\"id\": \"OSV-1\", \"details\":"
+                        + " \"Issue summary: The first sentence wraps\\nacross lines.\\nSecond.\"}"
+                )
+            );
+            ReportAdvisory advisory = OsvScan.of(server.uri(ROOT).toString()).findings(List.of(KIT), MODULE).getFirst()
                 .advisory();
-            assertEquals("First line.", advisory.description());
+            assertEquals("The first sentence wraps across lines. Second.", advisory.description());
             assertEquals("Unknown", advisory.severity());
+        }
+    }
+
+    @Test
+    void ratesAnAdvisoryThatPublishesOnlyAVectorAndKeepsTheCveItAnswers() {
+        try (ArchiveServer server = new ArchiveServer()) {
+            server.serve("/v1/querybatch", bytes("{\"results\": [{\"vulns\": [{\"id\": \"ALPINE-CVE-2026-2\"}]}]}"));
+            server.serve(
+                "/v1/vulns/ALPINE-CVE-2026-2", bytes(
+                    "{\"id\": \"ALPINE-CVE-2026-2\", \"upstream\": [\"CVE-2026-2\"], \"details\": \"A defect.\","
+                        + " \"severity\": [{\"type\": \"CVSS_V3\","
+                        + " \"score\": \"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N\"}]}"
+                )
+            );
+            ReportAdvisory advisory = OsvScan.of(server.uri(ROOT).toString()).findings(List.of(KIT), MODULE).getFirst()
+                .advisory();
+            assertEquals("HIGH", advisory.severity());
+            assertEquals(List.of("CVE-2026-2"), advisory.aliases());
         }
     }
 
@@ -62,7 +87,7 @@ class OsvScanTest {
                         + " {\"fixed\": \"3.0.13-0ubuntu3.5\"}]}]}]}"
                 )
             );
-            OsvAdvisory finding = OsvScan.of(server.uri("/").toString()).findingsOf(
+            OsvAdvisory finding = OsvScan.of(server.uri(ROOT).toString()).findingsOf(
                 List.of(OsvQuery.system(artifact, "Ubuntu:24.04:LTS", "openssl", "3.0.13-0ubuntu3")), MODULE
             ).getFirst();
             assertAll(
@@ -95,7 +120,7 @@ class OsvScanTest {
             );
             server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"summary\": \"First\"}"));
             server.serve("/v1/vulns/OSV-2", bytes("{\"id\": \"OSV-2\", \"summary\": \"Second\"}"));
-            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT), MODULE).stream()
+            List<String> found = OsvScan.of(server.uri(ROOT).toString()).findings(List.of(KIT), MODULE).stream()
                 .map(advisory -> advisory.advisory().description()).sorted().toList();
             assertEquals(
                 List.of("First", "Second"), found,
@@ -122,7 +147,7 @@ class OsvScanTest {
             );
             server.serve("/v1/vulns/OSV-1", bytes("{\"id\": \"OSV-1\", \"summary\": \"First\"}"));
             server.serve("/v1/vulns/OSV-2", bytes("{\"id\": \"OSV-2\", \"summary\": \"Second\"}"));
-            List<String> found = OsvScan.of(server.uri("/").toString()).findings(List.of(KIT, other), MODULE).stream()
+            List<String> found = OsvScan.of(server.uri(ROOT).toString()).findings(List.of(KIT, other), MODULE).stream()
                 .map(advisory -> advisory.advisory().artifact() + " " + advisory.advisory().description()).sorted()
                 .toList();
             assertEquals(List.of(KIT + " Second", other + " First"), found);
@@ -137,7 +162,7 @@ class OsvScanTest {
         );
         assertTrue(Objects.requireNonNull(unreachable.getMessage()).contains("rather than passing without it"));
         try (ArchiveServer server = new ArchiveServer()) {
-            String base = server.uri("/").toString();
+            String base = server.uri(ROOT).toString();
             assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), MODULE));
             server.serve("/v1/querybatch", bytes("{\"results\": []}"));
             assertThrows(IllegalStateException.class, () -> OsvScan.of(base).findings(List.of(KIT), MODULE));

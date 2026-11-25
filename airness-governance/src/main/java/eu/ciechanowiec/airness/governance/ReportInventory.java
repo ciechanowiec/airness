@@ -1,7 +1,7 @@
 package eu.ciechanowiec.airness.governance;
 
+import java.util.Comparator;
 import java.util.List;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -12,18 +12,32 @@ import java.util.stream.Stream;
  * @param packages   resolved artifact versions
  * @param advisories all scanner findings, including mitigated findings
  * @param policy     the license policy the build enforces
+ * @param images     the packages the shipped container images hold, which the policy doesn't judge
  */
 public record ReportInventory(
     List<ReportPackage> packages, List<ReportAdvisory> advisories,
-    ReportLicensePolicy policy
+    ReportLicensePolicy policy, List<ReportImagePackage> images
 ) {
 
     private static final Pattern PACKAGE_URL = Pattern.compile("^pkg:maven/([^/]+)/([^@]+)@([^?]+)");
-    private static final String NPM_PACKAGE = "pkg:npm/";
+    private static final String PRODUCTION = "Production";
+    private static final List<String> SYSTEM_PACKAGES = List.of("pkg:apk/", "pkg:deb/", "pkg:rpm/");
 
     public ReportInventory {
         packages = List.copyOf(packages);
         advisories = List.copyOf(advisories.stream().sorted(ReportAdvisory.TRIAGE).toList());
+        images = List.copyOf(images);
+    }
+
+    /**
+     * The evidence of a build that ships no container image.
+     *
+     * @param packages   resolved artifact versions
+     * @param advisories all scanner findings, including mitigated findings
+     * @param policy     the license policy the build enforces
+     */
+    public ReportInventory(List<ReportPackage> packages, List<ReportAdvisory> advisories, ReportLicensePolicy policy) {
+        this(packages, advisories, policy, List.of());
     }
 
     /**
@@ -59,12 +73,21 @@ public record ReportInventory(
     }
 
     /**
+     * The container image findings no release of the image can fix yet, which the build accepts until one can.
+     *
+     * @return advisories awaiting a fix, most severe first
+     */
+    public List<ReportAdvisory> awaitingFix() {
+        return this.advisories.stream().filter(ReportAdvisory::awaitingFix).toList();
+    }
+
+    /**
      * The advisories a recorded mitigation covers.
      *
      * @return mitigated advisories, most severe first
      */
     public List<ReportAdvisory> mitigated() {
-        return this.advisories.stream().filter(advisory -> !advisory.open()).toList();
+        return this.advisories.stream().filter(ReportAdvisory::mitigated).toList();
     }
 
     /**
@@ -88,26 +111,46 @@ public record ReportInventory(
     }
 
     /**
-     * The scope a reviewer reads an advisory under. A Maven artifact is in production when the production classpath
-     * of any module carries that version, and in development otherwise. An npm package is labelled as such, because
-     * the npm evidence does not tell production use from development use, and any other artifact, such as a file
-     * name, has no scope the evidence determines.
+     * The use a reviewer reads an advisory under, worded as the inventory words the affected package's use, so one
+     * package never reads as two. A package several uses reach lists each, the production use first. A system
+     * package belongs to a container image the build ships, and any other artifact, such as a file name, has no use
+     * the evidence determines.
      *
      * @param advisory a reported advisory
-     * @return {@code Production}, {@code Development}, {@code npm} or {@code Not determined}
+     * @return the inventory's use labels, {@code Container image} or {@code Not determined}
      */
     public String scope(ReportAdvisory advisory) {
-        Matcher address = PACKAGE_URL.matcher(advisory.artifact());
-        if (address.find()) {
-            return this.production(address) ? "Production" : "Development";
+        String artifact = advisory.artifact();
+        List<String> uses = this.packages.stream().filter(entry -> names(entry, artifact))
+            .flatMap(entry -> entry.uses().stream()).map(ReportUse::label).distinct()
+            .sorted(Comparator.comparing((String label) -> !PRODUCTION.equals(label)).thenComparing(label -> label))
+            .toList();
+        if (!uses.isEmpty()) {
+            return String.join(", ", uses);
         }
-        return advisory.artifact().startsWith(NPM_PACKAGE) ? "npm" : "Not determined";
+        return SYSTEM_PACKAGES.stream().anyMatch(artifact::startsWith) || this.inImage(artifact) ? "Container image"
+            : "Not determined";
     }
 
-    private boolean production(MatchResult address) {
-        String prefix = address.group(1) + ':' + address.group(2) + ':';
-        String suffix = ':' + address.group(3);
-        return this.packages.stream().filter(ReportPackage::production).map(ReportPackage::coordinate)
-            .anyMatch(coordinate -> coordinate.startsWith(prefix) && coordinate.endsWith(suffix));
+    // A Maven package URL names a Maven coordinate in another order, and any other package URL names its package
+    // exactly, apart from qualifiers such as the architecture.
+    private static boolean names(ReportPackage entry, String artifact) {
+        Matcher address = PACKAGE_URL.matcher(artifact);
+        if (address.find()) {
+            String prefix = address.group(1) + ':' + address.group(2) + ':';
+            String suffix = ':' + address.group(3);
+            return entry.coordinate().startsWith(prefix) && entry.coordinate().endsWith(suffix);
+        }
+        return entry.coordinate().equals(withoutQualifiers(artifact));
+    }
+
+    private boolean inImage(String artifact) {
+        String purl = withoutQualifiers(artifact);
+        return this.images.stream().anyMatch(entry -> withoutQualifiers(entry.purl()).equals(purl));
+    }
+
+    private static String withoutQualifiers(String purl) {
+        int qualifiers = purl.indexOf('?');
+        return qualifiers < 0 ? purl : purl.substring(0, qualifiers);
     }
 }

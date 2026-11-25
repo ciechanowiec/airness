@@ -18,6 +18,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +33,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ReportGenerationTest {
+
+    private static final int COMMIT_LENGTH = 40;
 
     private static final int GIT_TIMEOUT = 10;
 
@@ -50,7 +53,7 @@ class ReportGenerationTest {
         ComplianceReport report = generation.write(List.of(module), Optional.empty());
         assertTrue(
             generation.reportOnly().assemble(List.of(module)).draftReasons().stream()
-                .anyMatch(reason -> reason.startsWith("Report-only invocation"))
+                .anyMatch(reason -> reason.startsWith("Checks not run:"))
         );
         Path htmlFile = project.build().resolve("compliance/" + report.fileStem() + ".html");
         String html = Files.readString(htmlFile);
@@ -62,6 +65,29 @@ class ReportGenerationTest {
             ReportJson.hash(report.evidence().sbom()), report.evidence().facts().get("Aggregate SBOM SHA-256")
         );
         assertTrue(Files.size(htmlFile.resolveSibling(report.fileStem() + ".pdf")) > 0);
+    }
+
+    @Test
+    void namesTheToolsThatListedTheShippedImagesOnce() {
+        ReportGeneration generation = new ReportGeneration(
+            new ReportSource("a".repeat(COMMIT_LENGTH), "fingerprint", "2026-10-13T12:00:00Z", List.of()),
+            project(this.repository()), List.of()
+        );
+        Map<String, String> listed = new HashMap<>(module().evidence());
+        listed.put(ReportInputs.IMAGE_LISTER, "Trivy 0.60.0");
+        Map<String, String> none = new HashMap<>(module().evidence());
+        none.put(ReportInputs.IMAGE_LISTER, "");
+        ComplianceReport report = generation.assemble(
+            List.of(
+                new ReportModule("example:root:pom:1", List.of(), List.of(), listed),
+                new ReportModule("example:other:pom:1", List.of(), List.of(), none)
+            )
+        );
+        assertEquals("Trivy 0.60.0", report.evidence().facts().get(ReportInputs.IMAGE_LISTER));
+        ComplianceReport plain = generation.assemble(
+            List.of(new ReportModule("example:root:pom:1", List.of(), List.of(), none))
+        );
+        assertFalse(plain.evidence().facts().containsKey(ReportInputs.IMAGE_LISTER));
     }
 
     @Test
@@ -138,7 +164,7 @@ class ReportGenerationTest {
     private static ReportModule advisoryModule(String name, Optional<ReportMitigation> mitigation) {
         String coordinate = "example:" + name + ":pom:1";
         ReportAdvisory advisory = new ReportAdvisory(
-            "GHSA-0000-0000-0001", "HIGH", "pkg:npm/kit@1.0.0", List.of(coordinate), "A finding.", mitigation
+            "GHSA-0000-0000-0001", "HIGH", "pkg:npm/kit@1.0.0", List.of(coordinate), "A finding.", mitigation, List.of()
         );
         return new ReportModule(coordinate, List.of(), List.of(advisory), module().evidence());
     }
@@ -176,7 +202,11 @@ class ReportGenerationTest {
         ReportSession.begin(data, root);
         ReportGeneration generation = new ReportGeneration(ReportSession.source(data), project(root), List.of());
         ComplianceReport report = generation.qualified(reasons).assemble(List.of(module()));
-        assertTrue(report.draftReasons().stream().anyMatch(reason -> reason.startsWith("Delta verification")));
+        assertTrue(
+            report.draftReasons().stream().anyMatch(
+                reason -> reason.startsWith("Partial browser checks:")
+            )
+        );
     }
 
     @SneakyThrows

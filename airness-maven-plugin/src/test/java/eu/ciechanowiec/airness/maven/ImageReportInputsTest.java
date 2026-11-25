@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import eu.ciechanowiec.airness.governance.Findings;
 import eu.ciechanowiec.airness.governance.ReportAdvisory;
+import eu.ciechanowiec.airness.governance.ReportImagePackage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -81,6 +82,7 @@ class ImageReportInputsTest {
                 () -> assertEquals(List.of(CVE), advisories.stream().map(ReportAdvisory::identity).toList()),
                 () -> assertTrue(advisories.getFirst().open()),
                 () -> assertEquals(1, images.documents().size()),
+                () -> assertListsEveryPackage(images),
                 () -> assertEquals(
                     List.of("GHSA-glob"),
                     Objects.requireNonNull(images.language().get(this.directory.resolve("web"))).stream().map(
@@ -198,7 +200,7 @@ class ImageReportInputsTest {
     @Test
     void namesTheRepairsOfEveryModuleAsOneVerdict() {
         ReportModule shop = new ReportModule(
-            "shop", List.of(), List.of(), Map.of(), List.of("replace FROM a", "replace FROM a")
+            "shop", List.of(), List.of(), Map.of(), List.of("replace FROM a", "replace FROM a"), List.of()
         );
         ReportModule web = new ReportModule("web", List.of(), List.of(), Map.of());
         Findings findings = ImageReportInputs.repairs(List.of(shop, web));
@@ -226,7 +228,9 @@ class ImageReportInputsTest {
         Files.writeString(results.resolve(ImageEvidence.RESULT), "{\"evidence\": []}");
         assertAll(
             () -> assertEquals(1, unlisted.size()),
-            () -> assertTrue(unlisted.getFirst().contains("the image gate did not list"), unlisted.getFirst()),
+            () -> assertTrue(
+                unlisted.getFirst().startsWith("Container image not scanned:"), unlisted.getFirst()
+            ),
             () -> assertEquals(List.of(), ImageReportInputs.qualifications(List.of(project)))
         );
     }
@@ -249,6 +253,17 @@ class ImageReportInputsTest {
         MavenProject project = NpmFixture.module(this.directory, true);
         this.image(sbom, dockerfile);
         return project;
+    }
+
+    private static void assertListsEveryPackage(ImageReportInputs images) {
+        assertTrue(
+            images.packages().stream().allMatch(
+                entry -> entry.image().startsWith("web/Dockerfile, on Alpine " + RELEASE)
+            ),
+            images.packages().toString()
+        );
+        assertTrue(images.packages().stream().anyMatch(ReportImagePackage::system));
+        assertTrue(images.packages().stream().anyMatch(entry -> !entry.system()));
     }
 
     @SneakyThrows

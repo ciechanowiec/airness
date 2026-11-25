@@ -21,16 +21,28 @@ import { memberAt, removeProject, temporaryProject } from './helpers/temporary-p
 const LAYER: string = '@airness/payload'
 
 const SUITE: readonly DirectDependency[] = [
-  { name: 'vitest', specifier: '5.0.5', version: '5.0.5' },
-  { name: '@vitest/coverage-v8', specifier: '5.0.5', version: '5.0.5' },
+  { name: 'vitest', specifier: '5.0.5', version: '5.0.5', block: 'devDependencies' },
+  { name: '@vitest/coverage-v8', specifier: '5.0.5', version: '5.0.5', block: 'devDependencies' },
 ]
 
-const HARNESS: DirectDependency = { name: '@airness/node', specifier: '2.0.0', version: '2.0.0' }
+const HARNESS: DirectDependency = {
+  name: '@airness/node',
+  specifier: '2.0.0',
+  version: '2.0.0',
+  block: 'devDependencies',
+}
 
 const lockfileOf = (
   importers: Readonly<Record<string, readonly DirectDependency[]>>,
   packages: readonly ResolvedPackage[],
-): Lockfile => ({ importers: new Map(Object.entries(importers)), packages, roots: [], edges: new Map(), rewrites: [] })
+): Lockfile => ({
+  importers: new Map(Object.entries(importers)),
+  packages,
+  roots: [],
+  productionRoots: [],
+  edges: new Map(),
+  rewrites: [],
+})
 
 const resolved = (name: string, version: string): ResolvedPackage => ({
   name,
@@ -133,7 +145,7 @@ describe('the wiring of the Payload package', () => {
   })
 
   it('lets airness-payload-node link the package to itself at its own version, and refuses a poser', () => {
-    const self: DirectDependency = { name: LAYER, specifier: 'link:.', version: 'link:.' }
+    const self: DirectDependency = { name: LAYER, specifier: 'link:.', version: 'link:.', block: 'devDependencies' }
     const library: WiringInputs = {
       ...CONSUMER,
       manifest: { name: LAYER, version: '2.0.0-SNAPSHOT' },

@@ -7,7 +7,13 @@ import { asRecord, asText, isRecord } from './json-shapes.js'
 /** The lockfile's name, at the root of the node project. */
 export const LOCKFILE: string = 'pnpm-lock.yaml'
 
-const DEPENDENCY_BLOCKS: readonly string[] = ['dependencies', 'devDependencies', 'optionalDependencies']
+/** The package.json block an importer declares a direct dependency in. */
+export type DependencyBlock = 'dependencies' | 'devDependencies' | 'optionalDependencies'
+
+const DEPENDENCY_BLOCKS: readonly DependencyBlock[] = ['dependencies', 'devDependencies', 'optionalDependencies']
+
+// The blocks whose packages the product runs: a development dependency is installed for the build alone.
+const PRODUCTION_BLOCKS: readonly DependencyBlock[] = ['dependencies', 'optionalDependencies']
 
 /** One direct dependency of an importer. */
 export interface DirectDependency {
@@ -16,6 +22,8 @@ export interface DirectDependency {
   readonly specifier: string
   /** What pnpm resolved, without the peer suffix: a version, or a protocol such as `link:`. */
   readonly version: string
+  /** The block of the importer's package.json that declares it. */
+  readonly block: DependencyBlock
 }
 
 /** Where pnpm fetched a package from, as its resolution records it. */
@@ -43,6 +51,11 @@ export interface Lockfile {
   readonly packages: readonly ResolvedPackage[]
   /** The snapshot keys the importers depend on directly, such as `vitest@5.0.5(@types/node@26.6.5)`. */
   readonly roots: readonly string[]
+  /**
+   * The snapshot keys the importers depend on directly through their `dependencies` and `optionalDependencies`:
+   * where the packages the product runs start.
+   */
+  readonly productionRoots: readonly string[]
   /** Each snapshot key with the snapshot keys it depends on, optional dependencies included. */
   readonly edges: ReadonlyMap<string, readonly string[]>
   /** Security replacements are judged against the harness catalogue, with their selected graph edges. */
@@ -80,12 +93,13 @@ export const splitPackageKey = (key: string): { readonly name: string; readonly 
 }
 
 const directDependencies = (importer: unknown): readonly DirectDependency[] =>
-  DEPENDENCY_BLOCKS.flatMap((block: string): readonly DirectDependency[] =>
+  DEPENDENCY_BLOCKS.flatMap((block: DependencyBlock): readonly DirectDependency[] =>
     Object.entries(asRecord(asRecord(importer)[block])).map(
       ([name, entry]: readonly [string, unknown]): DirectDependency => ({
         name,
         specifier: asText(asRecord(entry)['specifier']),
         version: withoutPeers(asText(asRecord(entry)['version'])),
+        block,
       }),
     ),
   )
@@ -124,15 +138,59 @@ const edgesOf = (snapshot: unknown): readonly string[] =>
     ),
   )
 
+const LINK_PROTOCOL: string = 'link:'
+
+// Each `name@version` key an importer's blocks name, the version as the lockfile writes it, peers included.
+const keysIn = (importer: unknown, blocks: readonly DependencyBlock[]): readonly string[] =>
+  blocks.flatMap((block: DependencyBlock): readonly string[] =>
+    Object.entries(asRecord(asRecord(importer)[block])).map(
+      ([name, entry]: readonly [string, unknown]): string => `${name}@${asText(asRecord(entry)['version'])}`,
+    ),
+  )
+
+const isLink = (key: string): boolean => splitPackageKey(key).version.startsWith(LINK_PROTOCOL)
+
 // An importer's dependency on another importer is a link, which no snapshot describes.
 const rootsOf = (importers: Record<string, unknown>): readonly string[] =>
   Object.values(importers).flatMap((importer: unknown): readonly string[] =>
-    DEPENDENCY_BLOCKS.flatMap((block: string): readonly string[] =>
-      Object.entries(asRecord(asRecord(importer)[block]))
-        .map(([name, entry]: readonly [string, unknown]): string => `${name}@${asText(asRecord(entry)['version'])}`)
-        .filter((key: string): boolean => !splitPackageKey(key).version.startsWith('link:')),
-    ),
+    keysIn(importer, DEPENDENCY_BLOCKS).filter((key: string): boolean => !isLink(key)),
   )
+
+// The production roots: what every importer's production blocks name. Every workspace member is a root, so a
+// link from one member to another adds nothing the linked member does not name itself.
+const productionRootsOf = (importers: Record<string, unknown>): readonly string[] => [
+  ...new Set(
+    Object.values(importers).flatMap((importer: unknown): readonly string[] =>
+      keysIn(importer, PRODUCTION_BLOCKS).filter((key: string): boolean => !isLink(key)),
+    ),
+  ),
+]
+
+/**
+ * The packages the product runs: what the production roots reach through the snapshot edges, each as a
+ * `name@version` coordinate without peers. A package reached through a development dependency as well stays
+ * in, since the product needs it all the same.
+ * @param lockfile the lockfile.
+ * @returns the production coordinates.
+ */
+export const productionKeys = (lockfile: Lockfile): ReadonlySet<string> => {
+  const visit = (level: readonly string[], seen: ReadonlySet<string>): ReadonlySet<string> => {
+    const fresh: readonly string[] = [...new Set(level)].filter((key: string): boolean => !seen.has(key))
+    if (fresh.length === 0) {
+      return seen
+    }
+    return visit(
+      fresh.flatMap((key: string): readonly string[] => lockfile.edges.get(key) ?? []),
+      new Set([...seen, ...fresh]),
+    )
+  }
+  return new Set(
+    [...visit(lockfile.productionRoots, new Set())].map((key: string): string => {
+      const { name, version } = splitPackageKey(key)
+      return `${name}@${version}`
+    }),
+  )
+}
 
 const rewritesIn = (document: Record<string, unknown>): readonly string[] => [
   ...REWRITE_SECTIONS.filter((section: string): boolean => document[section] !== undefined).map(
@@ -172,6 +230,7 @@ export const readLockfile = (text: string): Lockfile | undefined => {
       ([key, entry]: readonly [string, unknown]): ResolvedPackage => resolvedPackage(key, entry),
     ),
     roots: rootsOf(document['importers']),
+    productionRoots: productionRootsOf(document['importers']),
     edges: new Map(
       Object.entries(asRecord(document['snapshots'])).map(
         ([key, snapshot]: readonly [string, unknown]): readonly [string, readonly string[]] => [key, edgesOf(snapshot)],

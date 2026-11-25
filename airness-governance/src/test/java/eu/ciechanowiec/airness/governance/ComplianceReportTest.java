@@ -33,8 +33,8 @@ class ComplianceReportTest {
         );
         assertTrue(entry.archiveNotices().isEmpty());
         String html = ComplianceReportHtml.render(report(List.of(entry), List.of()));
-        assertTrue(html.contains("Verified license evidence"));
-        assertTrue(html.contains("Supplier declaration: Missing"));
+        assertTrue(html.contains("Licenses confirmed from release evidence"));
+        assertTrue(html.contains("Supplier declaration: Missing"), "an unstructured evidence text is printed as is");
         assertTrue(html.contains("href=\"https://example.test/release?name=&quot;license&quot;\""));
         assertTrue(html.contains("&lt;script&gt;unsafe&lt;/script&gt;"));
         assertFalse(html.contains("<script>unsafe</script>"));
@@ -101,8 +101,9 @@ class ComplianceReportTest {
         );
         String csv = report(List.of(entry), List.of()).csv();
         assertTrue(csv.contains("\"'=formula\""));
-        assertTrue(csv.contains("\"module,one\",\"compile\",\"Direct\""));
-        assertTrue(csv.contains("\"module\"\"two\",\"test\",\"Transitive\""));
+        assertTrue(csv.startsWith("Artifact,License,Declared license,Class,Module,Scope,Relation\r\n"));
+        assertTrue(csv.contains("\"module,one\",\"Production\",\"Direct\""));
+        assertTrue(csv.contains("\"module\"\"two\",\"Test\",\"Transitive\""));
     }
 
     @Test
@@ -117,7 +118,8 @@ class ComplianceReportTest {
         String html = ComplianceReportHtml.render(report(List.of(entry, dependency("MPL-2.0")), List.of()));
         assertTrue(html.contains("data:font/woff2;base64,"));
         assertTrue(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
-        assertTrue(html.contains("inventory-table"));
+        assertTrue(html.contains("data-inventory=\"inventory-maven\""));
+        assertTrue(html.contains("<colgroup>"), "the inventory fixes its column widths");
         assertTrue(html.contains("Weak copyleft"));
         assertTrue(html.contains(COMMIT));
         assertFalse(html.contains("<script>alert(1)</script>"));
@@ -128,11 +130,11 @@ class ComplianceReportTest {
     @Test
     void rendersAnEmptyInventoryAndUnknownAdvisorySeverityExplicitly() {
         String empty = ComplianceReportHtml.render(report(List.of(), List.of()));
-        assertTrue(empty.contains("No dependency carries a weak copyleft license."));
-        assertTrue(empty.contains("No known vulnerability was reported."));
-        assertTrue(empty.contains("<li class=\"pass\">No known vulnerabilities.</li>"));
+        assertTrue(empty.contains("No package version has a weak copyleft license."));
+        assertTrue(empty.contains("No known vulnerability was found."));
+        assertTrue(empty.contains("<li class=\"pass\">No known vulnerability was found.</li>"));
         ReportAdvisory advisory = new ReportAdvisory(
-            "ADVISORY-1", "Unrated", "group:unsafe:1", List.of(ROOT_MODULE), "", Optional.empty()
+            "ADVISORY-1", "Unrated", "group:unsafe:1", List.of(ROOT_MODULE), "", Optional.empty(), List.of()
         );
         ReportPackage missing = new ReportPackage(
             "group:library:jar:1", List.of(), List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)), Map.of()
@@ -140,8 +142,8 @@ class ComplianceReportTest {
         String failing = ComplianceReportHtml.render(report(List.of(missing), List.of(advisory)));
         assertTrue(failing.contains("Not declared"));
         assertTrue(failing.contains("<li class=\"fail\">1 vulnerability (1 unrated) is open"));
-        assertTrue(failing.contains("<span class=\"sev sev-unrated\">unrated</span>"));
-        assertTrue(failing.contains("group:unsafe:1"));
+        assertTrue(failing.contains("<span class=\"sev sev-unrated\">Unrated</span>"));
+        assertTrue(failing.contains("group:<wbr>unsafe 1"));
     }
 
     @Test
@@ -155,8 +157,12 @@ class ComplianceReportTest {
             original.inventory(), original.evidence()
         );
         String html = ComplianceReportHtml.render(clean);
-        assertFalse(html.contains("is a draft"));
-        assertTrue(html.contains("1 artifact version is resolved, 0 on a production classpath and 1 used only"));
+        assertFalse(html.contains("Draft: not release evidence"));
+        assertTrue(
+            html.contains(
+                "1 package version is in use: 0 ship with the product, marked <em>Production</em>, and 1 is used only to"
+            )
+        );
         assertTrue(html.contains("Uncommitted changes</td><td>None"));
     }
 
@@ -196,16 +202,80 @@ class ComplianceReportTest {
         String html = ComplianceReportHtml.render(dirty);
         assertTrue(
             html.contains(
-                "<p class=\"title\">group:first:jar:1, group:second:jar:1</p><p class=\"notice-packages\">"
-                    + "META-INF/LICENSE, META-INF/LICENSE.txt, shared by 2 artifact versions</p>"
+                "<p class=\"title\">Shared by 2 package versions</p><p class=\"notice-shared\">group:<wbr>first 1, "
+                    + "group:<wbr>second 1</p><p class=\"notice-packages\">META-INF/LICENSE, META-INF/LICENSE.txt</p>"
             )
         );
-        assertTrue(html.contains("These production artifact versions ship no license file."));
+        assertTrue(html.contains("1 package version of the 3 the product ships contains no license file"));
+        assertTrue(html.contains("<li><code>group:library 1</code></li>"));
         assertTrue(html.contains("Uncommitted changes</td><td>Present, so this report is a draft"));
         assertTrue(html.contains("<span class=\"digest\">digest</span>"));
         assertTrue(dirty.source().dirty());
         String empty = ComplianceReportHtml.render(report(List.of(), List.of()));
-        assertTrue(empty.contains("No production dependency ships a license file."));
-        assertTrue(empty.contains("Every production artifact version ships a license file."));
+        assertTrue(empty.contains("No package ships with the product, so no license file is reproduced."));
+        assertFalse(empty.contains("contains a license file."), "an empty product has no contradictory empty states");
+        String complete = ComplianceReportHtml.render(report(List.of(first, second), List.of()));
+        assertTrue(complete.contains("Each of the 2 package versions the product ships contains a license file."));
+        assertTrue(complete.contains("1 distinct text covers the 2 package versions that contain one"));
+    }
+
+    @Test
+    void reproducesTheLicenseFilesOfShippedNpmPackagesOnly() {
+        ReportPackage shipped = new ReportPackage(
+            "pkg:npm/%40scope/runtime@1.0.0", List.of(MIT),
+            List.of(new ReportUse(ROOT_MODULE, ReportUse.PRODUCTION, "Transitive")), Map.of("LICENSE", "Runtime text.")
+        );
+        ReportPackage tooling = new ReportPackage(
+            "pkg:npm/linter@2.0.0", List.of(MIT), List.of(new ReportUse(ROOT_MODULE, ReportUse.DEVELOPMENT, DIRECT)),
+            Map.of("LICENSE", "Linter text.")
+        );
+        assertTrue(shipped.production());
+        assertFalse(tooling.production());
+        String html = ComplianceReportHtml.render(report(List.of(shipped, tooling), List.of()));
+        assertTrue(html.contains("<p class=\"title\">@scope/runtime 1.0.0</p>"));
+        assertTrue(html.contains("Runtime text."));
+        assertFalse(html.contains("Linter text."));
+        assertTrue(html.contains("data-inventory=\"inventory-npm\""));
+        assertTrue(html.contains("<td>@scope/<wbr>runtime</td><td><span class=\"mono\">1.0.0</span></td>"));
+        assertTrue(html.contains("Production, transitive"));
+        assertTrue(html.contains("Development, direct"));
+    }
+
+    @Test
+    void showsEachLicenseByThePolicyIdentifierAndListsTheSpellingsItRead() {
+        ReportPackage aliased = new ReportPackage(
+            "group:aliased:jar:1", List.of("MIT License"), List.of(new ReportUse(ROOT_MODULE, "compile", DIRECT)),
+            Map.of()
+        );
+        ComplianceReport report = report(List.of(aliased, dependency(MIT)), List.of());
+        assertEquals("MIT", aliased.licenseIds(POLICY));
+        String html = ComplianceReportHtml.render(report);
+        assertTrue(
+            html.contains("<td>MIT License</td><td><span class=\"license\"><code>MIT</code></span></td><td>1</td>")
+        );
+        assertFalse(html.contains("<span class=\"label\">MIT License</span>"), "the chart counts one MIT");
+        assertTrue(html.contains("<span class=\"label\">MIT</span>"));
+        assertTrue(report.csv().contains("\"MIT\",\"MIT License\""));
+    }
+
+    @Test
+    void listsTheSystemPackagesOfShippedImagesWithoutJudgingThem() {
+        ReportImagePackage busybox = new ReportImagePackage(
+            "Dockerfile, on Alpine 3.24.4", "pkg:apk/alpine/busybox@1.37.0-r0?distro=3.24.4", List.of("GPL-2.0-only"),
+            true
+        );
+        ComplianceReport base = report(List.of(dependency(MIT)), List.of());
+        ComplianceReport report = new ComplianceReport(
+            base.project(), base.source(),
+            new ReportInventory(base.inventory().packages(), List.of(), POLICY, List.of(busybox)), base.evidence()
+        );
+        assertTrue(report.inventory().withinPolicy(), "an image's system packages are not judged");
+        String html = ComplianceReportHtml.render(report);
+        assertTrue(html.contains("<p class=\"table-title\">Dockerfile, on Alpine 3.24.4</p>"));
+        assertTrue(html.contains("<td>alpine/<wbr>busybox</td><td><span class=\"mono\">1.37.0-r0</span></td>"));
+        assertTrue(html.contains("<code>GPL-2.0-only</code>"));
+        assertTrue(html.contains("listed from the built image and looked up in OSV"));
+        String plain = ComplianceReportHtml.render(base);
+        assertTrue(plain.contains("No container image was scanned."));
     }
 }

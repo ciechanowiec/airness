@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
  * @param coordinate complete Maven artifact coordinate
  * @param licenses   declared licenses, before policy aliases are applied
  * @param uses       every module and scope that reaches this version
- * @param notices    archive notices and explicitly attributed, verified upstream license evidence
+ * @param notices    license files the package ships, and explicitly attributed, verified upstream license evidence
  */
 public record ReportPackage(
     String coordinate, List<String> licenses, List<ReportUse> uses,
@@ -39,16 +39,28 @@ public record ReportPackage(
     }
 
     /**
-     * Whether a module reaches this artifact on its production classpath.
+     * The licenses as the policy names them, each declared alternative normalized by the aliases the license check
+     * declares, so one license reads the same whatever spelling its supplier chose.
      *
-     * @return whether production notices must be collected
+     * @param policy the license policy
+     * @return the normalized alternatives joined by {@code OR}, or a missing-declaration label
      */
-    public boolean production() {
-        return this.uses.stream().anyMatch(use -> List.of("compile", "runtime").contains(use.scope()));
+    public String licenseIds(ReportLicensePolicy policy) {
+        String normalized = this.licenses.stream().map(policy::display).distinct().collect(Collectors.joining(" OR "));
+        return normalized.isBlank() ? "Not declared" : normalized;
     }
 
     /**
-     * Returns only notices physically shipped in the artifact.
+     * Whether a module reaches this artifact in what the product ships.
+     *
+     * @return whether its license files are reproduced as third-party notices
+     */
+    public boolean production() {
+        return this.uses.stream().anyMatch(ReportUse::production);
+    }
+
+    /**
+     * Returns only the license files the package itself ships.
      *
      * @return archive entry names and their texts
      */

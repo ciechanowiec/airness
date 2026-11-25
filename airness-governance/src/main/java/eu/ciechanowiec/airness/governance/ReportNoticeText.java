@@ -3,6 +3,7 @@ package eu.ciechanowiec.airness.governance;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
@@ -20,7 +21,7 @@ final class ReportNoticeText {
     private static final Pattern BLOCK = Pattern.compile("\\n[ \\t]*\\n");
     private static final Pattern QUOTE_MARKERS = Pattern.compile("^[ \\t]*(?:>[ \\t]?)+");
     private static final Pattern HEADING = Pattern.compile("^#{1,6}[ \\t]+");
-    private static final Pattern RULE = Pattern.compile("^[-=_*~]{3,}$");
+    private static final Pattern RULE = Pattern.compile("^[-=_*~<>]{3,}$");
     private static final Pattern LIST_ITEM = Pattern.compile(
         "^(?:[-*+\\x{2022}]\\s|\\(?(?:\\d{1,3}|[a-z]|[ivx]{2,4})[.)]\\s)", Pattern.CASE_INSENSITIVE
     );
@@ -34,10 +35,10 @@ final class ReportNoticeText {
     private static final Pattern HYPHENATED_END = Pattern.compile("\\p{L}-$");
     private static final Pattern LOWERCASE_START = Pattern.compile("^\\p{Ll}");
     private static final int HEADING_LENGTH = 40;
-    // A web or e-mail address cannot break between words, and a copyright statement is a short line of
-    // names, so justifying either opens wide gaps. Such a paragraph is set flush left instead.
-    private static final Pattern FLUSH_LEFT = Pattern.compile(
-        "\\b(?:https?://|www\\.)\\S{20}|<[^<>\\s]{1,80}@[^<>\\s]{1,80}>|^(?:\\(c\\)|copyright\\b|\\x{A9})",
+    // A web address has no space to break at, so the line before one that doesn't fit would open wide gaps in
+    // a justified paragraph. It is drawn whole, unhyphenated, and may break after its separators instead.
+    private static final Pattern ADDRESS = Pattern.compile(
+        "(?:https?://|www\\.|\\b[a-z0-9-]+(?:\\.[a-z0-9-]+)+/)(?:[^\\s<>\"'()\\[\\]]*[^\\s<>\"'()\\[\\].,;:])?",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -114,9 +115,25 @@ final class ReportNoticeText {
             return "<div class=\"license-entry\">" + lines.stream().map(ReportNoticeText::line)
                 .collect(Collectors.joining()) + "</div>";
         }
-        String alignment = FLUSH_LEFT.matcher(block).find() ? " class=\"ragged\"" : "";
-        return "<p" + alignment + ">" + lines.stream().map(ReportMarkup::escape).collect(Collectors.joining("<br>"))
-            + "</p>";
+        return "<p>" + lines.stream().map(ReportNoticeText::prose).collect(Collectors.joining("<br>")) + "</p>";
+    }
+
+    /**
+     * Escapes one line of prose for a justified paragraph, drawing each web address whole and breakable after its
+     * separators.
+     *
+     * @param line the text
+     * @return the markup
+     */
+    static String prose(String line) {
+        StringBuilder html = new StringBuilder(line.length() * 2);
+        int written = 0;
+        for (MatchResult address : ADDRESS.matcher(line).results().toList()) {
+            html.append(ReportMarkup.escape(line.substring(written, address.start()))).append("<span class=\"url\">")
+                .append(ReportMarkup.breakable(address.group())).append("</span>");
+            written = address.end();
+        }
+        return html.append(ReportMarkup.escape(line.substring(written))).toString();
     }
 
     private static String line(String line) {

@@ -120,7 +120,8 @@ record ImageJudgement(
         ReportAdvisory advisory = finding.advisory();
         return new ReportAdvisory(
             advisory.identity(), advisory.severity(), advisory.artifact(), advisory.modules(), advisory.description(),
-            Optional.of(new ReportMitigation(reason, plan, this.today.toString(), true))
+            Optional.of(new ReportMitigation(reason, plan, this.today.toString(), ReportMitigation.Kind.AWAITING_FIX)),
+            advisory.aliases()
         );
     }
 

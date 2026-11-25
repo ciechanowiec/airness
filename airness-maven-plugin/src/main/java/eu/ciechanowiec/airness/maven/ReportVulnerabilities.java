@@ -85,7 +85,7 @@ final class ReportVulnerabilities {
     ) {
         return new ReportAdvisory(
             ReportJson.required(entry, "name"), severity(entry), artifact, List.of(module),
-            entry.path("description").asText(), mitigation
+            entry.path("description").asText(), mitigation, List.of()
         );
     }
 }

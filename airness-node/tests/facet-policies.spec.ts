@@ -161,9 +161,12 @@ describe('resultOf', PROCESS_TIME, () => {
 })
 
 const LOCKFILE: Lockfile = {
-  importers: new Map([['.', [{ name: '@scope/tool', specifier: '1.0.0', version: '1.0.0' }]]]),
+  importers: new Map([
+    ['.', [{ name: '@scope/tool', specifier: '1.0.0', version: '1.0.0', block: 'devDependencies' }]],
+  ]),
   packages: [],
   roots: ['@scope/tool@1.0.0'],
+  productionRoots: [],
   edges: new Map([
     ['@scope/tool@1.0.0', ['left-pad@1.3.0']],
     ['left-pad@1.3.0', []],
@@ -243,6 +246,7 @@ describe('sbomOf against the CycloneDX 1.6 schema', PROCESS_TIME, () => {
       lockfile: {
         ...LOCKFILE,
         roots: ['@scope/tool@1.0.0', 'member@link:member'],
+        productionRoots: [],
         edges: new Map([
           ['@scope/tool@1.0.0(react@19.0.0)', ['left-pad@1.3.0']],
           ['@scope/tool@1.0.0(react@18.0.0)', ['fsevents@2.3.3', 'member@link:member']],

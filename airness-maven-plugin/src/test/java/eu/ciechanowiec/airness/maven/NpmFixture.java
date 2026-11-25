@@ -21,11 +21,13 @@ import org.codehaus.plexus.util.xml.Xpp3DomBuilder;
 final class NpmFixture {
 
     static final String INVENTORY = """
-        {"contract": 1, "packages": [
-          {"name": "left-pad", "version": "1.3.0", "license": "SSPL-1.0", "direct": true, "installed": true},
+        {"contract": 2, "packages": [
+          {"name": "left-pad", "version": "1.3.0", "license": "SSPL-1.0", "direct": true, "installed": true,
+           "production": true, "notices": {"LICENSE": "The left-pad license text."}},
           {"name": "@scope/kit", "version": "2.0.0", "license": "(MIT OR Apache-2.0)", "direct": false,
-           "installed": true},
-          {"name": "@esbuild/linux-x64", "version": "0.25.0", "license": "", "direct": false, "installed": false}
+           "installed": true, "production": false, "notices": {}},
+          {"name": "@esbuild/linux-x64", "version": "0.25.0", "license": "", "direct": false, "installed": false,
+           "production": false, "notices": {}}
         ]}
         """;
 

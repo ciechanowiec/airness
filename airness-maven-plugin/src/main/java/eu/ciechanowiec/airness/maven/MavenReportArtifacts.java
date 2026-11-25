@@ -30,9 +30,8 @@ record MavenReportArtifacts(ProjectBuilder builder, ProjectBuildingRequest reque
         Optional<LicenseMetadata> metadata = MavenLicenseMetadata.verified(artifact, licenses);
         return new ReportPackage(
             identity(artifact), metadata.map(entry -> List.of(entry.license())).orElse(licenses),
-            List.of(new ReportUse(module, "build", "Transitive")), metadata.map(LicenseMetadata::notices).orElse(
-                Map.of()
-            )
+            List.of(new ReportUse(module, ReportUse.BUILD, "Transitive")),
+            metadata.map(LicenseMetadata::notices).orElse(Map.of())
         );
     }
 
@@ -83,8 +82,7 @@ record MavenReportArtifacts(ProjectBuilder builder, ProjectBuildingRequest reque
         );
         ReportUse use = new ReportUse(project.getId(), scope, direct ? "Direct" : "Transitive");
         Path file = Objects.requireNonNull(artifact.getFile(), "Unresolved dependency archive").toPath();
-        Map<String, String> notices = List.of("compile", "runtime").contains(scope) ? ReportNotices.read(file) : Map
-            .of();
+        Map<String, String> notices = use.production() ? ReportNotices.read(file) : Map.of();
         Map<String, String> complete = Stream.concat(
             notices.entrySet().stream(), metadata.stream().flatMap(entry -> entry.notices().entrySet().stream())
         ).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));

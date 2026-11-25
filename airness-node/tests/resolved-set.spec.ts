@@ -25,6 +25,7 @@ const widelyShared: Lockfile = {
   importers: new Map(),
   packages: Array.from({ length: PACKAGES }, (_unused: unknown, index: number): ResolvedPackage => resolved(index)),
   roots: [keyOf(0), keyOf(1)],
+  productionRoots: [],
   edges: new Map(
     Array.from({ length: PACKAGES }, (_unused: unknown, index: number): readonly [string, readonly string[]] => [
       keyOf(index),
@@ -51,6 +52,7 @@ describe('the resolved set', () => {
       ...widelyShared,
       packages: [resolved(0), resolved(1), resolved(2), resolved(3)],
       roots: [keyOf(0)],
+      productionRoots: [],
       edges: new Map([
         [keyOf(0), [keyOf(1), keyOf(2)]],
         [keyOf(1), [keyOf(2), keyOf(0)]],
