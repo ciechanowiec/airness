@@ -18,6 +18,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { analysisEnvironment } from './environment-files.js'
 import { fromRun, type RunResult, runNode } from './exec.js'
 import {
@@ -327,10 +328,14 @@ interface KnipRun {
   readonly environment: Readonly<Record<string, string>>
 }
 
+// knip runs through a launcher of the harness, which creates knip's configuration loader for the member's own
+// tsconfig.json before knip runs from the member: see knip-main.ts.
+const KNIP_LAUNCHER: string = fileURLToPath(import.meta.resolve('#harness/knip-main'))
+
 const runKnip = (run: KnipRun, config: string, options: readonly string[]): RunResult =>
-  runNode(resolveTool('knip'), ['--config', config, '--no-progress', ...options], {
+  runNode(KNIP_LAUNCHER, ['--config', config, '--no-progress', ...options], {
     cwd: run.member.root,
-    env: run.environment,
+    env: { ...run.environment, AIRNESS_KNIP_ENTRY: resolveTool('knip') },
   })
 
 const PRODUCTION_REPAIR: string =

@@ -64,8 +64,7 @@ public final class AssetSync {
         Stream<AssetPlan.Placement> whole = Stream.concat(
             this.plan.placements(AssetPolicy.PINNED), this.plan.placements(AssetPolicy.SEED)
         );
-        Stream<String> files = whole
-            .filter(placement -> !this.unmanaged.contains(placement.file()))
+        Stream<String> files = whole.filter(placement -> !this.unmanaged.contains(placement.file()))
             .filter(this::needsWriting)
             .map(this::materialize);
         Stream<String> sections = this.plan.sections().entrySet().stream()

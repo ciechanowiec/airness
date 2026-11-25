@@ -18,8 +18,9 @@ import org.apache.maven.plugins.annotations.Mojo;
  * judge.
  *
  * <p>Bound at {@code initialize} after node-install, so dependencies are present before any phase in which a
- * project could build its frontend with airness:node-run. A declared project without its own lockfile is
- * left alone here. Whether it may lack one is a question for the gates.
+ * project could build its frontend with airness:node-run. A declared project with a {@code package.json} but
+ * without its own lockfile fails here, naming the command that writes one: nothing could be installed in it,
+ * so the gates, which run through the harness package installed there, could not even start and report it.
  */
 @Mojo(name = "node-dependencies", defaultPhase = LifecyclePhase.INITIALIZE, threadSafe = true)
 public final class NodeDependenciesMojo extends AbstractNodeMojo {
@@ -34,6 +35,7 @@ public final class NodeDependenciesMojo extends AbstractNodeMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
+        this.refuseUnlocked();
         List<NodeProject> locked = this.locked();
         if (locked.isEmpty()) {
             this.getLog().debug("No node project with its own lockfile to install dependencies for here");
@@ -44,6 +46,18 @@ public final class NodeDependenciesMojo extends AbstractNodeMojo {
                 this.pnpm(tools, INSTALL, project.directory(), logs.resolve("install.log"));
                 this.pnpm(tools, APPROVED_BUILDS, project.directory(), logs.resolve("rebuild.log"));
             }
+        }
+    }
+
+    private void refuseUnlocked() throws MojoFailureException {
+        List<String> unlocked = this.prepares()
+            ? this.nodeProjects().unlocked().stream().map(NodeProject::key).toList()
+            : List.of();
+        if (!unlocked.isEmpty()) {
+            throw new MojoFailureException(
+                "pnpm-lock.yaml is missing in the node project " + String.join(", ", unlocked)
+                    + "; run pnpm install there to write it, and commit it"
+            );
         }
     }
 

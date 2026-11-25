@@ -80,8 +80,7 @@ final class SpringQueryParameterRules {
         Optional<String> declarations = parameters.problems().isEmpty()
             ? Optional.empty()
             : Optional.of(offence(source, query.offset(), String.join("; ", parameters.problems())));
-        return declarations
-            .or(() -> mainMismatch(source, query, parameters))
+        return declarations.or(() -> mainMismatch(source, query, parameters))
             .or(() -> countMismatch(source, query, parameters));
     }
 

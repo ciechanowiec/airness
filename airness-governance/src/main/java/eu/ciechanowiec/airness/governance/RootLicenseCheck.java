@@ -47,8 +47,7 @@ public final class RootLicenseCheck {
 
     private List<String> forbidden() {
         try (Stream<Path> entries = Files.list(this.root)) {
-            return entries
-                .filter(RootLicenseCheck::fileEntry)
+            return entries.filter(RootLicenseCheck::fileEntry)
                 .filter(RootLicenseCheck::forbiddenName)
                 .map(path -> path.getFileName().toString())
                 .sorted()

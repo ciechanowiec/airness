@@ -70,8 +70,7 @@ class SelfArtifactContentTest {
     private static Path archive(Path module) {
         String name = module.getFileName().toString();
         try (Stream<Path> built = Files.list(module.resolve("target"))) {
-            List<Path> archives = built
-                .filter(candidate -> candidate.getFileName().toString().startsWith(name + "-"))
+            List<Path> archives = built.filter(candidate -> candidate.getFileName().toString().startsWith(name + "-"))
                 .filter(candidate -> candidate.getFileName().toString().endsWith(".jar"))
                 .toList();
             if (archives.size() != 1) {

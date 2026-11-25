@@ -80,9 +80,9 @@ final class SpringModuleRules {
             .map(
                 found -> offence(
                     controller, found.start(),
-                    "a module with controllers and no @RestControllerAdvice hands every unhandled"
-                        + " exception to Boot's default error page, whose status, body and field names"
-                        + " are the framework's rather than the API's and change between Boot versions"
+                    "a module with controllers and no @ControllerAdvice or @RestControllerAdvice hands every"
+                        + " unhandled exception to Boot's default error page, whose status, body and field names"
+                        + " are the framework's rather than the application's and change between Boot versions"
                 )
             );
     }

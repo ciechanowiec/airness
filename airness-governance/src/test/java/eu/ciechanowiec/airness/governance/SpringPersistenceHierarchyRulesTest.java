@@ -81,8 +81,7 @@ class SpringPersistenceHierarchyRulesTest {
 
     @Test
     void requiresJoinedSubtypesToNameTheirTableAndPrimaryKeyJoin() {
-        String root = SINGLE_ROOT
-            .replace("SINGLE_TABLE", "JOINED")
+        String root = SINGLE_ROOT.replace("SINGLE_TABLE", "JOINED")
             .replace("@DiscriminatorColumn(name = \"kind\")\n", "");
         String child = SINGLE_CHILD.replace("@DiscriminatorValue(\"customer\")\n", "");
         SpringTypes types = types(
@@ -94,8 +93,7 @@ class SpringPersistenceHierarchyRulesTest {
 
     @Test
     void requiresTablePerClassSubtypesToNameTheirTable() {
-        String root = SINGLE_ROOT
-            .replace("SINGLE_TABLE", "TABLE_PER_CLASS")
+        String root = SINGLE_ROOT.replace("SINGLE_TABLE", "TABLE_PER_CLASS")
             .replace("@DiscriminatorColumn(name = \"kind\")\n", "");
         String child = SINGLE_CHILD.replace("@DiscriminatorValue(\"customer\")\n", "");
         SpringTypes types = types(

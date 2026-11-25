@@ -71,6 +71,15 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
     );
 
     /**
+     * Whether this JVM has the reactive stack that maps pages, which the route inventory reads as well. An
+     * application without one answers no and loads no class that would not resolve.
+     */
+    private static final boolean REACTIVE_PAGES = ClassUtils.isPresent(
+        "org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping",
+        SpringContextEvidence.class.getClassLoader()
+    );
+
+    /**
      * Whether this JVM has the annotations whose expressions the guard evidence reads. A project that
      * builds no method security at all answers no and loads no class that would not resolve.
      */
@@ -117,13 +126,18 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
             ).flatMap(Collection::stream).toList();
     }
 
-    // The addresses the browser sweep accounts for, asked only where the servlet stack that maps pages
-    // is on the classpath, so an application without one loads no class that would not resolve.
+    // The addresses the browser sweep accounts for, asked of each stack that maps pages only where it is on
+    // the classpath, so an application without it loads no class that would not resolve.
     private static List<String> pages(ConfigurableApplicationContext context, Collection<String> sources) {
-        return Optional.of(context)
+        List<String> servlet = Optional.of(context)
             .filter(_ -> SERVLET_PAGES)
             .map(ready -> SpringHtmlRoutes.rendered(ready, roots(sources)))
             .orElseGet(List::of);
+        List<String> reactive = Optional.of(context)
+            .filter(_ -> REACTIVE_PAGES)
+            .map(ready -> SpringReactiveHtmlRoutes.rendered(ready, roots(sources)))
+            .orElseGet(List::of);
+        return Stream.concat(servlet.stream(), reactive.stream()).distinct().sorted().toList();
     }
 
     /**

@@ -62,8 +62,7 @@ final class SpringAiRules {
         String annotation = declaration(readable, marker);
         Optional<MatchResult> description = DESCRIPTION.matcher(annotation).results().findFirst();
         boolean missing = !DESCRIPTION_MEMBER.matcher(annotation).find();
-        boolean blank = description
-            .flatMap(found -> value(constants, found.group(1)))
+        boolean blank = description.flatMap(found -> value(constants, found.group(1)))
             .filter(String::isBlank)
             .isPresent();
         return missing || blank

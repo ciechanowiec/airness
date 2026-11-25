@@ -1561,6 +1561,9 @@
         <module name="eu.ciechanowiec.airness.governance.DetachedChainDotCheck">
             <property name="id" value="AirnessDetachedChainDot"/>
         </module>
+        <module name="eu.ciechanowiec.airness.governance.LoneChainReceiverCheck">
+            <property name="id" value="AirnessLoneChainReceiver"/>
+        </module>
         <module name="SeparatorWrap">
             <property name="tokens" value="COMMA, SEMI"/>
         </module>

@@ -66,6 +66,18 @@ record NodeProjects(List<NodeProject> projects) {
     }
 
     /**
+     * The declared projects inside the module that hold a {@code package.json} but no lockfile of their own.
+     * Such a project gets no dependency installed, so not even the harness's own gates could run in it.
+     *
+     * @return the projects without a lockfile, in declaration order
+     */
+    List<NodeProject> unlocked() {
+        return this.projects.stream()
+            .filter(project -> !project.outside() && project.hasManifest() && !project.hasLockfile())
+            .toList();
+    }
+
+    /**
      * The declared project an entry names, written however the declaration wrote it.
      *
      * @param basedir the module directory

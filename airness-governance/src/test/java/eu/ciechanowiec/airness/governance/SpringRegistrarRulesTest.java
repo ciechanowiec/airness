@@ -64,14 +64,13 @@ class SpringRegistrarRulesTest {
 
     @Test
     void reportsAComponentRegistrarWithoutDuplicatingTheMissingImport() {
-        String component = PLAIN
-            .replace(
-                "import org.springframework.beans.factory.BeanRegistrar;",
+        String component = PLAIN.replace(
+            "import org.springframework.beans.factory.BeanRegistrar;",
+            """
+                import org.springframework.beans.factory.BeanRegistrar;
+                import org.springframework.stereotype.Component;
                 """
-                    import org.springframework.beans.factory.BeanRegistrar;
-                    import org.springframework.stereotype.Component;
-                    """
-            ).replace("final class SampleRegistrar", "@Component\nfinal class SampleRegistrar");
+        ).replace("final class SampleRegistrar", "@Component\nfinal class SampleRegistrar");
         GitFixture fixture = new GitFixture("registrar-component").write(REGISTRAR, component);
         List<Findings> findings = findings(fixture, MAIN);
 
@@ -110,8 +109,7 @@ class SpringRegistrarRulesTest {
 
     @Test
     void acceptsFullyQualifiedRegistrarAndImportNames() {
-        String registrar = PLAIN
-            .replace("import org.springframework.beans.factory.BeanRegistrar;\n\n", "")
+        String registrar = PLAIN.replace("import org.springframework.beans.factory.BeanRegistrar;\n\n", "")
             .replace(
                 "implements BeanRegistrar",
                 "implements org.springframework.beans.factory.BeanRegistrar"

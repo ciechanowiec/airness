@@ -200,7 +200,9 @@
                     A starter declares no type of its own, so every one of them reads as a dependency
                     nothing uses, and every Spring type a project does use arrives through one and reads
                     as undeclared. Both halves of that are what a starter is for, so both are named here
-                    rather than left to be worked around per project.
+                    rather than left to be worked around per project. Spring Cloud publishes its starters
+                    the same way under its own group, such as the one a Spring Cloud Gateway is built
+                    from, so they are named beside Boot's.
 
                     The third list is the same fact read from the test tree. A Spring type only a test
                     names, such as a status code a test asserts before any controller exists, arrives
@@ -234,6 +236,9 @@
                     <ignoredUnusedDeclaredDependencies combine.children="append">
                         <ignoredUnusedDeclaredDependency>
                             org.springframework.boot:spring-boot-starter*
+                        </ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>
+                            org.springframework.cloud:spring-cloud-starter*
                         </ignoredUnusedDeclaredDependency>
                         <!-- Supplied above for the container to read, rather than for this project's code. -->
                         <ignoredUnusedDeclaredDependency>org.jspecify:jspecify</ignoredUnusedDeclaredDependency>

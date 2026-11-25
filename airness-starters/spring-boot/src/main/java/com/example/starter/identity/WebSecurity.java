@@ -78,8 +78,7 @@ public final class WebSecurity {
     @Bean
     @SneakyThrows
     SecurityFilterChain chain(HttpSecurity http, SessionRegistry registry) {
-        return http
-            .authorizeHttpRequests(
+        return http.authorizeHttpRequests(
                 requests -> requests
                     // The icon is linked under a name that carries the hash of its content, and a browser asks for
                     // it before anybody signs in. Left closed, that request would be the page a sign-in returns to.
@@ -93,8 +92,7 @@ public final class WebSecurity {
                     .requestMatchers(HttpMethod.GET, HEALTH).permitAll()
                     .anyRequest().authenticated()
             ).formLogin(
-                form -> form
-                    .loginPage(LoginPages.LOGIN)
+                form -> form.loginPage(LoginPages.LOGIN)
                     .failureUrl(REFUSED)
                     .defaultSuccessUrl(PageModel.HOME)
             ).logout(exit -> exit.logoutSuccessUrl(PageModel.HOME))
@@ -103,8 +101,7 @@ public final class WebSecurity {
                     concurrency -> concurrency.maximumSessions(UNLIMITED).sessionRegistry(registry).expiredUrl(ENDED)
                 )
             ).headers(
-                headers -> headers
-                    .contentSecurityPolicy(policy -> policy.policyDirectives(CONTENT_POLICY))
+                headers -> headers.contentSecurityPolicy(policy -> policy.policyDirectives(CONTENT_POLICY))
                     .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                     .httpStrictTransportSecurity(
                         transport -> transport.requestMatcher(AnyRequestMatcher.INSTANCE)
