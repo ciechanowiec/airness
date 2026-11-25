@@ -588,8 +588,9 @@ install_airness_node() {
         cat "${install_log}" >&2
         exit 1
     fi
-    # Asserted once per run, where the first install wrote them: pnpm used the run's own cache and store.
-    if [ -z "${airness_node_store_checked-}" ]; then
+    # Asserted once per run, where the first install that resolved packages wrote them: pnpm used the run's own
+    # cache and store. A project without dependencies writes a lockfile with no packages and leaves both empty.
+    if [ -z "${airness_node_store_checked-}" ] && grep -q '^packages:' "$1/pnpm-lock.yaml" 2>/dev/null; then
         airness_node_store_checked=1
         stored_file="$(find "${scratch}/.pnpm-store" -mindepth 1 -print 2>/dev/null | head -n 1)"
         cached_file="$(find "${scratch}/.pnpm-cache" -mindepth 1 -print 2>/dev/null | head -n 1)"
