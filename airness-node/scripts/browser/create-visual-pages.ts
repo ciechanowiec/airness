@@ -155,6 +155,17 @@ const PAGES: Readonly<Record<string, Variant>> = {
       '<div className="figure"><dt>Members</dt><dd>340</dd></div></dl>',
     valid: '<div className="figures"><p><strong>12</strong> branches</p><p><strong>340</strong> members</p></div>',
   },
+  // Two classes on one element set the font size under the same condition, and the later rule silences the
+  // earlier class. The repair keeps one, beside a shorthand and its longhand, a block and its modifier, an
+  // override marked important, and a heading whose font size a wide-screen rule replaces where a later class
+  // replaces its line height, which each still change the element at some width.
+  'class-silenced': {
+    defect: '<p className="size-large size-small">Order confirmed.</p>',
+    valid:
+      '<div><p className="size-large">Order confirmed.</p><p className="pad pad-inline">Shipping soon.</p>' +
+      '<p className="tone tone-accent">Track your parcel.</p><p className="size-forced size-small">Thank you.</p>' +
+      '<p className="title-base title-tight title-wide">Your order</p></div>',
+  },
   'text-spacing': {
     defect: '<p className="fixed-line">Fixture line</p>',
     valid: '<p className="growing-line">Fixture line</p>',
@@ -218,6 +229,16 @@ h1, p { margin: 0; }
 .figures { display: flex; gap: 24px; margin: 0; }
 .figure { display: flex; flex-direction: column; }
 .figure dd { order: -1; margin: 0; font-size: 2rem; }
+.size-large { font-size: 1.125rem; }
+.size-forced { font-size: 1.25rem !important; }
+.size-small { font-size: 0.875rem; }
+.pad { padding: 8px; }
+.pad-inline { padding-inline: 16px; }
+.tone { padding: 4px; color: #111827; }
+.tone-accent { color: #1e3a8a; }
+.title-base { font-size: 1.5rem; line-height: 1.6; }
+.title-tight { line-height: 1.25; }
+@media (min-width: 48rem) { .title-wide { font-size: 2rem; } }
 /* Drawn beyond a gap, as a ring with an offset is: the focus rules compare the whole indicator. */
 .strong-ring:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 6px; }
 /* The card a stretched link covers draws the link's focus, as a news or product card does. */

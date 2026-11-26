@@ -127,6 +127,7 @@ export const EXEMPTIBLE_RULES: readonly string[] = [
   'line-length',
   'text-wrap',
   'reading-order',
+  'class-silenced',
   'unrevealed-content',
   'focus-visible',
   'focus-contrast',

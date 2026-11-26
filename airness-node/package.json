@@ -245,8 +245,8 @@
         "reason": "the shipped sweep executes inside Playwright workers against real pages; its verdict policies, queue and deadlines are measured separately"
       },
       {
-        "pattern": "src/sweep-{hit-target,pointer-only,paste,unrequested,reduced-motion,graphic-contrast,tap,rendering}.ts",
-        "reason": "the sweep's keyboard-reach, paste, change-of-context, reduced-motion, graphic-contrast, touch and rendering probes run inside Playwright workers against real pages; their verdicts are measured in pointer-only.ts, paste-policy.ts, unrequested-change.ts, reduced-motion-policy.ts, graphic-contrast-policy.ts, tap-policy.ts and render-cost-policy.ts"
+        "pattern": "src/sweep-{hit-target,pointer-only,paste,unrequested,reduced-motion,graphic-contrast,tap,rendering,class-silenced}.ts",
+        "reason": "the sweep's keyboard-reach, paste, change-of-context, reduced-motion, graphic-contrast, touch, rendering and stylesheet-order probes run inside Playwright workers against real pages; their verdicts are measured in pointer-only.ts, paste-policy.ts, unrequested-change.ts, reduced-motion-policy.ts, graphic-contrast-policy.ts, tap-policy.ts, render-cost-policy.ts and class-silenced.ts"
       },
       {
         "pattern": "src/pinned-browsers.ts",

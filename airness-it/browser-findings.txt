@@ -15,6 +15,9 @@
 [text-justified] /text-justified @390x844 (chromium, resting): text justified to both edges over
 [line-length] /line-length @1280x800 (chromium, resting): a line of
 [reading-order] /reading-order @390x844 (chromium, resting): div.figure shows dd "12" before dt "Branches", which comes first in the document, through order: -1 on dd "12"
+[class-silenced] /class-silenced @390x844 (chromium, resting): p.size-large.size-small
+[class-silenced] /class-silenced @1280x800 (chromium, resting): p.size-large.size-small
+size-large has no effect: size-small on the same element sets font-size under the same condition and wins by stylesheet order; remove one of the two classes
 [text-overlap] /turned-card @390x844 (chromium, resting): overlapping text: h2.pulled
 [text-overlap] /scrolled-blurb @390x844 (chromium, resting): overlapping text: p
 [attached] /scrolled-blurb @390x844 (chromium, resting): overlapping boxes: p

@@ -4,6 +4,7 @@ import { type Page, test } from '@playwright/test'
 import type { BrowserFinding, FindingPlace, Viewport } from './browser-findings.js'
 import { enginePassParts } from './browser-run.js'
 import { BASELINE_VIEWPORTS, pageViewports, STRESS_VIEWPORTS } from './browser-viewports.js'
+import { CLASS_SILENCED_RULE } from './class-silenced.js'
 import { withinLimit } from './deadline.js'
 import { projectSettings } from './project-settings.js'
 import {
@@ -15,6 +16,7 @@ import {
   settleFindings,
 } from './scanner.js'
 import { ARIA_RESTING_RULES, ariaVisit } from './sweep-aria.js'
+import { classSilencedVisit } from './sweep-class-silenced.js'
 import {
   armBudget,
   type Budget,
@@ -57,17 +59,17 @@ const restingVisit = async (page: Page, item: PlaceItem, index: number): Promise
   return merged([{ ...scan, notes: [] }, await healthOf(page, place)])
 }
 
-// The resting pass alone adds the ARIA rules, at the two axe widths: they read the DOM rather than its
-// rendering, which another engine or colour scheme does not change, and the widths are where a page's
-// navigation and disclosures change between a phone's layout and a desktop's.
+// The resting pass alone adds the ARIA rules and `class-silenced`, at the two axe widths: they read the DOM and
+// the order of its stylesheets rather than its rendering, which another engine or colour scheme does not change,
+// and the widths are where a page's navigation, disclosures and media-query rules change between a phone's
+// layout and a desktop's.
 const restingAriaVisit = async (page: Page, item: PlaceItem, index: number): Promise<Visit> => {
   const visit: Visit = await restingVisit(page, item, index)
-  return isStressViewport(item.viewport)
-    ? merged([
-        visit,
-        await ariaVisit(page, placeAt(page, item.location, item.viewport, 'resting'), item.location.isStory),
-      ])
-    : visit
+  if (!isStressViewport(item.viewport)) {
+    return visit
+  }
+  const place: FindingPlace = placeAt(page, item.location, item.viewport, 'resting')
+  return merged([visit, await ariaVisit(page, place, item.location.isStory), await classSilencedVisit(page, place)])
 }
 
 // The resting visit loads, settles and judges a page with no input at all, which is what a change of context
@@ -162,7 +164,7 @@ export const expectRestingRules = async (page: Page, shard: Shard): Promise<void
     pass: 'resting',
     items: placeItems(discovery.locations, edgeViewports),
     visit: watchedRestingVisit,
-    judgedRules: [...RESTING_JUDGED, ...ARIA_RESTING_RULES],
+    judgedRules: [...RESTING_JUDGED, ...ARIA_RESTING_RULES, CLASS_SILENCED_RULE],
   })
 }
 
