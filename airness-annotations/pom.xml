@@ -31,6 +31,7 @@
         It carries no dependencies and no runtime cost. The annotation has SOURCE retention, so it does
         not survive compilation into the consumer's artifact.
     </description>
+
     <dependencies>
         <dependency>
             <groupId>org.jspecify</groupId>

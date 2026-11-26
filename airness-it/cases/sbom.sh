@@ -58,7 +58,7 @@ prepare_sbom_consumer() {
 XML
 )"
     SBOM_DEPENDENCIES="${sbom_dependencies}" perl -0pi -e \
-        's{</project>}{$ENV{SBOM_DEPENDENCIES}."\n</project>"}e' "${sbom_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{SBOM_DEPENDENCIES}."\n</project>"}e' "${sbom_consumer}/pom.xml"
 }
 
 run_sbom_bypasses() {

@@ -53,12 +53,22 @@ run_filtered_build_inputs() {
     printf 'Excluded test resource\n' > "${input_consumer}/custom-tests/build/local.txt"
     cat > "${input_consumer}/input-build.xml" <<'XML'
     <build>
-        <resources><resource><directory>custom</directory>
-            <includes><include>**/*.mjs</include></includes>
-        </resource></resources>
-        <testResources><testResource><directory>custom-tests</directory>
-            <excludes><exclude>build/**</exclude></excludes>
-        </testResource></testResources>
+        <resources>
+            <resource>
+                <directory>custom</directory>
+                <includes>
+                    <include>**/*.mjs</include>
+                </includes>
+            </resource>
+        </resources>
+        <testResources>
+            <testResource>
+                <directory>custom-tests</directory>
+                <excludes>
+                    <exclude>build/**</exclude>
+                </excludes>
+            </testResource>
+        </testResources>
     </build>
 XML
     append_input_build
@@ -76,14 +86,30 @@ run_late_build_inputs() {
     mkdir -p "${input_consumer}/late/build"
     printf 'Late registered resource\n' > "${input_consumer}/late/build/value.txt"
     cat > "${input_consumer}/input-build.xml" <<XML
-    <build><plugins><plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions><execution><id>register-input</id><phase>$1</phase>
-            <goals><goal>$2</goal></goals>
-            <configuration><resources><resource><directory>late/build</directory></resource></resources></configuration>
-        </execution></executions>
-    </plugin></plugins></build>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>register-input</id>
+                        <phase>$1</phase>
+                        <goals>
+                            <goal>$2</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>
+                                    <directory>late/build</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 XML
     append_input_build
     run_maven "inputs_late_before_$4" repository "${input_consumer}" validate
@@ -121,40 +147,64 @@ run_generated_build_inputs() {
 append_input_build() {
     input_build="$(cat "${input_consumer}/input-build.xml")"
     INPUT_BUILD="${input_build}" perl -0pi -e \
-        's{</project>}{$ENV{INPUT_BUILD}."\n</project>"}e' "${input_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{INPUT_BUILD}."\n</project>"}e' "${input_consumer}/pom.xml"
 }
 
 generated_input_build() {
     cat > "${input_consumer}/input-build.xml" <<'XML'
     <build>
         <directory>build-output</directory>
-        <resources><resource>
-            <directory>${project.build.directory}/generated-resources</directory>
-        </resource></resources>
+        <resources>
+            <resource>
+                <directory>${project.build.directory}/generated-resources</directory>
+            </resource>
+        </resources>
         <plugins>
-            <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-antrun-plugin</artifactId>
-                <version>3.2.0</version><executions><execution><id>produce-inputs</id><phase>generate-sources</phase>
-                    <goals><goal>run</goal></goals><configuration><target>
-                        <mkdir dir="${project.build.directory}/generated-sources/com/example/generated" />
-                        <mkdir dir="${project.build.directory}/generated-resources" />
-                        <copy file="${project.basedir}/GeneratedValue.java.template"
-                            tofile="${project.build.directory}/generated-sources/com/example/generated/GeneratedValue.java"
-                        />
-                        <copy file="${project.basedir}/package-info.java.template"
-                            tofile="${project.build.directory}/generated-sources/com/example/generated/package-info.java"
-                        />
-                        <echo file="${project.build.directory}/generated-resources/generated.txt"
-                        >Generated resource&#10;</echo>
-                    </target></configuration>
-                </execution></executions>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>produce-inputs</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.build.directory}/generated-sources/com/example/generated" />
+                                <mkdir dir="${project.build.directory}/generated-resources" />
+                                <copy file="${project.basedir}/GeneratedValue.java.template"
+                                    tofile="${project.build.directory}/generated-sources/com/example/generated/GeneratedValue.java"
+                                />
+                                <copy file="${project.basedir}/package-info.java.template"
+                                    tofile="${project.build.directory}/generated-sources/com/example/generated/package-info.java"
+                                />
+                                <echo file="${project.build.directory}/generated-resources/generated.txt"
+                                >Generated resource&#10;</echo>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
-            <plugin><groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId>
-                <executions><execution>
-                    <id>generated-source-root</id><phase>generate-sources</phase>
-                    <goals><goal>add-source</goal></goals><configuration><sources>
-                        <source>${project.build.directory}/generated-sources</source>
-                    </sources></configuration>
-                </execution></executions>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generated-source-root</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -166,12 +216,18 @@ run_reactor_build_inputs() {
     input_consumer="${consumer_directory}"
     mkdir -p "${input_consumer}/child/src/main/resources/build"
     printf 'Child runtime input\n' > "${input_consumer}/child/src/main/resources/build/value.txt"
-    perl -0pi -e 's{(<version>9[.]4[.]2</version>)}{$1<packaging>pom</packaging><modules><module>child</module></modules>}' \
+    perl -0pi -e 's{(<version>9[.]4[.]2</version>\n)}{$1    <packaging>pom</packaging>\n\n    <modules>\n        <module>child</module>\n    </modules>\n}' \
         "${input_consumer}/pom.xml"
     cat > "${input_consumer}/child/pom.xml" <<'XML'
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
-    <parent><groupId>com.example</groupId><artifactId>consumer</artifactId><version>9.4.2</version></parent>
+
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>consumer</artifactId>
+        <version>9.4.2</version>
+    </parent>
+
     <artifactId>child</artifactId>
 </project>
 XML
@@ -185,16 +241,30 @@ run_source_folder_generation() {
     new_consumer source-folder-generation
     input_consumer="${consumer_directory}"
     cat > "${input_consumer}/input-build.xml" <<'XML'
-    <build><plugins><plugin>
-        <groupId>org.apache.maven.plugins</groupId><artifactId>maven-antrun-plugin</artifactId>
-        <version>3.2.0</version><executions><execution>
-            <id>generate-in-source-folder</id><phase>generate-resources</phase>
-            <goals><goal>run</goal></goals><configuration><target>
-                <mkdir dir="${project.basedir}/src/main/resources/build" />
-                <echo file="${project.basedir}/src/main/resources/build/late.txt">Generated outside output\n</echo>
-            </target></configuration>
-        </execution></executions>
-    </plugin></plugins></build>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-in-source-folder</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.basedir}/src/main/resources/build" />
+                                <echo file="${project.basedir}/src/main/resources/build/late.txt">Generated outside output\n</echo>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 XML
     append_input_build
     run_maven inputs_source_generated repository "${input_consumer}" process-resources

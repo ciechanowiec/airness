@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import eu.ciechanowiec.airness.governance.BuildPracticesCheck;
 import eu.ciechanowiec.airness.governance.Findings;
+import eu.ciechanowiec.airness.governance.PomLayoutCheck;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -12,7 +13,8 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
 /**
- * Holds the project file, and at the repository root the workflow files, to current build practices.
+ * Holds the project file, and at the repository root the workflow files, to current build practices, and the
+ * project file to the pom layout.
  *
  * <p>The parents Airness publishes are left alone: they are the harness rather than a project under it.
  */
@@ -29,7 +31,10 @@ public final class BuildPracticesMojo extends AbstractGovernanceMojo {
         Path pom = this.project().getFile().toPath();
         boolean root = this.project().getBasedir().toPath().toAbsolutePath().normalize()
             .equals(this.repositoryRoot().toAbsolutePath().normalize());
-        return new BuildPracticesCheck(pom, root ? workflows(this.repositoryRoot()) : List.of()).findings();
+        return Stream.concat(
+            new BuildPracticesCheck(pom, root ? workflows(this.repositoryRoot()) : List.of()).findings().stream(),
+            new PomLayoutCheck(pom).findings().stream()
+        ).toList();
     }
 
     private static List<Path> workflows(Path repository) {

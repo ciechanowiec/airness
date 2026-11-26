@@ -7,15 +7,21 @@ run_template_message_cases() {
     cat > "${message_app}/pom.xml" <<'POM'
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-spring-boot</artifactId>
         <version>1.0.14-SNAPSHOT</version>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>template-message-app</artifactId>
     <version>1.0.0</version>
-    <properties><airness.package.root>com.example</airness.package.root></properties>
+
+    <properties>
+        <airness.package.root>com.example</airness.package.root>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -198,8 +198,9 @@
                         The project file and the repository's workflows answer to current build practices: a
                         Java version below the one the parent compiles for, a superseded coordinate, an
                         unversioned dependencyManagement entry, a plugin without its groupId, a prefixless
-                        project expression, the dependency plugin's retired goal, and pom elements out of the
-                        documented order. It reads files only, so it runs before anything is built.
+                        project expression, the dependency plugin's retired goal, pom elements out of the
+                        documented order, and a project file laid out other than the one pom layout. It reads
+                        files only, so it runs before anything is built.
                     -->
                     <execution>
                         <id>airness-build-practices</id>
@@ -712,7 +713,10 @@
                             <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
                             <skip>${skipTests}</skip>
                             <skipTestScope>false</skipTestScope>
-                            <formats><format>HTML</format><format>JSON</format></formats>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                            </formats>
                             <!--
                                 The .NET assembly analyzer is off because this harness governs Java and Maven,
                                 and because leaving it on makes the verdict depend on the machine. The archive

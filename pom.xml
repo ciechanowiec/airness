@@ -458,7 +458,9 @@
                     <executions>
                         <execution>
                             <id>airness-integration-tests</id>
-                            <goals><goal>integration-test</goal></goals>
+                            <goals>
+                                <goal>integration-test</goal>
+                            </goals>
                         </execution>
                         <!--
                             At post-integration-test rather than verify: Maven orders a plugin a project declares after
@@ -469,7 +471,9 @@
                         <execution>
                             <id>airness-integration-verify</id>
                             <phase>post-integration-test</phase>
-                            <goals><goal>verify</goal></goals>
+                            <goals>
+                                <goal>verify</goal>
+                            </goals>
                         </execution>
                     </executions>
                 </plugin>
@@ -922,14 +926,25 @@
                         <failBuildOnUnusedSuppressionRule>true</failBuildOnUnusedSuppressionRule>
                         <skip>${skipTests}</skip>
                         <skipTestScope>false</skipTestScope>
-                        <formats><format>HTML</format><format>JSON</format></formats>
+                        <formats>
+                            <format>HTML</format>
+                            <format>JSON</format>
+                        </formats>
                         <!-- Native plugin scanning ignores Maven dependency overrides. Read resolved inputs instead. -->
                         <scanPlugins>false</scanPlugins>
                         <scanSet>
-                            <fileSet><directory>${project.basedir}/src/main/resources</directory></fileSet>
-                            <fileSet><directory>${project.basedir}/src/main/filters</directory></fileSet>
-                            <fileSet><directory>${project.basedir}/src/main/webapp</directory></fileSet>
-                            <fileSet><directory>${project.build.directory}/airness/plugin-inputs</directory></fileSet>
+                            <fileSet>
+                                <directory>${project.basedir}/src/main/resources</directory>
+                            </fileSet>
+                            <fileSet>
+                                <directory>${project.basedir}/src/main/filters</directory>
+                            </fileSet>
+                            <fileSet>
+                                <directory>${project.basedir}/src/main/webapp</directory>
+                            </fileSet>
+                            <fileSet>
+                                <directory>${project.build.directory}/airness/plugin-inputs</directory>
+                            </fileSet>
                         </scanSet>
                         <!--
                             The .NET assembly analyzer is off because this harness governs Java and Maven,
@@ -1611,7 +1626,9 @@
                             <execution>
                                 <id>airness-license-evidence</id>
                                 <phase>package</phase>
-                                <goals><goal>add-third-party</goal></goals>
+                                <goals>
+                                    <goal>add-third-party</goal>
+                                </goals>
                                 <configuration>
                                     <fileTemplate>${maven.multiModuleProjectDirectory}/.airness/license-inventory.ftl</fileTemplate>
                                     <outputDirectory>${project.build.directory}/airness/compliance</outputDirectory>

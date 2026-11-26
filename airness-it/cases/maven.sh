@@ -137,23 +137,27 @@ run_completion_order_case() {
     new_consumer completion-order
     completion_consumer="${consumer_directory}"
     completion_plugins="$(cat <<'XML'
-    <build><plugins>
-        <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-                <execution>
-                    <id>late-step</id>
-                    <phase>verify</phase>
-                    <goals><goal>maven-version</goal></goals>
-                </execution>
-            </executions>
-        </plugin>
-    </plugins></build>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>late-step</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>maven-version</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 XML
 )"
     COMPLETION_PLUGINS="${completion_plugins}" perl -0pi -e \
-        's{</project>}{$ENV{COMPLETION_PLUGINS}."\n</project>"}e' "${completion_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{COMPLETION_PLUGINS}."\n</project>"}e' "${completion_consumer}/pom.xml"
     run_maven completion_late maven "${completion_consumer}" verify airness:node-gate@node-gate-types
     expect_exit completion_late 'closing: a gate bound or named after module completion fails the build' 1
     expect_match completion_late 'closing: a node gate named after verify is refused before it runs' \
@@ -180,7 +184,10 @@ run_unowned_aggregator_case() {
     <artifactId>plain-aggregator</artifactId>
     <version>1</version>
     <packaging>pom</packaging>
-    <modules><module>service</module></modules>
+
+    <modules>
+        <module>service</module>
+    </modules>
 </project>
 XML
     run_maven unowned_root maven "${unowned_consumer}" validate
@@ -207,7 +214,7 @@ run_blocklist_boundaries() {
 XML
 )"
     BLOCKLIST_DEPENDENCY="${blocklist_dependency}" perl -0pi -e \
-        's{</project>}{$ENV{BLOCKLIST_DEPENDENCY}."\n</project>"}e' "${blocklist_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{BLOCKLIST_DEPENDENCY}."\n</project>"}e' "${blocklist_consumer}/pom.xml"
     printf 'FROM redis:7.4.1\n' > "${blocklist_consumer}/Dockerfile"
     printf 'services:\n  store:\n    image: mongo:7.0.14\n' > "${blocklist_consumer}/compose.yaml"
     mkdir -p "${blocklist_consumer}/.github/workflows"
@@ -290,7 +297,7 @@ run_license_alias_case() {
 XML
 )"
     LICENSE_DEPENDENCY="${license_dependency}" perl -0pi -e \
-        's{</project>}{$ENV{LICENSE_DEPENDENCY}."\n</project>"}e' "${license_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{LICENSE_DEPENDENCY}."\n</project>"}e' "${license_consumer}/pom.xml"
     run_maven license_bsd3_alias maven "${license_consumer}" license:add-third-party
     expect_exit license_bsd3_alias 'licenses: the published Adobe BSD3 alias is recognized' 0
     expect_match license_bsd3_alias 'licenses: the installed license goal actually ran' \

@@ -32,7 +32,7 @@ prepare_managed_plugin_consumer() {
     printf 'Managed Build Helper resource.\n' > "${plugins_consumer}/src/additional-resources/plugin-resource.txt"
     plugins_xml="$(cat "${plugins_fixture}/plugins.xml")"
     PLUGINS_XML="${plugins_xml}" perl -0pi -e \
-        's{</project>}{$ENV{PLUGINS_XML}."\n</project>"}e' "${plugins_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{PLUGINS_XML}."\n</project>"}e' "${plugins_consumer}/pom.xml"
     prepare_maven setup_plugins setup "${plugins_consumer}" --quiet process-resources -Pformat editorconfig:format
 }
 
@@ -62,14 +62,14 @@ run_spring_integration_case() {
         "${integration_spring}/src/test/java/com/example/ContextIT.java"
     perl -0pi -e 's/ContextTest/ContextIT/g' "${integration_spring}/src/test/java/com/example/ContextIT.java"
     integration_plugin="$(cat <<'XML'
-<plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-failsafe-plugin</artifactId>
-</plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
 XML
 )"
     INTEGRATION_PLUGIN="${integration_plugin}" perl -0pi -e \
-        's{<plugins>}{"<plugins>".$ENV{INTEGRATION_PLUGIN}}e' \
+        's{(<plugins>\n)}{$1.$ENV{INTEGRATION_PLUGIN}."\n"}e' \
         "${integration_spring}/pom.xml"
     prepare_maven setup_failsafe_spring_format setup "${integration_spring}" --quiet validate editorconfig:format
     run_maven integration_spring maven "${integration_spring}" clean verify

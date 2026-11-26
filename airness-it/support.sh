@@ -446,14 +446,17 @@ build_consumer() {
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-java</artifactId>
         <version>1.0.14-SNAPSHOT</version>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>consumer</artifactId>
     <version>9.4.2</version>
+
     <properties>
         <airness.package.root>com.example</airness.package.root>
     </properties>
