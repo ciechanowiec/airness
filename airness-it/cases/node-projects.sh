@@ -16,6 +16,7 @@ run_node_project_cases() {
     copy_node_fixture "${node_shop}/src/main/frontend"
     install_airness_node "${node_shop}/src/main/frontend"
     write_node_consumer "${node_shop}" 'src/main/frontend' '
+
     <build>
         <plugins>
             <plugin>
@@ -152,14 +153,17 @@ write_node_consumer() {
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-java</artifactId>
         <version>1.0.14-SNAPSHOT</version>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>consumer</artifactId>
     <version>9.4.2</version>
+
     <properties>
         <airness.node.projects>$2</airness.node.projects>
         <airness.package.root>com.example</airness.package.root>

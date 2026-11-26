@@ -16,15 +16,18 @@ run_node_gate_cases() {
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
         <version>1.0.14-SNAPSHOT</version>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>library</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
+
     <properties>
         <airness.package.root>com.example</airness.package.root>
     </properties>
@@ -638,15 +641,18 @@ run_node_next_cases() {
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
         <version>1.0.14-SNAPSHOT</version>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>site</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
+
     <properties>
         <airness.package.root>com.example</airness.package.root>
     </properties>

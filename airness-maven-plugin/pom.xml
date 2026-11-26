@@ -386,7 +386,10 @@
             <version>${maven.api.version}</version>
             <scope>provided</scope>
             <exclusions>
-                <exclusion><groupId>javax.inject</groupId><artifactId>javax.inject</artifactId></exclusion>
+                <exclusion>
+                    <groupId>javax.inject</groupId>
+                    <artifactId>javax.inject</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -460,7 +463,10 @@
             <version>1.1.0</version>
             <scope>test</scope>
             <exclusions>
-                <exclusion><groupId>javax.inject</groupId><artifactId>javax.inject</artifactId></exclusion>
+                <exclusion>
+                    <groupId>javax.inject</groupId>
+                    <artifactId>javax.inject</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>

@@ -98,13 +98,21 @@ prepare_image_fixture() {
     cat > "${image_fixture}/pom.xml" <<POM
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
-        <groupId>eu.ciechanowiec</groupId><artifactId>airness-parent-node</artifactId>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent-node</artifactId>
         <version>${harness_version}</version>
     </parent>
-    <groupId>com.example</groupId><artifactId>image-contract</artifactId><version>1.0.0</version>
+
+    <groupId>com.example</groupId>
+    <artifactId>image-contract</artifactId>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
-    <properties><airness.package.root>com.example</airness.package.root></properties>
+
+    <properties>
+        <airness.package.root>com.example</airness.package.root>
+    </properties>
 </project>
 POM
     git -C "${image_fixture}" init --quiet --initial-branch=main

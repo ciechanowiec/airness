@@ -65,36 +65,44 @@ prepare_compliance_frontend() {
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-node</artifactId>
         <version>1.0.14-SNAPSHOT</version>
         <relativePath/>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>report-web</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
+
     <properties>
         <airness.package.root>com.example</airness.package.root>
     </properties>
-    <build><plugins>
-        <plugin>
-            <groupId>org.owasp</groupId>
-            <artifactId>dependency-check-maven</artifactId>
-            <configuration>
-                <dataDirectory>${project.build.directory}/advisory-database</dataDirectory>
-                <nvdDatafeedUrl>file://${maven.multiModuleProjectDirectory}/feed/nvdcve-{0}.json.gz</nvdDatafeedUrl>
-                <nvdValidForHours>24</nvdValidForHours>
-                <suppressionFiles combine.self="override"/>
-                <hostedSuppressionsEnabled>false</hostedSuppressionsEnabled>
-                <knownExploitedEnabled>false</knownExploitedEnabled>
-                <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
-                <centralAnalyzerEnabled>false</centralAnalyzerEnabled>
-                <formats><format>JSON</format></formats>
-            </configuration>
-        </plugin>
-    </plugins></build>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <configuration>
+                    <dataDirectory>${project.build.directory}/advisory-database</dataDirectory>
+                    <nvdDatafeedUrl>file://${maven.multiModuleProjectDirectory}/feed/nvdcve-{0}.json.gz</nvdDatafeedUrl>
+                    <nvdValidForHours>24</nvdValidForHours>
+                    <suppressionFiles combine.self="override"/>
+                    <hostedSuppressionsEnabled>false</hostedSuppressionsEnabled>
+                    <knownExploitedEnabled>false</knownExploitedEnabled>
+                    <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
+                    <centralAnalyzerEnabled>false</centralAnalyzerEnabled>
+                    <formats>
+                        <format>JSON</format>
+                    </formats>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
 POM
     perl -0pi -e 's{(<module>report-second</module>)}{$1<module>report-web</module>}' "${vulnerability_consumer}/pom.xml"

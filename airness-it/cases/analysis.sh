@@ -270,6 +270,7 @@ JAVA
     new_consumer build-practices
     build_practices="${consumer_directory}"
     sed 's|^    </properties>|    </properties>\
+\
     <url>https://example.com</url>|' "${build_practices}/pom.xml" > "${build_practices}/pom.xml.next"
     mv "${build_practices}/pom.xml.next" "${build_practices}/pom.xml"
     run_maven build_practices analysis "${build_practices}" validate
@@ -280,4 +281,18 @@ JAVA
     new_consumer build-practices-clean
     run_maven build_practices_clean analysis "${consumer_directory}" validate
     expect_exit build_practices_clean 'build practices: the template consumer passes validation' 0
+
+    # The layout is held at validate like the other practices: a block written straight after the one above it and a
+    # nested element written on its parent's line are both refused, each named at its line.
+    new_consumer pom-layout
+    pom_layout="${consumer_directory}"
+    perl -0pi -e 's{(    </parent>\n)\n}{$1};
+        s{(<version>9[.]4[.]2</version>\n)}{$1\n    <licenses><license><name>MIT</name></license></licenses>\n}' \
+        "${pom_layout}/pom.xml"
+    run_maven pom_layout analysis "${pom_layout}" validate
+    expect_exit pom_layout 'pom layout: a pom laid out otherwise fails validation' 1
+    expect_match pom_layout 'pom layout: the missing blank line is named' \
+        'pom[.]xml:[0-9]+: no blank line between <parent> and <groupId>'
+    expect_match pom_layout 'pom layout: the element on its parent line is named' \
+        'pom[.]xml:[0-9]+: <license> follows other markup on its line'
 }

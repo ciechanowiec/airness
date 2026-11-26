@@ -197,7 +197,9 @@
                     <execution>
                         <id>attach-npm-package</id>
                         <phase>package</phase>
-                        <goals><goal>attach-artifact</goal></goals>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
                         <configuration>
                             <artifacts>
                                 <artifact>

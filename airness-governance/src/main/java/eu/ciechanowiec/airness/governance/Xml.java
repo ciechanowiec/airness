@@ -9,6 +9,9 @@ import java.util.stream.IntStream;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import lombok.experimental.UtilityClass;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -18,9 +21,11 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- * A small, hardened DOM reader shared by the pom parser and the Maven Central metadata parser. It
+ * A small, hardened XML reader shared by the pom parsers and the Maven Central metadata parser. It
  * disables document type declarations and external entities so a hostile input cannot reach the
- * network or the filesystem, and it exposes only the direct-child navigation the callers need.
+ * network or the filesystem, and it exposes only the direct-child navigation the callers need. A reader
+ * that judges how a document is laid out reads it as a stream of events instead, because a DOM keeps
+ * neither the line a node stands on nor, reliably, the whitespace between nodes.
  */
 @UtilityClass
 final class Xml {
@@ -28,6 +33,18 @@ final class Xml {
     private static final String DISALLOW_DOCTYPE = "http://apache.org/xml/features/disallow-doctype-decl";
     private static final String EXTERNAL_GENERAL = "http://xml.org/sax/features/external-general-entities";
     private static final String EXTERNAL_PARAMETER = "http://xml.org/sax/features/external-parameter-entities";
+
+    static XMLStreamReader events(String content) {
+        XMLInputFactory factory = XMLInputFactory.newFactory();
+        factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        factory.setProperty(XMLInputFactory.IS_COALESCING, true);
+        try {
+            return factory.createXMLStreamReader(new StringReader(content));
+        } catch (XMLStreamException exception) {
+            throw new IllegalStateException("Could not parse XML", exception);
+        }
+    }
 
     static Document parse(String content) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();

@@ -49,45 +49,49 @@ PY
 
 prepare_vulnerability_scan() {
     vulnerability_plugins="$(cat <<'XML'
-    <build><plugins>
-        <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-        </plugin>
-        <plugin>
-            <groupId>io.github.download-maven-plugin</groupId>
-            <artifactId>download-maven-plugin</artifactId>
-        </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-install-plugin</artifactId>
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.logging.log4j</groupId>
-                    <artifactId>log4j-core</artifactId>
-                    <version>2.14.1</version>
-                </dependency>
-            </dependencies>
-        </plugin>
-        <plugin>
-            <groupId>org.owasp</groupId>
-            <artifactId>dependency-check-maven</artifactId>
-            <configuration>
-                <dataDirectory>${project.build.directory}/advisory-database</dataDirectory>
-                <nvdDatafeedUrl>file://${maven.multiModuleProjectDirectory}/feed/nvdcve-{0}.json.gz</nvdDatafeedUrl>
-                <nvdValidForHours>24</nvdValidForHours>
-                <!-- The fixed feed contains none of the advisories excused by the harness. -->
-                <suppressionFiles combine.self="override"/>
-                <hostedSuppressionsEnabled>false</hostedSuppressionsEnabled>
-                <knownExploitedEnabled>false</knownExploitedEnabled>
-                <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
-                <centralAnalyzerEnabled>false</centralAnalyzerEnabled>
-                <formats><format>JSON</format></formats>
-            </configuration>
-        </plugin>
-    </plugins></build>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>io.github.download-maven-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.logging.log4j</groupId>
+                        <artifactId>log4j-core</artifactId>
+                        <version>2.14.1</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <configuration>
+                    <dataDirectory>${project.build.directory}/advisory-database</dataDirectory>
+                    <nvdDatafeedUrl>file://${maven.multiModuleProjectDirectory}/feed/nvdcve-{0}.json.gz</nvdDatafeedUrl>
+                    <nvdValidForHours>24</nvdValidForHours>
+                    <!-- The fixed feed contains none of the advisories excused by the harness. -->
+                    <suppressionFiles combine.self="override"/>
+                    <hostedSuppressionsEnabled>false</hostedSuppressionsEnabled>
+                    <knownExploitedEnabled>false</knownExploitedEnabled>
+                    <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
+                    <centralAnalyzerEnabled>false</centralAnalyzerEnabled>
+                    <formats>
+                        <format>JSON</format>
+                    </formats>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 XML
 )"
     VULNERABILITY_PLUGINS="${vulnerability_plugins}" perl -0pi -e \
-        's{</project>}{$ENV{VULNERABILITY_PLUGINS}."\n</project>"}e' "${vulnerability_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{VULNERABILITY_PLUGINS}."\n</project>"}e' "${vulnerability_consumer}/pom.xml"
 }

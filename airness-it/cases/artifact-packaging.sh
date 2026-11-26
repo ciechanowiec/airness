@@ -57,21 +57,29 @@ prepare_packaged_consumer() {
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-spring-boot</artifactId>
         <version>1.0.14-SNAPSHOT</version>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>consumer</artifactId>
     <version>9.4.2</version>
-    <properties><airness.package.root>com.example</airness.package.root></properties>
+
+    <properties>
+        <airness.package.root>com.example</airness.package.root>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration><mainClass>com.example.NativeApplication</mainClass></configuration>
+                <configuration>
+                    <mainClass>com.example.NativeApplication</mainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>

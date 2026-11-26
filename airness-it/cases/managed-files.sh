@@ -15,20 +15,24 @@ run_managed_file_cases() {
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent</artifactId>
         <version>1.0.14-SNAPSHOT</version>
         <relativePath/>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>platform</artifactId>
     <version>9.4.2</version>
     <packaging>pom</packaging>
+
     <modules>
         <module>shop</module>
         <module>web</module>
     </modules>
+
     <properties>
         <airness.package.root>com.example</airness.package.root>
     </properties>
@@ -38,15 +42,18 @@ POM
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-java</artifactId>
         <version>1.0.14-SNAPSHOT</version>
         <relativePath/>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>shop</artifactId>
     <version>9.4.2</version>
+
     <properties>
         <airness.node.projects>src/main/frontend</airness.node.projects>
         <airness.package.root>com.example</airness.package.root>
@@ -57,16 +64,19 @@ POM
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent</artifactId>
         <version>1.0.14-SNAPSHOT</version>
         <relativePath/>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>web</artifactId>
     <version>9.4.2</version>
     <packaging>pom</packaging>
+
     <properties>
         <airness.node.projects>.</airness.node.projects>
         <airness.package.root>com.example</airness.package.root>

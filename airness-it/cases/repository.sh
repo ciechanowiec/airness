@@ -167,7 +167,9 @@ run_ignored_output_boundary() {
                     <execution>
                         <id>write-ignored-output</id>
                         <phase>compile</phase>
-                        <goals><goal>run</goal></goals>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
                         <configuration>
                             <target>
                                 <echo file="dist/notes.txt" message="Written by the build.   ${line.separator}"/>
@@ -181,7 +183,7 @@ run_ignored_output_boundary() {
 XML
 )"
     IGNORED_BLOCK="${ignored_block}" perl -0pi -e \
-        's{</project>}{$ENV{IGNORED_BLOCK}."\n</project>"}e' "${ignored_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{IGNORED_BLOCK}."\n</project>"}e' "${ignored_consumer}/pom.xml"
     run_maven ignored_output repository "${ignored_consumer}" clean verify
     expect_file_match "${ignored_consumer}/dist/notes.txt" \
         'formatting: the build wrote an ignored file with trailing whitespace' ' $'
@@ -219,7 +221,9 @@ run_tree_boundary() {
               <execution>
                 <id>mutate-after-snapshot</id>
                 <phase>process-resources</phase>
-                <goals><goal>run</goal></goals>
+                <goals>
+                    <goal>run</goal>
+                </goals>
                 <configuration>
                   <target>
                     <echo file="${project.basedir}/AGENTS.md" append="true">lifecycle drift</echo>
@@ -235,7 +239,7 @@ run_tree_boundary() {
 XML
 )"
     TREE_PROFILE="${tree_profile}" perl -0pi -e \
-        's{</project>}{$ENV{TREE_PROFILE}."\n</project>"}e' "${tree_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{TREE_PROFILE}."\n</project>"}e' "${tree_consumer}/pom.xml"
     prepare_maven tree_fixture_format repository "${tree_consumer}" validate editorconfig:format
     run_maven tree_mutation repository "${tree_consumer}" clean verify -Ptree-drift
     expect_exit tree_mutation 'tree: a mutation after the same lifecycle snapshot fails verification' 1
@@ -309,7 +313,9 @@ run_artifact_boundaries() {
           <execution>
             <id>repackage</id>
             <phase>package</phase>
-            <goals><goal>shade</goal></goals>
+            <goals>
+                <goal>shade</goal>
+            </goals>
             <configuration>
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <transformers>
@@ -327,7 +333,7 @@ run_artifact_boundaries() {
 XML
 )"
     SHADE_BLOCK="${shade_block}" perl -0pi -e \
-        's{</project>}{$ENV{SHADE_BLOCK}."\n</project>"}e' "${repackaged_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{SHADE_BLOCK}."\n</project>"}e' "${repackaged_consumer}/pom.xml"
     run_maven artifact_repackaged repository "${repackaged_consumer}" \
         clean verify -Dairness.enforce=false
     expect_exit artifact_repackaged 'artifact: report-only permits inspection of the repackaged archive' 0
@@ -356,6 +362,7 @@ run_vendored_artifact_boundary() {
       <version>1.0.0</version>
     </dependency>
   </dependencies>
+
   <build>
     <plugins>
       <plugin>
@@ -365,7 +372,9 @@ run_vendored_artifact_boundary() {
           <execution>
             <id>repackage</id>
             <phase>package</phase>
-            <goals><goal>shade</goal></goals>
+            <goals>
+                <goal>shade</goal>
+            </goals>
             <configuration>
               <createDependencyReducedPom>false</createDependencyReducedPom>
             </configuration>
@@ -377,7 +386,7 @@ run_vendored_artifact_boundary() {
 XML
 )"
     VENDORED_BLOCK="${vendored_block}" perl -0pi -e \
-        's{</project>}{$ENV{VENDORED_BLOCK}."\n</project>"}e' "${vendored_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{VENDORED_BLOCK}."\n</project>"}e' "${vendored_consumer}/pom.xml"
     prepare_maven vendored_build repository "${vendored_consumer}" --quiet jar:jar shade:shade@repackage -DskipTests
     if jar --list --file "${vendored_consumer}/target/consumer-9.4.2.jar" | grep -q '^[.]idea/workspace[.]xml$'; then
         pass 'artifact: the shade copied the dependency entry into the finished JAR'
@@ -409,7 +418,9 @@ run_artifact_manifest_boundary() {
           <execution>
             <id>repackage</id>
             <phase>package</phase>
-            <goals><goal>shade</goal></goals>
+            <goals>
+                <goal>shade</goal>
+            </goals>
             <configuration>
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <transformers>
@@ -427,7 +438,7 @@ run_artifact_manifest_boundary() {
 XML
 )"
     MANIFEST_BLOCK="${manifest_block}" perl -0pi -e \
-        's{</project>}{$ENV{MANIFEST_BLOCK}."\n</project>"}e' "${manifest_consumer}/pom.xml"
+        's{</project>}{"\n".$ENV{MANIFEST_BLOCK}."\n</project>"}e' "${manifest_consumer}/pom.xml"
     prepare_maven manifest_build repository "${manifest_consumer}" --quiet clean package \
         -DskipTests -Dairness.enforce=false
     run_maven manifest_reject repository "${manifest_consumer}" airness:artifact-content

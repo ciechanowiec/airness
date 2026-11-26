@@ -10,18 +10,22 @@ cat > "${spring_fixture}/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent-spring-boot</artifactId>
         <version>1.0.14-SNAPSHOT</version>
     </parent>
+
     <groupId>com.example</groupId>
     <artifactId>spring-app</artifactId>
     <version>1.0.0</version>
+
     <properties>
         <airness.coverage.excluded.classes>com.example.Application -- started only by the Spring Boot launcher</airness.coverage.excluded.classes>
         <airness.package.root>com.example</airness.package.root>
     </properties>
+
     <dependencies>
         <!--
             Declared because the module is repackaged, which is what the model goal asks of a deployed
@@ -51,6 +55,7 @@ cat > "${spring_fixture}/pom.xml" <<'POM'
             <scope>test</scope>
         </dependency>
     </dependencies>
+
     <build>
         <plugins>
             <plugin>
@@ -378,6 +383,7 @@ spring_cloud_bom='    <dependencyManagement>
             </dependency>
         </dependencies>
     </dependencyManagement>
+
 '
 # Written after the test starter, so the list stays in the order the recipe set sorts it into.
 spring_cloud_dependency='        <dependency>
