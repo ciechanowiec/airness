@@ -254,13 +254,53 @@ const reasonsOf = async (session: CDPSession, layerId: string): Promise<readonly
   }
 }
 
-// The layers the browser composites now: the tree is asked for afresh, since enabling the domain reports it.
-const readLayers = async (session: CDPSession, documentNode: number): Promise<readonly CompositedLayer[]> => {
+// The id of the probe a read adds, and the label a layer of it carries.
+const PROBE_ID: string = 'airness-layer-probe'
+const PROBE_LABEL: string = `div#${PROBE_ID}`
+
+/**
+ * Adds a promoted pixel to the page that draws almost nothing, or takes it away again. Chromium reports its
+ * layer tree only after a frame that changed the layers, and a still page draws no such frame, so a read adds
+ * the probe to have the tree reported and takes it away once it is.
+ * @param id the probe's id.
+ */
+const toggleProbeInPage = (id: string): void => {
+  const present: HTMLElement | null = document.querySelector<HTMLElement>(`#${id}`)
+  if (present !== null) {
+    present.remove()
+    return
+  }
+  const probe: HTMLDivElement = document.createElement('div')
+  probe.setAttribute('id', id)
+  for (const [name, value] of [
+    ['position', 'fixed'],
+    ['left', '0'],
+    ['top', '0'],
+    ['width', '1px'],
+    ['height', '1px'],
+    ['pointer-events', 'none'],
+    ['will-change', 'transform'],
+    ['background', 'rgb(0 0 0 / 1%)'],
+  ] as const) {
+    probe.style.setProperty(name, value)
+  }
+  document.body.append(probe)
+}
+
+// The layers the browser composites now: the domain is enabled afresh and a probe changes the layers, so the
+// tree is reported whether or not the page itself draws another frame. The probe's own layer is left out.
+const readLayers = async (
+  page: Page,
+  session: CDPSession,
+  documentNode: number,
+): Promise<readonly CompositedLayer[]> => {
   await session.send('LayerTree.disable')
   const reported: Promise<readonly ProtocolLayer[]> = nextLayers(session)
   await session.send('LayerTree.enable')
+  await page.evaluate(toggleProbeInPage, PROBE_ID)
   const layers: readonly ProtocolLayer[] = await reported
-  return await Promise.all(
+  await page.evaluate(toggleProbeInPage, PROBE_ID)
+  const described: readonly CompositedLayer[] = await Promise.all(
     layers.map(async (layer: ProtocolLayer): Promise<CompositedLayer> => {
       return {
         width: layer.width,
@@ -272,6 +312,7 @@ const readLayers = async (session: CDPSession, documentNode: number): Promise<re
       }
     }),
   )
+  return described.filter((layer: CompositedLayer): boolean => layer.label !== PROBE_LABEL)
 }
 
 const filterVisits = async (page: Page, place: FindingPlace, viewport: Viewport): Promise<Visit> => {
@@ -298,7 +339,7 @@ const sampleRendering = async (page: Page, session: CDPSession, viewport: Viewpo
   const watch = async (): Promise<readonly CompositedLayer[]> => {
     await page.evaluate(watchAnimationsInPage, [MOVING_ATTRIBUTE, WATCH_MS, POLL_MS] as const)
     await page.evaluate(readPlacementsInPage, [MOVING_ATTRIBUTE, PLACEMENT_ATTRIBUTE] as const)
-    return await readLayers(session, root.backendNodeId)
+    return await readLayers(page, session, root.backendNodeId)
   }
   await page.evaluate(readPlacementsInPage, [MOVING_ATTRIBUTE, PLACEMENT_ATTRIBUTE] as const)
   const rested: readonly CompositedLayer[] = await watch()

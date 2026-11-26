@@ -1,5 +1,5 @@
 // How the interaction pass judges a control that carries no text: which controls it shoots, the region it
-// cuts from the shots, and how much of what the control paints must contrast 3:1 with what it covers. Each
+// cuts from the shots, and whether enough of what the control paints contrasts 3:1 with what it covers. Each
 // rendering is stated as RGBA pixels, the ground in one colour and the control's strokes in others.
 import { describe, expect, it } from 'vitest'
 import {
@@ -38,7 +38,6 @@ const rendered = (ground: Colour, painter: Painter | undefined, scale: number = 
 const renderingsOf = (ground: Colour, painter: Painter, scale: number = 1): GraphicRenderings => ({
   shown: rendered(ground, painter, scale),
   hidden: rendered(ground, undefined, scale),
-  width: SIZE * scale,
   scale,
 })
 
@@ -60,6 +59,10 @@ const ringed =
   (column: number, row: number): Colour =>
     isInBand(column, row, 0, SIZE) ? ring : WHITE
 
+// A light fill across the whole control with a short dark bar across its middle, as a menu icon draws it.
+const filled: Painter = (column: number, row: number): Colour =>
+  row >= 11 && row < 13 && column >= 8 && column < 16 ? INK : PALE_GREY
+
 const measured = (renderings: GraphicRenderings): GraphicMeasure => {
   const measure: GraphicMeasure | undefined = measureGraphic(renderings)
   if (measure === undefined) {
@@ -72,16 +75,24 @@ describe('measuring what a control draws', () => {
   it('fails a pale icon on a pale ground, naming how much contrasts and how much must', () => {
     const measure: GraphicMeasure = measured(renderingsOf(PALE_GREY, outline(SILVER)))
     expect([measure, graphicContrastMessage('button.next', measure)]).toEqual([
-      { painted: 112, contrasting: 0, required: 56 },
+      { painted: 112, contrasting: 0, required: 9 },
       'button.next carries no text, and too little of what it draws stands out from what lies beneath it: 0 px² ' +
-        'of the 112 px² it paints contrast 3:1 with what they cover, and at least 56 px² must (WCAG 1.4.11)',
+        'of the 112 px² it paints contrast 3:1 with what they cover, and at least 9 px² must (WCAG 1.4.11)',
     ])
   })
 
   it('passes the same icon drawn dark', () => {
     const measure: GraphicMeasure = measured(renderingsOf(PALE_GREY, outline(INK)))
     expect([measure, graphicContrastMessage('button.next', measure)]).toEqual([
-      { painted: 112, contrasting: 112, required: 56 },
+      { painted: 112, contrasting: 112, required: 9 },
+      undefined,
+    ])
+  })
+
+  it('passes an icon on a light fill, identified by the icon although the fill blends into the ground', () => {
+    const measure: GraphicMeasure = measured(renderingsOf(WHITE, filled))
+    expect([measure, graphicContrastMessage('summary.menu', measure)]).toEqual([
+      { painted: 576, contrasting: 16, required: 9 },
       undefined,
     ])
   })
@@ -93,10 +104,10 @@ describe('measuring what a control draws', () => {
       graphicContrastMessage('button.marker', pale) === undefined,
       graphicContrastMessage('button.marker', dark),
       dark,
-    ]).toEqual([false, undefined, { painted: 576, contrasting: 176, required: 92 }])
+    ]).toEqual([false, undefined, { painted: 576, contrasting: 176, required: 9 }])
   })
 
-  it('passes a thin antialiased stroke when half of what it paints contrasts', () => {
+  it('passes a thin antialiased stroke, whose core contrasts and whose edge does not', () => {
     const diagonal: Painter = (column: number, row: number): Colour | undefined => {
       if (row === column && column < 16) {
         return INK
@@ -105,7 +116,7 @@ describe('measuring what a control draws', () => {
     }
     const measure: GraphicMeasure = measured(renderingsOf(WHITE, diagonal))
     expect([measure, graphicContrastMessage('button.close', measure)]).toEqual([
-      { painted: 32, contrasting: 16, required: 16 },
+      { painted: 32, contrasting: 16, required: 9 },
       undefined,
     ])
   })
@@ -114,8 +125,22 @@ describe('measuring what a control draws', () => {
     expect(measured(renderingsOf(PALE_GREY, outline(SILVER), 2))).toEqual({
       painted: 112,
       contrasting: 0,
-      required: 56,
+      required: 9,
     })
+  })
+
+  it('asks of a control that paints less than two findable dots that half of it contrast', () => {
+    const dot: Painter = (column: number, row: number): Colour | undefined => {
+      if (column < 10 || column >= 14 || row < 10 || row >= 14) {
+        return undefined
+      }
+      return column < 12 ? INK : MID_GREY
+    }
+    const measure: GraphicMeasure = measured(renderingsOf(WHITE, dot))
+    expect([measure, graphicContrastMessage('button.dot', measure)]).toEqual([
+      { painted: 16, contrasting: 8, required: 8 },
+      undefined,
+    ])
   })
 
   it('measures nothing for a control that paints nothing, such as a stretched link', () => {
@@ -135,13 +160,28 @@ const facts = (fields: Partial<GraphicFacts>): GraphicFacts => ({
 })
 
 describe('which controls are judged', () => {
-  it('judges an available control that shows no text, a text field drawn by its author included', () => {
+  it('judges an available control that shows no text, a checkbox or radio button its author draws included', () => {
     expect([
       isGraphicCandidate(facts({})),
       isGraphicCandidate(facts({ tag: 'a' })),
-      isGraphicCandidate(facts({ tag: 'input', type: 'text', appearance: 'none' })),
+      isGraphicCandidate(facts({ tag: 'summary' })),
       isGraphicCandidate(facts({ tag: 'input', type: 'checkbox', appearance: 'none' })),
-    ]).toEqual([true, true, true, true])
+      isGraphicCandidate(facts({ tag: 'input', type: 'radio', appearance: 'none' })),
+    ]).toEqual([true, true, true, true, true])
+  })
+
+  it('leaves alone a field, which its label identifies, however its author draws it', () => {
+    expect(
+      [
+        facts({ tag: 'input', type: 'text' }),
+        facts({ tag: 'input', type: 'text', appearance: 'none' }),
+        facts({ tag: 'input', type: 'search', appearance: 'none' }),
+        facts({ tag: 'input', type: 'date' }),
+        facts({ tag: 'input', type: 'file', appearance: 'none' }),
+        facts({ tag: 'textarea', appearance: 'none' }),
+        facts({ tag: 'select', appearance: 'none' }),
+      ].map((candidate: GraphicFacts): boolean => isGraphicCandidate(candidate)),
+    ).toEqual([false, false, false, false, false, false, false])
   })
 
   it('leaves a control showing text to text contrast, and an inactive or unrendered one alone', () => {

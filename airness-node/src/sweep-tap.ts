@@ -492,6 +492,59 @@ const touchVisit = async (pages: TouchPages, location: SweepLocation): Promise<V
   ])
 }
 
+/** Whether each spelling of a pointer media feature matches on a device, by the spelling, lower case. */
+type PointerAnswers = Readonly<Record<string, boolean>>
+
+// A phone: a coarse pointer that can't hover.
+const PHONE_POINTER: PointerAnswers = {
+  hover: false,
+  'hover:hover': false,
+  'hover:none': true,
+  pointer: true,
+  'pointer:fine': false,
+  'pointer:coarse': true,
+  'pointer:none': false,
+}
+
+// A desktop: a fine pointer that can hover.
+const MOUSE_POINTER: PointerAnswers = {
+  hover: true,
+  'hover:hover': true,
+  'hover:none': false,
+  pointer: true,
+  'pointer:fine': true,
+  'pointer:coarse': false,
+  'pointer:none': false,
+}
+
+/**
+ * Answers a script that asks whether the device can hover, or how fine its pointer is, as the device a context
+ * stands for. Headless Chromium reads these from the input devices of the machine it runs on, which differ
+ * between machines, so a handler gated on them would answer one machine's mouse and not another's. Each such
+ * feature of a query becomes one that always or never matches, and the rest of the query stands.
+ * @param answers whether each spelling matches on the device the context stands for.
+ */
+const pointerMediaInPage = (answers: PointerAnswers): void => {
+  const original: (query: string) => MediaQueryList = globalThis.matchMedia.bind(globalThis)
+  const pin = (feature: string, name: string, value: string | undefined): string => {
+    const spelling: string = value === undefined ? name : `${name}:${value}`
+    const answer: boolean | undefined = answers[spelling.toLowerCase()]
+    if (answer === undefined) {
+      return feature
+    }
+    return answer ? '(min-width: 0px)' : '(max-width: 0px)'
+  }
+  const pinned = (query: string): MediaQueryList =>
+    original(
+      query.replaceAll(
+        /\(\s*(?:any-)?(hover|pointer)\s*(?::\s*([a-z]+)\s*)?\)/giu,
+        (feature: string, name: string, value: string | undefined): string => pin(feature, name, value),
+      ),
+    )
+  // eslint-disable-next-line functional/immutable-data -- the page's matchMedia is replaced before its scripts run, so it answers as the device the context stands for
+  Object.defineProperty(globalThis, 'matchMedia', { value: pinned, configurable: true, writable: true })
+}
+
 // A page in a context of its own, at the phone's width, without touch: a mouse that can hover clicks in it.
 // It carries the touch context's session, so a signed-in visit stays signed in.
 const openMousePage = async (page: Page): Promise<Page> => {
@@ -503,6 +556,7 @@ const openMousePage = async (page: Page): Promise<Page> => {
     viewport: PHONE,
     storageState: await page.context().storageState(),
   })
+  await context.addInitScript(pointerMediaInPage, MOUSE_POINTER)
   const mouse: Page = await context.newPage()
   await preparePage(mouse)
   return mouse
@@ -519,6 +573,7 @@ export const expectTouchResponses = async (page: Page, shard: Shard): Promise<vo
   const discovery: Discovery = readDiscovery(test.info())
   const locations: readonly SweepLocation[] = sampledLocations(discovery)
   const budget: Budget = armBudget(page, 'touch', shard, locations.length)
+  await page.addInitScript(pointerMediaInPage, PHONE_POINTER)
   await preparePage(page)
   const mouse: Page = await openMousePage(page)
   try {

@@ -105,6 +105,9 @@ const NOTICE: string =
 // Enough lanterns, each two fifths of a viewport tall in two columns, to fill the field's four viewports.
 const LANTERNS: number = 18
 
+// A lantern, its glass filling it.
+const LANTERN: string = '<span className="lantern"><span className="lantern-glass" /></span>'
+
 /** The client components these pages render, by the name a page imports each under. */
 export const RENDER_COMPONENTS: Readonly<Record<string, string>> = { Gallery: GALLERY, Swatches: SWATCHES }
 
@@ -133,11 +136,12 @@ export const RENDER_PAGES: Readonly<Record<string, RenderVariant>> = {
       '<div className="pane pane-tinted"><span className="drifter" /></div>' +
       '<div className="glow glow-still" />',
   },
-  // A lantern field four viewports tall on a dark ground. The defect promotes the field and every lantern to a
-  // layer of its own; repaired, nothing in it asks for a layer.
+  // A lantern field four viewports tall on a dark ground. The defect promotes the field, every lantern and
+  // every lantern's glass to a layer of its own, three layers deep over what is shown; repaired, nothing in it
+  // asks for a layer.
   'layer-area': {
-    defect: `<div className="lantern-field lantern-promoted">${'<span className="lantern" />'.repeat(LANTERNS)}</div>`,
-    valid: `<div className="lantern-field">${'<span className="lantern" />'.repeat(LANTERNS)}</div>`,
+    defect: `<div className="lantern-field lantern-promoted">${LANTERN.repeat(LANTERNS)}</div>`,
+    valid: `<div className="lantern-field">${LANTERN.repeat(LANTERNS)}</div>`,
   },
 }
 
@@ -173,7 +177,8 @@ export const RENDER_STYLES: string = `
 .glow { width: 120px; height: 120px; background: #f59e0b; filter: blur(4px); }
 .lantern-field { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 400svh; background: #1e293b; }
 .lantern { display: block; height: 40svh; background: #fde68a; }
-.lantern-promoted, .lantern-promoted .lantern { will-change: transform; }
+.lantern-glass { display: block; height: 100%; background: #fbbf24; }
+.lantern-promoted, .lantern-promoted .lantern, .lantern-promoted .lantern-glass { will-change: transform; }
 @keyframes drift { from { transform: translateX(0); } to { transform: translateX(120px); } }
 @keyframes pulse { from { filter: blur(2px); } to { filter: blur(10px); } }
 @media (prefers-reduced-motion: no-preference) {

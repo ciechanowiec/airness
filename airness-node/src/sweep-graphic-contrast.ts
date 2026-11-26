@@ -184,7 +184,6 @@ const measureAt = async (page: Page, selector: string): Promise<GraphicMeasure |
   return measureGraphic({
     shown: pixels.first,
     hidden: pixels.second,
-    width: Math.round(region.width * pixels.scale),
     scale: pixels.scale,
   })
 }

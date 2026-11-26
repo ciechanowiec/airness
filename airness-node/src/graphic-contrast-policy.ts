@@ -12,18 +12,25 @@
 // reader can see of it.
 //
 // HOW MUCH MUST CONTRAST. WCAG 1.4.11 asks for the parts needed to identify the control, and names no area.
-// A one-pixel line around the control's painted extent outlines its shape, so that much must contrast; a
-// thin icon whose strokes cover less than that line passes when half of what it paints contrasts. A text
-// label identifies a control by itself and is held to text contrast elsewhere, so a control showing text is
-// not judged here, nor one the user agent draws, nor an inactive one, which WCAG 1.4.11 exempts.
+// Pixels can't tell which part that is: an icon on a light fill is identified by the icon, not by the fill's
+// edge. So a control passes once a dot of it three CSS pixels square stands out, or half of what it paints
+// when it paints less, and fails when nothing of it a reader could find does: a pale stroke on a pale
+// ground, a light ring on a light fill. A text label identifies a control by itself and is held to text
+// contrast elsewhere, so a control showing text is not judged here; nor is a field, which its label and
+// its place in a form identify; nor a control the user agent draws, nor an inactive one, which WCAG 1.4.11
+// exempts.
 import type { ElementBox, FocusRegion } from './focus-reach.js'
 import { contrastRatio, luminanceAt, RGBA_BYTES } from './pixel-contrast.js'
 
 /** The contrast the pixels identifying a control need against what they cover (WCAG 1.4.11). */
 const GRAPHIC_CONTRAST_RATIO: number = 3
 
-// The input types whose look the user agent draws until the author turns its appearance off.
-const AGENT_DRAWN_TYPES: ReadonlySet<string> = new Set<string>(['checkbox', 'radio', 'range', 'color', 'file'])
+// The input types an author draws as a graphic of their own once the appearance the user agent gives them is
+// turned off; every other input, like a textarea or a select, is a field a reader types into or picks from.
+const DRAWN_TYPES: ReadonlySet<string> = new Set<string>(['checkbox', 'radio'])
+
+// The area, in square CSS pixels, a reader must be able to find of a control: a dot three pixels square.
+const FINDABLE_AREA: number = 9
 
 /** What the browser reports about an operable element, which decides whether its graphics are judged. */
 export interface GraphicFacts {
@@ -43,25 +50,24 @@ export interface GraphicFacts {
   readonly isRendered: boolean
 }
 
-const isAgentDrawn = (facts: GraphicFacts): boolean =>
-  (facts.tag === 'select' || (facts.tag === 'input' && AGENT_DRAWN_TYPES.has(facts.type))) &&
-  facts.appearance !== 'none'
+const isField = (facts: GraphicFacts): boolean =>
+  facts.tag === 'select' ||
+  facts.tag === 'textarea' ||
+  (facts.tag === 'input' && !(DRAWN_TYPES.has(facts.type) && facts.appearance === 'none'))
 
 /**
  * Whether a control is identified by its graphics alone, so its pixels are judged: it is available, renders,
- * shows no text, and draws itself rather than leaving its look to the user agent.
+ * shows no text, and is no field, other than a checkbox or a radio button its author draws.
  * @param facts what the browser reports about the control.
  * @returns whether the control is judged.
  */
 export const isGraphicCandidate = (facts: GraphicFacts): boolean =>
-  facts.isRendered && !facts.isDisabled && !facts.isInert && !facts.hasVisibleText && !isAgentDrawn(facts)
+  facts.isRendered && !facts.isDisabled && !facts.isInert && !facts.hasVisibleText && !isField(facts)
 
 /** One region of the page shot with the control shown and hidden, decoded to RGBA. */
 export interface GraphicRenderings {
   readonly shown: ArrayLike<number>
   readonly hidden: ArrayLike<number>
-  /** The region's width in device pixels: the length of one row of the RGBA data. */
-  readonly width: number
   /** Device pixels per CSS pixel along one side. */
   readonly scale: number
 }
@@ -76,30 +82,16 @@ export interface GraphicMeasure {
   readonly required: number
 }
 
-/** The painted pixels and the box around them, in device pixels. */
+/** How many pixels the control paints, and how many of those contrast, in device pixels. */
 interface Painted {
   readonly count: number
   readonly contrasting: number
-  readonly left: number
-  readonly top: number
-  readonly right: number
-  readonly bottom: number
 }
 
-const NOTHING: Painted = {
-  count: 0,
-  contrasting: 0,
-  left: Number.POSITIVE_INFINITY,
-  top: Number.POSITIVE_INFINITY,
-  right: Number.NEGATIVE_INFINITY,
-  bottom: Number.NEGATIVE_INFINITY,
-}
+const NOTHING: Painted = { count: 0, contrasting: 0 }
 
 const BLUE_OFFSET: number = 2
 const HALF: number = 0.5
-// A box at most this many pixels across on a side is all band.
-const BAND_SIDES: number = 2
-const BAND_CORNERS: number = 4
 
 const isChanged = (renderings: GraphicRenderings, offset: number): boolean =>
   renderings.shown[offset] !== renderings.hidden[offset] ||
@@ -108,36 +100,25 @@ const isChanged = (renderings: GraphicRenderings, offset: number): boolean =>
 
 const paintedOf = (renderings: GraphicRenderings): Painted => {
   const pixels: number = Math.floor(Math.min(renderings.shown.length, renderings.hidden.length) / RGBA_BYTES)
-  const width: number = Math.max(1, renderings.width)
   return Array.from({ length: pixels }, (_unused: unknown, pixel: number): number => pixel).reduce(
     (painted: Painted, pixel: number): Painted => {
       const offset: number = pixel * RGBA_BYTES
       if (!isChanged(renderings, offset)) {
         return painted
       }
-      const column: number = pixel % width
-      const row: number = Math.floor(pixel / width)
       const ratio: number = contrastRatio(luminanceAt(renderings.shown, offset), luminanceAt(renderings.hidden, offset))
       return {
         count: painted.count + 1,
         contrasting: painted.contrasting + (ratio >= GRAPHIC_CONTRAST_RATIO ? 1 : 0),
-        left: Math.min(painted.left, column),
-        top: Math.min(painted.top, row),
-        right: Math.max(painted.right, column),
-        bottom: Math.max(painted.bottom, row),
       }
     },
     NOTHING,
   )
 }
 
-// The area of a one-pixel line around a box, in square CSS pixels; a box too thin to hold one is all line.
-const bandOf = (width: number, height: number): number =>
-  width <= BAND_SIDES || height <= BAND_SIDES ? width * height : BAND_SIDES * (width + height) - BAND_CORNERS
-
 /**
- * How much of a control's drawing contrasts with what it covers, and how much must: the area of a one-pixel
- * line around the box of what it paints, or half of what it paints, whichever is less.
+ * How much of a control's drawing contrasts with what it covers, and how much must: a dot three CSS pixels
+ * square, or half of what it paints, whichever is less.
  * @param renderings the region with the control shown and hidden.
  * @returns the measure, or undefined when the control paints nothing in the region.
  */
@@ -148,11 +129,7 @@ export const measureGraphic = (renderings: GraphicRenderings): GraphicMeasure | 
   }
   const square: number = renderings.scale * renderings.scale
   const area: number = painted.count / square
-  const band: number = bandOf(
-    (painted.right - painted.left + 1) / renderings.scale,
-    (painted.bottom - painted.top + 1) / renderings.scale,
-  )
-  return { painted: area, contrasting: painted.contrasting / square, required: Math.min(band, area * HALF) }
+  return { painted: area, contrasting: painted.contrasting / square, required: Math.min(FINDABLE_AREA, area * HALF) }
 }
 
 /**
