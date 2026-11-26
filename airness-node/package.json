@@ -237,7 +237,7 @@
         "reason": "the TCP probe of the browser endpoint, which opens sockets and resolves hostnames; the decisions it feeds are measured in browser-server-policy.ts"
       },
       {
-        "pattern": "src/{scanner,browser-scope,focus-region,font-settle,page-style}.ts",
+        "pattern": "src/{scanner,browser-scope,focus-region,region-pixels,font-settle,page-style}.ts",
         "reason": "browser measurements and trusted view scoping execute inside the real Playwright contracts; pure snapshot policies have their own measured unit suites"
       },
       {
@@ -245,8 +245,8 @@
         "reason": "the shipped sweep executes inside Playwright workers against real pages; its verdict policies, queue and deadlines are measured separately"
       },
       {
-        "pattern": "src/sweep-{hit-target,pointer-only,paste,unrequested,reduced-motion}.ts",
-        "reason": "the sweep's keyboard-reach, paste, change-of-context and reduced-motion probes run inside Playwright workers against real pages; their verdicts are measured in pointer-only.ts, paste-policy.ts, unrequested-change.ts and reduced-motion-policy.ts"
+        "pattern": "src/sweep-{hit-target,pointer-only,paste,unrequested,reduced-motion,graphic-contrast,tap,rendering}.ts",
+        "reason": "the sweep's keyboard-reach, paste, change-of-context, reduced-motion, graphic-contrast, touch and rendering probes run inside Playwright workers against real pages; their verdicts are measured in pointer-only.ts, paste-policy.ts, unrequested-change.ts, reduced-motion-policy.ts, graphic-contrast-policy.ts, tap-policy.ts and render-cost-policy.ts"
       },
       {
         "pattern": "src/pinned-browsers.ts",
@@ -303,6 +303,7 @@
     "#browser/interaction-components": "./scripts/browser/visual-interaction-components.ts",
     "#browser/aria-components": "./scripts/browser/visual-aria-components.ts",
     "#browser/pinned-server": "./scripts/browser/pinned-server.ts",
+    "#browser/render-components": "./scripts/browser/visual-render-components.ts",
     "#browser/scroll-components": "./scripts/browser/visual-scroll-components.ts",
     "#browser/visual-components": "./scripts/browser/visual-busy-components.ts",
     "#browser/visual-images": "./scripts/browser/visual-images.ts",

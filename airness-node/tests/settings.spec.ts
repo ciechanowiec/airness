@@ -10,6 +10,7 @@ import {
   findUnreachedExclusions,
   findUnreachedExclusionsBySetting,
   isHonouredExclusion,
+  LAYER_AREA_BUDGET,
   LAYOUT_MINIMUM_GAP,
   readSettings,
   retiredSettings,
@@ -132,6 +133,7 @@ describe('the application settings', () => {
       bundleBudgetBytes: BUNDLE_BUDGET_BYTES,
       accessibilitySkipRoutes: [],
       accessibilityRouteBudget: ACCESSIBILITY_ROUTE_BUDGET,
+      layerAreaBudget: LAYER_AREA_BUDGET,
       layoutMinimumGap: LAYOUT_MINIMUM_GAP,
       layoutViewports: [],
       pureLogicRoots: [],
@@ -165,15 +167,26 @@ describe('the application settings', () => {
 
   it('lets a project lower a ceiling and raise a floor, never the reverse', () => {
     const lowered: Settings = readSettings({
-      airness: { bundleBudgetBytes: 1024, accessibilityRouteBudget: 10, layoutMinimumGap: 8 },
+      airness: { bundleBudgetBytes: 1024, accessibilityRouteBudget: 10, layerAreaBudget: 2, layoutMinimumGap: 8 },
     })
-    expect(lowered).toMatchObject({ bundleBudgetBytes: 1024, accessibilityRouteBudget: 10, layoutMinimumGap: 8 })
+    expect(lowered).toMatchObject({
+      bundleBudgetBytes: 1024,
+      accessibilityRouteBudget: 10,
+      layerAreaBudget: 2,
+      layoutMinimumGap: 8,
+    })
     const raised: Settings = readSettings({
-      airness: { bundleBudgetBytes: BUNDLE_BUDGET_BYTES * 2, accessibilityRouteBudget: 1e6, layoutMinimumGap: 1 },
+      airness: {
+        bundleBudgetBytes: BUNDLE_BUDGET_BYTES * 2,
+        accessibilityRouteBudget: 1e6,
+        layerAreaBudget: LAYER_AREA_BUDGET + 1,
+        layoutMinimumGap: 1,
+      },
     })
     expect(raised).toMatchObject({
       bundleBudgetBytes: BUNDLE_BUDGET_BYTES,
       accessibilityRouteBudget: ACCESSIBILITY_ROUTE_BUDGET,
+      layerAreaBudget: LAYER_AREA_BUDGET,
       layoutMinimumGap: LAYOUT_MINIMUM_GAP,
     })
   })

@@ -69,7 +69,9 @@ export type SweepPass =
   | 'text-stress'
   | 'width-sweep'
   | 'dark-scheme'
+  | 'rendering'
   | 'scrolling'
+  | 'touch'
   | 'engine'
 
 // What one unit of each pass's work may cost, in milliseconds. A unit is what the pass multiplies:
@@ -79,7 +81,9 @@ export type SweepPass =
 // again for the reduced-motion check, about ten seconds of still baselines and watches. A disclosure visit costs in
 // proportion to the controls on the page: a story with eight of them took four seconds and one with 192
 // over a minute, so a fixed cost per page left the heavy ones short of both their item's limit and the
-// part's budget.
+// part's budget. The rendering pass loads a page, samples it still and across two scroll steps and reads its
+// layers at each; the touch pass taps up to twenty elements on a page, each waiting up to two seconds for an
+// answer and loading the page again after one.
 const ALLOWANCES_MS: Readonly<Record<SweepPass, number>> = {
   discovery: 30_000,
   resting: 12_000,
@@ -88,7 +92,9 @@ const ALLOWANCES_MS: Readonly<Record<SweepPass, number>> = {
   'text-stress': 15_000,
   'width-sweep': 2000,
   'dark-scheme': 10_000,
+  rendering: 15_000,
   scrolling: 40_000,
+  touch: 45_000,
   engine: 15_000,
 }
 

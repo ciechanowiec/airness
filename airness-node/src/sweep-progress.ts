@@ -38,7 +38,9 @@ const CHROMIUM_PASSES: readonly SweepPass[] = [
   'text-stress',
   'width-sweep',
   'dark-scheme',
+  'rendering',
   'scrolling',
+  'touch',
 ]
 
 const PERCENT: number = 100

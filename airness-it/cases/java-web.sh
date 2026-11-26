@@ -319,6 +319,7 @@ body {
     background: #fff;
     color: #111827;
     font-family: sans-serif;
+    text-wrap: pretty;
 }
 
 .skip-link {

@@ -131,8 +131,15 @@ export interface KeyboardWalk {
  */
 export const isWalkComplete = (walk: KeyboardWalk): boolean => walk.hasWrapped && walk.reached < walk.cap
 
-// What presents an element as operable to a pointer, in the words a finding uses.
-const operableSignal = (candidate: PointerCandidate): string | undefined => {
+/**
+ * What presents an element as operable to a pointer, in the words a finding uses: an interactive role, an
+ * inline `onclick`, or a pointer cursor it sets itself rather than inherits.
+ * @param candidate what the element shows of itself.
+ * @returns the signal, or undefined when nothing presents it as operable.
+ */
+export const operableSignal = (
+  candidate: Pick<OwnFacts, 'cursor' | 'hasOnclick' | 'parentCursor' | 'role'>,
+): string | undefined => {
   if (INTERACTIVE_ROLES.includes(candidate.role)) {
     return `role "${candidate.role}"`
   }

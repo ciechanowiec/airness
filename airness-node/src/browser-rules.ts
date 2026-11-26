@@ -2,7 +2,7 @@
 // browser. Each threshold is a fixed constant: a false positive is a defect of the rule and is repaired
 // here, never by a project setting.
 import type { CandidateFinding } from './browser-exemptions.js'
-import { findJustifiedText, findLongLines } from './layout-lines.js'
+import { findJustifiedText, findLongLines, findUnevenWrap } from './layout-lines.js'
 import { findReorderedText } from './layout-order.js'
 import {
   type FontFaceFacts,
@@ -14,6 +14,7 @@ import {
   type LayoutSnapshot,
   type MediaFacts,
 } from './layout-snapshot.js'
+import { contrastRatio, luminanceAt, RGBA_BYTES } from './pixel-contrast.js'
 
 /** The tolerance every geometric comparison allows, in CSS pixels. */
 const GEOMETRY_TOLERANCE: number = 1
@@ -67,7 +68,7 @@ export const FOCUS_RING_WIDTH: number = 4
 
 /**
  * The element rules of the resting scan beyond geometry: T4, M1 to M5, `image-heavy`, WCAG 1.4.8's text
- * presentation, and WCAG 1.3.2's reading order.
+ * presentation, the wrapping of a block's last lines, and WCAG 1.3.2's reading order.
  */
 export const RESTING_ELEMENT_RULES: readonly string[] = [
   'small-text',
@@ -79,6 +80,7 @@ export const RESTING_ELEMENT_RULES: readonly string[] = [
   'media-space',
   'text-justified',
   'line-length',
+  'text-wrap',
   'reading-order',
 ]
 
@@ -483,39 +485,8 @@ export const hasVisibleFocus = (unfocused: ArrayLike<number>, focused: ArrayLike
 /** The contrast a focus indicator's changed pixels need against what they replaced (WCAG 2.4.13). */
 export const FOCUS_CONTRAST_RATIO: number = 3
 
-const RGBA_BYTES: number = 4
-const CHANNEL_MAX: number = 255
-const LINEAR_KNEE: number = 0.04045
-const LINEAR_SLOPE: number = 12.92
-const GAMMA_OFFSET: number = 0.055
-const GAMMA_SCALE: number = 1.055
-const GAMMA: number = 2.4
-const RED_WEIGHT: number = 0.2126
-const GREEN_WEIGHT: number = 0.7152
-const BLUE_WEIGHT: number = 0.0722
-const FLARE: number = 0.05
-const BLUE_OFFSET: number = 2
 // The share of the element's longer side a contrasting one-pixel line of the browser's own ring must cover.
 const LINE_SHARE: number = 0.5
-
-const linearChannel = (value: number): number => {
-  const fraction: number = value / CHANNEL_MAX
-  return fraction <= LINEAR_KNEE ? fraction / LINEAR_SLOPE : ((fraction + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA
-}
-
-const luminanceAt = (pixels: ArrayLike<number>, offset: number): number =>
-  RED_WEIGHT * linearChannel(pixels[offset] ?? 0) +
-  GREEN_WEIGHT * linearChannel(pixels[offset + 1] ?? 0) +
-  BLUE_WEIGHT * linearChannel(pixels[offset + BLUE_OFFSET] ?? 0)
-
-/**
- * The WCAG contrast ratio between two relative luminances.
- * @param first one luminance.
- * @param second the other.
- * @returns the ratio, from 1 to 21.
- */
-const contrastRatio = (first: number, second: number): number =>
-  (Math.max(first, second) + FLARE) / (Math.min(first, second) + FLARE)
 
 /** How large a focused element's indicator must be, measured on the element's visible part in CSS pixels. */
 export interface FocusArea {
@@ -677,7 +648,8 @@ export const instability = (first: GeometrySnapshot, second: GeometrySnapshot): 
 /**
  * Every element candidate the resting scan's text and media rules find on one page.
  * @param snapshot the measured page.
- * @returns the candidates of T4, M1 to M5, `image-heavy`, `text-justified`, `line-length` and `reading-order`.
+ * @returns the candidates of T4, M1 to M5, `image-heavy`, `text-justified`, `line-length`, `text-wrap` and
+ *   `reading-order`.
  */
 export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateFinding[] => [
   ...findSmallText(snapshot),
@@ -689,5 +661,6 @@ export const restingCandidates = (snapshot: LayoutSnapshot): readonly CandidateF
   ...findUnreservedMedia(snapshot),
   ...findJustifiedText(snapshot),
   ...findLongLines(snapshot),
+  ...findUnevenWrap(snapshot),
   ...findReorderedText(snapshot),
 ]

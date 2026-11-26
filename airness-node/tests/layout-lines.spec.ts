@@ -1,10 +1,10 @@
 // How the resting scan reads a page's blocks of text for WCAG 1.4.8: lines longer than 80 characters, or 40
-// in Chinese, Japanese and Korean, and blocks justified to both edges. Each line is stated as the words the
-// browser reports, one rect per word.
+// in Chinese, Japanese and Korean, and blocks justified to both edges; beside them, blocks wrapped without
+// weighing their last lines. Each line is stated as the words the browser reports, one rect per word.
 import { describe, expect, it } from 'vitest'
 import type { CandidateFinding } from '@/browser-exemptions'
 import { restingCandidates } from '@/browser-rules'
-import { findJustifiedText, findLongLines } from '@/layout-lines'
+import { findJustifiedText, findLongLines, findUnevenWrap } from '@/layout-lines'
 import type { LayoutNode, LayoutRect, LayoutSnapshot, LayoutWord } from '@/layout-snapshot'
 import { BODY, nodeOf, rect, snapshotOf } from './helpers/layout-fixture.js'
 
@@ -245,5 +245,83 @@ describe('justified text', () => {
         (candidate: CandidateFinding): string => candidate.rule,
       ),
     ).toEqual(['text-justified'])
+  })
+})
+
+describe('text wrap', () => {
+  const twoLines: readonly LayoutWord[] = [...run(0, latin(8, 8)), ...run(1, latin(8))]
+  const oneLine: readonly LayoutWord[] = run(0, latin(8, 8))
+  const wrapped = (textWrapStyle: string, fields: Partial<LayoutNode> = {}): LayoutSnapshot =>
+    pageOf(paragraph(twoLines, { textWrapStyle, ...fields }))
+
+  it('fails a block wrapped over two lines or more that breaks each line as late as it can', () => {
+    expect([messages(findUnevenWrap(wrapped('auto'))), messages(findUnevenWrap(wrapped('stable')))]).toEqual([
+      [
+        'text-wrap: text wrapped over 2 lines under text-wrap-style: auto, which can leave one word alone on the ' +
+          'last line; set text-wrap: pretty, or balance for a heading: p.lead',
+      ],
+      [
+        'text-wrap: text wrapped over 2 lines under text-wrap-style: stable, which can leave one word alone on ' +
+          'the last line; set text-wrap: pretty, or balance for a heading: p.lead',
+      ],
+    ])
+  })
+
+  it('passes a block that weighs its last lines, in either spelling', () => {
+    expect([findUnevenWrap(wrapped('pretty')), findUnevenWrap(wrapped('balance'))]).toEqual([[], []])
+  })
+
+  it('passes a block set on one line, which has no last line to leave a word on', () => {
+    expect(findUnevenWrap(pageOf(paragraph(oneLine, { textWrapStyle: 'auto' })))).toEqual([])
+  })
+
+  it('leaves preformatted text, code, form controls and text that never wraps to their own lines', () => {
+    expect([
+      findUnevenWrap(wrapped('auto', { tag: 'pre' })),
+      findUnevenWrap(wrapped('auto', { tag: 'textarea' })),
+      findUnevenWrap(wrapped('auto', { whiteSpace: 'pre-wrap' })),
+      findUnevenWrap(wrapped('auto', { whiteSpace: 'nowrap' })),
+      findUnevenWrap(wrapped('auto', { whiteSpace: 'pre' })),
+    ]).toEqual([[], [], [], [], []])
+  })
+
+  it('leaves unjudged a block in an engine that cannot set pretty', () => {
+    expect(findUnevenWrap(wrapped(''))).toEqual([])
+  })
+
+  it('ignores text nobody sees: hidden, hidden from assistive technology or visually hidden', () => {
+    expect([
+      findUnevenWrap(wrapped('auto', { visibility: 'hidden' })),
+      findUnevenWrap(wrapped('auto', { isAriaHidden: true })),
+      findUnevenWrap(wrapped('auto', { isClipped: true })),
+    ]).toEqual([[], [], []])
+  })
+
+  it('judges the block whose lines an inline element is set in, by the block wrap', () => {
+    const span: LayoutNode = nodeOf({
+      index: 2,
+      parent: 1,
+      tag: 'span',
+      display: 'inline',
+      textWrapStyle: 'auto',
+      rects: [rect(0, 0, 100, 40)],
+      words: twoLines,
+    })
+    expect([
+      findUnevenWrap(pageOf(paragraph([]), span)),
+      messages(findUnevenWrap(pageOf(paragraph([], { textWrapStyle: 'auto' }), span))),
+    ]).toEqual([
+      [],
+      [
+        'text-wrap: text wrapped over 2 lines under text-wrap-style: auto, which can leave one word alone on the ' +
+          'last line; set text-wrap: pretty, or balance for a heading: p.lead',
+      ],
+    ])
+  })
+
+  it('is part of the resting scan', () => {
+    expect(restingCandidates(wrapped('auto')).map((candidate: CandidateFinding): string => candidate.rule)).toEqual([
+      'text-wrap',
+    ])
   })
 })

@@ -8,7 +8,7 @@ export default async function Layout({ children }: { readonly children: ReactNod
   await headers()
   return (
     <html lang="en">
-      <body style={{ fontFamily: 'sans-serif', color: '#111', background: '#fff' }}>{children}</body>
+      <body style={{ fontFamily: 'sans-serif', color: '#111', background: '#fff', textWrap: 'pretty' }}>{children}</body>
     </html>
   )
 }

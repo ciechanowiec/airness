@@ -37,7 +37,7 @@ const MOTION_PREFIXES: readonly string[] = ['inset', 'offset-', 'margin']
 const MOTION_MIN_MS: number = 100
 
 /** The smallest element whose motion counts, in square CSS pixels: a 48px square, a fingertip target. */
-const MOTION_MIN_AREA: number = 2304
+export const MOTION_MIN_AREA: number = 2304
 
 /** One animated property and the values its keyframes give it, in order. */
 export interface AnimatedProperty {

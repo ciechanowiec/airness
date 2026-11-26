@@ -23,6 +23,7 @@ import { isPerceivableWithin } from './perceivable.js'
 import { projectSettings } from './project-settings.js'
 import { axeFindings, settleFindings } from './scanner.js'
 import { settleForScan } from './settle.js'
+import { graphicContrastVisit } from './sweep-graphic-contrast.js'
 import { hitTargetInPage } from './sweep-hit-target.js'
 import { type InteractionPlace, type InteractionPlan, interactionPlan, placeUnits } from './sweep-interaction-plan.js'
 import { pasteVisit } from './sweep-paste.js'
@@ -468,6 +469,16 @@ const tabThrough = async (
 // The tab walk may take this many stops beyond the controls discovery counted.
 const EXTRA_TAB_STOPS: number = 2
 
+// What a still page is judged by once its keyboard walk has ended. What the keyboard reached is known only
+// then; the paste follows, since a field may act on it, and the controls carrying no text are shot last,
+// with the page as the keyboard and the paste left it and its focus taken away.
+const stillChecks = async (page: Page, place: FindingPlace, cap: number): Promise<readonly Visit[]> => {
+  const pointerOnly: Visit = await pointerOnlyVisit(page, { ...place, state: 'keyboard' }, cap, carried)
+  const pasted: Visit = await pasteVisit(page, place, carried)
+  const graphics: Visit = await graphicContrastVisit(page, place, carried)
+  return [pointerOnly, pasted, graphics]
+}
+
 const interactionVisit = async (page: Page, item: InteractionPlace, isFirst: boolean): Promise<Visit> => {
   const place: FindingPlace = placeAt(
     page,
@@ -505,17 +516,14 @@ const interactionVisit = async (page: Page, item: InteractionPlace, isFirst: boo
     await trackKeyboardReach(page)
   }
   const focused: readonly Visit[] = await tabThrough(page, place, item.location.controls + EXTRA_TAB_STOPS, WALK_START)
-  // What the keyboard reached is known once the walk ends; the paste goes last, since a field may act on it.
-  const pointerOnly: Visit = isStill
-    ? await pointerOnlyVisit(page, { ...place, state: 'keyboard' }, item.location.controls + EXTRA_TAB_STOPS, carried)
-    : EMPTY_VISIT
-  const pasted: Visit = isStill ? await pasteVisit(page, place, carried) : EMPTY_VISIT
+  const afterWalk: readonly Visit[] = isStill
+    ? await stillChecks(page, place, item.location.controls + EXTRA_TAB_STOPS)
+    : []
   return merged([
     { ...EMPTY_VISIT, findings: [...loaded, ...unsettled, ...reloaded] },
     ...hovered,
     ...focused,
-    pointerOnly,
-    pasted,
+    ...afterWalk,
     await healthOf(page, place),
   ])
 }
@@ -528,11 +536,13 @@ const INTERACTION_RULES: readonly string[] = [
   'focus-order',
   'pointer-only',
   'paste-blocked',
+  'graphic-contrast',
 ]
 
 /**
  * Drive every control of one shard of the locations into hover and keyboard focus, and judge contrast,
- * reach and focus visibility, what only a pointer can operate, and whether sign-in fields accept a paste.
+ * reach and focus visibility, what only a pointer can operate, whether sign-in fields accept a paste, and
+ * whether controls that carry no text stand out from what lies beneath them.
  * @param page the test's page.
  * @param shard the part of the pass this test visits.
  */

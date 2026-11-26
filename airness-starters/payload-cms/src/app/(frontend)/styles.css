@@ -68,10 +68,12 @@
 
 /*
  * The ground every page stands on. It keeps the room of a scrollbar whether the page scrolls or not, so a page
- * that grows past the window never moves sideways.
+ * that grows past the window never moves sideways, and every block of text it holds weighs its last lines
+ * together, so no word is left alone on a line of its own.
  */
 html {
     scrollbar-gutter: stable;
+    text-wrap: pretty;
 }
 
 /*
