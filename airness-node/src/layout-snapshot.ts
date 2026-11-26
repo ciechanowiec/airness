@@ -98,6 +98,11 @@ export interface LayoutNode {
   readonly textAlignLast: string
   /** The computed `white-space`, which says whether the author's own spaces and line breaks are kept. */
   readonly whiteSpace: string
+  /**
+   * The computed `text-wrap-style`, which says how a block chooses where its lines break: `auto`, `pretty`,
+   * `balance` or `stable`. Empty where the engine cannot set `pretty`, which leaves the block unjudged there.
+   */
+  readonly textWrapStyle: string
   /** What a replaced element reports about its content, or undefined for any other element. */
   readonly media: MediaFacts | undefined
   /** How CSS can set the element's boxes in an order other than its document's. */

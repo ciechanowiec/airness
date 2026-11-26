@@ -89,7 +89,7 @@ writeFileSync(
 writeFileSync(
   path.join(appRoot, 'globals.css'),
   [
-    'body { background: white; color: black; font-family: sans-serif; }',
+    'body { background: white; color: black; font-family: sans-serif; text-wrap: pretty; }',
     'main { padding: 2rem; }',
     'input, button { display: block; min-width: 100px; min-height: 44px; margin: 24px; }',
     'a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }',

@@ -67,3 +67,13 @@
 [reduced-motion] /reduced-motion @390x844 (chromium, reduced motion): div.reveal-slide
 [reduced-motion] /reduced-motion @390x844 (chromium, reduced motion): div.reveal-glide moves (transform, 700ms) after a scroll
 [reduced-motion] /reduced-motion @390x844 (chromium, reduced motion): div.drifting moves with the scroll
+[text-wrap] /text-wrap @390x844 (chromium, resting): text wrapped over
+[graphic-contrast] /graphic-contrast @390x844 (chromium, resting): button.icon-button carries no text, and too little of what it draws stands out from what lies beneath it
+[graphic-contrast] /graphic-contrast @390x844 (chromium, resting): button.marker.marker-pale carries no text
+[tap-ignored] /tap-ignored @390x844 (chromium, touch): button.swatch.swatch-moss "Moss" presents as operable (a button element) and answers a mouse click, but a tap on a touch screen changed nothing
+[tap-ignored] /tap-ignored @390x844 (chromium, touch): button.swatch.swatch-clay "Clay" presents as operable (a button element) and answers a mouse click
+[filter-in-motion] /filter-in-motion @390x844 (chromium, rendering): div.aurora.aurora-blurred is drawn through a filter over content that moves
+[filter-in-motion] /filter-in-motion @390x844 (chromium, rendering): div.pane.pane-frosted is drawn through a backdrop filter over content that moves
+[filter-in-motion] /filter-in-motion @390x844 (chromium, rendering): div.pane.pane-veiled is drawn through a mask over content that moves
+[filter-in-motion] /filter-in-motion @390x844 (chromium, rendering): div.glow.glow-pulsing animates its own filter
+[layer-area] /layer-area @390x844 (chromium, rendering): composited layers cover

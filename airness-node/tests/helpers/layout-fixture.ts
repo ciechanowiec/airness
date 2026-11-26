@@ -83,6 +83,8 @@ export const nodeOf = (fields: Partial<LayoutNode> & Pick<LayoutNode, 'index' | 
   textAlign: 'start',
   textAlignLast: 'auto',
   whiteSpace: 'normal',
+  // The wrap a page that passes `text-wrap` sets, so a spec about another rule meets no finding of it.
+  textWrapStyle: 'pretty',
   media: undefined,
   flow: FLOW,
   ...fields,
@@ -123,6 +125,7 @@ export const EXEMPTIBLE_RULES: readonly string[] = [
   'media-space',
   'text-justified',
   'line-length',
+  'text-wrap',
   'reading-order',
   'unrevealed-content',
   'focus-visible',
@@ -136,6 +139,9 @@ export const EXEMPTIBLE_RULES: readonly string[] = [
   'composite-keyboard',
   'aria-state',
   'aria-current',
+  'graphic-contrast',
+  'tap-ignored',
+  'filter-in-motion',
 ]
 
 /**

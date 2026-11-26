@@ -24,6 +24,7 @@ import { BROWSER_ENGINES, enginePassParts, type Shard, type SweepPass } from './
 import { coversEveryEngine } from './change-scope-policy.js'
 import { writeJson } from './project.js'
 import { projectDirectory, projectSettings } from './project-settings.js'
+import { RENDERING_RULES } from './render-cost-policy.js'
 import { completedScanRoutes } from './scan-evidence.js'
 import { SCROLLING_RULES } from './scroll-policy.js'
 import { type SeededRoute, seedAnswersOf, seededCoverageLines } from './sweep-seeds.js'
@@ -43,11 +44,13 @@ import {
 } from './sweep-shared.js'
 import { endedSessionProblems, hasSignedInVisitor, sessionFile, type Visitor } from './sweep-visitors.js'
 import { SWEEP_WORKERS as SWEEP_SHARDS } from './sweep-workers.js'
+import { TOUCH_RULES } from './tap-policy.js'
 
 export { expectDisclosureStates } from './sweep-disclosures.js'
 export { expectDiscoveredSite } from './sweep-discovery.js'
 export { expectInteractionStates } from './sweep-interaction.js'
 export { expectTextStress, expectWidthSweep } from './sweep-reflow.js'
+export { expectRendering } from './sweep-rendering.js'
 export {
   expectDarkScheme,
   expectEngineRules,
@@ -55,6 +58,7 @@ export {
 } from './sweep-resting.js'
 export { expectScrolling } from './sweep-scrolling.js'
 export type { Shard } from './sweep-shared.js'
+export { expectTouchResponses } from './sweep-tap.js'
 export { SWEEP_WORKERS as SWEEP_SHARDS } from './sweep-workers.js'
 
 const CHROMIUM: string = 'chromium'
@@ -66,7 +70,9 @@ const CHROMIUM_PASSES: readonly SweepPass[] = [
   'text-stress',
   'width-sweep',
   'dark-scheme',
+  'rendering',
   'scrolling',
+  'touch',
 ]
 
 const ENGINE_PASSES: readonly SweepPass[] = ['engine']
@@ -207,14 +213,17 @@ const visitorCoverage = (record: SweepRecord): readonly string[] =>
 const coverageText = (records: readonly SweepRecord[]): string =>
   records.flatMap((record: SweepRecord): readonly string[] => visitorCoverage(record)).join('\n')
 
-// An exemption is stale in an engine when no part of any pass in that engine used it. The scrolling pass's
-// rules are judged on one route per template, so at a route it did not cross they were never applied, and an
-// exemption there cannot have proved itself and is not judged stale for them. Every other rule keeps the
-// stricter reading: judged anywhere in the engine, it must excuse something.
+// An exemption is stale in an engine when no part of any pass in that engine used it. The scrolling,
+// rendering and touch passes judge their rules on one route per template, so at a route they did not visit
+// those rules were never applied, and an exemption there cannot have proved itself and is not judged stale for
+// them. Every other rule keeps the stricter reading: judged anywhere in the engine, it must excuse something.
+// The rules judged only on one route per template.
+const SAMPLED_RULES: ReadonlySet<string> = new Set<string>([...SCROLLING_RULES, ...RENDERING_RULES, ...TOUCH_RULES])
+
 const staleIn = (engine: string, reports: readonly PassReport[]): readonly BrowserFinding[] => {
   const own: readonly PassReport[] = reports.filter((report: PassReport): boolean => report.engine === engine)
   const isJudgedAt = (location: string, rule: string): boolean =>
-    !SCROLLING_RULES.includes(rule) ||
+    !SAMPLED_RULES.has(rule) ||
     own.some((report: PassReport): boolean => report.judgedRules.includes(rule) && report.locations.includes(location))
   return own.length === 0
     ? []

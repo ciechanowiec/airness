@@ -12,6 +12,7 @@ import { ARIA_COMPONENTS, ARIA_PAGES, ARIA_STYLES } from '#browser/aria-componen
 import { AXE_PAGES, AXE_STYLES, ORIENTATION_PAGE, ORIENTATION_ROUTE, ORIENTATION_STYLES } from '#browser/axe-pages'
 import { PINNED_PAGES, PINNED_STYLES, pinnedModule } from '#browser/focus-pages'
 import { INTERACTION_COMPONENTS, INTERACTION_PAGES, INTERACTION_STYLES } from '#browser/interaction-components'
+import { RENDER_COMPONENTS, RENDER_PAGES, RENDER_STYLES } from '#browser/render-components'
 import { SCROLL_COMPONENTS, SCROLL_PAGES, SCROLL_STYLES } from '#browser/scroll-components'
 import { GROW, SETTLE } from '#browser/visual-components'
 import { IMAGE_PAGES, visualImages } from '#browser/visual-images'
@@ -175,6 +176,7 @@ const PAGES: Readonly<Record<string, Variant>> = {
   },
   ...SCROLL_PAGES,
   ...INTERACTION_PAGES,
+  ...RENDER_PAGES,
   locale: {
     defect: '<link rel="alternate" hrefLang="pl" href="/pl-locale" /><p>English</p>',
     valid: '<link rel="alternate" hrefLang="pl" href="/pl-locale" /><p>English</p>',
@@ -193,7 +195,7 @@ const UNLINKED: Readonly<Record<string, Variant>> = {
 }
 
 const STYLES: string = `
-body { margin: 0; background: #ffffff; color: #111827; font-family: sans-serif; }
+body { margin: 0; background: #ffffff; color: #111827; font-family: sans-serif; text-wrap: pretty; }
 /* A measure of 30rem keeps every line of prose well within 80 characters at every viewport (WCAG 1.4.8). */
 main { display: flex; flex-direction: column; gap: 24px; padding: 16px; max-width: 30rem; }
 h1, p { margin: 0; }
@@ -448,6 +450,7 @@ const COMPONENTS: readonly string[] = [
   'Settle',
   ...Object.keys(SCROLL_COMPONENTS),
   ...Object.keys(INTERACTION_COMPONENTS),
+  ...Object.keys(RENDER_COMPONENTS),
   ...Object.keys(ARIA_COMPONENTS),
 ]
 
@@ -499,6 +502,7 @@ writeModule(path.join(directory, 'src', 'settle.tsx'), SETTLE)
 const drivenComponents: readonly (readonly [string, string])[] = Object.entries({
   ...SCROLL_COMPONENTS,
   ...INTERACTION_COMPONENTS,
+  ...RENDER_COMPONENTS,
   ...ARIA_COMPONENTS,
 })
 for (const [name, source] of drivenComponents) {
@@ -509,7 +513,7 @@ writeModule(path.join(directory, 'src', 'menu.tsx'), MENU)
 writeModule(path.join(directory, 'src', 'axeecho.tsx'), AXE_ECHO)
 writeModule(
   path.join(appRoot, 'globals.css'),
-  `${readFileSync(path.join(appRoot, 'globals.css'), 'utf8')}${STYLES}${PINNED_STYLES}${SCROLL_STYLES}${AXE_STYLES}${INTERACTION_STYLES}${ARIA_STYLES}`,
+  `${readFileSync(path.join(appRoot, 'globals.css'), 'utf8')}${STYLES}${PINNED_STYLES}${SCROLL_STYLES}${AXE_STYLES}${INTERACTION_STYLES}${RENDER_STYLES}${ARIA_STYLES}`,
 )
 for (const [name, bytes] of Object.entries(visualImages())) {
   writeModule(path.join(directory, 'public', name), bytes)

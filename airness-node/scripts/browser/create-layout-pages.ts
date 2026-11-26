@@ -96,7 +96,7 @@ const REPAIRED_PAGES: Readonly<Record<string, string>> = {
 }
 
 const STYLES: string = `
-body { margin: 0; background: #ffffff; color: #111827; font-family: sans-serif; }
+body { margin: 0; background: #ffffff; color: #111827; font-family: sans-serif; text-wrap: pretty; }
 main { display: flex; flex-direction: column; gap: 24px; padding: 16px; }
 h1, h2, p { margin: 0; }
 .page { display: flex; flex-direction: column; }

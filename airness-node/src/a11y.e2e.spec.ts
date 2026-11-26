@@ -12,8 +12,9 @@
 // judges discovery's problems and the exemptions no pass used, reports a shard that did not finish,
 // and prints what was covered. Under `mvn verify -Pextended` the sweep also runs in Firefox and WebKit,
 // where the engine pass covers one route per template and one story per component; `mvn verify -Pextended,delta` sweeps only the routes and stories the change reaches, in Chromium.
-// The scrolling pass crosses one route per template and one story per component on a touch phone, so its
-// context emulates one: a coarse pointer without hover, which a page that scrolls natively on touch keys on.
+// The scrolling and touch passes visit one route per template and one story per component on a touch phone,
+// so their context emulates one: a coarse pointer without hover, which a page that scrolls natively on touch
+// keys on, and which a page that answers only a mouse ignores.
 // A member holding `tests/e2e/sign-in.setup.ts` is swept a second time in the session that setup left: the
 // same discovery and passes, each test tagged as signed in, which keeps its files apart from the anonymous
 // visit's. The setup runs before discovery, and the storage state reaches these tests alone, so the
@@ -27,10 +28,12 @@ import {
   expectDiscoveredSite,
   expectEngineRules,
   expectInteractionStates,
+  expectRendering,
   expectRestingRules,
   expectScrolling,
   expectSweepSummary,
   expectTextStress,
+  expectTouchResponses,
   expectWidthSweep,
   type Shard,
   SWEEP_SHARDS,
@@ -65,7 +68,9 @@ const DISCLOSURE_TITLE: string = 'every disclosure passes open and answers the k
 const TEXT_STRESS_TITLE: string = 'text survives WCAG spacing and doubled size'
 const WIDTH_TITLE: string = 'layout holds across the whole width range'
 const DARK_TITLE: string = 'every page passes in its dark scheme'
+const RENDERING_TITLE: string = 'every sampled page keeps its filters still and its layers within budget'
 const SCROLLING_TITLE: string = 'every sampled page rests where it is scrolled and reveals what it brings into view'
+const TOUCH_TITLE: string = 'every sampled page answers a tap on everything it presents as operable'
 const ENGINE_TITLE: string = 'every sampled page passes in this engine'
 
 const partTitle = (title: string, shard: Shard): string =>
@@ -73,6 +78,14 @@ const partTitle = (title: string, shard: Shard): string =>
 
 // The signed-in tests carry a second tag, which the passes read to keep the visit's files apart.
 const tagsOf = (tag: string, visitor: Visitor): string[] => (visitor === 'signed-in' ? [tag, SIGNED_IN_TAG] : [tag])
+
+const renderingTests = (visitor: Visitor): void => {
+  for (const shard of SHARDS) {
+    test(partTitle(RENDERING_TITLE, shard), { tag: tagsOf(CHROMIUM, visitor) }, async ({ page }) => {
+      await expectRendering(page, shard)
+    })
+  }
+}
 
 // Each pass calls its helper directly in the test body rather than through a table, so the lint rule
 // requiring an assertion in every test can see one: the `expect` helpers are what it counts.
@@ -117,6 +130,8 @@ const desktopTests = (visitor: Visitor): void => {
     })
   }
 
+  renderingTests(visitor)
+
   for (const shard of SHARDS) {
     test(partTitle(ENGINE_TITLE, shard), { tag: tagsOf(ENGINE, visitor) }, async ({ page }) => {
       await expectEngineRules(page, shard)
@@ -128,6 +143,12 @@ const phoneTests = (visitor: Visitor): void => {
   for (const shard of SHARDS) {
     test(partTitle(SCROLLING_TITLE, shard), { tag: tagsOf(CHROMIUM, visitor) }, async ({ page }) => {
       await expectScrolling(page, shard)
+    })
+  }
+
+  for (const shard of SHARDS) {
+    test(partTitle(TOUCH_TITLE, shard), { tag: tagsOf(CHROMIUM, visitor) }, async ({ page }) => {
+      await expectTouchResponses(page, shard)
     })
   }
 }

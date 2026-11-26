@@ -105,6 +105,7 @@ declare const Image: new () => {
 declare const performance: {
   readonly getEntriesByName: (name: string) => ArrayLike<{ readonly encodedBodySize?: number }>
 }
+declare const CSS: { readonly supports: (condition: string) => boolean }
 declare const scrollX: number
 declare const scrollY: number
 
@@ -119,7 +120,7 @@ interface NodeContext {
 }
 
 /** An element's own text, and how the block it is set in lays out its lines. */
-type OwnText = Pick<LayoutNode, 'textAlign' | 'textAlignLast' | 'textRects' | 'whiteSpace' | 'words'>
+type OwnText = Pick<LayoutNode, 'textAlign' | 'textAlignLast' | 'textRects' | 'textWrapStyle' | 'whiteSpace' | 'words'>
 
 /** The steps of the page code, each handed the others. */
 interface LayoutTools {
@@ -218,7 +219,8 @@ const ownText = (element: PageElement, tools: LayoutTools): readonly PageText[] 
 
 // Each word's rects, and the characters each draws: a word wrapped over two lines shares its characters
 // between its rects by width, which is exact for a monospaced script such as Chinese and close for others.
-// Beside them, the block's alignment and whether it keeps the author's own spaces and line breaks.
+// Beside them, the block's alignment, whether it keeps the author's own spaces and line breaks, and how it
+// chooses its line breaks where the engine can set them evenly.
 const textOf = (element: PageElement, style: PageStyle, tools: LayoutTools): OwnText => {
   const cjk: RegExp = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu
   const range: PageRange = document.createRange()
@@ -245,6 +247,7 @@ const textOf = (element: PageElement, style: PageStyle, tools: LayoutTools): Own
     textAlign: style.getPropertyValue('text-align'),
     textAlignLast: style.getPropertyValue('text-align-last'),
     whiteSpace: style.getPropertyValue('white-space'),
+    textWrapStyle: CSS.supports('text-wrap-style: pretty') ? style.getPropertyValue('text-wrap-style') : '',
   }
 }
 

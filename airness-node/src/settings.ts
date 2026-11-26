@@ -92,6 +92,11 @@ export interface Settings extends InvocationSettings {
   readonly accessibilityTargetSize: AccessibilityLevel
   /** The level the contrast of text is measured at: AA's 4.5:1, or AAA's 7:1 when the project raises it. */
   readonly accessibilityContrast: AccessibilityLevel
+  /**
+   * How many viewports' worth of composited layers a page may keep near what it shows, beside the document
+   * itself and its scrolling areas; a project may only lower it.
+   */
+  readonly layerAreaBudget: number
   /** The smallest gap, in CSS pixels, between a boxed element and its sibling; a project may only raise it. */
   readonly layoutMinimumGap: number
   /** Viewports the layout scan measures beside the ones the harness requires. */
@@ -119,6 +124,13 @@ export const BUNDLE_BUDGET_BYTES: number = BUNDLE_BUDGET_KIB * BYTES_PER_KIB
 
 /** How many routes the accessibility crawl may discover, which a project may lower and never raise. */
 export const ACCESSIBILITY_ROUTE_BUDGET: number = 250
+
+/**
+ * How many viewports' worth of composited layers a page may keep near what it shows, which a project may lower
+ * and never raise. A page whose promoted layers cover more holds that much in the graphics memory of every
+ * visitor's device, and on a phone the browser may give up the page to free it.
+ */
+export const LAYER_AREA_BUDGET: number = 4
 
 /** The smallest gap between a boxed element and its sibling, which a project may raise and never lower. */
 export const LAYOUT_MINIMUM_GAP: number = 4
@@ -299,6 +311,7 @@ const appSettings = (
   | 'accessibilityRouteBudget'
   | 'accessibilityTargetSize'
   | 'accessibilityContrast'
+  | 'layerAreaBudget'
   | 'layoutMinimumGap'
   | 'layoutViewports'
 > => {
@@ -318,6 +331,7 @@ const appSettings = (
     accessibilityRouteBudget: clampedCeiling(raw['accessibilityRouteBudget'], ACCESSIBILITY_ROUTE_BUDGET),
     accessibilityTargetSize: accessibilityLevelOf(raw[TARGET_SIZE_SETTING]),
     accessibilityContrast: accessibilityLevelOf(raw[CONTRAST_SETTING]),
+    layerAreaBudget: clampedCeiling(raw['layerAreaBudget'], LAYER_AREA_BUDGET),
     layoutMinimumGap: Math.max(LAYOUT_MINIMUM_GAP, asPositiveInteger(raw['layoutMinimumGap'], LAYOUT_MINIMUM_GAP)),
     layoutViewports: asLayoutViewports(raw['layoutViewports']),
   }

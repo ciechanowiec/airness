@@ -1,5 +1,6 @@
 // How a page sets its blocks of text, as WCAG 1.4.8 Visual Presentation asks: no block justified to both
-// edges, and no line longer than 80 characters, or 40 in Chinese, Japanese and Korean.
+// edges, and no line longer than 80 characters, or 40 in Chinese, Japanese and Korean. Beside them, a block
+// that wraps chooses its breaks over the whole paragraph, so no word is left alone on its last line.
 //
 // Lines are read from what the browser rendered, never from a container's width: each word reports its
 // rects, and the words a block lays out on one line, its own and those of the inline elements inside it,
@@ -47,6 +48,14 @@ const PRESERVED_WHITE_SPACE: ReadonlySet<string> = new Set<string>(['pre', 'pre-
 // A form control's text is a value the user typed or a list the control draws itself, not lines the page
 // lays out. A button's label is page text and is judged.
 const CONTROL_TAGS: ReadonlySet<string> = new Set<string>(['textarea', 'select', 'option', 'optgroup', 'input'])
+
+// The line breaking that weighs a block's last lines together, so a short last line is avoided: `pretty`
+// for running text, `balance` for a heading or a caption of a few lines. `auto` breaks each line as late as it
+// can, which can leave one word alone on the last; `stable` does the same, for text being edited.
+const EVEN_WRAP_STYLES: ReadonlySet<string> = new Set<string>(['pretty', 'balance'])
+
+// Text that never wraps sets only the lines its author broke, so how wrapping would break them says nothing.
+const UNWRAPPED_WHITE_SPACE: ReadonlySet<string> = new Set<string>(['nowrap', 'pre'])
 
 // Two words share a line when their boxes share at least half the height of the shorter one; a superscript
 // or a larger inline font still sits on the line it belongs to.
@@ -266,3 +275,35 @@ export const findJustifiedText = (snapshot: LayoutSnapshot): readonly CandidateF
         ]
       : []
   })
+
+/**
+ * Blocks of text wrapped without weighing their last lines (rule `text-wrap`): a block set over two lines or
+ * more whose computed `text-wrap-style` is neither `pretty` nor `balance`, so the browser breaks each line as
+ * late as it can and may leave one word alone on the last. Preformatted text, code, the text of a form
+ * control and text that never wraps are not judged, nor is a block in an engine that cannot set `pretty`.
+ * @param snapshot the measured page.
+ * @returns one candidate per block wrapped line by line.
+ */
+export const findUnevenWrap = (snapshot: LayoutSnapshot): readonly CandidateFinding[] =>
+  textBlocksOf(snapshot)
+    .filter(
+      ({ block }: TextBlock): boolean =>
+        block.textWrapStyle !== '' &&
+        !EVEN_WRAP_STYLES.has(block.textWrapStyle) &&
+        !UNWRAPPED_WHITE_SPACE.has(block.whiteSpace) &&
+        !isPreformatted(snapshot, block),
+    )
+    .flatMap(({ block, words }: TextBlock): readonly CandidateFinding[] => {
+      const lines: number = linesOf(words).length
+      return lines >= HALVES
+        ? [
+            {
+              rule: 'text-wrap',
+              subjects: [block],
+              message:
+                `text wrapped over ${String(lines)} lines under text-wrap-style: ${block.textWrapStyle}, which can ` +
+                `leave one word alone on the last line; set text-wrap: pretty, or balance for a heading: ${block.label}`,
+            },
+          ]
+        : []
+    })

@@ -196,7 +196,7 @@ const standInFactsInPage = (query: CandidateQuery): readonly StandInFacts[] => {
 // Brings an element into the viewport by scrolling the window alone. Scrolling it into view the way a locator
 // does would scroll a carousel's track as well, and a slide brought in that way is one the page's own
 // controls bring in; left clipped by its track, it answers nothing at its centre and is not reported.
-const revealInWindowInPage = (selector: string): void => {
+export const revealInWindowInPage = (selector: string): void => {
   const element: DomElement | null = document.querySelector(selector)
   if (element === null) {
     return

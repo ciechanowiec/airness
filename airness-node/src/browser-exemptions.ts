@@ -38,6 +38,7 @@ const EXEMPTIBLE_RULES: readonly string[] = [
   'media-space',
   'text-justified',
   'line-length',
+  'text-wrap',
   'reading-order',
   'unrevealed-content',
   'focus-visible',
@@ -51,6 +52,9 @@ const EXEMPTIBLE_RULES: readonly string[] = [
   'composite-keyboard',
   'aria-state',
   'aria-current',
+  'graphic-contrast',
+  'tap-ignored',
+  'filter-in-motion',
 ]
 
 const WHITESPACE: RegExp = /\s+/u
