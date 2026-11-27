@@ -22,7 +22,7 @@
             </th:block>
             <div class="min-w-0">
                 <a
-                    class="font-semibold hover:underline"
+                    class="inline-block font-semibold hover:underline"
                     th:href="@{/tasks/{reference}/edit(reference=${task.reference()})}"
                     th:text="${task.content().title()}"
                     >Title</a
