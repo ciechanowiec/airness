@@ -152,14 +152,36 @@ restore_image_dockerfile() {
     commit_image_fixture "$1"
 }
 
-# The images the gate tags are its own, so none may remain once a run of it is over, whatever its verdict.
+# The images the gate tags are its own, so none may remain once a run of it is over, whatever its verdict. The lane
+# running the node domain beside this one builds images under the same prefix with tags of their own, and each
+# of those goes once its gate ends, so an image seen here fails only while it is still present ten minutes on.
 expect_no_gate_images() {
-    left="$(docker images --quiet --filter 'reference=airness-image-*' 2>/dev/null)"
+    left="$(gate_images)"
+    gate_wait=0
+    while [ -n "${left}" ] && [ "${gate_wait}" -lt 600 ]; do
+        sleep 10
+        gate_wait=$((gate_wait + 10))
+        left="$(still_present "${left}")"
+    done
     if [ -z "${left}" ]; then
         pass "$1"
     else
         fail "$1" "images left behind: ${left}"
     fi
+}
+
+gate_images() {
+    docker images --quiet --filter 'reference=airness-image-*' 2>/dev/null
+}
+
+# The images of the given list that are still present.
+still_present() {
+    present="$(gate_images)"
+    printf '%s\n' "$1" | while read -r image; do
+        if printf '%s\n' "${present}" | grep -qx "${image}"; then
+            printf '%s\n' "${image}"
+        fi
+    done
 }
 
 run_image_cases() {
