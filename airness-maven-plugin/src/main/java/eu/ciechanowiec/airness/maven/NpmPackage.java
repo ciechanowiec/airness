@@ -21,9 +21,9 @@ record NpmPackage(
     Map<String, String> notices
 ) {
 
+    static final String LICENSE = "license";
     private static final String NAME = "name";
     private static final String VERSION = "version";
-    private static final String LICENSE = "license";
     private static final String DIRECT = "direct";
     private static final String INSTALLED = "installed";
     private static final String PRODUCTION = "production";

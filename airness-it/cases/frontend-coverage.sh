@@ -22,7 +22,7 @@ run_frontend_coverage_cases() {
     frontend_roots="${consumer_directory}"
     mkdir -p "${frontend_roots}/frontend/src" "${frontend_roots}/frontend/public" \
         "${frontend_roots}/src/main/resources/static/vendor" "${frontend_roots}/src/main/resources/static/generated"
-    printf '{\n  "name": "frontend-roots",\n  "private": true\n}\n' > "${frontend_roots}/frontend/package.json"
+    printf '{\n  "name": "frontend-roots",\n  "private": true,\n  "license": "LicenseRef-Proprietary"\n}\n' > "${frontend_roots}/frontend/package.json"
     printf '.pill {\n    color: #000000;\n}\n' > "${frontend_roots}/frontend/src/site.css"
     printf '.pill {\n    color: #000000;\n}\n' > "${frontend_roots}/frontend/public/theme.css"
     printf '@color: #000000;\n' > "${frontend_roots}/frontend/src/legacy.less"
@@ -47,7 +47,7 @@ run_frontend_coverage_cases() {
     frontend_stylesheets="${consumer_directory}"
     mkdir -p "${frontend_stylesheets}/src/main/resources/static/css"
     printf '.pill {\n    color: #000000;\n}\n' > "${frontend_stylesheets}/src/main/resources/static/css/theme.css"
-    printf '{\n  "name": "frontend-stylesheets",\n  "private": true,\n  "airness": { "sourceRoots": ["src/main/resources/static"] }\n}\n' \
+    printf '{\n  "name": "frontend-stylesheets",\n  "private": true,\n  "license": "LicenseRef-Proprietary",\n  "airness": { "sourceRoots": ["src/main/resources/static"] }\n}\n' \
         > "${frontend_stylesheets}/package.json"
     write_node_consumer "${frontend_stylesheets}" '.' ''
     git -C "${frontend_stylesheets}" add --all
@@ -61,8 +61,8 @@ run_frontend_coverage_cases() {
     expect_exit frontend_service 'web interface: a service that serves no markup passes validate' 0
     expect_match frontend_service 'web interface: a service without markup is legitimately not applicable' \
         'Web interface: not applicable, as it serves no markup'
-    cat > "${frontend_web}/src/main/java/com/example/Pages.java" <<'JAVA'
-package com.example;
+    cat > "${frontend_web}/src/main/java/org/sample/Pages.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -88,5 +88,5 @@ JAVA
     run_maven frontend_web_unwired node "${frontend_web}" validate
     expect_exit frontend_web_unwired 'web interface: an HTML application without a browser integration fails' 1
     expect_match frontend_web_unwired 'web interface: the failure names the evidence and the launch contract' \
-        'serves HTML [(]src/main/java/com/example/Pages[.]java declares a @Controller[)].*AIRNESS_APPLICATION_ARTIFACT'
+        'serves HTML [(]src/main/java/org/sample/Pages[.]java declares a @Controller[)].*AIRNESS_APPLICATION_ARTIFACT'
 }

@@ -2,6 +2,7 @@
   "name": "fixture-member",
   "version": "1.0.0",
   "private": true,
+  "license": "LicenseRef-Proprietary",
   "type": "module",
   "main": "src/total.ts",
   "devDependencies": {

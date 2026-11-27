@@ -1,4 +1,4 @@
-package com.example.generated;
+package org.sample.generated;
 
 /**
  * A value compiled from an input produced by the build.

@@ -22,8 +22,8 @@ run_formatting_boundaries() {
     new_consumer formatting-state
     formatting_consumer="${consumer_directory}"
     mkdir -p "${formatting_consumer}/src/main/resources/static"
-    cat > "${formatting_consumer}/src/main/java/com/example/Formatting.java" <<'JAVA'
-package com.example;
+    cat > "${formatting_consumer}/src/main/java/org/sample/Formatting.java" <<'JAVA'
+package org.sample;
 final class Formatting { static String value(){return "value";} }
 JAVA
     cat > "${formatting_consumer}/src/main/resources/static/style.css" <<'CSS'
@@ -34,7 +34,7 @@ CSS
     # A stylesheet a Java module serves belongs to a frontend tooling project; the module itself is one here.
     # It holds the lockfile every declared project must have, since node-dependencies refuses one without.
     write_node_consumer "${formatting_consumer}" '.' ''
-    printf '{\n  "name": "formatting-state",\n  "private": true,\n  "airness": { "sourceRoots": ["src/main/resources/static"] }\n}\n' \
+    printf '{\n  "name": "formatting-state",\n  "private": true,\n  "license": "LicenseRef-Proprietary",\n  "airness": { "sourceRoots": ["src/main/resources/static"] }\n}\n' \
         > "${formatting_consumer}/package.json"
     install_airness_node "${formatting_consumer}"
     prepare_maven formatting_assets repository "${formatting_consumer}" --quiet airness:assets-sync
@@ -250,8 +250,8 @@ XML
 run_report_only_boundaries() {
     new_consumer report-only-compilation
     compilation_consumer="${consumer_directory}"
-    cat > "${compilation_consumer}/src/main/java/com/example/Broken.java" <<'JAVA'
-package com.example;
+    cat > "${compilation_consumer}/src/main/java/org/sample/Broken.java" <<'JAVA'
+package org.sample;
 
 final class Broken {
     this is not Java
@@ -265,8 +265,8 @@ JAVA
 
     new_consumer report-only-test
     test_consumer="${consumer_directory}"
-    cat > "${test_consumer}/src/test/java/com/example/ExampleTest.java" <<'JAVA'
-package com.example;
+    cat > "${test_consumer}/src/test/java/org/sample/ExampleTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -352,12 +352,12 @@ run_vendored_artifact_boundary() {
     printf 'vendor workspace metadata\n' > "${vendored_consumer}/vendor/.idea/workspace.xml"
     jar --create --file "${vendored_consumer}/vendor.jar" -C "${vendored_consumer}/vendor" .idea/workspace.xml
     prepare_maven vendored_install setup "${repository}" --non-recursive install:install-file \
-        "-Dfile=${vendored_consumer}/vendor.jar" -DgroupId=com.example \
+        "-Dfile=${vendored_consumer}/vendor.jar" -DgroupId=org.sample \
         -DartifactId=airness-it-vendored-library -Dversion=1.0.0 -Dpackaging=jar
     vendored_block="$(cat <<'XML'
   <dependencies>
     <dependency>
-      <groupId>com.example</groupId>
+      <groupId>org.sample</groupId>
       <artifactId>airness-it-vendored-library</artifactId>
       <version>1.0.0</version>
     </dependency>
@@ -425,7 +425,7 @@ run_artifact_manifest_boundary() {
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
-                  <resource>META-INF/versions/17/com/example/Versioned.class</resource>
+                  <resource>META-INF/versions/17/org/sample/Versioned.class</resource>
                   <file>packaging/Versioned.class</file>
                 </transformer>
               </transformers>
@@ -444,13 +444,13 @@ XML
     run_maven manifest_reject repository "${manifest_consumer}" airness:artifact-content
     expect_exit manifest_reject 'artifact: an undeclared versioned class is rejected' 1
     expect_match manifest_reject 'artifact: the undeclared versioned class is named precisely' \
-        'Versioned classes the manifest does not declare|META-INF/versions/17/com/example/Versioned[.]class'
+        'Versioned classes the manifest does not declare|META-INF/versions/17/org/sample/Versioned[.]class'
 }
 
 run_coverage_boundary() {
     new_consumer coverage-current-build
     coverage_consumer="${consumer_directory}"
-    rm "${coverage_consumer}/src/test/java/com/example/ExampleTest.java"
+    rm "${coverage_consumer}/src/test/java/org/sample/ExampleTest.java"
     run_maven coverage_missing repository "${coverage_consumer}" clean verify
     expect_exit coverage_missing 'coverage: a production module with no current test evidence fails' 1
     expect_match coverage_missing 'coverage: the current-build evidence failure is explicit' \

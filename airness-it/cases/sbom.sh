@@ -13,7 +13,7 @@ run_sbom_cases() {
     else
         fail 'sbom: JSON inventory preserves dependency scopes, relationships and privacy'
     fi
-    sbom_installed="${local_repository}/com/example/sbom-consumer/9.4.2/sbom-consumer-9.4.2-cyclonedx.json"
+    sbom_installed="${local_repository}/org/sample/sbom-consumer/9.4.2/sbom-consumer-9.4.2-cyclonedx.json"
     if cmp "${sbom_consumer}/target/bom.json" "${sbom_installed}"; then
         pass 'sbom: install publishes the classified JSON artifact'
     else
@@ -23,7 +23,7 @@ run_sbom_cases() {
     run_maven sbom_deploy maven "${sbom_consumer}" deploy -DskipTests \
         "-DaltDeploymentRepository=fixture::file://${scratch}/sbom-repository"
     expect_exit sbom_deploy 'sbom: deployment to a local repository includes the SBOM' 0
-    sbom_deployed="${scratch}/sbom-repository/com/example/sbom-consumer/9.4.2/sbom-consumer-9.4.2-cyclonedx.json"
+    sbom_deployed="${scratch}/sbom-repository/org/sample/sbom-consumer/9.4.2/sbom-consumer-9.4.2-cyclonedx.json"
     if cmp "${scratch}/first-bom.json" "${sbom_deployed}"; then
         pass 'sbom: repeated generation is reproducible'
     else
@@ -123,8 +123,8 @@ run_sbom_reactor() {
     expect_exit sbom_reactor_build 'sbom: a reactor with plain and Spring parents generates each module inventory' 0
     for sbom_module in plain boot; do
         expect_file_match "${sbom_reactor}/${sbom_module}/target/bom.json" \
-            "sbom: ${sbom_module} receives its own module identity" "pkg:maven/com.example/sbom-${sbom_module}@9.4.2"
+            "sbom: ${sbom_module} receives its own module identity" "pkg:maven/org.sample/sbom-${sbom_module}@9.4.2"
     done
     expect_file_match "${sbom_reactor}/target/bom.json" 'sbom: the reactor root receives its own inventory' \
-        'pkg:maven/com.example/sbom-reactor@9.4.2'
+        'pkg:maven/org.sample/sbom-reactor@9.4.2'
 }

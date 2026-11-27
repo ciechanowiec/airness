@@ -25,9 +25,9 @@ run_qodana_profile() {
             '"ruleId": "SwitchStatementsWithoutDefault"'
         # The same reports read through the findings table, which places each one at its file and line.
         expect_finding qodana_profile 'qodana: the switch without a default is placed at its statement' \
-            qodana 'src/main/java/com/example/IncompleteDispatch.java:26' '^SwitchStatementsWithoutDefault '
+            qodana 'src/main/java/org/sample/IncompleteDispatch.java:26' '^SwitchStatementsWithoutDefault '
         expect_finding qodana_profile 'qodana: the over-coupled class is placed at its declaration' \
-            qodana 'src/main/java/com/example/CommandRouter.java:9' '^ClassCoupling .*overly coupled'
+            qodana 'src/main/java/org/sample/CommandRouter.java:9' '^ClassCoupling .*overly coupled'
         if grep -q "'CommandRouter' is overly coupled" "${qodana_sarif}"; then
             pass 'qodana: ClassCoupling still reports an over-coupled class'
         else
@@ -105,16 +105,17 @@ prepare_image_fixture() {
         <version>${harness_version}</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>image-contract</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
+    own_metadata "${image_fixture}/pom.xml" image-contract
     git -C "${image_fixture}" init --quiet --initial-branch=main
     git -C "${image_fixture}" config user.name Fixture
     git -C "${image_fixture}" config user.email fixture@example.invalid
@@ -288,7 +289,7 @@ PY_PUBLIC
     # A member of a pnpm workspace installs by the lockfile and workspace file at the project's root, so its image
     # builds with the node project's directory as the context and names its own files from there.
     mkdir -p "${image_fixture}/web"
-    printf '{\n  "name": "fixture-web",\n  "private": true,\n  "type": "module"\n}\n' > "${image_fixture}/web/package.json"
+    printf '{\n  "name": "fixture-web",\n  "private": true,\n  "license": "LicenseRef-Proprietary",\n  "type": "module"\n}\n' > "${image_fixture}/web/package.json"
     cat > "${image_fixture}/web/Dockerfile" <<'DOCKERFILE'
 FROM node:26.8.2-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868
 WORKDIR /app
@@ -328,7 +329,7 @@ run_linked_worktree_checks() {
     run_maven qodana_worktree containers "${qodana_worktree}" airness:qodana
     expect_exit qodana_worktree 'worktree: Qodana inspects a linked worktree and reports its findings' 1
     expect_finding qodana_worktree 'worktree: Qodana places the findings in the worktree' \
-        qodana 'src/main/java/com/example/IncompleteDispatch.java:26' '^SwitchStatementsWithoutDefault '
+        qodana 'src/main/java/org/sample/IncompleteDispatch.java:26' '^SwitchStatementsWithoutDefault '
     expect_no_match qodana_worktree 'worktree: Qodana no longer asks for a standalone clone' \
         'standalone clone'
 }

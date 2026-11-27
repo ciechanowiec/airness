@@ -2,7 +2,7 @@
 
 run_template_message_cases() {
     message_app="${scratch}/template-message-app"
-    mkdir -p "${message_app}/src/main/java/com/example" "${message_app}/src/test/java/com/example" \
+    mkdir -p "${message_app}/src/main/java/org/sample" "${message_app}/src/test/java/org/sample" \
         "${message_app}/src/main/resources/templates"
     cat > "${message_app}/pom.xml" <<'POM'
 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -14,12 +14,12 @@ run_template_message_cases() {
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>template-message-app</artifactId>
     <version>1.0.0</version>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 
     <dependencies>
@@ -36,8 +36,9 @@ run_template_message_cases() {
     </dependencies>
 </project>
 POM
-    cat > "${message_app}/src/main/java/com/example/Application.java" <<'JAVA'
-package com.example;
+    own_metadata "${message_app}/pom.xml" template-message-app
+    cat > "${message_app}/src/main/java/org/sample/Application.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -57,17 +58,17 @@ public final class Application {
     }
 }
 JAVA
-    cat > "${message_app}/src/main/java/com/example/package-info.java" <<'JAVA'
+    cat > "${message_app}/src/main/java/org/sample/package-info.java" <<'JAVA'
 /**
  * A real application supplying template-message evidence.
  */
 @NullMarked
-package com.example;
+package org.sample;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
-    cat > "${message_app}/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
-package com.example;
+    cat > "${message_app}/src/test/java/org/sample/ApplicationTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

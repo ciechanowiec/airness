@@ -55,7 +55,7 @@ if sys.argv[2] == "mixed":
     if len(references) != len(components):
         raise SystemExit("A component is listed twice in the merged SBOM")
     edges = {entry["ref"]: entry["dependsOn"] for entry in sbom["dependencies"]}
-    web = [ref for ref in edges if ref.startswith("com.example:report-web:")]
+    web = [ref for ref in edges if ref.startswith("org.sample:report-web:")]
     if not web or "pkg:npm/fixture-library" not in edges[web[0]]:
         raise SystemExit("The graph does not join the TypeScript module to its node project")
     if "api.osv.dev/v1/querybatch" not in html:

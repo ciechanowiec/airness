@@ -2,6 +2,6 @@
  * Inputs recreated by the fixture build.
  */
 @NullMarked
-package com.example.generated;
+package org.sample.generated;
 
 import org.jspecify.annotations.NullMarked;

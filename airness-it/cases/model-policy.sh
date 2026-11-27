@@ -79,7 +79,7 @@ run_parent_model_cases() {
     perl -0pi -e 's{<artifactId>consumer</artifactId>}{<artifactId>company-parent</artifactId>};
         s{<version>9.4.2</version>}{<version>9.4.2</version><packaging>pom</packaging>}' \
         "${scratch}/company-parent/pom.xml"
-    perl -0pi -e 's{<parent>.*?</parent>}{<parent><groupId>com.example</groupId>
+    perl -0pi -e 's{<parent>.*?</parent>}{<parent><groupId>org.sample</groupId>
         <artifactId>company-parent</artifactId><version>9.4.2</version>
         <relativePath>../company-parent/pom.xml</relativePath></parent>}s' "${model_consumer}/pom.xml"
     run_maven model_valid_parent maven "${model_consumer}" airness:project-settings

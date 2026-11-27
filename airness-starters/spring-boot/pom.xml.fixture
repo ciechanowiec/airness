@@ -16,6 +16,33 @@
     <artifactId>@ARTIFACT_ID@</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
+    <name>@NAME@</name>
+    <description>A Spring Boot application with Thymeleaf pages, PostgreSQL and S3-compatible storage.</description>
+    <url>@URL@</url>
+    <inceptionYear>@INCEPTION_YEAR@</inceptionYear>
+
+    <organization>
+        <name>@ORGANIZATION@</name>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>@LICENSE@</name>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>@ORGANIZATION@</name>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>@SCM_CONNECTION@</connection>
+        <developerConnection>@SCM_CONNECTION@</developerConnection>
+        <url>@URL@</url>
+    </scm>
+
     <properties>
         <!--
             The module is its own frontend tooling project: package.json sits beside this file, its

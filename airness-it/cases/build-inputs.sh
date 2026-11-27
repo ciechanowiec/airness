@@ -13,10 +13,10 @@ run_build_input_cases() {
 run_ignored_build_inputs() {
     new_consumer ignored-build-inputs
     input_consumer="${consumer_directory}"
-    input_java='src/main/java/com/example/build/Local.java'
+    input_java='src/main/java/org/sample/build/Local.java'
     input_resource='src/main/resources/vendor/build/viewer.mjs'
-    mkdir -p "${input_consumer}/src/main/java/com/example/build" "${input_consumer}/src/main/resources/vendor/build"
-    printf 'package com.example.build; class Local {}\n' > "${input_consumer}/${input_java}"
+    mkdir -p "${input_consumer}/src/main/java/org/sample/build" "${input_consumer}/src/main/resources/vendor/build"
+    printf 'package org.sample.build; class Local {}\n' > "${input_consumer}/${input_java}"
     printf 'export const viewer = true;\n' > "${input_consumer}/${input_resource}"
     run_maven inputs_ignored repository "${input_consumer}" validate
     expect_exit inputs_ignored 'build inputs: ignored Java and runtime resources fail preflight' 1
@@ -124,15 +124,15 @@ run_generated_build_inputs() {
     input_consumer="${consumer_directory}"
     printf '\nbuild-output/\n' >> "${input_consumer}/.gitignore"
     cp "${repository}/airness-it/fixtures/build-inputs/"*.template "${input_consumer}/"
-    perl -0pi -e 's/package com.example;/package com.example;\n\nimport com.example.generated.GeneratedValue;/;
+    perl -0pi -e 's/package org.sample;/package org.sample;\n\nimport org.sample.generated.GeneratedValue;/;
         s/return 1;/return new GeneratedValue().value();/' \
-        "${input_consumer}/src/main/java/com/example/Example.java"
+        "${input_consumer}/src/main/java/org/sample/Example.java"
     generated_input_build
     append_input_build
     run_maven inputs_generated repository "${input_consumer}" clean verify
     expect_exit inputs_generated \
         'build inputs: clean builds recreate generated Java and resources under custom output' 0
-    if [ -f "${input_consumer}/build-output/classes/com/example/generated/GeneratedValue.class" ]; then
+    if [ -f "${input_consumer}/build-output/classes/org/sample/generated/GeneratedValue.class" ]; then
         pass 'build inputs: the generated Java input was compiled'
     else
         fail 'build inputs: the generated Java input was compiled' 'generated class missing'
@@ -173,13 +173,13 @@ generated_input_build() {
                         </goals>
                         <configuration>
                             <target>
-                                <mkdir dir="${project.build.directory}/generated-sources/com/example/generated" />
+                                <mkdir dir="${project.build.directory}/generated-sources/org/sample/generated" />
                                 <mkdir dir="${project.build.directory}/generated-resources" />
                                 <copy file="${project.basedir}/GeneratedValue.java.template"
-                                    tofile="${project.build.directory}/generated-sources/com/example/generated/GeneratedValue.java"
+                                    tofile="${project.build.directory}/generated-sources/org/sample/generated/GeneratedValue.java"
                                 />
                                 <copy file="${project.basedir}/package-info.java.template"
-                                    tofile="${project.build.directory}/generated-sources/com/example/generated/package-info.java"
+                                    tofile="${project.build.directory}/generated-sources/org/sample/generated/package-info.java"
                                 />
                                 <echo file="${project.build.directory}/generated-resources/generated.txt"
                                 >Generated resource&#10;</echo>
@@ -216,14 +216,15 @@ run_reactor_build_inputs() {
     input_consumer="${consumer_directory}"
     mkdir -p "${input_consumer}/child/src/main/resources/build"
     printf 'Child runtime input\n' > "${input_consumer}/child/src/main/resources/build/value.txt"
-    perl -0pi -e 's{(<version>9[.]4[.]2</version>\n)}{$1    <packaging>pom</packaging>\n\n    <modules>\n        <module>child</module>\n    </modules>\n}' \
+    perl -0pi -e 's{(<version>9[.]4[.]2</version>\n)}{$1    <packaging>pom</packaging>\n};
+        s{(\n    <scm>)}{\n    <modules>\n        <module>child</module>\n    </modules>\n$1}' \
         "${input_consumer}/pom.xml"
     cat > "${input_consumer}/child/pom.xml" <<'XML'
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.example</groupId>
+        <groupId>org.sample</groupId>
         <artifactId>consumer</artifactId>
         <version>9.4.2</version>
     </parent>

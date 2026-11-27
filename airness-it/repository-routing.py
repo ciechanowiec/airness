@@ -53,7 +53,7 @@ def resolve(consumer: Path, scratch: Path, port: int, requests: Path) -> None:
     descriptor: Path = scratch / "injected.pom"
     descriptor.write_text(f"""<project>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.example</groupId><artifactId>repository-probe</artifactId><version>9.4.2</version>
+    <groupId>org.sample</groupId><artifactId>repository-probe</artifactId><version>9.4.2</version>
     <repositories><repository>
         <id>injected-repository</id><url>http://127.0.0.1:{port}/</url>
         <snapshots><enabled>true</enabled></snapshots>
@@ -75,7 +75,7 @@ def resolve(consumer: Path, scratch: Path, port: int, requests: Path) -> None:
     pom: Path = consumer / "pom.xml"
     pom.write_text(pom.read_text(encoding="utf-8").replace("</project>", """
     <dependencies><dependency>
-        <groupId>com.example</groupId><artifactId>repository-probe</artifactId>
+        <groupId>org.sample</groupId><artifactId>repository-probe</artifactId>
         <version>9.4.2</version><scope>compile</scope>
     </dependency></dependencies>
 </project>

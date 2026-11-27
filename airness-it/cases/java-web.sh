@@ -42,8 +42,8 @@ pom.write_text(text)
 PY
     mkdir -p "${java_web}/src/main/resources/templates" "${java_web}/src/main/resources/static/css" \
         "${java_web}/src/main/resources/static/img"
-    cat > "${java_web}/src/main/java/com/example/Pages.java" <<'JAVA'
-package com.example;
+    cat > "${java_web}/src/main/java/org/sample/Pages.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -115,8 +115,8 @@ public final class Pages {
     }
 }
 JAVA
-    cat > "${java_web}/src/main/java/com/example/Status.java" <<'JAVA'
-package com.example;
+    cat > "${java_web}/src/main/java/org/sample/Status.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -138,8 +138,8 @@ public final class Status {
     }
 }
 JAVA
-    cat > "${java_web}/src/main/java/com/example/Failures.java" <<'JAVA'
-package com.example;
+    cat > "${java_web}/src/main/java/org/sample/Failures.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -162,8 +162,8 @@ public final class Failures {
     }
 }
 JAVA
-    cat > "${java_web}/src/main/java/com/example/Security.java" <<'JAVA'
-package com.example;
+    cat > "${java_web}/src/main/java/org/sample/Security.java" <<'JAVA'
+package org.sample;
 
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
@@ -386,6 +386,7 @@ CSS
 {
   "name": "java-web",
   "private": true,
+  "license": "LicenseRef-Proprietary",
   "scripts": {
     "serve": "\"\$JAVA_HOME/bin/java\" -jar \"\$AIRNESS_APPLICATION_ARTIFACT\" --server.port=\$PORT"
   },

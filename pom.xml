@@ -759,6 +759,14 @@
                         <skipAddThirdParty>${skipTests}</skipAddThirdParty>
                         <failOnBlacklist>${airness.enforce}</failOnBlacklist>
                         <failOnMissing>${airness.enforce}</failOnMissing>
+                        <!--
+                            The project's own artifacts are not third-party. A sibling module, or a library
+                            the owner publishes under the same group, carries the license the project's root
+                            pom states, which may be LicenseRef-Proprietary: the project's to state, not this
+                            allowlist's to admit. A project cannot widen this, since license.excludedGroups is
+                            the harness's.
+                        -->
+                        <excludedGroups>${project.groupId}</excludedGroups>
                         <includedLicenses>
                             <includedLicense>Apache-2.0</includedLicense>
                             <includedLicense>MIT</includedLicense>

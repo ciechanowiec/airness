@@ -48,7 +48,7 @@ import org.apache.maven.project.ProjectBuildingResult;
 @UtilityClass
 final class RepositorySites {
 
-    private static final String POM = "pom.xml";
+    static final String POM = "pom.xml";
     private static final String NEXT = "next";
     private static final List<String> ROUTE_DIRECTORIES = List.of("src/app", "src/pages");
     private static final List<String> HOOK_DIRECTORIES = List.of("", "src/");

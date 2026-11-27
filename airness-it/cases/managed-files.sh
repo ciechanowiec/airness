@@ -23,7 +23,7 @@ run_managed_file_cases() {
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>platform</artifactId>
     <version>9.4.2</version>
     <packaging>pom</packaging>
@@ -34,10 +34,11 @@ run_managed_file_cases() {
     </modules>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
+    own_metadata "${platform}/pom.xml" platform
     cat > "${platform}/shop/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -50,16 +51,17 @@ POM
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>shop</artifactId>
     <version>9.4.2</version>
 
     <properties>
         <airness.node.projects>src/main/frontend</airness.node.projects>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
+    own_metadata "${platform}/shop/pom.xml" shop
     cat > "${platform}/web/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -72,19 +74,20 @@ POM
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>web</artifactId>
     <version>9.4.2</version>
     <packaging>pom</packaging>
 
     <properties>
         <airness.node.projects>.</airness.node.projects>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
-    printf '{\n  "private": true\n}\n' > "${platform}/shop/src/main/frontend/package.json"
-    printf '{\n  "private": true\n}\n' > "${platform}/web/package.json"
+    own_metadata "${platform}/web/pom.xml" web
+    printf '{\n  "private": true,\n  "license": "LicenseRef-Proprietary"\n}\n' > "${platform}/shop/src/main/frontend/package.json"
+    printf '{\n  "private": true,\n  "license": "LicenseRef-Proprietary"\n}\n' > "${platform}/web/package.json"
     printf '# Platform instructions\n\nRun the Maven verification before committing a change.\n' \
         > "${platform}/AGENTS.md"
     git -C "${platform}" init --quiet

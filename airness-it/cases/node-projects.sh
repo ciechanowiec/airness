@@ -120,13 +120,15 @@ PY
         'airness:node-gate runs only in the node-gate executions the Airness parents bind'
 
     # The case that matters most: a Java module gains a package.json in a folder nobody declared. One
-    # validate run batches it with a declared folder that holds no package.json and a project that names a
-    # pnpm of its own, since node-projects reports all three in one verdict and none can hide another.
+    # validate run batches it with a declared folder that holds no package.json, a project that names a pnpm of
+    # its own, a license the root pom does not name and a proprietary project left publishable, since
+    # node-projects reports them all in one run and none can hide another.
     new_consumer node-undeclared
     node_undeclared="${consumer_directory}"
     mkdir -p "${node_undeclared}/ui" "${node_undeclared}/web"
-    printf '{\n  "private": true\n}\n' > "${node_undeclared}/ui/package.json"
-    printf '{\n  "private": true,\n  "packageManager": "pnpm@11.0.0"\n}\n' > "${node_undeclared}/web/package.json"
+    printf '{\n  "private": true,\n  "license": "MIT"\n}\n' > "${node_undeclared}/ui/package.json"
+    printf '{\n  "license": "LicenseRef-Proprietary",\n  "packageManager": "pnpm@11.0.0"\n}\n' \
+        > "${node_undeclared}/web/package.json"
     write_node_consumer "${node_undeclared}" 'web,missing' ''
     run_maven node_undeclared node "${node_undeclared}" airness:assets-sync validate
     expect_exit node_undeclared 'node: an undeclared package.json fails the module' 1
@@ -136,6 +138,10 @@ PY
         'missing has no package[.]json; fix airness[.]node[.]projects'
     expect_match node_undeclared 'node: a project may not choose a pnpm of its own' \
         'web/package[.]json: packageManager lets pnpm choose a pnpm or Node of its own'
+    expect_match node_undeclared 'node: a package.json repeats the license of the root pom' \
+        'ui/package[.]json declares license MIT, but the root pom names LicenseRef-Proprietary'
+    expect_match node_undeclared 'node: a proprietary package.json is kept off the registry' \
+        'web/package[.]json declares the code proprietary but is not "private": true'
 }
 
 # Copies the node-project fixture, writing in the Node version the harness pins, which its member's spec asserts.
@@ -160,16 +166,17 @@ write_node_consumer() {
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>consumer</artifactId>
     <version>9.4.2</version>
 
     <properties>
         <airness.node.projects>$2</airness.node.projects>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>$3
 </project>
 POM
+    own_metadata "$1/pom.xml" consumer
 }
 
 # Asserts whether the postinstall marker of a fixture package exists in the virtual store.

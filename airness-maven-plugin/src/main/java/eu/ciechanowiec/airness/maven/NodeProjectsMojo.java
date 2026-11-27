@@ -14,7 +14,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Every {@code package.json} in the module is a node project a gate checks, every declared node project
- * exists, and every authored script and stylesheet in the module is a file one of those projects checks.
+ * exists, every authored script and stylesheet in the module is a file one of those projects checks, and every
+ * {@code package.json} declares a license the repository's root pom names.
  *
  * <p>Runs in every module during Default and Extended verification, whether or not the module declares a
  * node project, because the module that declares nothing is the one where a new, undeclared frontend would
@@ -82,7 +83,15 @@ public final class NodeProjectsMojo extends AbstractGovernanceMojo {
                 + " package.json file(s) and " + frontend.inventoried() + " authored frontend file(s) found in "
                 + this.project().getArtifactId()
         );
-        return Stream.concat(coverage.findings().stream(), frontend.findings().stream()).toList();
+        NodeLicenses licenses = new NodeLicenses(
+            basedir.toAbsolutePath().normalize(),
+            NodeManifests.in(
+                basedir.toAbsolutePath().normalize(),
+                skipped.stream().map(path -> path.toAbsolutePath().normalize()).toList()
+            ),
+            RootLicenses.of(this.project(), root)
+        );
+        return Stream.of(coverage.findings(), frontend.findings(), licenses.findings()).flatMap(List::stream).toList();
     }
 
     // A child module walks its own directory in its own build, and the build directory holds output.

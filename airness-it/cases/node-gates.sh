@@ -23,16 +23,17 @@ run_node_gate_cases() {
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>library</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
+    own_metadata "${node_library}/pom.xml" library
     git -C "${node_library}" init --quiet
     git -C "${node_library}" config user.name Fixture
     git -C "${node_library}" config user.email fixture@example.invalid
@@ -648,16 +649,17 @@ run_node_next_cases() {
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>site</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
+    own_metadata "${node_next}/pom.xml" site
     git -C "${node_next}" init --quiet
     git -C "${node_next}" config user.name Fixture
     git -C "${node_next}" config user.email fixture@example.invalid

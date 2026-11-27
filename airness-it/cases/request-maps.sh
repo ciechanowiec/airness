@@ -3,9 +3,9 @@
 run_request_map_cases() {
     request_map_app="${scratch}/request-map-app"
     clone_tree "${spring_open_named}" "${request_map_app}"
-    rm "${request_map_app}/src/main/java/com/example/Orders.java"
-    cat > "${request_map_app}/src/main/java/com/example/Parameters.java" <<'JAVA'
-package com.example;
+    rm "${request_map_app}/src/main/java/org/sample/Orders.java"
+    cat > "${request_map_app}/src/main/java/org/sample/Parameters.java" <<'JAVA'
+package org.sample;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -84,8 +84,8 @@ public final class Parameters {
     }
 }
 JAVA
-    cat > "${request_map_app}/src/main/java/com/example/Security.java" <<'JAVA'
-package com.example;
+    cat > "${request_map_app}/src/main/java/org/sample/Security.java" <<'JAVA'
+package org.sample;
 
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
@@ -116,8 +116,8 @@ public final class Security {
     }
 }
 JAVA
-    cat > "${request_map_app}/src/test/java/com/example/RequestMapsTest.java" <<'JAVA'
-package com.example;
+    cat > "${request_map_app}/src/test/java/org/sample/RequestMapsTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -196,8 +196,8 @@ JAVA
 
     request_scalar_app="${scratch}/request-scalar-app"
     clone_tree "${request_map_app}" "${request_scalar_app}"
-    cat > "${request_scalar_app}/src/main/java/com/example/Parameters.java" <<'JAVA'
-package com.example;
+    cat > "${request_scalar_app}/src/main/java/org/sample/Parameters.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;

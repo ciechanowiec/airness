@@ -32,8 +32,8 @@ run_maven_cases() {
 
     # The consumer's own test reads the Git configuration its parent names, the one assets-sync placed in the
     # consumer, rather than the one this suite exports for its own git or the machine's.
-    cat > "${maven_consumer}/src/test/java/com/example/GitConfigurationTest.java" <<'JAVA'
-package com.example;
+    cat > "${maven_consumer}/src/test/java/org/sample/GitConfigurationTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -52,8 +52,8 @@ class GitConfigurationTest {
 JAVA
     # The typography check refuses the narrow no-break space raw, so a test that expects one writes its
     # escape, which Checkstyle admits.
-    cat > "${maven_consumer}/src/test/java/com/example/GroupingTest.java" <<'JAVA'
-package com.example;
+    cat > "${maven_consumer}/src/test/java/org/sample/GroupingTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -74,9 +74,9 @@ JAVA
     run_maven lifecycle_clean maven "${maven_consumer}" clean verify
     expect_exit lifecycle_clean 'lifecycle: a clean installed-parent consumer verifies' 0
     expect_match lifecycle_clean 'lifecycle: the consumer tests read the managed Git configuration' \
-        'Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* in com[.]example[.]GitConfigurationTest'
+        'Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* in org[.]sample[.]GitConfigurationTest'
     expect_match lifecycle_clean 'lifecycle: an escaped invisible space passes typography and Checkstyle' \
-        'Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* in com[.]example[.]GroupingTest'
+        'Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* in org[.]sample[.]GroupingTest'
     expect_match lifecycle_clean 'lifecycle: Checkstyle is selected from the installed parent' \
         'checkstyle:[^:]+:check'
     expect_match lifecycle_clean 'lifecycle: PMD and CPD are both bound' \
@@ -180,7 +180,7 @@ run_unowned_aggregator_case() {
     cat > "${unowned_consumer}/pom.xml" <<'XML'
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>plain-aggregator</artifactId>
     <version>1</version>
     <packaging>pom</packaging>
@@ -193,7 +193,7 @@ XML
     run_maven unowned_root maven "${unowned_consumer}" validate
     expect_exit unowned_root 'repository: a plain aggregator above a governed module is refused' 1
     expect_match unowned_root 'repository: the refusal names the parent the root must inherit' \
-        'top-level project com[.]example:plain-aggregator inherits no Airness parent.*airness-parent'
+        'top-level project org[.]sample:plain-aggregator inherits no Airness parent.*airness-parent'
 }
 
 # The licence check reads what a pom says about itself, and none of these five says anything: the
@@ -226,8 +226,8 @@ jobs:
         with:
           distribution: oracle
 YAML
-    cat > "${blocklist_consumer}/src/test/java/com/example/ImageTest.java" <<'JAVA'
-package com.example;
+    cat > "${blocklist_consumer}/src/test/java/org/sample/ImageTest.java" <<'JAVA'
+package org.sample;
 
 import org.testcontainers.utility.DockerImageName;
 

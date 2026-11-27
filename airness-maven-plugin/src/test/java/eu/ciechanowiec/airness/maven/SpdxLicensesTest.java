@@ -47,4 +47,11 @@ class SpdxLicensesTest {
             "an unknown exception keeps the declaration whole, which nothing admits"
         );
     }
+
+    @Test
+    void listsOnlyTheIdentifiersTheListStillRecommends() {
+        assertTrue(SpdxLicenses.current().identifiers().containsAll(List.of("MIT-0", "Unlicense", "GPL-2.0-only")));
+        assertFalse(SpdxLicenses.current().identifiers().contains("GPL-2.0"), "a deprecated identifier is left out");
+        assertTrue(SpdxLicenses.current().version().matches("\\d+\\.\\d+(\\.\\d+)?"));
+    }
 }

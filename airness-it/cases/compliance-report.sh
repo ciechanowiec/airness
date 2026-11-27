@@ -73,13 +73,13 @@ prepare_compliance_frontend() {
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>report-web</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 
     <build>
@@ -105,6 +105,7 @@ prepare_compliance_frontend() {
     </build>
 </project>
 POM
+    own_metadata "${compliance_web}/pom.xml" report-web
     perl -0pi -e 's{(<module>report-second</module>)}{$1<module>report-web</module>}' "${vulnerability_consumer}/pom.xml"
 }
 

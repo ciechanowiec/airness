@@ -25,15 +25,15 @@ expect_static_refusal() {
 
 run_analysis_lifecycle() {
     new_consumer lifecycle-checkstyle
-    perl -0pi -e 's/\n}\n$/\n\n}\n/' "${consumer_directory}/src/test/java/com/example/ExampleTest.java"
+    perl -0pi -e 's/\n}\n$/\n\n}\n/' "${consumer_directory}/src/test/java/org/sample/ExampleTest.java"
     expect_static_refusal "${consumer_directory}" checkstyle_order \
         'Empty lines before a closing brace are not allowed'
     expect_no_match checkstyle_order 'lifecycle: a Checkstyle finding stops the build before the tests run' \
         'surefire:[^ ]+:test '
 
     new_consumer lifecycle-pmd
-    cat > "${consumer_directory}/src/test/java/com/example/ExampleTest.java" <<'JAVA'
-package com.example;
+    cat > "${consumer_directory}/src/test/java/org/sample/ExampleTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -54,8 +54,8 @@ JAVA
     expect_static_refusal "${consumer_directory}" pmd_order 'Rule:AvoidLiteralsInIfCondition'
 
     new_consumer lifecycle-cpd
-    cat > "${consumer_directory}/src/test/java/com/example/ExampleTest.java" <<'JAVA'
-package com.example;
+    cat > "${consumer_directory}/src/test/java/org/sample/ExampleTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

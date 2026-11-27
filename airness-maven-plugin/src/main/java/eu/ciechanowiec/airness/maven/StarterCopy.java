@@ -24,9 +24,9 @@ import lombok.experimental.UtilityClass;
  * application, becomes the artifact, and the word Starter becomes the name. A starter that a hyphen joins to
  * what precedes it, as in spring-boot-starter-web, names a Spring Boot module rather than the application, and
  * is kept. The pom marks each value with a placeholder instead, because its comments speak of Spring Boot
- * starters too. Every file is read for the harness version placeholder, and a file stored under an added
- * fixture suffix loses it. A file that is not UTF-8 text, such as an image, names nothing and is copied byte
- * for byte.
+ * starters too, and so does every value of the owner its metadata states. Every file is read for the harness
+ * version and the license placeholders, and a file stored under an added fixture suffix loses it. A file that is
+ * not UTF-8 text, such as an image, names nothing and is copied byte for byte.
  *
  * <p>A region between a line naming {@value #SNAPSHOT_BEGIN} and a line naming {@value #SNAPSHOT_END} serves a
  * SNAPSHOT harness alone, whose npm packages are never published: for one the two marker lines are dropped and
@@ -42,6 +42,12 @@ final class StarterCopy {
     static final String FIXTURE = ".fixture";
 
     static final String VERSION = "@AIRNESS_VERSION@";
+
+    /**
+     * The placeholder every starter file names the application's license by, which the pom and the
+     * {@code package.json} alike state.
+     */
+    static final String LICENSE = "@LICENSE@";
 
     /**
      * The marker on the line that opens a region kept for a SNAPSHOT harness alone.
@@ -149,12 +155,18 @@ final class StarterCopy {
      */
     static String content(String relative, String text, StarterRequest request, String version) {
         String versioned = regions(text, version).replace(VERSION, version);
+        String licensed = versioned.replace(LICENSE, request.owner().license());
         if (POM.equals(relative)) {
-            return versioned.replace("@GROUP_ID@", request.groupId())
+            return licensed.replace("@GROUP_ID@", request.groupId())
                 .replace("@ARTIFACT_ID@", request.artifactId())
-                .replace("@PACKAGE@", request.javaPackage());
+                .replace("@PACKAGE@", request.javaPackage())
+                .replace("@NAME@", request.name())
+                .replace("@ORGANIZATION@", escaped(request.owner().organization()))
+                .replace("@SCM_CONNECTION@", request.owner().connection())
+                .replace("@URL@", request.owner().url())
+                .replace("@INCEPTION_YEAR@", request.owner().inceptionYear().toString());
         }
-        return renamed(versioned.replace(PACKAGE, request.javaPackage()), request);
+        return renamed(licensed.replace(PACKAGE, request.javaPackage()), request);
     }
 
     /**
@@ -165,6 +177,12 @@ final class StarterCopy {
      */
     static boolean snapshot(String version) {
         return SnapshotVersions.snapshot(version);
+    }
+
+    // The organization is the one value of the pom a person writes freely, so it is escaped for XML.
+    private static String escaped(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+            .replace("'", "&apos;");
     }
 
     private static String regions(String text, String version) {

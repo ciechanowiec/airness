@@ -2,7 +2,7 @@
 
 run_web_accessibility_cases() {
     audit_app="${scratch}/web-accessibility-app"
-    mkdir -p "${audit_app}/src/main/java/com/example" "${audit_app}/src/test/java/com/example"
+    mkdir -p "${audit_app}/src/main/java/org/sample" "${audit_app}/src/test/java/org/sample"
     cat > "${audit_app}/pom.xml" <<'POM'
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
@@ -13,12 +13,12 @@ run_web_accessibility_cases() {
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>web-accessibility-app</artifactId>
     <version>1.0.0</version>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 
     <dependencies>
@@ -35,17 +35,18 @@ run_web_accessibility_cases() {
     </dependencies>
 </project>
 POM
-    cat > "${audit_app}/src/main/java/com/example/package-info.java" <<'JAVA'
+    own_metadata "${audit_app}/pom.xml" web-accessibility-app
+    cat > "${audit_app}/src/main/java/org/sample/package-info.java" <<'JAVA'
 /**
  * Isolated consumer types used to exercise the inherited harness.
  */
 @NullMarked
-package com.example;
+package org.sample;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
-    cat > "${audit_app}/src/main/java/com/example/Application.java" <<'JAVA'
-package com.example;
+    cat > "${audit_app}/src/main/java/org/sample/Application.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -67,8 +68,8 @@ public final class Application {
 JAVA
     # A test that writes the question itself, and asks for the failures alone. This is the shape all
     # three projects of the fleet had written separately, each unaware of the other two.
-    cat > "${audit_app}/src/test/java/com/example/PageAccessibilityTest.java" <<'JAVA'
-package com.example;
+    cat > "${audit_app}/src/test/java/org/sample/PageAccessibilityTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -106,8 +107,8 @@ JAVA
     # the options file packaged with the shipped question turns on beyond the defaults, the AAA ones among
     # them, is one those rules define, so none is switched on and then run nowhere, and the question a
     # project that raised both costly rules asks holds each to its AAA level.
-    cat > "${audit_app}/src/test/java/com/example/PageAccessibilityTest.java" <<'JAVA'
-package com.example;
+    cat > "${audit_app}/src/test/java/org/sample/PageAccessibilityTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

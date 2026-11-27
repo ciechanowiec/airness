@@ -2,6 +2,7 @@
   "name": "payload-site",
   "version": "1.0.0",
   "private": true,
+  "license": "LicenseRef-Proprietary",
   "type": "module",
   "dependencies": {
     "@payloadcms/db-postgres": "3.92.1",

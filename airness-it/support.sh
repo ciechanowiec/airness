@@ -439,9 +439,34 @@ ensure_consumer_template() {
     build_consumer "${consumer_template}"
 }
 
+# Gives a fixture pom metadata of its own: a governed root pom, and a module that inherits an Airness parent
+# directly, states its license, owner, address and source control rather than inherit Airness's. Each part goes
+# where the pom element order places it: the description and the owners after the project's own version, or its
+# packaging, and the source control after any modules, ahead of the properties.
+own_metadata() {
+    OWN_METADATA_NAME="$2" perl -0pi -e '
+        my $name = $ENV{OWN_METADATA_NAME};
+        my $address = "https://git.example.invalid/$name";
+        my $block = "\n    <name>$name</name>\n"
+            . "    <description>The $name fixture of the Airness integration suite.</description>\n"
+            . "    <url>$address</url>\n    <inceptionYear>2026</inceptionYear>\n\n"
+            . "    <licenses>\n        <license>\n            <name>LicenseRef-Proprietary</name>\n"
+            . "        </license>\n    </licenses>\n\n"
+            . "    <developers>\n        <developer>\n            <name>Sample Organization</name>\n"
+            . "        </developer>\n    </developers>\n";
+        my $scm = "    <scm>\n        <connection>scm:git:$address.git</connection>\n"
+            . "        <developerConnection>scm:git:$address.git</developerConnection>\n"
+            . "        <url>$address</url>\n    </scm>\n\n";
+        s{(\n    <version>[^<\n]*</version>\n(?:    <packaging>[^<\n]*</packaging>\n)?)}{$1$block}
+            or die "no project version to place the metadata after\n";
+        s{\n(    <properties>)}{\n$scm$1} or s{\n(</project>)}{\n\n$scm$1}
+            or die "no place to put the source control\n";
+    ' "$1"
+}
+
 build_consumer() {
     fixture_directory="$1"
-    mkdir -p "${fixture_directory}/src/main/java/com/example" "${fixture_directory}/src/test/java/com/example"
+    mkdir -p "${fixture_directory}/src/main/java/org/sample" "${fixture_directory}/src/test/java/org/sample"
     cat > "${fixture_directory}/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -453,31 +478,32 @@ build_consumer() {
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>consumer</artifactId>
     <version>9.4.2</version>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
+    own_metadata "${fixture_directory}/pom.xml" consumer
     cat > "${fixture_directory}/AGENTS.md" <<'INSTRUCTIONS'
 # Consumer instructions
 
 Run the Maven verification before committing a change.
 INSTRUCTIONS
-    cat > "${fixture_directory}/src/main/java/com/example/package-info.java" <<'JAVA'
+    cat > "${fixture_directory}/src/main/java/org/sample/package-info.java" <<'JAVA'
 /**
  * Isolated consumer types used to exercise the inherited harness.
  */
 @NullMarked
-package com.example;
+package org.sample;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
-    cat > "${fixture_directory}/src/main/java/com/example/Example.java" <<'JAVA'
-package com.example;
+    cat > "${fixture_directory}/src/main/java/org/sample/Example.java" <<'JAVA'
+package org.sample;
 
 /**
  * A small consumer fixture.
@@ -494,8 +520,8 @@ public final class Example {
     }
 }
 JAVA
-    cat > "${fixture_directory}/src/test/java/com/example/ExampleTest.java" <<'JAVA'
-package com.example;
+    cat > "${fixture_directory}/src/test/java/org/sample/ExampleTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

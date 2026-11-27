@@ -4,6 +4,7 @@
 # Extended runs its scanners in containers.
 
 starter_goal="eu.ciechanowiec:airness-maven-plugin:${harness_version}:new"
+starter_organization='-Dairness.organization=Sample Organization'
 
 # Makes an application from a starter in a directory of its own under the starters home and holds it to what
 # every starter promises: the goal names what it made, the first lockfile resolves the installed harness,
@@ -27,7 +28,8 @@ verify_starter() {
     export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
 
     run_maven "starter_new_${verified_id}" starters "${starter_home}" "${starter_goal}" \
-        -Dairness.starter="${verified_starter}" -Dairness.artifactId="${verified_artifact}" "$@"
+        -Dairness.starter="${verified_starter}" -Dairness.artifactId="${verified_artifact}" \
+        "${starter_organization}" -Dairness.url="https://git.example.invalid/${verified_artifact}" "$@"
     expect_exit "starter_new_${verified_id}" \
         "starters: airness:new makes an application from the ${verified_starter} starter" 0
     expect_match "starter_new_${verified_id}" \
@@ -87,16 +89,37 @@ run_starter_cases() {
         'All coverage checks have been met'
     expect_match starter_verify_spring_boot 'starters: Qodana finds no problem in the application' \
         'Analysis results: 0 problem detected'
+    expect_file_match "${starter_application}/pom.xml" 'starters: the application begins in the year it is made' \
+        "<inceptionYear>$(date +%Y)</inceptionYear>"
+    expect_file_match "${starter_application}/pom.xml" 'starters: the source control names the repository given' \
+        '<connection>scm:git:https://git[.]example[.]invalid/task-tracker[.]git</connection>'
+    expect_file_match "${starter_application}/pom.xml" 'starters: the application is proprietary by default' \
+        '<name>LicenseRef-Proprietary</name>'
+    expect_file_match "${starter_application}/package.json" 'starters: the package.json repeats the license' \
+        '"license": "LicenseRef-Proprietary"'
 
     run_maven starter_occupied starters "${starter_home}" "${starter_goal}" \
-        -Dairness.groupId=org.sample -Dairness.artifactId=task-tracker
+        -Dairness.groupId=org.sample -Dairness.artifactId=task-tracker \
+        "${starter_organization}" -Dairness.url=https://git.example.invalid/task-tracker
     expect_exit starter_occupied 'starters: airness:new refuses a directory that is not empty' 1
     expect_match starter_occupied 'starters: the refusal names the occupied directory' \
         'task-tracker already exists and is not empty'
 
     run_maven starter_keyword starters "${starter_home}" "${starter_goal}" \
-        -Dairness.groupId=org.sample -Dairness.artifactId=new
+        -Dairness.groupId=org.sample -Dairness.artifactId=new \
+        "${starter_organization}" -Dairness.url=https://git.example.invalid/new
     expect_exit starter_keyword 'starters: airness:new refuses a package with a Java keyword in it' 1
     expect_match starter_keyword 'starters: the refusal names the package' \
         "airness.package is 'org.sample.new', but a part of it is a Java keyword"
+
+    run_maven starter_owner starters "${starter_home}" "${starter_goal}" \
+        -Dairness.groupId=org.sample -Dairness.artifactId=owned -Dairness.url=http://git.example.invalid/owned \
+        -Dairness.license=Unlicense
+    expect_exit starter_owner 'starters: airness:new refuses an application nobody owns' 1
+    expect_match starter_owner 'starters: the refusal asks who owns the application' \
+        'airness[.]organization is not set'
+    expect_match starter_owner 'starters: the refusal asks for an https repository' \
+        "airness[.]url is 'http://git[.]example[.]invalid/owned', but it must be the https address"
+    expect_match starter_owner 'starters: the refusal keeps the code from the public domain' \
+        "airness[.]license is 'Unlicense', but Unlicense places the code in the public domain"
 }

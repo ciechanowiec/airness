@@ -5,9 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.governance.BuildPracticesCheck;
+import eu.ciechanowiec.airness.governance.Findings;
+import eu.ciechanowiec.airness.governance.MetadataBounds;
+import eu.ciechanowiec.airness.governance.PomLayoutCheck;
+import eu.ciechanowiec.airness.governance.PomPortabilityCheck;
+import eu.ciechanowiec.airness.governance.ProjectMetadata;
+import eu.ciechanowiec.airness.governance.RootMetadataCheck;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Year;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +25,7 @@ import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import net.revelc.code.formatter.java.JavaFormatter;
 import net.revelc.code.impsort.ImpSort;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.plugin.logging.SystemStreamLog;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -23,6 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
 class StarterCopyTest {
 
     private static final String VERSION = "9.8.7";
+    private static final Year YEAR = Year.of(2026);
     private static final String SNAPSHOT_VERSION = "9.8.8-SNAPSHOT";
     private static final String REGIONED = """
         <plugins>
@@ -35,6 +46,10 @@ class StarterCopyTest {
     private static final String IMAGE = "src/main/resources/static/images/empty.webp";
     private static final StarterRequest REQUEST = StarterRequest.of(
         "org.sample", "task-tracker", Optional.of("org.sample.tracker"), Optional.of("Task Tracker")
+    ).owned(
+        new StarterOwner(
+            "Müller & Söhne", "https://git.sample.org/task-tracker", "LicenseRef-Proprietary", YEAR
+        )
     );
 
     @TempDir
@@ -100,6 +115,12 @@ class StarterCopyTest {
             <version>@AIRNESS_VERSION@</version>
             <groupId>@GROUP_ID@</groupId>
             <artifactId>@ARTIFACT_ID@</artifactId>
+            <name>@NAME@</name>
+            <url>@URL@</url>
+            <inceptionYear>@INCEPTION_YEAR@</inceptionYear>
+            <organization><name>@ORGANIZATION@</name></organization>
+            <license><name>@LICENSE@</name></license>
+            <connection>@SCM_CONNECTION@</connection>
             <airness.package.root>@PACKAGE@</airness.package.root>
             <!-- arrives through a starter -->
             """;
@@ -109,6 +130,12 @@ class StarterCopyTest {
                 <version>9.8.7</version>
                 <groupId>org.sample</groupId>
                 <artifactId>task-tracker</artifactId>
+                <name>Task Tracker</name>
+                <url>https://git.sample.org/task-tracker</url>
+                <inceptionYear>2026</inceptionYear>
+                <organization><name>Müller &amp; Söhne</name></organization>
+                <license><name>LicenseRef-Proprietary</name></license>
+                <connection>scm:git:https://git.sample.org/task-tracker.git</connection>
                 <airness.package.root>org.sample.tracker</airness.package.root>
                 <!-- arrives through a starter -->
                 """,
@@ -186,6 +213,9 @@ class StarterCopyTest {
             Files.readString(this.directory.resolve("pom.xml")).contains("<artifactId>task-tracker</artifactId>")
         );
         assertTrue(Files.readString(this.directory.resolve("package.json")).contains("\"@airness/node\": \"9.8.7\""));
+        assertTrue(
+            Files.readString(this.directory.resolve("package.json")).contains("\"license\": \"LicenseRef-Proprietary\"")
+        );
         assertTrue(Files.isRegularFile(this.directory.resolve("src/main/java/org/sample/tracker/Application.java")));
         assertTrue(Files.isRegularFile(this.directory.resolve(".gitignore")));
         assertTrue(Files.readString(this.directory.resolve("compose.yaml")).contains("services:"));
@@ -219,12 +249,51 @@ class StarterCopyTest {
         );
     }
 
+    @Test
+    void writesARootPomThatStatesMetadataOfItsOwnAndPassesTheModelRules() {
+        assertEquals(List.of(), modelVerdicts(this.directory, "spring-boot"));
+    }
+
+    /**
+     * Copies a starter under an owner and reads the pom it writes through the rules a governed root pom answers to.
+     *
+     * @param directory the directory the application is written into
+     * @param name      the starter
+     * @return every verdict that found something to object to
+     */
+    @SneakyThrows
+    static List<Findings> modelVerdicts(Path directory, String name) {
+        try (StarterTemplate starter = StarterTemplate.open(StarterCopyTest.class.getClassLoader(), name)) {
+            StarterCopy.write(starter.root(), directory, REQUEST, VERSION);
+        }
+        Path pom = directory.resolve("pom.xml");
+        ProjectMetadata metadata = metadata(pom);
+        return Stream.of(
+            new RootMetadataCheck(
+                metadata, metadata,
+                new MetadataBounds(SpdxLicenses.current(), YEAR, Optional.empty(), List.of())
+            ).findings(),
+            new PomPortabilityCheck(pom, directory).findings(),
+            new PomLayoutCheck(pom).findings(),
+            new BuildPracticesCheck(pom, List.of()).findings()
+        ).flatMap(List::stream).filter(verdict -> !verdict.clean()).toList();
+    }
+
+    @SneakyThrows
+    private static ProjectMetadata metadata(Path pom) {
+        try (Reader reader = Files.newBufferedReader(pom)) {
+            return ProjectFacts.metadata(new MavenXpp3Reader().read(reader));
+        }
+    }
+
     @SneakyThrows
     private static boolean mentionsTheStarter(Path file) {
         // Read as ISO-8859-1, which decodes every byte, so an image that is no UTF-8 text reads too. The
         // searched names are ASCII and match alike in both charsets.
         String text = Files.readString(file, StandardCharsets.ISO_8859_1);
-        return Stream.of("com.example.starter", "@AIRNESS_VERSION@", "@GROUP_ID@", "@SNAPSHOT_ONLY_")
-            .anyMatch(text::contains);
+        return Stream.of(
+            "com.example.starter", "@AIRNESS_VERSION@", "@GROUP_ID@", "@SNAPSHOT_ONLY_", "@NAME@", "@URL@",
+            "@ORGANIZATION@", "@LICENSE@", "@INCEPTION_YEAR@", "@SCM_CONNECTION@"
+        ).anyMatch(text::contains);
     }
 }

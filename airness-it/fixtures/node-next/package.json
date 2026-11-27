@@ -1,6 +1,7 @@
 {
   "name": "fixture-next",
   "private": true,
+  "license": "LicenseRef-Proprietary",
   "type": "module",
   "dependencies": {
     "next": "16.4.6",

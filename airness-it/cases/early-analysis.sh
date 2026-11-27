@@ -10,7 +10,7 @@ inventory = ET.parse(sys.argv[1])
 destination = Path(sys.argv[2]) / 'src/main/java'
 for index, rule in enumerate(inventory.findall("rule[@tool='Qodana']")):
     for number, case in enumerate(rule.findall('case')):
-        package = f'com.example.early.rule{index}.case{number}'
+        package = f'org.sample.early.rule{index}.case{number}'
         directory = destination / package.replace('.', '/')
         directory.mkdir(parents=True, exist_ok=True)
         source = case.findtext('source').replace('package example;', f'package {package};')
@@ -37,7 +37,7 @@ findings = Counter(
 problems = []
 for index, rule in enumerate(inventory.findall("rule[@tool='Qodana']")):
     for number, case in enumerate(rule.findall('case')):
-        path = f'src/main/java/com/example/early/rule{index}/case{number}/Sample.java'
+        path = f'src/main/java/org/sample/early/rule{index}/case{number}/Sample.java'
         expected = int(case.get('original', case.get('findings')))
         actual = findings[rule.get('name'), path]
         if actual != expected:
@@ -55,8 +55,8 @@ PY
 
 run_early_analysis_lifecycle() {
     new_consumer early-qodana
-    cat > "${consumer_directory}/src/main/java/com/example/Identity.java" <<'JAVA'
-package com.example;
+    cat > "${consumer_directory}/src/main/java/org/sample/Identity.java" <<'JAVA'
+package org.sample;
 
 final class Identity {
 
@@ -70,8 +70,8 @@ JAVA
         'surefire:[^ ]+:test '
 
     new_consumer early-pmd
-    cat > "${consumer_directory}/src/main/java/com/example/Explained.java" <<'JAVA'
-package com.example;
+    cat > "${consumer_directory}/src/main/java/org/sample/Explained.java" <<'JAVA'
+package org.sample;
 
 import eu.ciechanowiec.airness.Justification;
 

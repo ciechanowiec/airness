@@ -3,8 +3,8 @@
 create_qodana_fixture() {
     new_consumer qodana-profile
     qodana_consumer="${consumer_directory}"
-    cat > "${qodana_consumer}/src/main/java/com/example/CommandRequest.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/CommandRequest.java" <<'JAVA'
+package org.sample;
 
 /**
  * A closed set of requests, laid out with its permitted records inside the sealed parent.
@@ -136,8 +136,8 @@ public sealed interface CommandRequest {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/Channel.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/Channel.java" <<'JAVA'
+package org.sample;
 
 /**
  * Where a run writes, which is one place and therefore one word.
@@ -150,8 +150,8 @@ public enum Channel {
     STANDARD_OUTPUT
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/OutputFormat.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/OutputFormat.java" <<'JAVA'
+package org.sample;
 
 /**
  * The shapes a run can report in.
@@ -179,8 +179,8 @@ public enum OutputFormat {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/ParseResult.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/ParseResult.java" <<'JAVA'
+package org.sample;
 
 /**
  * The outcome of reading one request.
@@ -190,8 +190,8 @@ package com.example;
 public record ParseResult(String name) {
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/SafePath.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/SafePath.java" <<'JAVA'
+package org.sample;
 
 import java.nio.file.Path;
 
@@ -203,8 +203,8 @@ import java.nio.file.Path;
 public record SafePath(Path value) {
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/BrokenRunException.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/BrokenRunException.java" <<'JAVA'
+package org.sample;
 
 /**
  * Reports a run that could not finish.
@@ -240,8 +240,8 @@ public final class BrokenRunException extends RuntimeException {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/CommandGrammar.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/CommandGrammar.java" <<'JAVA'
+package org.sample;
 
 /**
  * Reads a request into the name the run works with.
@@ -259,8 +259,8 @@ public final class CommandGrammar {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/ProjectRepository.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/ProjectRepository.java" <<'JAVA'
+package org.sample;
 
 import java.nio.file.Path;
 import java.util.Optional;
@@ -294,8 +294,8 @@ public final class ProjectRepository {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/CommandRouter.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/CommandRouter.java" <<'JAVA'
+package org.sample;
 
 /**
  * Reaches every request shape a project offers.
@@ -372,8 +372,8 @@ public final class CommandRouter {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/CommandRunner.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/CommandRunner.java" <<'JAVA'
+package org.sample;
 
 /**
  * Reads twelve request shapes of its own project.
@@ -420,8 +420,8 @@ public final class CommandRunner {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/JdkHeavy.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/JdkHeavy.java" <<'JAVA'
+package org.sample;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -470,8 +470,8 @@ public final class JdkHeavy {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/Tool.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/Tool.java" <<'JAVA'
+package org.sample;
 
 /**
  * A static-only class that declares a main and carries no annotation.
@@ -488,8 +488,8 @@ public final class Tool {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/Chart.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/Chart.java" <<'JAVA'
+package org.sample;
 
 /**
  * A chart whose parts are named for what they are, in words the questionable-name list once held.
@@ -529,8 +529,8 @@ public final class Chart {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/Budget.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/Budget.java" <<'JAVA'
+package org.sample;
 
 /**
  * A budget counted in whole units, whose figures sit inside the allowlist the harness wrote down.
@@ -558,8 +558,8 @@ public final class Budget {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/Soundings.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/Soundings.java" <<'JAVA'
+package org.sample;
 
 import java.time.Duration;
 import java.util.List;
@@ -638,8 +638,8 @@ public final class Soundings {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/Consignment.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/Consignment.java" <<'JAVA'
+package org.sample;
 
 /**
  * A consignment that carries eight values of its own, which is more state than one class may hold.
@@ -714,8 +714,8 @@ public final class Consignment {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/EventDispatch.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/EventDispatch.java" <<'JAVA'
+package org.sample;
 
 /**
  * Dispatches events through an explicit switch whose branches perform actions.
@@ -748,8 +748,8 @@ public final class EventDispatch {
     }
 }
 JAVA
-    cat > "${qodana_consumer}/src/main/java/com/example/IncompleteDispatch.java" <<'JAVA'
-package com.example;
+    cat > "${qodana_consumer}/src/main/java/org/sample/IncompleteDispatch.java" <<'JAVA'
+package org.sample;
 
 /**
  * Deliberately omits a default so the specific switch safety inspection has a negative control.

@@ -10,6 +10,7 @@ import eu.ciechanowiec.airness.governance.Layer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Year;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,6 +39,10 @@ class PayloadRegistrationTest {
     private static final String SNAPSHOT = "9.8.8-SNAPSHOT";
     private static final StarterRequest REQUEST = StarterRequest.of(
         "org.sample", "content-site", Optional.empty(), Optional.empty()
+    ).owned(
+        new StarterOwner(
+            "Sample Organization", "https://git.sample.org/content-site", "LicenseRef-Proprietary", Year.of(2026)
+        )
     );
 
     @TempDir
@@ -160,8 +165,15 @@ class PayloadRegistrationTest {
     private static boolean placeholder(Path file) {
         // Read as ISO-8859-1, which decodes every byte, so a binary file reads too. The names are ASCII.
         String text = Files.readString(file, StandardCharsets.ISO_8859_1);
-        return Stream.of("@AIRNESS_VERSION@", "@GROUP_ID@", "@ARTIFACT_ID@", "@PACKAGE@", "@SNAPSHOT_ONLY_", "blankus")
-            .anyMatch(text::contains);
+        return Stream.of(
+            "@AIRNESS_VERSION@", "@GROUP_ID@", "@ARTIFACT_ID@", "@PACKAGE@", "@SNAPSHOT_ONLY_", "blankus", "@NAME@",
+            "@URL@", "@ORGANIZATION@", "@LICENSE@", "@INCEPTION_YEAR@", "@SCM_CONNECTION@"
+        ).anyMatch(text::contains);
+    }
+
+    @Test
+    void writesAPayloadRootPomThatStatesMetadataOfItsOwnAndPassesTheModelRules() {
+        assertEquals(List.of(), StarterCopyTest.modelVerdicts(this.directory, STARTER));
     }
 
     private MavenProject payloadModule(Path root) {

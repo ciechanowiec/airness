@@ -5,7 +5,7 @@
 # against this fixture, and the streaming cases start from the same application plus a web module.
 build_spring_application() {
 spring_fixture="$1"
-mkdir -p "${spring_fixture}/src/main/java/com/example" "${spring_fixture}/src/test/java/com/example"
+mkdir -p "${spring_fixture}/src/main/java/org/sample" "${spring_fixture}/src/test/java/org/sample"
 cat > "${spring_fixture}/pom.xml" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -17,13 +17,13 @@ cat > "${spring_fixture}/pom.xml" <<'POM'
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>spring-app</artifactId>
     <version>1.0.0</version>
 
     <properties>
-        <airness.coverage.excluded.classes>com.example.Application -- started only by the Spring Boot launcher</airness.coverage.excluded.classes>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.coverage.excluded.classes>org.sample.Application -- started only by the Spring Boot launcher</airness.coverage.excluded.classes>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 
     <dependencies>
@@ -74,17 +74,18 @@ cat > "${spring_fixture}/pom.xml" <<'POM'
     </build>
 </project>
 POM
-cat > "${spring_fixture}/src/main/java/com/example/package-info.java" <<'JAVA'
+own_metadata "${spring_fixture}/pom.xml" spring-app
+cat > "${spring_fixture}/src/main/java/org/sample/package-info.java" <<'JAVA'
 /**
  * A Spring Boot application built against the harness.
  */
 @NullMarked
-package com.example;
+package org.sample;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
-cat > "${spring_fixture}/src/main/java/com/example/Application.java" <<'JAVA'
-package com.example;
+cat > "${spring_fixture}/src/main/java/org/sample/Application.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -105,8 +106,8 @@ public final class Application {
     }
 }
 JAVA
-cat > "${spring_fixture}/src/main/java/com/example/Greetings.java" <<'JAVA'
-package com.example;
+cat > "${spring_fixture}/src/main/java/org/sample/Greetings.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Component;
 
@@ -136,8 +137,8 @@ public final class Greetings {
     }
 }
 JAVA
-cat > "${spring_fixture}/src/test/java/com/example/GreetingsTest.java" <<'JAVA'
-package com.example;
+cat > "${spring_fixture}/src/test/java/org/sample/GreetingsTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -191,8 +192,8 @@ spring_fixture="$1"
 # The marker is composed, so neither the test class nor the evidence goal has to name @SpringBootTest.
 # Its classes member deliberately names the real production application: an explicit source that still
 # performs the production component scan is valid, while the narrowed source case below is not.
-cat > "${spring_fixture}/src/test/java/com/example/ApplicationTest.java" <<'JAVA'
-package com.example;
+cat > "${spring_fixture}/src/test/java/org/sample/ApplicationTest.java" <<'JAVA'
+package org.sample;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -216,8 +217,8 @@ import org.springframework.test.context.TestConstructor;
 public @interface ApplicationTest {
 }
 JAVA
-cat > "${spring_fixture}/src/test/java/com/example/ContextTest.java" <<'JAVA'
-package com.example;
+cat > "${spring_fixture}/src/test/java/org/sample/ContextTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -244,8 +245,8 @@ git -C "${spring_fixture}" commit --quiet \
 }
 
 write_spring_web_module() {
-    cat > "$1/src/main/java/com/example/Orders.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Orders.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -267,8 +268,8 @@ public final class Orders {
     }
 }
 JAVA
-    cat > "$1/src/main/java/com/example/Failures.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Failures.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -291,8 +292,8 @@ public final class Failures {
     }
 }
 JAVA
-    cat > "$1/src/main/java/com/example/Security.java" <<JAVA
-package com.example;
+    cat > "$1/src/main/java/org/sample/Security.java" <<JAVA
+package org.sample;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -348,7 +349,7 @@ expect_match spring_verify 'spring: the conforming lifecycle reaches a build ver
 # The startup evidence must pass before the isolated source-formatting violation is reached.
 spring_static_failure="${scratch}/spring-static-failure"
 clone_tree "${spring_app}" "${spring_static_failure}"
-perl -0pi -e 's/\n}\n$/\n\n}\n/' "${spring_static_failure}/src/test/java/com/example/ContextTest.java"
+perl -0pi -e 's/\n}\n$/\n\n}\n/' "${spring_static_failure}/src/test/java/org/sample/ContextTest.java"
 expect_static_refusal "${spring_static_failure}" spring_checkstyle_order \
     'Empty lines before a closing brace are not allowed'
 
@@ -364,7 +365,7 @@ if grep -q 'airness-spring-model' "${spring_verify_log}"; then
 else
     fail 'spring: the model goal never ran in a full consumer build'
 fi
-if grep -qx 'com.example.Application' "${spring_app}/target/airness/spring-context.evidence"; then
+if grep -qx 'org.sample.Application' "${spring_app}/target/airness/spring-context.evidence"; then
     pass 'spring: a composed context test records the production application source'
 else
     fail 'spring: the ready production application left no exact runtime evidence'
@@ -444,8 +445,8 @@ expect_match spring_open_prefix 'spring: the offence names the pattern the proje
 # difference, and a collection posted to by a guest and read back by its owner is the ordinary way a
 # project arrives here. The fixture adds the second mapping the two cases above never had.
 write_spring_posted_order() {
-    cat > "$1/src/main/java/com/example/Placements.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Placements.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -469,8 +470,8 @@ public final class Placements {
 JAVA
 }
 write_spring_method_chain() {
-    cat > "$1/src/main/java/com/example/Security.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Security.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -531,8 +532,8 @@ expect_exit spring_open_methods 'spring: a matcher per method over two mappings 
 # what every chain looks like until somebody thinks of it: the endpoint it opens is answered, and every
 # refusal it decides on is answered by a redirect to the sign-in form instead.
 write_spring_refusing_chain() {
-    cat > "$1/src/main/java/com/example/Security.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Security.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -578,8 +579,8 @@ expect_match spring_refusals 'spring: the offence names the matcher that would d
 # application, so an explicit test-only configuration cannot stand in for the component scan.
 spring_narrow="${scratch}/spring-narrow"
 clone_tree "${spring_app}" "${spring_narrow}"
-cat > "${spring_narrow}/src/test/java/com/example/NarrowConfiguration.java" <<'JAVA'
-package com.example;
+cat > "${spring_narrow}/src/test/java/org/sample/NarrowConfiguration.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -601,8 +602,8 @@ public final class NarrowConfiguration {
     }
 }
 JAVA
-cat > "${spring_narrow}/src/test/java/com/example/ContextTest.java" <<'JAVA'
-package com.example;
+cat > "${spring_narrow}/src/test/java/org/sample/ContextTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -654,8 +655,8 @@ expect_match spring_platform_profile 'spring: the profile refusal names the file
 # halves are proven in one run. The method the bean does not answer to is a variant of the same rule, and
 # SpringGuardBeansTest and SpringGuardBeanRulesTest decide it in process.
 write_spring_guard_module() {
-    cat > "$1/src/main/java/com/example/Reach.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Reach.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Service;
 
@@ -676,8 +677,8 @@ public final class Reach {
     }
 }
 JAVA
-    cat > "$1/src/main/java/com/example/Guards.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Guards.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -690,8 +691,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 public final class Guards {
 }
 JAVA
-    cat > "$1/src/main/java/com/example/Ledgers.java" <<JAVA
-package com.example;
+    cat > "$1/src/main/java/org/sample/Ledgers.java" <<JAVA
+package org.sample;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -724,8 +725,8 @@ write_spring_guard_module "${spring_guard_bean}" "@raech.granted('ledger')"
 # Beside the misspelled guard, one the container can evaluate, which must not be reported. That keeps the
 # shape that matters most proven end to end: a probe reading the context too early, or a bean lookup that
 # breaks under component scanning, would report this guard too, while the failing half alone still passed.
-cat > "${spring_guard_bean}/src/main/java/com/example/Accounts.java" <<'JAVA'
-package com.example;
+cat > "${spring_guard_bean}/src/main/java/org/sample/Accounts.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -752,19 +753,19 @@ git -C "${spring_guard_bean}" add --all
 run_maven spring_guard_bean spring "${spring_guard_bean}" clean test airness:spring-context
 expect_exit spring_guard_bean 'spring: a guard naming a bean nothing declares fails the context goal' 1
 expect_match spring_guard_bean 'spring: the offence names the bean and the method that asked for it' \
-    'com.example.Ledgers#read: the security expression calls @raech'
+    'org.sample.Ledgers#read: the security expression calls @raech'
 expect_match spring_guard_bean 'spring: the offence says what the guard does instead of deciding' \
     'declares no bean under that name'
 expect_no_match spring_guard_bean 'spring: a guard the container can evaluate is not reported' \
-    'com.example.Accounts#read'
+    'org.sample.Accounts#read'
 
 # A class that guards some of its public methods has taken on the obligation, so one added beside them
 # and left unannotated is reached by every caller the container admits. The class that guards none of
 # them is passed over in the same run, which is what keeps the rule off a bean nobody guarded.
 spring_guards="${scratch}/spring-guards"
 clone_tree "${spring_app}" "${spring_guards}"
-cat > "${spring_guards}/src/main/java/com/example/Ledger.java" <<'JAVA'
-package com.example;
+cat > "${spring_guards}/src/main/java/org/sample/Ledger.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -795,8 +796,8 @@ public class Ledger {
     }
 }
 JAVA
-cat > "${spring_guards}/src/main/java/com/example/Unobliged.java" <<'JAVA'
-package com.example;
+cat > "${spring_guards}/src/main/java/org/sample/Unobliged.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Service;
 
@@ -837,8 +838,8 @@ expect_no_match spring_guards 'spring: a class that guards none of them is passe
 # and the sign-in the reader passed on the way is what makes it read as the next step of the flow.
 spring_redirect="${scratch}/spring-redirect"
 clone_tree "${spring_app}" "${spring_redirect}"
-cat > "${spring_redirect}/src/main/java/com/example/Onward.java" <<'JAVA'
-package com.example;
+cat > "${spring_redirect}/src/main/java/org/sample/Onward.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -872,8 +873,8 @@ expect_match spring_redirect 'spring: the offence names the value the target was
 # declares is granted to nobody. The build refuses it rather than waiting for the request that finds out.
 spring_roles="${scratch}/spring-roles"
 clone_tree "${spring_app}" "${spring_roles}"
-cat > "${spring_roles}/src/main/java/com/example/Guarded.java" <<'JAVA'
-package com.example;
+cat > "${spring_roles}/src/main/java/org/sample/Guarded.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -909,8 +910,8 @@ cat > "${spring_placeholder}/src/main/resources/application.yml" <<'YAML'
 example:
   zone: UTC
 YAML
-cat > "${spring_placeholder}/src/main/java/com/example/Clock.java" <<'JAVA'
-package com.example;
+cat > "${spring_placeholder}/src/main/java/org/sample/Clock.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -949,8 +950,8 @@ expect_match spring_placeholder 'spring: the offence names the undeclared key al
 spring_view_arguments="${scratch}/spring-view-arguments"
 clone_tree "${spring_app}" "${spring_view_arguments}"
 mkdir -p "${spring_view_arguments}/src/main/resources/templates/row"
-cat > "${spring_view_arguments}/src/main/java/com/example/Rows.java" <<'JAVA'
-package com.example;
+cat > "${spring_view_arguments}/src/main/java/org/sample/Rows.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Controller;
 
@@ -973,8 +974,8 @@ public final class Rows {
     }
 }
 JAVA
-cat > "${spring_view_arguments}/src/main/java/com/example/Failures.java" <<'JAVA'
-package com.example;
+cat > "${spring_view_arguments}/src/main/java/org/sample/Failures.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
@@ -1007,8 +1008,8 @@ expect_match spring_view_arguments \
 # and in exception advice must each fail, while supplying the templates makes the same consumer pass.
 spring_view_handlers="${scratch}/spring-view-handlers"
 clone_tree "${spring_app}" "${spring_view_handlers}"
-cat > "${spring_view_handlers}/src/main/java/com/example/Pages.java" <<'JAVA'
-package com.example;
+cat > "${spring_view_handlers}/src/main/java/org/sample/Pages.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -1032,8 +1033,8 @@ public final class Pages {
     }
 }
 JAVA
-cat > "${spring_view_handlers}/src/main/java/com/example/Failures.java" <<'JAVA'
-package com.example;
+cat > "${spring_view_handlers}/src/main/java/org/sample/Failures.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -1071,23 +1072,23 @@ expect_exit spring_view_handlers_repaired 'spring: supplying both templates repa
 # authority on the collision, and its own diagnostic names the derived bean name and both definitions.
 spring_collision="${scratch}/spring-collision"
 clone_tree "${spring_app}" "${spring_collision}"
-mkdir -p "${spring_collision}/src/main/java/com/example/one" \
-    "${spring_collision}/src/main/java/com/example/two"
+mkdir -p "${spring_collision}/src/main/java/org/sample/one" \
+    "${spring_collision}/src/main/java/org/sample/two"
 for feature in one two; do
-    cat > "${spring_collision}/src/main/java/com/example/${feature}/package-info.java" <<'JAVA'
+    cat > "${spring_collision}/src/main/java/org/sample/${feature}/package-info.java" <<'JAVA'
 /**
  * A feature contributing one component to the collision fixture.
  */
 @NullMarked
-package com.example.FEATURE;
+package org.sample.FEATURE;
 
 import org.jspecify.annotations.NullMarked;
 JAVA
     sed -i.bak "s/FEATURE/${feature}/" \
-        "${spring_collision}/src/main/java/com/example/${feature}/package-info.java"
-    rm "${spring_collision}/src/main/java/com/example/${feature}/package-info.java.bak"
-    cat > "${spring_collision}/src/main/java/com/example/${feature}/Numbering.java" <<'JAVA'
-package com.example.FEATURE;
+        "${spring_collision}/src/main/java/org/sample/${feature}/package-info.java"
+    rm "${spring_collision}/src/main/java/org/sample/${feature}/package-info.java.bak"
+    cat > "${spring_collision}/src/main/java/org/sample/${feature}/Numbering.java" <<'JAVA'
+package org.sample.FEATURE;
 
 import org.springframework.stereotype.Component;
 
@@ -1099,8 +1100,8 @@ public final class Numbering {
 }
 JAVA
     sed -i.bak "s/FEATURE/${feature}/" \
-        "${spring_collision}/src/main/java/com/example/${feature}/Numbering.java"
-    rm "${spring_collision}/src/main/java/com/example/${feature}/Numbering.java.bak"
+        "${spring_collision}/src/main/java/org/sample/${feature}/Numbering.java"
+    rm "${spring_collision}/src/main/java/org/sample/${feature}/Numbering.java.bak"
 done
 run_maven spring_collision spring "${spring_collision}" clean test
 expect_exit spring_collision 'spring: colliding component names fail the real context test' 1

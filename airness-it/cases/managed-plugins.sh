@@ -24,9 +24,9 @@ prepare_managed_plugin_consumer() {
     new_consumer managed-plugins
     plugins_consumer="${consumer_directory}"
     plugins_fixture="${repository}/airness-it/fixtures/managed-plugins"
-    cp "${plugins_fixture}/Decision.java" "${plugins_consumer}/src/main/java/com/example/Decision.java"
-    cp "${plugins_fixture}/DecisionTest.java" "${plugins_consumer}/src/test/java/com/example/DecisionTest.java"
-    cp "${plugins_fixture}/DecisionIT.java" "${plugins_consumer}/src/test/java/com/example/DecisionIT.java"
+    cp "${plugins_fixture}/Decision.java" "${plugins_consumer}/src/main/java/org/sample/Decision.java"
+    cp "${plugins_fixture}/DecisionTest.java" "${plugins_consumer}/src/test/java/org/sample/DecisionTest.java"
+    cp "${plugins_fixture}/DecisionIT.java" "${plugins_consumer}/src/test/java/org/sample/DecisionIT.java"
     mkdir -p "${plugins_consumer}/src/assembly" "${plugins_consumer}/src/additional-resources"
     cp "${plugins_fixture}/distribution.xml" "${plugins_consumer}/src/assembly/distribution.xml"
     printf 'Managed Build Helper resource.\n' > "${plugins_consumer}/src/additional-resources/plugin-resource.txt"
@@ -38,7 +38,7 @@ prepare_managed_plugin_consumer() {
 
 run_integration_failure_cases() {
     perl -0pi -e 's/assertEquals\(0,/assertEquals(1,/' \
-        "${plugins_consumer}/src/test/java/com/example/DecisionIT.java"
+        "${plugins_consumer}/src/test/java/org/sample/DecisionIT.java"
     run_maven integration_failure maven "${plugins_consumer}" compiler:testCompile \
         failsafe:integration-test failsafe:verify
     expect_exit integration_failure 'plugins: a failed integration assertion fails verification' 1
@@ -47,8 +47,8 @@ run_integration_failure_cases() {
         failsafe:integration-test failsafe:verify
     expect_exit integration_report_only 'plugins: report-only mode retains integration findings' 0
     expect_match integration_report_only 'plugins: report-only keeps the failed assertion visible' 'Failures: 1'
-    rm "${plugins_consumer}/src/test/java/com/example/DecisionIT.java"
-    rm "${plugins_consumer}/target/test-classes/com/example/DecisionIT.class"
+    rm "${plugins_consumer}/src/test/java/org/sample/DecisionIT.java"
+    rm "${plugins_consumer}/target/test-classes/org/sample/DecisionIT.class"
     run_maven integration_empty maven "${plugins_consumer}" failsafe:integration-test failsafe:verify
     expect_exit integration_empty 'plugins: an opted-in module without integration tests fails' 1
     expect_match integration_empty 'plugins: missing integration tests are explained' 'No tests were executed'
@@ -58,9 +58,9 @@ run_spring_integration_case() {
     integration_spring="${scratch}/failsafe-spring"
     build_spring_application "${integration_spring}" setup_failsafe_spring
     build_spring_context_test "${integration_spring}"
-    mv "${integration_spring}/src/test/java/com/example/ContextTest.java" \
-        "${integration_spring}/src/test/java/com/example/ContextIT.java"
-    perl -0pi -e 's/ContextTest/ContextIT/g' "${integration_spring}/src/test/java/com/example/ContextIT.java"
+    mv "${integration_spring}/src/test/java/org/sample/ContextTest.java" \
+        "${integration_spring}/src/test/java/org/sample/ContextIT.java"
+    perl -0pi -e 's/ContextTest/ContextIT/g' "${integration_spring}/src/test/java/org/sample/ContextIT.java"
     integration_plugin="$(cat <<'XML'
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

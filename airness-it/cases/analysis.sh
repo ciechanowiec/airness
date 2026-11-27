@@ -21,24 +21,24 @@ run_analysis_cases() {
     expect_match analysis_batch 'analysis: report-only still executes CPD after PMD findings' \
         'pmd:[^:]+:cpd-check'
     expect_finding analysis_batch 'checkstyle: the representative finding stays visible at its file' \
-        checkstyle 'src/main/java/com/example/InferredLocal.java:7' 'Write the type'
+        checkstyle 'src/main/java/org/sample/InferredLocal.java:7' 'Write the type'
     expect_no_finding analysis_batch 'checkstyle: the clean control stays free of the representative rule' \
-        checkstyle 'src/main/java/com/example/Example.java' 'Write the type'
+        checkstyle 'src/main/java/org/sample/Example.java' 'Write the type'
     expect_finding analysis_batch 'pmd: the representative rule ID stays visible at its file' \
-        pmd 'src/main/java/com/example/BlankJustification.java:6' '^JustificationNeedsText '
+        pmd 'src/main/java/org/sample/BlankJustification.java:6' '^JustificationNeedsText '
     expect_finding analysis_batch 'cpd: the duplicated pair stays visible' \
-        cpd 'src/main/java/com/example/FirstScorer.java' 'SecondScorer[.]java'
+        cpd 'src/main/java/org/sample/FirstScorer.java' 'SecondScorer[.]java'
     expect_finding analysis_batch 'analysis: a distant local fails the packaged distance check' \
-        checkstyle 'src/main/java/com/example/Reading.java:9' \
+        checkstyle 'src/main/java/org/sample/Reading.java:9' \
         '^VariableDeclarationUsageDistance .*remembered'
     expect_no_match analysis_batch 'analysis: the distance diagnostic never recommends final' \
         'making that variable final'
     expect_finding analysis_batch 'analysis: a detached chained dot fails packaged Checkstyle' \
-        checkstyle 'src/main/java/com/example/JoinedValues.java:14' '^AirnessDetachedChainDot .*Join this dot'
+        checkstyle 'src/main/java/org/sample/JoinedValues.java:14' '^AirnessDetachedChainDot .*Join this dot'
     expect_finding analysis_batch 'checkstyle: an Airness rule reports on test sources too' \
-        checkstyle 'src/test/java/com/example/RatioTest.java:11' 'floating-point literal suffix in upper case'
+        checkstyle 'src/test/java/org/sample/RatioTest.java:11' 'floating-point literal suffix in upper case'
     expect_finding analysis_batch 'checkstyle: the plain parent keeps the finality rule for a repository' \
-        checkstyle 'src/main/java/com/example/Catalogue.java:8' '^RequireFinalClass '
+        checkstyle 'src/main/java/org/sample/Catalogue.java:8' '^RequireFinalClass '
 
     run_maven analysis_batch_enforced analysis "${analysis_batch}" checkstyle:check
     expect_exit analysis_batch_enforced 'checkstyle: the batched packaged findings fail enforcement' 1
@@ -58,11 +58,12 @@ run_analysis_cases() {
     run_early_analysis_lifecycle
     run_jspecify_annotation_locations
     run_modernization_cases
+    run_project_metadata_cases
 }
 
 write_analysis_batch() {
-    cat > "$1/src/main/java/com/example/InferredLocal.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/InferredLocal.java" <<'JAVA'
+package org.sample;
 
 /** Carries the representative packaged-Checkstyle finding. */
 final class InferredLocal {
@@ -73,8 +74,8 @@ final class InferredLocal {
     }
 }
 JAVA
-    cat > "$1/src/main/java/com/example/BlankJustification.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/BlankJustification.java" <<'JAVA'
+package org.sample;
 
 import eu.ciechanowiec.airness.Justification;
 
@@ -87,8 +88,8 @@ final class BlankJustification {
     }
 }
 JAVA
-    cat > "$1/src/main/java/com/example/FirstScorer.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/FirstScorer.java" <<'JAVA'
+package org.sample;
 
 import java.util.List;
 import java.util.Locale;
@@ -122,10 +123,10 @@ final class FirstScorer {
     }
 }
 JAVA
-    sed 's/FirstScorer/SecondScorer/g' "$1/src/main/java/com/example/FirstScorer.java" \
-        > "$1/src/main/java/com/example/SecondScorer.java"
-    cat > "$1/src/main/java/com/example/Reading.java" <<'JAVA'
-package com.example;
+    sed 's/FirstScorer/SecondScorer/g' "$1/src/main/java/org/sample/FirstScorer.java" \
+        > "$1/src/main/java/org/sample/SecondScorer.java"
+    cat > "$1/src/main/java/org/sample/Reading.java" <<'JAVA'
+package org.sample;
 
 /**
  * Holds a value across several operations to exercise the distance diagnostic.
@@ -142,8 +143,8 @@ final class Reading {
     }
 }
 JAVA
-    cat > "$1/src/main/java/com/example/JoinedValues.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/JoinedValues.java" <<'JAVA'
+package org.sample;
 
 import java.util.List;
 
@@ -160,8 +161,8 @@ final class JoinedValues {
     }
 }
 JAVA
-    cat > "$1/src/main/java/com/example/Catalogue.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/main/java/org/sample/Catalogue.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Repository;
 
@@ -182,8 +183,8 @@ public class Catalogue {
     }
 }
 JAVA
-    cat > "$1/src/test/java/com/example/RatioTest.java" <<'JAVA'
-package com.example;
+    cat > "$1/src/test/java/org/sample/RatioTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -202,8 +203,8 @@ JAVA
 run_jspecify_annotation_locations() {
     new_consumer jspecify-locations
     jspecify_consumer="${consumer_directory}"
-    cat > "${jspecify_consumer}/src/main/java/com/example/Nullness.java" <<'JAVA'
-package com.example;
+    cat > "${jspecify_consumer}/src/main/java/org/sample/Nullness.java" <<'JAVA'
+package org.sample;
 
 import org.jspecify.annotations.Nullable;
 
@@ -233,7 +234,7 @@ JAVA
     expect_match jspecify_report 'nullness: report-only still reports the new checker' \
         'JSpecifyUnrecognizedAnnotationLocation'
 
-    perl -0pi -e 's/\@Nullable int/int/' "${jspecify_consumer}/src/main/java/com/example/Nullness.java"
+    perl -0pi -e 's/\@Nullable int/int/' "${jspecify_consumer}/src/main/java/org/sample/Nullness.java"
     run_maven jspecify_repaired analysis "${jspecify_consumer}" clean compiler:compile
     expect_exit jspecify_repaired 'nullness: a valid array annotation and repaired primitive compile' 0
     expect_no_match jspecify_repaired 'nullness: the repaired source carries no annotation-location finding' \
@@ -243,8 +244,8 @@ JAVA
 run_modernization_cases() {
     new_consumer modernization-compiler
     modernization_compiler="${consumer_directory}"
-    cat > "${modernization_compiler}/src/main/java/com/example/Draw.java" <<'JAVA'
-package com.example;
+    cat > "${modernization_compiler}/src/main/java/org/sample/Draw.java" <<'JAVA'
+package org.sample;
 
 /** Carries the representative Airness compiler finding. */
 final class Draw {
@@ -296,10 +297,9 @@ JAVA
 
     new_consumer build-practices
     build_practices="${consumer_directory}"
-    sed 's|^    </properties>|    </properties>\
-\
-    <url>https://example.com</url>|' "${build_practices}/pom.xml" > "${build_practices}/pom.xml.next"
-    mv "${build_practices}/pom.xml.next" "${build_practices}/pom.xml"
+    # The template states its own url, so the case moves that url below the properties rather than add a second.
+    perl -0pi -e 's{\n    (<url>[^<\n]*</url>)}{}; my $url = $1; s{(    </properties>\n)}{$1\n    $url\n}' \
+        "${build_practices}/pom.xml"
     run_maven build_practices analysis "${build_practices}" validate
     expect_exit build_practices 'build practices: a pom element out of order fails validation' 1
     expect_match build_practices 'build practices: the finding names both elements' \
@@ -314,7 +314,8 @@ JAVA
     new_consumer pom-layout
     pom_layout="${consumer_directory}"
     perl -0pi -e 's{(    </parent>\n)\n}{$1};
-        s{(<version>9[.]4[.]2</version>\n)}{$1\n    <licenses><license><name>MIT</name></license></licenses>\n}' \
+        s{    <licenses>\s*<license>\s*<name>([^<]*)</name>\s*</license>\s*</licenses>}
+            {    <licenses><license><name>$1</name></license></licenses>}' \
         "${pom_layout}/pom.xml"
     run_maven pom_layout analysis "${pom_layout}" validate
     expect_exit pom_layout 'pom layout: a pom laid out otherwise fails validation' 1

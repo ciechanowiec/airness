@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Year;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,9 +31,11 @@ import org.jspecify.annotations.Nullable;
  * registry. Its own logs stay under the application's ignored target directory.
  *
  * <p>Outside a project a parameter can come from the command line alone, so each is read there:
- * {@code -Dairness.groupId} and {@code -Dairness.artifactId}, and optionally {@code -Dairness.package},
- * {@code -Dairness.name}, {@code -Dairness.directory} and {@code -Dairness.starter}, which is
- * {@code spring-boot} unless it is set.
+ * {@code -Dairness.groupId}, {@code -Dairness.artifactId}, {@code -Dairness.organization} and {@code -Dairness.url},
+ * and optionally {@code -Dairness.package}, {@code -Dairness.name}, {@code -Dairness.license}, which is
+ * {@code LicenseRef-Proprietary} unless it is set, {@code -Dairness.directory} and {@code -Dairness.starter}, which
+ * is {@code spring-boot} unless it is set. The organization, the address and the license become the application's
+ * own metadata, so its pom inherits none from Airness.
  */
 @Mojo(name = "new", aggregator = true, requiresProject = false, threadSafe = true)
 public final class NewMojo extends AbstractMojo {
@@ -49,8 +53,10 @@ public final class NewMojo extends AbstractMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        StarterRequest request = StarterRequest.of(this.session().getUserProperties());
-        List<String> problems = request.problems();
+        StarterRequest request = StarterRequest.of(
+            this.session().getUserProperties(), Year.now(ZoneId.systemDefault())
+        );
+        List<String> problems = request.problems(SpdxLicenses.current());
         if (!problems.isEmpty()) {
             throw new MojoFailureException(String.join(System.lineSeparator(), problems));
         }

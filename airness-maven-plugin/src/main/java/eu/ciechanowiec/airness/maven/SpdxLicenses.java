@@ -2,6 +2,7 @@ package eu.ciechanowiec.airness.maven;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.ciechanowiec.airness.governance.LicenseCatalogue;
 import eu.ciechanowiec.airness.governance.LicenseExpression;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +34,8 @@ final class SpdxLicenses {
     private static final String LICENSES = "/licenses/licenses.json";
     private static final String EXCEPTIONS = "/eu/ciechanowiec/airness/spdx-exceptions.txt";
     private static final String UNKNOWN = "not an SPDX license: ";
-    private static final Map<String, String> IDENTIFIERS = identifiers();
+    private static final Map<String, String> IDENTIFIERS = identifiers(list());
+    private static final LicenseCatalogue CURRENT = recommended(list());
     private static final Map<String, String> EXCEPTION_IDS = exceptions();
     // htmx.org 4.0.0 declares BSD-0-Clause but ships the SPDX 0BSD text, verified on 2026-10-29.
     // https://github.com/bigskysoftware/htmx/blob/v4.0.0/LICENSE and https://spdx.org/licenses/0BSD.html
@@ -73,16 +75,39 @@ final class SpdxLicenses {
         return EXCEPTION_IDS.containsKey(exception.toLowerCase(Locale.ROOT));
     }
 
-    private static Map<String, String> identifiers() {
+    /**
+     * The identifiers a project may name its own license by: every one the list does not mark deprecated, with the
+     * version of the list.
+     *
+     * @return the current SPDX license list
+     */
+    static LicenseCatalogue current() {
+        return CURRENT;
+    }
+
+    private static JsonNode list() {
         try (InputStream stream = SpdxLicenses.class.getResourceAsStream(LICENSES)) {
-            JsonNode list = new ObjectMapper().readTree(
+            return new ObjectMapper().readTree(
                 Optional.ofNullable(stream).orElseThrow(() -> new IllegalStateException("No SPDX license list"))
             );
-            return list.path("licenses").valueStream().map(license -> license.path("licenseId").asText())
-                .collect(Collectors.toUnmodifiableMap(id -> id.toLowerCase(Locale.ROOT), Function.identity()));
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read the SPDX license list", exception);
         }
+    }
+
+    private static LicenseCatalogue recommended(JsonNode list) {
+        return new LicenseCatalogue(
+            list.path("licenseListVersion").asText(),
+            list.path("licenses").valueStream()
+                .filter(license -> !license.path("isDeprecatedLicenseId").asBoolean())
+                .map(license -> license.path("licenseId").asText())
+                .collect(Collectors.toUnmodifiableSet())
+        );
+    }
+
+    private static Map<String, String> identifiers(JsonNode list) {
+        return list.path("licenses").valueStream().map(license -> license.path("licenseId").asText())
+            .collect(Collectors.toUnmodifiableMap(id -> id.toLowerCase(Locale.ROOT), Function.identity()));
     }
 
     private static Map<String, String> exceptions() {

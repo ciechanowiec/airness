@@ -2,6 +2,7 @@
   "name": "starter",
   "version": "1.0.0",
   "private": true,
+  "license": "@LICENSE@",
   "description": "Starter, a Payload CMS application on Next.js, PostgreSQL and S3-compatible storage",
   "type": "module",
   "scripts": {

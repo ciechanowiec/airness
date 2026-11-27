@@ -117,6 +117,7 @@ fi
 . "${repository}/airness-it/cases/managed-plugins.sh"
 . "${repository}/airness-it/cases/incremental-evidence.sh"
 . "${repository}/airness-it/cases/analysis.sh"
+. "${repository}/airness-it/cases/project-metadata.sh"
 . "${repository}/airness-it/cases/early-analysis.sh"
 . "${repository}/airness-it/cases/lifecycle.sh"
 . "${repository}/airness-it/cases/templates.sh"

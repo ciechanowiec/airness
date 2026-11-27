@@ -10,7 +10,7 @@ import zipfile
 
 def verify(consumer: Path) -> None:
     report = ET.parse(consumer / "target/site/jacoco/jacoco.xml")
-    decision = report.find(".//class[@name='com/example/Decision']/counter[@type='BRANCH']")
+    decision = report.find(".//class[@name='org/sample/Decision']/counter[@type='BRANCH']")
     assert decision is not None
     assert decision.attrib == {"type": "BRANCH", "missed": "0", "covered": "2"}, decision.attrib
     summary = ET.parse(consumer / "target/failsafe-reports/failsafe-summary.xml")

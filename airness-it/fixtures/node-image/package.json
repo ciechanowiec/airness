@@ -1,6 +1,7 @@
 {
   "name": "fixture-image",
   "private": true,
+  "license": "LicenseRef-Proprietary",
   "type": "module",
   "scripts": {
     "serve": "node src/server.ts",

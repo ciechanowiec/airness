@@ -112,9 +112,32 @@ Each dashed arrow points from a xref:#module[module] to the parent that its `pom
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>order-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
+
+    <name>Order Service</name>
+    <description>Takes and tracks the orders of the online shop.</description>
+    <url>https://git.sample.org/order-service</url>
+    <inceptionYear>2026</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>LicenseRef-Proprietary</name>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Sample Organization</name>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://git.sample.org/order-service.git</connection>
+        <developerConnection>scm:git:https://git.sample.org/order-service.git</developerConnection>
+        <url>https://git.sample.org/order-service</url>
+    </scm>
 
     <properties>
         <airness.package.root>com.example.orders</airness.package.root>
@@ -298,21 +321,24 @@ The rules of Airness cover the whole state of a repository, not only its code. x
 . A [[starter-application]]_starter application_ is a working application that already passes xref:#extended-verification[Extended verification] and is the starting point of a new application. Airness ships two starter applications:
 .. `spring-boot`, a multi-user task tracker built with https://spring.io/projects/spring-boot[Spring Boot^], https://www.thymeleaf.org[Thymeleaf^], https://htmx.org[htmx^], https://tailwindcss.com[Tailwind CSS^], and https://www.postgresql.org[PostgreSQL^],
 .. `payload-cms`, a content site built with https://payloadcms.com[Payload CMS^], https://nextjs.org[Next.js^], https://www.postgresql.org[PostgreSQL^], and https://aws.amazon.com/s3/[S3^]-compatible storage.
-. The `new` goal makes an application from a xref:#starter-application[starter application] in a new directory and commits it as the first commit of a new https://git-scm.com[Git^] repository.
+. The `new` goal makes an application from a xref:#starter-application[starter application] in a new directory and commits it as the first commit of a new https://git-scm.com[Git^] repository. The application's license is `LicenseRef-Proprietary` unless `-Dairness.license` names an identifier from the https://spdx.org/licenses/[SPDX License List^].
 . For example, this command makes a https://spring.io/projects/spring-boot[Spring Boot^] application in the directory `task-tracker`:
 +
 [source,bash,subs="attributes+"]
 ----
 mvn eu.ciechanowiec:airness-maven-plugin:{airness-version}:new \
-    -Dairness.groupId=com.example -Dairness.artifactId=task-tracker
+    -Dairness.groupId=org.sample -Dairness.artifactId=task-tracker \
+    -Dairness.organization="Sample Organization" \
+    -Dairness.url=https://git.sample.org/task-tracker
 ----
 . For example, this command makes a https://payloadcms.com[Payload CMS^] application in the directory `content-site`:
 +
 [source,bash,subs="attributes+"]
 ----
 mvn eu.ciechanowiec:airness-maven-plugin:{airness-version}:new \
-    -Dairness.groupId=com.example -Dairness.artifactId=content-site \
-    -Dairness.starter=payload-cms
+    -Dairness.groupId=org.sample -Dairness.artifactId=content-site \
+    -Dairness.organization="Sample Organization" \
+    -Dairness.url=https://git.sample.org/content-site -Dairness.starter=payload-cms
 ----
 . Run `mvn clean verify` in the new directory for the first verdict. The application's `AGENTS.md` names the commands that start it locally.
 

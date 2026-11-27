@@ -17,16 +17,17 @@ prepare_browser_fixture() {
         <version>${harness_version}</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>browser-contract</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
 POM
+    own_metadata "${browser_fixture}/pom.xml" browser-contract
     git -C "${browser_fixture}" init --quiet --initial-branch=main
     git -C "${browser_fixture}" config user.name Fixture
     git -C "${browser_fixture}" config user.email fixture@example.invalid

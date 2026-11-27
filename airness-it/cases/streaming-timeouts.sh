@@ -10,9 +10,9 @@ run_streaming_timeout_cases() {
     build_spring_context_test "${streaming_app}"
     write_spring_web_module "${streaming_app}" '/api/orders'
     git -C "${streaming_app}" add --all
-    rm "${streaming_app}/src/main/java/com/example/Orders.java"
-    cat > "${streaming_app}/src/main/java/com/example/Streams.java" <<'JAVA'
-package com.example;
+    rm "${streaming_app}/src/main/java/org/sample/Orders.java"
+    cat > "${streaming_app}/src/main/java/org/sample/Streams.java" <<'JAVA'
+package org.sample;
 
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -65,8 +65,8 @@ public final class Streams {
     }
 }
 JAVA
-    cat > "${streaming_app}/src/main/java/com/example/Security.java" <<'JAVA'
-package com.example;
+    cat > "${streaming_app}/src/main/java/org/sample/Security.java" <<'JAVA'
+package org.sample;
 
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
@@ -95,8 +95,8 @@ public final class Security {
     }
 }
 JAVA
-    cat > "${streaming_app}/src/test/java/com/example/StreamsTest.java" <<'JAVA'
-package com.example;
+    cat > "${streaming_app}/src/test/java/org/sample/StreamsTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -211,8 +211,8 @@ JAVA
 }
 
 write_streaming_configurer() {
-    cat > "${streaming_app}/src/main/java/com/example/StreamingConfiguration.java" <<JAVA
-package com.example;
+    cat > "${streaming_app}/src/main/java/org/sample/StreamingConfiguration.java" <<JAVA
+package org.sample;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;

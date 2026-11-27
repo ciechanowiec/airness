@@ -22,9 +22,9 @@ import org.w3c.dom.NodeList;
 @UtilityClass
 final class PomPropertyOrder {
 
+    static final String PROFILE = "profile";
     private static final String PROPERTY_PREFIX = "${";
     private static final String PROPERTY_SUFFIX = "}";
-    private static final String PROFILE = "profile";
 
     static List<String> problems(Element root) {
         List<Node> blocks = DeclaredCoordinates.propertyBlocks(root).toList();

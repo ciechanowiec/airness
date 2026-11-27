@@ -16,8 +16,32 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>@ARTIFACT_ID@</name>
+    <name>@NAME@</name>
     <description>A Payload CMS application on Next.js, PostgreSQL and S3-compatible storage.</description>
+    <url>@URL@</url>
+    <inceptionYear>@INCEPTION_YEAR@</inceptionYear>
+
+    <organization>
+        <name>@ORGANIZATION@</name>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>@LICENSE@</name>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>@ORGANIZATION@</name>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>@SCM_CONNECTION@</connection>
+        <developerConnection>@SCM_CONNECTION@</developerConnection>
+        <url>@URL@</url>
+    </scm>
 
     <properties>
         <airness.package.root>@PACKAGE@</airness.package.root>

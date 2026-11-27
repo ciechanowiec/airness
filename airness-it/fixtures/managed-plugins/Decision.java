@@ -1,4 +1,4 @@
-package com.example;
+package org.sample;
 
 /**
  * A branch whose two outcomes are covered by different test phases.

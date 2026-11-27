@@ -9,7 +9,7 @@ run_packaged_output_boundary() {
     expect_match boot_native_missing 'artifact: Boot refusal identifies the native-access rule' \
         'Restricted native access the manifest does not declare'
     expect_match boot_native_missing 'artifact: missing native access names the packaged application class' \
-        'BOOT-INF/classes/com/example/NativeApplication[.]class'
+        'BOOT-INF/classes/org/sample/NativeApplication[.]class'
 
     cp "${packaged_archive}" "${packaged_consumer}/missing-native.jar"
     printf 'Enable-Native-Access: ALL-UNNAMED\n' > "${packaged_consumer}/native.mf"
@@ -20,17 +20,17 @@ run_packaged_output_boundary() {
     expect_exit boot_native_launch 'artifact: the valid native declaration permits the actual call' 0
     expect_match boot_native_launch 'artifact: the application reached its native operation' 'native-access-ready'
 
-    mkdir -p "${packaged_consumer}/injected/BOOT-INF/classes/com/example"
-    cp "${packaged_consumer}/target/test-classes/com/example/ExampleTest.class" \
-        "${packaged_consumer}/injected/BOOT-INF/classes/com/example/ExampleTest.class"
+    mkdir -p "${packaged_consumer}/injected/BOOT-INF/classes/org/sample"
+    cp "${packaged_consumer}/target/test-classes/org/sample/ExampleTest.class" \
+        "${packaged_consumer}/injected/BOOT-INF/classes/org/sample/ExampleTest.class"
     jar --update --file "${packaged_archive}" -C "${packaged_consumer}/injected" \
-        BOOT-INF/classes/com/example/ExampleTest.class
+        BOOT-INF/classes/org/sample/ExampleTest.class
     run_maven boot_test_output repository "${packaged_consumer}" airness:artifact-content
     expect_exit boot_test_output 'artifact: Boot cannot ship test-only output' 1
     expect_match boot_test_output 'artifact: Boot refusal identifies the test-output rule' \
         'Test-only output packaged in the JAR'
     expect_match boot_test_output 'artifact: test-only output names its packaged path' \
-        'BOOT-INF/classes/com/example/ExampleTest[.]class'
+        'BOOT-INF/classes/org/sample/ExampleTest[.]class'
     expect_no_match boot_test_output 'artifact: the test-only refusal is independent of native access' \
         'Restricted native access the manifest does not declare|Invalid native-access manifest declaration'
 
@@ -64,12 +64,12 @@ prepare_packaged_consumer() {
         <version>1.0.14-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>consumer</artifactId>
     <version>9.4.2</version>
 
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 
     <build>
@@ -78,15 +78,16 @@ prepare_packaged_consumer() {
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.example.NativeApplication</mainClass>
+                    <mainClass>org.sample.NativeApplication</mainClass>
                 </configuration>
             </plugin>
         </plugins>
     </build>
 </project>
 POM
-    cat > "${packaged_consumer}/src/main/java/com/example/NativeApplication.java" <<'JAVA'
-package com.example;
+    own_metadata "${packaged_consumer}/pom.xml" consumer
+    cat > "${packaged_consumer}/src/main/java/org/sample/NativeApplication.java" <<'JAVA'
+package org.sample;
 
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;

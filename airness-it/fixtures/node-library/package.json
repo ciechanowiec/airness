@@ -1,6 +1,7 @@
 {
   "name": "fixture-library",
   "private": true,
+  "license": "LicenseRef-Proprietary",
   "type": "module",
   "main": "src/total.ts",
   "devDependencies": {

@@ -5,8 +5,8 @@ run_repository_proxy_cases() {
     clone_tree "${spring_app}" "${repository_proxy_app}"
     # Exception translation is exercised only by these real-context tests, not by the application.
     perl -0pi -e 's|^    </dependencies>|        <dependency>\n            <groupId>org.springframework</groupId>\n            <artifactId>spring-tx</artifactId>\n            <scope>test</scope>\n        </dependency>\n    </dependencies>|m' "${repository_proxy_app}/pom.xml"
-    cat > "${repository_proxy_app}/src/main/java/com/example/Catalogue.java" <<'JAVA'
-package com.example;
+    cat > "${repository_proxy_app}/src/main/java/org/sample/Catalogue.java" <<'JAVA'
+package org.sample;
 
 import org.springframework.stereotype.Repository;
 
@@ -27,8 +27,8 @@ public class Catalogue {
     }
 }
 JAVA
-    cat > "${repository_proxy_app}/src/test/java/com/example/RepositoryRuntimeTest.java" <<'JAVA'
-package com.example;
+    cat > "${repository_proxy_app}/src/test/java/org/sample/RepositoryRuntimeTest.java" <<'JAVA'
+package org.sample;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

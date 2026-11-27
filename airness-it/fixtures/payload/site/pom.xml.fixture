@@ -8,12 +8,35 @@
         <version>@AIRNESS_VERSION@</version>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>org.sample</groupId>
     <artifactId>payload-site</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
+    <name>payload-site</name>
+    <description>The payload-site fixture of the Airness integration suite.</description>
+    <url>https://git.example.invalid/payload-site</url>
+    <inceptionYear>2026</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>LicenseRef-Proprietary</name>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Sample Organization</name>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://git.example.invalid/payload-site.git</connection>
+        <developerConnection>scm:git:https://git.example.invalid/payload-site.git</developerConnection>
+        <url>https://git.example.invalid/payload-site</url>
+    </scm>
+
     <properties>
-        <airness.package.root>com.example</airness.package.root>
+        <airness.package.root>org.sample</airness.package.root>
     </properties>
 </project>
