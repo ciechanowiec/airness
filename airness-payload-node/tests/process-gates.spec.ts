@@ -207,6 +207,13 @@ const usersWith = (secure: string): string =>
   `lockTime: 600000, tokenExpiration: 7200, cookies: { secure: ${secure}, sameSite: 'Lax' } } }], ` +
   'globals: [] }\n'
 
+// A configuration whose one collection keeps drafts and decides every access, with the given text appended inside it.
+const postsWithDraftsAnd = (admin: string): string =>
+  'const decided = { create: () => false, read: () => false, update: () => false, delete: () => false, ' +
+  'readVersions: () => false }\n' +
+  `export default { collections: [{ slug: 'posts', versions: { drafts: true }, access: decided${admin} }], ` +
+  'globals: [] }\n'
+
 describe('payload-defaults against a started probe', PROCESS_TIME, () => {
   it('fails a probe that could not build the configuration, with its output', () => {
     const result: GateResult = payloadDefaults(memberProbing("throw new Error('no secret')\n"))
@@ -295,6 +302,17 @@ describe('payload-defaults against a started probe', PROCESS_TIME, () => {
       airnessPayload: { keptMetadata: [{ collection: 'archive', reason: 'the capture data is the point' }] },
     }
     expect(payloadDefaults(payloadMemberAt(root, declared)).ok).toBe(true)
+  })
+
+  it('names an entity that keeps drafts without a Live Preview, and passes one that shows its page', () => {
+    const blind: GateResult = payloadDefaults(memberProbing(postsWithDraftsAnd('')))
+    expect(blind.ok).toBe(false)
+    expect(blind.summary).toBe('1 collection(s) or global(s) keep drafts without a Live Preview')
+    expect(blind.findings.join('\n')).toContain('collection "posts" keeps drafts but has no Live Preview')
+    const shown: GateResult = payloadDefaults(
+      memberProbing(postsWithDraftsAnd(", admin: { livePreview: { url: () => '/preview/posts' } }")),
+    )
+    expect(shown.findings).toStrictEqual([])
   })
 
   it('judges the session cookie as production resolves it, so a cookie decided from NODE_ENV passes', () => {

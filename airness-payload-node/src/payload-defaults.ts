@@ -71,6 +71,14 @@ export type AnonymousRead =
   | { readonly kind: 'open' }
   | { readonly kind: 'undecidable'; readonly reason: string }
 
+/**
+ * Whether an entity of the built configuration keeps drafts. Payload leaves `versions.drafts` on the built entity
+ * wherever drafts are enabled, as an object or as `true`.
+ * @param entity a collection or global of the built configuration.
+ * @returns whether the entity keeps drafts.
+ */
+export const hasDrafts = (entity: unknown): boolean => Boolean(readKey(readKey(entity, 'versions'), 'drafts'))
+
 /** One entity that keeps drafts, and what its read rule answers a caller with no credentials. */
 export interface DraftReadEntry {
   readonly kind: PayloadSubjectKind

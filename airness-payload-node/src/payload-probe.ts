@@ -19,12 +19,14 @@ import {
   type AnonymousRead,
   accessOperationsFor,
   type DraftReadEntry,
+  hasDrafts,
   INHERITED_ACCESS_REPORT_MARKER,
   type InheritedAccessEntry,
   type InheritedAccessReport,
   type PayloadSubjectKind,
   QUERY_PRESETS_SLUG,
 } from './payload-defaults.js'
+import { livePreviewOf } from './payload-live-preview.js'
 import { pictureHandlingOf } from './payload-pictures.js'
 import { payloadSecurityOf } from './payload-security.js'
 import { uploadStorageOf } from './payload-storage.js'
@@ -34,8 +36,6 @@ import { uploadStorageOf } from './payload-storage.js'
 type AccessRule = (arguments_: { readonly req: { readonly user: null } }) => unknown
 
 const isAccessRule = (value: unknown): value is AccessRule => typeof value === 'function'
-
-const hasDrafts = (entity: unknown): boolean => Boolean(readKey(readKey(entity, 'versions'), 'drafts'))
 
 const anonymousReadOf = async (entity: unknown): Promise<AnonymousRead> => {
   const rule: unknown = readKey(readKey(entity, 'access'), 'read')
@@ -123,5 +123,5 @@ export const inheritedAccessProbe = async (configFile: string, defaultAccessFile
     draftReads: [...(await draftReadsOf(collections, 'collection')), ...(await draftReadsOf(globals, 'global'))],
     globals: globals.map((global: unknown): InheritedAccessEntry => entryOf(global, 'global')),
   }
-  return `${INHERITED_ACCESS_REPORT_MARKER}${JSON.stringify({ ...report, ...payloadSecurityOf(config), ...uploadStorageOf(config), ...pictureHandlingOf(config) })}`
+  return `${INHERITED_ACCESS_REPORT_MARKER}${JSON.stringify({ ...report, ...payloadSecurityOf(config), ...uploadStorageOf(config), ...pictureHandlingOf(config), ...livePreviewOf(config) })}`
 }

@@ -6,7 +6,8 @@
 // anonymous sweep cannot see that because a signed-in user is not anonymous. The same import shows where every
 // upload collection stores its files once every storage adapter has run, which no source rule can read, whether
 // it keeps what a camera wrote into an uploaded picture, and what each auth collection resolves its session cookie
-// to in production, which a login the anonymous sweep never makes is the only other way to observe.
+// to in production, which a login the anonymous sweep never makes is the only other way to observe. It also shows
+// whether each entity that keeps drafts enables Live Preview, which the configuration enables at two levels.
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { RunResult } from '@airness/node/exec'
@@ -18,6 +19,7 @@ import {
   type InheritedAccessReport,
   parseInheritedAccessReport,
 } from './payload-defaults.js'
+import { findMissingLivePreview, type LivePreviewReport, parseLivePreviewReport } from './payload-live-preview.js'
 import { PAYLOAD_PACKAGE, type PayloadMember } from './payload-member.js'
 import { findKeptPictureMetadata, type PictureHandlingReport, parsePictureHandlingReport } from './payload-pictures.js'
 import {
@@ -45,6 +47,7 @@ interface FindingCounts {
   readonly draftReads: number
   readonly storage: number
   readonly pictures: number
+  readonly livePreview: number
 }
 
 const summariseFindings = (counts: FindingCounts): string =>
@@ -57,7 +60,40 @@ const summariseFindings = (counts: FindingCounts): string =>
       : []),
     ...(counts.storage > 0 ? [`${String(counts.storage)} upload storage defect(s)`] : []),
     ...(counts.pictures > 0 ? [`${String(counts.pictures)} upload collection(s) keep what a camera wrote`] : []),
+    ...(counts.livePreview > 0
+      ? [`${String(counts.livePreview)} collection(s) or global(s) keep drafts without a Live Preview`]
+      : []),
   ].join('; ')
+
+/** Every half of the report the probe prints, each read. */
+interface ProbeEvidence {
+  readonly report: InheritedAccessReport
+  readonly security: PayloadSecurityReport
+  readonly storage: UploadStorageReport
+  readonly pictures: PictureHandlingReport
+  readonly livePreview: LivePreviewReport
+}
+
+/**
+ * Read every half of the probe's report. A half that is missing or malformed leaves no evidence at all, so the gate
+ * fails rather than judging part of the configuration.
+ * @param stdout the probe's standard output.
+ * @returns every half, or undefined when any one was not printed readably.
+ */
+const evidenceOf = (stdout: string): ProbeEvidence | undefined => {
+  const report: InheritedAccessReport | undefined = parseInheritedAccessReport(stdout)
+  const security: PayloadSecurityReport | undefined = parsePayloadSecurityReport(stdout)
+  const storage: UploadStorageReport | undefined = parseUploadStorageReport(stdout)
+  const pictures: PictureHandlingReport | undefined = parsePictureHandlingReport(stdout)
+  const livePreview: LivePreviewReport | undefined = parseLivePreviewReport(stdout)
+  return report === undefined ||
+    security === undefined ||
+    storage === undefined ||
+    pictures === undefined ||
+    livePreview === undefined
+    ? undefined
+    : { report, security, storage, pictures, livePreview }
+}
 
 /**
  * The probe's outcome, once it ran: a report that was not printed, or not readable, is a failure of its own
@@ -72,24 +108,24 @@ const judgeProbe = (
   if (result.code !== 0) {
     return failed('the Payload configuration could not be built', asFindings(result.output))
   }
-  const report: InheritedAccessReport | undefined = parseInheritedAccessReport(result.stdout)
-  const security: PayloadSecurityReport | undefined = parsePayloadSecurityReport(result.stdout)
-  const storage: UploadStorageReport | undefined = parseUploadStorageReport(result.stdout)
-  const pictures: PictureHandlingReport | undefined = parsePictureHandlingReport(result.stdout)
-  if (report === undefined || security === undefined || storage === undefined || pictures === undefined) {
+  const evidence: ProbeEvidence | undefined = evidenceOf(result.stdout)
+  if (evidence === undefined) {
     return failed('the configuration probe printed incomplete or malformed evidence', asFindings(result.output))
   }
+  const { report, security, storage, pictures, livePreview }: ProbeEvidence = evidence
   const inherited: readonly string[] = findInheritedAccess(report)
   const draftReads: readonly string[] = findUnconstrainedDraftReads(report)
   const securityFindings: readonly string[] = findPayloadSecurityViolations(security)
   const storageFindings: readonly string[] = findLocalUploadStorage(storage, declared.localStorage)
   const pictureFindings: readonly string[] = findKeptPictureMetadata(pictures, declared.keptMetadata)
+  const livePreviewFindings: readonly string[] = findMissingLivePreview(livePreview)
   const findings: readonly string[] = [
     ...inherited,
     ...draftReads,
     ...securityFindings,
     ...storageFindings,
     ...pictureFindings,
+    ...livePreviewFindings,
   ]
   const summary: string =
     securityFindings.length > 0
@@ -99,20 +135,23 @@ const judgeProbe = (
           draftReads: draftReads.length,
           storage: storageFindings.length,
           pictures: pictureFindings.length,
+          livePreview: livePreviewFindings.length,
         })
   return findings.length > 0
     ? failed(summary, findings)
     : passed(
         'every collection and global decides its access, framework-built ones included, no drafts read serves ' +
           'an unapproved document to a stranger, the production authentication settings are valid and mark ' +
-          'every session cookie Secure, no upload collection stores its files on the local disk, and none keeps ' +
-          'what a camera wrote into a picture, unless the project declares it',
+          'every session cookie Secure, no upload collection stores its files on the local disk, none keeps ' +
+          'what a camera wrote into a picture, unless the project declares it, and every collection and global ' +
+          'that keeps drafts shows its page beside the editing form through Live Preview',
       )
 }
 
 /**
  * Import the member's built configuration and fail on every operation it leaves to Payload's default, and on
- * every upload collection it stores on the local disk or keeps a picture's metadata in without a declaration.
+ * every upload collection it stores on the local disk or keeps a picture's metadata in without a declaration, and on
+ * every entity that keeps drafts without a Live Preview.
  * @param target the member being judged.
  * @returns the gate result.
  */

@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { type InheritedAccessReport, parseInheritedAccessReport } from '@/payload-defaults.js'
+import { parseLivePreviewReport } from '@/payload-live-preview.js'
 import { inheritedAccessProbe } from '@/payload-probe.js'
 import { parsePayloadSecurityReport } from '@/payload-security.js'
 import { parseUploadStorageReport } from '@/payload-storage.js'
@@ -75,6 +76,21 @@ describe('inheritedAccessProbe', () => {
     expect(parseUploadStorageReport(output)?.uploadStorage).toStrictEqual([
       { slug: 'local', local: true },
       { slug: 'remote', local: false },
+    ])
+  })
+
+  it('reports whether each entity that keeps drafts enables Live Preview', async () => {
+    const output: string = await probeOf(
+      [
+        "export default { admin: { livePreview: { url: '/preview', globals: ['home'] } }, collections: [",
+        `  { slug: 'posts', versions: { drafts: true }, access: ${decided} },`,
+        `  { slug: 'tags', access: ${decided} },`,
+        `], globals: [{ slug: 'home', versions: { drafts: true }, access: { read: () => false, update: () => false } }] }`,
+      ].join('\n'),
+    )
+    expect(parseLivePreviewReport(output)?.livePreview).toStrictEqual([
+      { kind: 'collection', slug: 'posts', enabled: false, hasUrl: true },
+      { kind: 'global', slug: 'home', enabled: true, hasUrl: true },
     ])
   })
 
