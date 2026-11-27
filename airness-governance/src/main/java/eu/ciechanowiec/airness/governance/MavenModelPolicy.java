@@ -94,7 +94,8 @@ public final class MavenModelPolicy {
             pluginConfigurationProblems(root),
             mergeOverrideProblems(root),
             systemDependencyProblems(root),
-            bannedGroupProblems(root)
+            bannedGroupProblems(root),
+            ReactiveDeclarations.problems(root)
         ).flatMap(stream -> stream).sorted().toList();
     }
 

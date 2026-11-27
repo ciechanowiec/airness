@@ -131,12 +131,11 @@ class ServerErrorRecordTest {
     @SneakyThrows
     void recordsAnExceptionThatEndsARealThread() {
         IllegalStateException ending = this.fault;
-        Thread thread = new Thread(
+        Thread thread = Thread.ofVirtual().name("ending").start(
             () -> {
                 throw ending;
-            }, "ending"
+            }
         );
-        thread.start();
         assertTrue(thread.join(ENDING));
         assertEquals(List.of("ending: Exception in thread \"ending\" " + this.fault), this.recorded());
     }

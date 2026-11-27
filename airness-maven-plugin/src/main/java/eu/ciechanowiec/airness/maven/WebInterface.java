@@ -17,8 +17,8 @@ import java.util.stream.Stream;
 /**
  * Whether a module serves user-facing HTML, and the repository evidence that says so.
  *
- * <p>A module is a web interface when it carries a serving stack ({@code spring-webmvc} or
- * {@code spring-webflux}) and something that serves markup through it: a {@code @Controller} handler, which
+ * <p>A module is a web interface when it carries the serving stack, {@code spring-webmvc}, and something
+ * that serves markup through it: a {@code @Controller} handler, which
  * Spring renders as a view unless it writes the body itself, a view controller registration, or an HTML file
  * under one of the locations Spring Boot serves statically. A library without a serving stack is not one,
  * and neither is a JSON service, including one that renders templates only into e-mail. The verdict follows
@@ -72,7 +72,7 @@ record WebInterface(List<String> evidence, String absence) {
      */
     static WebInterface of(Path module, boolean serving, Collection<Path> sourceRoots, Collection<Path> resourceRoots) {
         if (!serving) {
-            return new WebInterface(List.of(), "it resolves no serving stack (spring-webmvc or spring-webflux)");
+            return new WebInterface(List.of(), "it resolves no serving stack (spring-webmvc)");
         }
         List<String> evidence = Stream.concat(
             files(sourceRoots).filter(file -> file.toString().endsWith(".java"))

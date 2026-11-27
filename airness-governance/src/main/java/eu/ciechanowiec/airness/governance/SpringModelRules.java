@@ -24,7 +24,8 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class SpringModelRules {
 
-    private static final String BOOT = "org.springframework.boot";
+    static final String BOOT = "org.springframework.boot";
+    static final String CLOUD = "org.springframework.cloud";
     private static final String DEVTOOLS = "spring-boot-devtools";
     private static final String DATA_JPA = "spring-boot-starter-data-jpa";
     private static final String ACTUATOR = "spring-boot-starter-actuator";
@@ -35,15 +36,13 @@ final class SpringModelRules {
      */
     private static final List<String> SERVLET
         = List.of("spring-boot-starter-web", "spring-boot-starter-webmvc");
-    private static final String REACTIVE = "spring-boot-starter-webflux";
-    private static final String CLOUD = "org.springframework.cloud";
     /*
      * Spring Cloud Gateway brings a web stack through a starter of its own rather than through a Boot one,
      * so a gateway that declares only its starter serves HTTP as surely as one declaring the Boot starter.
-     * Gateway 4.3 renamed both starters and kept the old names beside them, so each is known by both.
+     * Gateway 4.3 renamed the servlet starter and kept the old name beside it, so it is known by both. The
+     * reactive gateway is refused where it is declared.
      */
     private static final List<String> GATEWAY_SERVERS = List.of(
-        "spring-cloud-starter-gateway-server-webflux", "spring-cloud-starter-gateway",
         "spring-cloud-starter-gateway-server-webmvc", "spring-cloud-starter-gateway-mvc"
     );
     private static final List<String> MIGRATION_TOOLS = List.of("flyway", "liquibase");
@@ -155,27 +154,6 @@ final class SpringModelRules {
     }
 
     /**
-     * Both web stacks declared where Boot will start only one of them.
-     *
-     * @param pom          the module's pom, which the offence names
-     * @param dependencies the module's effective dependencies
-     * @return the offence, or none
-     */
-    static List<String> doubledWebStack(String pom, Collection<SpringDependency> dependencies) {
-        return servlet(dependencies) && declares(dependencies, REACTIVE)
-            ? List.of(
-                offence(
-                    pom,
-                    "a servlet starter and spring-boot-starter-webflux are declared together, and Boot"
-                        + " settles that by starting the servlet stack and no reactive server, so every"
-                        + " handler written against WebFlux is mapped by nothing while the pair reads as"
-                        + " though the choice between them had been made"
-                )
-            )
-            : List.of();
-    }
-
-    /**
      * Auto-configuration declared by the application rather than by a starter it imports.
      *
      * @param declarations the registration files found under the module's resource roots
@@ -198,7 +176,7 @@ final class SpringModelRules {
     }
 
     private static boolean serving(Collection<SpringDependency> dependencies) {
-        return servlet(dependencies) || declares(dependencies, REACTIVE) || gateway(dependencies);
+        return servlet(dependencies) || gateway(dependencies);
     }
 
     private static boolean gateway(Collection<SpringDependency> dependencies) {

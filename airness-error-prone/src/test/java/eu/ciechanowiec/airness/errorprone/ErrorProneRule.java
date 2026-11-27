@@ -6,10 +6,12 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
@@ -24,6 +26,11 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class ErrorProneRule {
 
+    /**
+     * What a fixture writes at the end of a line it expects the check to flag.
+     */
+    static final String REPORTED = "/* reported */";
+    private static final String MARKER = Pattern.quote(REPORTED);
     private static final Pattern PACKAGE = Pattern.compile("^package\\s+([\\w.]+);", Pattern.MULTILINE);
     private static final Pattern TYPE = Pattern.compile(
         "(?:^|[;}\\s])(?:public\\s+|final\\s+|abstract\\s+)*(?:class|interface|enum|record|@interface)\\s+(\\w+)"
@@ -65,6 +72,20 @@ final class ErrorProneRule {
         return reported.stream()
             .filter(diagnostic -> diagnostic.getMessage(Locale.ROOT).startsWith("[" + check + "]"))
             .map(Diagnostic::getLineNumber)
+            .toList();
+    }
+
+    /**
+     * The lines of a fixture a check is expected to flag, one entry for each {@code REPORTED} marker a line
+     * carries, so a line expected to be flagged twice carries it twice.
+     *
+     * @param source the fixture
+     * @return the one-based line numbers, in order
+     */
+    static List<Long> marked(String source) {
+        List<String> lines = source.lines().toList();
+        return IntStream.range(0, lines.size()).boxed()
+            .flatMap(index -> Collections.nCopies(lines.get(index).split(MARKER, -1).length - 1, index + 1L).stream())
             .toList();
     }
 

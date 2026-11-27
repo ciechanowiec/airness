@@ -29,7 +29,6 @@ class SpringModelCheckTest {
     private static final String WEB = "spring-boot-starter-web";
     private static final String SECURITY = "spring-boot-starter-security";
     private static final String AUTHENTICATION = "nothing that authenticates a caller";
-    private static final String STACKS = "Both web stacks declared";
     private static final String OWN = "Auto-configuration declared inside";
 
     private static final boolean DEPLOYED = true;
@@ -165,69 +164,16 @@ class SpringModelCheckTest {
     }
 
     @Test
-    void readsTheReactiveStarterAsAWebStackTheProbesWouldBeServedOn() {
-        assertEquals(
-            1,
-            Verdicts.offences(
-                findings(
-                    new GitFixture("model-actuator-reactive"),
-                    List.of(starter("spring-boot-starter-webflux")), DEPLOYED
-                ),
-                ACTUATOR
-            ).size(),
-            "either stack serves the endpoints, so either one is asked for them"
-        );
-    }
-
-    @Test
-    void reportsBothWebStacksDeclaredAtOnce() {
-        List<String> offences = Verdicts.offences(
-            findings(
-                new GitFixture("model-stacks"),
-                List.of(
-                    starter(WEB), starter("spring-boot-starter-webflux"),
-                    starter("spring-boot-starter-actuator")
-                ),
-                DEPLOYED
-            ),
-            STACKS
-        );
-
-        assertEquals(1, offences.size(), "one module declares both");
-        assertTrue(offences.getFirst().contains("mapped by nothing"), "the offence says which half loses");
-    }
-
-    @Test
     void readsTheServletStarterUnderTheNameBootFourGaveIt() {
         assertEquals(
             1,
             Verdicts.offences(
                 findings(
-                    new GitFixture("model-stacks-renamed"),
-                    List.of(
-                        starter("spring-boot-starter-webmvc"), starter("spring-boot-starter-webflux"),
-                        starter("spring-boot-starter-actuator")
-                    ),
-                    DEPLOYED
+                    new GitFixture("model-actuator-renamed"), List.of(starter("spring-boot-starter-webmvc")), DEPLOYED
                 ),
-                STACKS
+                ACTUATOR
             ).size(),
             "the platform kept both spellings, so a rule that knew one would pass over half of them"
-        );
-    }
-
-    @Test
-    void leavesAModuleThatDeclaresOneWebStack() {
-        assertEquals(
-            List.of(),
-            Verdicts.offences(
-                findings(
-                    new GitFixture("model-one-stack"), List.of(starter("spring-boot-starter-webflux")),
-                    LIBRARY
-                ),
-                STACKS
-            ),
-            "one stack is a choice made rather than a conflict settled"
         );
     }
 

@@ -26,7 +26,7 @@ import lombok.experimental.UtilityClass;
 final class SpringProxyRules {
 
     private static final Pattern PROXIED = Pattern.compile(
-        "@(?:Transactional|Async|Cacheable|CachePut|CacheEvict|Retryable|Validated|PreAuthorize"
+        "@(?:Transactional|Cacheable|CachePut|CacheEvict|Retryable|Validated|PreAuthorize"
             + "|PostAuthorize|Secured)\\b"
     );
     private static final Pattern TYPE = Pattern.compile("\\b(?:class|record|enum)\\s+(\\w+)");

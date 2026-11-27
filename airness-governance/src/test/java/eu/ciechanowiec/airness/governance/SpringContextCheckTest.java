@@ -151,6 +151,58 @@ class SpringContextCheckTest {
         );
     }
 
+    @Test
+    @SneakyThrows
+    void reportsAReadyRunOnPlatformThreads() {
+        Path root = this.source(SOURCE, APPLICATION);
+        Path evidence = this.evidence(
+            root, "sample.Application\nruntime\tsample.Application\tvirtual-threads=false\tweb=servlet\n"
+        );
+        long started = Files.getLastModifiedTime(evidence).toMillis();
+
+        List<String> offences = platform(this.check(root, evidence, started));
+
+        assertEquals(1, offences.size(), "a ready run on platform threads is reported");
+        assertTrue(offences.getFirst().contains("spring.threads.virtual.enabled=true"), "the offence names the key");
+    }
+
+    @Test
+    @SneakyThrows
+    void reportsAReadyRunServedByTheReactiveStack() {
+        Path root = this.source(SOURCE, APPLICATION);
+        Path evidence = this.evidence(
+            root, "sample.Application\nruntime\tsample.Application\tvirtual-threads=true\tweb=reactive\n"
+        );
+        long started = Files.getLastModifiedTime(evidence).toMillis();
+
+        List<String> offences = platform(this.check(root, evidence, started));
+
+        assertEquals(1, offences.size(), "a ready run on the reactive stack is reported");
+        assertTrue(offences.getFirst().contains("spring-boot-starter-web"), "the offence names the replacement");
+    }
+
+    @Test
+    @SneakyThrows
+    void acceptsVirtualRunsServedByServletOrNothingAndPassesOverTestConfiguration() {
+        Path root = this.source(SOURCE, APPLICATION);
+        Path evidence = this.evidence(
+            root, """
+                sample.Application
+                runtime\tsample.Application\tvirtual-threads=true\tweb=servlet
+                sample.Application
+                runtime\tsample.Application\tvirtual-threads=true\tweb=none
+                sample.TestConfiguration
+                runtime\tsample.TestConfiguration\tvirtual-threads=false\tweb=reactive
+                """
+        );
+        long started = Files.getLastModifiedTime(evidence).toMillis();
+
+        assertTrue(
+            Verdicts.clean(this.check(root, evidence, started).findings()),
+            "only a run of the production application is judged, and these ran on virtual threads"
+        );
+    }
+
     @SneakyThrows
     private Path source(String name, CharSequence content) {
         Path root = new GitFixture("spring-context-" + name.replace(".java", "")).root();
@@ -182,6 +234,10 @@ class SpringContextCheckTest {
 
     private static List<String> offences(SpringContextCheck check) {
         return Verdicts.offences(check.findings(), "context not started");
+    }
+
+    private static List<String> platform(SpringContextCheck check) {
+        return Verdicts.offences(check.findings(), "not running on virtual threads");
     }
 
     private static List<String> open(SpringContextCheck check) {

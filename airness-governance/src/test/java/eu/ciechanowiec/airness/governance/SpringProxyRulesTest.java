@@ -39,7 +39,7 @@ class SpringProxyRulesTest {
 
             class Ledger {
 
-                @Async
+                @Transactional
                 public void publish() {
                 }
 
@@ -182,7 +182,7 @@ class SpringProxyRulesTest {
 
             class Ledger {
 
-                @Async
+                @Transactional
                 public void publish() {
                 }
 

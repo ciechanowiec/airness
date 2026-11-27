@@ -161,6 +161,9 @@ class GreetingsTest {
     }
 }
 JAVA
+# The application runs on virtual threads, which the startup evidence of every ready run is held to.
+mkdir -p "${spring_fixture}/src/main/resources"
+printf 'spring.threads.virtual.enabled=true\n' > "${spring_fixture}/src/main/resources/application.properties"
 cat > "${spring_fixture}/AGENTS.md" <<'INSTRUCTIONS'
 # Consumer instructions
 
@@ -624,6 +627,25 @@ run_maven spring_narrow spring "${spring_narrow}" clean test airness:spring-cont
 expect_exit spring_narrow 'spring: a ready test-only context is not application evidence' 1
 expect_match spring_narrow 'spring: narrowed evidence names the missing production source' \
     'contains no current run that reached ready with this production application'
+
+# The ready run also says how the application executed its work, read from the environment it resolved. A
+# run on platform threads is refused, and so is a profile that turns virtual threads off where no test runs.
+spring_platform="${scratch}/spring-platform"
+clone_tree "${spring_app}" "${spring_platform}"
+rm "${spring_platform}/src/main/resources/application.properties"
+run_maven spring_platform spring "${spring_platform}" clean test airness:spring-context
+expect_exit spring_platform 'spring: a ready run on platform threads is refused' 1
+expect_match spring_platform 'spring: the run on platform threads is reported under its own headline' \
+    'Spring applications not running on virtual threads in a servlet context'
+expect_match spring_platform 'spring: the refusal names the property that repairs it' \
+    'spring[.]threads[.]virtual[.]enabled=true'
+printf 'spring.threads.virtual.enabled=true\n' > "${spring_platform}/src/main/resources/application.properties"
+printf 'spring.threads.virtual.enabled=false\n' \
+    > "${spring_platform}/src/main/resources/application-production.properties"
+run_maven spring_platform_profile spring "${spring_platform}" airness:spring-configuration
+expect_exit spring_platform_profile 'spring: a profile turning virtual threads off is refused' 1
+expect_match spring_platform_profile 'spring: the profile refusal names the file and the key' \
+    'application-production[.]properties.*spring[.]threads[.]virtual[.]enabled'
 
 # A guard delegating to a bean is a string until a caller arrives, and the name inside it is resolved
 # against the beans the container assembled out of this module and every auto-configuration on its

@@ -29,7 +29,6 @@ class SpringModelGatewayTest {
     @Test
     void asksEachGatewayStarterForSecurityAndProbes() {
         List.of(
-            "spring-cloud-starter-gateway-server-webflux", "spring-cloud-starter-gateway",
             "spring-cloud-starter-gateway-server-webmvc", "spring-cloud-starter-gateway-mvc"
         ).forEach(
             artifact -> {

@@ -28,6 +28,19 @@ run_model_policy_cases() {
     run_maven model_format_profile maven "${model_consumer}" airness:project-settings -DskipTests
     expect_exit model_format_profile 'model: a project profile cannot reuse the format id' 1
     expect_match model_format_profile 'model: the reused profile id is identified' 'Remove child profile format'
+    # The reactive stack is refused where the project declares it, in a profile nobody activates too, and
+    # report-only mode does not soften a preflight refusal.
+    cp "${scratch}/model-original.xml" "${model_consumer}/pom.xml"
+    model_reactive='<profiles><profile><id>reactive</id><dependencies><dependency>'
+    model_reactive="${model_reactive}<groupId>org.springframework.boot</groupId>"
+    model_reactive="${model_reactive}<artifactId>spring-boot-starter-webflux</artifactId><version>4.1.2</version>"
+    model_reactive="${model_reactive}</dependency></dependencies></profile></profiles>"
+    MODEL_REACTIVE="${model_reactive}" perl -0pi -e \
+        's{</project>}{$ENV{MODEL_REACTIVE}."</project>"}e' "${model_consumer}/pom.xml"
+    run_maven model_reactive maven "${model_consumer}" airness:project-settings -DskipTests -Dairness.enforce=false
+    expect_exit model_reactive 'model: a declared reactive starter is refused even in report-only mode' 1
+    expect_match model_reactive 'model: the refusal names the starter and its replacement' \
+        'Remove org[.]springframework[.]boot:spring-boot-starter-webflux; Airness runs work on virtual threads'
     # The Git configuration the tests read is the harness's, so a consumer that names its own is refused.
     cp "${scratch}/model-original.xml" "${model_consumer}/pom.xml"
     model_environment='<build><plugins><plugin><groupId>org.apache.maven.plugins</groupId>'

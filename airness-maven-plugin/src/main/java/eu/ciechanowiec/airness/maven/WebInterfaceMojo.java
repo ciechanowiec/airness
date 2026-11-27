@@ -3,7 +3,6 @@ package eu.ciechanowiec.airness.maven;
 import eu.ciechanowiec.airness.governance.Findings;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Set;
 import org.apache.maven.model.Resource;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -65,10 +64,9 @@ public final class WebInterfaceMojo extends AbstractGovernanceMojo {
     }
 
     private static boolean serving(MavenProject module) {
-        Set<String> stacks = Set.of("spring-webmvc", "spring-webflux");
         return module.getArtifacts().stream().anyMatch(
             artifact -> "org.springframework".equals(artifact.getGroupId())
-                && stacks.contains(artifact.getArtifactId()) && !"test".equals(artifact.getScope())
+                && "spring-webmvc".equals(artifact.getArtifactId()) && !"test".equals(artifact.getScope())
         );
     }
 }

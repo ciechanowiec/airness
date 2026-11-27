@@ -126,6 +126,16 @@ final class SpringConfigurationRules {
                 + " them; pass the profile at run time"
         ),
         new Rule(
+            "spring.threads.virtual.enabled", "false"::equals,
+            "requests, scheduled tasks and the application task executor run on platform threads, which every"
+                + " blocking call then holds; the application runs on virtual threads, so set true"
+        ),
+        new Rule(
+            "spring.main.web-application-type", "reactive"::equals,
+            "the application is served by the reactive stack, which Airness refuses beside virtual threads; use"
+                + " servlet, or none for an application that serves nothing"
+        ),
+        new Rule(
             "spring.data.jpa.repositories.bootstrap-mode", "lazy"::equals,
             "every repository query is parsed against the entity model when the repository is built, and"
                 + " a lazy bootstrap moves that to the first call, so a query naming an entity or a property"

@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
  */
 class SessionRealmsTest {
 
-    private static final int WORKERS = 8;
     private static final int CALLS = 64;
 
     @Test
@@ -58,7 +57,7 @@ class SessionRealmsTest {
             URLClassLoader api = PluginRealm.api();
             PluginRealm first = new PluginRealm(api);
             PluginRealm second = new PluginRealm(api);
-            ExecutorService executor = Executors.newFixedThreadPool(WORKERS)
+            ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()
         ) {
             List<Method> methods = List.of(
                 first.method("firstRun", SessionData.class, Class.class, String.class),

@@ -20,8 +20,6 @@ public final class SpringReactorCheck {
 
     private static final String ONE_APPLICATION
         = "Spring application classes declared more than once in this build";
-    private static final String UNENABLED_ASYNC
-        = "Asynchronous methods no production configuration enables";
     private static final String UNENABLED_SCHEDULING
         = "Scheduled methods no production configuration enables";
     private static final String UNENABLED_CACHING
@@ -69,7 +67,6 @@ public final class SpringReactorCheck {
         List<SpringTypes.Declared> declared = this.types.carrying(APPLICATION);
         return List.of(
             new Findings(ONE_APPLICATION, declared.size() > 1 ? named(declared) : List.of()),
-            new Findings(UNENABLED_ASYNC, SpringFeatureRules.unenabledAsync(this.types)),
             new Findings(UNENABLED_SCHEDULING, SpringFeatureRules.unenabledScheduling(this.types)),
             new Findings(UNENABLED_CACHING, SpringFeatureRules.unenabledCaching(this.types)),
             new Findings(UNENABLED_RETRY, SpringFeatureRules.unenabledRetry(this.types)),

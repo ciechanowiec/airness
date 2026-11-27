@@ -50,7 +50,7 @@ class TransientRetryTest {
 
     TransientRetryTest() {
         this.servers = new ArrayList<>();
-        this.executor = Executors.newCachedThreadPool();
+        this.executor = Executors.newVirtualThreadPerTaskExecutor();
         this.waited = new ArrayList<>();
         this.requests = new AtomicInteger();
         this.held = new CountDownLatch(1);

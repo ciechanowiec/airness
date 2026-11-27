@@ -573,7 +573,7 @@
             <property name="id" value="RequireFinalClass"/>
             <property name="files" value="${airness.checkstyle.spring.relaxed}"/>
             <property name="query"
-                      value="//CLASS_DEF[.//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]/descendant-or-self::node()"/>
+                      value="//CLASS_DEF[.//ANNOTATION/IDENT[@text='Transactional' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]/descendant-or-self::node()"/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <!--
@@ -1824,38 +1824,6 @@
         </module>
         <module name="MatchXpath">
             <!--
-                The executor holds the outcome of an asynchronous call, and a void return hands it nowhere
-                to be held. The exception is then caught by the executor's handler, which by default logs
-                it and moves on, so a failed call and a successful one leave the caller identical.
-            -->
-            <property name="id" value="AirnessSpringAsyncReturnsAFuture"/>
-            <property name="query"
-                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Async'] and ./TYPE/LITERAL_VOID]"/>
-            <message key="matchxpath.match"
-                     value="An @Async method returning void gives its exception nowhere to arrive. Return a CompletableFuture so a caller can see the failure."/>
-        </module>
-        <module name="SuppressionXpathSingleFilter">
-            <property name="id" value="AirnessSpringAsyncReturnsAFuture"/>
-            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
-        </module>
-        <module name="MatchXpath">
-            <!--
-                Choosing an executor by a unique bean or by AsyncConfigurer makes a later bean addition
-                retarget an existing asynchronous method. The qualifier is the stable edge between the
-                call and the queue that carries it.
-            -->
-            <property name="id" value="AirnessSpringAsyncNamesItsExecutor"/>
-            <property name="query"
-                      value="//ANNOTATION[./IDENT[@text='Async'] and (not(./EXPR) and not(./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value']]) or ./EXPR/STRING_LITERAL[@text='&quot;&quot;'] or ./ANNOTATION_MEMBER_VALUE_PAIR[./IDENT[@text='value']]/EXPR/STRING_LITERAL[@text='&quot;&quot;'])]"/>
-            <message key="matchxpath.match"
-                     value="An unnamed @Async is retargeted when the executor set changes. Name the executor qualifier in the annotation."/>
-        </module>
-        <module name="SuppressionXpathSingleFilter">
-            <property name="id" value="AirnessSpringAsyncNamesItsExecutor"/>
-            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
-        </module>
-        <module name="MatchXpath">
-            <!--
                 Full mode subclasses the configuration class so that one bean method calling another
                 returns the singleton. That subclass is what stops the class being final, and lite mode
                 does without it. The rule below is what makes lite mode safe to require.
@@ -1921,21 +1889,6 @@
         </module>
         <module name="MatchXpath">
             <!--
-                The call runs on the thread that made it. The request the author meant to hand to an executor
-                is the request that now blocks, and the only symptom is latency.
-            -->
-            <property name="id" value="AirnessSpringAsyncIsPublic"/>
-            <property name="query"
-                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Async'] and not(./MODIFIERS/LITERAL_PUBLIC) and not(parent::OBJBLOCK/parent::INTERFACE_DEF)]"/>
-            <message key="matchxpath.match"
-                     value="A non-public @Async depends on which proxy the container builds, and on a private method the call runs on the caller thread. Make the method public, or move the annotation to the method that is."/>
-        </module>
-        <module name="SuppressionXpathSingleFilter">
-            <property name="id" value="AirnessSpringAsyncIsPublic"/>
-            <property name="files" value="${airness.checkstyle.spring.suppressed}"/>
-        </module>
-        <module name="MatchXpath">
-            <!--
                 The constraints are never evaluated, so the argument the annotation exists to reject arrives
                 in the body exactly as it was written.
             -->
@@ -1975,7 +1928,7 @@
             -->
             <property name="id" value="AirnessSpringProxiedMethodIsNotFinal"/>
             <property name="query"
-                      value="//METHOD_DEF[./MODIFIERS/FINAL and ./MODIFIERS/ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
+                      value="//METHOD_DEF[./MODIFIERS/FINAL and ./MODIFIERS/ANNOTATION/IDENT[@text='Transactional' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
             <message key="matchxpath.match"
                      value="A subclass cannot override a final method, so the proxy leaves this annotation unhonoured. Remove final from the method."/>
         </module>
@@ -1992,7 +1945,7 @@
             -->
             <property name="id" value="AirnessSpringProxiedClassIsNotFinal"/>
             <property name="query"
-                      value="//CLASS_DEF[./MODIFIERS/FINAL and .//ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
+                      value="//CLASS_DEF[./MODIFIERS/FINAL and .//ANNOTATION/IDENT[@text='Transactional' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
             <message key="matchxpath.match"
                      value="A proxied bean is subclassed at run time, and a final class cannot be. Remove final from the class, which the final-class rule already exempts here."/>
         </module>
@@ -2007,7 +1960,7 @@
             -->
             <property name="id" value="AirnessSpringProxiedMethodIsNotStatic"/>
             <property name="query"
-                      value="//METHOD_DEF[./MODIFIERS/LITERAL_STATIC and ./MODIFIERS/ANNOTATION/IDENT[@text='Transactional' or @text='Async' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
+                      value="//METHOD_DEF[./MODIFIERS/LITERAL_STATIC and ./MODIFIERS/ANNOTATION/IDENT[@text='Transactional' or @text='Cacheable' or @text='CachePut' or @text='CacheEvict' or @text='Retryable' or @text='Validated' or @text='PreAuthorize' or @text='PostAuthorize' or @text='Secured']]"/>
             <message key="matchxpath.match"
                      value="A proxy wraps an instance, so it never sees a call to a static method. Make the method an instance method."/>
         </module>
@@ -2112,7 +2065,7 @@
             -->
             <property name="id" value="AirnessSpringWebConfigurerIsConfiguration"/>
             <property name="query"
-                      value="//CLASS_DEF[not(./MODIFIERS/ABSTRACT) and ./IMPLEMENTS_CLAUSE//IDENT[@text='WebMvcConfigurer' or @text='WebFluxConfigurer'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Configuration'])]"/>
+                      value="//CLASS_DEF[not(./MODIFIERS/ABSTRACT) and ./IMPLEMENTS_CLAUSE//IDENT[@text='WebMvcConfigurer'] and not(./MODIFIERS/ANNOTATION/IDENT[@text='Configuration'])]"/>
             <message key="matchxpath.match"
                      value="A web configurer that is not a configuration bean is called by nothing. Add @Configuration(proxyBeanMethods = false)."/>
         </module>
@@ -3113,11 +3066,12 @@
             <!--
                 Each call builds a fresh connection pool, so nothing is reused, nothing is instrumented, and
                 the timeouts have to be configured at every call site or not at all. Inside a bean method the
-                construction happens once and is the supported place for it.
+                construction happens once and is the supported place for it. WebClient is not named, because
+                the reactive client is refused wherever it is referenced.
             -->
             <property name="id" value="AirnessSpringWebClientIsABean"/>
             <property name="query"
-                      value="//LITERAL_NEW[./IDENT[@text='RestTemplate'] and not(ancestor::METHOD_DEF/MODIFIERS/ANNOTATION/IDENT[@text='Bean'])] | //METHOD_CALL[./DOT/IDENT[@text='create'] and ./DOT/IDENT[@text='WebClient' or @text='RestClient'] and not(ancestor::METHOD_DEF/MODIFIERS/ANNOTATION/IDENT[@text='Bean'])]"/>
+                      value="//LITERAL_NEW[./IDENT[@text='RestTemplate'] and not(ancestor::METHOD_DEF/MODIFIERS/ANNOTATION/IDENT[@text='Bean'])] | //METHOD_CALL[./DOT/IDENT[@text='create'] and ./DOT/IDENT[@text='RestClient'] and not(ancestor::METHOD_DEF/MODIFIERS/ANNOTATION/IDENT[@text='Bean'])]"/>
             <message key="matchxpath.match"
                      value="An HTTP client built at a call site carries its own connection pool and no shared timeouts. Declare it once as a @Bean and take it as a constructor parameter."/>
         </module>
@@ -3471,18 +3425,15 @@
         <module name="MatchXpath">
             <!--
                 Nothing receives the value, so a return carrying a result or a status is discarded, and an
-                author who wrote one expected somebody to read it.
-
-                A reactive return is the exception the framework documents. A method returning a Publisher,
-                or a type the default ReactiveAdapterRegistry adapts to one, hands the scheduler the work
-                itself rather than a discarded result: the infrastructure subscribes to it on the schedule,
-                and returning void there would mean nothing is ever subscribed. Those types are exempt.
+                author who wrote one expected somebody to read it. The reactive return the framework would
+                subscribe to is not offered either, because the work runs on a virtual thread and a publisher
+                in a declared signature is refused beside it.
             -->
             <property name="id" value="AirnessSpringScheduledReturnsVoid"/>
             <property name="query"
-                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and not(./TYPE/LITERAL_VOID) and not(./TYPE/IDENT[@text='Publisher' or @text='Mono' or @text='Flux' or @text='Single' or @text='Maybe' or @text='Completable' or @text='Observable' or @text='Flowable'])]"/>
+                      value="//METHOD_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='Scheduled'] and not(./TYPE/LITERAL_VOID)]"/>
             <message key="matchxpath.match"
-                     value="Nothing receives what a scheduled method returns. Return void and record the outcome where something reads it, or return a Publisher, which the scheduler subscribes to on the schedule."/>
+                     value="Nothing receives what a scheduled method returns. Return void and record the outcome where something reads it."/>
         </module>
         <module name="SuppressionXpathSingleFilter">
             <property name="id" value="AirnessSpringScheduledReturnsVoid"/>
@@ -3660,16 +3611,14 @@
                 structured-concurrency forms stand beside the platform ones, because on the Java this harness
                 requires they are the spellings an author reaches for first.
 
-                This is a file-level rule with no syntax tree to consult, so it cannot tell a call inside a
-                @Bean method from any other. The executor definition the message asks for is matched like
-                everything else and needs a suppression carrying its justification. That is one deliberate
-                exemption per project, written where the executor is declared.
+                The application runs on virtual threads, so Spring Boot configures the executor and the
+                scheduler the message asks for, both on virtual threads, and the project declares neither.
             -->
             <property name="id" value="AirnessSpringNoUnmanagedThreads"/>
             <property name="format" value="new\s+Thread\s*\(|Thread\s*\.\s*(?:ofVirtual|ofPlatform|startVirtualThread)\s*\(|\bStructuredTaskScope\b|Executors\.new[A-Za-z]+\s*\(|supplyAsync\s*\([^,)]*\)"/>
             <property name="ignoreComments" value="true"/>
             <property name="message"
-                      value="A thread the container did not create misses graceful shutdown, metrics and the security context. Take a TaskExecutor bean and submit to it."/>
+                      value="A thread the container did not create misses graceful shutdown, metrics and the security context. Take the AsyncTaskExecutor or TaskScheduler Spring Boot configures and submit to it."/>
             <property name="illegalPattern" value="true"/>
         </module>
         <module name="SuppressionXpathSingleFilter">
@@ -3693,7 +3642,7 @@
             -->
             <property name="id" value="AirnessSpringBootTestDoesNotRepeatSpringExtension"/>
             <property name="query"
-                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='SpringBootTest' or @text='JdbcTest' or @text='RestClientTest' or @text='WebMvcTest' or @text='WebFluxTest' or @text='DataJpaTest' or @text='WebServiceClientTest' or @text='JooqTest' or @text='JsonTest' or @text='DataCassandraTest' or @text='DataJdbcTest' or @text='DataLdapTest' or @text='DataMongoTest' or @text='DataNeo4jTest' or @text='DataR2dbcTest' or @text='DataRedisTest'] and ./MODIFIERS/ANNOTATION[./IDENT[@text='ExtendWith'] and .//IDENT[@text='SpringExtension']]]"/>
+                      value="//CLASS_DEF[./MODIFIERS/ANNOTATION/IDENT[@text='SpringBootTest' or @text='JdbcTest' or @text='RestClientTest' or @text='WebMvcTest' or @text='DataJpaTest' or @text='WebServiceClientTest' or @text='JooqTest' or @text='JsonTest' or @text='DataCassandraTest' or @text='DataJdbcTest' or @text='DataLdapTest' or @text='DataMongoTest' or @text='DataNeo4jTest' or @text='DataRedisTest'] and ./MODIFIERS/ANNOTATION[./IDENT[@text='ExtendWith'] and .//IDENT[@text='SpringExtension']]]"/>
             <message key="matchxpath.match"
                      value="This Spring Boot test annotation already applies SpringExtension. Remove SpringExtension from @ExtendWith and retain any other extensions."/>
         </module>

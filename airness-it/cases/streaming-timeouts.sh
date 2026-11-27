@@ -169,7 +169,7 @@ JAVA
     # - their shared title: StreamingTimeoutCheckTest.acceptsCurrentEvidenceAndKeepsEveryFailure.
     # No integration run produces "cannot be verified" any more; each link (index, runtime, check) is a unit.
 
-    printf "spring.mvc.async.request-timeout=\${STREAMING_TIMEOUT:30s}\n" \
+    printf "spring.mvc.async.request-timeout=\${STREAMING_TIMEOUT:30s}\nspring.threads.virtual.enabled=true\n" \
         > "${streaming_app}/src/main/resources/application.properties"
     run_maven streaming_property spring "${streaming_app}" clean test airness:spring-streaming-timeouts
     expect_exit streaming_property 'spring: a production placeholder supplies an explicit finite timeout' 0
@@ -181,7 +181,7 @@ JAVA
         'Streaming timeouts without a current runtime assessment'
 
     printf 'spring.mvc.async.request-timeout=0\n' > "${streaming_app}/src/main/resources/application-production.properties"
-    rm "${streaming_app}/src/main/resources/application.properties"
+    printf 'spring.threads.virtual.enabled=true\n' > "${streaming_app}/src/main/resources/application.properties"
     run_maven streaming_profile spring "${streaming_app}" clean test airness:spring-streaming-timeouts -Dspring.profiles.active=production
     expect_exit streaming_profile 'spring: a loaded production profile may explicitly disable the deadline' 0
     rm "${streaming_app}/src/main/resources/application-production.properties"

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Requires current-build evidence that Spring Boot made the production application ready.
@@ -22,7 +23,9 @@ import java.util.regex.Pattern;
  * produce a ready context, what that context decided is available to be read, and the mappings it
  * left open to an anonymous caller are read here against the patterns the module says it meant to
  * open. The two rules share a file because they share a guarantee: evidence is only worth judging
- * where its absence is already a failure.
+ * where its absence is already a failure. How each ready run executed its work is read the same way: the
+ * environment it resolved, not a file a profile may override, says whether its threads were virtual, and
+ * the application, not its classpath, says which web stack served it.
  */
 public final class SpringContextCheck {
 
@@ -36,6 +39,9 @@ public final class SpringContextCheck {
     private static final String UNKNOWN_BEANS = "Security expressions naming a bean this application does not declare";
     private static final String UNKNOWN_CALLS = "Security expressions calling a method their bean does not have";
     private static final String REFUSALS = "Refusals this application cannot draw for a caller without an account";
+    private static final String PLATFORM = "Spring applications not running on virtual threads in a servlet context";
+    private static final String RUNTIME = "runtime\t";
+    private static final int RUNTIME_FIELDS = 4;
 
     private final Path evidence;
     private final long started;
@@ -101,6 +107,7 @@ public final class SpringContextCheck {
         List<String> recorded = this.recorded();
         return List.of(
             new Findings(MISSING, this.missing(recorded)),
+            new Findings(PLATFORM, this.platform(recorded)),
             new Findings(OPEN, SpringEndpointRules.undeclared(opened(recorded), this.types)),
             new Findings(UNKNOWN_BEANS, SpringGuardBeanRules.unknownBeans(recorded)),
             new Findings(UNKNOWN_CALLS, SpringGuardBeanRules.unknownCalls(recorded)),
@@ -132,6 +139,33 @@ public final class SpringContextCheck {
                 application -> application + ": " + this.evidence
                     + " contains no current run that reached ready with this production application"
             ).toList();
+    }
+
+    private List<String> platform(Collection<String> recorded) {
+        return recorded.stream()
+            .filter(line -> line.startsWith(RUNTIME))
+            .map(line -> line.split("\t", -1))
+            .filter(fields -> fields.length == RUNTIME_FIELDS && this.applications.contains(fields[1]))
+            .flatMap(SpringContextCheck::runtimeOffences)
+            .distinct()
+            .toList();
+    }
+
+    private static Stream<String> runtimeOffences(String... fields) {
+        String application = fields[1];
+        Stream<String> platform = "virtual-threads=true".equals(fields[2])
+            ? Stream.empty()
+            : Stream.of(
+                application + ": a ready run executed its work on platform threads; set"
+                    + " spring.threads.virtual.enabled=true in the configuration every profile inherits"
+            );
+        Stream<String> reactive = "web=reactive".equals(fields[RUNTIME_FIELDS - 1])
+            ? Stream.of(
+                application + ": a ready run was served by the reactive stack; serve it with"
+                    + " spring-boot-starter-web, or set spring.main.web-application-type=none"
+            )
+            : Stream.empty();
+        return Stream.concat(platform, reactive);
     }
 
     private boolean current() {

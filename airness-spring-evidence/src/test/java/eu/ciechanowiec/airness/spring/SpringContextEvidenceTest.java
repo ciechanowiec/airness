@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -24,8 +25,10 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.web.DefaultSecurityFilterChain;
@@ -52,8 +55,9 @@ class SpringContextEvidenceTest {
         this.ready(new SpringApplication(ApplicationSource.class), evidence);
 
         assertEquals(
-            List.of(ApplicationSource.class.getName()), Files.readAllLines(evidence),
-            "the ready run names its real primary source"
+            List.of(ApplicationSource.class.getName(), runtime(ApplicationSource.class, false, "servlet")),
+            Files.readAllLines(evidence),
+            "the ready run names its real primary source and how it runs"
         );
     }
 
@@ -69,7 +73,10 @@ class SpringContextEvidenceTest {
             List.of(
                 ApplicationSource.class.getName(),
                 SecondSource.class.getName(),
-                ApplicationSource.class.getName()
+                runtime(ApplicationSource.class, false, "servlet"),
+                runtime(SecondSource.class, false, "servlet"),
+                ApplicationSource.class.getName(),
+                runtime(ApplicationSource.class, false, "servlet")
             ),
             Files.readAllLines(evidence),
             "each ready run remains available to the Maven goal"
@@ -84,9 +91,44 @@ class SpringContextEvidenceTest {
         this.ready(new SpringApplication(ApplicationSource.class), evidence, this.web());
 
         assertEquals(
-            List.of(ApplicationSource.class.getName(), "open GET /public", "error-dispatch open"),
+            List.of(
+                ApplicationSource.class.getName(), runtime(ApplicationSource.class, false, "servlet"),
+                "open GET /public", "error-dispatch open"
+            ),
             Files.readAllLines(evidence),
             "the run records that it started, what starting it exposed, and where it draws a refusal"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void recordsVirtualThreadsFromTheEnvironmentTheRunResolved() {
+        Path evidence = this.directory.resolve("virtual.evidence");
+        this.ready(new SpringApplication(ApplicationSource.class), evidence, virtual());
+
+        assertTrue(
+            Files.readAllLines(evidence).contains(runtime(ApplicationSource.class, true, "servlet")),
+            "the resolved environment, not a file, says whether the run is on virtual threads"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void recordsTheWebStackTheApplicationChose() {
+        Path evidence = this.directory.resolve("web.evidence");
+        SpringApplication reactive = new SpringApplication(ApplicationSource.class);
+        reactive.setWebApplicationType(WebApplicationType.REACTIVE);
+        SpringApplication unserved = new SpringApplication(SecondSource.class);
+        unserved.setWebApplicationType(WebApplicationType.NONE);
+
+        this.ready(reactive, evidence);
+        this.ready(unserved, evidence);
+
+        assertTrue(
+            Files.readAllLines(evidence).containsAll(
+                List.of(runtime(ApplicationSource.class, false, "reactive"), runtime(SecondSource.class, false, "none"))
+            ),
+            "the stack a property, a test or the classpath decided is recorded"
         );
     }
 
@@ -229,6 +271,21 @@ class SpringContextEvidenceTest {
         context.registerBean(Pages.class);
         context.refresh();
         return context;
+    }
+
+    /**
+     * A ready context whose environment turns virtual threads on.
+     */
+    private static ConfigurableApplicationContext virtual() {
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.getEnvironment().getPropertySources().addFirst(
+            new MapPropertySource("test", Map.of("spring.threads.virtual.enabled", "true"))
+        );
+        return context;
+    }
+
+    private static String runtime(Class<?> source, boolean virtual, String web) {
+        return String.join("\t", "runtime", source.getName(), "virtual-threads=" + virtual, "web=" + web);
     }
 
     private static void restore(Optional<String> previous) {

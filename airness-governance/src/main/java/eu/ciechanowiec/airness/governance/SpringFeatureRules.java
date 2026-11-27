@@ -19,7 +19,6 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class SpringFeatureRules {
 
-    private static final Pattern ASYNC = Pattern.compile("@Async\\b");
     private static final Pattern SCHEDULED = Pattern.compile("@Scheduled\\b");
     private static final Pattern CACHE = Pattern.compile("@(?:Cacheable|CachePut|CacheEvict|Caching)\\b");
     private static final Pattern RETRY = Pattern.compile("@(?:Retryable|Recover)\\b");
@@ -27,7 +26,6 @@ final class SpringFeatureRules {
     private static final Pattern AUDITED = Pattern.compile(
         "@(?:CreatedDate|LastModifiedDate|CreatedBy|LastModifiedBy)\\b"
     );
-    private static final Pattern ENABLE_ASYNC = Pattern.compile("@EnableAsync\\b");
     private static final Pattern ENABLE_SCHEDULING = Pattern.compile("@EnableScheduling\\b");
     private static final Pattern ENABLE_CACHING = Pattern.compile("@EnableCaching\\b");
     private static final Pattern ENABLE_RETRY = Pattern.compile("@EnableRetry\\b");
@@ -38,10 +36,6 @@ final class SpringFeatureRules {
     private static final Pattern SECURED = Pattern.compile("@Secured\\b");
     private static final Pattern JSR250 = Pattern.compile("@(?:RolesAllowed|PermitAll|DenyAll)\\b");
     private static final Pattern METHOD_SECURITY = Pattern.compile("@EnableMethodSecurity(?:\\s*\\(([^)]*)\\))?");
-
-    static List<String> unenabledAsync(SpringTypes types) {
-        return unenabled(types, ASYNC, ENABLE_ASYNC, "@EnableAsync");
-    }
 
     static List<String> unenabledScheduling(SpringTypes types) {
         return unenabled(types, SCHEDULED, ENABLE_SCHEDULING, "@EnableScheduling");

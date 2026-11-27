@@ -22,7 +22,7 @@ import lombok.experimental.UtilityClass;
 final class SpringFileRules {
 
     private static final Pattern CLIENT_BUILDER = Pattern.compile(
-        "\\b(?:RestClient|WebClient)\\s*\\.\\s*[Bb]uilder\\b|\\bRestTemplateBuilder\\b"
+        "\\bRestClient\\s*\\.\\s*[Bb]uilder\\b|\\bRestTemplateBuilder\\b"
     );
     private static final Pattern TIMEOUT = Pattern.compile(
         "\\b(?:connectTimeout|readTimeout|responseTimeout|setConnectTimeout|setReadTimeout)\\b"

@@ -267,6 +267,33 @@ JAVA
     expect_match modernization_compiler_report 'report-only: the Airness compiler finding stays visible' \
         'Draw[.]java:.*AirnessJdkApiHasAModernForm'
 
+    # The execution-model checks admit no suppression, so a justified one changes nothing.
+    rm "${modernization_compiler}/src/main/java/com/example/Draw.java"
+    cat > "${modernization_compiler}/src/main/java/com/example/Pool.java" <<'JAVA'
+package com.example;
+
+import eu.ciechanowiec.airness.Justification;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/** Asks for a platform pool behind a justified suppression. */
+final class Pool {
+
+    private Pool() {
+    }
+
+    @SuppressWarnings("AirnessThreadIsVirtual")
+    @Justification("a bounded pool is wanted here")
+    static ExecutorService create() {
+        return Executors.newFixedThreadPool(2);
+    }
+}
+JAVA
+    run_maven execution_model_suppressed analysis "${modernization_compiler}" compile
+    expect_exit execution_model_suppressed 'error prone: an execution-model check refuses a justified suppression' 1
+    expect_match execution_model_suppressed 'error prone: the platform pool is still reported' \
+        'Pool[.]java:.*AirnessThreadIsVirtual'
+
     new_consumer build-practices
     build_practices="${consumer_directory}"
     sed 's|^    </properties>|    </properties>\

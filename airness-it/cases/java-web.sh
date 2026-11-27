@@ -248,6 +248,7 @@ JAVA
     cat > "${java_web}/src/main/resources/application.properties" <<'PROPERTIES'
 server.servlet.session.cookie.secure=true
 server.shutdown=graceful
+spring.threads.virtual.enabled=true
 PROPERTIES
     for page in home about hidden account; do
         case "${page}" in

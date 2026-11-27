@@ -142,7 +142,6 @@ fi
 . "${repository}/airness-it/cases/node-browser.sh"
 . "${repository}/airness-it/cases/browser-evidence.sh"
 . "${repository}/airness-it/cases/java-web.sh"
-. "${repository}/airness-it/cases/java-webflux.sh"
 . "${repository}/airness-it/cases/payload.sh"
 . "${repository}/airness-it/cases/starters.sh"
 
@@ -198,7 +197,6 @@ run_domain() {
         browser)
             run_node_browser_cases
             run_java_web_cases
-            run_java_webflux_cases
             ;;
         browser-evidence)
             run_browser_evidence_cases

@@ -30,8 +30,6 @@ public final class SpringModelCheck {
         = "A deployable application publishing nothing an orchestrator can read";
     private static final String NO_AUTHENTICATION
         = "A deployable application serving HTTP with nothing that authenticates a caller";
-    private static final String TWO_WEB_STACKS
-        = "Both web stacks declared where only one of them can start";
     private static final String OWN_AUTO_CONFIGURATION
         = "Auto-configuration declared inside the application it configures";
     private static final String UNSUPPORTED_FACTORIES
@@ -107,7 +105,6 @@ public final class SpringModelCheck {
                 NO_AUTHENTICATION,
                 SpringModelRules.unauthenticatedService(this.pom, this.dependencies, this.repackaged)
             ),
-            new Findings(TWO_WEB_STACKS, SpringModelRules.doubledWebStack(this.pom, this.dependencies)),
             new Findings(
                 OWN_AUTO_CONFIGURATION,
                 SpringModelRules.ownAutoConfiguration(this.declarations, this.repackaged)

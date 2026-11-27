@@ -32,7 +32,6 @@ class CheckstyleConfigurationTest {
     // of them leaves a bean with no shape that passes, reported final and reported not final at once.
     private static final List<String> PROXIED = List.of(
         "Transactional",
-        "Async",
         "Cacheable",
         "CachePut",
         "CacheEvict",

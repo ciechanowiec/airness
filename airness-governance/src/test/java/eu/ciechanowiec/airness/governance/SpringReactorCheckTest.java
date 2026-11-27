@@ -119,14 +119,14 @@ class SpringReactorCheckTest {
 
     @Test
     void reportsAFeatureUsedInOneModuleAndEnabledByNone() {
-        String asynchronous = PLAIN.replace("@Service", "@Service\n@Async(\"pool\")");
+        String cached = PLAIN.replace("@Service", "@Service\n@Cacheable(\"rows\")");
         Path root = new GitFixture("reactor-feature")
             .write(FIRST, APPLICATION)
-            .write(SECOND, asynchronous)
+            .write(SECOND, cached)
             .root();
 
         List<String> offences = Verdicts.offences(
-            new SpringReactorCheck(root, ROOTS).findings(), "Asynchronous methods"
+            new SpringReactorCheck(root, ROOTS).findings(), "Cache operations"
         );
 
         assertEquals(1, offences.size(), "reactor findings include feature activation");

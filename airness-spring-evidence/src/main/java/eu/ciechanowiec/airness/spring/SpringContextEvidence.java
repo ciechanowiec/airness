@@ -13,6 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -36,9 +37,10 @@ import org.springframework.util.ClassUtils;
  * <p>Four facts are written. The primary source classes of the run, which say that the production
  * application was started at all, the mappings its security chain leaves open to an anonymous caller,
  * which say what starting it exposed, and the beans its security expressions name and the context
- * cannot resolve, which say which guards would have thrown rather than decided. The addresses at which the
- * application renders a page are recorded wherever a servlet stack maps them, as the route inventory the
- * browser sweep is reconciled with. Template message assessments are also
+ * cannot resolve, which say which guards would have thrown rather than decided. How each run executes its
+ * work is recorded beside its sources: whether its threads are virtual and which web stack serves it. The
+ * addresses at which the application renders a page are recorded wherever the servlet stack maps them, as
+ * the route inventory the browser sweep is reconciled with. Template message assessments are also
  * recorded when the Maven manifest is present. Each additional fact
  * is written on its own prefixed line, so a reader looking for an application class still finds one
  * bare line per source and nothing that could be mistaken for one.
@@ -70,14 +72,8 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
         SpringContextEvidence.class.getClassLoader()
     );
 
-    /**
-     * Whether this JVM has the reactive stack that maps pages, which the route inventory reads as well. An
-     * application without one answers no and loads no class that would not resolve.
-     */
-    private static final boolean REACTIVE_PAGES = ClassUtils.isPresent(
-        "org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping",
-        SpringContextEvidence.class.getClassLoader()
-    );
+    private static final String RUNTIME = "runtime";
+    private static final String VIRTUAL_THREADS = "spring.threads.virtual.enabled";
 
     /**
      * Whether this JVM has the annotations whose expressions the guard evidence reads. A project that
@@ -121,23 +117,38 @@ public final class SpringContextEvidence implements SpringApplicationRunListener
         return sources.isEmpty()
             ? sources
             : Stream.of(
-                sources, this.decided(context, sources), pages(context, sources),
+                sources, this.runtime(context, sources), this.decided(context, sources), pages(context, sources),
                 messages(context, sources, destination), streaming(context, sources, destination)
             ).flatMap(Collection::stream).toList();
     }
 
-    // The addresses the browser sweep accounts for, asked of each stack that maps pages only where it is on
-    // the classpath, so an application without it loads no class that would not resolve.
+    // The addresses the browser sweep accounts for, asked of the servlet stack only where it is on the
+    // classpath, so an application without it loads no class that would not resolve.
     private static List<String> pages(ConfigurableApplicationContext context, Collection<String> sources) {
-        List<String> servlet = Optional.of(context)
+        return Optional.of(context)
             .filter(_ -> SERVLET_PAGES)
             .map(ready -> SpringHtmlRoutes.rendered(ready, roots(sources)))
-            .orElseGet(List::of);
-        List<String> reactive = Optional.of(context)
-            .filter(_ -> REACTIVE_PAGES)
-            .map(ready -> SpringReactiveHtmlRoutes.rendered(ready, roots(sources)))
-            .orElseGet(List::of);
-        return Stream.concat(servlet.stream(), reactive.stream()).distinct().sorted().toList();
+            .orElseGet(List::of)
+            .stream().distinct().sorted().toList();
+    }
+
+    /**
+     * How the run executes its work, one line per source: whether the environment it resolved turns virtual
+     * threads on, and which web stack the application chose, which a property, a test or the classpath may
+     * have decided.
+     *
+     * @param context the ready context
+     * @param sources the primary source class names of the run
+     * @return one runtime line per source
+     */
+    private List<String> runtime(ConfigurableApplicationContext context, Collection<String> sources) {
+        boolean virtual = context.getEnvironment().getProperty(VIRTUAL_THREADS, Boolean.class, Boolean.FALSE);
+        String web = Optional.ofNullable(this.application.getWebApplicationType())
+            .map(type -> type.name().toLowerCase(Locale.ROOT))
+            .orElse("undeclared");
+        return sources.stream()
+            .map(source -> String.join("\t", RUNTIME, source, "virtual-threads=" + virtual, "web=" + web))
+            .toList();
     }
 
     /**

@@ -14,24 +14,6 @@ class SpringFeatureRulesTest {
     private static final List<Path> SOURCES = List.of(Path.of("src"));
 
     @Test
-    void reportsAsyncThatProductionNeverEnables() {
-        SpringTypes types = types(new GitFixture("feature-async").write(USE, source("@Async(\"pool\")")));
-
-        assertEquals(1, SpringFeatureRules.unenabledAsync(types).size(), "the method has no enabler");
-    }
-
-    @Test
-    void acceptsAnAsyncEnablerFromAnotherProductionSource() {
-        SpringTypes types = types(
-            new GitFixture("feature-async-enabled")
-                .write(USE, source("@Async(\"pool\")"))
-                .write(CONFIGURATION, configuration("@EnableAsync"))
-        );
-
-        assertEquals(List.of(), SpringFeatureRules.unenabledAsync(types), "the application activates it");
-    }
-
-    @Test
     void doesNotTakeProductionActivationFromATest() {
         SpringTypes types = types(
             new GitFixture("feature-test-enabler")

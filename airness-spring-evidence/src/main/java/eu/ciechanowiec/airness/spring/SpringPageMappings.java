@@ -13,9 +13,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.method.HandlerMethod;
 
 /**
- * What decides whether a handler method renders a page, in the terms the servlet and the reactive stacks
- * share, so each route inventory reads its own mappings and judges their handlers alike. It loads no class
- * of either stack.
+ * What decides whether a handler method renders a page, in terms that load no class of the servlet stack,
+ * so the route inventory judges every handler alike.
  */
 @UtilityClass
 final class SpringPageMappings {
