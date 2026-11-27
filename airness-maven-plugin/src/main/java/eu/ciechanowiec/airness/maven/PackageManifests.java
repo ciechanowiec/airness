@@ -21,7 +21,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class PackageManifests {
 
-    private static final List<String> INSTALLED = List.of("dependencies", "devDependencies", "optionalDependencies");
+    static final List<String> INSTALLED = List.of("dependencies", "devDependencies", "optionalDependencies");
     private static final String PEERS = "peerDependencies";
 
     /**

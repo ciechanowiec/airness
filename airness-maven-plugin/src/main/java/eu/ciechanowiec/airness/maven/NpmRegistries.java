@@ -51,6 +51,7 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
      * The public registry, which answers when the configuration names none.
      */
     static final String PUBLIC = "https://registry.npmjs.org/";
+    static final String REGISTRY = "registry";
 
     private static final Pattern VARIABLE = Pattern.compile("\\$\\{([^}]+)}");
     // A release with no pre-release or build part, which is what a latest tag naming the stable line reads as.
@@ -59,7 +60,6 @@ record NpmRegistries(Map<String, String> config, HttpClient client) {
     private static final String NPM_PREFIX = "npm_config_";
     private static final String CREDENTIAL = "//";
     private static final String USER_CONFIG = "userconfig";
-    private static final String REGISTRY = "registry";
     private static final String TOKEN = ":_authToken";
     private static final String SLASH = "/";
     private static final String HTTPS = "https";

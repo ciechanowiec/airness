@@ -121,12 +121,16 @@ PY
 
     # The case that matters most: a Java module gains a package.json in a folder nobody declared. One
     # validate run batches it with a declared folder that holds no package.json, a project that names a pnpm of
-    # its own, a license the root pom does not name and a proprietary project left publishable, since
-    # node-projects reports them all in one run and none can hide another.
+    # its own, a license the root pom does not name, a proprietary project left publishable, a dependency range,
+    # a lockfile pnpm never reads and a registry setting that turns the certificate check off, since node-projects
+    # reports them all in one run and none can hide another.
     new_consumer node-undeclared
     node_undeclared="${consumer_directory}"
     mkdir -p "${node_undeclared}/ui" "${node_undeclared}/web"
-    printf '{\n  "private": true,\n  "license": "MIT"\n}\n' > "${node_undeclared}/ui/package.json"
+    printf '{\n  "private": true,\n  "license": "MIT",\n  "dependencies": {\n    "left-pad": "^1.3.0"\n  }\n}\n' \
+        > "${node_undeclared}/ui/package.json"
+    printf '{}\n' > "${node_undeclared}/web/package-lock.json"
+    printf 'strict-ssl=false\n' > "${node_undeclared}/web/.npmrc"
     printf '{\n  "license": "LicenseRef-Proprietary",\n  "packageManager": "pnpm@11.0.0"\n}\n' \
         > "${node_undeclared}/web/package.json"
     write_node_consumer "${node_undeclared}" 'web,missing' ''
@@ -142,6 +146,12 @@ PY
         'ui/package[.]json declares license MIT, but the root pom names LicenseRef-Proprietary'
     expect_match node_undeclared 'node: a proprietary package.json is kept off the registry' \
         'web/package[.]json declares the code proprietary but is not "private": true'
+    expect_match node_undeclared 'node: a dependency names its exact version' \
+        'ui/package[.]json: dependencies left-pad asks for \^1[.]3[.]0; name the exact version'
+    expect_match node_undeclared 'node: pnpm-lock.yaml is the only lockfile' \
+        'web/package-lock[.]json is a lockfile pnpm never reads; remove it'
+    expect_match node_undeclared 'node: a registry is reached with its certificate checked' \
+        "web/[.]npmrc: strict-ssl false turns the registry's certificate check off"
 }
 
 # Copies the node-project fixture, writing in the Node version the harness pins, which its member's spec asserts.

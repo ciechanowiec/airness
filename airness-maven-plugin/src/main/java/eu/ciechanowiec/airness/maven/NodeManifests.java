@@ -39,9 +39,17 @@ final class NodeManifests {
      * @return the manifests, sorted
      */
     static List<Path> in(Path module, Collection<Path> skipped) {
-        return files(module, skipped).stream()
-            .filter(file -> MANIFEST.equals(String.valueOf(file.getFileName())))
-            .toList();
+        return manifests(files(module, skipped));
+    }
+
+    /**
+     * Picks the manifests out of a module's files.
+     *
+     * @param files the module's files, as {@link #files} lists them
+     * @return the manifests among them, in the same order
+     */
+    static List<Path> manifests(Collection<Path> files) {
+        return files.stream().filter(file -> MANIFEST.equals(String.valueOf(file.getFileName()))).toList();
     }
 
     /**

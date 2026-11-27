@@ -31,7 +31,7 @@ import org.yaml.snakeyaml.error.YAMLException;
  */
 record PnpmWorkspace(Path root, List<PathMatcher> included, List<PathMatcher> excluded) {
 
-    private static final String FILE = "pnpm-workspace.yaml";
+    static final String FILE = "pnpm-workspace.yaml";
     private static final String NEGATION = "!";
     private static final String CURRENT = "./";
     private static final String GLOBSTAR_SUFFIX = "/**";
@@ -71,6 +71,24 @@ record PnpmWorkspace(Path root, List<PathMatcher> included, List<PathMatcher> ex
                 )
             )
         );
+    }
+
+    /**
+     * Reads the settings of a {@code pnpm-workspace.yaml}, leaving a file that is no YAML mapping to the check that
+     * refuses it.
+     *
+     * @param file the workspace file
+     * @return its top-level settings, none when it holds no mapping or no valid YAML
+     */
+    static Map<?, ?> settings(Path file) {
+        try {
+            Object document = new Yaml(new SafeConstructor(new LoaderOptions())).load(Files.readString(file));
+            return document instanceof Map<?, ?> mapping ? mapping : Map.of();
+        } catch (YAMLException _) {
+            return Map.of();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not read " + file, exception);
+        }
     }
 
     /**

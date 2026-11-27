@@ -83,15 +83,17 @@ public final class NodeProjectsMojo extends AbstractGovernanceMojo {
                 + " package.json file(s) and " + frontend.inventoried() + " authored frontend file(s) found in "
                 + this.project().getArtifactId()
         );
-        NodeLicenses licenses = new NodeLicenses(
-            basedir.toAbsolutePath().normalize(),
-            NodeManifests.in(
-                basedir.toAbsolutePath().normalize(),
-                skipped.stream().map(path -> path.toAbsolutePath().normalize()).toList()
-            ),
-            RootLicenses.of(this.project(), root)
+        Path module = basedir.toAbsolutePath().normalize();
+        List<Path> files = NodeManifests.files(
+            module, skipped.stream().map(path -> path.toAbsolutePath().normalize()).toList()
         );
-        return Stream.of(coverage.findings(), frontend.findings(), licenses.findings()).flatMap(List::stream).toList();
+        return Stream.of(
+            coverage.findings(),
+            frontend.findings(),
+            new NodeLicenses(module, NodeManifests.manifests(files), RootLicenses.of(this.project(), root)).findings(),
+            new DependencySpecifiers(module, files).findings(),
+            new NodeInstallFiles(module, files).findings()
+        ).flatMap(List::stream).toList();
     }
 
     // A child module walks its own directory in its own build, and the build directory holds output.
