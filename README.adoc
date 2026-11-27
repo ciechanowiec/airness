@@ -323,7 +323,7 @@ The rules of Airness cover the whole state of a repository, not only its code. x
 . A [[starter-application]]_starter application_ is a working application that already passes xref:#extended-verification[Extended verification] and is the starting point of a new application. Airness ships two starter applications:
 .. `spring-boot`, a multi-user task tracker built with https://spring.io/projects/spring-boot[Spring Boot^], https://www.thymeleaf.org[Thymeleaf^], https://htmx.org[htmx^], https://tailwindcss.com[Tailwind CSS^], and https://www.postgresql.org[PostgreSQL^],
 .. `payload-cms`, a content site built with https://payloadcms.com[Payload CMS^], https://nextjs.org[Next.js^], https://www.postgresql.org[PostgreSQL^], and https://aws.amazon.com/s3/[S3^]-compatible storage.
-. The `new` goal makes an application from a xref:#starter-application[starter application] in a new directory and commits it as the first commit of a new https://git-scm.com[Git^] repository. The application's license is `LicenseRef-Proprietary` unless `-Dairness.license` names an identifier from the https://spdx.org/licenses/[SPDX License List^].
+. The `new` goal makes an application from a xref:#starter-application[starter application] in a new directory and commits it as the first commit of a new https://git-scm.com[Git^] repository. The application's license is `LicenseRef-Proprietary` unless `-Dairness.license` names an identifier from the https://spdx.org/licenses/[Software Package Data Exchange (SPDX) License List^].
 . For example, this command makes a https://spring.io/projects/spring-boot[Spring Boot^] application in the directory `task-tracker`:
 +
 [source,bash,subs="attributes+"]
