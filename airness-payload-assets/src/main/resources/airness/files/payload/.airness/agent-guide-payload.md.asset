@@ -26,7 +26,8 @@ An image of a Payload application passes that gate when:
 - its Dockerfile builds with no build argument: the stage that runs `next build` installs the dependencies from the lockfile and gives the variables the configuration validates as it is imported inert placeholders on that `RUN` line alone, as `analysisEnv` gives them to the gates, never a real value;
 - every directory it copies exists in the build, so a `public` directory is copied only where the project has one;
 - the configuration applies the committed migrations as the server starts, with `prodMigrations` set to the `migrations` export of `src/migrations`, because the runtime stage holds the built server alone;
-- the origin is read at runtime from a variable `serverUrlVariables` names, which the gate sets in the running container, rather than set only in the stage that builds.
+- the origin is read at runtime from a variable `serverUrlVariables` names, which the gate sets in the running container, rather than set only in the stage that builds;
+- every answer under `/api` declares its caching, because Payload's REST handlers answer without `Cache-Control` and Next.js adds none to a route handler's answer, so `headers()` in `next.config` sends `Cache-Control: no-store` for `/api/:path*`; Next.js keeps that value over any a handler returns.
 
 ## Settings
 

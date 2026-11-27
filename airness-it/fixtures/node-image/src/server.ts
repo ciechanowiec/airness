@@ -1,5 +1,6 @@
 // Answers 200 while the database it is given holds its table, on the port and origin it is given, and 500 when the
-// database cannot answer, as a server whose schema is missing does.
+// database cannot answer, as a server whose schema is missing does. Every answer declares that nothing may store
+// it, as the image gate asks of every answer.
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { execute } from './database.ts'
 import { migrate } from './migrate.ts'
@@ -15,12 +16,12 @@ await migrate(databaseUrl)
 createServer((_request: IncomingMessage, response: ServerResponse): void => {
   execute(databaseUrl, 'SELECT count(*) FROM greeting').then(
     (): void => {
-      response.writeHead(200, { 'content-type': 'text/plain' })
+      response.writeHead(200, { 'content-type': 'text/plain', 'cache-control': 'no-store' })
       response.end(`greetings served on ${origin}\n`)
     },
     (error: unknown): void => {
       console.error(error instanceof Error ? error.message : String(error))
-      response.writeHead(500)
+      response.writeHead(500, { 'cache-control': 'no-store' })
       response.end()
     },
   )

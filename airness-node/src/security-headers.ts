@@ -1,5 +1,6 @@
 // The browser baseline shared by the security-header spec, the sweep's checks of individual HTML responses and a
-// project's own specifications. Its disclosure part also judges every answer the image gate gets from the image.
+// project's own specifications. Its disclosure part and the caching decisions of `caching-headers.ts`, which it
+// includes, also judge every answer the image gate gets from the image.
 //
 // Two of its requirements bind the production server alone, because each would harm a developer's machine or be
 // impossible there. A browser that receives Strict-Transport-Security over HTTPS remembers it for every port of
@@ -9,6 +10,7 @@
 // verification run serves the production build, or the declared `serve` script with NODE_ENV=production, so it
 // is where both are judged.
 import type { ServedBy } from './browser-server-policy.js'
+import { cachingProblems, type Exchange } from './caching-headers.js'
 
 const directive = (policy: string, name: string): string | undefined =>
   policy
@@ -132,6 +134,9 @@ const productionProblems = (headers: Readonly<Record<string, string>>): readonly
   ...cookieProblems(headers['set-cookie']),
 ]
 
+/** The request an answer was given to, which its caching decisions are judged against. */
+export type AnsweredRequest = Omit<Exchange, 'responseHeaders'>
+
 /**
  * Judge the established baseline; this does not attempt complete CSP validation.
  * @param headers the response headers, named in lower case, with every Set-Cookie line of the response under
@@ -139,11 +144,14 @@ const productionProblems = (headers: Readonly<Record<string, string>>): readonly
  *   them.
  * @param servedBy which server answered: the production server a verification run starts is held to HTTPS
  *   through Strict-Transport-Security and Secure cookies as well, a development server is not.
+ * @param request the request the response answered, whose method, status and headers decide what caching the
+ *   response owes.
  * @returns one problem per missing or defective decision, or nothing.
  */
 export const securityHeaderProblems = (
   headers: Readonly<Record<string, string>>,
   servedBy: ServedBy,
+  request: AnsweredRequest,
 ): readonly string[] => {
   const policy: string = headers['content-security-policy'] ?? ''
   return [
@@ -154,6 +162,7 @@ export const securityHeaderProblems = (
       : []),
     ...scriptProblems(policy),
     ...disclosureProblems(headers),
+    ...cachingProblems({ ...request, responseHeaders: headers }),
     ...(servedBy === 'production' ? productionProblems(headers) : []),
   ]
 }

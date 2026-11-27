@@ -1,13 +1,16 @@
 // Boots a project's image against the services its wrapper started, inside that wrapper: the image gate builds the
 // image, and this runs it as a container on the run's network, hands it the services and its own origin, and asks
 // it over HTTP until every probed path answers or the time a healthy start needs is over. The answers must not name
-// the software behind them, which is the first place the image itself, rather than a server a test starts, is asked.
+// the software behind them, and must declare caching no shared cache turns against a visitor, which is the first
+// place the image itself, rather than a server a test starts, is asked.
 //
 // The services are handed over in the variables the plan names, whose addresses point at ports Docker published on
 // the host's loopback. A container's loopback is its own, so each such address is rewritten to the service
 // container and its port, which the run's network resolves, the same way on Docker Desktop, Colima and Linux. The
 // container is named under the run's prefix, so the run's removal and its guard take it with the services however
 // the run ends; this removes it itself once the verdict is in.
+
+import { cachingProblems } from './caching-headers.js'
 import type { RunResult } from './exec.js'
 import { asRecord, isArray, parseJsonc } from './json-shapes.js'
 import { disclosureProblems } from './security-headers.js'
@@ -231,13 +234,21 @@ const awaitAnswers = async (runtime: BootRuntime, booting: Booting): Promise<Boo
     booting.probes.map(async (path: string): Promise<ProbeOutcome> => await runtime.probe(`${booting.origin}${path}`)),
   )
   if (outcomes.every((outcome: ProbeOutcome): boolean => isAnswered(outcome))) {
-    const disclosures: readonly string[] = booting.probes.flatMap((path: string, index: number): readonly string[] => {
+    const problems: readonly string[] = booting.probes.flatMap((path: string, index: number): readonly string[] => {
       const outcome: ProbeOutcome | undefined = outcomes[index]
       return outcome !== undefined && 'headers' in outcome
-        ? disclosureProblems(outcome.headers).map((problem: string): string => `GET ${path}: ${problem}`)
+        ? [
+            ...disclosureProblems(outcome.headers),
+            ...cachingProblems({
+              method: 'GET',
+              status: outcome.status,
+              requestHeaders: {},
+              responseHeaders: outcome.headers,
+            }),
+          ].map((problem: string): string => `GET ${path}: ${problem}`)
         : []
     })
-    return { ok: disclosures.length === 0, findings: disclosures }
+    return { ok: problems.length === 0, findings: problems }
   }
   if (runtime.now() >= booting.deadline) {
     const unanswered: readonly string[] = booting.probes.flatMap((path: string, index: number): readonly string[] => {
@@ -313,6 +324,21 @@ const problemOf = (error: unknown): string => {
 }
 
 /**
+ * The headers of an answer, named in lower case, with several lines of one header joined by commas and every
+ * Set-Cookie line kept, joined by line feeds as Playwright joins them: iterating `Headers` yields each cookie on
+ * its own, so collecting them into a record would keep the last alone.
+ * @param headers the answer's headers.
+ * @returns the headers as a record.
+ */
+const headerRecord = (headers: Headers): Readonly<Record<string, string>> => {
+  const cookies: readonly string[] = headers.getSetCookie()
+  return {
+    ...Object.fromEntries([...headers].filter(([name]: readonly [string, string]): boolean => name !== 'set-cookie')),
+    ...(cookies.length > 0 && { 'set-cookie': cookies.join('\n') }),
+  }
+}
+
+/**
  * Ask one URL, without following a redirect: a redirect is the application answering.
  * @param url the URL.
  * @returns its status and headers, or why no answer came within {@link PROBE_TIMEOUT_MS}.
@@ -321,7 +347,7 @@ export const probeOnce = async (url: string): Promise<ProbeOutcome> => {
   try {
     const response: Response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
     await response.arrayBuffer()
-    return { status: response.status, headers: Object.fromEntries(response.headers) }
+    return { status: response.status, headers: headerRecord(response.headers) }
   } catch (error: unknown) {
     return { problem: problemOf(error) }
   }

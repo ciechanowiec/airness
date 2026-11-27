@@ -24,7 +24,7 @@ import type { DeclaredRoute } from './route-map.js'
 import { clearCompletedScans } from './scan-evidence.js'
 import { engineOf } from './scanner.js'
 import { settleForScan } from './settle.js'
-import { type CrawledFragments, coversItsRoute, crawledFragments, headerFindings } from './sweep-answers.js'
+import { type AnswersSoFar, coversItsRoute, NO_ANSWERS, type PageAnswers, pageAnswers } from './sweep-answers.js'
 import { discoverNotFound, type NotFoundDiscovery } from './sweep-not-found.js'
 import {
   type Chosen,
@@ -184,14 +184,10 @@ const pageFactsInPage = (controls: string): PageFacts => {
   }
 }
 
-interface CrawlState extends QueuedCrawl {
+interface CrawlState extends QueuedCrawl, AnswersSoFar {
   readonly answered: ReadonlySet<string>
   /** The answered addresses that cover themselves, rather than only the page a temporary redirect showed. */
   readonly credited: ReadonlySet<string>
-  /** The fragment addresses already requested, so each is asked for once. */
-  readonly requestedFragments: ReadonlySet<string>
-  /** The paths of the fragments that rendered. */
-  readonly fragments: ReadonlySet<string>
   readonly reachable: readonly SweepLocation[]
   readonly findings: readonly BrowserFinding[]
   /** The route that proves the signed-in session, once the signed-in crawl found one. */
@@ -273,13 +269,17 @@ const crawlRoute = async (page: Page, next: CrawlState, queued: Queued): Promise
   const settled: CrawlState = await settledUnrequested(page, answered, queued.route, response.url())
   const facts: PageFacts = await page.evaluate(pageFactsInPage, CONTROLS)
   const location: SweepLocation = routeLocation(page.url(), facts, await pageStructure(page))
-  const fragments: CrawledFragments = await crawledFragments(page, settled, facts.fragments, queued.route)
+  const answers: PageAnswers = await pageAnswers(page, settled, {
+    response,
+    route: queued.route,
+    fragments: facts.fragments,
+  })
   return enqueue(
     {
       ...settled,
-      ...fragments,
+      ...answers,
       reachable: [...settled.reachable, location],
-      findings: [...settled.findings, ...fragments.findings, ...(await headerFindings(response, queued.route, page))],
+      findings: [...settled.findings, ...answers.findings],
     },
     [...facts.hrefs, ...alternateHrefs(facts.alternates)].flatMap((href: string): readonly string[] => {
       const address: string | undefined = localAddress(href, page.url(), facts.canonical, origin)
@@ -437,8 +437,7 @@ const crawlStart = (fromSitemap: readonly string[], earlier: readonly string[]):
       dropped: new Set<string>(),
       answered: new Set<string>(),
       credited: new Set<string>(),
-      requestedFragments: new Set<string>(),
-      fragments: new Set<string>(),
+      ...NO_ANSWERS,
       reachable: [],
       findings: [],
       earlier,
@@ -485,7 +484,7 @@ const discoveryOf = async (page: Page, finds: ScopedFinds, declared: readonly De
   }
 }
 
-const NO_NOT_FOUND: NotFoundDiscovery = { locations: [], problems: [] }
+const NO_NOT_FOUND: NotFoundDiscovery = { locations: [], problems: [], findings: [] }
 
 /** What one visitor's crawl found, before the scope narrows it. */
 interface VisitFinds {
@@ -512,6 +511,7 @@ const visitFinds = async (page: Page, visitor: Visitor, declared: readonly Decla
   const missing: NotFoundDiscovery = await discoverNotFound(
     page,
     reachable.map((location: SweepLocation): string => location.location),
+    crawled.judgedAnswers,
   )
   return { crawled, reachable, revisited: reachable, missing, stories: await storiesOf(page) }
 }
@@ -565,7 +565,7 @@ export const expectDiscoveredSite = async (page: Page): Promise<void> => {
     answeredRoutes: [...crawled.credited],
     fragmentRoutes: [...crawled.fragments],
     seededRoutes: seededRoutesOf(crawled.seeded),
-    findings: visitedAs(crawled.findings, visitor),
+    findings: visitedAs([...crawled.findings, ...missing.findings], visitor),
     problems: [
       ...missing.problems,
       ...problemsOf(crawled),

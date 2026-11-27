@@ -40,8 +40,11 @@ const ENVIRONMENT: Readonly<Record<string, string>> = {
 
 type Probe = Awaited<ReturnType<BootRuntime['probe']>>
 
-// An answer with the status, and with no header unless one is named.
-const status = (code: number, headers: Readonly<Record<string, string>> = {}): Probe => ({ status: code, headers })
+// An answer with the status, declaring that nothing may store it, and with the headers named.
+const status = (code: number, headers: Readonly<Record<string, string>> = {}): Probe => ({
+  status: code,
+  headers: { 'cache-control': 'no-store', ...headers },
+})
 
 /** One docker call the stand-in machine saw, with the variables it was started with. */
 interface DockerCall {
@@ -215,6 +218,32 @@ describe('a boot of the image', () => {
     expect(await bootImage(REQUEST, recorded.runtime)).toEqual({ ok: true, findings: [] })
   })
 
+  it('fails an answer that declares no caching, naming the path', async () => {
+    const recorded: Machine = machine({
+      answer: (path: string): Probe => (path === '/admin' ? { status: 200, headers: {} } : status(200)),
+    })
+    expect(await bootImage(REQUEST, recorded.runtime)).toEqual({
+      ok: false,
+      findings: [expect.stringMatching(/^GET \/admin: cache-control must be declared/u)],
+    })
+  })
+
+  it('fails an answer a shared cache may store although it sets a cookie', async () => {
+    const recorded: Machine = machine({
+      answer: (): Probe => status(200, { 'cache-control': 'public, max-age=60', 'set-cookie': 'session=abc' }),
+    })
+    const verdict: BootVerdict = await bootImage(REQUEST, recorded.runtime)
+    expect(verdict.ok).toBe(false)
+    expect(verdict.findings).toContainEqual(
+      expect.stringMatching(/^GET \/: cache-control is "public, max-age=60" on an answer that sets a cookie/u),
+    )
+  })
+
+  it('accepts a temporary redirect that declares no caching', async () => {
+    const recorded: Machine = machine({ answer: (): Probe => ({ status: 302, headers: { location: '/login' } }) })
+    expect(await bootImage(REQUEST, recorded.runtime)).toEqual({ ok: true, findings: [] })
+  })
+
   it('names a path that never answered at all', async () => {
     const recorded: Machine = machine({ answer: (): Probe => ({ problem: 'ECONNREFUSED' }) })
     const verdict: BootVerdict = await bootImage(REQUEST, recorded.runtime)
@@ -259,6 +288,13 @@ describe('one request to a served application', PROCESS_TIME, () => {
   const server: Server = createServer((request, response): void => {
     if (request.url === '/moved') {
       response.writeHead(302, { location: '/elsewhere', 'X-Powered-By': 'Express' })
+    } else if (request.url === '/session') {
+      response.writeHead(200, [
+        ['Set-Cookie', 'session=abc; Secure'],
+        ['Set-Cookie', 'theme=dark; Expires=Wed, 21 Oct 2099 07:28:00 GMT'],
+        ['Cache-Control', 'private'],
+        ['Cache-Control', 'max-age=60'],
+      ])
     } else {
       response.writeHead(request.url === '/broken' ? 500 : 200)
     }
@@ -289,6 +325,16 @@ describe('one request to a served application', PROCESS_TIME, () => {
     expect(await probeOnce(`${origin()}/moved`)).toMatchObject({
       status: 302,
       headers: { location: '/elsewhere', 'x-powered-by': 'Express' },
+    })
+  })
+
+  it('keeps every cookie and every line of a repeated header', async () => {
+    expect(await probeOnce(`${origin()}/session`)).toMatchObject({
+      status: 200,
+      headers: {
+        'set-cookie': 'session=abc; Secure\ntheme=dark; Expires=Wed, 21 Oct 2099 07:28:00 GMT',
+        'cache-control': 'private, max-age=60',
+      },
     })
   })
 

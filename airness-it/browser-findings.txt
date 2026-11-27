@@ -80,3 +80,5 @@ size-large has no effect: size-small on the same element sets font-size under th
 [filter-in-motion] /filter-in-motion @390x844 (chromium, rendering): div.pane.pane-veiled is drawn through a mask over content that moves
 [filter-in-motion] /filter-in-motion @390x844 (chromium, rendering): div.glow.glow-pulsing animates its own filter
 [layer-area] /layer-area @390x844 (chromium, rendering): composited layers cover
+[security-headers] /answer-caching (chromium, discovery): GET /answers/plain: cache-control must be declared
+[security-headers] /answer-caching (chromium, discovery): GET /answers/shared: cache-control is \"public, max-age=60\" on an answer to a request that carried authorization

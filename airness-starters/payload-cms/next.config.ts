@@ -16,6 +16,14 @@ const LAPTOP: number = 1280
 const DESKTOP: number = 1920
 const COVER_TWICE: number = 2304
 
+type HeaderRules = Awaited<ReturnType<NonNullable<NextConfig['headers']>>>
+
+// Next.js declares the caching of its pages and its build's files, but sends a route handler's answer as the handler
+// returns it, and Payload's REST handlers return theirs without Cache-Control: a CDN would then keep an answer that
+// belongs to one editor for its own default lifetime. Every answer under /api is kept out of every cache; Next.js
+// keeps this value over any a handler returns.
+const API_CACHING: HeaderRules = [{ source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'no-store' }] }]
+
 const nextConfig: NextConfig = {
   // `next dev` would otherwise write its agent rules into AGENTS.md, in typography the harness refuses;
   // AGENTS.md carries the same guidance in its project-owned part.
@@ -57,6 +65,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(dirname),
   },
+  headers: (): Promise<HeaderRules> => Promise.resolve(API_CACHING),
 }
 
 export default withPayload(nextConfig, { devBundleServerPackages: false })

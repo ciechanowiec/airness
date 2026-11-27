@@ -354,6 +354,17 @@ const requestFinding = (place: FindingPlace, request: Request, origins: readonly
 /** The most requests a page retains for `requests()`; a full log may have lost earlier ones. */
 const RETAINED_REQUESTS: number = 100
 
+/**
+ * Where a page's main frame last navigated among the requests it retained.
+ * @param page the page.
+ * @param requests what the page's `requests()` retained.
+ * @returns the index of that navigation request, or -1 when the log holds none.
+ */
+export const lastNavigationIndex = (page: Page, requests: readonly Request[]): number =>
+  requests.findLastIndex(
+    (request: Request): boolean => request.isNavigationRequest() && request.frame() === page.mainFrame(),
+  )
+
 /** What the browser reported while a page was at one place. */
 export interface HealthReading {
   readonly findings: readonly BrowserFinding[]
@@ -390,9 +401,7 @@ export const healthFindings = async (
     place.engine,
   )
   const requests: readonly Request[] = await page.requests()
-  const lastNavigation: number = requests.findLastIndex(
-    (request: Request): boolean => request.isNavigationRequest() && request.frame() === page.mainFrame(),
-  )
+  const lastNavigation: number = lastNavigationIndex(page, requests)
   await page.clearPageErrors()
   await page.clearConsoleMessages()
   return {

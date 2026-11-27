@@ -223,6 +223,27 @@ run_image_cases() {
     expect_no_gate_images 'image: the gate removes the image whose volume it wrote'
     restore_image_dockerfile 'an image that writes nothing again'
 
+    # Without Cache-Control a CDN in front of the image applies its own default lifetime, so the gate fails the image
+    # whose answers declare none, wherever it answers.
+    python3 - "${image_fixture}/src/server.ts" <<'PY_UNCACHED'
+import sys
+from pathlib import Path
+server = Path(sys.argv[1])
+source = server.read_text()
+declared = "{ 'content-type': 'text/plain', 'cache-control': 'no-store' }"
+if declared not in source:
+    sys.exit(f'the fixture server no longer answers with {declared!r}')
+server.write_text(source.replace(declared, "{ 'content-type': 'text/plain' }"))
+PY_UNCACHED
+    commit_image_fixture 'an image whose answer declares no caching'
+    run_maven image_uncached containers "${image_fixture}" -Pextended airness:node-gate@node-gate-image
+    expect_exit image_uncached 'image: an image whose answer declares no caching fails' 1
+    expect_match image_uncached 'image: the gate names the path whose answer declares no caching' \
+        'GET /: cache-control must be declared'
+    expect_no_gate_images 'image: the gate removes the image whose answer declares no caching'
+    git -C "${image_fixture}" checkout --quiet HEAD~1 -- src/server.ts
+    commit_image_fixture 'an image whose answers declare their caching again'
+
     python3 - "${image_fixture}/src/server.ts" <<'PY_UNMIGRATED'
 import sys
 from pathlib import Path

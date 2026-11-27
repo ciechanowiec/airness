@@ -8,6 +8,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import path from 'node:path'
+import { ANSWER_COMPONENTS, ANSWER_PAGES, writeAnswerRoutes } from '#browser/answer-pages'
 import { ARIA_COMPONENTS, ARIA_PAGES, ARIA_STYLES } from '#browser/aria-components'
 import { AXE_PAGES, AXE_STYLES, ORIENTATION_PAGE, ORIENTATION_ROUTE, ORIENTATION_STYLES } from '#browser/axe-pages'
 import { PINNED_PAGES, PINNED_STYLES, pinnedModule } from '#browser/focus-pages'
@@ -194,6 +195,7 @@ const PAGES: Readonly<Record<string, Variant>> = {
   },
   ...AXE_PAGES,
   ...ARIA_PAGES,
+  ...ANSWER_PAGES,
 }
 
 // Pages nothing links to, reached only through the sitemap or an alternate.
@@ -473,6 +475,7 @@ const COMPONENTS: readonly string[] = [
   ...Object.keys(INTERACTION_COMPONENTS),
   ...Object.keys(RENDER_COMPONENTS),
   ...Object.keys(ARIA_COMPONENTS),
+  ...Object.keys(ANSWER_COMPONENTS),
 ]
 
 // Each page imports only the client components it renders, as the compiler requires.
@@ -516,6 +519,7 @@ for (const [route, link] of Object.entries(PINNED_PAGES)) {
 writeModule(path.join(appRoot, ORIENTATION_ROUTE, 'page.tsx'), ORIENTATION_PAGE)
 writeModule(path.join(appRoot, ORIENTATION_ROUTE, 'orientation.css'), ORIENTATION_STYLES[mode])
 writeModule(path.join(appRoot, 'sitemap.xml', 'route.ts'), SITEMAP_ROUTE)
+writeAnswerRoutes(mode, appRoot, writeModule)
 writeModule(path.join(directory, 'src', 'complaint.tsx'), COMPLAINT)
 writeModule(path.join(directory, 'src', 'glide.tsx'), GLIDE)
 writeModule(path.join(directory, 'src', 'grow.tsx'), GROW)
@@ -525,6 +529,7 @@ const drivenComponents: readonly (readonly [string, string])[] = Object.entries(
   ...INTERACTION_COMPONENTS,
   ...RENDER_COMPONENTS,
   ...ARIA_COMPONENTS,
+  ...ANSWER_COMPONENTS,
 })
 for (const [name, source] of drivenComponents) {
   writeModule(path.join(directory, 'src', `${name.toLowerCase()}.tsx`), source)

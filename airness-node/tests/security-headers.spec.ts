@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { disclosureProblems, securityHeaderProblems } from '@/security-headers.js'
+import { type AnsweredRequest, disclosureProblems, securityHeaderProblems } from '@/security-headers.js'
+
+// A page fetched as the security-header spec fetches it.
+const GET: AnsweredRequest = { method: 'GET', status: 200, requestHeaders: {} }
 
 const baseline: Readonly<Record<string, string>> = {
+  'cache-control': 'private, no-cache',
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'strict-origin-when-cross-origin',
   'content-security-policy': "script-src 'self'; frame-ancestors 'none'",
@@ -15,11 +19,11 @@ const production: Readonly<Record<string, string>> = {
 }
 
 const productionProblemsWith = (headers: Readonly<Record<string, string>>): readonly string[] =>
-  securityHeaderProblems({ ...production, ...headers }, 'production')
+  securityHeaderProblems({ ...production, ...headers }, 'production', GET)
 
 describe('shared HTML header baseline', () => {
   it('accepts the baseline and the default-src fallback', () => {
-    expect(securityHeaderProblems(baseline, 'development')).toEqual([])
+    expect(securityHeaderProblems(baseline, 'development', GET)).toEqual([])
     expect(
       securityHeaderProblems(
         {
@@ -28,11 +32,12 @@ describe('shared HTML header baseline', () => {
           'x-frame-options': 'DENY',
         },
         'development',
+        GET,
       ),
     ).toEqual([])
   })
   it('reports missing decisions and refuses inline script', () => {
-    expect(securityHeaderProblems({}, 'development')).toHaveLength(5)
+    expect(securityHeaderProblems({}, 'development', GET)).toHaveLength(6)
     expect(
       securityHeaderProblems(
         {
@@ -40,18 +45,48 @@ describe('shared HTML header baseline', () => {
           'content-security-policy': "script-src 'unsafe-inline'; frame-ancestors 'none'",
         },
         'development',
+        GET,
       ),
     ).toEqual([expect.stringContaining('unsafe-inline')])
   })
   it('does not mistake a longer directive name for script-src', () => {
     expect(
-      securityHeaderProblems({ ...baseline, 'content-security-policy': "script-src-elem 'self'" }, 'development'),
+      securityHeaderProblems({ ...baseline, 'content-security-policy': "script-src-elem 'self'" }, 'development', GET),
     ).toContain('constrain script through script-src or default-src')
   })
   it('preserves the existing decision-only treatment of an empty source list', () => {
     expect(
-      securityHeaderProblems({ ...baseline, 'content-security-policy': 'script-src; frame-ancestors' }, 'development'),
+      securityHeaderProblems(
+        { ...baseline, 'content-security-policy': 'script-src; frame-ancestors' },
+        'development',
+        GET,
+      ),
     ).toEqual([])
+  })
+})
+
+describe('caching decisions in the baseline', () => {
+  it('reports a page that declares no caching, on any server', () => {
+    const { 'cache-control': _declared, ...undeclared } = baseline
+    expect(securityHeaderProblems(undeclared, 'development', GET)).toEqual([
+      expect.stringContaining('cache-control must be declared'),
+    ])
+    expect(productionProblemsWith({ 'cache-control': '' })).toEqual([
+      expect.stringContaining('cache-control must be declared'),
+    ])
+  })
+  it('reports a page a shared cache may store although it was asked with authorization', () => {
+    expect(
+      securityHeaderProblems({ ...baseline, 'cache-control': 'public, max-age=60' }, 'development', {
+        ...GET,
+        requestHeaders: { Authorization: 'Bearer token' },
+      }),
+    ).toEqual([expect.stringContaining('carried authorization')])
+  })
+  it('reports a page a shared cache may store although it sets a cookie', () => {
+    expect(productionProblemsWith({ 'cache-control': 's-maxage=600', 'set-cookie': 'session=abc; Secure' })).toEqual([
+      expect.stringContaining('sets a cookie'),
+    ])
   })
 })
 
@@ -72,7 +107,7 @@ describe('transport security of the production server', () => {
   })
   it('refuses a missing header', () => {
     const { 'strict-transport-security': _sent, ...without } = production
-    expect(securityHeaderProblems(without, 'production')).toEqual([
+    expect(securityHeaderProblems(without, 'production', GET)).toEqual([
       expect.stringContaining('strict-transport-security must be declared'),
     ])
   })
@@ -89,7 +124,7 @@ describe('transport security of the production server', () => {
     ])
   })
   it('demands nothing of a development server, which may answer on a developer machine', () => {
-    expect(securityHeaderProblems(baseline, 'development')).toEqual([])
+    expect(securityHeaderProblems(baseline, 'development', GET)).toEqual([])
   })
 })
 
@@ -117,7 +152,7 @@ describe('cookies the production server sets', () => {
     ])
   })
   it('leaves a development server to send its cookies over plain HTTP', () => {
-    expect(securityHeaderProblems({ ...baseline, 'set-cookie': 'session=def; Path=/' }, 'development')).toEqual([])
+    expect(securityHeaderProblems({ ...baseline, 'set-cookie': 'session=def; Path=/' }, 'development', GET)).toEqual([])
   })
 })
 
@@ -148,7 +183,7 @@ describe('headers that name the software behind a response', () => {
   )
   it('holds a development server to it as well as the production one', () => {
     const disclosing: Readonly<Record<string, string>> = { 'x-powered-by': 'Next.js' }
-    expect(securityHeaderProblems({ ...baseline, ...disclosing }, 'development')).toEqual([
+    expect(securityHeaderProblems({ ...baseline, ...disclosing }, 'development', GET)).toEqual([
       expect.stringContaining('x-powered-by is "Next.js"'),
     ])
     expect(productionProblemsWith(disclosing)).toEqual([expect.stringContaining('x-powered-by is "Next.js"')])
