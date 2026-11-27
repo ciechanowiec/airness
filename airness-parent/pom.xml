@@ -237,6 +237,22 @@
                         </goals>
                     </execution>
                     <!--
+                        Every action the repository's workflows and composite actions use declares a Node runtime
+                        GitHub still supports, read from the action's metadata at the ref it is pinned to. In
+                        Default verification beside the version check, which reads its registries the same way and
+                        fails when one cannot be read, and at package, where Default verification is online. The
+                        metadata of a commit is kept under the local Maven repository, so a build reads GitHub
+                        only for a commit it has not read before. No requiresOnline in the descriptor, because
+                        Maven would then skip the goal under -o rather than fail it.
+                    -->
+                    <execution>
+                        <id>airness-action-runtimes</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>action-runtimes</goal>
+                        </goals>
+                    </execution>
+                    <!--
                         The linter's exclusions listed again, in the phase of the check that reads them and before
                         it, because what git ignores grows as the build runs: a step after validate that writes an
                         ignored file outside the build directory, as a compiled package does, leaves it off the list

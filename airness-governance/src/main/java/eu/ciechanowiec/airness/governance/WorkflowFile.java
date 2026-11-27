@@ -9,8 +9,8 @@ import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
 /**
- * Reads what a GitHub Actions workflow names that the blocklist judges: the images of its service
- * containers, job containers, and Docker actions, and the JDK distribution a setup step installs.
+ * Reads what a GitHub Actions workflow names that a rule judges: the images of its service containers, job
+ * containers, and Docker actions, the JDK distribution a setup step installs, and every action a step uses.
  *
  * <p>A line reader, since each is one key and the value beside it. A job container written as a
  * mapping names its image on an {@code image} line of its own, which the same pattern reads. A value
@@ -22,6 +22,11 @@ final class WorkflowFile {
     private static final Pattern IMAGE = Pattern.compile("^[ \\t]*(?:-[ \\t]*)?image:[ \\t]*(?<value>[^\\s#].*)$");
     private static final Pattern CONTAINER = Pattern.compile("^[ \\t]*container:[ \\t]*(?<value>[^\\s#].*)$");
     private static final Pattern DOCKER_ACTION = Pattern.compile("uses:[ \\t]*['\"]?docker://(?<value>[^'\"]+)");
+    private static final Pattern USES = Pattern.compile("^[ \\t]*(?:-[ \\t]*)?uses:[ \\t]*(?<value>[^\\s#].*)$");
+    // A step written as a flow mapping, as in "- { uses: owner/repo@ref, with: ... }", ends its value at a comma.
+    private static final Pattern FLOW_USES = Pattern.compile(
+        "[{,][ \\t]*uses:[ \\t]*(?<value>\"[^\"]*\"|'[^']*'|[^\\s,}#]+)"
+    );
     private static final Pattern DISTRIBUTION = Pattern.compile("^[ \\t]*distribution:[ \\t]*(?<value>[^\\s#].*)$");
     private static final Pattern COMMENTED = Pattern.compile("\\s#.*$");
     private static final String COMMENT = "#";
@@ -44,6 +49,17 @@ final class WorkflowFile {
      */
     static List<Located<String>> distributions(String yaml) {
         return values(yaml, DISTRIBUTION);
+    }
+
+    /**
+     * Every action, local action, Docker action and reusable workflow the steps or jobs of a workflow or a
+     * composite action use, as written.
+     *
+     * @param yaml the workflow or the action metadata
+     * @return the values of the {@code uses} keys with their lines, in file order, quotation marks removed
+     */
+    static List<Located<String>> actions(String yaml) {
+        return values(yaml, USES, FLOW_USES);
     }
 
     private static List<Located<String>> values(String yaml, Pattern... patterns) {

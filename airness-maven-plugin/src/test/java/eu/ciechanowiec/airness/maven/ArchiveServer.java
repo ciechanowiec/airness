@@ -41,6 +41,7 @@ final class ArchiveServer implements AutoCloseable {
     private final Map<String, Integer> statuses;
     private final List<Runnable> beforeAnswer;
     private final List<String> bodies;
+    private final List<Optional<String>> credentials;
 
     @SneakyThrows
     ArchiveServer() {
@@ -50,6 +51,7 @@ final class ArchiveServer implements AutoCloseable {
         this.statuses = new ConcurrentHashMap<>();
         this.beforeAnswer = new CopyOnWriteArrayList<>();
         this.bodies = new CopyOnWriteArrayList<>();
+        this.credentials = new CopyOnWriteArrayList<>();
         this.server.createContext("/", this::answer);
         this.server.start();
     }
@@ -82,6 +84,11 @@ final class ArchiveServer implements AutoCloseable {
         return List.copyOf(this.bodies);
     }
 
+    // The Authorization header of every request answered so far, empty for a request that carried none.
+    List<Optional<String>> credentials() {
+        return List.copyOf(this.credentials);
+    }
+
     @Override
     public void close() {
         this.server.stop(0);
@@ -110,6 +117,7 @@ final class ArchiveServer implements AutoCloseable {
     private void answer(HttpExchange exchange) throws IOException {
         this.requests.incrementAndGet();
         this.bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        this.credentials.add(Optional.ofNullable(exchange.getRequestHeaders().getFirst("Authorization")));
         this.beforeAnswer.forEach(Runnable::run);
         Optional<byte[]> body = Optional.ofNullable(this.archives.get(exchange.getRequestURI().getPath()));
         if (body.isEmpty()) {

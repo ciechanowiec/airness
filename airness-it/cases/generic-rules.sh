@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
-# The generic repository rules: image integrity, environment coherence, hosted runner images, agent
-# documentation references, skill manifests, Markdown documents, generated-file denial, compose isolation,
+# The generic repository rules: image integrity, environment coherence, hosted runner images, action runtimes,
+# agent documentation references, skill manifests, Markdown documents, generated-file denial, compose isolation,
 # container hardening, container definitions and workflows.
 # Their variants are unit-tested in airness-governance and airness-maven-plugin. These runs prove each goal
 # is bound in the installed parent: one report-only run up to the Extended scanners carries a planted defect
@@ -91,4 +91,28 @@ YAML
     expect_exit generic_enforced 'generic rules: the findings fail an enforcing Default build' 1
     expect_match generic_enforced 'generic rules: the first ported rule stops the enforcing build' \
         'image-assets [(]airness-governance-sources[)]'
+
+    # Action runtimes are bound at package, after the batch above stops, so a consumer of their own carries the
+    # defect: checkout v4.2.2 declares node20 at its pinned commit, read from GitHub, and v7.0.1 declares node24.
+    new_consumer action-runtimes
+    action_runtimes="${consumer_directory}"
+    mkdir -p "${action_runtimes}/.github/workflows"
+    cat > "${action_runtimes}/.github/workflows/ci.yml" <<'YAML'
+name: 'Build'
+on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+YAML
+    run_maven action_runtimes scanners "${action_runtimes}" clean package
+    expect_exit action_runtimes 'generic rules: an action on a deprecated Node runtime fails a Default build' 1
+    expect_match action_runtimes 'generic rules: action runtimes name the pinned action and the runtime it declares' \
+        '[.]github/workflows/ci[.]yml:9: actions/checkout@11bd7190[0-9a-f]+ - declares node20, .*node24 or later'
+    expect_no_match action_runtimes 'generic rules: an action declaring node24 passes' \
+        'ci[.]yml:10: actions/checkout@3d3c42e5'
 }
