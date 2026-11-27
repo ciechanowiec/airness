@@ -27,7 +27,7 @@ class RootMetadataPresenceTest {
                 "<scm/developerConnection> is not declared", "<scm/url> is not declared", "<url> is not declared"
             ),
             Verdicts.offences(
-                RootMetadataFixtures.findings(bare, RootMetadataFixtures.AIRNESS, Optional.empty()),
+                RootMetadataFixtures.judged(bare, RootMetadataFixtures.AIRNESS, Optional.empty()),
                 MISSING
             )
         );
@@ -39,7 +39,7 @@ class RootMetadataPresenceTest {
         assertEquals(
             List.of("<scm/developerConnection> is not declared"),
             Verdicts.offences(
-                RootMetadataFixtures.findings(declared, RootMetadataFixtures.clean(), Optional.empty()),
+                RootMetadataFixtures.judged(declared, RootMetadataFixtures.clean(), Optional.empty()),
                 MISSING
             )
         );
@@ -60,7 +60,7 @@ class RootMetadataPresenceTest {
         assertEquals(
             List.of(),
             Verdicts.offences(
-                RootMetadataFixtures.findings(declared, effective, Optional.empty()), "https address"
+                RootMetadataFixtures.judged(declared, effective, Optional.empty()), "https address"
             )
         );
     }

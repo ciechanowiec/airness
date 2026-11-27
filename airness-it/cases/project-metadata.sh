@@ -31,9 +31,10 @@ run_project_metadata_cases() {
 run_root_metadata_case() {
     new_consumer "$1"
     perl -0pi -e "$3" "${consumer_directory}/pom.xml"
-    run_maven "$(printf '%s' "$1" | tr '-' '_')" analysis "${consumer_directory}" validate
-    expect_exit "$(printf '%s' "$1" | tr '-' '_')" "$2" 1
-    expect_match "$(printf '%s' "$1" | tr '-' '_')" "$2, naming the value" "$4"
+    metadata_execution="$(printf '%s' "$1" | tr '-' '_')"
+    run_maven "${metadata_execution}" analysis "${consumer_directory}" validate
+    expect_exit "${metadata_execution}" "$2" 1
+    expect_match "${metadata_execution}" "$2, naming the value" "$4"
 }
 
 # A module that inherits an Airness parent directly never passes through the root, so its metadata would come

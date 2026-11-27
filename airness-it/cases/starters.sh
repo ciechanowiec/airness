@@ -89,8 +89,9 @@ run_starter_cases() {
         'All coverage checks have been met'
     expect_match starter_verify_spring_boot 'starters: Qodana finds no problem in the application' \
         'Analysis results: 0 problem detected'
+    starter_year="$(date +%Y)"
     expect_file_match "${starter_application}/pom.xml" 'starters: the application begins in the year it is made' \
-        "<inceptionYear>$(date +%Y)</inceptionYear>"
+        "<inceptionYear>${starter_year}</inceptionYear>"
     expect_file_match "${starter_application}/pom.xml" 'starters: the source control names the repository given' \
         '<connection>scm:git:https://git[.]example[.]invalid/task-tracker[.]git</connection>'
     expect_file_match "${starter_application}/pom.xml" 'starters: the application is proprietary by default' \

@@ -172,6 +172,25 @@ class ReportMavenInputsTest {
     }
 
     @Test
+    @SneakyThrows
+    void leavesTheProjectsOwnArtifactsOutAsTheLicenseCheckDoes() {
+        MavenProject project = this.project();
+        Artifact sibling = new DefaultArtifact(
+            "org.sample", "api", "1.0", "compile", ARCHIVE_TYPE, "", new DefaultArtifactHandler(ARCHIVE_TYPE)
+        );
+        Artifact library = artifact();
+        library.setScope("compile");
+        library.setFile(Files.writeString(this.directory.resolve("dependency.pom"), "<project/>").toFile());
+        project.setResolvedArtifacts(Set.of(sibling, library));
+        assertEquals(
+            List.of("example:library:jar:1.0"),
+            MavenReportArtifacts.dependencies(project, Map.of("example:library:1.0", List.of("MIT"))).stream()
+                .map(ReportPackage::coordinate)
+                .toList()
+        );
+    }
+
+    @Test
     void readsTheActualInheritedAllowlistAndMerges() {
         MavenProject project = this.project();
         ReportLicensePolicy policy = MavenReportPolicy.from(project);
@@ -283,7 +302,7 @@ class ReportMavenInputsTest {
 
     private MavenProject project() {
         MavenProject project = InputProjects.project(this.directory);
-        project.setGroupId("example");
+        project.setGroupId("org.sample");
         project.setVersion("1.0");
         Plugin plugin = InputProjects.plugin(
             project, "license-maven-plugin", """

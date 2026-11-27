@@ -44,7 +44,12 @@ record MavenReportArtifacts(ProjectBuilder builder, ProjectBuildingRequest reque
         if (!absent.isEmpty()) {
             throw new IllegalStateException("Resolved model omitted licensed dependencies: " + absent);
         }
-        return artifacts.stream().map(artifact -> dependency(project, artifact, licenses)).toList();
+        // The project's own artifacts are not third-party, so the license check leaves its group out of the
+        // inventory, and the report leaves them out alike: a sibling module states the root pom's license.
+        return artifacts.stream()
+            .filter(artifact -> !artifact.getGroupId().equals(project.getGroupId()))
+            .map(artifact -> dependency(project, artifact, licenses))
+            .toList();
     }
 
     @Justification(

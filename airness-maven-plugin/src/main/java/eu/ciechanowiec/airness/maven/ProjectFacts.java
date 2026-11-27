@@ -131,7 +131,9 @@ final class ProjectFacts {
     }
 
     private static Stream<MavenProject> lineage(@Nullable MavenProject start) {
-        return Stream.iterate(start, Objects::nonNull, MavenProject::getParent);
+        return Stream.iterate(
+            Optional.ofNullable(start), Optional::isPresent, current -> current.map(MavenProject::getParent)
+        ).map(Optional::orElseThrow);
     }
 
     private static String text(@Nullable String value) {

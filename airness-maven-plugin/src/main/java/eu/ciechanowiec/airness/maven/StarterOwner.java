@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 record StarterOwner(String organization, String url, String license, Year inceptionYear) {
 
     // An https address without a trailing slash or .git, and without what would need escaping in a pom.
-    private static final Pattern URL = Pattern.compile("https://[^\\s<>\"'&]+(?<![/])(?<!\\.git)");
+    private static final Pattern URL = Pattern.compile("https://[^\\s<>\"'&]+(?<!/)(?<!\\.git)");
     private static final String GIT = "scm:git:";
 
     /**

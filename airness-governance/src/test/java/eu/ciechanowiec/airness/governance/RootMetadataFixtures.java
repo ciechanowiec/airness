@@ -72,14 +72,14 @@ final class RootMetadataFixtures {
         );
     }
 
-    static List<Findings> findings(ProjectMetadata declared, ProjectMetadata effective, Optional<Year> firstCommit) {
+    static List<Findings> judged(ProjectMetadata declared, ProjectMetadata effective, Optional<Year> firstCommit) {
         return new RootMetadataCheck(
             declared, effective, new MetadataBounds(LICENSES, CURRENT, firstCommit, List.of(AIRNESS))
         ).findings();
     }
 
     static List<Findings> findings(ProjectMetadata metadata) {
-        return findings(metadata, metadata, Optional.of(FIRST_COMMIT));
+        return judged(metadata, metadata, Optional.of(FIRST_COMMIT));
     }
 
     private static List<String> list(String values) {

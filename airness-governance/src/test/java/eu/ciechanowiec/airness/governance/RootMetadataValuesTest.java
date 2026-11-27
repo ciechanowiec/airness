@@ -37,7 +37,7 @@ class RootMetadataValuesTest {
             List.of(
                 "GPL-2.0 is no current identifier of SPDX license list 3.29.0; name one, or LicenseRef-Proprietary"
             ),
-            Verdicts.offences(RootMetadataFixtures.findings(declared, effective, Optional.empty()), LICENSES)
+            Verdicts.offences(RootMetadataFixtures.judged(declared, effective, Optional.empty()), LICENSES)
         );
     }
 
@@ -122,12 +122,12 @@ class RootMetadataValuesTest {
         ProjectMetadata late = RootMetadataFixtures.with(INCEPTION, "2026");
         assertEquals(List.of(), Verdicts.offences(RootMetadataFixtures.findings(early), INCEPTION));
         assertEquals(
-            List.of(), Verdicts.offences(RootMetadataFixtures.findings(late, late, Optional.empty()), INCEPTION)
+            List.of(), Verdicts.offences(RootMetadataFixtures.judged(late, late, Optional.empty()), INCEPTION)
         );
         assertEquals(
             List.of("inceptionYear 2026 is after the repository's first commit, made in 2025"),
             Verdicts.offences(
-                RootMetadataFixtures.findings(late, late, Optional.of(RootMetadataFixtures.FIRST_COMMIT)), INCEPTION
+                RootMetadataFixtures.judged(late, late, Optional.of(RootMetadataFixtures.FIRST_COMMIT)), INCEPTION
             )
         );
     }

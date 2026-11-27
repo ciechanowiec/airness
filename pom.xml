@@ -763,8 +763,8 @@
                             The project's own artifacts are not third-party. A sibling module, or a library
                             the owner publishes under the same group, carries the license the project's root
                             pom states, which may be LicenseRef-Proprietary: the project's to state, not this
-                            allowlist's to admit. A project cannot widen this, since license.excludedGroups is
-                            the harness's.
+                            allowlist's to admit, and the compliance report leaves them out alike. A project
+                            cannot widen this, since license.excludedGroups is the harness's.
                         -->
                         <excludedGroups>${project.groupId}</excludedGroups>
                         <includedLicenses>

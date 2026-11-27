@@ -269,9 +269,9 @@ JAVA
         'Draw[.]java:.*AirnessJdkApiHasAModernForm'
 
     # The execution-model checks admit no suppression, so a justified one changes nothing.
-    rm "${modernization_compiler}/src/main/java/com/example/Draw.java"
-    cat > "${modernization_compiler}/src/main/java/com/example/Pool.java" <<'JAVA'
-package com.example;
+    rm "${modernization_compiler}/src/main/java/org/sample/Draw.java"
+    cat > "${modernization_compiler}/src/main/java/org/sample/Pool.java" <<'JAVA'
+package org.sample;
 
 import eu.ciechanowiec.airness.Justification;
 import java.util.concurrent.ExecutorService;
