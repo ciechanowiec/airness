@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 class MavenModelReactiveTest {
@@ -50,7 +49,7 @@ class MavenModelReactiveTest {
         );
         assertAll(
             refused.stream()
-                .map(row -> (Executable) () -> this.assertRefused(row.getFirst(), row.get(1), row.getLast()))
+                .map(row -> () -> this.assertRefused(row.getFirst(), row.get(1), row.getLast()))
         );
     }
 
