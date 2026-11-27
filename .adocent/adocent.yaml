@@ -17,6 +17,8 @@ document:
     :sourcedir: {docdir}
     :stylesdir: https://www.ciechanowiec.eu/linux_mantra/
     :stylesheet: adoc-css-style.css
+    :source-highlighter: rouge
+    :rouge-css: style
     :!table-caption:
     :!figure-caption:
     :!example-caption:

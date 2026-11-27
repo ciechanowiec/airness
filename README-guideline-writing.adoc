@@ -15,6 +15,8 @@
 :sourcedir: {docdir}
 :stylesdir: https://www.ciechanowiec.eu/linux_mantra/
 :stylesheet: adoc-css-style.css
+:source-highlighter: rouge
+:rouge-css: style
 :!table-caption:
 :!figure-caption:
 :!example-caption:
@@ -613,7 +615,7 @@ The document presents its subject as a coherent whole, with related material gro
 . [[no-restatement]]Within the xref:#topic-place[place], each statement is made once. A later sentence doesn't reword it, and the paragraph doesn't end by summarizing it.
 . [[outside-place-rule]]A statement about a topic can appear outside the topic's xref:#topic-place[place] only in two cases.
 .. The xref:#abstract-content[abstract] repeats the statements it summarizes.
-.. Another passage repeats a statement when the passage can't be understood or acted on without that statement. Such a passage repeats only the statements it needs and carries a xref:#cross-reference[cross-reference] to each of them in the xref:#topic-place[place] of its topic.
+.. A passage other than the xref:#abstract-content[abstract] repeats a statement when the passage can't be understood or acted on without that statement. Such a passage repeats only the statements it needs and carries a xref:#cross-reference[cross-reference] to each of them in the xref:#topic-place[place] of its topic.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1437,6 +1439,7 @@ Attach the receipts, sign the form, and keep a copy. Send the original to the of
 ====
 The tenant pays a rental deposit and monthly rent.
 
+// adocent-disable-next-line Prose.ReferenceOpening
 This amount is returned when the agreement ends.
 
 (The supplied agreement identifies the rental deposit as the amount returned.)
@@ -1939,7 +1942,7 @@ Authorization: Bearer eyJhbGciOi...
 ----
 // adocent-enable Markup.SourceSyntax
 
-This request omits a complete credential and HTTP body framing. It's incomplete and can't be replayed as shown.
+The request above omits a complete credential and HTTP body framing. It's incomplete and can't be replayed as shown.
 
 The response below illustrates response syntax only. It doesn't establish that the incomplete request succeeds.
 
