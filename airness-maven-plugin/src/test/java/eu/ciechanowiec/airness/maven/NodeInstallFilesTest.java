@@ -41,7 +41,8 @@ class NodeInstallFilesTest {
     @CsvSource(
         delimiter = '|',
         value = {"strict-ssl=false|false", "strict-ssl = false|false", "strict-ssl=\"false\"|false",
-            "strict-ssl='FALSE'|FALSE"}
+            "strict-ssl='FALSE'|FALSE", "strict-ssl=false ; trusted proxy|false", "strict-ssl=false#note|false",
+            "strict-ssl=0|0", "strict-ssl=no|no"}
     )
     void refusesAnNpmrcThatTurnsTheCertificateCheckOffInEverySpelling(String line, String value) {
         assertEquals(List.of(NPMRC + ": strict-ssl " + value + CERTIFICATE), this.offences(NPMRC, line + "\n"));
@@ -67,7 +68,8 @@ class NodeInstallFilesTest {
         strings = {
             "registry=https://registry.npmjs.org/", "registry=http://localhost:4873/", "registry=http://127.0.0.1:4873",
             "@airness:registry=http://[::1]:4873/", "strict-ssl=true", "# strict-ssl=false", "; registry=http://x/",
-            "always-auth", "proxy=http://proxy.example.invalid:3128/"
+            "always-auth", "proxy=http://proxy.example.invalid:3128/", "strict-ssl=TRUE", "strict-ssl=true # checked",
+            "registry=http://localhost:4873 ; the harness registry"
         }
     )
     void acceptsVerifiedHttpsALoopbackRegistryCommentsAndOtherSettings(String line) {

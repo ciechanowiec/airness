@@ -23,7 +23,8 @@ import java.util.stream.Stream;
  * versions no gate judged. A project's {@code .npmrc} or {@code pnpm-workspace.yaml} that turns the certificate
  * check off, or names a registry over plain http, lets anybody on the network path hand pnpm another package the
  * first time it resolves one. A registry on the loopback address never leaves the machine, as the one that serves
- * a harness SNAPSHOT does, so plain http is admitted there.
+ * a harness SNAPSHOT does, so plain http is admitted there. The certificate check passes only when it reads
+ * {@code true}, so no other spelling, such as {@code 0} or a value followed by an inline comment, passes for it.
  */
 final class NodeInstallFiles {
 
@@ -38,6 +39,7 @@ final class NodeInstallFiles {
         "(?i)http://(localhost|127(\\.\\d{1,3}){3}|\\[::1])(:\\d+)?(/.*)?"
     );
     private static final Pattern QUOTED = Pattern.compile("([\"'])(.*)\\1");
+    private static final Pattern INLINE_COMMENT = Pattern.compile("[;#].*");
 
     private final Path module;
     private final Collection<Path> files;
@@ -100,14 +102,15 @@ final class NodeInstallFiles {
         String value = setting.getValue();
         if (CERTIFICATE_CHECKS.contains(key)) {
             return Optional.of(key + " " + value + " turns the registry's certificate check off")
-                .filter(_ -> "false".equalsIgnoreCase(value));
+                .filter(_ -> !Boolean.parseBoolean(value));
         }
         boolean registry = NpmRegistries.REGISTRY.equals(key) || key.endsWith(":" + NpmRegistries.REGISTRY);
         return Optional.of(key + " " + value + " is reached over plain http")
             .filter(_ -> registry && PLAIN.matcher(value).matches() && !LOOPBACK.matcher(value).matches());
     }
 
-    // An .npmrc is an ini file: a line starting with a hash or a semicolon is a comment, and a value may be quoted.
+    // An .npmrc is an ini file: a line starting with a hash or a semicolon is a comment, a value may be quoted, and
+    // an unquoted value ends where a hash or a semicolon starts an inline comment, as npm's ini parser reads it.
     private static Stream<Map.Entry<String, String>> npmrc(Path file) {
         try {
             return Files.readAllLines(file).stream()
@@ -126,7 +129,7 @@ final class NodeInstallFiles {
 
     private static String unquoted(String value) {
         Matcher quoted = QUOTED.matcher(value);
-        return quoted.matches() ? quoted.group(2) : value;
+        return quoted.matches() ? quoted.group(2) : INLINE_COMMENT.matcher(value).replaceFirst("").strip();
     }
 
     private String named(Path file) {
