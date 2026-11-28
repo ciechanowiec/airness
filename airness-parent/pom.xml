@@ -777,7 +777,7 @@
                             <execution>
                                 <!--
                                     Before anything else in this profile. A truncated clone disarms the
-                                    three history goals below at once, and disarms them quietly: the
+                                    four history goals below at once, and disarms them quietly: the
                                     commits that were never fetched pass by not existing.
                                 -->
                                 <id>airness-history-preflight</id>
@@ -804,6 +804,7 @@
                                 <phase>package</phase>
                                 <goals>
                                     <goal>commit-history</goal>
+                                    <goal>commit-identity</goal>
                                     <goal>commit-typography</goal>
                                     <goal>linear-history</goal>
                                     <goal>scan-secrets</goal>

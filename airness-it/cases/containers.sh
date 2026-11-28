@@ -364,7 +364,7 @@ run_extended_consumer() {
         clean verify -Pextended -Dairness.enforce=false
     expect_exit extended_profile 'extended: a consumer completes the installed Extended profile in report-only mode' 0
     expect_count extended_profile 'extended: every repository governance goal is reached' \
-        'airness:[^ ]+:(commit-history|commit-typography|linear-history|scan-secrets) \(airness-governance-extended\)' 4
+        'airness:[^ ]+:(commit-history|commit-identity|commit-typography|linear-history|scan-secrets) \(airness-governance-extended\)' 5
     expect_match extended_profile 'extended: the real secret scanner runs in the profile' \
         'commits scanned|no leaks found'
     expect_match extended_profile 'extended: the real Qodana inspection runs in the profile' \

@@ -501,6 +501,15 @@ run_git_boundaries() {
     expect_exit git_complete 'history: a later good commit cannot hide an earlier bad one' 1
     expect_match git_complete 'history: complete-history evidence names the bad header' \
         'Commit messages that break the policy|wip'
+
+    new_consumer git-identity
+    git_identity="${consumer_directory}"
+    git -C "${git_identity}" -c 'user.name=Fixture, Second' -c user.email=fixture@example.invalid \
+        commit --quiet --allow-empty --message 'test(core): record a commit under a second name'
+    run_maven git_identity repository "${git_identity}" airness:commit-identity
+    expect_exit git_identity 'history: one email recorded under two names fails' 1
+    expect_match git_identity 'history: the email and both of its names are reported' \
+        '<fixture@example.invalid> is recorded under 2 names'
 }
 
 check_published_assets() {

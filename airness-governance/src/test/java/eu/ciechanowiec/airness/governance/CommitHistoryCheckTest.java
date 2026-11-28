@@ -43,6 +43,28 @@ class CommitHistoryCheckTest {
     }
 
     @Test
+    void reportsTheWritingRulesOfAStoredCrlfBody() {
+        GitFixture fixture = new GitFixture("history-crlf").write(FILE, "First.\n").stage();
+        fixture.git(
+            "commit", "--quiet", "--no-verify", "--cleanup=verbatim", "--message",
+            "feat(core): add the first fixture file\n\nThe file is read\r\nat start; it stays.\r\n"
+        );
+        List<String> offences = Verdicts.offences(
+            new CommitHistoryCheck(fixture.root()).findings(), "break the policy"
+        );
+        String head = GitPlumbing.run(fixture.root(), List.of("rev-parse", "HEAD")).strip();
+        assertEquals(
+            List.of(
+                head + ": A semicolon outside a code span, where two sentences or a connecting word belong: "
+                    + "at start; it stays.",
+                head + ": A body paragraph runs onto a second source line, so join it into one: at start; it stays."
+            ),
+            offences,
+            "the history check applies the writing rules to the message git stored, carriage returns and all"
+        );
+    }
+
+    @Test
     void readsAMergeCommitLikeEveryOtherCommit() {
         Path root = new GitFixture("history-merge")
             .write(FILE, "Base.\n").commit("feat(core): add the base fixture file")

@@ -2,10 +2,12 @@ package eu.ciechanowiec.airness.governance;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Every commit reachable from the history, back to and including the first commit, satisfies the
- * commit-message policy that {@link CommitMessageRules} states.
+ * commit-message policy that {@link CommitMessageRules} states and the writing rules that
+ * {@link CommitProseRules} states.
  *
  * <p>This walks the whole history, so it belongs to the slow verification profile, and it is worth
  * nothing over a shallow clone: the commits that were never fetched pass by not existing. The caller
@@ -49,8 +51,9 @@ public final class CommitHistoryCheck {
     }
 
     private static List<String> annotate(Commit commit) {
-        return CommitMessageRules.validate(commit.message(), commit.stat()).stream()
-            .map(violation -> commit.sha() + ": " + violation)
-            .toList();
+        return Stream.concat(
+            CommitMessageRules.validate(commit.message(), commit.stat()).stream(),
+            CommitProseRules.validate(commit.message()).stream()
+        ).map(violation -> commit.sha() + ": " + violation).toList();
     }
 }
